@@ -17,18 +17,17 @@
  * under the License.
  */
 
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
-import { HttpClient } from "@angular/common/http";
 import { NzButtonModule } from "ng-zorro-antd/button";
-import { firstValueFrom } from "rxjs";
-import { AppSettings } from "../../../common/app-setting";
 
-interface HuggingFaceAudioUploadResponse {
-  path: string;
-  fileName: string;
-}
+// Cap the raw audio size before it is inlined as a base64 data URL into the
+// workflow JSON. Mirrors the image-upload component's data-URL approach so the
+// value the operator stores is directly consumable by the generated Python
+// (`_read_audio_input` decodes `data:` URLs); avoids a server-side temp file
+// the Python worker cannot read in distributed deployments.
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 @Component({
   selector: "texera-hugging-face-audio-upload",
@@ -36,52 +35,26 @@ interface HuggingFaceAudioUploadResponse {
   styleUrls: ["./hugging-face-audio-upload.component.scss"],
   imports: [CommonModule, NzButtonModule],
 })
-export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
+export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> {
   fileName = "";
   errorMessage = "";
-  isUploading = false;
-  private localPreviewUrl = "";
 
-  ngOnInit(): void {
+  get hasAudio(): boolean {
     const value = this.formControl.value;
-    if (typeof value === "string" && value.trim().length > 0) {
-      this.fileName = this.getDisplayName(value);
-      // If the saved value is a server path, fetch the audio via HttpClient
-      // (which carries the JWT) and create a blob URL for the <audio> element.
-      if (!value.startsWith("data:audio/")) {
-        this.loadServerAudioPreview(value);
-      }
-    }
-  }
-
-  constructor(private http: HttpClient) {
-    super();
+    return typeof value === "string" && value.startsWith("data:audio/");
   }
 
   get previewSrc(): string {
-    if (this.localPreviewUrl) {
-      return this.localPreviewUrl;
-    }
-    const value = this.formControl.value;
-    if (typeof value !== "string" || value.trim().length === 0) {
-      return "";
-    }
-    if (value.startsWith("data:audio/")) {
-      return value;
-    }
-    // Server path — blob URL is created asynchronously via loadServerAudioPreview.
-    // Return empty until it's ready; the <audio> element is hidden when previewSrc is empty.
+    return this.hasAudio ? this.formControl.value : "";
+  }
+
+  get displayFileName(): string {
+    if (this.fileName) return this.fileName;
+    if (this.hasAudio) return "Selected audio";
     return "";
   }
 
-  ngOnDestroy(): void {
-    this.revokePreviewUrl();
-  }
-
   async onFileSelected(event: Event): Promise<void> {
-    if (this.isUploading) {
-      return;
-    }
     this.errorMessage = "";
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -94,51 +67,34 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       input.value = "";
       return;
     }
-    this.revokePreviewUrl();
-    const previewUrl = URL.createObjectURL(file);
-    this.localPreviewUrl = previewUrl;
-    this.isUploading = true;
+    if (file.size > MAX_AUDIO_BYTES) {
+      this.errorMessage = "Audio file is too large (max 25 MB).";
+      input.value = "";
+      return;
+    }
 
     try {
-      const response = await firstValueFrom(
-        this.http.post<HuggingFaceAudioUploadResponse>(
-          `${AppSettings.getApiEndpoint()}/huggingface/upload-audio?filename=${encodeURIComponent(file.name)}`,
-          file,
-          {
-            headers: {
-              "Content-Type": "application/octet-stream",
-            },
-          }
-        )
-      );
-      // If the user clicked Clear while the upload was in flight,
-      // localPreviewUrl will have been revoked/reset — discard the stale response.
-      if (this.localPreviewUrl !== previewUrl) return;
-      this.fileName = response.fileName || file.name;
-      this.formControl.setValue(response.path);
+      const dataUrl = await this.readAsDataUrl(file);
+      if (!dataUrl.startsWith("data:audio/")) {
+        throw new Error("Not an audio data URL");
+      }
+      this.fileName = file.name;
+      this.formControl.setValue(dataUrl);
       if (typeof this.key === "string" && this.model) {
-        this.model[this.key] = response.path;
+        this.model[this.key] = dataUrl;
       }
       this.formControl.markAsDirty();
       this.formControl.markAsTouched();
       this.formControl.updateValueAndValidity();
-    } catch (err) {
-      console.error("Audio upload failed:", err);
-      if (this.localPreviewUrl !== previewUrl) return;
-      this.clearAudio(input, false);
-      this.errorMessage = "Could not upload this audio file.";
-    } finally {
-      this.isUploading = false;
+    } catch {
+      this.errorMessage = "Could not read this audio file.";
+      input.value = "";
     }
   }
 
-  clearAudio(input: HTMLInputElement, clearError: boolean = true): void {
+  clearAudio(input: HTMLInputElement): void {
     this.fileName = "";
-    if (clearError) {
-      this.errorMessage = "";
-    }
-    this.isUploading = false;
-    this.revokePreviewUrl();
+    this.errorMessage = "";
     input.value = "";
     this.formControl.setValue("");
     if (typeof this.key === "string" && this.model) {
@@ -149,44 +105,18 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
     this.formControl.updateValueAndValidity();
   }
 
-  private loadServerAudioPreview(serverPath: string): void {
-    firstValueFrom(
-      this.http.get(
-        `${AppSettings.getApiEndpoint()}/huggingface/audio-preview?path=${encodeURIComponent(serverPath)}`,
-        {
-          responseType: "blob",
+  private readAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Unexpected FileReader result"));
         }
-      )
-    )
-      .then(blob => {
-        // Guard against clear/re-upload racing with the fetch
-        if (this.formControl.value !== serverPath) return;
-        this.revokePreviewUrl();
-        this.localPreviewUrl = URL.createObjectURL(blob);
-      })
-      .catch((err: unknown) => {
-        console.error("Failed to load audio preview:", err);
-        if (this.formControl.value !== serverPath) return;
-        this.errorMessage = "Could not load audio preview.";
-      });
-  }
-
-  private revokePreviewUrl(): void {
-    if (this.localPreviewUrl) {
-      URL.revokeObjectURL(this.localPreviewUrl);
-      this.localPreviewUrl = "";
-    }
-  }
-
-  private getDisplayName(value: string): string {
-    const trimmedValue = value.trim();
-    if (!trimmedValue) {
-      return "";
-    }
-    if (trimmedValue.startsWith("data:audio/")) {
-      return "Selected audio";
-    }
-    const segments = trimmedValue.split(/[\\/]/);
-    return segments[segments.length - 1] || "Selected audio";
+      };
+      reader.onerror = () => reject(reader.error ?? new Error("Audio read failed"));
+      reader.readAsDataURL(file);
+    });
   }
 }

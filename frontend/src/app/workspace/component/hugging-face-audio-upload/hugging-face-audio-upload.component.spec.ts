@@ -18,743 +18,377 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormControl } from "@angular/forms";
-import { FieldTypeConfig } from "@ngx-formly/core";
 import { By } from "@angular/platform-browser";
-import { AppSettings } from "../../../common/app-setting";
 import { HuggingFaceAudioUploadComponent } from "./hugging-face-audio-upload.component";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
-const API = "api";
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 describe("HuggingFaceAudioUploadComponent", () => {
   let component: HuggingFaceAudioUploadComponent;
-  let httpTestingController: HttpTestingController;
-  let formControl: FormControl;
-
-  function makeFileEvent(file: File | null): Event {
-    const input = document.createElement("input");
-    if (file) {
-      Object.defineProperty(input, "files", { value: [file] });
-    }
-    return { target: input } as unknown as Event;
-  }
-
-  function makeFileEventWithInput(file: File | null): { event: Event; input: HTMLInputElement } {
-    const input = document.createElement("input");
-    if (file) {
-      Object.defineProperty(input, "files", { value: [file] });
-    }
-    return { event: { target: input } as unknown as Event, input };
-  }
+  let fixture: ComponentFixture<HuggingFaceAudioUploadComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HuggingFaceAudioUploadComponent, HttpClientTestingModule],
+      imports: [HuggingFaceAudioUploadComponent],
+      providers: [...commonTestProviders],
     }).compileComponents();
 
-    vi.spyOn(AppSettings, "getApiEndpoint").mockReturnValue(API);
-
-    const fixture = TestBed.createComponent(HuggingFaceAudioUploadComponent);
+    fixture = TestBed.createComponent(HuggingFaceAudioUploadComponent);
     component = fixture.componentInstance;
-    formControl = new FormControl("");
-    component.field = { formControl, key: "audioInput", model: {} } as unknown as FieldTypeConfig;
-    httpTestingController = TestBed.inject(HttpTestingController);
+    component.field = {
+      props: {},
+      formControl: new FormControl(""),
+      key: "audioInput",
+      model: {},
+    } as any;
+    fixture.detectChanges();
   });
 
-  afterEach(() => {
-    httpTestingController.verify();
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function makeFileInput(file?: File): HTMLInputElement {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (file) {
+      Object.defineProperty(input, "files", {
+        value: [file] as unknown as FileList,
+        configurable: true,
+      });
+    }
+    return input;
+  }
+
+  function sizedFile(name: string, type: string, size: number, content = "audio"): File {
+    const file = new File([content], name, { type });
+    Object.defineProperty(file, "size", { value: size, configurable: true });
+    return file;
+  }
+
+  interface ReaderMockOptions {
+    /** Value returned by FileReader.result. Default: a valid audio data URL. */
+    readerResult?: string | ArrayBuffer | null;
+    /** If true, FileReader fires onerror instead of onload. */
+    readerError?: boolean;
+  }
+
+  /** Installs a fake FileReader that resolves via microtask. Returns teardown. */
+  function installReaderMock(opts: ReaderMockOptions = {}): () => void {
+    const savedFileReader = globalThis.FileReader;
+    const readerResult = "readerResult" in opts ? opts.readerResult : "data:audio/wav;base64,AAAA";
+
+    class FakeFileReader {
+      onload: ((e: Event) => void) | null = null;
+      onerror: ((e: Event) => void) | null = null;
+      error: unknown = null;
+      result: string | ArrayBuffer | null = readerResult!;
+      readAsDataURL() {
+        queueMicrotask(() => {
+          if (opts.readerError) {
+            this.error = new Error("read failed");
+            this.onerror?.(new Event("error"));
+          } else {
+            this.onload?.(new Event("load"));
+          }
+        });
+      }
+    }
+    (globalThis as any).FileReader = FakeFileReader;
+
+    return () => {
+      (globalThis as any).FileReader = savedFileReader;
+    };
+  }
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
   });
 
-  it("should be defined", () => {
-    expect(component).toBeDefined();
-  });
+  // ── Derived view state ─────────────────────────────────────────────────
 
-  // ── ngOnInit ──
-
-  describe("ngOnInit", () => {
-    it("should set fileName from existing formControl value", () => {
-      formControl.setValue("/uploads/my-clip.wav");
-      component.ngOnInit();
-      expect(component.fileName).toBe("my-clip.wav");
-      // ngOnInit fires an authenticated blob fetch for the server path
-      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
+  describe("derived view state", () => {
+    it("reports no audio when formControl is empty", () => {
+      expect(component.hasAudio).toBe(false);
+      expect(component.previewSrc).toBe("");
+      expect(component.displayFileName).toBe("");
     });
 
-    it("should set fileName to 'Selected audio' for data:audio values", () => {
-      formControl.setValue("data:audio/wav;base64,abc123");
-      component.ngOnInit();
-      expect(component.fileName).toBe("Selected audio");
+    it("reports audio when formControl holds a data:audio URL", () => {
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      expect(component.hasAudio).toBe(true);
+      expect(component.previewSrc).toBe("data:audio/wav;base64,AAA");
+      expect(component.displayFileName).toBe("Selected audio");
     });
 
-    it("should not set fileName when formControl is empty", () => {
-      formControl.setValue("");
-      component.ngOnInit();
-      expect(component.fileName).toBe("");
+    it("prefers the explicit filename over the fallback label", () => {
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      component.fileName = "clip.wav";
+      expect(component.displayFileName).toBe("clip.wav");
     });
 
-    it("should not set fileName when formControl is whitespace", () => {
-      formControl.setValue("   ");
-      component.ngOnInit();
-      expect(component.fileName).toBe("");
-    });
-  });
-
-  // ── previewSrc ──
-
-  describe("previewSrc", () => {
-    it("should return empty string when formControl is empty and no local preview", () => {
+    it("returns false for a leftover server path (legacy saved value)", () => {
+      component.formControl.setValue("/uploads/clip.wav");
+      expect(component.hasAudio).toBe(false);
       expect(component.previewSrc).toBe("");
     });
 
-    it("should return empty for a stored server path (blob URL loaded asynchronously)", () => {
-      formControl.setValue("/uploads/clip.wav");
-      expect(component.previewSrc).toBe("");
+    it("returns false for a non-audio data URL", () => {
+      component.formControl.setValue("data:image/png;base64,AAA");
+      expect(component.hasAudio).toBe(false);
     });
 
-    it("should return data:audio value as-is", () => {
-      const dataUrl = "data:audio/wav;base64,abc123";
-      formControl.setValue(dataUrl);
-      expect(component.previewSrc).toBe(dataUrl);
-    });
-
-    it("should return empty string for whitespace-only value", () => {
-      formControl.setValue("   ");
-      expect(component.previewSrc).toBe("");
-    });
-
-    it("should return localPreviewUrl when a file has been selected but upload is in progress", async () => {
-      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
-      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
-
-      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      expect(component.previewSrc).toBe("blob:fake-preview");
-
-      httpTestingController
-        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
-        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
+    it("returns false for a null value", () => {
+      component.formControl.setValue(null);
+      expect(component.hasAudio).toBe(false);
     });
   });
 
-  // ── File upload ──
+  // ── onFileSelected ──────────────────────────────────────────────────────
 
   describe("onFileSelected", () => {
-    it("should reject a non-audio file", async () => {
-      const file = new File(["data"], "doc.pdf", { type: "application/pdf" });
-      await component.onFileSelected(makeFileEvent(file));
-
-      expect(component.errorMessage).toBe("Choose an audio file.");
-      expect(formControl.value).toBe("");
-    });
-
-    it("should upload an audio file and set formControl value", async () => {
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(
-        r => r.method === "POST" && r.url.includes("/huggingface/upload-audio")
-      );
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(formControl.value).toBe("/tmp/clip.wav");
-      expect(component.fileName).toBe("clip.wav");
-      expect(component.isUploading).toBe(false);
-    });
-
-    it("should guard against concurrent uploads", async () => {
-      component.isUploading = true;
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      await component.onFileSelected(makeFileEvent(file));
-
-      httpTestingController.expectNone(r => r.url.includes("/huggingface/upload-audio"));
-      expect(formControl.value).toBe("");
-    });
-
-    it("should do nothing when no file is selected", async () => {
-      await component.onFileSelected(makeFileEvent(null));
-
-      httpTestingController.expectNone(r => r.url.includes("/huggingface/upload-audio"));
-      expect(formControl.value).toBe("");
-      expect(component.errorMessage).toBe("");
-    });
-
-    it("should set isUploading while upload is in progress", async () => {
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      expect(component.isUploading).toBe(true);
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(component.isUploading).toBe(false);
-    });
-
-    it("should clear error message before new upload", async () => {
+    it("clears prior error and returns early when no file is provided", async () => {
       component.errorMessage = "previous error";
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
+      const input = makeFileInput();
+      await component.onFileSelected({ target: input } as unknown as Event);
       expect(component.errorMessage).toBe("");
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
+      expect(component.formControl.value).toBe("");
     });
 
-    it("should show error on upload failure", async () => {
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.error(new ProgressEvent("error"));
-      await uploadPromise;
-
-      expect(component.errorMessage).toBe("Could not upload this audio file.");
-      expect(component.isUploading).toBe(false);
-      expect(formControl.value).toBe("");
+    it("rejects a non-audio file and resets the input", async () => {
+      const file = sizedFile("doc.pdf", "application/pdf", 100);
+      const input = makeFileInput(file);
+      await component.onFileSelected({ target: input } as unknown as Event);
+      expect(component.errorMessage).toBe("Choose an audio file.");
+      expect(component.hasAudio).toBe(false);
+      expect(input.value).toBe("");
     });
 
-    it("should use file.name as fallback when response.fileName is empty", async () => {
-      const file = new File(["audio-data"], "my-clip.mp3", { type: "audio/mp3" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/my-clip.mp3", fileName: "" });
-      await uploadPromise;
-
-      expect(component.fileName).toBe("my-clip.mp3");
+    it("rejects a file over the size cap", async () => {
+      const file = sizedFile("big.wav", "audio/wav", MAX_AUDIO_BYTES + 1);
+      const input = makeFileInput(file);
+      await component.onFileSelected({ target: input } as unknown as Event);
+      expect(component.errorMessage).toBe("Audio file is too large (max 25 MB).");
+      expect(component.formControl.value).toBe("");
     });
 
-    it("should update the model when key is a string", async () => {
+    it("accepts a file exactly at the size cap", async () => {
+      const teardown = installReaderMock();
+      try {
+        const file = sizedFile("edge.wav", "audio/wav", MAX_AUDIO_BYTES);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.errorMessage).toBe("");
+        expect(component.formControl.value).toBe("data:audio/wav;base64,AAAA");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("reads an audio file into a data URL and sets form + model state", async () => {
+      const teardown = installReaderMock();
+      try {
+        const file = sizedFile("clip.wav", "audio/wav", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+
+        expect(component.formControl.value).toBe("data:audio/wav;base64,AAAA");
+        expect(component.fileName).toBe("clip.wav");
+        expect(component.hasAudio).toBe(true);
+        expect(component.formControl.dirty).toBe(true);
+        expect(component.formControl.touched).toBe(true);
+        expect((component.model as any).audioInput).toBe("data:audio/wav;base64,AAAA");
+        expect(component.errorMessage).toBe("");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("clears a previous error on a successful read", async () => {
+      component.errorMessage = "previous failure";
+      const teardown = installReaderMock();
+      try {
+        const file = sizedFile("ok.mp3", "audio/mpeg", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.errorMessage).toBe("");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("rejects when FileReader yields a non-audio data URL", async () => {
+      const teardown = installReaderMock({ readerResult: "data:text/plain;base64,AAAA" });
+      try {
+        const file = sizedFile("weird.wav", "audio/wav", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.errorMessage).toBe("Could not read this audio file.");
+        expect(component.hasAudio).toBe(false);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("rejects when FileReader.result is not a string (ArrayBuffer)", async () => {
+      const teardown = installReaderMock({ readerResult: new ArrayBuffer(8) });
+      try {
+        const file = sizedFile("clip.wav", "audio/wav", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.errorMessage).toBe("Could not read this audio file.");
+      } finally {
+        teardown();
+      }
+    });
+
+    it("rejects when FileReader fires onerror", async () => {
+      const teardown = installReaderMock({ readerError: true });
+      try {
+        const file = sizedFile("broken.wav", "audio/wav", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.errorMessage).toBe("Could not read this audio file.");
+        expect(component.hasAudio).toBe(false);
+      } finally {
+        teardown();
+      }
+    });
+
+    it("does not update the model when key is not a string", async () => {
       const model: Record<string, unknown> = {};
-      component.field = { formControl, key: "audioInput", model } as unknown as FieldTypeConfig;
+      component.field = {
+        props: {},
+        formControl: component.formControl,
+        key: 42 as any,
+        model,
+      } as any;
 
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(model["audioInput"]).toBe("/tmp/clip.wav");
+      const teardown = installReaderMock();
+      try {
+        const file = sizedFile("clip.wav", "audio/wav", 2048);
+        const input = makeFileInput(file);
+        await component.onFileSelected({ target: input } as unknown as Event);
+        expect(component.formControl.value).toBe("data:audio/wav;base64,AAAA");
+        expect(model[42 as any]).toBeUndefined();
+      } finally {
+        teardown();
+      }
     });
 
-    it("should send correct Content-Type and URL", async () => {
-      const file = new File(["audio-data"], "my clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
+    it("replaces a previous upload value with a new one", async () => {
+      const teardown = installReaderMock({ readerResult: "data:audio/wav;base64,FIRST" });
+      try {
+        const input1 = makeFileInput(sizedFile("first.wav", "audio/wav", 2048));
+        await component.onFileSelected({ target: input1 } as unknown as Event);
+        expect(component.formControl.value).toBe("data:audio/wav;base64,FIRST");
+        expect(component.fileName).toBe("first.wav");
+      } finally {
+        teardown();
+      }
 
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      expect(req.request.url).toContain("filename=my%20clip.wav");
-      expect(req.request.headers.get("Content-Type")).toBe("application/octet-stream");
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-    });
-
-    it("should discard stale upload response when cleared during upload", async () => {
-      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
-      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
-
-      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
-      const { event, input } = makeFileEventWithInput(file);
-      const uploadPromise = component.onFileSelected(event);
-
-      component.clearAudio(input);
-
-      httpTestingController
-        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
-        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(formControl.value).toBe("");
-      expect(component.fileName).toBe("");
-    });
-
-    it("should discard stale upload error when cleared during upload", async () => {
-      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
-      vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
-
-      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
-      const { event, input } = makeFileEventWithInput(file);
-      const uploadPromise = component.onFileSelected(event);
-
-      component.clearAudio(input);
-
-      httpTestingController
-        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
-        .error(new ProgressEvent("error"));
-      await uploadPromise;
-
-      expect(component.errorMessage).toBe("");
+      const teardown2 = installReaderMock({ readerResult: "data:audio/mpeg;base64,SECOND" });
+      try {
+        const input2 = makeFileInput(sizedFile("second.mp3", "audio/mpeg", 2048));
+        await component.onFileSelected({ target: input2 } as unknown as Event);
+        expect(component.formControl.value).toBe("data:audio/mpeg;base64,SECOND");
+        expect(component.fileName).toBe("second.mp3");
+      } finally {
+        teardown2();
+      }
     });
   });
 
-  // ── clearAudio ──
+  // ── clearAudio ──────────────────────────────────────────────────────────
 
   describe("clearAudio", () => {
-    it("should reset all state", () => {
+    it("resets file state, the form control, and any model value", () => {
+      (component.field as any).model = { audioInput: "data:audio/wav;base64,AAA" };
+      component.formControl.setValue("data:audio/wav;base64,AAA");
       component.fileName = "clip.wav";
       component.errorMessage = "some error";
-      formControl.setValue("/tmp/clip.wav");
 
       const input = document.createElement("input");
+      input.type = "file";
       component.clearAudio(input);
 
       expect(component.fileName).toBe("");
       expect(component.errorMessage).toBe("");
-      expect(component.isUploading).toBe(false);
-      expect(formControl.value).toBe("");
+      expect(input.value).toBe("");
+      expect(component.formControl.value).toBe("");
+      expect(component.formControl.dirty).toBe(true);
+      expect(component.formControl.touched).toBe(true);
+      expect((component.model as any).audioInput).toBe("");
     });
 
-    it("should preserve error message when clearError is false", () => {
-      component.errorMessage = "upload failed";
-      const input = document.createElement("input");
-      component.clearAudio(input, false);
+    it("does not update the model when key is not a string", () => {
+      const model: Record<string, unknown> = { someKey: "value" };
+      component.field = {
+        props: {},
+        formControl: component.formControl,
+        key: 42 as any,
+        model,
+      } as any;
+      component.formControl.setValue("data:audio/wav;base64,AAA");
 
-      expect(component.errorMessage).toBe("upload failed");
-    });
-
-    it("should clear model value when key is a string", () => {
-      const model: Record<string, unknown> = { audioInput: "/tmp/clip.wav" };
-      component.field = { formControl, key: "audioInput", model } as unknown as FieldTypeConfig;
-
-      const input = document.createElement("input");
-      component.clearAudio(input);
-
-      expect(model["audioInput"]).toBe("");
-    });
-
-    it("should mark formControl as dirty and touched", () => {
       const input = document.createElement("input");
       component.clearAudio(input);
 
-      expect(formControl.dirty).toBe(true);
-      expect(formControl.touched).toBe(true);
-    });
-  });
-
-  // ── loadServerAudioPreview (via ngOnInit) ──
-
-  describe("loadServerAudioPreview", () => {
-    it("should set localPreviewUrl on successful blob fetch", async () => {
-      const blobUrl = "blob:http://localhost/fake-audio";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-
-      formControl.setValue("/uploads/clip.wav");
-      component.ngOnInit();
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-      expect(req.request.responseType).toBe("blob");
-      req.flush(new Blob(["audio-data"], { type: "audio/wav" }));
-
-      // Allow microtask (promise .then) to settle
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component.previewSrc).toBe(blobUrl);
-    });
-
-    it("should set errorMessage on blob fetch failure", async () => {
-      formControl.setValue("/uploads/clip.wav");
-      component.ngOnInit();
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-      req.error(new ProgressEvent("error"));
-
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component.errorMessage).toBe("Could not load audio preview.");
-    });
-
-    it("should discard blob fetch result if formControl value changed", async () => {
-      const blobUrl = "blob:http://localhost/fake-audio";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-
-      formControl.setValue("/uploads/clip.wav");
-      component.ngOnInit();
-
-      // User cleared the field before fetch completes
-      formControl.setValue("");
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-      req.flush(new Blob(["audio-data"], { type: "audio/wav" }));
-
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component.previewSrc).toBe("");
-    });
-
-    it("should discard error if formControl value changed before fetch fails", async () => {
-      formControl.setValue("/uploads/clip.wav");
-      component.ngOnInit();
-
-      formControl.setValue("");
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-      req.error(new ProgressEvent("error"));
-
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component.errorMessage).toBe("");
-    });
-
-    it("should not fetch for data:audio values in ngOnInit", () => {
-      formControl.setValue("data:audio/wav;base64,abc123");
-      component.ngOnInit();
-
-      httpTestingController.expectNone(r => r.url.includes("/huggingface/audio-preview"));
-    });
-
-    it("should encode server path in the fetch URL", () => {
-      formControl.setValue("/uploads/my clip.wav");
-      component.ngOnInit();
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-      expect(req.request.url).toContain("path=%2Fuploads%2Fmy%20clip.wav");
-    });
-  });
-
-  // ── previewSrc with localPreviewUrl ──
-
-  describe("previewSrc with localPreviewUrl", () => {
-    it("should return localPreviewUrl when set via file upload", async () => {
-      const blobUrl = "blob:http://localhost/local-preview";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      // After file selection, localPreviewUrl should be set
-      expect(component.previewSrc).toBe(blobUrl);
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-    });
-  });
-
-  // ── Stale upload guards ──
-
-  describe("stale upload guards", () => {
-    it("should discard successful upload if cleared during flight", async () => {
-      const blobUrl = "blob:http://localhost/local-preview";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-      const { event, input } = makeFileEventWithInput(new File(["audio-data"], "clip.wav", { type: "audio/wav" }));
-      const uploadPromise = component.onFileSelected(event);
-
-      // Clear while upload is in flight
-      component.clearAudio(input);
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      // Upload result should be discarded — formControl stays empty
-      expect(formControl.value).toBe("");
-    });
-
-    it("should discard upload error if cleared during flight", async () => {
-      const blobUrl = "blob:http://localhost/local-preview";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-      const { event, input } = makeFileEventWithInput(new File(["audio-data"], "clip.wav", { type: "audio/wav" }));
-      const uploadPromise = component.onFileSelected(event);
-
-      component.clearAudio(input);
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.error(new ProgressEvent("error"));
-      await uploadPromise;
-
-      // Error should be discarded — errorMessage stays empty (clearAudio clears it)
-      expect(component.errorMessage).toBe("");
-    });
-  });
-
-  // ── ngOnDestroy ──
-
-  describe("ngOnDestroy", () => {
-    it("should not throw on destroy", () => {
-      expect(() => component.ngOnDestroy()).not.toThrow();
-    });
-
-    it("should revoke localPreviewUrl on destroy when upload preview exists", async () => {
-      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
-      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-preview");
-
-      const file = new File(["audio"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      httpTestingController
-        .expectOne(r => r.url.includes("/huggingface/upload-audio"))
-        .flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      component.ngOnDestroy();
-      expect(revokeSpy).toHaveBeenCalledWith("blob:fake-preview");
-    });
-
-    it("should revoke localPreviewUrl on destroy", async () => {
-      const blobUrl = "blob:http://localhost/local-preview";
-      vi.spyOn(URL, "createObjectURL").mockReturnValue(blobUrl);
-      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      component.ngOnDestroy();
-      expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
-    });
-  });
-
-  // ── getDisplayName edge cases ──
-
-  describe("getDisplayName (via ngOnInit)", () => {
-    it("should extract filename from path with forward slashes", () => {
-      formControl.setValue("/path/to/my-clip.wav");
-      component.ngOnInit();
-      expect(component.fileName).toBe("my-clip.wav");
-      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-    });
-
-    it("should extract filename from path with backslashes", () => {
-      formControl.setValue("C:\\uploads\\my-clip.wav");
-      component.ngOnInit();
-      expect(component.fileName).toBe("my-clip.wav");
-      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-    });
-
-    it("should return 'Selected audio' for path ending with separator", () => {
-      formControl.setValue("/uploads/");
-      component.ngOnInit();
-      expect(component.fileName).toBe("Selected audio");
-      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-    });
-
-    it("should return filename for flat name without path", () => {
-      formControl.setValue("clip.wav");
-      component.ngOnInit();
-      expect(component.fileName).toBe("clip.wav");
-      httpTestingController.expectOne(r => r.url.includes("/huggingface/audio-preview"));
-    });
-  });
-
-  // ── Upload marks formControl as dirty and touched ──
-
-  describe("formControl state after upload", () => {
-    it("should mark formControl as dirty and touched after successful upload", async () => {
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(formControl.dirty).toBe(true);
-      expect(formControl.touched).toBe(true);
-    });
-
-    it("should mark formControl as dirty and touched after clear", () => {
-      formControl.setValue("/tmp/clip.wav");
-      const input = document.createElement("input");
-      component.clearAudio(input);
-
-      expect(formControl.dirty).toBe(true);
-      expect(formControl.touched).toBe(true);
-    });
-  });
-
-  // ── Upload updates model ──
-
-  describe("model update on upload", () => {
-    it("should not update model when key is not a string", async () => {
-      const model: Record<string, unknown> = {};
-      component.field = { formControl, key: 42 as any, model } as unknown as FieldTypeConfig;
-
-      const file = new File(["audio-data"], "clip.wav", { type: "audio/wav" });
-      const uploadPromise = component.onFileSelected(makeFileEvent(file));
-
-      const req = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req.flush({ path: "/tmp/clip.wav", fileName: "clip.wav" });
-      await uploadPromise;
-
-      expect(formControl.value).toBe("/tmp/clip.wav");
+      expect(component.formControl.value).toBe("");
       expect(model[42 as any]).toBeUndefined();
     });
   });
 
-  // ── revokePreviewUrl no-op ──
-
-  describe("revokePreviewUrl", () => {
-    it("should not throw when destroying without any preview", () => {
-      expect(() => component.ngOnDestroy()).not.toThrow();
-    });
-  });
-
-  // ── previewSrc with non-audio data URL ──
-
-  describe("previewSrc edge cases", () => {
-    it("should return empty for non-audio data URL", () => {
-      formControl.setValue("data:image/png;base64,abc123");
-      expect(component.previewSrc).toBe("");
-    });
-
-    it("should return data:audio value with different audio type", () => {
-      const mp3DataUrl = "data:audio/mp3;base64,abc123";
-      formControl.setValue(mp3DataUrl);
-      expect(component.previewSrc).toBe(mp3DataUrl);
-    });
-  });
-
-  // ── Multiple consecutive uploads ──
-
-  describe("consecutive uploads", () => {
-    it("should replace previous upload value with new upload", async () => {
-      // First upload
-      const file1 = new File(["audio-1"], "first.wav", { type: "audio/wav" });
-      const upload1 = component.onFileSelected(makeFileEvent(file1));
-      const req1 = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req1.flush({ path: "/tmp/first.wav", fileName: "first.wav" });
-      await upload1;
-
-      expect(formControl.value).toBe("/tmp/first.wav");
-      expect(component.fileName).toBe("first.wav");
-
-      // Second upload
-      const file2 = new File(["audio-2"], "second.wav", { type: "audio/wav" });
-      const upload2 = component.onFileSelected(makeFileEvent(file2));
-      const req2 = httpTestingController.expectOne(r => r.url.includes("/huggingface/upload-audio"));
-      req2.flush({ path: "/tmp/second.wav", fileName: "second.wav" });
-      await upload2;
-
-      expect(formControl.value).toBe("/tmp/second.wav");
-      expect(component.fileName).toBe("second.wav");
-    });
-  });
-
-  // ── Template rendering ──
+  // ── Template rendering ────────────────────────────────────────────────
 
   describe("template rendering", () => {
-    let templateFixture: ComponentFixture<HuggingFaceAudioUploadComponent>;
-    let templateComponent: HuggingFaceAudioUploadComponent;
-
-    beforeEach(() => {
-      templateFixture = TestBed.createComponent(HuggingFaceAudioUploadComponent);
-      templateComponent = templateFixture.componentInstance;
-      const fc = new FormControl("");
-      templateComponent.field = { formControl: fc, key: "audioInput", model: {} } as unknown as FieldTypeConfig;
+    it("renders the file input", () => {
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css("input[type='file']"))).toBeTruthy();
     });
 
-    it("should render the file input", () => {
-      templateFixture.detectChanges();
-      expect(templateFixture.debugElement.query(By.css("input[type='file']"))).toBeTruthy();
+    it("does not render the preview section when there is no audio", () => {
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css(".hf-audio-preview"))).toBeNull();
     });
 
-    it("should not render the preview section when there is no audio", () => {
-      templateFixture.detectChanges();
-      expect(templateFixture.debugElement.query(By.css(".hf-audio-preview"))).toBeNull();
-    });
-
-    it("should render the preview section when formControl has a data:audio value", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateFixture.detectChanges();
-      expect(templateFixture.debugElement.query(By.css(".hf-audio-preview"))).toBeTruthy();
-      expect(templateFixture.debugElement.query(By.css("audio"))).toBeTruthy();
-    });
-
-    it("should bind audio [src] to previewSrc for a data:audio value", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateFixture.detectChanges();
-      const audio = templateFixture.debugElement.query(By.css("audio")).nativeElement as HTMLAudioElement;
+    it("renders the preview and audio element for a data:audio value", () => {
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css(".hf-audio-preview"))).toBeTruthy();
+      const audio = fixture.debugElement.query(By.css("audio")).nativeElement as HTMLAudioElement;
       expect(audio.src).toContain("data:audio/wav");
     });
 
-    it("should show fileName in the preview meta", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateFixture.detectChanges(); // ngOnInit runs here
-      templateComponent.fileName = "clip.wav";
-      templateFixture.detectChanges();
-      const span = templateFixture.debugElement.query(By.css(".hf-audio-meta span"));
+    it("shows the display filename in the preview meta", () => {
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      component.fileName = "clip.wav";
+      fixture.detectChanges();
+      const span = fixture.debugElement.query(By.css(".hf-audio-meta span"));
       expect((span.nativeElement as HTMLElement).textContent?.trim()).toBe("clip.wav");
     });
 
-    it("should fall back to 'Selected audio' when fileName is empty and preview is shown", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateComponent.fileName = "";
-      templateFixture.detectChanges();
-      const span = templateFixture.debugElement.query(By.css(".hf-audio-meta span"));
+    it("falls back to 'Selected audio' when no filename is set", () => {
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      component.fileName = "";
+      fixture.detectChanges();
+      const span = fixture.debugElement.query(By.css(".hf-audio-meta span"));
       expect((span.nativeElement as HTMLElement).textContent?.trim()).toBe("Selected audio");
     });
 
-    it("should show the Uploading status span when isUploading is true and preview is visible", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateComponent.isUploading = true;
-      templateFixture.detectChanges();
-      const status = templateFixture.debugElement.query(By.css(".hf-audio-status"));
-      expect(status).toBeTruthy();
-      expect((status.nativeElement as HTMLElement).textContent?.trim()).toBe("Uploading...");
-    });
-
-    it("should hide the Uploading status span when isUploading is false", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateComponent.isUploading = false;
-      templateFixture.detectChanges();
-      expect(templateFixture.debugElement.query(By.css(".hf-audio-status"))).toBeNull();
-    });
-
-    it("should disable the Clear button when isUploading is true", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateComponent.isUploading = true;
-      templateFixture.detectChanges();
-      const btn = templateFixture.debugElement.query(By.css("button[nz-button]")).nativeElement as HTMLButtonElement;
-      expect(btn.disabled).toBe(true);
-    });
-
-    it("should enable the Clear button when isUploading is false", () => {
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateComponent.isUploading = false;
-      templateFixture.detectChanges();
-      const btn = templateFixture.debugElement.query(By.css("button[nz-button]")).nativeElement as HTMLButtonElement;
-      expect(btn.disabled).toBe(false);
-    });
-
-    it("should disable the file input when isUploading is true", () => {
-      templateComponent.isUploading = true;
-      templateFixture.detectChanges();
-      const input = templateFixture.debugElement.query(By.css("input[type='file']")).nativeElement as HTMLInputElement;
-      expect(input.disabled).toBe(true);
-    });
-
-    it("should show the error message when errorMessage is set", () => {
-      templateComponent.errorMessage = "Could not upload this audio file.";
-      templateFixture.detectChanges();
-      const errorEl = templateFixture.debugElement.query(By.css(".hf-audio-error"));
+    it("shows the error message when errorMessage is set", () => {
+      component.errorMessage = "Could not read this audio file.";
+      fixture.detectChanges();
+      const errorEl = fixture.debugElement.query(By.css(".hf-audio-error"));
       expect(errorEl).toBeTruthy();
-      expect((errorEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Could not upload this audio file.");
+      expect((errorEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Could not read this audio file.");
     });
 
-    it("should not render the error div when errorMessage is empty", () => {
-      templateFixture.detectChanges();
-      expect(templateFixture.debugElement.query(By.css(".hf-audio-error"))).toBeNull();
-    });
-
-    it("should call clearAudio when the Clear button is clicked", () => {
-      const clearSpy = vi.spyOn(templateComponent, "clearAudio");
-      templateComponent.field.formControl.setValue("data:audio/wav;base64,abc123");
-      templateFixture.detectChanges();
-      templateFixture.debugElement.query(By.css("button[nz-button]")).triggerEventHandler("click", null);
+    it("calls clearAudio when the Clear button is clicked", () => {
+      const clearSpy = vi.spyOn(component, "clearAudio");
+      component.formControl.setValue("data:audio/wav;base64,AAA");
+      fixture.detectChanges();
+      fixture.debugElement.query(By.css("button[nz-button]")).triggerEventHandler("click", null);
       expect(clearSpy).toHaveBeenCalled();
     });
   });
