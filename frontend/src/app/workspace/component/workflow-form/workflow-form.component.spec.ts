@@ -68,6 +68,7 @@ describe("WorkflowFormComponent", () => {
       h.workflowWebsocketService as any,
       h.host as any,
       h.datePipe as any,
+      h.panelResizeService as any,
       h.validationWorkflowService as any,
       h.config as any
     );
@@ -1060,6 +1061,128 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
 
       expect(component.executionDuration).toBe(2000);
+    });
+  });
+
+  describe("showing the chosen results", () => {
+    // Chosen operators are only shown if they still have view-result on in the canvas; the form
+    // never writes that set (display filter, per the settled design).
+    const chosen = (resultOperatorIds: string[]) =>
+      formBindingService.getConfig.mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds });
+
+    it("shows a chosen result only while its operator still has view-result on the canvas", () => {
+      build(formViewWorkflow).ngOnInit();
+      chosen(["a", "b"]);
+      h.viewResultIds.add("a"); // b's eye is off on the canvas
+
+      (component as any).readConfig();
+
+      expect(component.shownResultIds).toEqual(["a"]);
+    });
+
+    it("cards only the chosen, viewed steps that actually produced a result", () => {
+      build(formViewWorkflow).ngOnInit();
+      chosen(["produces", "produces-nothing"]);
+      h.viewResultIds.add("produces");
+      h.viewResultIds.add("produces-nothing");
+      h.anyResultIds.add("produces"); // the other ran but yielded nothing (e.g. a download UDF)
+
+      (component as any).readConfig();
+
+      expect(component.resultIdsToShow).toEqual(["produces"]);
+      expect(component.hasResults).toBe(true);
+    });
+
+    it("has no results when nothing chosen has produced anything", () => {
+      build(formViewWorkflow).ngOnInit();
+      chosen(["a"]);
+      h.viewResultIds.add("a");
+      (component as any).readConfig();
+
+      expect(component.hasResults).toBe(false);
+    });
+
+    it("calls a paginated result a table, and gates visualisation content on a snapshot", () => {
+      build(formViewWorkflow).ngOnInit();
+      (component as any).workflowResultService.hasPaginatedResult = (id: string) => id === "tab";
+
+      expect(component.isTabularResult("tab")).toBe(true);
+      expect(component.vizHasContent("tab")).toBe(false); // tables take the tabular branch
+      // A non-tabular op with a non-empty snapshot has viz content; an empty one does not.
+      h.snapshotById.set("viz", [{ a: 1 }]);
+      expect(component.vizHasContent("viz")).toBe(true);
+      expect(component.vizHasContent("blank")).toBe(false);
+    });
+
+    it("labels a result by the operator's friendly name, falling back to the id", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "CSVFileScan" });
+
+      expect(component.resultLabel("op-1")).toBe("CSVFileScan");
+      expect(component.resultLabel("gone")).toBe("gone");
+    });
+
+    it("keeps a result's frame identity stable until its version moves", () => {
+      build(formViewWorkflow).ngOnInit();
+      const before = component.resultKey("op-1");
+      expect(component.resultKey("op-1")).toBe(before);
+
+      (component as any).resultVersion.set("op-1", 1);
+
+      expect(component.resultKey("op-1")).not.toBe(before);
+      expect(component.trackByKey(0, "k")).toBe("k");
+    });
+
+    it("resizes a result within bounds, per result, and re-fits after", () => {
+      vi.useFakeTimers();
+      build(formViewWorkflow).ngOnInit();
+      const fit = vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
+      expect(component.resultZoom("op-1")).toBe(1);
+
+      component.zoomResult("op-1", 1);
+      component.zoomResult("op-1", 1);
+      expect(component.resultZoom("op-1")).toBe(2); // clamped at 2
+
+      component.zoomResult("op-1", -1);
+      component.zoomResult("op-1", -1);
+      component.zoomResult("op-1", -1);
+      expect(component.resultZoom("op-1")).toBe(0); // clamped at 0
+      expect(component.resultZoom("op-2")).toBe(1); // untouched
+
+      // The deferred re-fit runs after the card height lands.
+      vi.advanceTimersByTime(60);
+      expect(fit).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("bumps the result version and re-fits on a result update", () => {
+      vi.useFakeTimers();
+      build(formViewWorkflow).ngOnInit();
+      const fit = vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
+
+      h.resultUpdateStream.next({ "op-1": {} });
+      expect(component.resultKey("op-1")).toBe("op-1#1");
+      vi.advanceTimersByTime(300);
+      expect(fit).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("re-fits the charts once a finished run has results", () => {
+      vi.useFakeTimers();
+      build(formViewWorkflow).ngOnInit();
+      vi.spyOn(component, "hasResults", "get").mockReturnValue(true);
+      const fit = vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
+
+      h.executionStateStream.next({ current: { state: ExecutionState.Completed } });
+      vi.advanceTimersByTime(400);
+
+      expect(fit).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("gives the result tables a realistic page height on init", () => {
+      build(formViewWorkflow).ngOnInit();
+      expect(h.panelResizeService.changePanelSize).toHaveBeenCalled();
     });
   });
 

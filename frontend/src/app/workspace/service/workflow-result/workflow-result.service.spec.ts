@@ -115,6 +115,28 @@ describe("WorkflowResultService", () => {
     expect(updateEvents).toEqual([updates]);
   });
 
+  it("hasNonEmptyResult tells an empty result apart from one with rows", () => {
+    const ws = TestBed.inject(WorkflowWebsocketService);
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: {
+        emptyPag: paginationUpdate(0),
+        fullPag: paginationUpdate(5),
+        emptySnap: snapshotUpdate([]),
+        fullSnap: snapshotUpdate([{ a: 1 }]),
+      },
+      tableStats: {},
+    });
+
+    // A service exists for the empty step (hasAnyResult), but it holds nothing.
+    expect(service.hasAnyResult("emptyPag")).toBe(true);
+    expect(service.hasNonEmptyResult("emptyPag")).toBe(false);
+    expect(service.hasNonEmptyResult("fullPag")).toBe(true);
+    expect(service.hasNonEmptyResult("emptySnap")).toBe(false);
+    expect(service.hasNonEmptyResult("fullSnap")).toBe(true);
+    expect(service.hasNonEmptyResult("never-ran")).toBe(false);
+  });
+
   it("announces newly-created operators on the result-initiate stream", () => {
     const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];

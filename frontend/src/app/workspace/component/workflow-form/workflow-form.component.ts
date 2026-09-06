@@ -26,6 +26,8 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
 import { cloneDeep } from "lodash-es";
 import { MarkdownService } from "ngx-markdown";
@@ -50,10 +52,13 @@ import { ValidationWorkflowService } from "../../service/validation/validation-w
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { Point } from "../../types/workflow-common.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { ResultTableFrameComponent } from "../result-panel/result-table-frame/result-table-frame.component";
+import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
@@ -80,8 +85,11 @@ interface RenderedField {
  * makes, with each sub-field of a nested or repeated property renamed and hidden as the author set
  * it up. It also shows the author's instruction above the inputs, and runs the workflow: a Run
  * button (a reader's simplified Run/Stop, sharing the canvas's disable conditions), the
- * computing-unit selector, a run clock and plain-language failure messages. Showing the results is
- * added by a later PR. A view, not a new object: it opens the same workflow the canvas does.
+ * computing-unit selector, a run clock and plain-language failure messages. It then shows the
+ * chosen results underneath -- a table, a visualisation, or a compact "no result yet" -- as a
+ * display filter that follows the canvas's view-result set and never writes it. Opening a step to
+ * inspect it read-only, and the authoring mode that picks what to show, are later PRs. A view, not
+ * a new object: it opens the same workflow the canvas does.
  */
 @UntilDestroy()
 @Component({
@@ -95,8 +103,12 @@ interface RenderedField {
     FormlyModule,
     NzAvatarModule,
     NzIconModule,
+    NzButtonModule,
+    NzTooltipModule,
     UserIconComponent,
     ComputingUnitSelectionComponent,
+    ResultTableFrameComponent,
+    VisualizationFrameContentComponent,
     WorkflowEditorComponent,
     MiniMapComponent,
     CoeditorUserIconComponent,
@@ -138,6 +150,20 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    *  disabled ("Invalid" / "Empty") in the same cases. */
   public isWorkflowValid = true;
   public isWorkflowEmpty = false;
+
+  /**
+   * Which steps' results to show, as a display filter over the canvas's view-result set: the
+   * author's chosen `resultOperatorIds`, kept to only those an operator still has view-result
+   * ("the eye") on. The form NEVER writes the canvas's view-result flags -- it only limits what it
+   * itself shows, so a canvas user's result-viewing is unaffected.
+   */
+  public shownResultIds: string[] = [];
+  /** Chart height per result (0 compact / 1 default / 2 tall). Per operator so one does not resize
+   *  the others, and in memory only -- a viewing preference, not part of the workflow. */
+  private zoomByResult = new Map<string, number>();
+  /** Bumped when a result changes, used as the chart's *ngFor identity so the frame is rebuilt, not
+   *  reused: the chart reads its content once at creation, so a stale frame showed "undefined". */
+  private resultVersion = new Map<string, number>();
 
   /** The collapsible workflow preview: closed until the reader opens it. */
   public workflowOpen = false;
@@ -185,6 +211,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     private workflowWebsocketService: WorkflowWebsocketService,
     private host: ElementRef<HTMLElement>,
     private datePipe: DatePipe,
+    // The result table sizes its rows-per-page from this shared panel height. On the operator
+    // canvas the docked panel drives it; this page has no such panel, so left at the tiny default
+    // every table showed a single row per page. Given a realistic height in ngOnInit instead.
+    private panelResizeService: PanelResizeService,
     // Same source the operator canvas reads its "Invalid" / "Empty" states from, so Run is
     // disabled here exactly when it is disabled there.
     private validationWorkflowService: ValidationWorkflowService,
@@ -198,7 +228,24 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       return;
     }
     this.wid = wid;
+    // Give the result tables a realistic height to page against, so they show a screenful of rows
+    // instead of one. (~7 rows; the card scrolls for the rest.)
+    this.panelResizeService.changePanelSize(900, 560);
     this.load(wid);
+
+    // A result changing bumps that operator's version (so its chart frame is rebuilt, not reused),
+    // re-limits what the form shows to the currently-viewed set, and re-fits the visualisations.
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(update => {
+        for (const operatorID of Object.keys(update ?? {})) {
+          this.resultVersion.set(operatorID, (this.resultVersion.get(operatorID) ?? 0) + 1);
+        }
+        this.refreshShownResults();
+        this.cdr.detectChanges();
+        this.later(() => this.fitVisualisations(), 300);
+      });
 
     // The run clock, reusing the operator canvas's source outright rather than timing anything
     // here: the engine is the only thing that knows when the run really began, so a stopwatch
@@ -260,6 +307,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           this.runError = this.hasEmptyRequiredInputs()
             ? "Run failed: please fill in the required fields."
             : this.friendlyRunError(current.errorMessages?.[0]?.message?.trim() ?? "");
+        }
+        // Fit the charts to their cards once a run has results. Deliberately not on run START: the
+        // run repaints operators and a re-fit then zoomed the whole preview down. Deliberately does
+        // not open the workflow either -- someone using the form came for the inputs and results.
+        if (this.hasResults) {
+          this.later(() => this.fitVisualisations(), 400);
         }
         this.cdr.detectChanges();
       });
@@ -365,9 +418,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     this.parameters = this.formBindingService.resolveFields();
     this.instructionTitle = config.instruction?.title ?? "";
     this.instructionBody = config.instruction?.body ?? "";
+    this.refreshShownResults();
     // A reader always sees the instruction as rendered markdown.
     void this.renderInstruction();
     this.buildForm();
+  }
+
+  /**
+   * Limit the shown results to the author's chosen operators that STILL have view-result on in the
+   * canvas. This is a pure display filter: it reads the canvas's view-result set and never writes
+   * it, so a normal canvas user's result-viewing is unaffected. A chosen operator whose view-result
+   * was turned off (or that was deleted) simply drops out here rather than rendering a stale card.
+   */
+  private refreshShownResults(): void {
+    const viewed = this.workflowActionService.getTexeraGraph().getOperatorsToViewResult();
+    this.shownResultIds = this.formBindingService.getConfig().resultOperatorIds.filter(id => viewed.has(id));
   }
 
   /**
@@ -615,6 +680,122 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   public trackByRendered(_: number, rendered: RenderedField): string {
     return rendered.resolved.binding.id;
   }
+
+  // ---------------------------------------------------------------------------
+  // Results: the chosen steps' output, shown under the workflow that produced it
+  // ---------------------------------------------------------------------------
+
+  public get hasResults(): boolean {
+    return this.shownResultIds.some(id => this.workflowResultService.hasNonEmptyResult(id));
+  }
+
+  /**
+   * The chosen steps that actually produced a result, so only those get a card. Whether a Python
+   * UDF yields a result cannot be known from the graph -- some (a download/publish step) never do --
+   * so a chosen step earns its card at runtime rather than sitting on a permanent "No result yet.".
+   */
+  public get resultIdsToShow(): string[] {
+    return this.shownResultIds.filter(id => this.workflowResultService.hasNonEmptyResult(id));
+  }
+
+  public isTabularResult(operatorID: string): boolean {
+    return this.workflowResultService.hasPaginatedResult(operatorID);
+  }
+
+  /**
+   * Whether this step's visualisation drew something. A visualiser reserves a fixed canvas even
+   * when empty, so gating on real content lets an empty result collapse to the compact "No result
+   * yet" line instead of a tall blank box. Tables are excluded (they take the tabular branch).
+   */
+  public vizHasContent(operatorID: string): boolean {
+    if (this.isTabularResult(operatorID)) {
+      return false;
+    }
+    const snapshot = this.workflowResultService.getResultService(operatorID)?.getCurrentResultSnapshot();
+    return !!snapshot && snapshot.length > 0;
+  }
+
+  /** The operator's friendly label for a result card, falling back to its raw id. */
+  public resultLabel(operatorID: string): string {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    return operator ? this.formBindingService.operatorLabel(operator) : operatorID;
+  }
+
+  public trackByKey(_: number, key: string): string {
+    return key;
+  }
+
+  /**
+   * A per-result identity that changes only when that operator's result is genuinely new, used as
+   * the chart's *ngFor key so the frame is rebuilt (not reused) on a new result: the chart reads
+   * its content once at creation, so a reused frame kept showing the old (or "undefined") picture.
+   */
+  public resultKey(operatorID: string): string {
+    return operatorID + "#" + (this.resultVersion.get(operatorID) ?? 0);
+  }
+
+  public resultZoom(operatorID: string): number {
+    return this.zoomByResult.get(operatorID) ?? 1;
+  }
+
+  public zoomResult(operatorID: string, delta: number): void {
+    const next = Math.min(2, Math.max(0, this.resultZoom(operatorID) + delta));
+    this.zoomByResult.set(operatorID, next);
+    // Let the new card height land, then have the chart redraw into it -- growing the frame alone
+    // leaves the picture at its old size until something asks it to re-measure.
+    this.cdr.detectChanges();
+    this.later(() => this.fitVisualisations(), 60);
+  }
+
+  /**
+   * Scale each visualisation to its card. They render in a same-origin srcdoc iframe at natural
+   * size, so we inject a stylesheet to fit the content to the card and fire a resize so chart
+   * libraries re-lay out. The operator's output is untouched.
+   */
+  /* v8 ignore start -- iframe/Plotly DOM fitting; no coverage in jsdom */
+  private fitVisualisations(): void {
+    const frames = this.host.nativeElement.querySelectorAll<HTMLIFrameElement>(".result-body iframe");
+    frames.forEach(frame => {
+      const apply = () => {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc?.body) {
+            return;
+          }
+          if (!doc.getElementById("pc-fit")) {
+            const style = doc.createElement("style");
+            style.id = "pc-fit";
+            style.textContent = `
+              html, body { margin: 0; padding: 8px; overflow-x: hidden; }
+              .js-plotly-plot, .plot-container, .plotly, .svg-container { width: 100% !important; height: 100% !important; }
+              img, svg, canvas, video { max-width: 100% !important; height: auto !important; }
+              table { max-width: 100%; }
+            `;
+            doc.head?.appendChild(style);
+          }
+          const win = frame.contentWindow as (Window & { Plotly?: any }) | null;
+          const plots = doc.querySelectorAll<HTMLElement>(".js-plotly-plot");
+          if (win?.Plotly?.Plots?.resize && plots.length) {
+            plots.forEach(plot => {
+              plot.style.width = "100%";
+              plot.style.height = "100%";
+              try {
+                win.Plotly.Plots.resize(plot);
+              } catch {
+                // A chart mid-render cannot be resized; the next call will catch it.
+              }
+            });
+          }
+          win?.dispatchEvent(new Event("resize"));
+        } catch {
+          // A cross-origin document cannot be styled from here; leave it as it came.
+        }
+      };
+      apply();
+      frame.addEventListener("load", apply, { once: true });
+    });
+  }
+  /* v8 ignore stop */
 
   // ---------------------------------------------------------------------------
   // Instruction: the author's one piece of guidance, shown as rendered markdown

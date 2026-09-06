@@ -32,6 +32,8 @@ import {
   StopOutline,
   WarningOutline,
   LoadingOutline,
+  MinusOutline,
+  PlusOutline,
 } from "@ant-design/icons-angular/icons";
 import { EMPTY, of, Subject } from "rxjs";
 
@@ -55,6 +57,9 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { ResultTableFrameComponent } from "../result-panel/result-table-frame/result-table-frame.component";
+import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
+import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { ComputingUnitActionsService } from "../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
@@ -96,6 +101,11 @@ describe("WorkflowFormComponent (rendered template)", () => {
     // than overriding the page's imports, which would JIT-recompile the page and drop its
     // host-binding coverage -- keeps the run bar around it rendered and the page fully covered.
     TestBed.overrideComponent(ComputingUnitSelectionComponent, { set: { template: "" } });
+    // Blank the two result frame children: the real table/visualization need a live result service
+    // and (for the chart) an iframe jsdom cannot run. Blanking the children keeps the page's own
+    // results markup -- the section, the card, the head, the zoom controls -- rendered and covered.
+    TestBed.overrideComponent(ResultTableFrameComponent, { set: { template: "" } });
+    TestBed.overrideComponent(VisualizationFrameContentComponent, { set: { template: "" } });
     /* eslint-enable no-restricted-syntax */
 
     await TestBed.configureTestingModule({
@@ -129,6 +139,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
               triggerCenterEvent: vi.fn(),
               hasOperator: () => false,
               getOperator: () => undefined,
+              getAllOperators: () => [],
+              getOperatorsToViewResult: () => new Set<string>(),
             }),
           },
         },
@@ -170,7 +182,18 @@ describe("WorkflowFormComponent (rendered template)", () => {
             resetExecutionAndWorkers: vi.fn(),
           },
         },
-        { provide: WorkflowResultService, useValue: { clearResults: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: {
+            clearResults: vi.fn(),
+            getResultUpdateStream: () => EMPTY,
+            hasNonEmptyResult: () => false,
+            hasAnyResult: () => false,
+            hasPaginatedResult: () => false,
+            getResultService: () => undefined,
+          },
+        },
+        { provide: PanelResizeService, useValue: { changePanelSize: vi.fn() } },
         { provide: NotificationService, useValue: { error: vi.fn() } },
         { provide: UserService, useValue: { getCurrentUser: () => undefined, isLogin: () => false } },
         { provide: MarkdownService, useValue: { parse: (s: string) => s } },
@@ -210,6 +233,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
             StopOutline,
             WarningOutline,
             LoadingOutline,
+            MinusOutline,
+            PlusOutline,
           ],
         },
         DatePipe,
@@ -387,6 +412,30 @@ describe("WorkflowFormComponent (rendered template)", () => {
     c.executionState = ExecutionState.Running;
     fixture.detectChanges();
     expect(el(".run-note")?.getAttribute("role")).toBe("status");
+  });
+
+  it("renders the results section: empty state, then a result card for a produced step", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+
+    // Before any result: the section shows its quiet empty line, no cards.
+    expect(el(".results .label")?.textContent?.trim()).toBe("Results");
+    expect(el(".results-empty")).not.toBeNull();
+    expect(el(".result")).toBeNull();
+
+    // A chosen step reports a non-empty result: a card appears. Kept in the neutral "no result
+    // yet" switch branch (not tabular, no snapshot) so the heavy table/visualization children --
+    // which their own specs cover, and which drag in a websocket/status chain jsdom cannot run --
+    // are not instantiated here; this test covers the page's own card + head markup.
+    const wrs: any = TestBed.inject(WorkflowResultService);
+    wrs.hasNonEmptyResult = () => true;
+    c.shownResultIds = ["op-1"];
+    fixture.detectChanges();
+
+    expect(el(".results-empty")).toBeNull();
+    expect(el(".result .result-head")).not.toBeNull();
+    expect(el(".result .result-body")).not.toBeNull();
   });
 
   it("tears the workflow down when the browser unloads (the beforeunload host binding)", () => {

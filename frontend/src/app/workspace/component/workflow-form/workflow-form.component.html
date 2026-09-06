@@ -221,5 +221,70 @@
           class="box"></texera-mini-map>
       </div>
     </section>
+
+    <!-- Results, under the workflow that produced them. The section keeps its place before a run so
+         the answer has a visible destination. -->
+    <section class="results">
+      <div class="pc-section-head"><span class="label">Results</span></div>
+      <p
+        class="results-empty"
+        *ngIf="resultIdsToShow.length === 0">
+        {{ isRunning ? "Working…" : "Press Run and the results appear here." }}
+      </p>
+      <!-- A card only for a chosen step that actually produced a result. Whether a Python UDF
+           yields one cannot be told from the graph, so a step earns its card at runtime rather than
+           sitting on a permanent "No result yet." (a download/publish step never would). -->
+      <ng-container *ngFor="let id of resultIdsToShow">
+        <div class="card result">
+          <div class="result-head">
+            <span>{{ resultLabel(id) }}</span>
+            <!-- Zooming only means something once there is a picture to zoom. -->
+            <span
+              class="result-zoom"
+              *ngIf="vizHasContent(id)">
+              <button
+                (click)="zoomResult(id, -1)"
+                [disabled]="resultZoom(id) <= 0"
+                nz-tooltip="Smaller">
+                <i
+                  nz-icon
+                  nzType="minus"></i>
+              </button>
+              <button
+                (click)="zoomResult(id, 1)"
+                [disabled]="resultZoom(id) >= 2"
+                nz-tooltip="Bigger">
+                <i
+                  nz-icon
+                  nzType="plus"></i>
+              </button>
+            </span>
+          </div>
+          <!-- Three cases, in order: a table (it shows its own "Empty result set" when it has no
+               rows), a visualisation that actually drew something, or nothing yet -- which
+               collapses to a compact line instead of a tall blank canvas. -->
+          <div
+            class="result-body"
+            [attr.data-zoom]="resultZoom(id)"
+            [ngSwitch]="true">
+            <texera-result-table-frame
+              *ngSwitchCase="isTabularResult(id)"
+              [operatorId]="id"></texera-result-table-frame>
+            <ng-container *ngSwitchCase="vizHasContent(id)">
+              <!-- Keyed on the result's version so a new result builds a new frame: the component
+                   reads its content once, at creation. -->
+              <texera-visualization-panel-content
+                *ngFor="let key of [resultKey(id)]; trackBy: trackByKey"
+                [operatorId]="id"></texera-visualization-panel-content>
+            </ng-container>
+            <p
+              *ngSwitchDefault
+              class="result-pending">
+              {{ isRunning ? "Computing…" : "No result yet." }}
+            </p>
+          </div>
+        </div>
+      </ng-container>
+    </section>
   </div>
 </div>
