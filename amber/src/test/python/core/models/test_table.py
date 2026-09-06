@@ -24,6 +24,15 @@ import re
 from pandas import RangeIndex
 
 from core.models import Table, Tuple
+from core.models.table import all_output_to_tuple
+
+
+def test_empty_list_output_produces_no_tuples():
+    assert list(all_output_to_tuple([])) == []
+
+
+def test_nonempty_list_output_still_produces_tuples():
+    assert list(all_output_to_tuple([{"x": 1}])) == [Tuple({"x": 1})]
 
 
 class TestTable:

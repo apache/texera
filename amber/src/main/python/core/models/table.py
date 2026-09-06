@@ -88,6 +88,8 @@ def all_output_to_tuple(output) -> Iterator[Tuple]:
     :param output:
     :return:
     """
+    if isinstance(output, list) and not output:
+        return
     yield from match(
         output,
         None,
