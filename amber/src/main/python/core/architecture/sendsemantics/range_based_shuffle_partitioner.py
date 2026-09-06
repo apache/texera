@@ -43,10 +43,7 @@ class RangeBasedShufflePartitioner(Partitioner):
         self.range_min = partitioning.range_min
         self.range_max = partitioning.range_max
         self.keys_per_receiver = int(
-            (
-                (partitioning.range_max - partitioning.range_min)
-                // len(partitioning.channels)
-            )
+            ((partitioning.range_max - partitioning.range_min) // len(self.receivers))
             + 1
         )
 
