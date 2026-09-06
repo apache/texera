@@ -56,10 +56,29 @@ export function setupHarness() {
   const workflowMetaDataChangedStream = new Subject<unknown>();
   // Compilation reports column names late; the form rebuilds its inputs off this stream.
   const compilationChanged = new Subject<unknown>();
+  // Run-related streams the run tests drive: execution state, the engine's duration event, the
+  // computing-unit connection status, the workflow validity, and the websocket connection.
+  const executionStateStream = new Subject<any>();
+  const durationEvents = new Subject<{ duration: number; isRunning: boolean }>();
+  const statusStream = new Subject<any>();
+  const validationStream = new Subject<{ errors: Record<string, unknown>; workflowEmpty: boolean }>();
+  const connectionStream = new Subject<boolean>();
+  // A result changed; the form bumps versions and re-fits. Tests drive it directly.
+  const resultUpdateStream = new Subject<Record<string, unknown>>();
   // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
   // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
   const hasOperatorIds = new Set<string>();
   const graphOperators: any[] = [];
+  // Operators with view-result ("the eye") on in the canvas -- the ONLY ones the form may show.
+  const viewResultIds = new Set<string>();
+  // Selecting a step on the embedded canvas drives the read-only inspect panel.
+  const highlightStream = new Subject<readonly string[]>();
+  const unhighlightStream = new Subject<readonly string[]>();
+  const highlightedIds: string[] = [];
+  const unhighlightOperators = vi.fn();
+  const updateSharedModelAwareness = vi.fn();
+  // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.
+  const anyResultIds = new Set<string>();
   // The preview centres the embedded graph once it is built; tests assert this fired.
   const triggerCenterEvent = vi.fn();
 
@@ -76,10 +95,20 @@ export function setupHarness() {
     getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
+    setHighlightingEnabled: vi.fn(),
     getTexeraGraph: () => ({
       triggerCenterEvent,
       hasOperator: (id: string) => hasOperatorIds.has(id),
       getOperator: (id: string) => graphOperators.find(o => o.operatorID === id),
+      getAllOperators: () => graphOperators,
+      getOperatorsToViewResult: () => new Set(viewResultIds),
+      updateSharedModelAwareness,
+    }),
+    getJointGraphWrapper: () => ({
+      getJointOperatorHighlightStream: () => highlightStream.asObservable(),
+      getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
+      getCurrentHighlightedOperatorIDs: () => highlightedIds,
+      unhighlightOperators,
     }),
     // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
     formBindingChanged$: new Subject<unknown>(),
@@ -87,9 +116,14 @@ export function setupHarness() {
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
   const formBindingService = {
+    // The presentation config: the instruction plus the fields. Tests override getConfig to give an
+    // instruction; resolveFields drives which inputs render.
+    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds: [] }),
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
+    // A result card's friendly label; the mock returns the operator's display name or its id.
+    operatorLabel: (op: any) => op?.customDisplayName ?? op?.operatorType ?? op?.operatorID,
   };
   // A field per property the tests expose. Real formly json-schema conversion is exercised by the
   // property panel's own spec; here a deterministic map keeps these tests about the component's
@@ -101,6 +135,48 @@ export function setupHarness() {
         { key: "fileName", props: { label: "File" } },
         { key: "modelId", props: { label: "Model" } },
         { key: "datasetVersionPath", props: { label: "Dataset" } },
+        // An object property with sub-fields (drives the override walk over a fieldGroup). The
+        // schema descriptions are here so a test can assert the walk drops them.
+        {
+          key: "nested",
+          props: { label: "Nested", description: "obj note" },
+          fieldGroup: [{ key: "sub", props: { label: "Sub", description: "sub note" } }],
+        },
+        // A repeated section whose row template is a builder (drives the fieldArray-wrapping path).
+        // The returned row carries its own description (the schema's items.description), so a test
+        // can assert the walk drops it -- it would otherwise render once per row.
+        {
+          key: "predicates",
+          props: { label: "Predicates" },
+          fieldArray: () => ({
+            props: { description: "row note" },
+            fieldGroup: [{ key: "alias", props: { label: "Alias" } }],
+          }),
+        },
+        // A scalar array: its row template is a leaf (no sub-fields), drives the leaf-item branch.
+        {
+          key: "tags",
+          props: { label: "Tags" },
+          fieldArray: { key: "item", props: { label: "Tag", description: "item note" } },
+        },
+        // A static object-array template (fieldArray is an object WITH sub-fields, not a builder):
+        // drives the object-array-template branch, where the container's own items.description must
+        // be dropped even though the container itself is not walked as a root.
+        {
+          key: "rules",
+          props: { label: "Rules" },
+          fieldArray: {
+            props: { description: "rules note" },
+            fieldGroup: [{ key: "field", props: { label: "Field", description: "field note" } }],
+          },
+        },
+        // A scalar array whose row template is a BUILDER returning a leaf (no fieldGroup): drives
+        // the leaf case inside the fieldArray-function wrapper.
+        {
+          key: "tagsFn",
+          props: { label: "Tags (fn)" },
+          fieldArray: () => ({ key: "item", props: { label: "Tag", description: "fn note" } }),
+        },
       ];
       return { fieldGroup: opts?.map ? fields.map(opts.map) : fields };
     },
@@ -118,14 +194,46 @@ export function setupHarness() {
   const coeditorPresenceService = { coeditors: [] };
   const route = { snapshot: { params: { id: "7" } } };
   const operatorMetadataService = { getOperatorMetadata: () => of({}) };
-  const executeWorkflowService = { resetExecutionAndWorkers: vi.fn() };
-  const workflowResultService = { clearResults: vi.fn() };
+  const executeWorkflowService = {
+    getExecutionStateStream: () => executionStateStream.asObservable(),
+    executeWorkflow: vi.fn(),
+    killWorkflow: vi.fn(),
+    resetExecutionAndWorkers: vi.fn(),
+  };
+  // Results: `anyResultIds` marks which operators produced a non-empty result; `snapshotById`
+  // lets a test give an operator a snapshot (drives vizHasContent). `hasPaginatedResult` is off
+  // unless a test overrides it. `getResultUpdateStream` is the stream the form watches.
+  const snapshotById = new Map<string, ReadonlyArray<object>>();
+  const workflowResultService = {
+    clearResults: vi.fn(),
+    getResultUpdateStream: () => resultUpdateStream.asObservable(),
+    hasNonEmptyResult: (id: string) => anyResultIds.has(id),
+    hasAnyResult: (id: string) => anyResultIds.has(id),
+    hasPaginatedResult: (_id: string) => false,
+    getResultService: (id: string) => ({ getCurrentResultSnapshot: () => snapshotById.get(id) }),
+  };
+  const panelResizeService = { changePanelSize: vi.fn() };
   const notificationService = { error: vi.fn() };
   // Not logged in by default so opening a workflow does not save; the save tests log in.
   const userService = { getCurrentUser: () => undefined, isLogin: vi.fn().mockReturnValue(false) };
-  const cdr = { detectChanges: vi.fn() };
-  const computingUnitStatusService = { disconnect: vi.fn() };
+  const markdownService = { parse: (s: string) => s };
+  const cdr = { detectChanges: vi.fn(), markForCheck: vi.fn() };
+  const computingUnitStatusService = {
+    disconnect: vi.fn(),
+    getSelectedComputingUnit: () => statusStream.asObservable(),
+    getStatus: () => statusStream.asObservable(),
+  };
   const workflowConsoleService = { clearConsoleMessages: vi.fn() };
+  // The websocket the run clock and the "Connecting" state read. `isConnected` is a plain settable
+  // flag so a test can put the page in the connecting window.
+  const workflowWebsocketService = {
+    subscribeToEvent: (_: string) => durationEvents.asObservable(),
+    isConnected: true,
+    getConnectionStatusStream: () => connectionStream.asObservable(),
+  };
+  const validationWorkflowService = {
+    getWorkflowValidationErrorStream: () => validationStream.asObservable(),
+  };
   // The name field is measured off the host; querySelector returns null so the measuring
   // (DOM-layout, jsdom has none) short-circuits. `contains` drives isTypingInTheForm; false by
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
@@ -153,20 +261,38 @@ export function setupHarness() {
     workflowResultService,
     notificationService,
     userService,
+    markdownService,
     formlyJsonschema,
     cdr,
     dynamicSchemaService,
     workflowCompilingService,
     computingUnitStatusService,
     workflowConsoleService,
+    workflowWebsocketService,
+    panelResizeService,
+    validationWorkflowService,
     host,
     datePipe,
     config,
     workflowChangedStream,
     workflowMetaDataChangedStream,
     compilationChanged,
+    executionStateStream,
+    durationEvents,
+    statusStream,
+    validationStream,
+    connectionStream,
+    resultUpdateStream,
     hasOperatorIds,
     graphOperators,
+    viewResultIds,
+    anyResultIds,
+    snapshotById,
     triggerCenterEvent,
+    highlightStream,
+    unhighlightStream,
+    highlightedIds,
+    unhighlightOperators,
+    updateSharedModelAwareness,
   };
 }

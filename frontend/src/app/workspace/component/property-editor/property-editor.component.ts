@@ -92,6 +92,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
    * Forwarded to the operator frame, which puts a tick box beside each property.
    */
   @Input() exposeChoosing = false;
+  /**
+   * Whether this panel owns the docked canvas panel's saved size/position. The Form View mounts
+   * this same component read-only inside a preview box, where the canvas layout (#right-container)
+   * does not exist; with `false` it neither restores nor persists that shared placement, so it
+   * cannot crash on the missing element and cannot overwrite the canvas panel's geometry. Default
+   * `true` keeps the operator canvas exactly as it was.
+   */
+  @Input() persistPlacement = true;
   /** Set from the toolbar toggle on the operator canvas; the input covers the form view. */
   private choosingFromToolbar = false;
 
@@ -137,11 +145,16 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit(): void {
-    const style = localStorage.getItem("right-panel-style");
-    if (style) document.getElementById("right-container")!.style.cssText = style;
-    const translates = document.getElementById("right-container")!.style.transform;
-    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
-    this.returnPosition = { x: -xOffset, y: -yOffset };
+    // Restoring the docked panel's saved placement reads #right-container, which only exists in the
+    // canvas layout. The Form View mounts this panel with persistPlacement=false, where that element
+    // is absent, so skip the restore there (it would throw on the missing element).
+    if (this.persistPlacement) {
+      const style = localStorage.getItem("right-panel-style");
+      if (style) document.getElementById("right-container")!.style.cssText = style;
+      const translates = document.getElementById("right-container")!.style.transform;
+      const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
+      this.returnPosition = { x: -xOffset, y: -yOffset };
+    }
     this.registerHighlightEventsHandler();
     // The toolbar's "choose fields" toggle lives in the service so both the canvas toolbar
     // and this panel see the same state. Re-emit the frame's inputs when it changes, so tick
@@ -205,6 +218,11 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
+    // The Form View's read-only copy (persistPlacement=false) must not persist geometry: it is not
+    // the docked canvas panel, so writing these keys would overwrite the real panel's saved size.
+    if (!this.persistPlacement) {
+      return;
+    }
     localStorage.setItem("right-panel-width", String(this.width));
     localStorage.setItem("right-panel-height", String(this.height));
 
