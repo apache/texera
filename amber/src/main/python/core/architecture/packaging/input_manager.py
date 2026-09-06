@@ -148,6 +148,9 @@ class InputManager:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
+        if channel_id in self._channels:
+            old_port_id = self._channels[channel_id].port_id
+            self._ports[old_port_id].get_channels().discard(channel_id)
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
