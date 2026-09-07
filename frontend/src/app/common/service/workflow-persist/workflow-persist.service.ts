@@ -19,8 +19,8 @@
 
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
-import { catchError, filter, map } from "rxjs/operators";
+import { EMPTY, Observable, ReplaySubject, Subject, throwError } from "rxjs";
+import { catchError, concatMap, filter, map, tap } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
@@ -59,13 +59,42 @@ export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
+  /**
+   * Saves, one at a time and in call order. Two saves in flight at once can reach the backend out
+   * of order, and then the older content wins: the canvas's autosave (debounced) and a Save or a
+   * view switch are independent requests, and the Form View's own queue only orders that page's
+   * saves. Ordering them here, at the one place every save goes through, covers all of them and
+   * lets a caller that hands over on completion (the view switches) know that everything asked for
+   * before it has landed too. Each request snapshots its payload when asked for; it is sent when its
+   * turn comes, and its outcome is relayed to that caller alone. A failed save fails its own caller
+   * and does not hold up the next.
+   */
+  private readonly persistQueue = new Subject<{ send: Observable<Workflow>; result: Subject<Workflow> }>();
+
   constructor(
     private http: HttpClient,
     private notificationService: NotificationService
-  ) {}
+  ) {
+    this.persistQueue
+      .pipe(
+        concatMap(({ send, result }) =>
+          send.pipe(
+            tap({
+              next: updated => result.next(updated),
+              error: (err: unknown) => result.error(err),
+              complete: () => result.complete(),
+            }),
+            catchError(() => EMPTY)
+          )
+        )
+      )
+      .subscribe();
+  }
 
   /**
-   * persists a workflow to backend database and returns its updated information (e.g., new wid)
+   * persists a workflow to backend database and returns its updated information (e.g., new wid).
+   * The request is queued behind any save still in flight (see persistQueue); the returned
+   * observable completes once this save has come back.
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
@@ -79,7 +108,7 @@ export class WorkflowPersistService {
     // backend does not read it on this endpoint (publishing goes through /public and /private),
     // and it is not reliably known here anyway, since the metadata fed back after a save names
     // it differently (see WorkflowUtilService.parseWorkflowInfo).
-    return this.http
+    const send = this.http
       .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
         name: workflow.name,
@@ -90,6 +119,11 @@ export class WorkflowPersistService {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+    // Replayed, so a caller that subscribes after the queue has already relayed the outcome (a
+    // save that was quick, or a synchronous test double) still receives it.
+    const result = new ReplaySubject<Workflow>(1);
+    this.persistQueue.next({ send, result });
+    return result.asObservable();
   }
 
   /**
@@ -99,12 +133,16 @@ export class WorkflowPersistService {
    */
   public createWorkflow(
     newWorkflowContent: WorkflowContent,
-    newWorkflowName: string = DEFAULT_WORKFLOW_NAME
+    newWorkflowName: string = DEFAULT_WORKFLOW_NAME,
+    defaultView?: DefaultView
   ): Observable<DashboardWorkflow> {
     return this.http
       .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
         content: JSON.stringify(newWorkflowContent),
+        // Bound onto the workflow row on the server, so an uploaded form-default workflow
+        // still opens as a form. Omitted (server default CANVAS) when the file carries none.
+        ...(defaultView === undefined ? {} : { defaultView }),
       })
       .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }
