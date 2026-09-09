@@ -252,6 +252,34 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
+-- does not restrict who may use the image.
+CREATE TABLE IF NOT EXISTS cu_image
+(
+    iid            SERIAL PRIMARY KEY,
+    name           VARCHAR(128) NOT NULL,
+    -- What the administrator supplied, normalised to an image reference.
+    source_ref     VARCHAR(512) NOT NULL,
+    -- The digest source_ref resolved to when last validated; an upstream tag can move.
+    source_digest  VARCHAR(128),
+    status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING'
+        CONSTRAINT ck_cu_image_status
+            CHECK (status IN ('PENDING', 'VALIDATING', 'READY', 'FAILED')),
+    -- What a unit is started from: source_ref pinned to the digest above.
+    -- Counts validations of this row, so a retry gets a job name of its own.
+    attempt        INT          NOT NULL DEFAULT 0,
+    validation_log TEXT,
+    created_by     INT,
+    creation_time  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES "user" (uid) ON DELETE SET NULL,
+    UNIQUE (name),
+    -- One row per reference; the service's own check is a read-then-write and so cannot
+    -- stop two simultaneous registrations of the same link.
+    UNIQUE (source_ref)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cu_image_source_digest ON cu_image (source_digest);
+
 -- Per-user warehouse registrations (#6870): one row per warehouse a user registered.
 -- Base columns only; the assume-role (BYO-S3) columns come in a later change.
 CREATE TABLE IF NOT EXISTS user_warehouse

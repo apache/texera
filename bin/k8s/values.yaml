@@ -372,6 +372,11 @@ litellm:
           model: gpt-5-mini
           api_key: "os.environ/OPENAI_API_KEY"
 
+# Images an administrator registers, which a computing unit can then be started from.
+curatedImages:
+  # Off until the UI to manage these ships.
+  enabled: false
+
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
