@@ -73,8 +73,7 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: TEXERA_CURATED_IMAGE_PREPULL_ENABLED
               value: "{{ .Values.curatedImages.prepull.enabled }}"
-            # The pool namespace, whose quota the declared requests satisfy. Not the
-            # release namespace, which holds the privileged mounter.
+            # Not the release namespace, which holds the privileged mounter.
             - name: TEXERA_CURATED_IMAGE_PREPULL_NAMESPACE
               value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: KUBERNETES_IMAGE_NAME

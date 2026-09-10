@@ -377,10 +377,9 @@ curatedImages:
   # Off until the UI to manage these ships.
   enabled: false
   prepull:
-    # Pull every ready image onto every node, so the first unit on a node does not wait for
-    # it. Costs node disk: each node holds each ready image. Turn off to pay the pull on
-    # first use instead -- doing so also removes the pre-pulls already made, which is what
-    # frees the disk, on the next read of the image list.
+    # Pull every ready image onto every node, so the first unit there does not wait for it.
+    # Costs node disk: each node holds each ready image. Turning it off also removes the
+    # pre-pulls already made.
     enabled: true
 
 # headless service for the access of computing units

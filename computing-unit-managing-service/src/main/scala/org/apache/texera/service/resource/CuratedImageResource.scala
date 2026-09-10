@@ -198,13 +198,10 @@ object CuratedImageResource extends LazyLogging {
     Option(context.select(NAME).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()).map(_.get(NAME))
 
   /**
-    * Brings the pre-pulls in the cluster into line with the ready images in the database:
-    * adds the missing, repoints the stale, and removes the rest.
-    *
-    * Reconciling rather than only adding is what makes the pre-pulls reapable at all.
-    * Every other path that removes one -- a deleted row, an image that left READY -- can
-    * be interrupted between the database write and the cluster call, and nothing else
-    * revisits a row that is gone or not ready. Whatever is left over is found here.
+    * Brings the pre-pulls into line with the ready images: adds the missing, repoints the
+    * stale, removes the rest. Reaping here is what makes them reapable at all -- every
+    * other removal path can be interrupted between the database write and the cluster
+    * call, and nothing else revisits a row once it is gone.
     *
     * One labelled list and one query, so a settled deployment does no work.
     */
@@ -213,10 +210,8 @@ object CuratedImageResource extends LazyLogging {
       // None means the cluster could not be asked, which is not "nothing is pre-pulled":
       // acting on that would fire a doomed call for every image on every read.
       ImagePrepullClient.prepulledRefs().foreach { prepulled =>
-        // Turning pre-pulling off is what frees the node disk it costs, so the pre-pulls
-        // already made are removed rather than merely left un-added to. Driven by what the
-        // listing actually found, so a deployment that has been off stops calling once
-        // there is nothing left rather than issuing a delete on every page load.
+        // No rows wanted when pre-pulling is off, so everything found is reaped below --
+        // that is what frees the disk the setting costs.
         val rows =
           if (!CuratedImageConfig.prepullEnabled) Nil
           else
@@ -235,30 +230,26 @@ object CuratedImageResource extends LazyLogging {
           }
           .toMap
 
-        // Compared by reference, not merely by presence: a refresh whose repoint failed
-        // leaves a pre-pull holding the previous digest, and nothing else would correct it.
+        // By reference, not just presence: a repoint that failed leaves a pre-pull on the
+        // previous digest, which nothing else would correct.
         wantedByImage.foreach {
           case (iid, wanted) =>
             if (!prepulled.get(iid).contains(wanted)) ImagePrepullClient.ensurePrepull(iid, wanted)
         }
 
-        // A row still being checked keeps its pre-pull. Refreshing a healthy image moves it
-        // through VALIDATING, and reaping on anything short of READY would pull the image
-        // off every node and put it back again on a routine action -- guaranteed to happen,
-        // since the admin page polls this endpoint for as long as a check is running.
+        // A row still being checked keeps its pre-pull: a refresh moves a healthy image
+        // through VALIDATING, and reaping then would strip it from every node and put it
+        // straight back.
         val keep = rows
           .filterNot(_.get(STATUS) == Status.Failed)
           .map(_.get(IID).intValue())
           .toSet
 
-        // What is left is genuinely unwanted: a row deleted while the cluster was
-        // unreachable, an image that failed its last check, or a process that stopped
-        // between the database write and the call that should have followed it.
+        // What is left has no live row: deleted, failed, or interrupted mid-removal.
         (prepulled.keySet -- keep).foreach(ImagePrepullClient.deletePrepull)
       }
     } catch {
-      // Opportunistic, like reconciling validations: a listing that cannot be repaired is
-      // still worth returning.
+      // Opportunistic: a listing that cannot be repaired is still worth returning.
       case e: Throwable =>
         logger.warn("Could not reconcile the curated-image pre-pulls; leaving them as they are.", e)
     }
@@ -474,20 +465,14 @@ object CuratedImageResource extends LazyLogging {
     // in the pool namespace.
     if (stored > 0) {
       ImageValidationClient.deleteValidation(iid, attempt)
-      // Only on READY, because only then is there something a unit can be started from.
-      // A refresh that resolved a moved tag arrives here too, and points the pre-pull at
-      // the new digest rather than leaving the node holding bytes nothing runs.
+      // On READY only, since only then can a unit start from it. A refresh that resolved
+      // a moved tag arrives here too and repoints the pre-pull. The reference comes from
+      // the row already read, not a fresh query, which could find it deleted.
       if (status == Status.Ready) {
-        // The reference comes from the row this reconcile already read, not a fresh query:
-        // a row deleted in between would leave pinnedRefOf building a reference with no
-        // repository at all -- "@sha256:..." -- and a DaemonSet that cannot pull it.
         pinnedRefOf(sourceRef, sourceDigest.orNull)
           .foreach(ImagePrepullClient.ensurePrepull(iid, _))
       } else {
-        // A failed refresh keeps the previous digest, so the row still names an image --
-        // but no unit can be started from it any more, and its pre-pull would go on
-        // holding gigabytes on every node for something unusable. Best-effort here;
-        // reconcilePrepulls is the backstop if this call does not happen.
+        // Otherwise no unit can start from it, so its pre-pull should not hold the image.
         ImagePrepullClient.deletePrepull(iid)
       }
     }
@@ -623,9 +608,8 @@ class CuratedImageResource extends LazyLogging {
     requireEnabled()
     // Nothing of ours holds a copy. A running unit keeps going on what its node pulled.
     ImageValidationClient.deleteAllValidations(iid)
-    // The row goes first, so a concurrent read cannot see a row that is still READY and
-    // re-create the pre-pull just removed. If this call is the one that does not happen,
-    // reconcilePrepulls removes what no ready row wants on the next read.
+    // The row goes first, so a concurrent read cannot see it still READY and re-create the
+    // pre-pull. If this call is lost, reconcilePrepulls reaps it on the next read.
     val deleted = context.deleteFrom(CU_IMAGE).where(IID.eq(iid)).execute()
     if (deleted == 0) {
       throw new NotFoundException(s"No curated image $iid.")
@@ -637,6 +621,9 @@ class CuratedImageResource extends LazyLogging {
 
   /** Marks the row as being validated and submits the job, in that order. */
   private def startValidation(iid: Int, sourceRef: String): Unit = {
+    // Refreshing is the only remedy the page offers, so it must not be held back by the
+    // cooldown a previous failure earned -- that would look like the button doing nothing.
+    ImagePrepullClient.clearFailure(iid)
     // Read and claimed in one statement. Two refreshes at the same moment would otherwise
     // both compute the same attempt, and the second would delete the first's job.
     val attempt = Option(
