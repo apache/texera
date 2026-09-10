@@ -95,6 +95,44 @@ class ImagePrepullClientSpec extends AnyFlatSpec with Matchers {
     pause.getResources.getLimits.asScala.keySet should contain allOf ("cpu", "memory")
   }
 
+  // The regression this guards: a persistent failure -- the Role not reapplied after an
+  // upgrade -- was retried on every read of the image list, by every user, for every ready
+  // image, logging a stack trace each time.
+  "isCoolingDown" should "hold back a reference that just failed" in {
+    val now = 1_000_000_000L
+    val cooldownMillis = CuratedImageConfig.prepullRetryCooldownSeconds * 1000L
+
+    ImagePrepullClient.isCoolingDown(Some((PinnedRef, now)), PinnedRef, now) shouldBe true
+    ImagePrepullClient.isCoolingDown(
+      Some((PinnedRef, now - cooldownMillis + 1)),
+      PinnedRef,
+      now
+    ) shouldBe true
+  }
+
+  it should "try again once the cooldown has passed" in {
+    val now = 1_000_000_000L
+    val cooldownMillis = CuratedImageConfig.prepullRetryCooldownSeconds * 1000L
+    ImagePrepullClient.isCoolingDown(
+      Some((PinnedRef, now - cooldownMillis)),
+      PinnedRef,
+      now
+    ) shouldBe false
+  }
+
+  it should "not hold back a different digest" in {
+    // A refresh that resolved a new digest is a new question. Making it wait out a cooldown
+    // the previous reference earned would leave nodes on the superseded image for as long
+    // as the cooldown lasts.
+    val now = 1_000_000_000L
+    val other = "owner/name@sha256:" + "f" * 64
+    ImagePrepullClient.isCoolingDown(Some((PinnedRef, now)), other, now) shouldBe false
+  }
+
+  it should "not hold back an image that has never failed" in {
+    ImagePrepullClient.isCoolingDown(None, PinnedRef, 1_000_000_000L) shouldBe false
+  }
+
   "prepulledRefOf" should "read back what a pre-pull actually pulls" in {
     // What lets a stale pre-pull be spotted: a refresh whose repoint failed leaves one
     // holding the previous digest, and comparing only ids would never notice.

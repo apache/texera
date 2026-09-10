@@ -23,6 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import io.fabric8.kubernetes.api.model.{Quantity, ResourceRequirementsBuilder}
 import io.fabric8.kubernetes.api.model.apps.{DaemonSet, DaemonSetBuilder}
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
+import io.fabric8.kubernetes.api.model.DeletionPropagation
 import org.apache.texera.common.config.CuratedImageConfig
 
 import scala.jdk.CollectionConverters._
@@ -57,12 +58,46 @@ object ImagePrepullClient extends LazyLogging {
   private[service] val ImageLabel = "texera-cu-image"
 
   /**
+    * The reference each image's last failed create was for, and when it failed.
+    *
+    * Reconciling runs on every read of the image list, by any signed-in user, so a failure
+    * that will not clear on its own -- the Role not reapplied after an upgrade, an
+    * admission webhook refusing the pod -- would otherwise be retried on every page load
+    * for every ready image, each one logging a stack trace. Keyed by reference as well as
+    * time so that a genuinely new digest is tried at once rather than waiting out a
+    * cooldown earned by the previous one.
+    */
+  private val lastFailure = new java.util.concurrent.ConcurrentHashMap[Int, (String, Long)]()
+
+  private def failedRecently(iid: Int, pinnedRef: String): Boolean =
+    isCoolingDown(Option(lastFailure.get(iid)), pinnedRef, System.currentTimeMillis())
+
+  /**
+    * Whether a create should be held back. Separated from the clock and the map so the rule
+    * itself can be stated in a test rather than inferred from whether a cluster happened to
+    * answer.
+    */
+  private[service] def isCoolingDown(
+      recorded: Option[(String, Long)],
+      pinnedRef: String,
+      now: Long
+  ): Boolean =
+    recorded.exists {
+      case (failedRef, at) =>
+        // The reference has to match: a new digest is a new question, and should be asked
+        // at once rather than serving out a cooldown the previous one earned.
+        failedRef == pinnedRef &&
+          now - at < CuratedImageConfig.prepullRetryCooldownSeconds * 1000L
+    }
+
+  /**
     * Creates the pre-pull for an image, or points an existing one at a new reference. Called
     * whenever a row reaches READY, which covers a refresh that resolved a moved tag to a
     * different digest.
     */
   def ensurePrepull(iid: Int, pinnedRef: String): Unit = {
     if (!CuratedImageConfig.prepullEnabled) return
+    if (failedRecently(iid, pinnedRef)) return
     try {
       val daemonSet = prepullDaemonSet(iid, pinnedRef)
       client
@@ -71,9 +106,11 @@ object ImagePrepullClient extends LazyLogging {
         .inNamespace(namespace)
         .resource(daemonSet)
         .createOr(existing => existing.update())
+      lastFailure.remove(iid)
       logger.info(s"Pre-pulling curated image $iid ($pinnedRef) onto every node.")
     } catch {
       case e: Throwable =>
+        lastFailure.put(iid, (pinnedRef, System.currentTimeMillis()))
         // The image is still usable; only the head start is lost.
         logger.warn(
           s"Could not pre-pull curated image $iid ($pinnedRef). The first unit on each " +
@@ -95,6 +132,10 @@ object ImagePrepullClient extends LazyLogging {
         .daemonSets()
         .inNamespace(namespace)
         .withName(CuratedImageConfig.prepullName(iid))
+        // Stated rather than left to a default: were it ever Orphan, the pods would stay
+        // on every node still holding the image, and the reconcile pass lists DaemonSets,
+        // so nothing would ever find them again.
+        .withPropagationPolicy(DeletionPropagation.BACKGROUND)
         .delete()
     } catch {
       case e: Throwable =>
@@ -102,6 +143,9 @@ object ImagePrepullClient extends LazyLogging {
         // naming in the log rather than passing over.
         logger.warn(s"Could not remove the pre-pull for curated image $iid.", e)
     }
+    // Whether or not the delete landed, nothing is now known to be wrong with this image's
+    // reference, and a create asked for next should not be held back by an old failure.
+    lastFailure.remove(iid)
   }
 
   /**

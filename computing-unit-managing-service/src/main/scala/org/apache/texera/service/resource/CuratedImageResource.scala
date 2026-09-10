@@ -197,10 +197,6 @@ object CuratedImageResource extends LazyLogging {
   def nameOf(iid: Int): Option[String] =
     Option(context.select(NAME).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()).map(_.get(NAME))
 
-  private def sourceRefOf(iid: Int): Option[String] =
-    Option(context.select(SOURCE_REF).from(CU_IMAGE).where(IID.eq(iid)).fetchOne())
-      .map(_.get(SOURCE_REF))
-
   /**
     * Brings the pre-pulls in the cluster into line with the ready images in the database:
     * adds the missing, repoints the stale, and removes the rest.
@@ -221,20 +217,23 @@ object CuratedImageResource extends LazyLogging {
         // already made are removed rather than merely left un-added to. Driven by what the
         // listing actually found, so a deployment that has been off stops calling once
         // there is nothing left rather than issuing a delete on every page load.
-        val wantedByImage: Map[Int, String] =
-          if (!CuratedImageConfig.prepullEnabled) Map.empty
+        val rows =
+          if (!CuratedImageConfig.prepullEnabled) Nil
           else
             context
-              .select(IID, SOURCE_REF, SOURCE_DIGEST)
+              .select(IID, STATUS, SOURCE_REF, SOURCE_DIGEST)
               .from(CU_IMAGE)
-              .where(STATUS.eq(Status.Ready))
               .fetch()
               .asScala
-              .flatMap { row =>
-                pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST))
-                  .map(row.get(IID).intValue() -> _)
-              }
-              .toMap
+              .toList
+
+        val wantedByImage: Map[Int, String] = rows
+          .filter(_.get(STATUS) == Status.Ready)
+          .flatMap { row =>
+            pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST))
+              .map(row.get(IID).intValue() -> _)
+          }
+          .toMap
 
         // Compared by reference, not merely by presence: a refresh whose repoint failed
         // leaves a pre-pull holding the previous digest, and nothing else would correct it.
@@ -243,9 +242,19 @@ object CuratedImageResource extends LazyLogging {
             if (!prepulled.get(iid).contains(wanted)) ImagePrepullClient.ensurePrepull(iid, wanted)
         }
 
-        // Orphans: a row deleted while the cluster was unreachable, an image that left
-        // READY, or a process that stopped between the two. No row refers to these.
-        (prepulled.keySet -- wantedByImage.keySet).foreach(ImagePrepullClient.deletePrepull)
+        // A row still being checked keeps its pre-pull. Refreshing a healthy image moves it
+        // through VALIDATING, and reaping on anything short of READY would pull the image
+        // off every node and put it back again on a routine action -- guaranteed to happen,
+        // since the admin page polls this endpoint for as long as a check is running.
+        val keep = rows
+          .filterNot(_.get(STATUS) == Status.Failed)
+          .map(_.get(IID).intValue())
+          .toSet
+
+        // What is left is genuinely unwanted: a row deleted while the cluster was
+        // unreachable, an image that failed its last check, or a process that stopped
+        // between the database write and the call that should have followed it.
+        (prepulled.keySet -- keep).foreach(ImagePrepullClient.deletePrepull)
       }
     } catch {
       // Opportunistic, like reconciling validations: a listing that cannot be repaired is
@@ -275,7 +284,7 @@ object CuratedImageResource extends LazyLogging {
       // The cluster may be unreachable, or the Role not yet reapplied after an upgrade.
       // Reconciling is opportunistic, so a row that cannot be checked is left as it is
       // rather than failing a read that would otherwise return every other image.
-      try reconcileOne(iid, attempt, row.get(UPDATE_TIME).getTime)
+      try reconcileOne(iid, attempt, row.get(UPDATE_TIME).getTime, row.get(SOURCE_REF))
       catch {
         case e: Throwable =>
           logger.warn(s"Could not check the validation of image $iid; leaving it as it is.", e)
@@ -283,7 +292,7 @@ object CuratedImageResource extends LazyLogging {
     }
   }
 
-  private def reconcileOne(iid: Int, attempt: Int, updatedAt: Long): Unit = {
+  private def reconcileOne(iid: Int, attempt: Int, updatedAt: Long, sourceRef: String): Unit = {
     // State first, then the log. The other order can read a log written while the job was
     // still running and then judge it against a state that says it finished -- the digest
     // line would be missing and a successful validation would be recorded as failed.
@@ -312,7 +321,8 @@ object CuratedImageResource extends LazyLogging {
           // from and calling it ready would strand a unit in ImagePullBackOff.
           if (digest.isDefined) Status.Ready else Status.Failed,
           digest,
-          text + validationNote(digest, digest.flatMap(sameContentNote(iid, _)))
+          text + validationNote(digest, digest.flatMap(sameContentNote(iid, _))),
+          sourceRef
         )
 
       case ValidationState.Failed =>
@@ -326,7 +336,8 @@ object CuratedImageResource extends LazyLogging {
           attempt,
           Status.Failed,
           None,
-          reason.getOrElse("The validation failed without reporting a reason.")
+          reason.getOrElse("The validation failed without reporting a reason."),
+          sourceRef
         )
 
       case ValidationState.Absent =>
@@ -340,7 +351,8 @@ object CuratedImageResource extends LazyLogging {
             attempt,
             Status.Failed,
             None,
-            "The validation job disappeared before it reported a result."
+            "The validation job disappeared before it reported a result.",
+            sourceRef
           )
         }
     }
@@ -446,7 +458,8 @@ object CuratedImageResource extends LazyLogging {
       attempt: Int,
       status: String,
       sourceDigest: Option[String],
-      log: String
+      log: String,
+      sourceRef: String
   ): Unit = {
     val update = context
       .update(CU_IMAGE)
@@ -465,7 +478,10 @@ object CuratedImageResource extends LazyLogging {
       // A refresh that resolved a moved tag arrives here too, and points the pre-pull at
       // the new digest rather than leaving the node holding bytes nothing runs.
       if (status == Status.Ready) {
-        pinnedRefOf(sourceRefOf(iid).orNull, sourceDigest.orNull)
+        // The reference comes from the row this reconcile already read, not a fresh query:
+        // a row deleted in between would leave pinnedRefOf building a reference with no
+        // repository at all -- "@sha256:..." -- and a DaemonSet that cannot pull it.
+        pinnedRefOf(sourceRef, sourceDigest.orNull)
           .foreach(ImagePrepullClient.ensurePrepull(iid, _))
       } else {
         // A failed refresh keeps the previous digest, so the row still names an image --

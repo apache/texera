@@ -48,6 +48,8 @@ object CuratedImageConfig {
   val prepullEnabled: Boolean = conf.getBoolean("curated-images.prepull-enabled")
   val prepullNamespace: String = conf.getString("curated-images.prepull-namespace")
   val prepullPauseImage: String = conf.getString("curated-images.prepull-pause-image")
+  val prepullRetryCooldownSeconds: Int =
+    conf.getInt("curated-images.prepull-retry-cooldown-seconds")
   val prepullCpu: String = conf.getString("curated-images.prepull-cpu")
   val prepullMemory: String = conf.getString("curated-images.prepull-memory")
 
