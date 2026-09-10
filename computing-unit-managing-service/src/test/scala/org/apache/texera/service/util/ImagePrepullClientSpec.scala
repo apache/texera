@@ -55,11 +55,40 @@ class ImagePrepullClientSpec extends AnyFlatSpec with Matchers {
     containers.head.getImage shouldBe CuratedImageConfig.prepullPauseImage
   }
 
-  it should "reach every node the deployment tolerates" in {
-    // A node a unit can be scheduled onto is a node the image has to be on. Without this
-    // the tainted nodes are exactly the ones that would wait for the pull.
-    val tolerations = prepullDaemonSet(7, PinnedRef).getSpec.getTemplate.getSpec.getTolerations
-    tolerations.asScala.map(_.getOperator).toList shouldBe List("Exists")
+  it should "schedule exactly where a computing unit can, and no wider" in {
+    // The regression this guards: an earlier version tolerated everything, which put
+    // multi-gigabyte images on control-plane and other reserved nodes. A computing-unit
+    // pod declares no tolerations, so a tainted node is one no unit can ever land on --
+    // pre-pulling there buys nothing and costs disk on the nodes that can least spare it.
+    val podSpec = prepullDaemonSet(7, PinnedRef).getSpec.getTemplate.getSpec
+    Option(podSpec.getTolerations).map(_.asScala.toList).getOrElse(Nil) shouldBe Nil
+  }
+
+  // The regression this guards: the init container declared no requests, and the pool
+  // namespace has a ResourceQuota on requests.cpu/requests.memory. Quota admission checks
+  // init containers, so every pre-pull pod was refused -- while the DaemonSet itself was
+  // created, so the service logged success and pre-pulled nothing, anywhere, ever.
+  it should "declare the requests a quota would demand" in {
+    val podSpec = prepullDaemonSet(7, PinnedRef).getSpec.getTemplate.getSpec
+    val everyContainer =
+      podSpec.getInitContainers.asScala.toList ++ podSpec.getContainers.asScala.toList
+    everyContainer.foreach { container =>
+      val requests = Option(container.getResources).map(_.getRequests.asScala).getOrElse(Map.empty)
+      withClue(s"${container.getName} must request cpu and memory: ") {
+        requests.keySet should contain allOf ("cpu", "memory")
+      }
+    }
+  }
+
+  "prepulledRefOf" should "read back what a pre-pull actually pulls" in {
+    // What lets a stale pre-pull be spotted: a refresh whose repoint failed leaves one
+    // holding the previous digest, and comparing only ids would never notice.
+    ImagePrepullClient.prepulledRefOf(prepullDaemonSet(7, PinnedRef)).value shouldBe PinnedRef
+  }
+
+  it should "be empty for a DaemonSet with no init container" in {
+    val strayObject = new DaemonSetBuilder().withNewMetadata().withName("x").endMetadata().build()
+    ImagePrepullClient.prepulledRefOf(strayObject) shouldBe None
   }
 
   it should "name itself after the image, so a refresh replaces rather than adds" in {

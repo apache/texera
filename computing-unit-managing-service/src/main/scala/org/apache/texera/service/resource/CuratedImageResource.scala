@@ -211,22 +211,34 @@ object CuratedImageResource extends LazyLogging {
     * costs a single call.
     */
   private def ensurePrepullsForReadyImages(): Unit = {
-    if (!CuratedImageConfig.prepullEnabled) return
+    // Turning pre-pulling off is what frees the node disk it costs, so the pre-pulls
+    // already made are removed rather than merely left un-added to.
+    if (!CuratedImageConfig.prepullEnabled) {
+      ImagePrepullClient.deleteAllPrepulls()
+      return
+    }
     try {
-      val alreadyPrepulled = ImagePrepullClient.prepulledImageIds()
-      context
-        .select(IID, SOURCE_REF, SOURCE_DIGEST)
-        .from(CU_IMAGE)
-        .where(STATUS.eq(Status.Ready))
-        .fetch()
-        .asScala
-        .foreach { row =>
-          val iid = row.get(IID).intValue()
-          if (!alreadyPrepulled.contains(iid)) {
-            pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST))
-              .foreach(ImagePrepullClient.ensurePrepull(iid, _))
+      // None means the cluster could not be asked. Treating that as "nothing is pre-pulled"
+      // would fire a doomed create for every ready image on every read.
+      ImagePrepullClient.prepulledRefs().foreach { prepulled =>
+        context
+          .select(IID, SOURCE_REF, SOURCE_DIGEST)
+          .from(CU_IMAGE)
+          .where(STATUS.eq(Status.Ready))
+          .fetch()
+          .asScala
+          .foreach { row =>
+            val iid = row.get(IID).intValue()
+            pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST)).foreach { wanted =>
+              // Compared by reference, not merely by presence: a refresh whose repoint
+              // failed leaves a pre-pull holding the previous digest, and nothing else
+              // would ever correct it.
+              if (!prepulled.get(iid).contains(wanted)) {
+                ImagePrepullClient.ensurePrepull(iid, wanted)
+              }
+            }
           }
-        }
+      }
     } catch {
       // Opportunistic, like reconciling: a listing that cannot be repaired is still worth
       // returning.
@@ -447,6 +459,12 @@ object CuratedImageResource extends LazyLogging {
       if (status == Status.Ready) {
         pinnedRefOf(sourceRefOf(iid).orNull, sourceDigest.orNull)
           .foreach(ImagePrepullClient.ensurePrepull(iid, _))
+      } else {
+        // A failed refresh keeps the previous digest, so the row still names an image --
+        // but no unit can be started from it any more. Left alone, its pre-pull would go
+        // on holding gigabytes on every node for something unusable, and nothing revisits
+        // a row that is not READY.
+        ImagePrepullClient.deletePrepull(iid)
       }
     }
   }
@@ -581,13 +599,16 @@ class CuratedImageResource extends LazyLogging {
     requireEnabled()
     // Nothing of ours holds a copy. A running unit keeps going on what its node pulled.
     ImageValidationClient.deleteAllValidations(iid)
-    // Left behind, it would go on holding the image on every node for an image no unit can
-    // be started from any more.
-    ImagePrepullClient.deletePrepull(iid)
+    // The row goes first. Removing the pre-pull before it leaves a window in which a
+    // concurrent read sees a row that is still READY and re-creates the pre-pull, and
+    // nothing would ever reap that one.
     val deleted = context.deleteFrom(CU_IMAGE).where(IID.eq(iid)).execute()
     if (deleted == 0) {
       throw new NotFoundException(s"No curated image $iid.")
     }
+    // Left behind, it would go on holding the image on every node for an image no unit can
+    // be started from any more.
+    ImagePrepullClient.deletePrepull(iid)
   }
 
   /** Marks the row as being validated and submits the job, in that order. */

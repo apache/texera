@@ -105,14 +105,18 @@ object ImagePrepullClient extends LazyLogging {
   }
 
   /**
-    * The images that already have a pre-pull. Read so that rows which reached READY without
-    * one -- registered before this shipped, or created while the cluster was unreachable --
-    * are given theirs, rather than never being pre-pulled at all.
+    * What each image's pre-pull currently pulls, keyed by image. Read so that a row which
+    * reached READY without one -- registered before this shipped, or finished while the
+    * cluster was unreachable -- is given theirs, and so that one still pointing at a
+    * superseded digest is corrected.
+    *
+    * None means the question could not be answered, which is not the same as "none exist":
+    * an empty map would have the caller create a pre-pull for every ready image against a
+    * cluster that has just refused to talk to it.
     */
-  def prepulledImageIds(): Set[Int] = {
-    if (!CuratedImageConfig.prepullEnabled) return Set.empty
+  def prepulledRefs(): Option[Map[Int, String]] = {
     try {
-      client
+      val entries = client
         .apps()
         .daemonSets()
         .inNamespace(namespace)
@@ -120,16 +124,38 @@ object ImagePrepullClient extends LazyLogging {
         .list()
         .getItems
         .asScala
-        .flatMap(imageIdOf)
-        .toSet
+        .flatMap(daemonSet => imageIdOf(daemonSet).map(_ -> prepulledRefOf(daemonSet).orNull))
+      Some(entries.toMap)
     } catch {
       case e: Throwable =>
-        // Returning "none are pre-pulled" would ask for every one of them again on a
-        // cluster that cannot answer. An empty answer here means "nothing to add".
         logger.warn("Could not list the curated-image pre-pulls; leaving them as they are.", e)
-        Set.empty
+        None
     }
   }
+
+  /** Every pre-pull this service owns, removed. How turning pre-pulling off frees the disk. */
+  def deleteAllPrepulls(): Unit = {
+    try {
+      client
+        .apps()
+        .daemonSets()
+        .inNamespace(namespace)
+        .withLabel(OwnerLabel, "true")
+        .delete()
+    } catch {
+      case e: Throwable =>
+        logger.warn("Could not remove the curated-image pre-pulls.", e)
+    }
+  }
+
+  /** The reference a pre-pull pulls, which is its init container's image. */
+  private[service] def prepulledRefOf(daemonSet: DaemonSet): Option[String] =
+    Option(daemonSet.getSpec)
+      .flatMap(spec => Option(spec.getTemplate))
+      .flatMap(template => Option(template.getSpec))
+      .flatMap(podSpec => Option(podSpec.getInitContainers))
+      .flatMap(_.asScala.headOption)
+      .flatMap(container => Option(container.getImage))
 
   /** The image a pre-pull was created for, from its label rather than its name. */
   private[service] def imageIdOf(daemonSet: DaemonSet): Option[Int] =
@@ -146,9 +172,12 @@ object ImagePrepullClient extends LazyLogging {
       ImageLabel -> iid.toString
     ).asJava
 
-    // The pause container is the whole running cost of a pre-pull, and it does nothing but
-    // exist, so it is held to the smallest request the chart's own pre-puller uses.
-    val pauseResources = new ResourceRequirementsBuilder()
+    // Stated on both containers, not just the one that keeps running. A namespace with a
+    // ResourceQuota on requests.cpu/requests.memory refuses a pod whose init container
+    // leaves them out -- quota admission checks init containers too -- and the refusal is
+    // invisible, because the DaemonSet is still created. Costs nothing: a pod's request is
+    // the larger of its init containers and the sum of its others, so the same 1m/8Mi.
+    val resources = new ResourceRequirementsBuilder()
       .addToRequests("cpu", new Quantity(CuratedImageConfig.prepullCpu))
       .addToRequests("memory", new Quantity(CuratedImageConfig.prepullMemory))
       .addToLimits("cpu", new Quantity(CuratedImageConfig.prepullCpu))
@@ -172,11 +201,10 @@ object ImagePrepullClient extends LazyLogging {
       .withLabels(labels)
       .endMetadata()
       .withNewSpec()
-      // A node the deployment tolerates is a node a unit can land on, so it is one the
-      // image has to reach.
-      .addNewToleration()
-      .withOperator("Exists")
-      .endToleration()
+      // No tolerations, deliberately: a computing-unit pod declares none either, so a
+      // tainted node is one no unit can ever be scheduled onto. Tolerating everything
+      // would put multi-gigabyte images on control-plane and other reserved nodes that
+      // will never run a unit.
       .withInitContainers(
         new io.fabric8.kubernetes.api.model.ContainerBuilder()
           .withName("prepuller")
@@ -185,12 +213,13 @@ object ImagePrepullClient extends LazyLogging {
           // from what the registry would serve. Always would re-check it for nothing.
           .withImagePullPolicy("IfNotPresent")
           .withCommand("sh", "-c", "true")
+          .withResources(resources)
           .build()
       )
       .addNewContainer()
       .withName("pause")
       .withImage(CuratedImageConfig.prepullPauseImage)
-      .withResources(pauseResources)
+      .withResources(resources)
       .endContainer()
       .endSpec()
       .endTemplate()
