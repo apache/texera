@@ -73,11 +73,10 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: TEXERA_CURATED_IMAGE_PREPULL_ENABLED
               value: "{{ .Values.curatedImages.prepull.enabled }}"
-            # The release namespace, not the pool one: the pool's ResourceQuota refuses a
-            # pod whose init container declares no requests, and pre-pulls would otherwise
-            # eat the budget computing units draw from.
+            # The pool namespace, whose quota the declared requests satisfy. Not the
+            # release namespace, which holds the privileged mounter.
             - name: TEXERA_CURATED_IMAGE_PREPULL_NAMESPACE
-              value: {{ .Release.Namespace }}
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: KUBERNETES_IMAGE_NAME
               value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             - name: KUBERNETES_MOUNTER_ENABLED

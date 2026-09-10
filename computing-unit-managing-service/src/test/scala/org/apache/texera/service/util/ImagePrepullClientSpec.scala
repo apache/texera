@@ -80,6 +80,21 @@ class ImagePrepullClientSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The regression this guards: requests and limits were built once and shared, which put
+  // an 8Mi cap on the init container. A limit is enforced per container and never maxed
+  // across them, so the shell of an arbitrary image -- bash, on the Python bases these are
+  // built from -- was OOMKilled, the pod crash-looped, pause never ran, and the image went
+  // back to being reclaimable, all while the DaemonSet reported itself created.
+  it should "cap the pause container only, never the image's own shell" in {
+    val podSpec = prepullDaemonSet(7, PinnedRef).getSpec.getTemplate.getSpec
+
+    val prepuller = podSpec.getInitContainers.asScala.head
+    Option(prepuller.getResources).map(_.getLimits.asScala).getOrElse(Map.empty) shouldBe empty
+
+    val pause = podSpec.getContainers.asScala.head
+    pause.getResources.getLimits.asScala.keySet should contain allOf ("cpu", "memory")
+  }
+
   "prepulledRefOf" should "read back what a pre-pull actually pulls" in {
     // What lets a stale pre-pull be spotted: a refresh whose repoint failed leaves one
     // holding the previous digest, and comparing only ids would never notice.

@@ -202,48 +202,56 @@ object CuratedImageResource extends LazyLogging {
       .map(_.get(SOURCE_REF))
 
   /**
-    * Gives a pre-pull to every ready image that has none. A row can reach READY without one:
-    * registered before pre-pulling shipped, or finished while the cluster could not be
-    * reached. Without this the image would never be pre-pulled at all, since nothing else
-    * revisits a row once it is ready.
+    * Brings the pre-pulls in the cluster into line with the ready images in the database:
+    * adds the missing, repoints the stale, and removes the rest.
     *
-    * One labelled list, then only the images actually missing, so a settled deployment
-    * costs a single call.
+    * Reconciling rather than only adding is what makes the pre-pulls reapable at all.
+    * Every other path that removes one -- a deleted row, an image that left READY -- can
+    * be interrupted between the database write and the cluster call, and nothing else
+    * revisits a row that is gone or not ready. Whatever is left over is found here.
+    *
+    * One labelled list and one query, so a settled deployment does no work.
     */
-  private def ensurePrepullsForReadyImages(): Unit = {
-    // Turning pre-pulling off is what frees the node disk it costs, so the pre-pulls
-    // already made are removed rather than merely left un-added to.
-    if (!CuratedImageConfig.prepullEnabled) {
-      ImagePrepullClient.deleteAllPrepulls()
-      return
-    }
+  private def reconcilePrepulls(): Unit = {
     try {
-      // None means the cluster could not be asked. Treating that as "nothing is pre-pulled"
-      // would fire a doomed create for every ready image on every read.
+      // None means the cluster could not be asked, which is not "nothing is pre-pulled":
+      // acting on that would fire a doomed call for every image on every read.
       ImagePrepullClient.prepulledRefs().foreach { prepulled =>
-        context
-          .select(IID, SOURCE_REF, SOURCE_DIGEST)
-          .from(CU_IMAGE)
-          .where(STATUS.eq(Status.Ready))
-          .fetch()
-          .asScala
-          .foreach { row =>
-            val iid = row.get(IID).intValue()
-            pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST)).foreach { wanted =>
-              // Compared by reference, not merely by presence: a refresh whose repoint
-              // failed leaves a pre-pull holding the previous digest, and nothing else
-              // would ever correct it.
-              if (!prepulled.get(iid).contains(wanted)) {
-                ImagePrepullClient.ensurePrepull(iid, wanted)
+        // Turning pre-pulling off is what frees the node disk it costs, so the pre-pulls
+        // already made are removed rather than merely left un-added to. Driven by what the
+        // listing actually found, so a deployment that has been off stops calling once
+        // there is nothing left rather than issuing a delete on every page load.
+        val wantedByImage: Map[Int, String] =
+          if (!CuratedImageConfig.prepullEnabled) Map.empty
+          else
+            context
+              .select(IID, SOURCE_REF, SOURCE_DIGEST)
+              .from(CU_IMAGE)
+              .where(STATUS.eq(Status.Ready))
+              .fetch()
+              .asScala
+              .flatMap { row =>
+                pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST))
+                  .map(row.get(IID).intValue() -> _)
               }
-            }
-          }
+              .toMap
+
+        // Compared by reference, not merely by presence: a refresh whose repoint failed
+        // leaves a pre-pull holding the previous digest, and nothing else would correct it.
+        wantedByImage.foreach {
+          case (iid, wanted) =>
+            if (!prepulled.get(iid).contains(wanted)) ImagePrepullClient.ensurePrepull(iid, wanted)
+        }
+
+        // Orphans: a row deleted while the cluster was unreachable, an image that left
+        // READY, or a process that stopped between the two. No row refers to these.
+        (prepulled.keySet -- wantedByImage.keySet).foreach(ImagePrepullClient.deletePrepull)
       }
     } catch {
-      // Opportunistic, like reconciling: a listing that cannot be repaired is still worth
-      // returning.
+      // Opportunistic, like reconciling validations: a listing that cannot be repaired is
+      // still worth returning.
       case e: Throwable =>
-        logger.warn("Could not check the pre-pulls of ready images; leaving them as they are.", e)
+        logger.warn("Could not reconcile the curated-image pre-pulls; leaving them as they are.", e)
     }
   }
 
@@ -461,9 +469,9 @@ object CuratedImageResource extends LazyLogging {
           .foreach(ImagePrepullClient.ensurePrepull(iid, _))
       } else {
         // A failed refresh keeps the previous digest, so the row still names an image --
-        // but no unit can be started from it any more. Left alone, its pre-pull would go
-        // on holding gigabytes on every node for something unusable, and nothing revisits
-        // a row that is not READY.
+        // but no unit can be started from it any more, and its pre-pull would go on
+        // holding gigabytes on every node for something unusable. Best-effort here;
+        // reconcilePrepulls is the backstop if this call does not happen.
         ImagePrepullClient.deletePrepull(iid)
       }
     }
@@ -492,7 +500,7 @@ class CuratedImageResource extends LazyLogging {
   def list(@Auth user: SessionUser): List[CuratedImage] = {
     requireEnabled()
     reconcileRunningValidations()
-    ensurePrepullsForReadyImages()
+    reconcilePrepulls()
     context
       // Not select(): validation_log is unbounded and this endpoint discards it.
       .select(IID, NAME, SOURCE_REF, SOURCE_DIGEST, STATUS, ATTEMPT, CREATION_TIME, UPDATE_TIME)
@@ -599,9 +607,9 @@ class CuratedImageResource extends LazyLogging {
     requireEnabled()
     // Nothing of ours holds a copy. A running unit keeps going on what its node pulled.
     ImageValidationClient.deleteAllValidations(iid)
-    // The row goes first. Removing the pre-pull before it leaves a window in which a
-    // concurrent read sees a row that is still READY and re-creates the pre-pull, and
-    // nothing would ever reap that one.
+    // The row goes first, so a concurrent read cannot see a row that is still READY and
+    // re-create the pre-pull just removed. If this call is the one that does not happen,
+    // reconcilePrepulls removes what no ready row wants on the next read.
     val deleted = context.deleteFrom(CU_IMAGE).where(IID.eq(iid)).execute()
     if (deleted == 0) {
       throw new NotFoundException(s"No curated image $iid.")

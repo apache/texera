@@ -133,21 +133,6 @@ object ImagePrepullClient extends LazyLogging {
     }
   }
 
-  /** Every pre-pull this service owns, removed. How turning pre-pulling off frees the disk. */
-  def deleteAllPrepulls(): Unit = {
-    try {
-      client
-        .apps()
-        .daemonSets()
-        .inNamespace(namespace)
-        .withLabel(OwnerLabel, "true")
-        .delete()
-    } catch {
-      case e: Throwable =>
-        logger.warn("Could not remove the curated-image pre-pulls.", e)
-    }
-  }
-
   /** The reference a pre-pull pulls, which is its init container's image. */
   private[service] def prepulledRefOf(daemonSet: DaemonSet): Option[String] =
     Option(daemonSet.getSpec)
@@ -172,12 +157,22 @@ object ImagePrepullClient extends LazyLogging {
       ImageLabel -> iid.toString
     ).asJava
 
-    // Stated on both containers, not just the one that keeps running. A namespace with a
+    // Requests on both containers, not just the one that keeps running. A namespace with a
     // ResourceQuota on requests.cpu/requests.memory refuses a pod whose init container
     // leaves them out -- quota admission checks init containers too -- and the refusal is
-    // invisible, because the DaemonSet is still created. Costs nothing: a pod's request is
-    // the larger of its init containers and the sum of its others, so the same 1m/8Mi.
-    val resources = new ResourceRequirementsBuilder()
+    // invisible, because the DaemonSet is still created regardless. Costs nothing: a pod's
+    // request is the larger of its init containers and the sum of its others, so 1m/8Mi.
+    val prepullerResources = new ResourceRequirementsBuilder()
+      .addToRequests("cpu", new Quantity(CuratedImageConfig.prepullCpu))
+      .addToRequests("memory", new Quantity(CuratedImageConfig.prepullMemory))
+      .build()
+
+    // Limits only here. Unlike requests, a limit is enforced per container and never maxed
+    // across them, so 8Mi on the init container would cap the shell of an arbitrary image
+    // -- bash, on the Python bases these are built from -- and OOMKill it. The pod would
+    // then crash-loop, never reach pause, and the image it just pulled would go back to
+    // being reclaimable, all while the DaemonSet reported itself created.
+    val pauseResources = new ResourceRequirementsBuilder()
       .addToRequests("cpu", new Quantity(CuratedImageConfig.prepullCpu))
       .addToRequests("memory", new Quantity(CuratedImageConfig.prepullMemory))
       .addToLimits("cpu", new Quantity(CuratedImageConfig.prepullCpu))
@@ -213,13 +208,13 @@ object ImagePrepullClient extends LazyLogging {
           // from what the registry would serve. Always would re-check it for nothing.
           .withImagePullPolicy("IfNotPresent")
           .withCommand("sh", "-c", "true")
-          .withResources(resources)
+          .withResources(prepullerResources)
           .build()
       )
       .addNewContainer()
       .withName("pause")
       .withImage(CuratedImageConfig.prepullPauseImage)
-      .withResources(resources)
+      .withResources(pauseResources)
       .endContainer()
       .endSpec()
       .endTemplate()
