@@ -177,7 +177,7 @@ class ImagePrepullClientSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "ignore a DaemonSet that is not one of ours" in {
-    // prepulledImageIds lists by label, but a cluster can hold anything. A stray object
+    // prepulledRefs lists by label, but a cluster can hold anything. A stray object
     // must not be read as an image id and leave a real image without its pre-pull.
     val unlabelled = new DaemonSetBuilder().withNewMetadata().withName("something").endMetadata()
     imageIdOf(unlabelled.build()) shouldBe None
