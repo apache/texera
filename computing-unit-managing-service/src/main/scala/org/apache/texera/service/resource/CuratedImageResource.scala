@@ -27,7 +27,7 @@ import jakarta.ws.rs.core.MediaType
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.CuratedImageConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.util.ImageValidationClient
+import org.apache.texera.service.util.{ImagePrepullClient, ImageValidationClient}
 import org.apache.texera.service.util.ImageValidationClient.ValidationState
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, Record}
@@ -196,6 +196,44 @@ object CuratedImageResource extends LazyLogging {
 
   def nameOf(iid: Int): Option[String] =
     Option(context.select(NAME).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()).map(_.get(NAME))
+
+  private def sourceRefOf(iid: Int): Option[String] =
+    Option(context.select(SOURCE_REF).from(CU_IMAGE).where(IID.eq(iid)).fetchOne())
+      .map(_.get(SOURCE_REF))
+
+  /**
+    * Gives a pre-pull to every ready image that has none. A row can reach READY without one:
+    * registered before pre-pulling shipped, or finished while the cluster could not be
+    * reached. Without this the image would never be pre-pulled at all, since nothing else
+    * revisits a row once it is ready.
+    *
+    * One labelled list, then only the images actually missing, so a settled deployment
+    * costs a single call.
+    */
+  private def ensurePrepullsForReadyImages(): Unit = {
+    if (!CuratedImageConfig.prepullEnabled) return
+    try {
+      val alreadyPrepulled = ImagePrepullClient.prepulledImageIds()
+      context
+        .select(IID, SOURCE_REF, SOURCE_DIGEST)
+        .from(CU_IMAGE)
+        .where(STATUS.eq(Status.Ready))
+        .fetch()
+        .asScala
+        .foreach { row =>
+          val iid = row.get(IID).intValue()
+          if (!alreadyPrepulled.contains(iid)) {
+            pinnedRefOf(row.get(SOURCE_REF), row.get(SOURCE_DIGEST))
+              .foreach(ImagePrepullClient.ensurePrepull(iid, _))
+          }
+        }
+    } catch {
+      // Opportunistic, like reconciling: a listing that cannot be repaired is still worth
+      // returning.
+      case e: Throwable =>
+        logger.warn("Could not check the pre-pulls of ready images; leaving them as they are.", e)
+    }
+  }
 
   /**
     * Brings VALIDATING rows up to date with what the cluster did. Validation finishes on the
@@ -401,7 +439,16 @@ object CuratedImageResource extends LazyLogging {
     val stored = withDigest.where(IID.eq(iid).and(ATTEMPT.eq(attempt))).execute()
     // The job is kept only until its outcome is recorded, so finished jobs do not pile up
     // in the pool namespace.
-    if (stored > 0) ImageValidationClient.deleteValidation(iid, attempt)
+    if (stored > 0) {
+      ImageValidationClient.deleteValidation(iid, attempt)
+      // Only on READY, because only then is there something a unit can be started from.
+      // A refresh that resolved a moved tag arrives here too, and points the pre-pull at
+      // the new digest rather than leaving the node holding bytes nothing runs.
+      if (status == Status.Ready) {
+        pinnedRefOf(sourceRefOf(iid).orNull, sourceDigest.orNull)
+          .foreach(ImagePrepullClient.ensurePrepull(iid, _))
+      }
+    }
   }
 }
 
@@ -427,6 +474,7 @@ class CuratedImageResource extends LazyLogging {
   def list(@Auth user: SessionUser): List[CuratedImage] = {
     requireEnabled()
     reconcileRunningValidations()
+    ensurePrepullsForReadyImages()
     context
       // Not select(): validation_log is unbounded and this endpoint discards it.
       .select(IID, NAME, SOURCE_REF, SOURCE_DIGEST, STATUS, ATTEMPT, CREATION_TIME, UPDATE_TIME)
@@ -533,6 +581,9 @@ class CuratedImageResource extends LazyLogging {
     requireEnabled()
     // Nothing of ours holds a copy. A running unit keeps going on what its node pulled.
     ImageValidationClient.deleteAllValidations(iid)
+    // Left behind, it would go on holding the image on every node for an image no unit can
+    // be started from any more.
+    ImagePrepullClient.deletePrepull(iid)
     val deleted = context.deleteFrom(CU_IMAGE).where(IID.eq(iid)).execute()
     if (deleted == 0) {
       throw new NotFoundException(s"No curated image $iid.")

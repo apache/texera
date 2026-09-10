@@ -44,4 +44,17 @@ object CuratedImageConfig {
 
   /** Kubernetes object name for one check. Unique per attempt so retries never collide. */
   def validationJobName(iid: Int, attempt: Int): String = s"cu-image-check-$iid-$attempt"
+
+  val prepullEnabled: Boolean = conf.getBoolean("curated-images.prepull-enabled")
+  val prepullNamespace: String = conf.getString("curated-images.prepull-namespace")
+  val prepullPauseImage: String = conf.getString("curated-images.prepull-pause-image")
+  val prepullCpu: String = conf.getString("curated-images.prepull-cpu")
+  val prepullMemory: String = conf.getString("curated-images.prepull-memory")
+
+  /**
+    * Kubernetes object name for one image's pre-pull. One per image and stable across its
+    * refreshes, so a new digest replaces the pre-pull rather than adding a second one
+    * holding the bytes nothing runs any more.
+    */
+  def prepullName(iid: Int): String = s"cu-image-prepull-$iid"
 }
