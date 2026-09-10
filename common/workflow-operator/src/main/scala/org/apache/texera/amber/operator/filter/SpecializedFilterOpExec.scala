@@ -25,5 +25,10 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 class SpecializedFilterOpExec(descString: String) extends FilterOpExec {
   private val desc: SpecializedFilterOpDesc =
     objectMapper.readValue(descString, classOf[SpecializedFilterOpDesc])
-  setFilterFunc((tuple: Tuple) => desc.predicates.exists(_.evaluate(tuple)))
+  setFilterFunc(desc.predicateCombinator match {
+    case PredicateCombinator.AND =>
+      (tuple: Tuple) => desc.predicates.nonEmpty && desc.predicates.forall(_.evaluate(tuple))
+    case PredicateCombinator.OR =>
+      (tuple: Tuple) => desc.predicates.exists(_.evaluate(tuple))
+  })
 }

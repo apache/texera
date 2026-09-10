@@ -19,7 +19,7 @@
 
 ---
 title: "Filter"
-description: "Performs a filter operation using OR between multiple predicates"
+description: "Performs a filter operation using AND or OR between multiple predicates"
 category: "Data Cleaning"
 operator_type: "Filter"
 tags: [data-cleaning]
@@ -31,10 +31,13 @@ tags: [data-cleaning]
 
 | Property | Requirement | Type | Default | Description |
 |----------|-------------|------|---------|-------------|
-| Predicates | ✓ | List<Filter Predicate> | - | Multiple predicates in OR |
+| Combine Predicates With |  | any (OR), all (AND) | any (OR) | How to combine multiple predicates |
+| Predicates | ✓ | List<Filter Predicate> | - | Multiple predicates to be combined |
 | ↳ Attribute | ✓ | String | - |  |
 | ↳ Condition | ✓ | =, >, >=, <, <=, !=, is null,<br>is not null | - |  |
 | ↳ Value |  | String | - |  |
+
+A Filter with no predicates keeps no rows in either mode, including "all (AND)".
 
 ### Output Ports
 

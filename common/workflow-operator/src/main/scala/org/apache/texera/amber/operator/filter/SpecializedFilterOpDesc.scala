@@ -19,7 +19,8 @@
 
 package org.apache.texera.amber.operator.filter
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonSetter, Nulls}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -33,8 +34,16 @@ import scala.util.Try
 
 class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
+  // Optional so that Filters saved before this property existed still pass the
+  // frontend's schema validation. A missing or null value reads as OR.
+  @JsonProperty(required = false, defaultValue = "any (OR)")
+  @JsonSetter(nulls = Nulls.SKIP)
+  @JsonSchemaTitle("Combine Predicates With")
+  @JsonPropertyDescription("how to combine multiple predicates")
+  var predicateCombinator: PredicateCombinator = PredicateCombinator.OR
+
   @JsonProperty(value = "predicates", required = true)
-  @JsonPropertyDescription("multiple predicates in OR")
+  @JsonPropertyDescription("multiple predicates to be combined")
   var predicates: List[FilterPredicate] = List.empty
 
   override def getPhysicalOp(
@@ -58,7 +67,7 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "Filter",
-      "Performs a filter operation using OR between multiple predicates",
+      "Performs a filter operation using AND or OR between multiple predicates",
       OperatorGroupConstants.CLEANING_GROUP,
       List(InputPort()),
       List(OutputPort()),
@@ -69,9 +78,9 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
   override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
 
   override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
-    // No predicate keeps no row: the executor's filter is `predicates.exists`,
-    // which answers false on an empty list. Passing the frame through would be
-    // the opposite answer.
+    // No predicate keeps no row, under OR and AND alike: the executor answers
+    // false on an empty list in both modes (`exists`, and `nonEmpty && forall`).
+    // Passing the frame through would be the opposite answer.
     if (predicates.isEmpty) return "out1df = in1df.iloc[0:0].copy()"
     val schema = inputSchemas.values.headOption
     val conditions = predicates.map { p =>
@@ -94,7 +103,11 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
           s"$keep(in1df[$colLit], $opLit, $valueLit)"
       }
     }
-    s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
+    val joiner = predicateCombinator match {
+      case PredicateCombinator.AND => " & "
+      case PredicateCombinator.OR  => " | "
+    }
+    s"out1df = in1df[${conditions.mkString(joiner)}].reset_index(drop=True)"
   }
 
   override def standaloneHelpers(): Seq[String] =
