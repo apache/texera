@@ -137,6 +137,33 @@ describe("AdminCuImageComponent", () => {
     discardPeriodicTasks();
   }));
 
+  it("keeps polling after a request fails", fakeAsync(() => {
+    // An error reaching the outer stream ends the subscription for good, so one hiccup
+    // while a check is running would leave the row VALIDATING forever -- and Refresh is
+    // disabled in that state, so only a reload would recover it.
+    component.ngOnInit();
+    httpTestingController.expectOne(CU_IMAGE_URL).flush([image({ status: "VALIDATING" })]);
+
+    tick(3000);
+    httpTestingController.expectOne(CU_IMAGE_URL).flush(null, { status: 502, statusText: "Bad Gateway" });
+
+    tick(3000);
+    httpTestingController.expectOne(CU_IMAGE_URL).flush([image({ status: "READY" })]);
+    expect(component.images[0].status).toBe("READY");
+
+    discardPeriodicTasks();
+  }));
+
+  it("sends one request when Enter is pressed twice", () => {
+    // Enter calls add() directly, where the Add button's disabled state does not apply.
+    initWith([]);
+    component.newName = "Python ML";
+    component.newSourceRef = "owner/name:1";
+    component.add();
+    component.add();
+    httpTestingController.expectOne(req => req.method === "POST");
+  });
+
   it("does not poll a deployment that has the feature switched off", fakeAsync(() => {
     component.ngOnInit();
     httpTestingController.expectOne(CU_IMAGE_URL).flush(null, { status: 503, statusText: "Service Unavailable" });

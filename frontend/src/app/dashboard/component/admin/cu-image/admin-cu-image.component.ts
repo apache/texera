@@ -34,8 +34,8 @@ import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
-import { timer } from "rxjs";
-import { filter, switchMap } from "rxjs/operators";
+import { EMPTY, timer } from "rxjs";
+import { catchError, filter, switchMap } from "rxjs/operators";
 import { CuImage, CuImageService, CuImageStatus, isInProgress } from "../../../service/admin/cu-image/cu-image.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../common/util/error";
@@ -98,20 +98,17 @@ export class AdminCuImageComponent implements OnInit {
     timer(CHECK_POLL_INTERVAL_MS, CHECK_POLL_INTERVAL_MS)
       .pipe(
         filter(() => this.anyInProgress(this.images)),
-        switchMap(() => this.cuImageService.list()),
+        // Caught inside the projection: an error reaching the outer stream would end the
+        // subscription, and polling would never resume.
+        switchMap(() => this.cuImageService.list().pipe(catchError(() => EMPTY))),
         untilDestroyed(this)
       )
-      .subscribe({
-        next: images => {
-          this.images = this.newestFirst(images);
-          // Keep an open log in step with the check it is showing.
-          if (this.logVisible && this.logIid !== undefined) {
-            this.loadLog(this.logIid, false);
-          }
-        },
-        error: () => {
-          // Not worth a toast; the next tick tries again.
-        },
+      .subscribe(images => {
+        this.images = this.newestFirst(images);
+        // Keep an open log in step with the check it is showing.
+        if (this.logVisible && this.logIid !== undefined) {
+          this.loadLog(this.logIid, false);
+        }
       });
   }
 
@@ -150,6 +147,11 @@ export class AdminCuImageComponent implements OnInit {
   }
 
   add(): void {
+    // Enter in either field calls this directly, where the button's disabled state does not
+    // apply -- two quick presses would otherwise send the same image twice.
+    if (this.submitting) {
+      return;
+    }
     const name = this.newName.trim();
     const sourceRef = this.newSourceRef.trim();
     if (name === "" || sourceRef === "") {
