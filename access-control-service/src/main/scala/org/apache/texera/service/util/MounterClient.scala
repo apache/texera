@@ -76,7 +76,14 @@ class MounterClient(tokenPath: String = MounterDefaults.ProjectedTokenPath) {
     body.put("fileServiceBase", fileServiceBase)
 
     val response = send("POST", s"${baseUrl(nodeIp, port)}/mount", Some(body.toString))
-    Option(response.get("mountPath")).map(_.asText()).getOrElse("")
+    Option(response.get("mountPath"))
+      .filter(node => node.isTextual && node.asText().nonEmpty)
+      .map(_.asText())
+      .getOrElse(
+        throw new IllegalStateException(
+          s"mounter at $nodeIp reported success without a mount path: $response"
+        )
+      )
   }
 
   private def send(method: String, url: String, body: Option[String]): JsonNode = {

@@ -37,7 +37,7 @@ class MounterClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
 
   private val received = mutable.Map[String, (String, String, String)]()
   private val authorization = mutable.Map[String, String]()
-  private var refuseWith: Option[Int] = None
+  private var replyWith: Option[(Int, String)] = None
 
   private def bodyOf(exchange: HttpExchange): String =
     new String(exchange.getRequestBody.readAllBytes(), StandardCharsets.UTF_8)
@@ -70,8 +70,8 @@ class MounterClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       "/mount",
       (exchange: HttpExchange) => {
         record(exchange, "/mount")
-        refuseWith match {
-          case Some(status) => reply(exchange, status, """{"error":"nope"}""")
+        replyWith match {
+          case Some((status, body)) => reply(exchange, status, body)
           case None =>
             reply(exchange, 200, """{"mountPath":"/var/lib/texera-mounts/7/dataset-1/abc123"}""")
         }
@@ -104,12 +104,22 @@ class MounterClientSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
   }
 
   it should "carry the mounter's status back on a refusal" in {
-    refuseWith = Some(400)
+    replyWith = Some((400, """{"error":"nope"}"""))
     try {
       val failure = the[MounterClient.MounterRequestException] thrownBy
         client.mount(nodeIp, port, "7", "dataset-1", "abc123", "user-jwt", "http://fs:9092")
       failure.status shouldBe 400
-    } finally refuseWith = None
+    } finally replyWith = None
+  }
+
+  it should "fail rather than report a mount when the mounter's success names no path" in {
+    Seq("{}", """{"mountPath":null}""", """{"mountPath":""}""").foreach { body =>
+      replyWith = Some((200, body))
+      try {
+        an[IllegalStateException] should be thrownBy
+          client.mount(nodeIp, port, "7", "dataset-1", "abc123", "user-jwt", "http://fs:9092")
+      } finally replyWith = None
+    }
   }
 
   // The escapes reported on the infrastructure PR: each would otherwise be joined into the
