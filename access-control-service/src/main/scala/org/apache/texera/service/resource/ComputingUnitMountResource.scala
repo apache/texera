@@ -45,8 +45,6 @@ import scala.jdk.CollectionConverters._
 /**
   * The mount authority: this service decides whether a user may act on a computing unit, so
   * it is where a mount request is authorized before being forwarded to that unit's node.
-  *
-  * Not routed at the gateway — these endpoints are reached in-cluster, by the engine.
   */
 @Path("/mounts")
 @RolesAllowed(Array("REGULAR", "ADMIN"))

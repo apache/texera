@@ -75,18 +75,10 @@ class MounterClient(tokenPath: String = MounterDefaults.ProjectedTokenPath) {
     body.put("jwt", jwt)
     body.put("fileServiceBase", fileServiceBase)
 
-    val response = send("POST", s"${baseUrl(nodeIp, port)}/mount", Some(body.toString))
-    Option(response.get("mountPath"))
-      .filter(node => node.isTextual && node.asText().nonEmpty)
-      .map(_.asText())
-      .getOrElse(
-        throw new IllegalStateException(
-          s"mounter at $nodeIp reported success without a mount path: $response"
-        )
-      )
+    send("POST", s"${baseUrl(nodeIp, port)}/mount", Some(body.toString))
   }
 
-  private def send(method: String, url: String, body: Option[String]): JsonNode = {
+  private def send(method: String, url: String, body: Option[String]): String = {
     val connection = URI.create(url).toURL.openConnection().asInstanceOf[HttpURLConnection]
     connection.setRequestMethod(method)
     connection.setRequestProperty("Authorization", s"Bearer ${mounterToken()}")
@@ -109,7 +101,16 @@ class MounterClient(tokenPath: String = MounterDefaults.ProjectedTokenPath) {
       if (code < 200 || code >= 300) {
         throw new MounterRequestException(code, s"mounter $method failed: HTTP $code $responseBody")
       }
-      if (responseBody.isEmpty) mapper.createObjectNode() else mapper.readTree(responseBody)
+      val response: JsonNode =
+        if (responseBody.isEmpty) mapper.createObjectNode() else mapper.readTree(responseBody)
+      Option(response.get("mountPath"))
+        .filter(node => node.isTextual && node.asText().nonEmpty)
+        .map(_.asText())
+        .getOrElse(
+          throw new IllegalStateException(
+            s"mounter $method reported success without a mount path: $responseBody"
+          )
+        )
     } finally {
       connection.disconnect()
     }
