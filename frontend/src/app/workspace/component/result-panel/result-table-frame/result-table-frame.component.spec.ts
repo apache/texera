@@ -31,6 +31,7 @@ import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 import {
   OperatorPaginationResultService,
@@ -696,6 +697,11 @@ describe("ResultTableFrameComponent", () => {
     });
 
     it("renders headers, per-column stats, and clickable row cells once results arrive", () => {
+      // The download click below must land on a live button: MockGuiConfigService ships with the
+      // export switch off, which would disable it.
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        exportExecutionResultEnabled: true,
+      });
       component.operatorId = "op1";
       component.setupResultTable([SAMPLE_ROW], 1);
       component.isFrontPagination = false;
@@ -741,8 +747,39 @@ describe("ResultTableFrameComponent", () => {
       expect(openSpy).toHaveBeenCalledWith(0, SAMPLE_ROW);
 
       const download = fixture.debugElement.query(By.css("button.download-button"));
+      expect((download.nativeElement as HTMLButtonElement).disabled).toBe(false);
       download.triggerEventHandler("click", { stopPropagation: vi.fn() });
       expect(downloadSpy).toHaveBeenCalledWith("alice", 0, 0, "name");
+    });
+  });
+
+  describe("per-cell download button and the export switch", () => {
+    // `commonTestProviders` supplies MockGuiConfigService (export switch off by default), so the
+    // switch is driven through it rather than through the `useValue` above.
+    function renderOneRow(exportEnabled: boolean): void {
+      (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+        exportExecutionResultEnabled: exportEnabled,
+      });
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 1);
+      component.isFrontPagination = false;
+      fixture.detectChanges();
+    }
+
+    it("is enabled and offers a download when result export is on", () => {
+      renderOneRow(true);
+      const button = fixture.debugElement.query(By.css("button.download-button")).nativeElement as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      expect(button.title).toBe("Download data");
+    });
+
+    it("is disabled and says why when result export is switched off", () => {
+      // The top menu and the context menu already honour the switch; before this the cell
+      // button rendered anyway and a click did nothing, with no request and no message.
+      renderOneRow(false);
+      const button = fixture.debugElement.query(By.css("button.download-button")).nativeElement as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(button.title).toBe("Result export is disabled on this deployment");
     });
   });
 
