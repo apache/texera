@@ -40,6 +40,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
+import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
@@ -118,7 +120,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
     private resizeService: PanelResizeService,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private config: GuiConfigService
   ) {
     this.width = 0;
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
@@ -314,6 +317,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       component: ErrorFrameComponent,
       componentInputs: { operatorId },
     });
+    // The AI tab only offers the analysis: the model is called when the user asks for it,
+    // never on render, because this method runs again on every re-render of the panel.
+    // The LiteLLM proxy rejects the call outright when the copilot feature is off.
+    if (this.config.env.copilotEnabled) {
+      this.frameComponentConfigs.set("AI Fix", {
+        component: AiFixFrameComponent,
+        componentInputs: { operatorId },
+      });
+    }
   }
 
   displayResult(operatorId: string) {

@@ -1,0 +1,90 @@
+{
+  "operators": [
+    {
+      "operatorID": "CSVFileScan-operator-demo-combined",
+      "operatorType": "CSVFileScan",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "fileEncoding": "UTF_8",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "fileName": "/dataset/texera/popular-movies-of-imdb/v1/TMDb_updated.csv"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Read Movies",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "PythonUDFV2-operator-demo-combined",
+      "operatorType": "PythonUDFV2",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "code": "from pytexera import *\nfrom sklearn.preprocessing import StandardScaler\n\n\nclass ProcessTableOperator(UDFTableOperator):\n\n    @overrides\n    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n        # TWO BUGS ON PURPOSE, to check that only the first one is fixed per round.\n        #\n        # Bug 1 (raised first): the column is \"vote_average\", not \"vote_avg\".\n        #   Raises: KeyError: 'vote_avg'\n        ratings = table[[\"vote_avg\"]]\n\n        # Bug 2 (only reachable once bug 1 is fixed): the ratings still contain\n        # missing values, so scaling fails.\n        #   Raises: ValueError: Input contains NaN.\n        ratings.loc[ratings.index % 7 == 0] = float(\"nan\")\n        table[\"rating_z\"] = StandardScaler().fit_transform(ratings)\n\n        yield table\n",
+        "workers": 1,
+        "retainInputColumns": true,
+        "outputColumns": [
+          {
+            "attributeName": "rating_z",
+            "attributeType": "double"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Standardize ratings (two bugs)",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true,
+      "viewResult": true
+    }
+  ],
+  "operatorPositions": {
+    "CSVFileScan-operator-demo-combined": { "x": 80, "y": 200 },
+    "PythonUDFV2-operator-demo-combined": { "x": 340, "y": 200 }
+  },
+  "links": [
+    {
+      "linkID": "link-demo-combined",
+      "source": {
+        "operatorID": "CSVFileScan-operator-demo-combined",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "PythonUDFV2-operator-demo-combined",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}
