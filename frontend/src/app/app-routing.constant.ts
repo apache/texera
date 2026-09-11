@@ -49,5 +49,6 @@ export const ADMIN_USER = `${ADMIN}/user`;
 export const ADMIN_GMAIL = `${ADMIN}/gmail`;
 export const ADMIN_EXECUTION = `${ADMIN}/execution`;
 export const ADMIN_SETTINGS = `${ADMIN}/settings`;
+export const ADMIN_CU_IMAGE = `${ADMIN}/cu-image`;
 
 export const SEARCH = "/search";
