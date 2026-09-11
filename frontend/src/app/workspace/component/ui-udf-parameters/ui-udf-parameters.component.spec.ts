@@ -130,6 +130,29 @@ describe("UiUdfParametersComponent", () => {
     });
   });
 
+  it("should edit a row that names a resource with that resource's browser, and leave others alone", () => {
+    const columns = () =>
+      rowConfig([
+        { key: "value", formControl: new FormControl("") },
+        { key: "attributeName", formControl: new FormControl("SOURCE") },
+        { key: "attributeType", formControl: new FormControl("string") },
+      ]);
+    const resourceRow = columns();
+    const plainRow = columns();
+    const unknownRow = columns();
+
+    component.onPopulate({
+      model: [{ inputType: "model" }, {}, { inputType: "workflow" }],
+      fieldGroup: [resourceRow, plainRow, unknownRow],
+    } as FormlyFieldConfig);
+
+    const valueOf = (row: FormlyFieldConfig) => component.getColumnField(row, component.fieldColumns[0]);
+    expect(valueOf(resourceRow)?.type).toBe("resourcevalue");
+    expect(valueOf(resourceRow)?.props?.resource).toBe("model");
+    expect(valueOf(plainRow)?.type).toBeUndefined();
+    expect(valueOf(unknownRow)?.type).toBeUndefined();
+  });
+
   it("should apply disabled state to rows generated from the field array template", () => {
     const field: FormlyFieldConfig = {
       model: [{ value: "42", attribute: { attributeName: "threshold", attributeType: "double" } }],

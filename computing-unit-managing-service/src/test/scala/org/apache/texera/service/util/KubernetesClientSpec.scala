@@ -65,6 +65,9 @@ import scala.jdk.CollectionConverters._
 // resolution) is covered by ComputingUnitHelpersSpec.
 class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
+  private val testAccessControlServiceUrl =
+    "http://access-control-service-svc.texera.svc.cluster.local:9096"
+
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
 
   // getVolumes/getVolumeMounts are null rather than empty when nothing was added.
@@ -303,7 +306,7 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     when(namespaceable.inNamespace(namespace)).thenReturn(resource)
     when(resource.create()).thenReturn(null)
 
-    new KubernetesClient(client, mountingEnabled = true)
+    new KubernetesClient(client, mountingEnabled = true, testAccessControlServiceUrl)
       .createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
 
     verify(client).resource(captor.capture())
@@ -329,6 +332,11 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     val env = container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap
     env should contain("TEXERA_CU_ID" -> "5")
     env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> "/mnt/texera-mounts")
+    // Who the pod asks for a mount. Without it the engine cannot request one, and the pod
+    // has no other way to reach a mounter -- which is the point.
+    env should contain(
+      "ACCESS_CONTROL_SERVICE_URL" -> testAccessControlServiceUrl
+    )
 
     // Still unprivileged: the whole point of mounting out of pod.
     val privileged = Option(container.getSecurityContext).flatMap(c => Option(c.getPrivileged))

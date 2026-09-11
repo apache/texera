@@ -30,9 +30,14 @@ import {
   UiUdfParametersParseError,
 } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
+
+const VALUE_COLUMN: UiUdfParameterColumn = { label: "Value", key: "value", disabled: false };
+const RESOURCE_VALUE_EDITOR = "resourcevalue";
+const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DATASET_INPUT_TYPE]);
 
 /** Renders inferred Python UDF UI parameters with editable values and locked name/type columns. */
 @Component({
@@ -53,7 +58,7 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
   private readonly disabledStateConfigured = new WeakMap<FormlyFieldConfig, boolean>();
 
   readonly fieldColumns: UiUdfParameterColumn[] = [
-    { label: "Value", key: "value", disabled: false },
+    VALUE_COLUMN,
     { label: "Name", key: "attributeName", parentKey: "attribute", disabled: true },
     { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
   ];
@@ -88,7 +93,9 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
   override onPopulate(field: FormlyFieldConfig): void {
     this.configureRowTemplate(this.getFieldArrayTemplate(field));
     super.onPopulate(field);
-    field.fieldGroup?.forEach(rowField => this.configureRowFields(rowField));
+    // Rows are read from the array being populated: Formly has not assigned each row's model yet.
+    const rows = (field.model ?? []) as ReadonlyArray<{ inputType?: string } | undefined>;
+    field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType));
   }
 
   /** Finds the Formly field config that backs one visible column in a parameter row. */
@@ -104,8 +111,17 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     this.configureRowColumns(rowField, this.setDisabledMetadata.bind(this));
   }
 
-  private configureRowFields(rowField: FormlyFieldConfig | undefined): void {
+  private configureRowFields(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
     this.configureRowColumns(rowField, this.configureDisabledState.bind(this));
+    this.configureValueEditor(rowField, inputType);
+  }
+
+  /** A row whose value names a resource is edited with that resource's browser, not a text box. */
+  private configureValueEditor(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
+    const valueField = rowField && this.getColumnField(rowField, VALUE_COLUMN);
+    if (!valueField || !inputType || !RESOURCE_INPUT_TYPES.has(inputType)) return;
+    valueField.type = RESOURCE_VALUE_EDITOR;
+    valueField.props = { ...(valueField.props ?? {}), resource: inputType };
   }
 
   private configureRowColumns(
