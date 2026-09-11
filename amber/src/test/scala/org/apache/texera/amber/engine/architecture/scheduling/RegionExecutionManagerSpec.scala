@@ -22,9 +22,11 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import com.twitter.util.{Future, JavaTimer, Time, Timer}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName}
 import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.{
+  ExecutionTimeBinding,
   GlobalPortIdentity,
   OutputPort,
   PhysicalOp,
@@ -53,6 +55,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic
+import scala.collection.mutable
 
 /**
   * Tests the real region-execution lifecycle around synchronous region kill.
@@ -102,6 +105,38 @@ class RegionExecutionManagerSpec
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
     assertControlChannelsAreRemoved(fixture)
+  }
+
+  it should "mount the region's repositories before initializing any executor" in {
+    val binding = new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = OpExecWithClassName("bound")
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }
+    // What had been sent to workers at the moment the mount was asked for.
+    val mounts = mutable.ArrayBuffer[(Set[String], Seq[String])]()
+    var probe: CoordinatorRpcProbe = null
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      physicalOp = createSourceOp("test-op").withExecutionTimeBinding(Some(binding)),
+      ensureMounted = locators => mounts += ((locators, probe.methodTrace))
+    )
+    probe = fixture.rpcProbe
+
+    launchRegion(fixture.manager)
+
+    assert(mounts.map(_._1) == Seq(Set("dataset-1:abc123")))
+    assert(!mounts.head._2.contains(InitializeExecutor))
+    assert(fixture.rpcProbe.methodTrace.contains(InitializeExecutor))
+  }
+
+  it should "not mount anything for a region whose operators name nothing" in {
+    val mounts = mutable.ArrayBuffer[Set[String]]()
+    val fixture =
+      createSingleRegionFixture(endWorkerResponse = _ => None, ensureMounted = mounts += _)
+
+    launchRegion(fixture.manager)
+
+    assert(mounts.isEmpty)
   }
 
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
@@ -380,9 +415,10 @@ class RegionExecutionManagerSpec
       endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
       maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
       killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
-      killRetryTimer: Timer = new JavaTimer(true)
+      killRetryTimer: Timer = new JavaTimer(true),
+      physicalOp: PhysicalOp = createSourceOp("test-op"),
+      ensureMounted: Set[String] => Unit = _ => ()
   ): SingleRegionFixture = {
-    val physicalOp = createSourceOp("test-op")
     val workerId = createWorkerId(physicalOp)
     val region = createSingleWorkerRegion(1, physicalOp, workerId)
 
@@ -410,7 +446,8 @@ class RegionExecutionManagerSpec
       coordinator.actorRefService,
       maxTerminationAttempts,
       killRetryBaseBackoffMs,
-      killRetryTimer
+      killRetryTimer,
+      ensureMounted = ensureMounted
     )
 
     SingleRegionFixture(

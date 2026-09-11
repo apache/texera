@@ -23,7 +23,7 @@ import com.twitter.util.Future
 import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName}
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
@@ -32,6 +32,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.{
+  ExecutionTimeBinding,
   InputPort,
   OutputPort,
   PhysicalOp,
@@ -228,8 +229,10 @@ class ExecutionReconfigurationServiceSpec
   private class RecordingService(stateStore: ExecutionStateStore)
       extends ExecutionReconfigurationService(client = null, stateStore, workflow = null) {
     val captured: mutable.ArrayBuffer[WorkflowReconfigureRequest] = mutable.ArrayBuffer.empty
+    val mounted: mutable.ArrayBuffer[Set[String]] = mutable.ArrayBuffer.empty
     override protected def dispatch(request: WorkflowReconfigureRequest): Unit =
       captured += request
+    override protected def ensureMounted(locators: Set[String]): Unit = mounted += locators
     override protected def registerWorkerCompletionCallback(): Unit = ()
     override protected def registerCompletionDiffHandler(): Unit = ()
   }
@@ -467,6 +470,24 @@ class ExecutionReconfigurationServiceSpec
     state.unscheduledReconfigurations shouldBe empty
     state.currentReconfigId shouldBe None
     state.completedReconfigurations shouldBe empty
+  }
+
+  it should "mount what an edited operator names and send its bound code" in {
+    val stateStore = new ExecutionStateStore()
+    val service = new RecordingService(stateStore)
+    val bound = OpExecWithClassName("bound.Class", "")
+    val op = mkPhysicalOp("op-1").withExecutionTimeBinding(Some(new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = bound
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }))
+    stateStore.reconfigurationStore.updateState(_ =>
+      ExecutionReconfigurationStore(unscheduledReconfigurations = List((op, None)))
+    )
+
+    service.performReconfigurationOnResume()
+
+    service.mounted shouldBe Seq(Set("dataset-1:abc123"))
+    service.captured.head.reconfiguration.map(_.newExecInitInfo) shouldBe Seq(bound)
   }
 
   it should "dispatch one request carrying every pending reconfiguration and reset the store" in {
