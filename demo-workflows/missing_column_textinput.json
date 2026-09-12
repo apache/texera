@@ -1,14 +1,13 @@
 {
   "operators": [
     {
-      "operatorID": "CSVFileScan-operator-demo-missing-column",
-      "operatorType": "CSVFileScan",
+      "operatorID": "TextInput-operator-demo-missing-column",
+      "operatorType": "TextInput",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "fileEncoding": "UTF_8",
-        "customDelimiter": ",",
-        "hasHeader": true,
-        "fileName": "/dataset/texera/popular-movies-of-imdb/v1/TMDb_updated.csv"
+        "textInput": "Ad Astra\nThe Irishman\nJoker\nParasite\nKnives Out",
+        "attributeName": "line",
+        "attributeType": "string"
       },
       "inputPorts": [],
       "outputPorts": [
@@ -21,25 +20,25 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Read Movies",
+      "customDisplayName": "Movie titles",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false,
       "viewResult": false
     },
     {
-      "operatorID": "PythonUDFV2-operator-demo-missing-column",
+      "operatorID": "PythonUDFV2-operator-demo-missing-column-textinput",
       "operatorType": "PythonUDFV2",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "code": "from pytexera import *\n\n\nclass ProcessTupleOperator(UDFOperatorV2):\n\n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        # BROKEN ON PURPOSE: the column is called \"vote_count\", not \"vote_counts\".\n        # Raises: KeyError: 'vote_counts'\n        popularity = tuple_[\"vote_counts\"]\n\n        tuple_[\"popularity_bucket\"] = \"high\" if popularity > 1000 else \"low\"\n        yield tuple_\n",
+        "code": "from pytexera import *\n\n\nclass ProcessTupleOperator(UDFOperatorV2):\n\n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        # BROKEN ON PURPOSE: the input column is \"line\", not \"lines\".\n        # Raises: KeyError: 'lines'\n        title = tuple_[\"lines\"]\n\n        tuple_[\"title_length\"] = len(title)\n        yield tuple_\n",
         "workers": 1,
         "retainInputColumns": true,
         "defaultEnv": true,
         "envName": "",
         "outputColumns": [
           {
-            "attributeName": "popularity_bucket",
-            "attributeType": "string"
+            "attributeName": "title_length",
+            "attributeType": "integer"
           }
         ]
       },
@@ -62,25 +61,25 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Bucket by popularity (missing column)",
+      "customDisplayName": "Title length (missing column)",
       "dynamicInputPorts": true,
       "dynamicOutputPorts": true,
       "viewResult": true
     }
   ],
   "operatorPositions": {
-    "CSVFileScan-operator-demo-missing-column": { "x": 80, "y": 200 },
-    "PythonUDFV2-operator-demo-missing-column": { "x": 340, "y": 200 }
+    "TextInput-operator-demo-missing-column": { "x": 80, "y": 200 },
+    "PythonUDFV2-operator-demo-missing-column-textinput": { "x": 340, "y": 200 }
   },
   "links": [
     {
-      "linkID": "link-demo-missing-column",
+      "linkID": "link-demo-missing-column-textinput",
       "source": {
-        "operatorID": "CSVFileScan-operator-demo-missing-column",
+        "operatorID": "TextInput-operator-demo-missing-column",
         "portID": "output-0"
       },
       "target": {
-        "operatorID": "PythonUDFV2-operator-demo-missing-column",
+        "operatorID": "PythonUDFV2-operator-demo-missing-column-textinput",
         "portID": "input-0"
       }
     }

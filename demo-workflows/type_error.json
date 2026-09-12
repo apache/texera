@@ -34,6 +34,8 @@
         "code": "from pytexera import *\n\n\nclass ProcessTupleOperator(UDFOperatorV2):\n\n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        # BROKEN ON PURPOSE: \"title\" is a string column and \"vote_count\" is an int,\n        # so the subtraction has no valid operands. The fix is an explicit cast.\n        # Raises: TypeError: unsupported operand type(s) for -: 'str' and 'int'\n        score = tuple_[\"title\"] - tuple_[\"vote_count\"]\n\n        tuple_[\"score\"] = score\n        yield tuple_\n",
         "workers": 1,
         "retainInputColumns": true,
+        "defaultEnv": true,
+        "envName": "",
         "outputColumns": [
           {
             "attributeName": "score",
