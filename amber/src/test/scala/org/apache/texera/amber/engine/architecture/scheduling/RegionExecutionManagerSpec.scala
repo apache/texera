@@ -129,6 +129,23 @@ class RegionExecutionManagerSpec
     assert(fixture.rpcProbe.methodTrace.contains(InitializeExecutor))
   }
 
+  it should "fail the region without initializing any executor when a mount is refused" in {
+    val binding = new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = OpExecWithClassName("bound")
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      physicalOp = createSourceOp("test-op").withExecutionTimeBinding(Some(binding)),
+      ensureMounted = _ => throw new RuntimeException("the mount request was refused: HTTP 403")
+    )
+
+    val failure = intercept[RuntimeException](launchRegion(fixture.manager))
+
+    assert(failure.getMessage.contains("HTTP 403"))
+    assert(!fixture.rpcProbe.methodTrace.contains(InitializeExecutor))
+  }
+
   it should "not mount anything for a region whose operators name nothing" in {
     val mounts = mutable.ArrayBuffer[Set[String]]()
     val fixture =

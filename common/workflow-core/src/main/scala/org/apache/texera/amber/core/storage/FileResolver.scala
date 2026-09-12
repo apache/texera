@@ -289,7 +289,7 @@ object FileResolver {
     * Resolves a version path to the repository and commit backing it — the pair that addresses
     * a mount, a mount being a whole repository pinned to one commit.
     *
-    * Resolves only; read access is enforced where the bytes are served.
+    * Resolves only; the mount authority checks read access before mounting.
     */
   def resolveRepositoryVersion(versionPath: String): (String, String) = {
     // Nothing may follow the version: a longer path names a file, a different request.
