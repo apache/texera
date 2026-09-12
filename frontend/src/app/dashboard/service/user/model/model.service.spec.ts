@@ -106,7 +106,6 @@ describe("ModelService", () => {
     http.verify();
   });
 
-
   it("lists the models the caller owns or has been granted", async () => {
     const pending = firstValueFrom(service.retrieveAccessibleModels());
     const req = http.expectOne(`${API}/model/list`);
