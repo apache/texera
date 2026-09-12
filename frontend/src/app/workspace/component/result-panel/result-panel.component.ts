@@ -298,7 +298,23 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       if (this.workflowConsoleService.hasConsoleMessages(this.currentOperatorId) || isPythonUdf(operator)) {
         this.displayConsole(this.currentOperatorId, isPythonUdf(operator));
       }
+      // A Python UDF exception never becomes a fatal error: the worker pauses and the
+      // traceback arrives as an ERROR console message while the execution stays Running,
+      // so the Failed branch above never fires for the case this panel exists to fix.
+      if (this.config.env.copilotEnabled && this.hasConsoleError(this.currentOperatorId)) {
+        this.frameComponentConfigs.set("AI Fix", {
+          component: AiFixFrameComponent,
+          componentInputs: { operatorId: this.currentOperatorId },
+        });
+      }
     }
+  }
+
+  /** True when the operator reported an ERROR console message (e.g. a Python UDF traceback). */
+  private hasConsoleError(operatorId: string): boolean {
+    return (this.workflowConsoleService.getConsoleMessages(operatorId) ?? []).some(
+      message => message.msgType.name === "ERROR"
+    );
   }
 
   clearResultPanel(): void {

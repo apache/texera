@@ -52,7 +52,9 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { ConsoleMessage, OperatorPredicate } from "../../types/workflow-common.interface";
+import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -109,6 +111,15 @@ describe("ResultPanelComponent", () => {
     workerId: "",
     type: { name: "ExecutionError" },
     timestamp: { nanos: 0, seconds: 0 },
+  });
+
+  const consoleMessage = (msgTypeName: string): ConsoleMessage => ({
+    workerId: "w1",
+    timestamp: { nanos: 0, seconds: 0 },
+    msgType: { name: msgTypeName },
+    source: "udf.py:process_tuple:10",
+    title: "KeyError: 'lines'",
+    message: "Traceback (most recent call last):\nKeyError: 'lines'",
   });
 
   it("should create", () => expect(component).toBeTruthy());
@@ -402,6 +413,50 @@ describe("ResultPanelComponent", () => {
       const errorConfig = component.frameComponentConfigs.get("Static Error");
       expect(errorConfig?.component).toBe(ErrorFrameComponent);
       expect(errorConfig?.componentInputs).toEqual({ operatorId: "3" });
+    });
+
+    it("registers the AI fix frame for a console ERROR while the execution is still running", () => {
+      // A Python UDF exception never becomes a fatal error: the worker pauses and the
+      // traceback arrives as an ERROR console message with the execution still Running,
+      // so the Failed branch never fires for the case the AI panel exists to fix.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      const aiConfig = component.frameComponentConfigs.get("AI Fix");
+      expect(aiConfig?.component).toBe(AiFixFrameComponent);
+      expect(aiConfig?.componentInputs).toEqual({ operatorId: "3" });
+    });
+
+    it("registers no AI fix frame when the operator's console holds no ERROR", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("PRINT")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
+    it("registers no AI fix frame while the copilot feature is disabled", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = false;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
     });
 
     it("displays a console frame when the selected operator has console messages", () => {
