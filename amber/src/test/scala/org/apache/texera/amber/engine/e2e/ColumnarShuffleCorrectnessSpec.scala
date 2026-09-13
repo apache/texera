@@ -147,6 +147,34 @@ class ColumnarShuffleCorrectnessSpec
     lines.foreach(l => println(s"PROJ[$tag]   $l"))
   }
 
+  private def reportJoin(res: Map[OperatorIdentity, List[Tuple]]): Unit = {
+    val rows = res.values.headOption.getOrElse(Nil)
+    val checksum = rows.map(_.getFields.mkString("|")).sorted.mkString("\n").hashCode
+    println(s"JOIN[$tag workers=$workers] rows=${rows.size} checksum=$checksum")
+  }
+
+  // Selective columnar probe: the probe decodes only the join key per row and
+  // fully decodes a row only on a match. Row count + content checksum must match
+  // the row path.
+  "columnar join" should "csv join csv on column-1 match the row path" in {
+    val id = ids.incrementAndGet(); setUpWorkflowExecutionData(id)
+    try {
+      val ctx: WorkflowContext = TestUtils.workflowContext(id)
+      val c1 = TestOperators.headerlessSmallCsvScanOpDesc()
+      val c2 = TestOperators.headerlessSmallCsvScanOpDesc()
+      val join = TestOperators.joinOpDesc("column-1", "column-1")
+      val wf = buildWorkflow(
+        List(c1, c2, join),
+        List(
+          LogicalLink(c1.operatorIdentifier, PortIdentity(), join.operatorIdentifier, PortIdentity()),
+          LogicalLink(c2.operatorIdentifier, PortIdentity(), join.operatorIdentifier, PortIdentity(1))
+        ),
+        ctx
+      )
+      reportJoin(runWorkflowAndReadTerminalResults(system, wf, Duration.fromMinutes(5)))
+    } finally cleanupWorkflowExecutionData(id)
+  }
+
   // Projection renames "Units Sold" -> "units"; the downstream filter and
   // aggregate then reference the renamed column, all over the columnar wire.
   "columnar projection" should "scan -> project(rename) -> filter -> agg match the row path" in {

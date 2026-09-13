@@ -94,7 +94,7 @@ class AggregateOpExec(descString: String) extends OperatorExecutor with Columnar
   @transient private var projSchema: Schema = _
   @transient private var projIndices: Array[Int] = _
 
-  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
     if (neededNames == null) {
       neededNames = (desc.groupByKeys ++ desc.aggregations.flatMap(a =>
         Option(a.attribute).map(_.trim).filter(_.nonEmpty)

@@ -221,13 +221,16 @@ class DataProcessor(
       case ColumnarFrame(bytes, _, _) =>
         executor match {
           // Native-Arrow path: consume the batch directly, emit a filtered batch.
-          case c: ColumnarOperatorExecutor
-              if NetworkOutputBuffer.columnarWire && outputManager.canEmitColumnar =>
-            c.processColumnarBatch(bytes) match {
+          case c: ColumnarOperatorExecutor if NetworkOutputBuffer.columnarWire =>
+            c.processColumnarBatch(bytes, portId.id) match {
               case ColumnarResult.Emit(result) =>
                 logColumnarModeOnce(active = true, "")
                 statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
                 outputManager.setColumnarOutput(Iterator.single(result))
+              case ColumnarResult.EmitRows(rows) =>
+                logColumnarModeOnce(active = true, "")
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+                outputManager.outputIterator.setTupleOutput(rows)
               case ColumnarResult.Consumed =>
                 logColumnarModeOnce(active = true, "")
                 statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
@@ -235,9 +238,6 @@ class DataProcessor(
                 logColumnarModeOnce(active = false, "operator has no native columnar path for this batch")
                 processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
             }
-          case _: ColumnarOperatorExecutor if NetworkOutputBuffer.columnarWire =>
-            logColumnarModeOnce(active = false, "output has no partitioned receivers")
-            processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
           case _ =>
             processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
         }

@@ -51,7 +51,7 @@ trait EndChannelHandler {
       // when enabled and there are output links (shuffles are split in emit).
       // Else the row-oriented onFinishMultiPort path.
       val columnarBatches =
-        if (NetworkOutputBuffer.columnarWire && dp.outputManager.canEmitColumnar)
+        if (NetworkOutputBuffer.columnarWire)
           dp.executor match {
             case s: SourceOperatorExecutor => s.produceColumnarBatch()
             case _                         => None

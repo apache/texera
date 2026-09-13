@@ -182,7 +182,7 @@ class SpecializedFilterOpExec(descString: String)
   // ---- Native-Arrow path (M2): consume the Arrow batch directly, no tuple decode.
   @transient private var columnarAllocator: RootAllocator = _
 
-  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
     if (!vectorizedEnabled || desc.predicates.size != 1) return ColumnarResult.Unsupported
     val p = desc.predicates.head
     val cmp = cmpOf(p.condition)

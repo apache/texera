@@ -73,7 +73,7 @@ class ProjectionOpExec(
   // batch, no per-row Tuple decode. Streaming 1:1, so it emits the projected batch.
   @transient private var columnarAllocator: RootAllocator = _
 
-  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
     Preconditions.checkArgument(desc.attributes.nonEmpty)
     if (columnarAllocator == null) columnarAllocator = new RootAllocator()
     ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>

@@ -33,8 +33,10 @@ import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.architecture.worker.managers.{
+  ArrowBatchWriteItem,
   OutputPortStorageWriterThread,
-  PortStorageWriterTerminateSignal
+  PortStorageWriterTerminateSignal,
+  RowWriteItem
 }
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.ambermessage.ColumnarFrame
@@ -200,10 +202,6 @@ class OutputManager(
     saveStateToStorageIfNeeded(state)
   }
 
-  // Columnar emit is possible whenever there are output links; multi-receiver
-  // links (hash/range/round-robin shuffles) are split per-receiver in emit.
-  def canEmitColumnar: Boolean = partitioners.nonEmpty
-
   // Allocator for the per-receiver sub-batches built during columnar shuffle.
   // Created lazily on first shuffle emit, freed by closeColumnarResources().
   private var columnarEmitAllocator: RootAllocator = _
@@ -267,14 +265,11 @@ class OutputManager(
         }
     }
 
-    // Materialize to result storage for the GUI result panel, matching the row
-    // path's saveTupleToStorageIfNeeded. Only decodes when a port needs storage.
-    if (outputPortResultWriterThreads.nonEmpty) {
-      var i = 0
-      while (i < rowCount) {
-        saveTupleToStorageIfNeeded(ArrowUtils.getTexeraTuple(i, root))
-        i += 1
-      }
+    // Materialize to result storage for the GUI result panel. Hand the whole
+    // Arrow batch to the writer thread(s), which decode off the DP thread. Reuse
+    // the bytes already serialized for the wire when available.
+    if (outputPortResultWriterThreads.nonEmpty && rowCount > 0) {
+      saveArrowBatchToStorageIfNeeded(wholeBatchBytes)
     }
   }
 
@@ -324,8 +319,17 @@ class OutputManager(
     }).foreach({
       case (portId, writerThread) =>
         // write to storage in a separate thread
-        writerThread.queue.put(Left(tuple))
+        writerThread.queue.put(Left(RowWriteItem(tuple)))
     })
+  }
+
+  // Columnar sink: hand the whole Arrow batch to each result writer thread,
+  // which decodes it to rows off the DP thread. Avoids the per-row decode on
+  // the hot path and reuses the batch bytes already produced for the wire.
+  def saveArrowBatchToStorageIfNeeded(arrowIpcBytes: Array[Byte]): Unit = {
+    outputPortResultWriterThreads.values.foreach(
+      _.queue.put(Left(ArrowBatchWriteItem(arrowIpcBytes)))
+    )
   }
 
   private def saveStateToStorageIfNeeded(state: State): Unit = {
@@ -334,7 +338,7 @@ class OutputManager(
     // emit side: state is shared context, not per-key data, so every
     // downstream operator (and every worker reading the materialization)
     // needs the full set.
-    stateWriterThreads.values.foreach(_.queue.put(Left(state.toTuple())))
+    stateWriterThreads.values.foreach(_.queue.put(Left(RowWriteItem(state.toTuple()))))
   }
 
   /**

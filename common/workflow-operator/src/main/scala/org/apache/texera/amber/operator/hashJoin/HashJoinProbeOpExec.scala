@@ -19,9 +19,16 @@
 
 package org.apache.texera.amber.operator.hashJoin
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
+import org.apache.texera.amber.core.tuple.{Schema, Tuple, TupleLike}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
@@ -62,7 +69,8 @@ object JoinUtils {
 
 class HashJoinProbeOpExec[K](
     descString: String
-) extends OperatorExecutor {
+) extends OperatorExecutor
+    with ColumnarOperatorExecutor {
 
   private val desc: HashJoinOpDesc[K] =
     objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
@@ -74,6 +82,44 @@ class HashJoinProbeOpExec[K](
 
   override def close(): Unit = {
     buildTableHashMap.clear()
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
+  }
+
+  // ---- Native-Arrow probe: on the probe port, decode only the probe key column
+  // to test each row against the build map, and fully decode a row only when it
+  // matches (or on an outer join). For a selective inner join, most probe rows
+  // are never fully decoded. The build-load port (0) needs all columns, so it
+  // falls back to the row path.
+  @transient private var columnarAllocator: RootAllocator = _
+  @transient private var keySchema: Schema = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+    if (port == 0) return ColumnarResult.Unsupported
+    val isOuter = desc.joinType == JoinType.RIGHT_OUTER || desc.joinType == JoinType.FULL_OUTER
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      if (keySchema == null) {
+        val full = ArrowUtils.toTexeraSchema(root.getSchema)
+        keySchema = Schema(List(full.getAttribute(desc.probeAttributeName)))
+      }
+      val keyIdx = ArrowUtils.projectionIndices(root, Seq(desc.probeAttributeName))
+      val out = new ListBuffer[(TupleLike, Option[PortIdentity])]
+      val n = root.getRowCount
+      var i = 0
+      while (i < n) {
+        val key = ArrowUtils
+          .getProjectedTuple(i, root, keySchema, keyIdx)
+          .getField(desc.probeAttributeName)
+          .asInstanceOf[K]
+        val matched = buildTableHashMap.get(key).exists(_._1.nonEmpty)
+        if (matched || isOuter) {
+          // Reuse the exact row-path join logic (also marks the build side joined).
+          processTuple(ArrowUtils.getTexeraTuple(i, root), 1).foreach(t => out += ((t, None)))
+        }
+        i += 1
+      }
+      ColumnarResult.EmitRows(out.iterator)
+    }
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =

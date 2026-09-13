@@ -20,26 +20,32 @@
 package org.apache.texera.amber.core.executor
 
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.texera.amber.core.tuple.TupleLike
+import org.apache.texera.amber.core.workflow.PortIdentity
 
 /**
   * Outcome of consuming one Arrow batch:
-  *   - Emit: consumed, emit this result batch downstream (caller serializes and closes the root).
+  *   - Emit: consumed, emit this Arrow result batch downstream (caller serializes and closes the root).
+  *   - EmitRows: consumed, emit these row outputs (e.g. a join whose output is row-shaped);
+  *     the caller ships them, still columnar on the wire if enabled.
   *   - Consumed: consumed, nothing to emit now (a blocking operator accumulating state).
   *   - Unsupported: not handled, caller falls back to the row path (decode + processTuple).
   */
 sealed trait ColumnarResult
 object ColumnarResult {
   final case class Emit(root: VectorSchemaRoot) extends ColumnarResult
+  final case class EmitRows(rows: Iterator[(TupleLike, Option[PortIdentity])]) extends ColumnarResult
   case object Consumed extends ColumnarResult
   case object Unsupported extends ColumnarResult
 }
 
 /**
   * An operator that can consume an Arrow columnar batch directly (no per-row
-  * Tuple decode). Given the incoming batch as Arrow IPC bytes, returns a
-  * ColumnarResult telling the caller whether it emitted a batch, consumed the
-  * batch with no output, or could not handle it (fall back to the row path).
+  * Tuple decode). Given the incoming batch as Arrow IPC bytes and the input
+  * port it arrived on, returns a ColumnarResult telling the caller whether it
+  * emitted a batch/rows, consumed the batch with no output, or could not handle
+  * it (fall back to the row path).
   */
 trait ColumnarOperatorExecutor {
-  def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult
+  def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult
 }

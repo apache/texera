@@ -168,7 +168,7 @@ class VectorizedFilterCorrectnessSpec extends AnyFlatSpec {
         orderedOps.foreach { op =>
           val exec = execFor((name, op, value))
           val bytes = ArrowUtils.serializeTuples(s, rows)
-          val resultRoot = exec.processColumnarBatch(bytes) match {
+          val resultRoot = exec.processColumnarBatch(bytes, 0) match {
             case ColumnarResult.Emit(r) => r
             case other                  => fail(s"expected Emit, got $other")
           }

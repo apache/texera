@@ -147,7 +147,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val exec = new ProjectionOpExec(objectMapper.writeValueAsString(d))
     exec.open()
     val rows = batch(200)
-    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows)) match {
+    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows), 0) match {
       case ColumnarResult.Emit(r) => r
       case other                  => fail(s"expected Emit, got $other")
     }
@@ -166,7 +166,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val exec = new ProjectionOpExec(objectMapper.writeValueAsString(d))
     exec.open()
     val rows = batch(150)
-    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows)) match {
+    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows), 0) match {
       case ColumnarResult.Emit(r) => r
       case other                  => fail(s"expected Emit, got $other")
     }
