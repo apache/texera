@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit } from "@angular/core";
 import { combineLatest, fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -28,6 +28,13 @@ import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../
 import { Validation, ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import {
+  formatMetricForView,
+  HeatmapView,
+  heatmapViewTitle,
+  normalizeScores,
+  rawMetricForView,
+} from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
@@ -48,6 +55,7 @@ import { NzNoAnimationDirective } from "ng-zorro-antd/core/animation";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
+import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -89,13 +97,47 @@ export const MAIN_CANVAS = {
   selector: "texera-workflow-editor",
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
-  imports: [NzDropdownMenuComponent, NzNoAnimationDirective, ContextMenuComponent, NgIf, AgentInteractionComponent],
+  imports: [
+    NzDropdownMenuComponent,
+    NzNoAnimationDirective,
+    ContextMenuComponent,
+    NgIf,
+    AgentInteractionComponent,
+    HeatmapLegendComponent,
+  ],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
-  private interactive: boolean = true;
+  // Heat-map hover tooltip (shown while the Performance overlay is on). Null when hidden.
+  public heatmapTooltip: {
+    x: number;
+    y: number;
+    title: string;
+    metricLabel: string;
+    heatLabel: string;
+  } | null = null;
+  private paperInteractive: boolean = true;
+  // Keeps the paper sized to its OWN container (not just the window) and rebuilds cell geometry
+  // when the container goes 0 -> real size. Needed by embedded previews like the Form View strip,
+  // which toggles this editor's container via display:none.
+  private paperResizeObserver?: ResizeObserver;
+
+  /**
+   * Set by a view that shows the graph but must never re-shape it. Separate from the
+   * workflow-modification lock (which also gates property editing, so reusing that alone would
+   * disable the property panel a later authoring mode needs). It locks the paper's own
+   * interactions -- dragging, linking, and the keyboard delete/cut/port commands -- and is passed on
+   * to the right-click menu, whose re-shaping commands otherwise follow the modification lock alone:
+   * the Form View's edit mode re-enables modification for the property panel, and without the
+   * hand-off the preview's menu would cut, paste and delete again.
+   */
+  @Input() structureLocked = false;
+
+  private get interactive(): boolean {
+    return this.paperInteractive && !this.structureLocked;
+  }
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
@@ -173,6 +215,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
+    this.handleContainerResize();
     this.handleViewDeleteOperator();
     if (this.workflowActionService.getHighlightingEnabled()) {
       this.handleCellHighlight();
@@ -190,6 +233,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleHeatmapOverlay();
+    this.handleHeatmapHover();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -210,7 +255,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnDestroy(): void {
+    this.paperResizeObserver?.disconnect();
     document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
+    // The overlay belongs to the canvas being viewed, but the wrapper holding
+    // the view is root-provided and outlives this component, while the menu's
+    // checkbox re-initializes to off and the metrics behind the overlay are
+    // cleared on workspace teardown. Reset the view here so all three agree
+    // when a workspace is re-entered.
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
   }
 
   private _handleKeyboardAction(event: any) {
@@ -257,7 +309,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       // marks all the available magnets or elements when a link is dragged
       markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
-      interactive: defaultInteractiveOption,
+      interactive: this.interactive ? defaultInteractiveOption : disableInteractiveOption,
       // set a default link element used by jointjs when user creates a link on UI
       defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
@@ -285,13 +337,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
       .subscribe(enabled => {
-        if (enabled) {
-          this.interactive = true;
-          this.paper.setInteractivity(defaultInteractiveOption);
-        } else {
-          this.interactive = false;
-          this.paper.setInteractivity(disableInteractiveOption);
-        }
+        this.paperInteractive = enabled;
+        this.paper.setInteractivity(this.interactive ? defaultInteractiveOption : disableInteractiveOption);
         this.changeDetectorRef.detectChanges();
       });
   }
@@ -388,6 +435,143 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           operator.operatorID,
           this.validationWorkflowService.validateOperator(operator.operatorID)
         );
+      });
+  }
+
+  /**
+   * Drives the performance heat-map overlay (Layers > Performance). The overlay colors only the
+   * operator body fill, so it coexists with the execution-status border. Colors are derived from
+   * the WorkflowStatusService performance metrics via the pure heatmap-scoring helpers, so both the
+   * main canvas and the mini-map (shared model) update.
+   */
+  private handleHeatmapOverlay(): void {
+    // Repaint whenever the active view or the metrics change (only while a view is active).
+    combineLatest([this.wrapper.getHeatmapViewStream(), this.workflowStatusService.getPerformanceMetricsStream()])
+      .pipe(untilDestroyed(this))
+      .subscribe(([view]) => {
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+
+    // Restore default fills when the overlay is turned off, and toggle the .heatmap-active
+    // class that scopes the body-fill transition, so the animation only applies while the
+    // overlay is on (not to the disable/enable or validation fill paths).
+    this.wrapper
+      .getHeatmapViewStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(view => {
+        this.editor.classList.toggle("heatmap-active", view !== null);
+        if (view === null) {
+          this.restoreAllOperatorFills();
+          this.heatmapTooltip = null;
+        }
+      });
+
+    // Paint newly (re)added operators when the overlay is active (e.g. after reload).
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const view = this.wrapper.getHeatmapView();
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+
+    // Enabling/disabling an operator rewrites its body fill via changeOperatorDisableStatus
+    // (#FFFFFF / #E0E0E0) — colors this overlay owns. Repaint so the heat-map survives a
+    // disable/enable while active, even on an otherwise idle workflow. This subscription is
+    // registered after handleDisableOperator (called earlier in ngAfterViewInit), so the
+    // repaint runs last and wins the fill.
+    this.workflowActionService
+      .getTexeraGraph()
+      .getDisabledOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const view = this.wrapper.getHeatmapView();
+        if (view !== null) {
+          this.repaintHeatmapColors(view);
+        }
+      });
+  }
+
+  private heatmapScores(view: HeatmapView): Record<string, number> {
+    const metrics = this.workflowStatusService.getCurrentPerformanceMetrics();
+    const rawById: Record<string, number> = {};
+    for (const operatorId of Object.keys(metrics)) {
+      const raw = rawMetricForView(metrics[operatorId], view);
+      // Not measurable for this view: leave the operator out so it gets an
+      // undefined score (painted as no-data) instead of anchoring the scale
+      // minimum as the coldest operator.
+      if (raw !== undefined) {
+        rawById[operatorId] = raw;
+      }
+    }
+    return normalizeScores(rawById);
+  }
+
+  private repaintHeatmapColors(view: HeatmapView): void {
+    const scores = this.heatmapScores(view);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => this.jointUIService.applyHeatmapColor(this.paper, op.operatorID, scores[op.operatorID]));
+  }
+
+  private restoreAllOperatorFills(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => this.jointUIService.restoreOperatorFill(this.paper, op));
+  }
+
+  /**
+   * Shows a small tooltip with the hovered operator's metric value and heat score for the active
+   * view. Only active while the heat-map overlay is on.
+   */
+  private handleHeatmapHover(): void {
+    fromJointPaperEvent(this.paper, "element:mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(([elementView, evt]) => {
+        const view = this.wrapper.getHeatmapView();
+        if (view === null) {
+          return;
+        }
+        const operatorId = elementView.model.id.toString();
+        if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorId)) {
+          return;
+        }
+        const metrics = this.workflowStatusService.getCurrentPerformanceMetrics()[operatorId];
+        const score = this.heatmapScores(view)[operatorId];
+        const rect = this.editor.getBoundingClientRect();
+        const mouseEvent = evt as unknown as MouseEvent;
+        // "—" marks the absence of a value — missing metrics for both fields, or a
+        // view that is not measurable for the operator (metricLabel) — so neither is
+        // confused with a genuine zero value.
+        this.heatmapTooltip = {
+          x: mouseEvent.clientX - rect.left + 12,
+          y: mouseEvent.clientY - rect.top + 12,
+          title: heatmapViewTitle(view),
+          metricLabel: metrics ? formatMetricForView(rawMetricForView(metrics, view), view) : "—",
+          heatLabel: score === undefined ? "—" : `${Math.round(score * 100)}%`,
+        };
+        // JointJS paper events fire outside Angular's zone, so trigger change detection
+        // for the tooltip to render (mirrors the chat-popover handling).
+        this.changeDetectorRef.detectChanges();
+      });
+
+    fromJointPaperEvent(this.paper, "element:mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        // Stay inert when the overlay is off (no tooltip is ever shown then), and skip the
+        // change-detection pass when there is nothing to clear.
+        if (this.wrapper.getHeatmapView() === null || this.heatmapTooltip === null) {
+          return;
+        }
+        this.heatmapTooltip = null;
+        this.changeDetectorRef.detectChanges();
       });
   }
 
@@ -564,6 +748,48 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(() => this.paper.setDimensions(this.editorWrapper.offsetWidth, this.editorWrapper.offsetHeight));
   }
+
+  /**
+   * The window:resize handler reacts only to the window. When this editor is embedded in a
+   * self-resizing container -- e.g. the Form View's "Workflow" strip toggled via display:none --
+   * the window never fires, so the paper is mis-sized and cells that repainted while 0-sized cache
+   * their port anchors at the origin (links tangle across boxes). A ResizeObserver on the editor's
+   * own container fixes both when the real size lands, instead of guessing with timers.
+   */
+  /* v8 ignore start -- ResizeObserver + JointJS paper geometry; jsdom has no layout to observe or measure */
+  private handleContainerResize(): void {
+    // Only an embedded, structure-locked preview needs this: its container is toggled by a parent
+    // (display:none) without any window resize. The operator canvas keeps its window:resize
+    // handling untouched -- observing its container would rebuild cell geometry on every panel drag.
+    if (!this.structureLocked) {
+      return;
+    }
+    this.paperResizeObserver = new ResizeObserver(() => this.resizePaperToContainer());
+    this.paperResizeObserver.observe(this.editorWrapper);
+  }
+
+  private resizePaperToContainer(): void {
+    if (!this.paper) {
+      return;
+    }
+    const width = this.editorWrapper.offsetWidth;
+    const height = this.editorWrapper.offsetHeight;
+    // Collapsed/hidden container: do NOT measure or rebuild against zero -- that is exactly what
+    // caches the broken geometry in the first place.
+    if (width === 0 || height === 0) {
+      return;
+    }
+    this.paper.setDimensions(width, height);
+    // Rebuild cell geometry against the now-real DOM. Re-rendering each element recomputes its
+    // port anchors; re-routing each link then draws it between the real ports. A plain
+    // setDimensions (or a viewport zoom-to-fit) cannot undo anchors already cached at 0,0.
+    this.paper.model.getElements().forEach(element => this.paper.findViewByModel(element)?.update());
+    this.paper.model.getLinks().forEach(link => {
+      const linkView = this.paper.findViewByModel(link) as joint.dia.LinkView | undefined;
+      linkView?.requestConnectionUpdate();
+    });
+  }
+  /* v8 ignore stop */
 
   private handleCellHighlight(): void {
     this.handleHighlightMouseDBClickInput();
@@ -974,7 +1200,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        // A structure-locked preview (the Form View's) unfolds the state and port counts only: its
+        // delete, chat and port buttons could not act there, and would only suggest it can be edited.
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
@@ -987,7 +1215,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     // Handle right-click on links
@@ -1039,7 +1267,43 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
       .subscribe(value => this.applyOperatorBorder(value.operatorID, value.validation));
+
+    // Operators already in the graph when this editor mounts produced no add event and won't hit
+    // the validation stream until they change, so nothing corrects the border they were drawn
+    // with. The operator canvas mounts before the workflow loads and hears every event, so it
+    // already looks right; the Form View builds its preview only once opened, leaving operators in
+    // unvalidated red with a completed run's colours missing. Repaint only there -- a view that
+    // locks the structure is exactly the one that mounts its editor late.
+    /* v8 ignore start -- JointJS repaint on a paper that only exists once rendered */
+    if (this.structureLocked) {
+      this.paintCurrentOperatorState();
+    }
+    /* v8 ignore stop */
   }
+
+  /* v8 ignore start -- JointJS paper repaint; needs a rendered paper jsdom cannot provide */
+  private paintCurrentOperatorState(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(operator => {
+        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        if (statistics) {
+          this.jointUIService.changeOperatorStatistics(
+            this.paper,
+            operator.operatorID,
+            statistics,
+            this.isSource(operator.operatorID),
+            this.isSink(operator.operatorID)
+          );
+        }
+        this.applyOperatorBorder(
+          operator.operatorID,
+          this.validationWorkflowService.validateOperator(operator.operatorID)
+        );
+      });
+  }
+  /* v8 ignore stop */
 
   /**
    * This function is provided to JointJS to disable some invalid connections on the UI.
@@ -1271,6 +1535,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(linkView => {
+        // A structure-locked preview (the Form View's) offers neither: the link cannot be removed
+        // there, and a breakpoint is a canvas debugging tool. Buttons that do nothing would only
+        // suggest the preview can be edited.
+        if (this.structureLocked) {
+          return;
+        }
         // Create an array to hold the tools
         const tools: joint.dia.ToolView[] = [new this.removeButton()];
 
@@ -1321,6 +1591,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getJointLinkCellAddStream()
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
+        // No breakpoint tool on a structure-locked preview either (see handleLinkCursorHover).
+        if (this.structureLocked) {
+          return;
+        }
         const linkView = link.findView(this.paper);
         const breakpointButtonTool = this.breakpointButton;
         const breakpointButton = new breakpointButtonTool();
@@ -1428,6 +1702,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * Handles mouse events to enable shared cursor.
    */
   private handlePointerEvents(): void {
+    // A shared cursor is for co-editing the graph; a read-only view shouldn't broadcast one. The
+    // Form View otherwise left a stranded dot with the reader's name on the operator canvas, its
+    // last mouse position lingering in awareness state after the page was gone.
+    /* v8 ignore start -- read-only preview guard; the locked view only mounts once rendered */
+    if (this.structureLocked) {
+      return;
+    }
+    /* v8 ignore stop */
     fromEvent<MouseEvent>(this.editor, "mousemove")
       .pipe(untilDestroyed(this))
       .subscribe(e => {

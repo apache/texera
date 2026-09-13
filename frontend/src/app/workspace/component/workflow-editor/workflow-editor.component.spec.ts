@@ -18,6 +18,7 @@
  */
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
@@ -55,7 +56,8 @@ import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.int
 import { tap } from "rxjs/operators";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { config as rxjsConfig, of, Subject } from "rxjs";
-import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzContextMenuService, NzDropDownModule, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
@@ -120,10 +122,39 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
+    it("should reset the heat-map view on destroy so a re-entered workspace starts with the overlay off", () => {
+      // The wrapper is root-provided and outlives the editor, while the menu's
+      // checkbox re-initializes to off on every workspace entry; without the
+      // reset the stale view repaints no-data colors and the first checkbox
+      // click re-publishes the view instead of clearing it.
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setHeatmapView(HeatmapView.Runtime);
+
+      fixture.destroy();
+
+      expect(wrapper.getHeatmapView()).toBeNull();
+    });
+
     it("should hide operator status on the canvas by default", () => {
       // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;
       expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
+    it("carries its structure lock into the right-click menu", () => {
+      // The Form View's edit mode re-enables workflow modification for the property panel while its
+      // preview stays structure-locked; the menu must see the lock, or right-click could still cut,
+      // paste or delete from the preview.
+      component.structureLocked = true;
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+
+      const contextMenu = fixture.debugElement.query(By.directive(ContextMenuComponent));
+      expect(contextMenu).not.toBeNull();
+      expect((contextMenu.componentInstance as ContextMenuComponent).structureLocked).toBe(true);
+      component.nzContextMenu.close();
     });
 
     // Drives the region-update stream the editor subscribes to in handleRegionEvents, creating
@@ -223,6 +254,63 @@ describe("WorkflowEditorComponent", () => {
       expect(component.paper.findViewByModel(element1.id)).toBeTruthy();
       expect(component.paper.findViewByModel(element2.id)).toBeTruthy();
       expect(component.paper.findViewByModel(link1.id)).toBeTruthy();
+    });
+
+    /** Two operators joined by one link, added the way the workflow is (through the action service, so
+     *  the wrapper's cell-add streams fire), returning the link's view on the paper. */
+    function addLinkedPair(): joint.dia.LinkView {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      workflowActionService.addLink(mockScanResultLink);
+      return component.paper.findViewByModel(mockScanResultLink.linkID) as joint.dia.LinkView;
+    }
+
+    it("offers the link tools on the operator canvas: remove appears on hover", () => {
+      const linkView = addLinkedPair();
+
+      component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
+
+      expect(linkView.hasTools()).toBe(true);
+    });
+
+    it("adds no link tools on a structure-locked preview: no remove, no breakpoint", () => {
+      // The Form View's preview cannot remove a link and has no use for breakpoints; buttons that did
+      // nothing would only suggest the preview can be edited.
+      component.structureLocked = true;
+      const linkView = addLinkedPair();
+
+      expect(linkView.hasTools()).toBe(false);
+      component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
+      expect(linkView.hasTools()).toBe(false);
+    });
+
+    /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
+    function selectScanOperator(): joint.dia.Cell {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      component.paper.trigger("element:pointerdown", view, new MouseEvent("mousedown"), 0, 0);
+      return component.paper.getModelById(mockScanPredicate.operatorID);
+    }
+
+    it("shows a selected operator's delete and chat buttons on the operator canvas", () => {
+      const model = selectScanOperator();
+
+      expect(model.attr(".delete-button/visibility")).toBe("visible");
+      expect(model.attr(".chat-button/visibility")).toBe("visible");
+    });
+
+    it("keeps a selected operator's buttons hidden on a structure-locked preview, but still shows its state", () => {
+      // The Form View's preview cannot delete an operator or change its ports, and the agent chat is
+      // a canvas tool; buttons that did nothing would only suggest the preview can be edited. The
+      // state text still unfolds, so a run's progress reads there as on the canvas.
+      component.structureLocked = true;
+      const model = selectScanOperator();
+
+      expect(model.attr(".delete-button/visibility")).toBe("hidden");
+      expect(model.attr(".chat-button/visibility")).toBe("hidden");
+      expect(model.attr(".add-input-port-button/visibility")).toBe("hidden");
+      expect(model.attr(".texera-operator-state/visibility")).toBe("visible");
     });
   });
 
@@ -1595,6 +1683,17 @@ describe("WorkflowEditorComponent link breakpoints", () => {
     const model = component.paper.getModelById(mockScanResultLink.linkID);
     return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
   }
+
+  it("attaches no breakpoint tool on a structure-locked preview", () => {
+    // The Form View's preview has no use for breakpoints (a canvas debugging tool), and a hover adds
+    // no remove button there either: buttons that did nothing would suggest the preview can be edited.
+    component.structureLocked = true;
+    const { view } = withLink();
+
+    expect(view.hasTools()).toBe(false);
+    component.paper.trigger("link:mouseenter", view, new MouseEvent("mouseenter"));
+    expect(view.hasTools()).toBe(false);
+  });
 
   it("attaches a breakpoint tool to every link, hidden until it is wanted", () => {
     // The tool is what the user clicks to set a breakpoint; without it the feature has no entry

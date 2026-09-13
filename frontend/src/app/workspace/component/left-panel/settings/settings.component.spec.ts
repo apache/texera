@@ -68,6 +68,11 @@ class StubWorkflowActionService {
   workflowChanged(): Observable<unknown> {
     return this.workflowChangedSubject.asObservable();
   }
+
+  /** Stands in for the real service's own emissions: undo/redo, a reloaded workflow, a co-editor's edit. */
+  emitWorkflowChanged(): void {
+    this.workflowChangedSubject.next(undefined);
+  }
 }
 
 describe("SettingsComponent", () => {
@@ -178,6 +183,21 @@ describe("SettingsComponent", () => {
 
     expect(setBatchSizeSpy).toHaveBeenCalledWith(256);
     expect(updateModeSpy).toHaveBeenCalledWith(ExecutionMode.MATERIALIZED);
+  });
+
+  it("should re-sync the form when the workflow changes underneath it", () => {
+    // The settings can move without the form: undo/redo, a reloaded workflow, a co-editor's edit.
+    workflowActionService.setWorkflowDataTransferBatchSize(777);
+    workflowActionService.updateExecutionMode(ExecutionMode.MATERIALIZED);
+
+    workflowActionService.emitWorkflowChanged();
+
+    expect(component.settingsForm.get("dataTransferBatchSize")!.value).toBe(777);
+    expect(component.settingsForm.get("executionMode")!.value).toBe(ExecutionMode.MATERIALIZED);
+    // The patch is applied with { emitEvent: false }. Without that, writing the incoming values
+    // back into the form would re-fire both valueChanges subscriptions and echo the very state we
+    // just received straight back to the server on every remote change.
+    expect(workflowPersistSpy.persistWorkflow).not.toHaveBeenCalled();
   });
 
   it("should ignore form value changes that fail validation", () => {

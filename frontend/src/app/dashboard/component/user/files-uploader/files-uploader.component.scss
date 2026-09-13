@@ -63,6 +63,13 @@
   overflow-x: auto;
 }
 
+.upload-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .upload-file-button {
   padding: 5px 10px; /* Smaller padding to make the button thinner */
   font-size: 0.7em; /* Optionally reduce font size */

@@ -188,6 +188,26 @@ texera-coeditor-user-icon {
 
 ::ng-deep .layers-dropdown {
   user-select: none;
+
+  // Present the performance views as a sub-group nested under the "Performance" toggle:
+  // indented, stacked vertically, with a tree-style left rule.
+  .heatmap-view-options {
+    cursor: default;
+
+    .ant-radio-group {
+      display: flex;
+      flex-direction: column;
+      row-gap: 2px;
+      margin-left: 24px;
+      padding-left: 10px;
+      border-left: 2px solid #f0f0f0;
+    }
+
+    .ant-radio-wrapper {
+      margin-left: 0;
+      color: rgba(0, 0, 0, 0.85);
+    }
+  }
 }
 
 .jupyter-notebook-icon {

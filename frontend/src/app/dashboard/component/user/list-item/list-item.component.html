@@ -198,6 +198,7 @@
       nz-button
       nzType="text"
       title="Share"
+      *ngIf="canShare"
       (click)="onClickOpenShareAccess()">
       <i
         nz-icon
@@ -216,7 +217,7 @@
     <button
       nz-button
       nzType="text"
-      *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
+      *ngIf="canDownload"
       title="Download"
       (click)="onClickDownload()">
       <i

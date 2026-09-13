@@ -221,6 +221,31 @@ class ExecutionConsoleService(
     }
   )
 
+  override def unsubscribeAll(): Unit = {
+    consoleMessageOpIdToWriterMap.values.foreach { writer =>
+      try {
+        writer.close()
+      } catch {
+        case e: Exception =>
+          logger.error("Failed to close console message writer during unsubscribeAll", e)
+      }
+    }
+    consoleMessageOpIdToWriterMap.clear()
+
+    super.unsubscribeAll()
+
+    consoleWriterThread.shutdown()
+    try {
+      if (!consoleWriterThread.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+        consoleWriterThread.shutdownNow()
+      }
+    } catch {
+      case _: InterruptedException =>
+        consoleWriterThread.shutdownNow()
+        Thread.currentThread().interrupt()
+    }
+  }
+
   /**
     * Processes a console message for display, performing truncation if needed.
     * This method uses the shared implementation in ConsoleMessageProcessor.

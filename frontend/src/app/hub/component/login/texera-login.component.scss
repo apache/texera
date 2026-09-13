@@ -80,12 +80,63 @@ $text-secondary: rgba(0, 0, 0, 0.45);
   margin: 2px 2px -4px;
 }
 
+// The code field and the button that mails it sit on one line. `min-width: 0` lets the input
+// shrink inside the flex row instead of holding its content width and pushing the button out.
+.code-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  nz-input-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
 .error {
   color: #ff4d4f;
   font-size: 13px;
   margin: -6px 2px 0;
 }
 
+.orcid-login {
+  display: flex;
+  align-items: center;
+  padding-inline: 12px;
+  width: 328px;
+  height: 40px;
+  border-radius: 4px;
+  gap: 6px;
+  transition-duration: 0.15s;
+
+  .orcid-icon {
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+
+  .orcid-label {
+    flex: 1;
+    text-align: center;
+  }
+
+  &:hover,
+  &:focus {
+    background-color: rgba(217, 217, 250, 0.3);
+    border-color: #d9d9d9;
+    color: rgba(0, 0, 0, 0.88);
+    transition-duration: 0.15s;
+  }
+
+  &:active {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+}
 .foot {
   text-align: center;
   font-size: 13px;

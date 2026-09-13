@@ -197,6 +197,34 @@ describe("UserConfigService", () => {
     });
   });
 
+  // updateEntry is private and validates its own arguments rather than trusting
+  // its callers. Both guards below are unreachable through the public API --
+  // fetchKey/set/delete reject a blank key before they ever tap into
+  // updateEntry, and delete() returns early when the key is absent -- so the
+  // contract updateEntry keeps for itself is pinned here by calling it directly.
+  describe("updateEntry (private, called directly)", () => {
+    it("rejects a blank key even though no public caller can supply one", () => {
+      expect(() => (service as any).updateEntry("   ", "v")).toThrowError(/key cannot be empty/);
+      // The guard runs before any mutation, so nothing was written under a
+      // trimmed or raw form of the blank key.
+      expect(service.getDict()).toEqual({});
+    });
+
+    it("does not fire dictionaryChanged when told to delete a key that is absent", () => {
+      const next = vi.fn();
+      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
+
+      (service as any).updateEntry("absent", undefined);
+
+      // Asserting on the subject, not just on getDict(): a version that deleted
+      // and notified unconditionally would leave the dictionary looking identical
+      // while still waking every subscriber.
+      expect(next).not.toHaveBeenCalled();
+      expect(service.getDict()).toEqual({});
+      sub.unsubscribe();
+    });
+  });
+
   describe("user-change reactions", () => {
     it("re-fetches the dictionary when a logged-in user is emitted on userChanged", () => {
       stubUserService.userChangeSubject.next(MOCK_USER);

@@ -350,6 +350,130 @@ class ModelApiForUiSpec
     newModel(format = null).model.getFormat shouldBe null
   }
 
+  it should "accept \"other\" for a framework or format we have no name for" in {
+    newModel(framework = "other", format = "other").model.getFramework shouldEqual "other"
+  }
+
+  "updateModelFramework" should "relabel an existing model" in {
+    val mid = newModel(framework = "pytorch").model.getMid
+
+    modelResource
+      .updateModelFramework(ModelResource.ModelFrameworkModification(mid, "onnx"), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual "onnx"
+  }
+
+  it should "reject a framework outside the supported set" in {
+    val mid = newModel().model.getMid
+
+    val ex = intercept[BadRequestException] {
+      modelResource.updateModelFramework(
+        ModelResource.ModelFrameworkModification(mid, "caffe"),
+        sessionUser
+      )
+    }
+    ex.getMessage should include("Unsupported framework 'caffe'")
+    modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual "pytorch"
+  }
+
+  it should "reject a caller without write access" in {
+    val mid = newModel(isPublic = true).model.getMid
+
+    assertThrows[ForbiddenException] {
+      modelResource.updateModelFramework(
+        ModelResource.ModelFrameworkModification(mid, "onnx"),
+        strangerSession
+      )
+    }
+  }
+
+  it should "reject an unknown model id" in {
+    assertThrows[NotFoundException] {
+      modelResource.updateModelFramework(
+        ModelResource.ModelFrameworkModification(999999, "onnx"),
+        sessionUser
+      )
+    }
+  }
+
+  "updateModelFormat" should "set a format on a model created without one" in {
+    val mid = newModel(format = null).model.getMid
+
+    modelResource
+      .updateModelFormat(ModelResource.ModelFormatModification(mid, "safetensors"), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFormat shouldEqual "safetensors"
+  }
+
+  it should "reject a format outside the supported set" in {
+    val mid = newModel(format = "pickle").model.getMid
+
+    assertThrows[BadRequestException] {
+      modelResource.updateModelFormat(
+        ModelResource.ModelFormatModification(mid, "gguf"),
+        sessionUser
+      )
+    }
+    modelResource.getModel(mid, sessionUser).model.getFormat shouldEqual "pickle"
+  }
+
+  it should "reject a caller without write access" in {
+    val mid = newModel(isPublic = true).model.getMid
+
+    assertThrows[ForbiddenException] {
+      modelResource.updateModelFormat(
+        ModelResource.ModelFormatModification(mid, "onnx"),
+        strangerSession
+      )
+    }
+  }
+
+  "the label endpoints" should "trim a framework the way createModel does" in {
+    val mid = newModel(framework = "pytorch").model.getMid
+
+    modelResource
+      .updateModelFramework(ModelResource.ModelFrameworkModification(mid, "onnx "), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual "onnx"
+  }
+
+  it should "treat a blank framework as a reset to the default, not as invalid" in {
+    val mid = newModel(framework = "onnx").model.getMid
+
+    Seq(null, "", "   ").foreach { blank =>
+      modelResource
+        .updateModelFramework(ModelResource.ModelFrameworkModification(mid, blank), sessionUser)
+        .getStatus shouldEqual 200
+      modelResource.getModel(mid, sessionUser).model.getFramework shouldEqual
+        ModelResource.DEFAULT_FRAMEWORK
+    }
+  }
+
+  // A mislabelled model shouldn't need recreating, so a format must be clearable.
+  it should "clear the format when given a blank value" in {
+    val mid = newModel(format = "pickle").model.getMid
+
+    Seq(null, "", "   ").foreach { blank =>
+      modelResource
+        .updateModelFormat(ModelResource.ModelFormatModification(mid, blank), sessionUser)
+        .getStatus shouldEqual 200
+      modelResource.getModel(mid, sessionUser).model.getFormat shouldBe null
+    }
+  }
+
+  it should "trim a format the way createModel does" in {
+    val mid = newModel(format = null).model.getMid
+
+    modelResource
+      .updateModelFormat(ModelResource.ModelFormatModification(mid, " safetensors "), sessionUser)
+      .getStatus shouldEqual 200
+
+    modelResource.getModel(mid, sessionUser).model.getFormat shouldEqual "safetensors"
+  }
+
   // ===========================================================================
   // listing sizes
   // ===========================================================================

@@ -301,14 +301,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
   }
 
-  getButtonText(): string {
-    if (!this.selectedComputingUnit) {
-      return "Connect";
-    } else {
-      return this.selectedComputingUnit.computingUnit.name;
-    }
-  }
-
   computeStatus(): string {
     if (!this.selectedComputingUnit) {
       return "processing";
@@ -563,14 +555,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
     return getComputingUnitMemoryStatus(this.getMemoryPercentage());
-  }
-
-  getCpuUnit(): string {
-    return this.getCpuLimitUnit() === "CPU" ? "Cores" : this.getCpuLimitUnit();
-  }
-
-  getMemoryUnit(): string {
-    return this.getMemoryLimitUnit() === "" ? "B" : this.getMemoryLimitUnit();
   }
 
   /**

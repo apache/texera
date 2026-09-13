@@ -23,6 +23,7 @@ import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DatasetService } from "../dataset/dataset.service";
+import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
@@ -57,6 +58,7 @@ export class DownloadService {
     private fileSaverService: FileSaverService,
     private notificationService: NotificationService,
     private datasetService: DatasetService,
+    private modelService: ModelService,
     private workflowPersistService: WorkflowPersistService,
     private http: HttpClient
   ) {}
@@ -95,6 +97,43 @@ export class DownloadService {
     const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
     return this.downloadWithNotification(
       () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
+      fileName,
+      `Starting to download file ${filePath}`,
+      `File ${filePath} has been downloaded`,
+      `Error downloading file '${filePath}'`
+    );
+  }
+
+  downloadModel(id: number, name: string): Observable<Blob> {
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionZip(id),
+      `${name}.zip`,
+      "Starting to download the latest version of the model as ZIP",
+      "The latest version of the model has been downloaded as ZIP",
+      "Error downloading the latest version of the model as ZIP"
+    );
+  }
+
+  downloadModelVersion(
+    modelId: number,
+    modelVersionId: number,
+    modelName: string,
+    versionName: string
+  ): Observable<Blob> {
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionZip(modelId, modelVersionId),
+      `${modelName}-${versionName}.zip`,
+      `Starting to download version ${versionName} as ZIP`,
+      `Version ${versionName} has been downloaded as ZIP`,
+      `Error downloading version '${versionName}' as ZIP`
+    );
+  }
+
+  downloadModelSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const DEFAULT_FILE_NAME = "download";
+    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
+    return this.downloadWithNotification(
+      () => this.modelService.retrieveModelVersionSingleFile(filePath, isLogin),
       fileName,
       `Starting to download file ${filePath}`,
       `File ${filePath} has been downloaded`,

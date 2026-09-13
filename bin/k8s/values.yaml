@@ -19,7 +19,7 @@ texera:
   # Container image registry and tag for all Texera services
   # Override these to use a different registry or version
   imageRegistry: docker.io/apache
-  imageTag: 1.3.0-incubating-SNAPSHOT
+  imageTag: 1.4.0-incubating-SNAPSHOT
 
 global:
   # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
@@ -195,6 +195,61 @@ webserver:
     type: ClusterIP
     port: 8080
 
+notebookMigrationService:
+  # Turns the whole notebook migration tool on or off: the service, its route, the per-user
+  # JupyterLab pool, and the button in the workspace.
+  enabled: false
+  name: notebook-migration-service
+  numOfPods: 1
+  serviceAccountName: notebook-migration-service-service-account
+  imageName: texera-notebook-migration-service
+  service:
+    type: ClusterIP
+    port: 9098
+  # Origin the browser reaches Texera on, used for the JupyterLab iframe URL and for the
+  # CSP that lets Texera embed it. Required wherever there is no DNS name, such as a
+  # port-forward or a NodePort. Falls back to the gateway hostname when left empty.
+  publicOrigin: ""
+  # HMAC key each user's JupyterLab token is derived from. Must stay stable across restarts
+  # or issued tokens stop matching. Empty on purpose: a default here would be public, and
+  # the token is all that guards /jupyter/<uid>/. Generate with: openssl rand -hex 32
+  jupyterTokenSecret: ""
+
+# Per-user JupyterLab pods, the stateful half of the notebook migration tool. One pod per
+# user, addressed through the headless service below.
+jupyterPool:
+  createNamespaces: true
+  name: texera-jupyter
+  # Note: like the computing unit pool, this namespace can collide when several Texera
+  # deployments share a cluster.
+  namespace: texera-jupyter-pool
+  imageName: texera-jupyter
+  # Pull the image onto every node ahead of time, so a first-time pull cannot outlast the
+  # bounded wait for a new pod to answer. Costs one small pod per node.
+  prepullImage: true
+  # Path prefix each user's JupyterLab is served under; the uid is appended, so user 7 is
+  # served at /jupyter/7/. Drives the pod's base_url, the gateway route and the uid regex
+  # access-control matches on, so all three move together.
+  basePath: /jupyter
+  # Must match kubernetes.jupyter-port-num, which the service reads from its own config
+  # and no environment variable overrides.
+  service:
+    port: 8888
+    targetPort: 8888
+  # Per-pod limits.
+  resources:
+    cpuLimit: "1"
+    memoryLimit: 2Gi
+  networkPolicy:
+    # Denies pod-to-pod traffic inside the pool, so one user's JupyterLab cannot reach
+    # another's. Requires a cluster with a NetworkPolicy controller; without one the object
+    # is created but not enforced.
+    enabled: true
+  # Ceiling for the pool as a whole.
+  maxRequestedResources:
+    cpu: 50
+    memory: 50Gi
+
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
@@ -232,6 +287,11 @@ accessControlService:
   name: access-control-service
   numOfPods: 1
   imageName: texera-access-control-service
+  # Dedicated identity, so the mounter can authenticate the access-control-service as the
+  # only component permitted to request a dataset mount. Created and attached only when
+  # mounter.enabled is true. See
+  # templates/base/access-control-service/access-control-service-service-account.yaml.
+  serviceAccountName: texera-access-control-service-account
   service:
     type: ClusterIP
     port: 9096
@@ -288,6 +348,9 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
+  # Computing unit pods are named "<podNamePrefix>-<cuid>". The manager creates them under
+  # this name and the mounter reads a CU's id back out of it, so both are given this value.
+  podNamePrefix: computing-unit
   # Max number of resources allocated for computing units
   maxRequestedResources:
     cpu: 100
@@ -297,6 +360,29 @@ workflowComputingUnitPool:
   service:
     port: 8085
     targetPort: 8085
+
+# Per-node privileged DaemonSet that performs the GeeseFS FUSE mount for computing-unit
+# pods, so the CU pods stay unprivileged. hostMountRoot MUST match the computing-unit
+# manager's kubernetes.mounter-host-root: the manager gives each CU pod a hostPath under
+# that root, and the mounter mounts into the same subtree.
+mounter:
+  # Off by default. When enabled, computing-unit pods gain a hostPath volume, which the
+  # `baseline` and `restricted` Pod Security Standards forbid -- on a cluster that enforces
+  # either on the pool namespace, every CU pod would be rejected. Mounting is also not
+  # reachable yet: no caller requests a mount until the platform integration lands. So an
+  # operator opts in once their cluster admits the hostPath, and until then this feature
+  # changes nothing about how computing units run.
+  enabled: false
+  imageName: texera-mounter
+  imagePullPolicy: IfNotPresent
+  port: 8100
+  hostMountRoot: /var/lib/texera-mounts
+  serviceAccountName: texera-mounter-service-account
+  # The mounter authenticates its callers: a caller presents a service-account token
+  # projected for the mounter's audience, which the mounter verifies with TokenReview and
+  # matches against the one identity it serves. Neither the audience nor that identity is
+  # settable here -- both are fixed in templates/base/_helpers.tpl, because widening them is
+  # a security decision rather than a deployment preference.
 
 texeraEnvVars:
   - name: USER_SYS_ADMIN_USERNAME
@@ -333,6 +419,10 @@ texeraEnvVars:
     value: "true"
   - name: GUI_LOGIN_GOOGLE_LOGIN
     value: "true"
+  # Turn on together with the USER_SYS_ORCID_* credentials below. On with nothing configured, the
+  # button renders disabled and /auth/orcid/config reports the provider unavailable on every visit.
+  - name: GUI_LOGIN_ORCID_LOGIN
+    value: "false"
   - name: GUI_DATASET_SINGLE_FILE_UPLOAD_MAXIMUM_SIZE_MB
     value: "1024"
   - name: GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED
@@ -347,11 +437,30 @@ texeraEnvVars:
     value: "true"
   - name: USER_SYS_INVITE_ONLY
     value: "true"
+  # On by default; set to "false" to accept addresses unproven. This must agree with the
+  # USER_SYS_GOOGLE_SMTP_* credentials below: left on with no working sender, registration and the
+  # add-address prompt both refuse with a 503 rather than letting an unproven address through.
+  - name: USER_SYS_EMAIL_VERIFICATION
+    value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_GMAIL
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_PASSWORD
+    value: ""
+  # ORCID sign-in. The client id and secret come from an ORCID developer application; leave them
+  # empty to keep the provider switched off. baseUrl selects the deployment (sandbox vs
+  # production), and redirectUri must be this deployment's own /callback/orcid URL, registered on
+  # that ORCID application — ORCID does not accept `localhost`. It drives both legs of the flow:
+  # /auth/orcid/config hands it to the login page and the token exchange sends the same value, so
+  # leaving it empty switches the provider off rather than failing after the user has consented.
+  - name: USER_SYS_ORCID_CLIENT_ID
+    value: ""
+  - name: USER_SYS_ORCID_CLIENT_SECRET
+    value: ""
+  - name: USER_SYS_ORCID_BASE_URL
+    value: "https://orcid.org"
+  - name: USER_SYS_ORCID_REDIRECT_URI
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
@@ -395,6 +504,13 @@ metrics-server:
 
 gatewayConfig:
   # Routes are available at bin/k8s/templates/gateway-routes.yaml
+
+  # Ceiling for LLM requests through /api/chat and /api/models. Completions routinely run
+  # for tens of seconds, and Envoy's default route timeout is 15s, which severs them while
+  # the upstream call is still in flight and then succeeds unseen. Keep this at or above
+  # GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_TIMEOUT_MINUTES, which is what the
+  # frontend is prepared to wait.
+  llmRequestTimeout: 10m
 
   # The hostname for the Gateway listener (HTTP/HTTPS).
   # e.g., "texera.example.com"
