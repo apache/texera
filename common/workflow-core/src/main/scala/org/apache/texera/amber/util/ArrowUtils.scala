@@ -112,6 +112,30 @@ object ArrowUtils extends LazyLogging {
     dest
   }
 
+  // Build a new root keeping only the source columns at `srcIndices`, renamed to
+  // `outSchema`'s attribute names (columnar projection). Copies all rows.
+  def selectColumns(
+      src: VectorSchemaRoot,
+      srcIndices: Array[Int],
+      outSchema: Schema,
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(fromTexeraSchema(outSchema), allocator)
+    val n = src.getRowCount
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var c = 0
+    while (c < srcIndices.length) {
+      val sv = srcVecs.get(srcIndices(c))
+      val dv = destVecs.get(c)
+      var i = 0
+      while (i < n) { dv.copyFromSafe(i, i, sv); i += 1 }
+      c += 1
+    }
+    dest.setRowCount(n)
+    dest
+  }
+
   // Inverse of serializeTuples: decode Arrow IPC stream bytes back to tuples.
   def deserializeTuples(bytes: Array[Byte]): Array[Tuple] = {
     val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
@@ -166,6 +190,41 @@ object ArrowUtils extends LazyLogging {
         }.toArray
       )
       .build()
+  }
+
+  // Source-column indices in `root` for the given attribute names, in order.
+  // Throws if a name is missing. Compute once per batch, reuse across rows.
+  def projectionIndices(root: VectorSchemaRoot, names: Seq[String]): Array[Int] = {
+    val fields = root.getSchema.getFields
+    names.map { name =>
+      var idx = -1
+      var k = 0
+      while (k < fields.size && idx < 0) { if (fields.get(k).getName == name) idx = k; k += 1 }
+      if (idx < 0) throw new IllegalArgumentException(s"column '$name' not found in Arrow batch")
+      idx
+    }.toArray
+  }
+
+  // Decode one row into a Tuple containing only the projected columns (cheaper
+  // than getTexeraTuple for wide inputs). `projectedSchema` and `srcIndices`
+  // (from projectionIndices) align by position.
+  def getProjectedTuple(
+      rowIndex: Int,
+      root: VectorSchemaRoot,
+      projectedSchema: Schema,
+      srcIndices: Array[Int]
+  ): Tuple = {
+    val vectors = root.getFieldVectors
+    val values = new Array[Any](srcIndices.length)
+    var i = 0
+    while (i < srcIndices.length) {
+      val raw = vectors.get(srcIndices(i)).getObject(rowIndex)
+      values(i) =
+        try AttributeTypeUtils.parseField(raw, projectedSchema.getAttributes(i).getType)
+        catch { case _: Exception => null }
+      i += 1
+    }
+    Tuple.builder(projectedSchema).addSequentially(values).build()
   }
 
   /**

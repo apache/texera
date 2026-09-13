@@ -48,8 +48,8 @@ trait EndChannelHandler {
         dp.outputManager.emitState(outputState.get)
       }
       // Columnar source path: emit Arrow batches directly (no per-row Tuple),
-      // when enabled and the output is single-receiver-per-link. Else the
-      // row-oriented onFinishMultiPort path.
+      // when enabled and there are output links (shuffles are split in emit).
+      // Else the row-oriented onFinishMultiPort path.
       val columnarBatches =
         if (NetworkOutputBuffer.columnarWire && dp.outputManager.canEmitColumnar)
           dp.executor match {
@@ -59,10 +59,14 @@ trait EndChannelHandler {
         else None
       columnarBatches match {
         case Some(batchIter) =>
+          dp.logColumnarModeOnce(active = true, "")
           // Drained one batch per DP-loop step (backpressure applies between).
           dp.outputManager.setColumnarOutput(batchIter)
           dp.outputManager.outputIterator.setTupleOutput(Iterator.empty)
         case None =>
+          if (NetworkOutputBuffer.columnarWire && dp.executor.isInstanceOf[SourceOperatorExecutor]) {
+            dp.logColumnarModeOnce(active = false, "source has no native columnar batch producer")
+          }
           dp.outputManager.outputIterator.setTupleOutput(
             dp.executor.onFinishMultiPort(portId.id)
           )

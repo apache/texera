@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.filter
 
+import org.apache.texera.amber.core.executor.ColumnarResult
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -167,7 +168,10 @@ class VectorizedFilterCorrectnessSpec extends AnyFlatSpec {
         orderedOps.foreach { op =>
           val exec = execFor((name, op, value))
           val bytes = ArrowUtils.serializeTuples(s, rows)
-          val resultRoot = exec.processColumnarBatch(bytes).get
+          val resultRoot = exec.processColumnarBatch(bytes) match {
+            case ColumnarResult.Emit(r) => r
+            case other                  => fail(s"expected Emit, got $other")
+          }
           val survivors =
             (0 until resultRoot.getRowCount).map(i => ArrowUtils.getTexeraTuple(i, resultRoot)).toList
           resultRoot.close()

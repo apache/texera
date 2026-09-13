@@ -72,6 +72,7 @@ class NetworkOutputBuffer(
 }
 
 object NetworkOutputBuffer {
-  // Global opt-in for the Arrow columnar wire format (default off = row DataFrame).
-  val columnarWire: Boolean = sys.env.getOrElse("COLUMNAR_WIRE", "0") == "1"
+  // Opt-in for the Arrow columnar wire format (default off = row DataFrame),
+  // from application.conf (columnar.enable-columnar-wire), COLUMNAR_WIRE overrides.
+  val columnarWire: Boolean = ApplicationConfig.enableColumnarWire
 }

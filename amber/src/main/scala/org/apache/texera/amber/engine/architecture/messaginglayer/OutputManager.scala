@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.ambermessage.ColumnarFrame
 import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
+import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.net.URI
@@ -199,20 +200,73 @@ class OutputManager(
     saveStateToStorageIfNeeded(state)
   }
 
-  // Columnar emit is safe only when each output link has a single receiver
-  // (e.g. one-to-one); hash/range shuffles would need per-key column splitting.
-  def canEmitColumnar: Boolean =
-    networkOutputBuffers.nonEmpty && networkOutputBuffers.groupBy(_._1._1).forall(_._2.size == 1)
+  // Columnar emit is possible whenever there are output links; multi-receiver
+  // links (hash/range/round-robin shuffles) are split per-receiver in emit.
+  def canEmitColumnar: Boolean = partitioners.nonEmpty
 
-  // Send a whole Arrow batch downstream as a ColumnarFrame (no per-tuple path).
+  // Allocator for the per-receiver sub-batches built during columnar shuffle.
+  // Created lazily on first shuffle emit, freed by closeColumnarResources().
+  private var columnarEmitAllocator: RootAllocator = _
+  private def emitAllocator(): RootAllocator = {
+    if (columnarEmitAllocator == null) columnarEmitAllocator = new RootAllocator()
+    columnarEmitAllocator
+  }
+  def closeColumnarResources(): Unit = {
+    if (columnarEmitAllocator != null) {
+      columnarEmitAllocator.close()
+      columnarEmitAllocator = null
+    }
+  }
+
+  // Emit an Arrow batch downstream as ColumnarFrames, honoring each link's
+  // partitioning. Single-receiver links and broadcast ship the whole batch;
+  // shuffles slice it into one sub-batch per receiver.
   def emitColumnarBatch(root: VectorSchemaRoot): Unit = {
-    val bytes = ArrowUtils.serializeRoot(root)
     val rowCount = root.getRowCount
     val texeraSchema = ArrowUtils.toTexeraSchema(root.getSchema)
-    networkOutputBuffers.keys.foreach {
-      case (_, receiver) =>
-        outputGateway.sendTo(receiver, ColumnarFrame(bytes, rowCount, texeraSchema))
+    lazy val wholeBatchBytes = ArrowUtils.serializeRoot(root)
+
+    partitioners.foreach {
+      case (_, partitioner) =>
+        val receivers = partitioner.allReceivers
+        partitioner match {
+          case _ if receivers.size == 1 =>
+            outputGateway.sendTo(
+              receivers.head,
+              ColumnarFrame(wholeBatchBytes, rowCount, texeraSchema)
+            )
+          case _: BroadcastPartitioner =>
+            receivers.foreach(r =>
+              outputGateway.sendTo(r, ColumnarFrame(wholeBatchBytes, rowCount, texeraSchema))
+            )
+          case _ =>
+            // Shuffle/round-robin: assign each row to a receiver via the
+            // partitioner, then ship one Arrow sub-batch per receiver. The
+            // row decode here is only to compute the partition key; downstream
+            // still receives columnar data.
+            val masks = Array.fill(receivers.size)(new Array[Boolean](rowCount))
+            var i = 0
+            while (i < rowCount) {
+              val t = ArrowUtils.getTexeraTuple(i, root)
+              partitioner.getBucketIndex(t).foreach(b => masks(b)(i) = true)
+              i += 1
+            }
+            var b = 0
+            while (b < receivers.size) {
+              val sub = ArrowUtils.selectRows(root, masks(b), emitAllocator())
+              try {
+                if (sub.getRowCount > 0) {
+                  outputGateway.sendTo(
+                    receivers(b),
+                    ColumnarFrame(ArrowUtils.serializeRoot(sub), sub.getRowCount, texeraSchema)
+                  )
+                }
+              } finally sub.close()
+              b += 1
+            }
+        }
     }
+
     // Materialize to result storage for the GUI result panel, matching the row
     // path's saveTupleToStorageIfNeeded. Only decodes when a port needs storage.
     if (outputPortResultWriterThreads.nonEmpty) {

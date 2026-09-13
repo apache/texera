@@ -21,7 +21,8 @@ package org.apache.texera.amber.operator.filter
 
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{Float8Vector, IntVector, VectorSchemaRoot}
-import org.apache.texera.amber.core.executor.ColumnarOperatorExecutor
+import org.apache.texera.amber.core.executor.{ColumnarOperatorExecutor, ColumnarResult}
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.tuple.{
   AttributeType,
   AttributeTypeUtils,
@@ -43,8 +44,7 @@ class SpecializedFilterOpExec(descString: String)
   // Row path: OR over predicates, per tuple.
   setFilterFunc((tuple: Tuple) => desc.predicates.exists(_.evaluate(tuple)))
 
-  private val vectorizedEnabled: Boolean =
-    sys.env.getOrElse("FILTER_VECTORIZED", "1") == "1"
+  private val vectorizedEnabled: Boolean = ApplicationConfig.enableVectorizedOperators
 
   // Per-predicate row test with per-batch invariants hoisted, resolved from the
   // batch schema on first use. null = a predicate shape is not vectorizable, so
@@ -182,12 +182,14 @@ class SpecializedFilterOpExec(descString: String)
   // ---- Native-Arrow path (M2): consume the Arrow batch directly, no tuple decode.
   @transient private var columnarAllocator: RootAllocator = _
 
-  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): Option[VectorSchemaRoot] = {
-    if (!vectorizedEnabled || desc.predicates.size != 1) return None
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+    if (!vectorizedEnabled || desc.predicates.size != 1) return ColumnarResult.Unsupported
     val p = desc.predicates.head
     val cmp = cmpOf(p.condition)
-    if (cmp == null) return None
-    val c = try p.value.toDouble catch { case _: NumberFormatException => return None }
+    if (cmp == null) return ColumnarResult.Unsupported
+    val c =
+      try p.value.toDouble
+      catch { case _: NumberFormatException => return ColumnarResult.Unsupported }
     if (columnarAllocator == null) columnarAllocator = new RootAllocator()
     ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
       val fields = root.getSchema.getFields
@@ -197,7 +199,7 @@ class SpecializedFilterOpExec(descString: String)
         if (fields.get(k).getName == p.attribute) fieldIdx = k
         k += 1
       }
-      if (fieldIdx < 0) None
+      if (fieldIdx < 0) ColumnarResult.Unsupported
       else {
         val n = root.getRowCount
         val mask = new Array[Boolean](n)
@@ -205,14 +207,14 @@ class SpecializedFilterOpExec(descString: String)
           case v: Float8Vector =>
             var i = 0
             while (i < n) { mask(i) = !v.isNull(i) && cmp(java.lang.Double.compare(v.get(i), c)); i += 1 }
-            Some(ArrowUtils.selectRows(root, mask, columnarAllocator))
+            ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
           case v: IntVector =>
             var i = 0
             while (i < n) {
               mask(i) = !v.isNull(i) && cmp(java.lang.Double.compare(v.get(i).toDouble, c)); i += 1
             }
-            Some(ArrowUtils.selectRows(root, mask, columnarAllocator))
-          case _ => None // non-numeric column: fall back to the row path
+            ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
+          case _ => ColumnarResult.Unsupported // non-numeric column: fall back to the row path
         }
       }
     }

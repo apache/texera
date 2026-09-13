@@ -21,7 +21,11 @@ package org.apache.texera.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import io.grpc.MethodDescriptor
-import org.apache.texera.amber.core.executor.{ColumnarOperatorExecutor, OperatorExecutor}
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.NetworkOutputBuffer
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple._
@@ -162,6 +166,7 @@ class DataProcessor(
         sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
         // Send Completed signal to worker actor.
         executor.close()
+        outputManager.closeColumnarResources()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.info(
@@ -219,12 +224,20 @@ class DataProcessor(
           case c: ColumnarOperatorExecutor
               if NetworkOutputBuffer.columnarWire && outputManager.canEmitColumnar =>
             c.processColumnarBatch(bytes) match {
-              case Some(result) =>
+              case ColumnarResult.Emit(result) =>
+                logColumnarModeOnce(active = true, "")
                 statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
                 outputManager.setColumnarOutput(Iterator.single(result))
-              case None =>
+              case ColumnarResult.Consumed =>
+                logColumnarModeOnce(active = true, "")
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+              case ColumnarResult.Unsupported =>
+                logColumnarModeOnce(active = false, "operator has no native columnar path for this batch")
                 processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
             }
+          case _: ColumnarOperatorExecutor if NetworkOutputBuffer.columnarWire =>
+            logColumnarModeOnce(active = false, "output has no partitioned receivers")
+            processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
           case _ =>
             processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
         }
@@ -339,6 +352,17 @@ class DataProcessor(
           activeChannelId
         )
       }
+  }
+
+  // Log the columnar-wire decision once per worker so a silent fall back to the
+  // row path is visible in the logs.
+  @transient private var columnarModeLogged = false
+  private[architecture] def logColumnarModeOnce(active: Boolean, reason: String): Unit = {
+    if (!columnarModeLogged) {
+      columnarModeLogged = true
+      if (active) logger.info(s"columnar wire active for $executor")
+      else logger.info(s"columnar wire requested but using row path for $executor: $reason")
+    }
   }
 
   def handleExecutorException(e: Throwable): Unit = {

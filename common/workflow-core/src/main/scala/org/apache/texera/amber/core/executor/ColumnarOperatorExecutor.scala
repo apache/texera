@@ -22,12 +22,24 @@ package org.apache.texera.amber.core.executor
 import org.apache.arrow.vector.VectorSchemaRoot
 
 /**
+  * Outcome of consuming one Arrow batch:
+  *   - Emit: consumed, emit this result batch downstream (caller serializes and closes the root).
+  *   - Consumed: consumed, nothing to emit now (a blocking operator accumulating state).
+  *   - Unsupported: not handled, caller falls back to the row path (decode + processTuple).
+  */
+sealed trait ColumnarResult
+object ColumnarResult {
+  final case class Emit(root: VectorSchemaRoot) extends ColumnarResult
+  case object Consumed extends ColumnarResult
+  case object Unsupported extends ColumnarResult
+}
+
+/**
   * An operator that can consume an Arrow columnar batch directly (no per-row
-  * Tuple decode) and produce one. Given the incoming batch as Arrow IPC bytes,
-  * returns the result batch, or None if this batch shape is not supported (the
-  * caller then falls back to the row path). The returned root is owned by the
-  * caller, which serializes and closes it.
+  * Tuple decode). Given the incoming batch as Arrow IPC bytes, returns a
+  * ColumnarResult telling the caller whether it emitted a batch, consumed the
+  * batch with no output, or could not handle it (fall back to the row path).
   */
 trait ColumnarOperatorExecutor {
-  def processColumnarBatch(arrowIpcBytes: Array[Byte]): Option[VectorSchemaRoot]
+  def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult
 }
