@@ -67,6 +67,10 @@ export class UserService {
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
+  public orcidLogin(code: string): Observable<void> {
+    return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
   public isLogin(): boolean {
     return this.currentUser !== undefined;
   }

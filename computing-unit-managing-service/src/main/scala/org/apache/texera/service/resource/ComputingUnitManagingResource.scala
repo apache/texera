@@ -93,6 +93,61 @@ object ComputingUnitManagingResource {
     }
   }
 
+  // Required: the endpoints default to localhost:9092 (LakeFSFileDocument,
+  // ResultExportService) and the secret to a published literal (auth.conf), none of which
+  // suits a real deployment. Forwarded raw -- the endpoints are trimmed by their own readers,
+  // and trimming the secret would leave the unit and this service verifying the token against
+  // different keys, since AuthConfig does not trim.
+  private val requiredComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
+    EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT,
+    EnvironmentalVariable.ENV_AUTH_JWT_SECRET
+  )
+
+  // Overrides, forwarded only when set: application.conf defaults the payload size to 1024,
+  // so its absence is not an error. USER_SYS_ENABLED and
+  // SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR are absent from both lists --
+  // their conf keys went away with #3831 and #3542, so nothing reads them.
+  // TODO: use AmberConfig here; it is only accessible in workflow-executing-service
+  private val optionalComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB
+  )
+
+  /**
+    * Returns the variables, or fails with a 503 listing every one that is unset or blank.
+    *
+    * A WebApplicationException so the message survives: dropwizard replaces a plain 500's
+    * with generic text. 503 because the deployment is not ready, not the request wrong.
+    */
+  private[resource] def requiredComputingUnitEnv(
+      lookup: String => Option[String]
+  ): Map[String, String] = {
+    // Blank counts as missing: the chart renders every value as "{{ .value }}", so an unset
+    // one arrives as "" rather than absent.
+    val looked =
+      requiredComputingUnitEnvNames.map(name => name -> lookup(name).filter(_.trim.nonEmpty))
+    val missing = looked.collect { case (name, None) => name }
+    if (missing.nonEmpty) {
+      throw new ServiceUnavailableException(
+        "This deployment cannot create a computing unit. Unset or blank environment " +
+          s"variable(s): ${missing.mkString(", ")}."
+      )
+    }
+    looked.collect { case (name, Some(value)) => name -> value }.toMap
+  }
+
+  /**
+    * The overrides that are set, trimmed. A blank one is dropped rather than forwarded, and
+    * a padded one is trimmed, because HOCON reads " 1024" as a string and refuses it as an
+    * int -- the unit then dies at startup naming nothing.
+    */
+  private[resource] def optionalComputingUnitEnv(
+      lookup: String => Option[String]
+  ): Map[String, String] =
+    optionalComputingUnitEnvNames.flatMap { name =>
+      lookup(name).map(_.trim).filter(_.nonEmpty).map(name -> _)
+    }.toMap
+
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
     icebergEnvironmentVariables ++ Map(
@@ -108,28 +163,9 @@ object ComputingUnitManagingResource {
       EnvironmentalVariable.ENV_S3_ENDPOINT -> StorageConfig.s3Endpoint,
       EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
       EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
-      EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
-      EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT)
-        .get,
-      EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
-        .get,
-      // Variables for amber setting
-      // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-      EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
-        .get,
-      EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
-        .get,
-      EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
-        .get,
-      EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_AUTH_JWT_SECRET)
-        .get
-    )
+      EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password
+    ) ++ requiredComputingUnitEnv(EnvironmentalVariable.get) ++
+      optionalComputingUnitEnv(EnvironmentalVariable.get)
 
   case class WorkflowComputingUnitCreationParams(
       name: String,

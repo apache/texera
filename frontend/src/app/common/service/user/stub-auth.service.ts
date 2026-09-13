@@ -43,6 +43,10 @@ export const MOCK_INVALID_TOKEN = {
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
   private readonly reissued = new Subject<void>();
 
+  orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
   setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
   }

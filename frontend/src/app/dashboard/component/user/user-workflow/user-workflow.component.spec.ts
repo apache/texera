@@ -987,6 +987,19 @@ describe("SavedWorkflowSectionComponent", () => {
           expect(entries[0].accessibleUserIds).toEqual([1]);
         });
 
+        it("asks for the copy's size, which the duplicate response does not carry", async () => {
+          const persist = TestBed.inject(WorkflowPersistService) as any;
+          persist.duplicateWorkflow = vi.fn().mockReturnValue(of([makeDashboardWorkflow(201, "dup")]));
+          persist.getSizes = vi.fn().mockReturnValue(of({ 201: 4096 }));
+          setEntries([]);
+
+          await component.onClickDuplicateWorkflow(makeEntry(5, "orig"));
+
+          expect(persist.getSizes).toHaveBeenCalledWith([201]);
+          // Without this the row would claim 0 B next to correctly-sized siblings.
+          expect(component.searchResultsComponent.entries[0].size).toBe(4096);
+        });
+
         it("skips the user-info lookup and access grant when there is no owner or current user", async () => {
           const persist = TestBed.inject(WorkflowPersistService) as any;
           persist.duplicateWorkflow = vi

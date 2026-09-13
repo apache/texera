@@ -103,6 +103,7 @@ export class DashboardComponent implements OnInit {
     home_enabled: false,
     workflow_enabled: false,
     dataset_enabled: false,
+    model_enabled: false,
     your_work_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,

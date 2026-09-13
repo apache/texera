@@ -20,10 +20,10 @@
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+import { EntityType, HubService } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
-import { USER_MODEL } from "../../../../app-routing.constant";
+import { HUB_MODEL_RESULT_DETAIL, USER_MODEL } from "../../../../app-routing.constant";
 import { DownloadService } from "../download/download.service";
 import { map } from "rxjs/operators";
 
@@ -34,7 +34,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   readonly type = EntityType.Model;
   readonly iconType = MODEL_ICON;
   readonly privateRoute = USER_MODEL;
-  // `hubRoute` is deliberately absent: models reach the hub with the rest of the hub UI.
+  readonly hubRoute = HUB_MODEL_RESULT_DETAIL;
   readonly hasSize = true;
   readonly defaultName = DEFAULT_MODEL_NAME;
   // Publishing a model grants read access only; there is no clone action for it.
@@ -42,6 +42,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
 
   constructor(
     private modelService: ModelService,
+    private hubService: HubService,
     private downloadService: DownloadService
   ) {}
 
@@ -53,6 +54,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   retrieveSingleFile = (filePath: string, isLogin: boolean) =>
     this.modelService.retrieveModelVersionSingleFile(filePath, isLogin);
   retrieveOwners = () => this.modelService.retrieveOwners();
+  retrievePublicOwners = () => this.hubService.getPublicOwners(EntityType.Model);
   isPublic = (id: number) => this.modelService.getModel(id).pipe(map(dashboard => dashboard.model.isPublic));
   // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
   setPublished = (id: number) => this.modelService.updateModelPublicity(id);

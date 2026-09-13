@@ -35,7 +35,7 @@ import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { saveAs } from "file-saver";
+import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
@@ -188,7 +188,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
     private router: Router,
-    private jupyterPanelService: JupyterPanelService
+    private jupyterPanelService: JupyterPanelService,
+    private fileSaverService: FileSaverService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -619,7 +620,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
-    saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+    // Through the injectable wrapper (as the dashboard downloads already do), so a spec stubs it
+    // with TestBed instead of module-mocking the CommonJS file-saver package, which the unit-test
+    // builder cannot hoist reliably.
+    this.fileSaverService.saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
 
   /**

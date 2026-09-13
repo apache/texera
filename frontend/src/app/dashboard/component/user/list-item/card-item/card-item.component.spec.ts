@@ -1034,6 +1034,16 @@ describe("CardItemComponent", () => {
       expect(errorSpy).toHaveBeenCalled();
     });
 
+    it("still reports an empty resource's size, so card and list view agree", () => {
+      component.entry = makeWorkflowEntry();
+      component.size = 0;
+      fixture.detectChanges();
+
+      const row = fixture.debugElement.query(By.css('span[title="Size"]'));
+      expect(row).toBeTruthy();
+      expect((row.nativeElement as HTMLElement).textContent).toContain("0 B");
+    });
+
     it("writes what was typed in the name editor back onto the entry", () => {
       // The editor is seeded from entry.name; with a one-way binding it would look right on screen
       // while the confirmed rename kept sending the name the card started with.

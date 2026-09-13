@@ -43,6 +43,8 @@ import { StubOperatorMetadataService } from "src/app/workspace/service/operator-
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
@@ -55,10 +57,13 @@ import { SortButtonComponent } from "../sort-button/sort-button.component";
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => MockFiltersComponent) }],
 })
 class MockFiltersComponent {
+  @Input() entityType: EntityType | null = null;
+  @Input() ownerScope?: string;
   masterFilterListChange = EMPTY;
   masterFilterList: ReadonlyArray<string> = [];
   getSearchKeywords = (): string[] => [...this.masterFilterList];
   getSearchFilterParameters = () => ({});
+  clearFacetSelections = vi.fn();
 }
 
 @Component({
@@ -288,6 +293,19 @@ describe("SearchComponent", () => {
     expect(searchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("clears the previous tab's facet selections before it searches", () => {
+    // search() reads the filter parameters in the same turn, long before the new facet lands, so a
+    // selection cleared afterwards would still go out with the first request.
+    fixture.detectChanges(); // resolves the filters ViewChild
+    const order: string[] = [];
+    vi.spyOn(component.filters, "clearFacetSelections").mockImplementation(() => void order.push("clear"));
+    vi.spyOn(component, "search").mockImplementation(async () => void order.push("search"));
+
+    component.filterByType("dataset");
+
+    expect(order).toEqual(["clear", "search"]);
+  });
+
   it("navigates back on goBack", () => {
     component.goBack();
     expect(locationStub.back).toHaveBeenCalledTimes(1);
@@ -357,19 +375,19 @@ describe("SearchComponent rendered template", () => {
     fixture.detectChanges();
   });
 
-  it("renders the three resource-type buttons, each with its own label and icon", () => {
-    expect(labels()).toEqual(["All", "Workflow", "Dataset"]);
+  it("renders the four resource-type buttons, each with its own label and icon", () => {
+    expect(labels()).toEqual(["All", "Workflow", "Dataset", "Model"]);
     // nz-icon turns nzType into an `anticon-<type>` class, so this pins the icon
     // each button asks for — and that "All" asks for none.
     const icons = typeButtons().map(button => {
       const icon = button.querySelector("span[nz-icon]");
       return icon && Array.from(icon.classList).find(name => name.startsWith("anticon-"));
     });
-    expect(icons).toEqual([null, "anticon-project", "anticon-database"]);
+    expect(icons).toEqual([null, "anticon-project", "anticon-database", `anticon-${MODEL_ICON}`]);
   });
 
   it("highlights only the All button before a resource type is chosen", () => {
-    expect(selectedFlags()).toEqual([true, false, false]);
+    expect(selectedFlags()).toEqual([true, false, false, false]);
   });
 
   it("moves the highlight onto whichever resource-type button is clicked", () => {

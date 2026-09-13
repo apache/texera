@@ -17,15 +17,17 @@
  * under the License.
  */
 
-import { of, Subject, throwError } from "rxjs";
+import { of, Subject } from "rxjs";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzMessageService } from "ng-zorro-antd/message";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { commonTestImports, commonTestProviders } from "../../../../common/testing/test-utils";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
+import { FiltersComponent } from "../filters/filters.component";
 import { NgModel } from "@angular/forms";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -48,12 +50,11 @@ describe("UserModelComponent", () => {
   let getCurrentUserSpy: ReturnType<typeof vi.fn>;
 
   let modalServiceMock: { create: ReturnType<typeof vi.fn> };
-  let searchServiceMock: { getUserInfo: ReturnType<typeof vi.fn> };
-  let modelServiceMock: {
-    deleteModel: ReturnType<typeof vi.fn>;
-    retrieveAccessibleModels: ReturnType<typeof vi.fn>;
-  };
+  let searchServiceMock: { executeSearch: ReturnType<typeof vi.fn> };
+  let modelServiceMock: { deleteModel: ReturnType<typeof vi.fn> };
+  let messageMock: { warning: ReturnType<typeof vi.fn> };
 
+  let filtersStub: any;
   let searchResultsStub: any;
   let capturedLoadMoreFn: LoadMoreFn | null;
   let modalAfterClose: Subject<unknown>;
@@ -63,29 +64,6 @@ describe("UserModelComponent", () => {
       type: EntityType.Model,
       model: { model: { mid, name } },
     }) as unknown as DashboardEntry;
-
-  /** A /model/list row. */
-  const listedModel = (mid: number, overrides: Partial<Record<string, unknown>> = {}): any => ({
-    isOwner: true,
-    ownerEmail: "owner@example.com",
-    accessPrivilege: "WRITE",
-    size: 0,
-    ...overrides,
-    model: {
-      mid,
-      ownerUid: 1,
-      name: `model-${mid}`,
-      description: "",
-      framework: "pytorch",
-      format: "torchscript",
-      creationTime: mid,
-      isPublic: false,
-      isDownloadable: false,
-      repositoryName: undefined,
-      coverImage: undefined,
-      ...((overrides["model"] as object) ?? {}),
-    },
-  });
 
   beforeEach(() => {
     userChangedSubject = new Subject<User | undefined>();
@@ -100,20 +78,27 @@ describe("UserModelComponent", () => {
 
     modalAfterClose = new Subject<unknown>();
     modalServiceMock = { create: vi.fn(() => ({ afterClose: modalAfterClose.asObservable() })) };
-    searchServiceMock = { getUserInfo: vi.fn(() => of({})) };
-    modelServiceMock = {
-      deleteModel: vi.fn(() => of({} as Response)),
-      retrieveAccessibleModels: vi.fn(() => of([])),
+    searchServiceMock = {
+      executeSearch: vi.fn(() => of({ entries: [], more: false, hasMismatch: false })),
     };
+    modelServiceMock = { deleteModel: vi.fn(() => of({} as Response)) };
+    messageMock = { warning: vi.fn() };
 
     component = new UserModelComponent(
       modalServiceMock as any,
       userServiceMock as any,
       searchServiceMock as any,
-      modelServiceMock as any
+      modelServiceMock as any,
+      messageMock as any
     );
 
     capturedLoadMoreFn = null;
+    filtersStub = {
+      masterFilterList: [] as string[],
+      masterFilterListChange: new Subject<void>(),
+      getSearchKeywords: vi.fn(() => ["kw1"]),
+      getSearchFilterParameters: vi.fn(() => ({ ids: [1, 2] })),
+    };
     searchResultsStub = {
       entries: [] as DashboardEntry[],
       reset: vi.fn((fn: LoadMoreFn) => {
@@ -122,6 +107,7 @@ describe("UserModelComponent", () => {
       loadMore: vi.fn(async () => {}),
     };
 
+    component.filters = filtersStub;
     component.searchResultsComponent = searchResultsStub;
   });
 
@@ -152,143 +138,97 @@ describe("UserModelComponent", () => {
     expect(searchSpy).toHaveBeenCalledTimes(1);
   });
 
-  // ─── listing ──────────────────────────────────────────────────────────────
+  // ─── searching ────────────────────────────────────────────────────────────
 
-  it("lists the accessible models rather than going through unified search", async () => {
-    // Models must not reach global search before the hub backend lands, so this page reads
-    // /model/list directly.
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1), listedModel(2)]));
+  it("searches models through unified search, with the filters bar's keywords and parameters", async () => {
+    filtersStub.getSearchKeywords.mockReturnValue(["resnet", "vision"]);
+    filtersStub.getSearchFilterParameters.mockReturnValue({ ids: [1, 2] });
+    component.sortMethod = SortMethod.NameAsc;
 
     await component.search();
-    const page = await capturedLoadMoreFn!(0, 20);
+    expect(searchResultsStub.reset).toHaveBeenCalledTimes(1);
+    expect(searchResultsStub.loadMore).toHaveBeenCalledTimes(1);
 
-    expect(modelServiceMock.retrieveAccessibleModels).toHaveBeenCalled();
-    expect(page.entries.map((e: DashboardEntry) => e.id)).toEqual([2, 1]);
-    expect(page.more).toBe(false);
+    await capturedLoadMoreFn!(7, 25);
+
+    expect(searchServiceMock.executeSearch).toHaveBeenCalledWith(
+      ["resnet", "vision"],
+      { ids: [1, 2] },
+      7,
+      25,
+      "model",
+      SortMethod.NameAsc,
+      true,
+      false
+    );
   });
 
-  it("fetches the list once and re-slices it, refetching only when forced", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
+  it("never asks for public models, even when the viewer is signed out", async () => {
+    // This page lists what you own or were granted; public models belong to the hub.
+    component.isLogin = false;
 
     await component.search();
     await capturedLoadMoreFn!(0, 20);
-    await capturedLoadMoreFn!(0, 20);
-    expect(modelServiceMock.retrieveAccessibleModels).toHaveBeenCalledTimes(1);
+
+    const args = searchServiceMock.executeSearch.mock.calls[0];
+    expect(args[6]).toBe(false); // isLogin
+    expect(args[7]).toBe(false); // includePublic
+  });
+
+  it("skips a repeated search with the same filters and sort, but honors forced", async () => {
+    filtersStub.masterFilterList = ["a"];
+
+    await component.search();
+    expect(searchResultsStub.reset).toHaveBeenCalledTimes(1);
+
+    await component.search();
+    expect(searchResultsStub.reset).toHaveBeenCalledTimes(1);
 
     await component.search(true);
-    await capturedLoadMoreFn!(0, 20);
-    expect(modelServiceMock.retrieveAccessibleModels).toHaveBeenCalledTimes(2);
+    expect(searchResultsStub.reset).toHaveBeenCalledTimes(2);
   });
 
-  it("reports more pages while the filtered list runs past the window", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1), listedModel(2), listedModel(3)]));
+  it("re-searches when the sort method changes even if the filter list is identical", async () => {
+    filtersStub.masterFilterList = ["a"];
 
     await component.search();
-
-    expect((await capturedLoadMoreFn!(0, 2)).more).toBe(true);
-    expect((await capturedLoadMoreFn!(2, 2)).more).toBe(false);
-  });
-
-  it("sorts by name in both directions, and by newest first otherwise", async () => {
-    const names = async (): Promise<string[]> => {
-      await component.search(true);
-      return (await capturedLoadMoreFn!(0, 20)).entries.map((e: DashboardEntry) => e.name);
-    };
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(
-      of([listedModel(1, { model: { name: "b" } }), listedModel(2, { model: { name: "a" } })])
-    );
-
     component.sortMethod = SortMethod.NameAsc;
-    expect(await names()).toEqual(["a", "b"]);
-
-    component.sortMethod = SortMethod.NameDesc;
-    expect(await names()).toEqual(["b", "a"]);
-
-    component.sortMethod = SortMethod.CreateTimeDesc;
-    expect(await names()).toEqual(["a", "b"]); // mid 2 was created later
-  });
-
-  // ─── keyword matching ─────────────────────────────────────────────────────
-
-  it("matches keywords against name, description, framework, format and owner", async () => {
-    const matches = async (keyword: string): Promise<number[]> => {
-      component.searchKeywords = [keyword];
-      await component.search();
-      return (await capturedLoadMoreFn!(0, 20)).entries.map((e: DashboardEntry) => e.id!);
-    };
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(
-      of([
-        listedModel(1, { model: { name: "resnet", description: "vision", framework: "pytorch" } }),
-        listedModel(2, { ownerEmail: "someone@else.com", model: { name: "tree", format: "joblib" } }),
-      ])
-    );
-
-    expect(await matches("resnet")).toEqual([1]);
-    expect(await matches("VISION")).toEqual([1]); // case-insensitive
-    expect(await matches("joblib")).toEqual([2]);
-    expect(await matches("else.com")).toEqual([2]);
-    expect(await matches("   ")).toEqual([2, 1]); // a blank term filters nothing
-  });
-
-  it("requires every keyword to match, not just one", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(
-      of([listedModel(1, { model: { name: "resnet", description: "vision" } }), listedModel(2)])
-    );
-    component.searchKeywords = ["resnet", "vision"];
-
-    await component.search();
-    expect((await capturedLoadMoreFn!(0, 20)).entries.map((e: DashboardEntry) => e.id)).toEqual([1]);
-
-    component.searchKeywords = ["resnet", "absent"];
-    await component.search();
-    expect((await capturedLoadMoreFn!(0, 20)).entries).toEqual([]);
-  });
-
-  // ─── owner names ──────────────────────────────────────────────────────────
-
-  it("labels each card with its owner's display name and avatar", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
-    searchServiceMock.getUserInfo.mockReturnValue(of({ 1: { userName: "ada", avatar: "a.png" } }));
-
-    await component.search();
-    const [entry] = (await capturedLoadMoreFn!(0, 20)).entries;
-
-    expect(searchServiceMock.getUserInfo).toHaveBeenCalledWith([1]);
-    expect(entry.ownerName).toBe("ada");
-    // DashboardEntry starts every entry with an empty avatar, so only a lookup that actually
-    // forwards the value can produce this — asserting "" alone would pass with the write removed.
-    expect(entry.ownerAvatar).toBe("a.png");
-  });
-
-  it("leaves the avatar empty for an owner who has not set one", async () => {
-    // getUserInfo omits `avatar` for such a user; forwarding undefined would put the string
-    // "undefined" in the avatar slot.
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
-    searchServiceMock.getUserInfo.mockReturnValue(of({ 1: { userName: "ada" } }));
-
-    await component.search();
-    const [entry] = (await capturedLoadMoreFn!(0, 20)).entries;
-
-    expect(entry.ownerName).toBe("ada");
-    expect(entry.ownerAvatar).toBe("");
-  });
-
-  it("still lists the models when the owner lookup fails", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([listedModel(1)]));
-    searchServiceMock.getUserInfo.mockReturnValue(throwError(() => new Error("offline")));
-
     await component.search();
 
-    expect((await capturedLoadMoreFn!(0, 20)).entries).toHaveLength(1);
+    expect(searchResultsStub.reset).toHaveBeenCalledTimes(2);
   });
 
-  it("skips the owner lookup when there is nobody to look up", async () => {
-    modelServiceMock.retrieveAccessibleModels.mockReturnValue(of([]));
+  it("re-searches when the filters bar reports a new filter list", async () => {
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue();
+    filtersStub.masterFilterListChange.next();
+
+    expect(searchSpy).toHaveBeenCalled();
+  });
+
+  // ─── mismatch warning ─────────────────────────────────────────────────────
+
+  it("warns when the backend could not match every model, and records it", async () => {
+    searchServiceMock.executeSearch.mockReturnValue(of({ entries: [], more: false, hasMismatch: true }));
 
     await component.search();
     await capturedLoadMoreFn!(0, 20);
 
-    expect(searchServiceMock.getUserInfo).not.toHaveBeenCalled();
+    expect(component.hasMismatch).toBe(true);
+    expect(messageMock.warning).toHaveBeenCalledTimes(1);
+    const [message, options] = messageMock.warning.mock.calls[0];
+    expect(message).toContain("models");
+    expect(options).toEqual({ nzDuration: 4000 });
+  });
+
+  it("clears the mismatch flag and stays quiet when the response carries none", async () => {
+    component.hasMismatch = true;
+    searchServiceMock.executeSearch.mockReturnValue(of({ entries: [], more: false }));
+
+    await component.search();
+    await capturedLoadMoreFn!(0, 20);
+
+    expect(component.hasMismatch).toBe(false);
+    expect(messageMock.warning).not.toHaveBeenCalled();
   });
 
   // ─── view mode ────────────────────────────────────────────────────────────
@@ -373,11 +313,15 @@ describe("UserModelComponent rendering", () => {
       providers: [
         { provide: NzModalService, useValue: { create: modalCreate } },
         { provide: UserService, useClass: StubUserService },
-        { provide: SearchService, useValue: { getUserInfo: vi.fn(() => of({})) } },
+        {
+          provide: SearchService,
+          useValue: { executeSearch: vi.fn(() => of({ entries: [], more: false, hasMismatch: false })) },
+        },
         {
           provide: ModelService,
-          useValue: { deleteModel: vi.fn(() => of({} as Response)), retrieveAccessibleModels: vi.fn(() => of([])) },
+          useValue: { deleteModel: vi.fn(() => of({} as Response)), retrieveOwners: vi.fn(() => of([])) },
         },
+        { provide: NzMessageService, useValue: { warning: vi.fn() } },
         { provide: NZ_I18N, useValue: en_US },
         provideRouter([]),
         ...commonTestProviders,
@@ -406,26 +350,25 @@ describe("UserModelComponent rendering", () => {
     expect(modalCreate).toHaveBeenCalled();
   });
 
-  it("renders no shared filter bar", () => {
-    // The dropdowns it offers (owner, id, ctime, operator, project) are server-side criteria, and
-    // this page filters client-side. It returns with the hub and unified-search work.
-    expect(host().querySelector("texera-filters")).toBeNull();
+  it("renders the shared filter bar, scoped to models", () => {
+    // The dropdowns it offers are server-side criteria, which the page can use now that it
+    // searches through the backend rather than filtering the list in the browser.
+    const filters = fixture.debugElement.query(By.directive(FiltersComponent));
+    expect(filters, "no texera-filters in the toolbar").not.toBeNull();
+    expect(filters.componentInstance.entityType).toBe(EntityType.Model);
   });
 
-  it("writes the tags typed into the search box back to the keyword list, and re-filters", () => {
+  it("writes the tags typed into the search box back to the filter list", () => {
     // nz-select's value arrives through its ControlValueAccessor, so the edit has to be driven at
-    // the NgModel. With a one-way binding the tags would render but never reach the filter.
-    const searchSpy = vi.spyOn(component, "search").mockResolvedValue();
+    // the NgModel. With a one-way binding the tags would render but never reach the filter list.
     const select = fixture.debugElement.query(By.css("nz-select"));
     expect(select, "no nz-select in the search bar").not.toBeNull();
     // Free-text keywords only exist in tag mode.
     expect(select.componentInstance.nzMode).toBe("tags");
 
     select.injector.get(NgModel).viewToModelUpdate(["resnet", "vision"]);
-    fixture.detectChanges();
 
-    expect(component.searchKeywords).toEqual(["resnet", "vision"]);
-    expect(searchSpy).toHaveBeenCalled();
+    expect(component.filters.masterFilterList).toEqual(["resnet", "vision"]);
   });
 
   it("starts in card view and moves the highlight when the list view is chosen", () => {
@@ -452,7 +395,7 @@ describe("UserModelComponent rendering", () => {
     expect(results.currentUid).toBe(component.currentUid);
   });
 
-  /** A /model/list row, in the shape DashboardEntry accepts. */
+  /** A search hit, in the shape DashboardEntry accepts. */
   function modelEntry(mid = 3, name = "resnet"): DashboardEntry {
     return new DashboardEntry({
       isOwner: true,

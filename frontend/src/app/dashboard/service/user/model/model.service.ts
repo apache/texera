@@ -36,7 +36,6 @@ export const MODEL_UPDATE_FORMAT_URL = MODEL_UPDATE_BASE_URL + "/format";
 export const MODEL_UPDATE_PUBLICITY_URL = "update/publicity";
 export const MODEL_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const MODEL_UPDATE_COVER_URL = "update/cover";
-export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
 export const MODEL_GET_OWNERS_URL = MODEL_BASE_URL + "/user-model-owners";
 
 export const MODEL_VERSION_BASE_URL = "version";
@@ -91,10 +90,6 @@ export class ModelService {
       ? `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}`
       : `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/public/${mid}`;
     return this.http.get<DashboardModel>(apiUrl);
-  }
-
-  public retrieveAccessibleModels(): Observable<DashboardModel[]> {
-    return this.http.get<DashboardModel[]>(`${AppSettings.getApiEndpoint()}/${MODEL_LIST_URL}`);
   }
 
   public deleteModel(mid: number): Observable<Response> {

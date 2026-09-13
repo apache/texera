@@ -132,12 +132,6 @@ describe("ModelService", () => {
     expect(await pending).toEqual(created);
   });
 
-  it("lists the accessible models, including when the user has none", async () => {
-    const pending = firstValueFrom(service.retrieveAccessibleModels());
-    http.expectOne(`${API}/model/list`).flush([]);
-    expect(await pending).toEqual([]);
-  });
-
   it("deletes by id", () => {
     service.deleteModel(7).subscribe();
     expect(http.expectOne(`${API}/model/7`).request.method).toBe("DELETE");
@@ -284,8 +278,8 @@ describe("ModelService", () => {
   });
 
   it("surfaces a server error rather than swallowing it", async () => {
-    const outcome = firstValueFrom(service.retrieveAccessibleModels()).catch((err: unknown) => err);
-    http.expectOne(`${API}/model/list`).flush({ message: "nope" }, { status: 500, statusText: "Server Error" });
+    const outcome = firstValueFrom(service.getModel(7)).catch((err: unknown) => err);
+    http.expectOne(`${API}/model/7`).flush({ message: "nope" }, { status: 500, statusText: "Server Error" });
     expect(await outcome).toMatchObject({ status: 500 });
   });
 });
