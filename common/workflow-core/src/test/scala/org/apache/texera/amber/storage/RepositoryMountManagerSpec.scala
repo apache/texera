@@ -63,11 +63,6 @@ class RepositoryMountManagerSpec extends AnyFlatSpec with Matchers {
     new Fixture().manager.mountPointOf(locator) shouldBe inPodPath
   }
 
-  it should "fall back to the default root when the pod was given none" in {
-    val fixture = new Fixture(env = podEnv - EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
-    fixture.manager.mountPointOf(locator) shouldBe inPodPath
-  }
-
   it should "reject a locator that is not <repositoryName>:<commitHash>" in {
     val manager = new Fixture().manager
     Seq("dataset-1", "", ":abc", "dataset-1:", null).foreach { bad =>
@@ -109,6 +104,7 @@ class RepositoryMountManagerSpec extends AnyFlatSpec with Matchers {
 
   it should "say which variable is missing rather than fail obscurely" in {
     Seq(
+      EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT,
       EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL,
       EnvironmentalVariable.ENV_CU_ID,
       EnvironmentalVariable.ENV_USER_JWT_TOKEN

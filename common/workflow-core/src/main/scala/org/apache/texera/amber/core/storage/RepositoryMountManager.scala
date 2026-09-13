@@ -53,7 +53,11 @@ class RepositoryMountManager(
       env(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
         .map(_.trim)
         .filter(_.nonEmpty)
-        .getOrElse("/mnt/texera-mounts")
+        .getOrElse(
+          throw new IllegalStateException(
+            s"${EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT} is not set in this computing unit."
+          )
+        )
     )
 
   private def parseLocator(locator: String): (String, String) =
