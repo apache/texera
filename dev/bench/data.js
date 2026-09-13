@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789218323893,
+  "lastUpdate": 1789303768687,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -13609,6 +13609,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 511.3826035692455,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7190a8113ca9ec3ae30d7a1dfdbde4c288034e2c",
+          "message": "feat(gui): author the Form View's inputs in place (#8517)\n\n### What changes were proposed in this PR?\n\nCloses #8027. Part of the Form View stack (parent issue #8011), on main\nnow that #8516 (the edit mode) has merged. This is the second half of\nwhat was #8455 (closed, split in two at 2200 lines). The review commit\nis the branch's single commit, on main.\n\nLets the author shape the exposed inputs where they appear, in the edit\nmode #8516 adds.\n\n- Rename an input or any of its sub-fields, and hide a sub-field,\nthrough a new `editable-label-wrapper` formly wrapper: the label is the\ninput, so what the author types is what the reader reads; leaving it\nempty falls back to the schema label (captured before the stored\noverride is applied, so a renamed sub-field's placeholder and tooltip\npromise what clearing the box really yields). The control keeps a\nprogrammatic name in both modes (a visually hidden `<label for>` while\nauthoring, the static label for readers); a repeated field has no\nlabelable control carrying its id, so its title names the rows as a\ngroup (`role=\"group\"` + `aria-labelledby`) instead of pointing a label\nat nothing. Overrides are stored per binding and reapplied on every\nrebuild. In a repeated section every row shares one override, so the\ncontrols (name box, eye) sit on the first row only; later rows show the\nsame name and hidden state statically and follow the first row's edits\nat once, and a scalar array's rows are walked as rows, never as the\ninput's root, so the input's own title box appears once above them.\n- Reorder inputs by drag (CDK drag-drop, mapped by binding id so a card\nthe config no longer holds cannot move the wrong field) or from the\nkeyboard with Move up / Move down on each card, disabled at the ends.\n- Write per-input help text (saved without rebuilding the form on every\nkeystroke), see \"From X\" attribution while authoring, and remove an\ninput. A rename is written through on every keystroke (input, not\nchange), so the hidden label and the saved name follow the box as it is\ntyped and nothing is lost if the page is left while the box still has\nthe focus. A step renamed on the canvas or in the live panel (a\nco-editor's rename included) rebuilds the cards, held while the reader\nis typing like the compilation path, so the \"From X\" attribution never\ngoes stale; nothing else emits for a rename.\n- A binding whose operator no longer exists renders as a removable card\ncarrying the reason for the author and is hidden from readers; it is\nnever deleted silently on a re-read.\n- A repeated (array) input keeps its title above its rows in reader mode\ntoo: the shared array widget prints its label at the bottom beside its\nadd button, so without this the title jumped from above the rows in edit\nmode to below them on Done.\n- Keyboard focus is visible on the Move, Remove and eye buttons\n(`:focus-visible`), and it is never dropped by the edit it triggers: a\nrename, a hide or help text is presentation only and is shown by the\ncontrol that took it, and the page does not rebuild on such a write's\nown announcement: every config write announces on `formBindingChanged$`\nand the page rebuilds on that stream, so a presentation write is marked\nwhile it is made and its announcement skipped (it still reaches the\nautosave), while structural writes (expose from the panel, remove,\nreorder) rebuild as before, once (the callers that re-read themselves\nmark their write too). The test harness's form-binding mock now\nannounces like the real service, so this chain is under test rather than\nsevered; the Move buttons at the ends are `aria-disabled` rather than\ndisabled, so a move that reaches the top or bottom keeps the focus on\nthe button; after Remove the focus goes to the next card's Remove, else\nthe previous one's, else the Inputs heading. The Move and Remove buttons\nare named with their input (every card has the same three), and the eye\nis a proper toggle (constant name, state in `aria-pressed`).\n\nThe diff is about 1650 added lines because 830 of them are spec against\n829 of source (of which 246 are stylesheet); the wrapper and the card's\nauthor row are one feature, and the wrapper's four files plus the\nreview-driven fixes (once-per-path controls, self-reflected writes) are\nthe bulk of the rest.\n\n### Any related issues, documentation, discussions?\n\nCloses #8027. Part of the Form View feature (parent issue #8011).\nReplaces the second half of #8455.\n\n### How was this PR tested?\n\nUnit tests (vitest). Direct-construction tests cover rename and hide\noverrides reaching the rendered fields (root title and sub-fields, keyed\nby path), the cards rebuilt when a step's display name changes, the name\nbox writing through on each input event, a repeated section's controls\non its first row only with later rows following a rename and a hide, the\nschema label kept as the fallback of an already renamed sub-field, a\nscalar array's rows walked as rows (one title box), the page not\nrebuilding on its own presentation writes though each is announced while\na structural announcement still rebuilds, and the wrapper naming a\nrepeated field as a group and fading a hidden field in a follower row,\ndrag and keyboard reorder with the id-mapped indices (including the end\nstops and a card the config no longer holds), help text saved without a\nrebuild, broken bindings shown to an author only and kept for explicit\nremoval, and the repeated input's static title. The rendered spec drives\nthe card's author row through the DOM: the provenance line and drag\nhandle, the Move buttons in both directions with their end states, the\nhelp-text box writing through, Remove, the broken card's reason, and the\ndrop hand-off to `onDrop`. The editable-label wrapper has its own\nTestBed spec (real component: decorate, the name box's change renaming,\nthe eye hiding, the reader's label association and the hidden label\nwhile authoring). Each new guard was deletion-checked (removing it turns\nthe corresponding test red). eslint, prettier and the production (AOT)\nbuild pass; every changed line, template lines included, is statement\nand function covered.\n\n#### video\n\n\nhttps://github.com/user-attachments/assets/566f8bd7-5596-4085-9317-79974cfdfad2\n\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Fable 5.1, Anthropic).\nCo-authored with Claude, reviewed line by line by the author before\nsubmission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01FVvP3ttj22f9LB4p9u2anY\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-09-12T20:31:16Z",
+          "url": "https://github.com/apache/texera/commit/7190a8113ca9ec3ae30d7a1dfdbde4c288034e2c"
+        },
+        "date": 1789303768321,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 926.5243658691085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1698.22784250855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1836.8646922706198,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1172.8694829068388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1766.914374197541,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1860.3739617622205,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1267.4400744430927,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1752.468306330066,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1825.5771021035036,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1029.219775335516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1392.6035479282466,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1451.8319040600418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1051.4241251421984,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1383.1232929538999,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1405.361291432003,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1081.7127153545405,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1379.8479165418862,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1416.2986529596797,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 633.8918485739501,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 757.5357777068639,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 768.3982620211034,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 647.7421258406553,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 753.928802851568,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 730.5819529024958,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 618.7254516365321,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 698.3724695467612,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 722.6645496049604,
             "unit": "tuples/sec"
           }
         ]
