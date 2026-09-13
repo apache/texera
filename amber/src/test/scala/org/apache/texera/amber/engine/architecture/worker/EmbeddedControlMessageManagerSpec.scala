@@ -119,6 +119,25 @@ class EmbeddedControlMessageManagerSpec extends AnyFlatSpec with Matchers {
     mgr.isECMAligned(chB, ecm) shouldBe true
   }
 
+  it should "exclude control channels from PORT_ALIGNMENT" in {
+    val gateway = mkGateway
+    val inputManager = mkInputManager
+    val portId = PortIdentity()
+    val data = ChannelIdentity(senderA, actorId, isControl = false)
+    val control = ChannelIdentity(senderB, actorId, isControl = true)
+    gateway.getChannel(data).setPortId(portId)
+    gateway.getChannel(control).setPortId(portId)
+    inputManager.addPort(portId, Schema(), List.empty, List.empty)
+    inputManager.getPort(portId).channels.add(data)
+    inputManager.getPort(portId).channels.add(control)
+    val mgr = new EmbeddedControlMessageManager(actorId, gateway, inputManager)
+
+    mgr.isECMAligned(
+      data,
+      mkEcm(EmbeddedControlMessageType.PORT_ALIGNMENT, Seq.empty)
+    ) shouldBe true
+  }
+
   it should "align NO_ALIGNMENT only on the first received ECM" in {
     val gateway = mkGateway
     val inputManager = mkInputManager
