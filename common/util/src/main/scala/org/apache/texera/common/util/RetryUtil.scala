@@ -51,10 +51,9 @@ object RetryUtil {
   }
 
   /**
-    * Runs `operation`, retrying on failure with exponential backoff (the delay doubles after
-    * each failed attempt, capped at `maxDelayMillis`) until it succeeds or `maxAttempts` is
-    * reached. The final failure is wrapped with `description` and the last exception as its
-    * cause.
+    * Runs `operation`, retrying on failure with configurable backoff (the delay is multiplied
+    * by `delayMultiplier` after each failed attempt, capped at `maxDelayMillis`) until it
+    * succeeds or `maxAttempts` is reached. The final failure is created by `failureFactory`.
     *
     * Only `NonFatal` failures that `shouldRetry` accepts are treated as transient; a failure it
     * rejects propagates immediately, unwrapped, spending no further attempts. The default accepts
@@ -78,6 +77,9 @@ object RetryUtil {
     * @param shouldRetry        which failures are transient; the default retries every `NonFatal`
     *                           one. A caller whose retry signal is response content rather than an
     *                           exception type can throw a private marker and match it here.
+    * @param delayMultiplier    factor applied after each wait; 1 keeps a constant delay and the
+    *                           default 2 preserves exponential backoff.
+    * @param failureFactory     creates the exception thrown after the final attempt.
     * @param operation          the work to run, re-evaluated on each attempt.
     * @tparam T whatever `operation` returns.
     * @return `operation`'s value from the first attempt that succeeds.
@@ -89,7 +91,14 @@ object RetryUtil {
       onRetry: RetryAttempt => Unit,
       sleep: Long => Unit = Thread.sleep,
       maxDelayMillis: Long = Long.MaxValue,
-      shouldRetry: Throwable => Boolean = _ => true
+      shouldRetry: Throwable => Boolean = _ => true,
+      delayMultiplier: Long = 2L,
+      failureFactory: (String, Int, Throwable) => RuntimeException =
+        (description, attempts, cause) =>
+          new RuntimeException(
+            s"Failed to $description after $attempts attempts: ${cause.getMessage}",
+            cause
+          )
   )(operation: => T): T = {
     // Restore the interrupt status and fail fast rather than retrying, whether the interrupt
     // arrives while running `operation` or while waiting between attempts.
@@ -111,15 +120,15 @@ object RetryUtil {
         case Right(value) => value
         case Left(cause) =>
           if (attempt >= maxAttempts) {
-            throw new RuntimeException(
-              s"Failed to $description after $maxAttempts attempts: ${cause.getMessage}",
-              cause
-            )
+            throw failureFactory(description, maxAttempts, cause)
           }
           onRetry(RetryAttempt(description, attempt, maxAttempts, delayMillis, cause))
           try sleep(delayMillis)
           catch { case ie: InterruptedException => failInterrupted(ie) }
-          attemptFrom(attempt + 1, math.min(delayMillis * 2, maxDelayMillis))
+          attemptFrom(
+            attempt + 1,
+            math.min(delayMillis * delayMultiplier, maxDelayMillis)
+          )
       }
     }
 
