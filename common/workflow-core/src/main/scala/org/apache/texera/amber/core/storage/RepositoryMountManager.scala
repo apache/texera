@@ -165,6 +165,8 @@ private object InPodMount {
     }
   }
 
+  // /proc/mounts is the kernel's read-only view of this pod's mount table: the kernel adds the
+  // entry when a propagated GeeseFS mount arrives and removes it on unmount, so nothing writes it.
   def isFuseMounted(mountPoint: Path): Boolean = {
     if (!Files.exists(mountPoint)) {
       return false
