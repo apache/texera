@@ -38,9 +38,13 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
+import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.util
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
@@ -51,6 +55,77 @@ object ArrowUtils extends LazyLogging {
   private val allocator: BufferAllocator = new RootAllocator()
 
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
+
+  // Serialize a VectorSchemaRoot to Arrow IPC stream bytes. Does not close root.
+  def serializeRoot(root: VectorSchemaRoot): Array[Byte] = {
+    val out = new ByteArrayOutputStream()
+    val writer = new ArrowStreamWriter(root, null, Channels.newChannel(out))
+    try { writer.start(); writer.writeBatch(); writer.end() }
+    finally writer.close()
+    out.toByteArray
+  }
+
+  // Serialize a batch of tuples to Arrow IPC stream bytes (columnar wire format).
+  def serializeTuples(schema: Schema, tuples: Array[Tuple]): Array[Byte] = {
+    val root = VectorSchemaRoot.create(fromTexeraSchema(schema), allocator)
+    try {
+      var i = 0
+      while (i < tuples.length) { setTexeraTuple(tuples(i), i, root); i += 1 }
+      root.setRowCount(tuples.length)
+      serializeRoot(root)
+    } finally root.close()
+  }
+
+  // Read one Arrow IPC batch, apply `f` to the live root, then close the reader.
+  // `f` must copy anything it needs out (the root is freed on return).
+  def deserializeRootFold[T](bytes: Array[Byte], allocator: BufferAllocator)(
+      f: VectorSchemaRoot => T
+  ): T = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      reader.loadNextBatch()
+      f(reader.getVectorSchemaRoot)
+    } finally reader.close()
+  }
+
+  // Copy the rows of `src` where keep(i) is true into a new independent root.
+  def selectRows(
+      src: VectorSchemaRoot,
+      keep: Array[Boolean],
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var destIdx = 0
+    var i = 0
+    val n = src.getRowCount
+    while (i < n) {
+      if (keep(i)) {
+        var c = 0
+        while (c < srcVecs.size) { destVecs.get(c).copyFromSafe(i, destIdx, srcVecs.get(c)); c += 1 }
+        destIdx += 1
+      }
+      i += 1
+    }
+    dest.setRowCount(destIdx)
+    dest
+  }
+
+  // Inverse of serializeTuples: decode Arrow IPC stream bytes back to tuples.
+  def deserializeTuples(bytes: Array[Byte]): Array[Tuple] = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      val out = ArrayBuffer[Tuple]()
+      val root = reader.getVectorSchemaRoot
+      while (reader.loadNextBatch()) {
+        val n = root.getRowCount
+        var i = 0
+        while (i < n) { out += getTexeraTuple(i, root); i += 1 }
+      }
+      out.toArray
+    } finally reader.close()
+  }
 
   /**
     * Reads a row of the given Arrow Vectors into a Texera.Tuple
@@ -176,13 +251,17 @@ object ArrowUtils extends LazyLogging {
     * @param vectorSchemaRoot The root of the Vectors that stores the Arrow Fields. It contains
     *                         multiple Vectors.
     */
-  def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
+  def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit =
+    setRow(tuple.getFields, index, vectorSchemaRoot)
+
+  // Fill row `index` of the Arrow vectors from a parsed field array (schema order).
+  def setRow(fields: Array[Any], index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowSchema = vectorSchemaRoot.getSchema
     val arrowFields = arrowSchema.getFields.asScala.toList
 
     for (i <- arrowFields.indices) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.getField[AnyRef](i)
+      val value = fields(i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
         case _: ArrowType.Int =>
