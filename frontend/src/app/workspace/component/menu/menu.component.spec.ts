@@ -45,7 +45,7 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import { saveAs } from "file-saver";
+import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
@@ -56,8 +56,6 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
-
-vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -112,7 +110,6 @@ describe("MenuComponent", () => {
     fixture = TestBed.createComponent(MenuComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    vi.mocked(saveAs).mockClear();
   });
 
   it("should create", () => {
@@ -525,6 +522,9 @@ describe("MenuComponent", () => {
 
   describe("onClickExportWorkflow (save)", () => {
     it("serializes the workflow content as JSON and downloads it under the workflow name", () => {
+      // Stubbed on the injected wrapper rather than by module-mocking file-saver: that CommonJS
+      // mock is order-sensitive under the unit-test builder and was failing on the Windows leg.
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
       const fakeContent = {
         operators: [{ operatorID: "op1" }],
         links: [],
@@ -537,7 +537,7 @@ describe("MenuComponent", () => {
       component.onClickExportWorkflow();
 
       expect(saveAs).toHaveBeenCalledTimes(1);
-      const [blobArg, fileNameArg] = vi.mocked(saveAs).mock.calls[0] as [Blob, string];
+      const [blobArg, fileNameArg] = saveAs.mock.calls[0] as [Blob, string];
       expect(fileNameArg).toBe("my-workflow.json");
       expect(blobArg).toBeInstanceOf(Blob);
       expect(blobArg.type).toBe("text/plain;charset=utf-8");

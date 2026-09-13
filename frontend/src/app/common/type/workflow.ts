@@ -67,13 +67,16 @@ export interface FormBindingConfig {
   };
   /** Array order is display order; the author reorders by dragging. */
   fields: FormFieldBinding[];
-  /** View-result operators whose results are also shown under the workflow after a run, on top of
-   *  the final step's result, which always shows. */
-  resultOperatorIds: string[];
+  /** Which steps' results show under the workflow after a run, for everyone. Absent until the author
+   *  chooses: then every final (terminal) step shows, as on the canvas. Once set it is exhaustive:
+   *  exactly these steps show, and [] means none. One list, so nothing can contradict it; the cost is
+   *  that a step which becomes final after the author has chosen does not appear by itself. When
+   *  displayed it is kept to steps that still have a result on the canvas. */
+  shownResultIds?: string[];
 }
 
 export function getDefaultFormBinding(): FormBindingConfig {
-  return { fields: [], resultOperatorIds: [] };
+  return { fields: [] };
 }
 
 /**
