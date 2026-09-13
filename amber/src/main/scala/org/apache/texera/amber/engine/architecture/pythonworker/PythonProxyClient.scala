@@ -124,6 +124,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
+      case ColumnarFrame(bytes, _, _) =>
+        // Columnar wire reaching the Python path: decode to tuples and stream.
+        writeArrowStream(mutable.Queue(ArrowUtils.deserializeTuples(bytes).toSeq: _*), from, "Data")
       case StateFrame(state) =>
         writeArrowStream(mutable.Queue(state.toTuple()), from, "State")
     }

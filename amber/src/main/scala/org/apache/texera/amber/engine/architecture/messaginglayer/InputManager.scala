@@ -152,4 +152,9 @@ class InputManager(
     inputBatch = batch
     currentInputIdx = -1
   }
+
+  // Marks the current batch fully consumed (hasUnfinishedInput becomes false).
+  def skipToEnd(): Unit = {
+    currentInputIdx = if (inputBatch == null) -1 else inputBatch.length - 1
+  }
 }

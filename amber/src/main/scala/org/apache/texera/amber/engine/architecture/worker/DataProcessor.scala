@@ -21,7 +21,8 @@ package org.apache.texera.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import io.grpc.MethodDescriptor
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.executor.{ColumnarOperatorExecutor, OperatorExecutor}
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.NetworkOutputBuffer
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{
@@ -59,6 +60,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import org.apache.texera.amber.util.ArrowUtils
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -192,7 +194,9 @@ class DataProcessor(
 
   def continueDataProcessing(): Unit = {
     val dataProcessingStartTime = System.nanoTime()
-    if (outputManager.hasUnfinishedOutput) {
+    if (outputManager.hasUnfinishedColumnarOutput) {
+      outputManager.emitOneColumnarBatch()
+    } else if (outputManager.hasUnfinishedOutput) {
       outputOneTuple()
     } else {
       processInputTuple(inputManager.getNextTuple)
@@ -208,22 +212,60 @@ class DataProcessor(
     val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
       case DataFrame(tuples) =>
-        stateManager.conditionalTransitTo(
-          READY,
-          RUNNING,
-          () => {
-            asyncRPCClient.coordinatorInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(stateManager.getCurrentState),
-              asyncRPCClient.mkContext(COORDINATOR)
-            )
-          }
-        )
-        inputManager.initBatch(channelId, tuples)
-        processInputTuple(inputManager.getNextTuple)
+        processTupleBatch(channelId, portId, tuples)
+      case ColumnarFrame(bytes, _, _) =>
+        executor match {
+          // Native-Arrow path: consume the batch directly, emit a filtered batch.
+          case c: ColumnarOperatorExecutor
+              if NetworkOutputBuffer.columnarWire && outputManager.canEmitColumnar =>
+            c.processColumnarBatch(bytes) match {
+              case Some(result) =>
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+                outputManager.setColumnarOutput(Iterator.single(result))
+              case None =>
+                processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
+            }
+          case _ =>
+            processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
+        }
       case StateFrame(state) =>
         processInputState(state, portId.id)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
+  }
+
+  private def processTupleBatch(
+      channelId: ChannelIdentity,
+      portId: PortIdentity,
+      tuples: Array[Tuple]
+  ): Unit = {
+    stateManager.conditionalTransitTo(
+      READY,
+      RUNNING,
+      () => {
+        asyncRPCClient.coordinatorInterface.workerStateUpdated(
+          WorkerStateUpdatedRequest(stateManager.getCurrentState),
+          asyncRPCClient.mkContext(COORDINATOR)
+        )
+      }
+    )
+    inputManager.initBatch(channelId, tuples)
+    // Whole-batch path if the executor supports it, else per-tuple; errors fall back.
+    val vectorized: Option[Iterator[(TupleLike, Option[PortIdentity])]] =
+      try executor.processBatchMultiPort(tuples, portId.id)
+      catch safely { case _ => None }
+    vectorized match {
+      case Some(outputIter) =>
+        var i = 0
+        while (i < tuples.length) {
+          statisticsManager.increaseInputStatistics(portId, tuples(i).inMemSize)
+          i += 1
+        }
+        inputManager.skipToEnd()
+        outputManager.outputIterator.setTupleOutput(outputIter)
+      case None =>
+        processInputTuple(inputManager.getNextTuple)
+    }
   }
 
   def processECM(

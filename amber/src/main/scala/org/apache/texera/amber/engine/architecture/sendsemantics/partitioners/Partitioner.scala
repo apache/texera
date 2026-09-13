@@ -24,7 +24,8 @@ import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, StateFrame}
+import org.apache.texera.amber.engine.common.ambermessage.{ColumnarFrame, DataFrame, StateFrame}
+import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -57,9 +58,20 @@ class NetworkOutputBuffer(
 
   def flush(): Unit = {
     if (buffer.nonEmpty) {
-      dataOutputPort.sendTo(to, DataFrame(buffer.toArray))
+      val batch = buffer.toArray
+      // Columnar wire (flagged): send the batch as an Arrow IPC ColumnarFrame.
+      val payload =
+        if (NetworkOutputBuffer.columnarWire)
+          ColumnarFrame(ArrowUtils.serializeTuples(batch.head.getSchema, batch), batch.length, batch.head.getSchema)
+        else DataFrame(batch)
+      dataOutputPort.sendTo(to, payload)
       buffer = new ArrayBuffer[Tuple]()
     }
   }
 
+}
+
+object NetworkOutputBuffer {
+  // Global opt-in for the Arrow columnar wire format (default off = row DataFrame).
+  val columnarWire: Boolean = sys.env.getOrElse("COLUMNAR_WIRE", "0") == "1"
 }

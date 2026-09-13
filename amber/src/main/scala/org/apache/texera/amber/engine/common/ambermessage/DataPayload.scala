@@ -20,11 +20,17 @@
 package org.apache.texera.amber.engine.common.ambermessage
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
 final case class StateFrame(frame: State) extends DataPayload
+
+// Columnar wire payload: a batch encoded as Arrow IPC stream bytes.
+final case class ColumnarFrame(arrowIpcBytes: Array[Byte], rowCount: Int, schema: Schema)
+    extends DataPayload {
+  val inMemSize: Long = arrowIpcBytes.length.toLong
+}
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {
