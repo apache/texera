@@ -67,6 +67,7 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
   private val testAccessControlServiceUrl =
     "http://access-control-service-svc.texera.svc.cluster.local:9096"
+  private val testPodMountRoot = "/mnt/test-mounts"
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
 
@@ -306,7 +307,12 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     when(namespaceable.inNamespace(namespace)).thenReturn(resource)
     when(resource.create()).thenReturn(null)
 
-    new KubernetesClient(client, mountingEnabled = true, testAccessControlServiceUrl)
+    new KubernetesClient(
+      client,
+      mountingEnabled = true,
+      testAccessControlServiceUrl,
+      testPodMountRoot
+    )
       .createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
 
     verify(client).resource(captor.capture())
@@ -324,14 +330,14 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     // makes and must not be able to propagate one back out to the node.
     val mount = container.getVolumeMounts.asScala.find(_.getName == "texera-mounts")
     mount shouldBe defined
-    mount.get.getMountPath shouldBe "/mnt/texera-mounts"
+    mount.get.getMountPath shouldBe testPodMountRoot
     mount.get.getMountPropagation shouldBe "HostToContainer"
 
     // The pod is told which CU it is and where its mounts appear -- and deliberately not
     // how to reach the mounter.
     val env = container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap
     env should contain("TEXERA_CU_ID" -> "5")
-    env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> "/mnt/texera-mounts")
+    env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> testPodMountRoot)
     // Who the pod asks for a mount. Without it the engine cannot request one, and the pod
     // has no other way to reach a mounter -- which is the point.
     env should contain(

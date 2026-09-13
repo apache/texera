@@ -38,8 +38,10 @@ class KubernetesClient(
     // build a pod both ways: the mount contract below is security- and scheduling-sensitive
     // and needs asserting on, but the default must stay the PodSecurity-safe one.
     mountingEnabled: Boolean = KubernetesConfig.mounterEnabled,
-    // By-name: only a deployment that opted into mounting has to supply it.
-    accessControlServiceUrl: => String = AccessControlServiceUrl.fromEnv
+    // By-name: only a deployment that opted into mounting has to supply these.
+    accessControlServiceUrl: => String =
+      MountingEnv.required(EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL),
+    podMountRoot: => String = MountingEnv.required(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
 ) {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
@@ -144,7 +146,7 @@ class KubernetesClient(
     // pod is deliberately not given the mounter's address: only an authenticated platform
     // caller may request a mount, so the address would be of no use to code running here
     // except to probe the node's privileged mounter.
-    val inPodMountRoot = "/mnt/texera-mounts"
+    lazy val inPodMountRoot = podMountRoot
     val mounterEnv =
       if (!mountingEnabled) Nil
       else
@@ -279,19 +281,17 @@ object KubernetesClient
       // Passed explicitly: a companion object extending its companion class may not rely on
       // the class's default constructor arguments.
       KubernetesConfig.mounterEnabled,
-      AccessControlServiceUrl.fromEnv
+      MountingEnv.required(EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL),
+      MountingEnv.required(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
     )
 
-private object AccessControlServiceUrl {
+private object MountingEnv {
 
-  /** Passed straight through to the pod, so the chart is the only place it is written. */
-  def fromEnv: String =
+  /** Passed straight through to the pod, so the chart is the only place these are written. */
+  def required(variable: String): String =
     EnvironmentalVariable
-      .get(EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL)
+      .get(variable)
       .getOrElse(
-        throw new IllegalStateException(
-          s"Mounting is enabled but ${EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL} is unset, " +
-            "so a computing unit would have no way to request a mount."
-        )
+        throw new IllegalStateException(s"Mounting is enabled but $variable is unset.")
       )
 }
