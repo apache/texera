@@ -48,11 +48,6 @@ class RepositoryMountManager(
 
   private val mapper = new ObjectMapper()
 
-  private def required(name: String, why: String): String =
-    env(name).map(_.trim).filter(_.nonEmpty).getOrElse {
-      throw new IllegalStateException(s"No $name present in the computing unit; $why")
-    }
-
   private def inPodMountRoot: Path =
     Paths.get(
       env(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
@@ -102,17 +97,14 @@ class RepositoryMountManager(
         return mountPoint
       }
 
-      val accessControlService = required(
+      val Seq(accessControlService, cuid, jwt) = Seq(
         EnvironmentalVariable.ENV_ACCESS_CONTROL_SERVICE_URL,
-        "it cannot reach the service that authorizes a mount."
-      )
-      val cuid = required(
         EnvironmentalVariable.ENV_CU_ID,
-        "it cannot say which computing unit to mount into."
-      )
-      val jwt = required(
-        EnvironmentalVariable.ENV_USER_JWT_TOKEN,
-        "a mount cannot be authorized without a user token."
+        EnvironmentalVariable.ENV_USER_JWT_TOKEN
+      ).map(name =>
+        env(name).map(_.trim).filter(_.nonEmpty).getOrElse {
+          throw new IllegalStateException(s"$name is not set in this computing unit.")
+        }
       )
 
       val body = mapper.createObjectNode()
