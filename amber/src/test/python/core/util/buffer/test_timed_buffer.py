@@ -129,9 +129,15 @@ class TestFlushOnSize:
 
 
 class TestFlushOnTime:
+    def test_subsecond_interval_triggers_flush(self, clock):
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        buffer.put(_make_message())
+        _advance(clock, 0.5)
+        assert len(list(buffer.get())) == 1
+        assert len(buffer._buffer) == 0
+
     def test_elapsed_interval_triggers_flush(self, clock):
-        # Interval of 2000ms -> 2.0s threshold. timedelta.seconds is an
-        # integer, so 3 whole seconds (>= 2.0) triggers the time-based flush.
+        # An elapsed time beyond the 2000 ms threshold triggers the flush.
         buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=2000)
         buffer.put(_make_message())
         _advance(clock, 3)
