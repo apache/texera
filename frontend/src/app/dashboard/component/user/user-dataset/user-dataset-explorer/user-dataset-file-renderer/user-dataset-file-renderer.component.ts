@@ -54,6 +54,7 @@ export const MIME_TYPES = {
   PDF: "application/pdf",
   MSWORD: "application/msword",
   MSEXCEL: "application/vnd.ms-excel",
+  XLSX: "application/vnd.ms-excel",
   MSPOWERPOINT: "application/vnd.ms-powerpoint",
   MP4: "video/mp4",
   MP3: "audio/mpeg",

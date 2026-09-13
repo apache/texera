@@ -436,7 +436,7 @@ describe("ListItemComponent", () => {
         (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of([]));
         let refreshed = false;
         component.refresh.subscribe(() => (refreshed = true));
-        feed(entryOf({ type: "workflow", workflow: { isOwner: true, accessLevel: "WRITE" } }));
+        feed(entryOf({ type: "workflow", accessLevel: "WRITE", workflow: { isOwner: true } }));
 
         await component.onClickOpenShareAccess();
 

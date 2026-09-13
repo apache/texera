@@ -176,7 +176,7 @@ import {
 } from "@abacritt/angularx-social-login";
 import { catchError, firstValueFrom, lastValueFrom, of } from "rxjs";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
-import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { StagedObjectsListComponent } from "./dashboard/component/user/staged-objects-list/staged-objects-list.component";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
@@ -311,7 +311,7 @@ registerLocaleData(en);
     DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetFileRendererComponent,
-    UserDatasetStagedObjectsListComponent,
+    StagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     ContextMenuComponent,

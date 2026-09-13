@@ -69,6 +69,13 @@ container bridges (`docker0`, `br-*`, `veth*`) and overlay/VPN interfaces
 local IPv4 but is not reachable from inside another container's network
 namespace.
 
+Email verification is on by default in the product, and refuses to issue a code when no
+SMTP sender is configured rather than logging it. A local stack has no sender, so
+`local-dev` exports `USER_SYS_EMAIL_VERIFICATION=false` and registration works as it
+always did. To exercise the real flow, fill in the `USER_SYS_GOOGLE_SMTP_*` credentials
+and `export USER_SYS_EMAIL_VERIFICATION=true` — an explicit export always wins over the
+default set here.
+
 ## Layout
 
 ```

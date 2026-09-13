@@ -47,10 +47,22 @@
         size="large"
         [width]="328"></asl-google-signin-button>
     </div>
+    } @if (config.env.orcidLogin){
+    <button
+      class="orcid-login"
+      nz-button
+      [disabled]="!orcidConfig"
+      (click)="orcidLogin()">
+      <img
+        src="assets/logos/ORCID-iD_icon_24x24.png"
+        alt=""
+        class="orcid-icon" />
+      <span class="orcid-label">Continue with ORCID</span>
+    </button>
     }
   </div>
 
-  @if (config.env.localLogin && config.env.googleLogin) {
+  @if (config.env.localLogin && (config.env.googleLogin || config.env.orcidLogin)) {
   <nz-divider
     nzPlain
     nzText="or continue with"></nz-divider>
@@ -114,7 +126,32 @@
       Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
       account.
     </p>
-    }
+
+    <!-- Present from the outset where verification is on, so the code reads as part of signing up
+         rather than as a step that appears once the form has been submitted. Sending is its own
+         button: mail reaches the address only when the user asks for it. -->
+    @if (config.env.emailVerification) {
+    <div class="code-row">
+      <nz-input-group
+        nzSize="large"
+        nzPrefixIcon="mail">
+        <input
+          nz-input
+          formControlName="code"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="one-time-code"
+          placeholder="Verification code" />
+      </nz-input-group>
+      <button
+        nz-button
+        nzSize="large"
+        type="button"
+        (click)="sendCode()">
+        Get code
+      </button>
+    </div>
+    } }
 
     <p class="error">{{ errorMessage }}</p>
 

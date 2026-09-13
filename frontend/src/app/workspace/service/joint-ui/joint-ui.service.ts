@@ -26,6 +26,7 @@ import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
 
 /**
  * Defines the SVG path for the delete button
@@ -425,16 +426,27 @@ export class JointUIService {
     });
   }
 
-  public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
+  /**
+   * Show a selected operator's details: its state and port counts, and (by default) its action
+   * buttons: delete, chat with an agent, add/remove a port. A view whose structure is locked (the Form
+   * View's preview) passes `withButtons = false`: none of those actions can happen there, and buttons
+   * that do nothing would only suggest the preview can be edited. The buttons start hidden and
+   * foldOperatorDetails hides them again, so leaving them out here is all it takes.
+   */
+  public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string, withButtons = true): void {
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorStateClass}`]: { visibility: "visible" },
       [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
-      ".delete-button": { visibility: "visible" },
-      ".chat-button": { visibility: "visible" },
-      ".add-input-port-button": { visibility: "visible" },
-      ".add-output-port-button": { visibility: "visible" },
-      ".remove-input-port-button": { visibility: "visible" },
-      ".remove-output-port-button": { visibility: "visible" },
+      ...(withButtons
+        ? {
+            ".delete-button": { visibility: "visible" },
+            ".chat-button": { visibility: "visible" },
+            ".add-input-port-button": { visibility: "visible" },
+            ".add-output-port-button": { visibility: "visible" },
+            ".remove-input-port-button": { visibility: "visible" },
+            ".remove-output-port-button": { visibility: "visible" },
+          }
+        : {}),
     });
   }
 
@@ -513,6 +525,26 @@ export class JointUIService {
 
   public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
     jointPaper.getModelById(operator.operatorID).attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
+  }
+
+  /**
+   * Paints an operator's body fill for the performance heat-map overlay. The heat-map owns only
+   * `rect.body/fill`, so it coexists with the execution-status border (`rect.body/stroke`).
+   * The method paints a neutral color when `score` is undefined, which means no heat is known
+   * for the operator — either no metrics captured yet, or the active view is not measurable
+   * for it.
+   */
+  public applyHeatmapColor(jointPaper: joint.dia.Paper, operatorID: string, score: number | undefined): void {
+    const fill = score === undefined ? HEATMAP_NO_DATA_COLOR : scoreToColor(score);
+    jointPaper.getModelById(operatorID)?.attr("rect.body/fill", fill);
+  }
+
+  /**
+   * Restores an operator's default body fill (used when the heat-map overlay is turned off),
+   * reusing the same source as the normal enabled/disabled coloring.
+   */
+  public restoreOperatorFill(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    jointPaper.getModelById(operator.operatorID)?.attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
   }
 
   public changeOperatorViewResultStatus(

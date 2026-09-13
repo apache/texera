@@ -132,10 +132,14 @@ class ConfigResourceSpec
     payload.keySet shouldBe Set(
       "localLogin",
       "googleLogin",
+      // The login page needs this before anyone is signed in, for the same reason as the other two
+      // provider flags: it decides whether the ORCID button is rendered at all.
+      "orcidLogin",
       "defaultLocalUser",
       "attributionEnabled",
       "deploymentVersionCheckEnabled",
-      "inviteOnly"
+      "inviteOnly",
+      "emailVerification"
     )
   }
 
@@ -166,6 +170,7 @@ class ConfigResourceSpec
     payload.keySet should contain noneOf (
       "localLogin",
       "googleLogin",
+      "orcidLogin",
       "defaultLocalUser",
       "attributionEnabled"
     )
@@ -413,8 +418,8 @@ class ConfigResourceSpec
       "home_enabled",
       "workflow_enabled",
       "dataset_enabled",
+      "model_enabled",
       "your_work_enabled",
-      "projects_enabled",
       "workflows_enabled",
       "datasets_enabled",
       "models_enabled",

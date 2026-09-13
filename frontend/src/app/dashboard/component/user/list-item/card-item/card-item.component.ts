@@ -38,17 +38,15 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
-import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { UserAvatarComponent } from "../../user-avatar/user-avatar.component";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, Observable } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../../hub/service/hub.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../../common/util/error";
 import { WorkflowCoverService } from "../../../../service/user/workflow-cover/workflow-cover.service";
@@ -95,7 +93,9 @@ export class CardItemComponent implements OnChanges {
   hovering: boolean = false;
   /** The default top image, used when the user has not uploaded a custom one. */
   static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.jpg";
-  /** Resolved preview/cover image; stays the placeholder until a dataset cover loads. */
+  /** Whether this kind can be shared at all; the button is hidden when it cannot. */
+  public canShare: boolean = false;
+  /** Resolved preview/cover image; stays the placeholder until a file-backed cover loads. */
   coverImageSrc: string = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
 
   /** The workflow's custom cover image data URL, if one has been set. */
@@ -121,8 +121,6 @@ export class CardItemComponent implements OnChanges {
 
   constructor(
     private modalService: NzModalService,
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
     private modal: NzModalService,
     private hubService: HubService,
     private cdr: ChangeDetectorRef,
@@ -191,16 +189,17 @@ export class CardItemComponent implements OnChanges {
     this.iconType = descriptor.iconType;
     this.disableDelete = !descriptor.isOwner(this.entry);
     this.canDownload = descriptor.download !== undefined;
+    this.canShare = descriptor.retrieveOwners !== undefined;
     this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid);
     if (descriptor.hasSize && typeof this.entry.id === "number") {
       this.size = this.entry.size;
     }
-    // Covers are still per-type; they move onto the descriptor with the rest of the sharing surface.
+    // A workflow cover is a data URL already on the entry; the file-backed kinds have to fetch one.
     if (this.entry.type === "workflow") {
       this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
       this.customImage = this.entry.coverImageUrl ?? undefined;
-    } else if (this.entry.type === "dataset" && typeof this.entry.id === "number") {
-      this.loadDatasetCover(this.entry.id);
+    } else if (descriptor.coverUrl && this.entry.coverImageUrl && typeof this.entry.id === "number") {
+      this.loadCover(descriptor.coverUrl, this.entry.id);
     }
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
@@ -213,16 +212,12 @@ export class CardItemComponent implements OnChanges {
     }
   }
 
-  /** Loads the dataset cover into the preview slot, falling back to the placeholder. */
-  private loadDatasetCover(did: number): void {
-    if (!this.entry.coverImageUrl) {
-      return;
-    }
-    this.datasetService
-      .getDatasetCoverUrl(did)
+  /** Loads a file-backed cover into the preview slot, falling back to the placeholder. */
+  private loadCover(coverUrl: (id: number) => Observable<string | null>, id: number): void {
+    coverUrl(id)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ url }) => {
+        next: url => {
           this.coverImageSrc = url ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
           this.cdr.markForCheck();
         },
@@ -245,43 +240,27 @@ export class CardItemComponent implements OnChanges {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    let modal: NzModalRef<ShareAccessComponent> | undefined;
-
-    if (this.entry.type === "workflow") {
-      modal = this.modalService.create({
-        nzContent: ShareAccessComponent,
-        nzData: {
-          writeAccess: this.entry.workflow.accessLevel === "WRITE",
-          type: this.entry.type,
-          id: this.entry.id,
-          allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
-          inWorkspace: false,
-        },
-        nzFooter: null,
-        nzTitle: "Share this workflow with others",
-        nzCentered: true,
-        nzWidth: "700px",
-      });
-    } else if (this.entry.type === "dataset") {
-      modal = this.modalService.create({
-        nzContent: ShareAccessComponent,
-        nzData: {
-          writeAccess: this.entry.accessLevel === "WRITE",
-          type: "dataset",
-          id: this.entry.id,
-          allOwners: await firstValueFrom(this.datasetService.retrieveOwners()),
-        },
-        nzFooter: null,
-        nzTitle: "Share this dataset with others",
-        nzCentered: true,
-        nzWidth: "700px",
-      });
+    const retrieveOwners = this.resourceRegistry.get(this.entry.type).retrieveOwners;
+    if (!retrieveOwners) {
+      return;
     }
-    if (modal) {
-      modal.componentInstance?.refresh.pipe(untilDestroyed(this)).subscribe(() => {
-        this.refresh.emit();
-      });
-    }
+    const modal = this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.entry.accessLevel === "WRITE",
+        type: this.entry.type,
+        id: this.entry.id,
+        allOwners: await firstValueFrom(retrieveOwners()),
+        inWorkspace: false,
+      },
+      nzFooter: null,
+      nzTitle: `Share this ${this.entry.type} with others`,
+      nzCentered: true,
+      nzWidth: "700px",
+    });
+    modal.componentInstance?.refresh.pipe(untilDestroyed(this)).subscribe(() => {
+      this.refresh.emit();
+    });
   }
 
   public onClickDownload = (): void => {

@@ -20,8 +20,9 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { isDefined } from "../../../../common/util/predicate";
+import { map, tap } from "rxjs/operators";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzMessageService } from "ng-zorro-antd/message";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -35,11 +36,13 @@ import { SearchService } from "../../../service/user/search.service";
 import { ModelService } from "../../../service/user/model/model.service";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { DashboardModel } from "../../../type/dashboard-model.interface";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
+import { FiltersComponent } from "../filters/filters.component";
+import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { UserModelCreatorComponent } from "./user-model-creator/user-model-creator.component";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -54,6 +57,8 @@ import { UserModelCreatorComponent } from "./user-model-creator/user-model-creat
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
+    FiltersComponent,
+    FiltersInstructionsComponent,
     SortButtonComponent,
     NzSelectComponent,
     FormsModule,
@@ -62,12 +67,15 @@ import { UserModelCreatorComponent } from "./user-model-creator/user-model-creat
   ],
 })
 export class UserModelComponent implements AfterViewInit {
+  public readonly entityType = EntityType.Model;
   private static readonly VIEW_MODE_STORAGE_KEY = "texera.userModel.viewMode";
   // Models carry no "last modified" timestamp, so sorting by edit time would leave the key NULL on
   // every row. Newest-first is the useful default, as on the Datasets page.
   public sortMethod = SortMethod.CreateTimeDesc;
+  lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
+  public hasMismatch = false; // Display a warning when some models could not be matched in LakeFS
   public viewType: "list" | "card" =
     localStorage.getItem(UserModelComponent.VIEW_MODE_STORAGE_KEY) === "list" ? "list" : "card";
 
@@ -83,16 +91,27 @@ export class UserModelComponent implements AfterViewInit {
     this._searchResultsComponent = value;
   }
 
-  /** Free-text terms from the search box; matched client-side against the listed models. */
-  public searchKeywords: string[] = [];
+  private _filters?: FiltersComponent;
+  @ViewChild(FiltersComponent) get filters(): FiltersComponent {
+    if (this._filters) {
+      return this._filters;
+    }
+    throw new Error("Property cannot be accessed before it is initialized.");
+  }
 
-  private cachedModels: DashboardModel[] | null = null;
+  set filters(value: FiltersComponent) {
+    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
+    this._filters = value;
+  }
+
+  private masterFilterList: ReadonlyArray<string> | null = null;
 
   constructor(
     private modalService: NzModalService,
     private userService: UserService,
     private searchService: SearchService,
-    private modelService: ModelService
+    private modelService: ModelService,
+    private message: NzMessageService
   ) {
     this.userService
       .userChanged()
@@ -119,87 +138,52 @@ export class UserModelComponent implements AfterViewInit {
   }
 
   /**
-   * Re-filters and re-sorts the accessible models.
+   * Runs a model search, with the keywords and filter parameters the filters bar holds.
    *
-   * Models are listed from /model/list and filtered here rather than through unified search: the
-   * backend does not accept `resourceType=model` until the hub work lands, and models must not
-   * surface in global search before then.
-   *
-   * @param forced discards the cached list and refetches
+   * @param forced searches again even when neither the filter list nor the sort method changed
    */
   async search(forced: Boolean = false): Promise<void> {
-    if (forced) {
-      this.cachedModels = null;
-    }
-
-    this.searchResultsComponent.reset(async (start, count) => {
-      const models = await this.accessibleModels();
-      const matching = this.sortModels(models.filter(model => this.matchesKeyword(model)));
-      const entries = matching.slice(start, start + count).map(model => new DashboardEntry(model));
-      await this.attachOwnerNames(entries);
-      return { entries, more: start + count < matching.length };
-    });
-    await this.searchResultsComponent.loadMore();
-  }
-
-  private async accessibleModels(): Promise<DashboardModel[]> {
-    if (this.cachedModels === null) {
-      this.cachedModels = await firstValueFrom(this.modelService.retrieveAccessibleModels());
-    }
-    return this.cachedModels;
-  }
-
-  private matchesKeyword(model: DashboardModel): boolean {
-    const keywords = this.searchKeywords.map(keyword => keyword.trim().toLowerCase()).filter(keyword => keyword !== "");
-    if (keywords.length === 0) {
-      return true;
-    }
-    const haystack = [
-      model.model.name,
-      model.model.description,
-      model.model.framework,
-      model.model.format,
-      model.ownerEmail,
-    ]
-      .filter((field): field is string => typeof field === "string")
-      .map(field => field.toLowerCase());
-
-    return keywords.every(keyword => haystack.some(field => field.includes(keyword)));
-  }
-
-  private sortModels(models: DashboardModel[]): DashboardModel[] {
-    const byName = (a: DashboardModel, b: DashboardModel) => a.model.name.localeCompare(b.model.name);
-    const byCreation = (a: DashboardModel, b: DashboardModel) =>
-      (a.model.creationTime ?? 0) - (b.model.creationTime ?? 0);
-
-    switch (this.sortMethod) {
-      case SortMethod.NameAsc:
-        return [...models].sort(byName);
-      case SortMethod.NameDesc:
-        return [...models].sort((a, b) => byName(b, a));
-      default:
-        return [...models].sort((a, b) => byCreation(b, a));
-    }
-  }
-
-  /** Resolves owner uids to display names, so cards show a username rather than the placeholder. */
-  private async attachOwnerNames(entries: DashboardEntry[]): Promise<void> {
-    const ownerIds = Array.from(new Set(entries.map(entry => entry.model.model.ownerUid).filter(isDefined)));
-    if (ownerIds.length === 0) {
+    const sameList =
+      this.masterFilterList !== null &&
+      this.filters.masterFilterList.length === this.masterFilterList.length &&
+      this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
+    if (!forced && sameList && this.sortMethod === this.lastSortMethod) {
+      // If the filter lists are the same, do not make the same request again.
       return;
     }
-    try {
-      const userInfo = await firstValueFrom(this.searchService.getUserInfo(ownerIds));
-      entries.forEach(entry => {
-        const info = userInfo[entry.model.model.ownerUid!];
-        if (info) {
-          entry.setOwnerName(info.userName);
-          entry.setOwnerAvatar(info.avatar ?? "");
-        }
-      });
-    } catch {
-      // Decoration only: a lookup failure must not empty the list.
-    }
+    this.lastSortMethod = this.sortMethod;
+    this.masterFilterList = this.filters.masterFilterList;
+    const filterParams = this.filters.getSearchFilterParameters();
+
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            filterParams,
+            start,
+            count,
+            "model",
+            this.sortMethod,
+            this.isLogin,
+            // This page shows what you own or were granted, never what is merely public.
+            false
+          )
+          .pipe(
+            tap(({ hasMismatch }) => {
+              this.hasMismatch = hasMismatch ?? false;
+              if (this.hasMismatch) {
+                this.message.warning(
+                  "There is a mismatch between some models in the database and LakeFS. Only matched models are displayed.",
+                  { nzDuration: 4000 }
+                );
+              }
+            }),
+            map(({ entries, more }) => ({ entries, more }))
+          )
+      );
+    });
+    await this.searchResultsComponent.loadMore();
   }
 
   public onClickOpenModelAddComponent(): void {
@@ -235,7 +219,6 @@ export class UserModelComponent implements AfterViewInit {
       .deleteModel(mid)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.cachedModels = this.cachedModels?.filter(model => model.model.mid !== mid) ?? null;
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
           modelEntry => modelEntry.model.model.mid !== mid
         );

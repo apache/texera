@@ -144,9 +144,7 @@
               nzTheme="outline"></i>
             {{ formatTime(entry.creationTime) }}</span
           >
-          <span
-            *ngIf="size"
-            title="Size"
+          <span title="Size"
             ><i
               nz-icon
               nzType="file"
@@ -211,6 +209,7 @@
           nzType="text"
           class="action-btn"
           title="Share"
+          *ngIf="canShare"
           (click)="onClickOpenShareAccess(); $event.stopPropagation()">
           <i
             nz-icon

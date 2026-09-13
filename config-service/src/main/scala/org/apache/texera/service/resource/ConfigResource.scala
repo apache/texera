@@ -63,13 +63,17 @@ class ConfigResource {
     Map(
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "orcidLogin" -> GuiConfig.guiLoginOrcidLogin,
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // The sign-up form decides whether to expect a code step before anyone has a token, so this
+      // has to be readable anonymously.
+      "emailVerification" -> UserSystemConfig.emailVerification
     )
 
   @GET

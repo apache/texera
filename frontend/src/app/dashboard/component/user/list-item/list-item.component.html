@@ -198,6 +198,7 @@
       nz-button
       nzType="text"
       title="Share"
+      *ngIf="canShare"
       (click)="onClickOpenShareAccess()">
       <i
         nz-icon

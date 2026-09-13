@@ -35,6 +35,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
   "GuiConfig boolean flags" should "resolve to their gui.conf defaults when env overrides are unset" in {
     ifUnset("GUI_LOGIN_LOCAL_LOGIN")(GuiConfig.guiLoginLocalLogin shouldBe true)
     ifUnset("GUI_LOGIN_GOOGLE_LOGIN")(GuiConfig.guiLoginGoogleLogin shouldBe true)
+    // ORCID ships off: it needs credentials only an operator can supply, and with the button on
+    // and nothing configured /auth/orcid/config reports it unavailable on every visit.
+    ifUnset("GUI_LOGIN_ORCID_LOGIN")(GuiConfig.guiLoginOrcidLogin shouldBe false)
     ifUnset("GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceUserPresetEnabled shouldBe false
     )

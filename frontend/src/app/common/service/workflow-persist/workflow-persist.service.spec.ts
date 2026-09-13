@@ -29,6 +29,7 @@ import {
   WORKFLOW_CREATE_URL,
   WORKFLOW_DUPLICATE_URL,
   WORKFLOW_DELETE_URL,
+  WORKFLOW_SET_DEFAULT_VIEW_URL,
   WORKFLOW_LIST_URL,
   WORKFLOW_UPDATENAME_URL,
   WORKFLOW_UPDATEDESCRIPTION_URL,
@@ -42,6 +43,7 @@ import { jsonCast } from "../../util/storage";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { AppSettings } from "../../app-setting";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
+import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { NotificationService } from "../notification/notification.service";
 import { last } from "rxjs/operators";
@@ -200,19 +202,23 @@ describe("WorkflowPersistService", () => {
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
       expect(req.request.method).toBe("POST");
+      // The publish flag is not part of a save: the endpoint does not read it, and sending a
+      // stale copy is what used to null the column after the first save.
       expect(req.request.body).toEqual({
         wid: 9,
         name: "my wf",
         description: "a description",
         content: JSON.stringify(validContent),
-        isPublic: true,
       });
 
-      req.flush({ wid: 9, name: "my wf", content: '{"operators":[]}' });
+      // The saved row comes back with the flag under the backend's name; the response the
+      // caller sees carries it as isPublished, so metadata fed back from a save stays complete.
+      req.flush({ wid: 9, name: "my wf", content: '{"operators":[]}', isPublic: true });
 
       // valid workflow -> no error notification, and string content is parsed
       expect(errorSpy).not.toHaveBeenCalled();
       expect(result?.content).toEqual({ operators: [] });
+      expect(result?.isPublished).toBe(1);
     });
 
     it("persistWorkflow notifies the user when the workflow is broken but still POSTs", () => {
@@ -233,7 +239,7 @@ describe("WorkflowPersistService", () => {
       );
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
-      expect(req.request.body.isPublic).toBe(false);
+      expect("isPublic" in req.request.body).toBe(false);
       req.flush({ wid: 1, name: "broken", content: '{"operators":[]}' });
     });
 
@@ -488,6 +494,26 @@ describe("WorkflowPersistService", () => {
       const sizes = { 24: 100, 25: 200, 26: 300 };
       req.flush(sizes);
       expect(result).toEqual(sizes);
+    });
+
+    it("setDefaultView PUTs the chosen view to the set-default-view url", () => {
+      let responded = false;
+      service.setDefaultView(30, DefaultView.FORM).subscribe(() => (responded = true));
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/30`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.FORM });
+      req.flush(null);
+      expect(responded).toBe(true);
+    });
+
+    it("setDefaultView can set the default back to canvas", () => {
+      service.setDefaultView(31, DefaultView.CANVAS).subscribe();
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/31`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.CANVAS });
+      req.flush(null);
     });
   });
 });
