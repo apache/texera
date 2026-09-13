@@ -300,7 +300,8 @@ class Tuple:
         :param schema: target Schema to finalize the Tuple.
         :return:
         """
-        assert self._schema is None
+        if self._schema is not None:
+            raise ValueError("Tuple is already finalized")
         self.cast_to_schema(schema)
         self.validate_schema(schema)
         self._schema = schema
