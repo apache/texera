@@ -21,8 +21,10 @@ package org.apache.texera.amber.operator.udf.python
 
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.storage.RepositoryMountManager
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.common.config.EnvironmentalVariable
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -135,8 +137,18 @@ class PythonUdfUiParameterSupportSpec
     parameter
   }
 
+  // The in-pod mount manager, given the root the chart passes to each computing-unit pod.
+  private val podMounts = new RepositoryMountManager(
+    Map(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT -> "/mnt/texera-mounts").get,
+    (_, _, _) => (),
+    _ => false,
+    0
+  )
+
   private def udfWith(parameters: UiUDFParameter*): PythonUDFOpDescV2 = {
-    val udf = new PythonUDFOpDescV2
+    val udf = new PythonUDFOpDescV2 {
+      override protected def mounts: RepositoryMountManager = podMounts
+    }
     udf.code = code
     udf.uiParameters = parameters.toList
     udf
