@@ -53,6 +53,11 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
 export function setupHarness() {
   const router = { navigate: vi.fn() };
   const workflowChangedStream = new Subject<unknown>();
+  // Announces every form-config write (see formBindingChanged$ and the form-binding mock below).
+  const formBindingChanged = new Subject<unknown>();
+  // The root-level modification lock as other writers flip it (the execute service after a run, the
+  // computing-unit selector); tests emit `true` to stand in for one of them unlocking the graph.
+  const modificationEnabled = new Subject<boolean>();
   const workflowMetaDataChangedStream = new Subject<unknown>();
   // Compilation reports column names late; the form rebuilds its inputs off this stream.
   const compilationChanged = new Subject<unknown>();
@@ -69,6 +74,11 @@ export function setupHarness() {
   const resultUpdateStream = new Subject<Record<string, unknown>>();
   // Fires when the canvas's view-result set changes (a co-editor's eye toggle included).
   const viewResultChanged = new Subject<unknown>();
+  // Fires for a change of the graph's shape (operator added/deleted/disabled, link added/deleted); one
+  // subject stands in for all five streams, since the form treats them alike.
+  const graphStructureChanged = new Subject<unknown>();
+  // Fires when a step's display name changes; its own subject, so a test can tell it from the shape.
+  const displayNameChanged = new Subject<unknown>();
   // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
   // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
   const hasOperatorIds = new Set<string>();
@@ -115,6 +125,7 @@ export function setupHarness() {
     reloadWorkflow: vi.fn(),
     enableWorkflowModification: vi.fn(),
     disableWorkflowModification: vi.fn(),
+    getWorkflowModificationEnabledStream: () => modificationEnabled.asObservable(),
     clearWorkflow: vi.fn(),
     workflowChanged: () => workflowChangedStream.asObservable(),
     workflowMetaDataChanged: () => workflowMetaDataChangedStream.asObservable(),
@@ -131,6 +142,12 @@ export function setupHarness() {
       getAllOperators: () => graphOperators,
       getOperatorsToViewResult: () => new Set(viewResultIds),
       getViewResultOperatorsChangedStream: () => viewResultChanged.asObservable(),
+      getOperatorAddStream: () => graphStructureChanged.asObservable(),
+      getOperatorDeleteStream: () => graphStructureChanged.asObservable(),
+      getLinkAddStream: () => graphStructureChanged.asObservable(),
+      getLinkDeleteStream: () => graphStructureChanged.asObservable(),
+      getDisabledOperatorsChangedStream: () => graphStructureChanged.asObservable(),
+      getOperatorDisplayNameChangedStream: () => displayNameChanged.asObservable(),
       // Enabled links only: a non-terminal operator emits one dummy outgoing link; a terminal operator
       // (in terminalIds, or whose downstream is disabled via disabledDownstream) emits none. Drives the
       // component's terminal detection (terminalOperatorIds).
@@ -150,20 +167,33 @@ export function setupHarness() {
       getCurrentHighlightedOperatorIDs: () => highlightedIds,
       unhighlightOperators,
     }),
-    // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
-    formBindingChanged$: new Subject<unknown>(),
+    // Every config write announces on this stream (setFormBinding emits it); the form re-reads its
+    // config on it unless the write is one of its own presentation edits. The form-binding mock's
+    // writers below emit here, as the real service does, so that chain is under test.
+    formBindingChanged$: formBindingChanged.asObservable(),
   };
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
   const formBindingService = {
     // The presentation config: the instruction plus the fields. Tests override getConfig to give an
     // instruction; resolveFields drives which inputs render.
-    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds: [] }),
+    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [] }),
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
     // A result card's friendly label; the mock returns the operator's display name or its id.
     operatorLabel: (op: any) => op?.customDisplayName ?? op?.operatorType ?? op?.operatorID,
+    // Author-mode writes. Spied so a test can assert the edit was made without needing a real
+    // binding store, and each announces on formBindingChanged$ as the real service does (every
+    // write goes through setFormBinding, which emits), so the page's reaction to its own writes --
+    // rebuild, or not, for a presentation edit -- is what the tests see.
+    updateBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    setFieldOverride: vi.fn(() => formBindingChanged.next(undefined)),
+    removeBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    reorder: vi.fn(() => formBindingChanged.next(undefined)),
+    toggleShownResult: vi.fn(() => formBindingChanged.next(undefined)),
+    updateConfig: vi.fn(() => formBindingChanged.next(undefined)),
+    setFields: vi.fn(),
   };
   // A field per property the tests expose. Real formly json-schema conversion is exercised by the
   // property panel's own spec; here a deterministic map keeps these tests about the component's
@@ -314,9 +344,11 @@ export function setupHarness() {
     datePipe,
     config,
     workflowChangedStream,
+    formBindingChanged,
     workflowMetaDataChangedStream,
     compilationChanged,
     executionStateStream,
+    modificationEnabled,
     durationEvents,
     statusStream,
     selectedUnitStream,
@@ -324,6 +356,8 @@ export function setupHarness() {
     connectionStream,
     resultUpdateStream,
     viewResultChanged,
+    graphStructureChanged,
+    displayNameChanged,
     hasOperatorIds,
     graphOperators,
     viewResultIds,
