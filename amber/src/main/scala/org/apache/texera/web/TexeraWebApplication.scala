@@ -96,6 +96,7 @@ class TexeraWebApplication
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
+    org.apache.texera.observability.OtelInit.init("texera-web-application")
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     // serve backend at /api
