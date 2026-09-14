@@ -412,6 +412,12 @@ class ModelAccessResourceSpec
     userHasReadAccess(getDSLContext, privateModel.getMid, readGranteeUser.getUid) shouldBe false
   }
 
+  it should "reject a revoke for an email with no account" in {
+    assertThrows[BadRequestException] {
+      accessResource.revokeAccess(privateModel.getMid, "nobody@example.com", ownerSession)
+    }
+  }
+
   it should "allow a WRITE grantee to revoke another user's access" in {
     grantDirectly(privateModel.getMid, writeGranteeUser.getUid, PrivilegeEnum.WRITE)
     grantDirectly(privateModel.getMid, readGranteeUser.getUid, PrivilegeEnum.READ)
