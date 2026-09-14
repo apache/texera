@@ -671,6 +671,24 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self._async_rpc_client.coordinator_stub().port_completed(
                     PortCompletedRequest(port_id=port_id, input=False)
                 )
+            # A PauseWorker command can land anywhere above -- the coordinator
+            # pauses on its own schedule, and nothing between the last control
+            # check and here drains control -- leaving the worker PAUSED.
+            # complete() would then attempt PAUSED -> COMPLETED, which the
+            # transition graph forbids (WORKER_STATE_TRANSITIONS, mirroring
+            # Scala's WorkerStateManager), raising InvalidTransitionException
+            # and killing this thread. Wait the pause out instead, matching
+            # Scala's DPThread: while paused it only picks control channels, so
+            # a paused worker never advances to completion.
+            #
+            # Guarded on is_paused() rather than draining control
+            # unconditionally: _check_and_process_control blocks while the data
+            # lane is disabled, and backpressure disables it too, so an
+            # unguarded drain here could park a worker that is merely
+            # backpressured. While paused the same call blocks until Resume
+            # re-enables the lane and returns the worker to RUNNING.
+            while self.context.pause_manager.is_paused():
+                self._check_and_process_control()
             self.complete()
 
     def _process_ecm(self, ecm_element: ECMElement):
