@@ -18,14 +18,18 @@
  */
 
 import { HttpClient, HttpParams } from "@angular/common/http";
-import { Injectable } from "@angular/core";
-import { EMPTY, Observable, ReplaySubject, Subject, throwError } from "rxjs";
-import { catchError, concatMap, filter, map, tap } from "rxjs/operators";
+import { Injectable, Injector } from "@angular/core";
+import { EMPTY, Observable, of, ReplaySubject, Subject, throwError } from "rxjs";
+import { catchError, concatMap, filter, finalize, map, take, tap } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import {
+  DEFAULT_WORKFLOW,
+  WorkflowActionService,
+} from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
@@ -68,27 +72,72 @@ export class WorkflowPersistService {
    * before it has landed too. Each request snapshots its payload when asked for; it is sent when its
    * turn comes, and its outcome is relayed to that caller alone. A failed save fails its own caller
    * and does not hold up the next.
+   *
+   * A response is relayed with the page's current name and description in place of its own (see
+   * withLocalEdits): those are the two fields a user edits, and a response answers the save it was
+   * sent for, which may be older than an edit made since. Callers feed the response back as the
+   * workflow's metadata; without this, a rename made while a save was out came back undone.
    */
   private readonly persistQueue = new Subject<{ send: Observable<Workflow>; result: Subject<Workflow> }>();
 
+  /** Saves asked for and not yet answered (or failed); see whenSavesDrained. */
+  private pendingSaves = 0;
+  private readonly savesDrained = new Subject<void>();
+
   constructor(
     private http: HttpClient,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    // Looked up lazily, at response time: the persist service is also used by the dashboard, where
+    // no workflow is open and constructing the (graph-owning) action service would be a side effect.
+    private injector: Injector
   ) {
     this.persistQueue
       .pipe(
         concatMap(({ send, result }) =>
           send.pipe(
+            map(updated => this.withLocalEdits(updated)),
             tap({
               next: updated => result.next(updated),
               error: (err: unknown) => result.error(err),
               complete: () => result.complete(),
             }),
-            catchError(() => EMPTY)
+            catchError(() => EMPTY),
+            finalize(() => this.saveDone())
           )
         )
       )
       .subscribe();
+  }
+
+  /**
+   * Emits once every save asked for so far has been answered or has failed; at once when none is
+   * pending. For a caller that leaves the page on completion (the view switches): its own save
+   * completing is not enough, a save queued behind it (a rename's, a description's) would still be
+   * aborted by the page load.
+   */
+  public whenSavesDrained(): Observable<void> {
+    return this.pendingSaves === 0 ? of(undefined) : this.savesDrained.pipe(take(1));
+  }
+
+  private saveDone(): void {
+    this.pendingSaves -= 1;
+    if (this.pendingSaves === 0) {
+      this.savesDrained.next();
+    }
+  }
+
+  /**
+   * The response with the page's current name and description: a response carries the values the
+   * save was sent with, and an edit made since would be undone by feeding them back. Left alone when
+   * another workflow is open by now (nothing local belongs to this response); a workflow just created
+   * still carries the default id locally, and its rename made meanwhile is kept too.
+   */
+  private withLocalEdits(response: Workflow): Workflow {
+    const current = this.injector.get(WorkflowActionService).getWorkflowMetadata();
+    if (current.wid !== response.wid && current.wid !== DEFAULT_WORKFLOW.wid) {
+      return response;
+    }
+    return { ...response, name: current.name, description: current.description };
   }
 
   /**
@@ -122,6 +171,7 @@ export class WorkflowPersistService {
     // Replayed, so a caller that subscribes after the queue has already relayed the outcome (a
     // save that was quick, or a synchronous test double) still receives it.
     const result = new ReplaySubject<Workflow>(1);
+    this.pendingSaves += 1;
     this.persistQueue.next({ send, result });
     return result.asObservable();
   }
