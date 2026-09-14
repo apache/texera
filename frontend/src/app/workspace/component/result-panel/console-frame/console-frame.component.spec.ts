@@ -457,6 +457,64 @@ describe("ConsoleFrameComponent", () => {
       expect(component.hiddenMessageCount).toBe(1);
     });
 
+    // jsdom performs no layout, so scrollHeight is always 0 and asserting on
+    // scrollTop's value would pass whether or not the component scrolled.
+    // These watch for the assignment itself.
+    function watchScroll(fixture: ComponentFixture<ConsoleFrameComponent>): () => boolean {
+      const list = fixture.debugElement.query(By.css(".console-list-container")).nativeElement;
+      let scrolled = false;
+      Object.defineProperty(list, "scrollTop", {
+        configurable: true,
+        get: () => 0,
+        set: () => {
+          scrolled = true;
+        },
+      });
+      return () => scrolled;
+    }
+
+    it("does not follow the tail when the arriving message is filtered out", fakeAsync(() => {
+      const print = { ...withBody, msgType: { name: "PRINT" } };
+      const error = { ...noBody, msgType: { name: "ERROR" } };
+      component.setTypeVisibility("PRINT", false);
+      getConsoleMessages.mockReturnValue([print, error]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      // a hidden PRINT arrives: no visible row changes, so the reader must be
+      // left where they are
+      getConsoleMessages.mockReturnValue([print, error, { ...print, title: "later print" }]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
+
+    it("follows the tail when a visible message arrives", fakeAsync(() => {
+      const print = { ...withBody, msgType: { name: "PRINT" } };
+      const error = { ...noBody, msgType: { name: "ERROR" } };
+      component.setTypeVisibility("PRINT", false);
+      getConsoleMessages.mockReturnValue([print, error]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      getConsoleMessages.mockReturnValue([print, error, { ...error, title: "later error" }]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(true);
+      flush();
+    }));
+
     it("does not render the debug input group when console input is disabled", () => {
       component.consoleInputEnabled = false;
       fixture.detectChanges();

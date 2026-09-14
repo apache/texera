@@ -229,7 +229,15 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayConsoleMessages(operatorId: string): void {
+    const lastVisible = this.filteredMessages[this.filteredMessages.length - 1];
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
+
+    // Messages of a hidden type still arrive and still refresh the list. Only
+    // follow the tail when something visible landed, or reading an earlier
+    // error would be interrupted by output the filter is there to hide.
+    if (this.filteredMessages[this.filteredMessages.length - 1] === lastVisible) {
+      return;
+    }
     setTimeout(() => {
       if (this.listElement) {
         this.listElement.nativeElement.scrollTop = this.listElement.nativeElement.scrollHeight;
