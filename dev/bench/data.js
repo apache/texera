@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789391332977,
+  "lastUpdate": 1789391336029,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -50222,6 +50222,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1458375.982,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "5042d96ec85d98ed18bde841b2e74922c43f5c3b",
+          "message": "feat(gui): wire the Form View entry points (#8456)\n\n### What changes were proposed in this PR?\n\nCloses #8028. Part of the Form View stack (parent issue #8011), on main\nnow that #8516 and #8517 have merged. The review commit is the branch's\nsingle commit.\n\nWires the Form View entry points. The flag stays off here; the stack's\nclosing PR, #8528, flips it.\n\n- The dashboard opens a workflow in its `default_view` (form or canvas),\nwith a toggle that persists the choice; the deep link goes to the\nexisting `/workflow/:id/form` route. Both renderers of the dashboard,\nthe list row and the card, follow one shared rule\n(`default-view-landing.ts`: mark, deep link, toggle), so switching the\nview mode does not lose the entry point. The toggle is offered only with\nWRITE access, which the endpoint requires, and the handler checks the\nsame rule rather than trusting the template; it is a proper toggle\nbutton (constant accessible name, state in `aria-pressed`, the hover\ntitle spelling out what a click does); hub links are left untouched.\n- The canvas menu gains the same Canvas / Form View switch the form\nalready shows, so the two views swap in place. It saves first and hands\nover only once the save has completed: the switch is a full-page load,\nwhich aborts a request still in flight. Two more things the hand-over\nmust not lose: an autosave already in flight when the switch is clicked\n(`WorkflowPersistService` now sends saves one at a time and in call\norder, at the one place every save goes through, so the switch's save\nlands and completes after it; each caller still gets only its own result\nand a failed save does not hold up the next), and an edit made while the\nswitch's save is out (the page stays editable until the load;\n`workflowChanged` marks it and the hand-over saves once more before\nleaving). A reader, who cannot save, goes straight over. A workflow the\ncanvas holds but has never saved (the default id) is created by that\nsave, and the hand-over opens the id the save answered with. On the card\nthe toggle sits in the always-visible action footer, in the same slot as\non the row (right after Detail); the row's hover-revealed action group\nalso appears while the row has the keyboard focus, so the toggle can be\nreached without a pointer there too. A second click while the hand-over\nis in progress is a no-op. A failed save keeps the user on the canvas\nwith the error shown. Every workflow offers both views whenever the flag\nis on: `default_view` only decides the landing view, and neither view\ngates the other.\n- Download/upload round-trips `defaultView` as a sibling key next to the\nworkflow content, in one shared export shape (`exportedWorkflow`) used\nby the dashboard download and the canvas menu's export alike; an old\nexport without the key imports unchanged.\n- The computing unit the user picks is remembered per workflow\n(localStorage) so it survives switching between the two views; a unit\nselected on load (the remembered one, the last execution's, a running\none) is derived rather than chosen and is not stored, or a derived unit\nwould later outrank a fresher last execution. On load the remembered\nunit is honoured only once the unit list has arrived and still holds it:\na unit that has since been terminated is forgotten and the last\nexecution's unit is used instead, and a decision still pending when the\nworkflow changes underneath it is dropped (the remembered-unit check,\nthe last-execution lookup and its running-unit fallback alike).\n\n### Any related issues, documentation, discussions?\n\nCloses #8028. Part of the Form View feature (parent issue #8011).\n\n### How was this PR tested?\n\nUnit tests (vitest) cover the menu's Canvas / Form View switch through\nthe DOM (absent with the flag off, Canvas pressed, Form View handing\nover, hidden while an older version is displayed), the row's and the\ncard's default-view behavior (mark and deep link, hub link untouched,\nflag off leaves the dashboard as today, WRITE-only toggle in the DOM,\ntoggle on / off / failed request / no cached row), the menu switch\n(navigates only once the save completes, stays on the canvas with the\nerror when it fails, saves once more when an edit lands while its save\nis out, takes a reader straight over without a save, ignores a second\nclick mid hand-over), the canvas export carrying `defaultView` next to\nthe content and omitting it when unset, the hand-over opening the id the\nsave assigned when the canvas held a never-saved workflow, the persist\nservice sending saves one at a time in order with each caller getting\nits own result and a failure not holding up the next, the dashboard\ntoggle handlers refusing without WRITE access, the toggle's aria-pressed\nfollowing the state, the export/import round-trip including a legacy\nfile without `defaultView`, and the computing-unit recall (waits for the\nfirst non-empty unit list, forgets a terminated unit and falls back,\ndrops a stale decision after the workflow changed, a late last-execution\nanswer or fallback included, positive-integer validation, storage\nfailures, only an explicit pick remembered). Each new guard was\ndeletion-checked (removing it turns the corresponding test red). eslint,\nprettier and the production (AOT) build pass; every changed line,\ntemplate lines included, is statement and function covered.\n\n#### Video\n\n##### 1. Default view on the dashboard\n(row and card toggle, Form View icon, deep link into the form, toggle\noff again, no toggle without write access)\n\n\nhttps://github.com/user-attachments/assets/04f71ba5-27ad-489d-a5be-51cdd8d811aa\n\n\n\n##### 2. Canvas / Form View switch\n(save first, then the hand-over; and back)\n\n\nhttps://github.com/user-attachments/assets/39c3d395-6329-403d-9719-ca7ef179889f\n\n\n##### 3. Computing unit remembered across the switch\n\n\nhttps://github.com/user-attachments/assets/6fe70b5f-d936-4333-bcf0-b3fa44f84323\n\n\n##### 4. Download / upload keeps the default view\n\n\nhttps://github.com/user-attachments/assets/0519bfcd-0677-478f-866c-6eb0350d842c\n\n\n##### 5. Default view on the card view\n(the same toggle in the card's action row, Form View icon, deep link\ninto the form)\n\n\nhttps://github.com/user-attachments/assets/471192b3-7935-4da9-be87-fa08a7dd6c13\n\n\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Fable 5.1, Anthropic).\nCo-authored with Claude, reviewed line by line by the author before\nsubmission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01FVvP3ttj22f9LB4p9u2anY\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-09-13T23:53:23Z",
+          "url": "https://github.com/apache/texera/commit/5042d96ec85d98ed18bde841b2e74922c43f5c3b"
+        },
+        "date": 1789391335684,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 16359.453,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 20550.997,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 24413.149,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 93112.24,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 101385.279,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 114243,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 871240.579,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 905992.827,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 943298.753,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 12987.71,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 14730.898,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 16228.64,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 89945.256,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 96045.049,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 101238.708,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 880801.523,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 912840.406,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 950542.867,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 12207.773,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 16652.489,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 18854.684,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 89771.358,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 95084.72,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 98327.17,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 868532.315,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 899400.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 917943.143,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 14603.238,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 19015.513,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 21404.195,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 110868.514,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 119873.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 134078.397,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1076861.978,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1111997.977,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1165330.516,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 14463.522,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 18527.752,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 22736.821,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 111971.556,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 118115.722,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 131060.128,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1082204.46,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1122702.911,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1149744.582,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 14131.392,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 15942.59,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 22065.017,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 110844.071,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 119746.698,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 131716.174,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1110358.319,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1154559.27,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1178590.463,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 22869.361,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 26118.952,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 31073.197,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 192504.718,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 203079.871,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 216259.379,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1913659.518,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1979793.737,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2039779.446,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 22868.451,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 24118.684,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24304.031,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 194419.35,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 203697.446,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 231130.382,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1922022.519,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1977018.287,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 2054614.535,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 23030.483,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 26838.828,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 30045.464,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 202069.703,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 214126.958,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 234020.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1988215.069,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2040252.539,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2061204.257,
             "unit": "us"
           }
         ]
