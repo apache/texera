@@ -29,6 +29,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { ModelSelectionModalComponent } from "../model-selection-modal/model-selection-modal.component";
 import { DatasetSelectionModalComponent } from "../dataset-selection-modal/dataset-selection-modal.component";
 import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { MODEL_ICON } from "../../../common/icon/model-icon";
 
 type ResourceBrowser = Readonly<{
   title: string;
@@ -41,7 +42,7 @@ type ResourceBrowser = Readonly<{
 const BROWSERS: Readonly<Record<string, ResourceBrowser>> = {
   [MODEL_INPUT_TYPE]: {
     title: "Select a model version",
-    icon: "experiment",
+    icon: MODEL_ICON,
     emptyLabel: "Select model",
     component: ModelSelectionModalComponent,
   },
