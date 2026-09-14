@@ -503,7 +503,9 @@ metrics-server:
   priorityClassName: system-cluster-critical
 
 gatewayConfig:
-  # Routes are available at bin/k8s/templates/gateway-routes.yaml
+  # Routes are available at bin/k8s/templates/base/gateway/gateway-routes.yaml
+
+  objectStreamTimeout: "0s"
 
   # Ceiling for LLM requests through /api/chat and /api/models. Completions routinely run
   # for tens of seconds, and Envoy's default route timeout is 15s, which severs them while

@@ -441,7 +441,9 @@ metrics-server:
   priorityClassName: system-cluster-critical
 
 gatewayConfig:
-  # Routes are available at bin/k8s/templates/gateway-routes.yaml
+  # Routes are available at bin/k8s/templates/base/gateway/gateway-routes.yaml
+
+  objectStreamTimeout: "0s"
 
   # The hostname for the Gateway listener (HTTP/HTTPS).
   # e.g., "texera.example.com"

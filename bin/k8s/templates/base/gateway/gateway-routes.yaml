@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+{{- $objectStreamTimeout := "0s" }}
+{{- if and .Values.gatewayConfig .Values.gatewayConfig.objectStreamTimeout }}
+{{- $objectStreamTimeout = .Values.gatewayConfig.objectStreamTimeout }}
+{{- end }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -57,6 +61,9 @@ spec:
         - path:
             type: PathPrefix
             value: /api/access/model
+      timeouts:
+        request: {{ $objectStreamTimeout | quote }}
+        backendRequest: {{ $objectStreamTimeout | quote }}
       backendRefs:
         - name: file-service-svc
           port: 9092
@@ -208,6 +215,9 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      timeouts:
+        request: {{ $objectStreamTimeout | quote }}
+        backendRequest: {{ $objectStreamTimeout | quote }}
       backendRefs:
         - name: {{ .Release.Name }}-minio
           port: 9000
