@@ -75,3 +75,4 @@ spec:
             - name: {{ .name }}
               value: "{{ .value }}"
           {{- end }}
+          {{- include "texera.observability.env" . | nindent 12 }}
