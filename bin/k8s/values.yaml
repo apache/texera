@@ -467,6 +467,21 @@ texeraEnvVars:
   - name: AUTH_JWT_SECRET
     # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
     value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
+  # OpenTelemetry (observability). Disabled by default; set OTEL_SDK_DISABLED to
+  # "false" and point the endpoint at a reachable OTLP collector (http/https only) to enable.
+  - name: OTEL_SDK_DISABLED
+    value: "true"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://127.0.0.1:4317"
+  # Comma-separated resource attributes (k1=v1,k2=v2); service.name is set per service.
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: ""
+  # Comma-separated extra hosts allowed for the OTLP endpoint (loopback allowed by default).
+  - name: TEXERA_OTEL_ALLOWED_HOSTS
+    value: ""
+  # Metric export interval in ms.
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
 
 yWebsocketServer:
   name: y-websocket-server
@@ -541,3 +556,65 @@ envoy-gateway:
       extensionApis:
         enableBackend: true
         enableEnvoyPatchPolicy: true
+
+# Observability stack (hand-rolled, mirrors bin/observability + the
+# single-node docker-compose profiles). Everything is gated behind
+# `enabled` (default off) so the standard install is unchanged. When
+# enabled, the Scala services emit OTLP to the in-cluster collector,
+# which fans logs/metrics/traces to the backends below. All Services are
+# ClusterIP only (no Ingress), matching the loopback-only posture of the
+# compose deployment. Profiling (Parca) is intentionally not included: it
+# needs a privileged eBPF DaemonSet and is a separate change.
+observability:
+  # Master switch for the whole stack.
+  enabled: false
+
+  # OpenTelemetry Collector: the single OTLP ingress. Required whenever
+  # any signal below is enabled (it is what the services emit to).
+  collector:
+    enabled: true
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    grpcPort: 4317
+    httpPort: 4318
+    resources:
+      limits:
+        memory: 768Mi
+        cpu: "1"
+
+  # VictoriaLogs: log store (OTLP ingest + LogsQL).
+  logs:
+    enabled: true
+    image: victoriametrics/victoria-logs:v1.50.0
+    port: 9428
+    retentionPeriod: 30d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # VictoriaMetrics: metrics store (Prometheus remote-write + MetricsQL).
+  metrics:
+    enabled: true
+    image: victoriametrics/victoria-metrics:v1.144.0
+    port: 8428
+    retentionPeriod: 90d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # Jaeger v2: traces backend + UI. In-memory storage (restart wipes
+  # traces); swap in persistent storage for production.
+  traces:
+    enabled: true
+    image: jaegertracing/jaeger:2.18.0
+    queryPort: 16686
+    otlpPort: 4317
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"

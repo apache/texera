@@ -56,6 +56,26 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- end -}}
 
 {{/*
+Observability emission env for a Scala service pod.
+
+Renders OTEL_EXPORTER_OTLP_ENDPOINT (pointing at the in-cluster OTel
+Collector Service) plus TEXERA_OTEL_ALLOWED_HOSTS. OtelInit validates the
+endpoint host against an allowlist whose default is localhost only, so the
+collector's Service name must be added explicitly or the SDK rejects it and
+emits nothing. Renders nothing unless both the observability stack and the
+collector are enabled, so the default install is unchanged. Include inside a
+container's `env:` list, e.g. `{{- include "texera.observability.env" . | nindent 12 }}`.
+*/}}
+{{- define "texera.observability.env" -}}
+{{- if and .Values.observability.enabled .Values.observability.collector.enabled }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://{{ .Release.Name }}-otel-collector:{{ .Values.observability.collector.grpcPort }}"
+- name: TEXERA_OTEL_ALLOWED_HOSTS
+  value: "{{ .Release.Name }}-otel-collector"
+{{- end }}
+{{- end -}}
+
+{{/*
 The audience the mounter's service-account tokens are bound to. Fixed rather than
 configurable: it is one half of a credential contract between access-control-service and the
 mounter -- the projected token declares it and the mounter's TokenReview requires it -- so
@@ -82,4 +102,3 @@ append the uid to it, so a bare value would render "http://<origin>jupyter/7". *
 {{- define "texera.jupyter.basePath" -}}
 {{- printf "/%s" (trimAll "/" .Values.jupyterPool.basePath) -}}
 {{- end -}}
-
