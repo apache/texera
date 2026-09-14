@@ -21,58 +21,75 @@ Subject: [VOTE] Release Apache Texera (incubating) ${VERSION} RC${RC_NUM}
 
 Hi Texera Community,
 
-This is a call for vote to release Apache Texera (incubating) ${VERSION}.
+This is a call for a vote on releasing Apache Texera (incubating)
+${VERSION} RC${RC_NUM}.
 
 == Release Candidate Artifacts ==
 
-https://dist.apache.org/repos/dist/dev/incubator/texera/${VERSION}-RC${RC_NUM}/
+https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/
 
-The directory contains:
-- Source tarball (.tar.gz) with GPG signature (.asc) and SHA512 checksum (.sha512)
-- Docker Compose deployment bundle with GPG signature and SHA512 checksum
+The staging directory contains:
+- Source tarball (.tar.gz), with its GPG signature (.asc) and SHA-512 checksum (.sha512)
+- Docker Compose convenience bundle, with its GPG signature and SHA-512 checksum
 
 == Container Images ==
 
-Container images are available at:
-  ${IMAGE_REGISTRY}/texera-dashboard-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-execution-coordinator:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-compiling-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-file-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-config-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-access-control-service:${VERSION}
-  ${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${VERSION}
+The following convenience container images are available:
 
-These images are built from the source tarball included in this release.
-The Dockerfiles are included in the source for audit and verification.
+${IMAGE_REGISTRY}/texera-dashboard-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-workflow-execution-coordinator:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-workflow-execution-runner:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-workflow-compiling-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-file-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-config-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-access-control-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-agent-service:${IMAGE_TAG}
+${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${IMAGE_TAG}
 
-== Git Tag ==
+These images were built from the source tarball included in this release candidate.
+
+== Git Tag and Commit ==
 
 https://github.com/apache/texera/releases/tag/${TAG_NAME}
+
 Commit: ${COMMIT_HASH}
 
-== Keys ==
+== KEYS ==
 
-The release was signed with GPG key [${GPG_KEY_ID}] (${GPG_EMAIL})
-KEYS file: https://downloads.apache.org/incubator/texera/KEYS
+https://downloads.apache.org/incubator/texera/KEYS
+
+The release was signed with GPG key [${GPG_KEY_ID}] (${GPG_EMAIL}).
+
+== Major Changes Since <PREVIOUS_RELEASE, e.g. Apache Texera 1.1.0-incubating> ==
+
+Full diff:
+https://github.com/apache/texera/compare/<PREVIOUS_TAG>...${TAG_NAME}
+
+Major changes include:
+<FILL IN: grouped highlights, verified against the previous release BRANCH,
+not its tag>
 
 == Vote ==
 
-The vote will be open for at least 72 hours.
+The vote will remain open for at least 72 hours.
 
 [ ] +1 Approve the release
 [ ]  0 No opinion
-[ ] -1 Disapprove the release (please provide the reason)
+[ ] -1 Do not approve the release because...
 
 == Checklist ==
+
+Please include the checklist below in your reply and mark the checks you
+performed with an x.
 
 [ ] Checksums and PGP signatures are valid
 [ ] LICENSE and NOTICE files are correct
 [ ] All files have ASF license headers where appropriate
-[ ] No unexpected binary files
 [ ] Source tarball matches the Git tag
-[ ] Can compile from source successfully
-[ ] Docker Compose bundle deploys successfully with the published images
+[ ] Docker Compose deploys successfully
 
-Thanks,
-[Your Name]
-Apache Texera (incubating) PPMC
+Thank you for reviewing and voting on this release candidate.
+
+Best,
+<YOUR NAME>
+Release Manager for Apache Texera ${VERSION}
