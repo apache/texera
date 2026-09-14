@@ -734,11 +734,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     // than carrying changes that were never stored into a view that has no reason to say so. The
     // form's own switch (openRegularCanvas) does the same.
     //
-    // Two more things the hand-over must not lose. An autosave already in flight when the switch
+    // Three more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
-    // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the route): workflowChanged marks it, and the drain below saves once more before handing
-    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
+    // it and completes after it. A graph edit made while our save is out (the page stays editable
+    // until the route): workflowChanged marks it, and saveThenOpenFormView saves once more before
+    // handing over, so the switch does not leave that edit to an autosave that would fire under the
+    // other view. And a save queued behind ours (a rename's or a description's, which save through
+    // the menu itself and do not go through workflowChanged): the route would not abort it, but its
+    // outcome answers to this component -- the error shown, the response fed back -- and this
+    // component is gone once the route lands. So the hand-over leaves only once the service's save
+    // queue has drained.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -772,8 +777,18 @@ export class MenuComponent implements OnInit, OnDestroy {
             this.saveThenOpenFormView(target);
             return;
           }
-          this.isSaving = false;
-          this.openFormViewPage(target);
+          // A save queued behind ours (a rename's, a description's: those save through the menu
+          // itself, not the autosave) answers to this component: its error is shown here, its
+          // response fed back here, and neither reaches a component the route has destroyed. Leave
+          // once it has answered; a failure of its own is reported by its caller and does not hold
+          // the hand-over.
+          this.workflowPersistService
+            .whenSavesDrained()
+            .pipe(untilDestroyed(this))
+            .subscribe(() => {
+              this.isSaving = false;
+              this.openFormViewPage(target);
+            });
         },
       });
   }
