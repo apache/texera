@@ -27,8 +27,27 @@ import org.apache.texera.amber.operator.metadata.annotations.{
   HideAnnotation
 }
 
+/**
+  * One row of a trainer's parameter table. `parametersSource` decides which of the two inputs
+  * the row uses, and the hide rules below show only that one, so exactly one of them is needed
+  * and neither can be required outright.
+  */
+@JsonSchemaInject(json = """
+{
+  "allOf": [
+    {
+      "if": { "properties": { "parametersSource": { "const": true } } },
+      "then": { "required": ["attribute"] },
+      "else": { "required": ["value"] }
+    }
+  ]
+}
+""")
 class HyperParameters[T] {
 
+  // Two rows naming one parameter emit its keyword argument twice, which the generated
+  // Python will not compile, so the form warns on the row rather than letting it be added.
+  @JsonSchemaInject(json = """{ "uniqueAmongRows": true }""")
   @JsonProperty(required = true)
   @JsonSchemaTitle("Parameter")
   @JsonPropertyDescription("Choose the name of the parameter")
