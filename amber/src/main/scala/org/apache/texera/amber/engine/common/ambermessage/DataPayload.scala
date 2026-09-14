@@ -26,9 +26,21 @@ sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
 final case class StateFrame(frame: State) extends DataPayload
 
-// Columnar wire payload: a batch encoded as Arrow IPC stream bytes.
-final case class ColumnarFrame(arrowIpcBytes: Array[Byte], rowCount: Int, schema: Schema)
-    extends DataPayload {
+object ColumnarFrame {
+  // Bump when the on-wire columnar encoding changes incompatibly. A receiver
+  // that sees an unknown version fails fast (see DataProcessor) rather than
+  // misreading bytes, which matters for mixed-version workers during a rollout.
+  val CurrentFormatVersion: Int = 1
+}
+
+// Columnar wire payload: a batch encoded as Arrow IPC stream bytes, stamped
+// with the format version that produced it.
+final case class ColumnarFrame(
+    arrowIpcBytes: Array[Byte],
+    rowCount: Int,
+    schema: Schema,
+    formatVersion: Int = ColumnarFrame.CurrentFormatVersion
+) extends DataPayload {
   val inMemSize: Long = arrowIpcBytes.length.toLong
 }
 

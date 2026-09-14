@@ -83,6 +83,11 @@ object ApplicationConfig {
       case Some(v) => v == "1" || v.equalsIgnoreCase("true")
       case None    => getConfSource.getBoolean("columnar.enable-vectorized-operators")
     }
+  val enableVectorizedSink: Boolean =
+    sys.env.get("COLUMNAR_SINK") match {
+      case Some(v) => v == "1" || v.equalsIgnoreCase("true")
+      case None    => getConfSource.getBoolean("columnar.enable-vectorized-sink")
+    }
 
   // Fault tolerance
   val faultToleranceLogFlushIntervalInMs: Long =

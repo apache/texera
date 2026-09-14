@@ -218,7 +218,12 @@ class DataProcessor(
     dataPayload match {
       case DataFrame(tuples) =>
         processTupleBatch(channelId, portId, tuples)
-      case ColumnarFrame(bytes, _, _) =>
+      case ColumnarFrame(bytes, _, _, ver) =>
+        require(
+          ver == ColumnarFrame.CurrentFormatVersion,
+          s"unsupported ColumnarFrame format version $ver " +
+            s"(this worker supports ${ColumnarFrame.CurrentFormatVersion})"
+        )
         executor match {
           // Native-Arrow path: consume the batch directly, emit a filtered batch.
           case c: ColumnarOperatorExecutor if NetworkOutputBuffer.columnarWire =>

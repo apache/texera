@@ -142,10 +142,12 @@ object ArrowUtils extends LazyLogging {
     try {
       val out = ArrayBuffer[Tuple]()
       val root = reader.getVectorSchemaRoot
+      var schema: Schema = null
       while (reader.loadNextBatch()) {
+        if (schema == null) schema = toTexeraSchema(root.getSchema) // resolve once, reuse per row
         val n = root.getRowCount
         var i = 0
-        while (i < n) { out += getTexeraTuple(i, root); i += 1 }
+        while (i < n) { out += getTexeraTuple(i, root, schema); i += 1 }
       }
       out.toArray
     } finally reader.close()
@@ -166,10 +168,16 @@ object ArrowUtils extends LazyLogging {
   def getTexeraTuple(
       rowIndex: Int,
       vectorSchemaRoot: VectorSchemaRoot
-  ): Tuple = {
-    val arrowSchema = vectorSchemaRoot.getSchema
-    val schema = toTexeraSchema(arrowSchema)
+  ): Tuple = getTexeraTuple(rowIndex, vectorSchemaRoot, toTexeraSchema(vectorSchemaRoot.getSchema))
 
+  // Decode one row using a pre-resolved Texera schema. Callers decoding a whole
+  // batch should resolve the schema once and pass it, instead of rebuilding it
+  // (an Attribute allocation per column) on every row.
+  def getTexeraTuple(
+      rowIndex: Int,
+      vectorSchemaRoot: VectorSchemaRoot,
+      schema: Schema
+  ): Tuple = {
     Tuple
       .builder(schema)
       .addSequentially(

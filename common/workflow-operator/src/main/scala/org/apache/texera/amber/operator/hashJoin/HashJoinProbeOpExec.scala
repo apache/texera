@@ -98,9 +98,9 @@ class HashJoinProbeOpExec[K](
     val isOuter = desc.joinType == JoinType.RIGHT_OUTER || desc.joinType == JoinType.FULL_OUTER
     if (columnarAllocator == null) columnarAllocator = new RootAllocator()
     ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val fullSchema = ArrowUtils.toTexeraSchema(root.getSchema) // resolve once, reuse per row
       if (keySchema == null) {
-        val full = ArrowUtils.toTexeraSchema(root.getSchema)
-        keySchema = Schema(List(full.getAttribute(desc.probeAttributeName)))
+        keySchema = Schema(List(fullSchema.getAttribute(desc.probeAttributeName)))
       }
       val keyIdx = ArrowUtils.projectionIndices(root, Seq(desc.probeAttributeName))
       val out = new ListBuffer[(TupleLike, Option[PortIdentity])]
@@ -114,7 +114,7 @@ class HashJoinProbeOpExec[K](
         val matched = buildTableHashMap.get(key).exists(_._1.nonEmpty)
         if (matched || isOuter) {
           // Reuse the exact row-path join logic (also marks the build side joined).
-          processTuple(ArrowUtils.getTexeraTuple(i, root), 1).foreach(t => out += ((t, None)))
+          processTuple(ArrowUtils.getTexeraTuple(i, root, fullSchema), 1).foreach(t => out += ((t, None)))
         }
         i += 1
       }

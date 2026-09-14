@@ -124,7 +124,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
-      case ColumnarFrame(bytes, _, _) =>
+      case ColumnarFrame(bytes, _, _, ver) =>
+        require(
+          ver == ColumnarFrame.CurrentFormatVersion,
+          s"unsupported ColumnarFrame format version $ver " +
+            s"(this worker supports ${ColumnarFrame.CurrentFormatVersion})"
+        )
         // Columnar wire reaching the Python path: pass the Arrow batch straight
         // to Flight (no tuple round-trip). deserializeRootFold keeps the root
         // alive for the put and closes it after.

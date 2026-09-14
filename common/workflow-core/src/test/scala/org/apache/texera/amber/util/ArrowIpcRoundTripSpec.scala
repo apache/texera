@@ -66,4 +66,32 @@ class ArrowIpcRoundTripSpec extends AnyFlatSpec {
     val bytes = ArrowUtils.serializeTuples(schema, Array.empty[Tuple])
     assert(ArrowUtils.deserializeTuples(bytes).isEmpty)
   }
+
+  // Python-passthrough equivalence: the Arrow batch the Python bridge sends via
+  // the columnar passthrough (deserialize the ColumnarFrame bytes to a root) must
+  // match the batch the row path builds (fromTexeraSchema + appendTexeraTuple).
+  // Proven at the data level here; the Flight transport itself is unchanged.
+  "Python passthrough" should "produce the same Arrow batch as the row path" in {
+    val n = 3000
+    val rows = (0 until n).map(tuple).toArray
+    val allocator = new org.apache.arrow.memory.RootAllocator()
+    try {
+      // Row path: build the root the way writeArrowStream does.
+      val rowRoot =
+        org.apache.arrow.vector.VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+      rowRoot.allocateNew()
+      rows.foreach(t => ArrowUtils.appendTexeraTuple(t, rowRoot))
+      rowRoot.setRowCount(n)
+
+      // Passthrough: the columnar bytes decoded back to tuples.
+      val passthrough = ArrowUtils.deserializeTuples(ArrowUtils.serializeTuples(schema, rows))
+
+      // Same schema, same row count, same values.
+      assert(rowRoot.getSchema == ArrowUtils.fromTexeraSchema(schema))
+      assert(rowRoot.getRowCount == passthrough.length)
+      val rowDecoded = (0 until rowRoot.getRowCount).map(i => ArrowUtils.getTexeraTuple(i, rowRoot))
+      assert(rowDecoded.sameElements(passthrough))
+      rowRoot.close()
+    } finally allocator.close()
+  }
 }

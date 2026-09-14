@@ -20,9 +20,10 @@
 package org.apache.texera.amber.engine.architecture.worker.managers
 
 import com.google.common.collect.Queues
-import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.model.{ArrowVectorizedSink, BufferedItemWriter}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.common.config.ApplicationConfig
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.util.control.NonFatal
@@ -59,8 +60,14 @@ class OutputPortStorageWriterThread(
         queue.take() match {
           case Left(RowWriteItem(tuple)) => bufferedItemWriter.putOne(tuple)
           case Left(ArrowBatchWriteItem(bytes)) =>
-            // Decode the Arrow batch here (off the DP thread) into rows.
-            ArrowUtils.deserializeTuples(bytes).foreach(bufferedItemWriter.putOne)
+            bufferedItemWriter match {
+              // Vectorized sink (opt-in): write the Arrow batch straight to
+              // storage, no per-row object materialization.
+              case sink: ArrowVectorizedSink if ApplicationConfig.enableVectorizedSink =>
+                sink.writeArrowBatch(bytes)
+              // Otherwise decode here (off the DP thread) into rows.
+              case _ => ArrowUtils.deserializeTuples(bytes).foreach(bufferedItemWriter.putOne)
+            }
           case Right(_) => internalStop = true
         }
       }

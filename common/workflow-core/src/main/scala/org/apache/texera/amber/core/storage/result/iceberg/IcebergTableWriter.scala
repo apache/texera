@@ -20,16 +20,24 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.amber.core.storage.model.BufferedItemWriter
-import org.apache.texera.amber.util.IcebergUtil
+import org.apache.texera.amber.core.storage.model.{ArrowVectorizedSink, BufferedItemWriter}
+import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, LargeBinary}
+import org.apache.texera.amber.util.{ArrowUtils, IcebergUtil}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.data.parquet.GenericParquetWriter
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
+import org.apache.iceberg.types.Types.StructType
 import org.apache.iceberg.{Schema, Table}
 import org.apache.parquet.schema.MessageType
 
+import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
+import java.time.ZoneId
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -55,7 +63,8 @@ private[storage] class IcebergTableWriter[T](
     val tableName: String,
     val tableSchema: Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record
-) extends BufferedItemWriter[T] {
+) extends BufferedItemWriter[T]
+    with ArrowVectorizedSink {
 
   // Buffer to hold items before flushing to the table
   private val buffer = new ArrayBuffer[T]()
@@ -106,35 +115,49 @@ private[storage] class IcebergTableWriter[T](
     */
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
-      // Create a unique file path using the writer's identifier and the filename index
-      val location = table.location().stripSuffix("/")
-      val filepathString = s"$location/${writerIdentifier}_$filenameIdx"
-      // Increment the filename index by 1
-      filenameIdx += 1
-      val outputFile: OutputFile = table.io().newOutputFile(filepathString)
-      // Create a Parquet data writer to write a new file
-      val dataWriter: DataWriter[Record] = Parquet
-        .writeData(outputFile)
-        .forTable(table)
-        .createWriterFunc((schema: Schema, messageType: MessageType) =>
-          GenericParquetWriter.create(schema, messageType)
-        )
-        .overwrite()
-        .build()
-      // Write each buffered item to the data file
-      try {
-        buffer.foreach { item =>
-          dataWriter.write(serde(tableSchema, item))
-        }
-      } finally {
-        dataWriter.close()
-      }
-      // Commit the new file to the table
-      val dataFile = dataWriter.toDataFile
-      table.newAppend().appendFile(dataFile).commit()
-      // Clear the item buffer
+      writeRecordsToNewFile(buffer.iterator.map(item => serde(tableSchema, item)))
       buffer.clear()
     }
+  }
+
+  // Write a batch of Iceberg Records to a new, uniquely named data file and
+  // commit it. Iceberg's DataWriter produces the file metrics and DataFile, so
+  // the callers (row buffer flush and the Arrow batch path) get a valid table.
+  private def writeRecordsToNewFile(records: Iterator[Record]): Unit = {
+    val location = table.location().stripSuffix("/")
+    val filepathString = s"$location/${writerIdentifier}_$filenameIdx"
+    filenameIdx += 1
+    val outputFile: OutputFile = table.io().newOutputFile(filepathString)
+    val dataWriter: DataWriter[Record] = Parquet
+      .writeData(outputFile)
+      .forTable(table)
+      .createWriterFunc((schema: Schema, messageType: MessageType) =>
+        GenericParquetWriter.create(schema, messageType)
+      )
+      .overwrite()
+      .build()
+    try records.foreach(dataWriter.write)
+    finally dataWriter.close()
+    table.newAppend().appendFile(dataWriter.toDataFile).commit()
+  }
+
+  // Vectorized sink: read the Arrow batch and write it via a reused record view
+  // that pulls values straight from the Arrow columns, materializing no rows.
+  @transient private var columnarAllocator: RootAllocator = _
+  override def writeArrowBatch(arrowIpcBytes: Array[Byte]): Unit = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(arrowIpcBytes), columnarAllocator)
+    try {
+      val root = reader.getVectorSchemaRoot
+      val struct = tableSchema.asStruct()
+      while (reader.loadNextBatch()) {
+        val n = root.getRowCount
+        if (n > 0) {
+          val view = new IcebergTableWriter.ArrowRecordView(root, struct)
+          writeRecordsToNewFile((0 until n).iterator.map { i => view.setRow(i); view })
+        }
+      }
+    } finally reader.close()
   }
 
   /**
@@ -144,5 +167,47 @@ private[storage] class IcebergTableWriter[T](
     if (buffer.nonEmpty) {
       flushBuffer()
     }
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
+  }
+}
+
+object IcebergTableWriter {
+
+  // A single mutable Iceberg Record backed by an Arrow batch and a row index.
+  // Only the positional reads the Parquet write path uses (get/get-typed/size)
+  // are implemented; mutation and name lookups are unsupported. Each column's
+  // value is decoded from Arrow to the Texera type, then mapped to the Iceberg
+  // Java type exactly as IcebergUtil.toGenericRecord does.
+  private class ArrowRecordView(root: VectorSchemaRoot, structType: StructType) extends Record {
+    private val vectors = root.getFieldVectors
+    private val texeraTypes = ArrowUtils.toTexeraSchema(root.getSchema).getAttributes.map(_.getType)
+    private var rowIndex = 0
+    def setRow(i: Int): Unit = rowIndex = i
+
+    private def icebergValue(pos: Int): AnyRef = {
+      val raw = vectors.get(pos).getObject(rowIndex)
+      val texeraValue =
+        try AttributeTypeUtils.parseField(raw, texeraTypes(pos))
+        catch { case _: Exception => null }
+      texeraValue match {
+        case null                        => null
+        case ts: java.sql.Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+        case bytes: Array[Byte]          => ByteBuffer.wrap(bytes)
+        case largeBinaryPtr: LargeBinary => largeBinaryPtr.getUri
+        case other                       => other.asInstanceOf[AnyRef]
+      }
+    }
+
+    override def size(): Int = vectors.size
+    override def get(pos: Int): AnyRef = icebergValue(pos)
+    override def get[U](pos: Int, javaClass: Class[U]): U = javaClass.cast(icebergValue(pos))
+    override def struct(): StructType = structType
+
+    private def unsupported = throw new UnsupportedOperationException("ArrowRecordView is read-only")
+    override def set[U](pos: Int, value: U): Unit = unsupported
+    override def getField(name: String): AnyRef = unsupported
+    override def setField(name: String, value: AnyRef): Unit = unsupported
+    override def copy(): Record = unsupported
+    override def copy(overwriteValues: java.util.Map[String, AnyRef]): Record = unsupported
   }
 }
