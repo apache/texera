@@ -16,6 +16,7 @@
 # under the License.
 
 import queue
+import threading
 import pytest
 import time
 from unittest.mock import patch, MagicMock
@@ -231,6 +232,33 @@ class TestLargeBinaryOutputStream:
                 # doesn't fire against a later test's mocks.
                 with pytest.raises(IOError):
                     stream.close()
+
+    def test_write_unblocks_when_upload_fails_with_full_queue(self, large_binary):
+        with (
+            patch("pytexera.storage.large_binary_output_stream._CHUNK_SIZE", 1),
+            patch.object(large_binary_manager, "_get_s3_client") as get_client,
+            patch.object(large_binary_manager, "_ensure_bucket_exists"),
+        ):
+            get_client.return_value.upload_fileobj.side_effect = RuntimeError(
+                "upload failed"
+            )
+            stream = LargeBinaryOutputStream(large_binary)
+            errors = []
+
+            def write_chunks():
+                try:
+                    stream.write(b"abc")
+                except IOError as error:
+                    errors.append(error)
+
+            writer = threading.Thread(target=write_chunks, daemon=True)
+            writer.start()
+            writer.join(1)
+
+            assert not writer.is_alive()
+            assert str(errors[0]) == "Background upload failed: upload failed"
+            with pytest.raises(IOError, match="Failed to complete upload"):
+                stream.close()
 
     def test_multiple_close_calls(self, large_binary):
         """Test that multiple close() calls are safe."""
