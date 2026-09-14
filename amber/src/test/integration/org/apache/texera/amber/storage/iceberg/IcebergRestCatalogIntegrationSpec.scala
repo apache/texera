@@ -47,6 +47,17 @@ class IcebergRestCatalogIntegrationSpec extends AnyFlatSpec with BeforeAndAfterA
     )
   }
 
+  override def afterAll(): Unit = {
+    // RESTCatalog is Closeable: closing releases its HTTP client and the
+    // S3FileIO instances it created for table operations. Left unclosed,
+    // the finalizer reclaims them and logs "Unclosed S3FileIO instance"
+    // warnings with full stack traces after the spec finishes.
+    if (restCatalog != null) {
+      restCatalog.close()
+    }
+    super.afterAll()
+  }
+
   behavior of "Iceberg REST catalog"
 
   it should "round-trip table metadata via the REST catalog" in {
