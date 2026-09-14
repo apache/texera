@@ -1340,9 +1340,9 @@ class WorkflowResourceSpec
     assert(defaultView(wid) == DefaultViewEnum.CANVAS)
   }
 
-  // A plain save (persistWorkflow) only writes the fields the client sends -- name,
-  // description, content, is_public -- and never `default_view`, so saving the canvas must
-  // not reset the default view. The edit payload mirrors what the frontend sends.
+  // A plain save (persistWorkflow) only writes name, description and content -- never
+  // `default_view`, so saving the canvas must not reset the default view. The edit payload mirrors
+  // what the frontend sends.
   it should "survive a subsequent save of the workflow" in {
     val wid = persistFreshWorkflow("param_survives_save")
     workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
@@ -1351,13 +1351,45 @@ class WorkflowResourceSpec
     edit.setWid(wid)
     edit.setName("param_survives_save_edited")
     edit.setContent("{\"operators\":[],\"links\":[]}")
-    edit.setIsPublic(false)
     workflowResource.persistWorkflow(edit, sessionUser1)
 
     assert(
       defaultView(wid) == DefaultViewEnum.FORM,
       "saving the canvas must not reset the default view"
     )
+  }
+
+  // The frontend feeds the saved row back as its metadata, where the publish flag has another
+  // name, so the very next autosave arrives with isPublic unset. A save must neither fail on that
+  // (the column is NOT NULL, and writing the null made every second save a 500) nor rewrite the
+  // flag: publishing is /public and /private's job alone.
+  "/persist API" should "neither fail nor change is_public when the save carries no flag" in {
+    val wid = persistFreshWorkflow("persist_keeps_public")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_keeps_public_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    // isPublic deliberately left null, exactly as the frontend's second save sends it
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getName == "persist_keeps_public_edited")
+    assert(saved.getIsPublic, "a plain save must not touch the publish flag")
+  }
+
+  it should "not un-publish a workflow when the save says isPublic = false" in {
+    val wid = persistFreshWorkflow("persist_ignores_flag")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_ignores_flag_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    edit.setIsPublic(false)
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getIsPublic, "a stale flag on a save must not un-publish the workflow")
   }
 
   // A biologist's path is hub -> clone -> use, so a copy has to stay usable.

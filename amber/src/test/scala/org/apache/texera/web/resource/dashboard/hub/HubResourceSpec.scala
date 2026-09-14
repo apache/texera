@@ -716,6 +716,52 @@ class HubResourceSpec
     hub.getCount(Wf).intValue() shouldBe 3
   }
 
+  "getPublicOwners" should "offer the owners of published workflows, and no one else" in {
+    // hub_liker's workflow is private, so only hub_owner has anything the hub can show.
+    seedWorkflow(810601, "wf_private_of_liker", isPublic = false, owner = likerUid)
+
+    hub.getPublicOwners(Wf).asScala should contain theSameElementsAs Seq("hub_owner@test.com")
+  }
+
+  it should "name an owner once however many public entities they have" in {
+    seedWorkflow(810602, "wf_public_b", isPublic = true)
+    seedWorkflow(810603, "wf_public_c", isPublic = true)
+
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
+  }
+
+  it should "ignore a grant, which is what the per-kind owners endpoints answer instead" in {
+    // The bug itself: a grant without anything published must not make you an owner here.
+    grantWorkflowAccess(wid, likerUid, PrivilegeEnum.READ)
+
+    hub.getPublicOwners(Wf).asScala should not contain "hub_liker@test.com"
+  }
+
+  it should "keep each kind to its own table" in {
+    // Deliberately different owners per kind, so a table mix-up cannot pass.
+    seedDataset(820601, "ds_public", owner = likerUid)
+    seedModel(840601, "md_public", owner = thirdUid)
+
+    hub.getPublicOwners(Ds).asScala shouldBe Seq("hub_liker@test.com")
+    hub.getPublicOwners(Md).asScala shouldBe Seq("hub_third@test.com")
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
+  }
+
+  it should "leave out the owners of private entities" in {
+    seedDataset(820602, "ds_private", isPublic = false, owner = likerUid)
+    seedModel(840602, "md_private", isPublic = false, owner = thirdUid)
+
+    hub.getPublicOwners(Ds).asScala shouldBe empty
+    hub.getPublicOwners(Md).asScala shouldBe empty
+  }
+
+  it should "name nobody for a public workflow that has no owner row" in {
+    seedWorkflow(810604, "wf_ownerless", isPublic = true, withOwnerRows = false)
+
+    // The fixture workflow's owner, and not a null for the ownerless one.
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
+  }
+
   "postView" should "increment the view count and record a view action" in {
     val resource = new HubResource()
     resource.postView(

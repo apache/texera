@@ -77,3 +77,9 @@ values override would let an install quietly hand the privileged mounter to anot
 {{- printf "system:serviceaccount:%s:%s" .Release.Namespace .Values.accessControlService.serviceAccountName -}}
 {{- end -}}
 
+{{/* Jupyter base path, as exactly one leading slash and no trailing one. Several places
+append the uid to it, so a bare value would render "http://<origin>jupyter/7". */}}
+{{- define "texera.jupyter.basePath" -}}
+{{- printf "/%s" (trimAll "/" .Values.jupyterPool.basePath) -}}
+{{- end -}}
+

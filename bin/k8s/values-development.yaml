@@ -295,6 +295,30 @@ workflowComputingUnitPool:
     port: 8085
     targetPort: 8085
 
+# Notebook migration tool. The base chart ships it off; development turns it on.
+notebookMigrationService:
+  enabled: true
+  # Reached through a port-forward, so there is no DNS name to derive an origin from.
+  publicOrigin: "http://localhost:30080"
+  # Development only, and public by virtue of living here. A real deployment must generate
+  # its own, since this one derives every user's JupyterLab token.
+  jupyterTokenSecret: "development-only-not-a-secret"
+
+# Per-user JupyterLab pods, sized for a single-node development cluster. Only the values that
+# differ from the base chart are listed, since Helm merges the rest.
+jupyterPool:
+  # The base default of a full CPU and 2Gi per user exhausts a laptop cluster after two of
+  # them. Limits become requests here, because the pods declare no requests of their own.
+  resources:
+    cpuLimit: "0.5"
+    memoryLimit: 1Gi
+  # Low enough to actually bind, so a provisioning loop cannot fill the node.
+  maxRequestedResources:
+    cpu: 4
+    memory: 8Gi
+  # One node, so prepulling saves nothing and costs a large image pull at install time.
+  prepullImage: false
+
 texeraEnvVars:
   - name: USER_SYS_ADMIN_USERNAME
     value: "texera"

@@ -167,6 +167,23 @@ class JupyterKubernetesClientSpec extends AnyFlatSpec with Matchers {
       Some(KubernetesConfig.jupyterTexeraOrigin)
   }
 
+  it should "tell the pod which base path it serves under" in {
+    // The image passes this to --NotebookApp.base_url. Jupyter wants a trailing slash, and
+    // without the prefix a path-routed deployment serves every endpoint from the wrong place.
+    val env = createdPod(7, "tok").getSpec.getContainers.asScala.head.getEnv.asScala
+    env.find(_.getName == "JUPYTER_BASE_URL").map(_.getValue) shouldBe Some("/jupyter/7/")
+  }
+
+  "basePathFor" should "put the uid in the path so the gateway can read it" in {
+    // The browser cannot present Texera credentials on the requests Jupyter's own scripts
+    // make, so the owner has to be recoverable from the URL alone.
+    bare.basePathFor(7) shouldBe "/jupyter/7"
+  }
+
+  it should "give every user a distinct base path" in {
+    (1 to 50).map(bare.basePathFor).distinct.size shouldBe 50
+  }
+
   it should "carry the configured image, pull policy and port" in {
     val container = createdPod(7, "tok").getSpec.getContainers.asScala.head
     container.getImage shouldBe KubernetesConfig.jupyterImageName

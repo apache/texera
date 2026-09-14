@@ -178,6 +178,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   /** True while an author is choosing which properties appear on the Form View; adds a tick
    *  box beside each. Off, the property editor is unchanged. */
   @Input() exposeChoosing = false;
+  /** Whether opening a step here behaves as an editor or as a pure viewer. As an editor the frame
+   *  may write to the shared workflow, and every write it can produce is gated on this: the
+   *  "currently editing" co-editor broadcast, the operator-version sync, the operator properties
+   *  (both the form-change sink and the UDF ui-parameter sync), the runtime-reconfiguration unlock,
+   *  and interactivity itself, which setInteractivity clamps. A viewer writes nothing, so a reader
+   *  inspecting a step is neither shown as a co-editor nor able to change the workflow -- not even
+   *  by opening it, which is what makes this more than a presence flag: ajv fills in new schema
+   *  defaults on open and emits a form change like any edit. True on the operator canvas; the Form
+   *  View sets it false. The property writes are gated at their single sink rather than per caller,
+   *  so a new write path cannot quietly escape it. */
+  @Input() actsAsEditor = true;
 
   currentOperatorSchema?: OperatorSchema;
 
@@ -580,8 +591,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
 
         this.listeningToChange = false;
+        // Show the new ui parameters either way; only the write to the shared workflow is gated,
+        // so a read-only inspect still renders what the UDF script now declares.
         this.formData = cloneDeep(newModel);
-        this.workflowActionService.setOperatorProperty(operatorId, newModel);
+        if (this.actsAsEditor) {
+          this.workflowActionService.setOperatorProperty(operatorId, newModel);
+        }
         this.listeningToChange = true;
         this.changeDetectorRef.detectChanges();
       });
@@ -631,10 +646,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
     this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
 
-    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
+    if (this.actsAsEditor) {
+      this.workflowActionService
+        .getTexeraGraph()
+        .updateSharedModelAwareness("currentlyEditing", this.currentOperatorId);
+    }
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-    // set the operator data needed
-    this.workflowActionService.setOperatorVersion(operator.operatorID, this.currentOperatorSchema.operatorVersion);
+    // Syncing the operator to the current schema version writes the new version into the Yjs shared
+    // model (changeOperatorVersion), which broadcasts and persists. That is right on the canvas, but
+    // a read-only inspect (actsAsEditor=false) must not mutate the workflow just by opening a
+    // step, so skip the sync there and show the version as stored.
+    if (this.actsAsEditor) {
+      this.workflowActionService.setOperatorVersion(operator.operatorID, this.currentOperatorSchema.operatorVersion);
+    }
     this.operatorVersion = operator.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
@@ -696,7 +720,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
     this.ajv.validate(this.currentOperatorSchema.jsonSchema, this.formData);
 
-    // manually trigger a form change event because default value might be filled in
+    // manually trigger a form change event because default value might be filled in.
+    // The ajv call above fills schema defaults into formData, so this fires on every open, not only
+    // on a user edit; the write it leads to is gated in registerOnFormChangeHandler, which is what
+    // keeps opening a step read-only from persisting those defaults.
     this.onFormChanges(this.formData);
     this.isTypeCasting = this.workflowActionService
       .getTexeraGraph()
@@ -711,7 +738,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setInteractivity(interactive: boolean) {
-    this.interactive = interactive;
+    // A viewer mount never becomes interactive, whatever asks for it: the modification-enabled
+    // stream flips to true whenever a run finishes, and the runtime unlock button calls this with
+    // true directly. Clamping here keeps the form disabled through both.
+    this.interactive = interactive && this.actsAsEditor;
     if (this.formlyFormGroup !== undefined) {
       if (this.interactive) {
         this.formlyFormGroup.enable();
@@ -782,8 +812,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    */
   registerOnFormChangeHandler(): void {
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
-      // set the operator property to be the new form data
-      if (this.currentOperatorId) {
+      // set the operator property to be the new form data.
+      // This is the only place the frame writes properties, so it is where a viewer mount is
+      // enforced: the stream also carries the schema defaults ajv fills in when a step is merely
+      // opened, and those must not reach the shared workflow.
+      if (this.currentOperatorId && this.actsAsEditor) {
         this.listeningToChange = false;
         this.typeInferenceOnLambdaFunction(formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
