@@ -49,8 +49,11 @@ trait PythonUdfUiParameterSupport {
   /** None when no parameter names a resource: the compiled code is then the code to run. */
   protected final def executionBinding(code: String): Option[ExecutionTimeBinding] =
     Option.when(resourceParameters(uiParameters).nonEmpty)(
-      new ResourceParameterBinding(code, uiParameters)
+      new ResourceParameterBinding(code, uiParameters, mounts)
     )
+
+  // The pod's mounts; overridable so a spec can supply the mount root the chart would.
+  protected def mounts: RepositoryMountManager = RepositoryMountManager
 }
 
 object PythonUdfUiParameterSupport {
@@ -81,8 +84,11 @@ object PythonUdfUiParameterSupport {
     * the code the workers run and the repositories behind those directories. Memoized, since
     * resolving costs a database round trip per parameter.
     */
-  private class ResourceParameterBinding(code: String, parameters: List[UiUDFParameter])
-      extends ExecutionTimeBinding {
+  private class ResourceParameterBinding(
+      code: String,
+      parameters: List[UiUDFParameter],
+      mounts: RepositoryMountManager
+  ) extends ExecutionTimeBinding {
 
     private lazy val resolved: (List[UiUDFParameter], Set[String]) = {
       val bound = parameters.map { parameter =>
@@ -94,7 +100,7 @@ object PythonUdfUiParameterSupport {
           val mounted = new UiUDFParameter
           mounted.attribute = parameter.attribute
           mounted.inputType = parameter.inputType
-          mounted.value = RepositoryMountManager.mountPointOf(locator).toString
+          mounted.value = mounts.mountPointOf(locator).toString
           (mounted, Some(locator))
         }
       }
