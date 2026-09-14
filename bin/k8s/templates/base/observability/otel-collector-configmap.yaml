@@ -1,0 +1,108 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.collector.enabled }}
+# OpenTelemetry Collector config, k8s counterpart of
+# bin/observability/otel-collector/config.yaml. Same pipeline topology;
+# exporters point at the in-cluster backend Services instead of the
+# docker-compose service names. Only the pipelines for enabled signals
+# are rendered, so disabling a signal drops its exporter cleanly.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-collector-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.observability.collector.grpcPort }}
+            max_recv_msg_size_mib: 4
+          http:
+            endpoint: 0.0.0.0:{{ .Values.observability.collector.httpPort }}
+
+    processors:
+      batch:
+        send_batch_size: 1024
+        timeout: 5s
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+
+    exporters:
+      {{- if .Values.observability.logs.enabled }}
+      otlphttp/victorialogs:
+        endpoint: http://{{ .Release.Name }}-victorialogs:{{ .Values.observability.logs.port }}/insert/opentelemetry
+        compression: gzip
+        timeout: 10s
+        tls:
+          insecure: true
+      {{- end }}
+      {{- if .Values.observability.metrics.enabled }}
+      prometheusremotewrite:
+        endpoint: http://{{ .Release.Name }}-victoriametrics:{{ .Values.observability.metrics.port }}/api/v1/write
+        tls:
+          insecure: true
+        remote_write_queue:
+          queue_size: 1000
+          num_consumers: 4
+      {{- end }}
+      {{- if .Values.observability.traces.enabled }}
+      otlp/jaeger:
+        endpoint: {{ .Release.Name }}-jaeger:{{ .Values.observability.traces.otlpPort }}
+        tls:
+          insecure: true
+      {{- end }}
+
+    service:
+      pipelines:
+        {{- if .Values.observability.logs.enabled }}
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/victorialogs]
+        {{- end }}
+        {{- if .Values.observability.metrics.enabled }}
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [prometheusremotewrite]
+        {{- end }}
+        {{- if .Values.observability.traces.enabled }}
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/jaeger]
+        {{- end }}
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 127.0.0.1
+                    port: 8888
+        logs:
+          level: info
+{{- end }}
