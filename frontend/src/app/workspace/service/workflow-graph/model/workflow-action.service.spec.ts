@@ -806,11 +806,11 @@ describe("WorkflowActionService", () => {
           helpText: "Which table to read.",
         },
       ],
-      resultOperatorIds: [mockResultPredicate.operatorID],
+      shownResultIds: [mockResultPredicate.operatorID],
     };
 
     it("should start empty for a workflow that was never set up", () => {
-      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+      expect(service.getFormBinding()).toEqual({ fields: [] });
     });
 
     it("should round-trip through workflow content", () => {
@@ -858,7 +858,7 @@ describe("WorkflowActionService", () => {
         false
       );
 
-      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+      expect(service.getFormBinding()).toEqual({ fields: [] });
     });
 
     // Starting a blank workflow must not carry the previous one's definition, or it would
@@ -869,7 +869,7 @@ describe("WorkflowActionService", () => {
 
       service.reloadWorkflow(undefined, false, false);
 
-      expect(service.getFormBinding()).toEqual({ fields: [], resultOperatorIds: [] });
+      expect(service.getFormBinding()).toEqual({ fields: [] });
     });
 
     // A plain workflow must not stamp an empty formBinding into its content, or every existing
@@ -878,6 +878,16 @@ describe("WorkflowActionService", () => {
       service.reloadWorkflow(undefined, false, false);
 
       expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    it("should carry a definition whose only content is an empty result list", () => {
+      // "Show no results" is a real choice: fields and instruction stay empty and the list is [], so
+      // the definition must still be saved, or the choice would be lost on reload and every final step
+      // would show again.
+      service.reloadWorkflow(undefined, false, false);
+      service.setFormBinding({ fields: [], shownResultIds: [] });
+
+      expect(service.getWorkflowContent().formBinding).toEqual({ fields: [], shownResultIds: [] });
     });
 
     // Editing the form has to reach the same autosave that canvas edits use.
