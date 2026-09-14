@@ -85,8 +85,7 @@
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
             "buildTarget": "gui:build",
-            "proxyConfig": "proxy.config.json",
-            "allowedHosts": ["parabola-nibble-flatfoot.ngrok-free.dev"]
+            "proxyConfig": "proxy.config.json"
           },
           "configurations": {
             "production": {
