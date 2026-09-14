@@ -56,6 +56,9 @@ import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.c
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
+import { CanvasSelectionComponent } from "../canvas-selection/canvas-selection.component";
+import { OverboxDialogComponent } from "../overbox/overbox-dialog.component";
+import { OverboxInteractionComponent } from "../overbox/overbox-interaction.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -104,6 +107,8 @@ export const MAIN_CANVAS = {
     NgIf,
     AgentInteractionComponent,
     HeatmapLegendComponent,
+    CanvasSelectionComponent,
+    OverboxInteractionComponent,
   ],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -946,8 +951,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             .map(link => link.linkID);
           this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, ...linksToBeHighlighted);
         } else {
-          // else only highlight a single operator or group
-          if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+          const selectedElementIDs = [...highlightedOperatorIDs, ...highlightedCommentBoxIDs];
+          // Keep an existing multi-selection intact when a selected element starts a drag.
+          // Clicking an unselected element still replaces the selection as before.
+          if (selectedElementIDs.length > 1 && selectedElementIDs.includes(elementID)) {
+            this.wrapper.setMultiSelectMode(true);
+          } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.wrapper.highlightCommentBoxes(elementID);
@@ -1041,6 +1050,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private openCommentBox(commentBoxID: string): void {
     const commentBox = this.workflowActionService.getTexeraGraph().getSharedCommentBoxType(commentBoxID);
+    if (commentBox.has("overbox")) {
+      if (this.interactive)
+        this.nzModalService.create({
+          nzTitle: "Edit section box",
+          nzContent: OverboxDialogComponent,
+          nzData: { id: commentBoxID },
+          nzFooter: null,
+        });
+      return;
+    }
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",

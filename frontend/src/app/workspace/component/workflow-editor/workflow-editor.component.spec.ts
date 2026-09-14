@@ -1208,6 +1208,32 @@ describe("WorkflowEditorComponent", () => {
         document.dispatchEvent(new MouseEvent("mouseup"));
       });
 
+      it("preserves a multi-selection when dragging one of its selected operators", () => {
+        const wrapper = workflowActionService.getJointGraphWrapper();
+        workflowActionService.addOperatorsAndLinks(
+          [
+            { op: mockScanPredicate, pos: { x: 100, y: 100 } },
+            { op: mockResultPredicate, pos: { x: 300, y: 100 } },
+          ],
+          []
+        );
+        workflowActionService.highlightElements(true, mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+        const scanView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        const resultBefore = wrapper.getElementPosition(mockResultPredicate.operatorID);
+
+        (component.paper as any).trigger("cell:pointerdown", scanView, { shiftKey: false });
+        wrapper.setElementPosition(mockScanPredicate.operatorID, 40, 25);
+
+        expect(wrapper.getCurrentHighlightedOperatorIDs()).toEqual([
+          mockScanPredicate.operatorID,
+          mockResultPredicate.operatorID,
+        ]);
+        expect(wrapper.getElementPosition(mockResultPredicate.operatorID)).toEqual({
+          x: resultBefore.x + 40,
+          y: resultBefore.y + 25,
+        });
+      });
+
       it("opens the comment box modal on a comment box double-click", () => {
         const nzModalService = TestBed.inject(NzModalService);
         const createSpy = vi.spyOn(nzModalService, "create").mockReturnValue({ afterClose: of(undefined) } as any);

@@ -1,0 +1,61 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.snippet-library {
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 10px;
+  padding: 12px 4px 10px;
+}
+
+.snippet-empty {
+  color: #8c8c8c;
+  font-size: 12px;
+  margin: 0;
+}
+
+.snippet-card {
+  background: #f5f9ff;
+  border: 1px solid #91caff;
+  border-radius: 4px;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+.snippet-name {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #262626;
+  cursor: pointer;
+  flex: 1;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: #1677ff;
+  }
+}

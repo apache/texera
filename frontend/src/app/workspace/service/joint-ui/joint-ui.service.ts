@@ -18,6 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
+import { renderOverbox } from "../overbox/overbox-renderer";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
@@ -580,6 +581,14 @@ export class JointUIService {
   }
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
+    if (commentBox.overbox) {
+      const frame = new joint.shapes.standard.Rectangle({
+        id: commentBox.commentBoxID,
+        position: commentBox.commentBoxPosition,
+      });
+      renderOverbox(frame, commentBox);
+      return frame;
+    }
     const basic = new joint.shapes.standard.Rectangle();
     if (commentBox.commentBoxPosition) basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
     else basic.position(0, 0);
