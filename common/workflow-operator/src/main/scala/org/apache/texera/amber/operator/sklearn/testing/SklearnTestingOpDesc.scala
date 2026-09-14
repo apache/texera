@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.sklearn.SklearnFittableColumns
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -31,9 +31,15 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
-class SklearnTestingOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
+class SklearnTestingOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator
+    with SklearnFittableColumns {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
@@ -118,4 +124,36 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with SklearnFittable
             _.add(_, AttributeType.DOUBLE)
           )
     )
+
+  override def generateStandaloneCode(): String = {
+    val isRegressionStr = if (isRegression) "True" else "False"
+    val modelLit = pyStringLiteral(model)
+    val targetLit = pyStringLiteral(target)
+    s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
+       |
+       |model = in1df[$modelLit].iloc[0]
+       |out1df = in1df.copy()
+       |# The same drop the executor makes before it scores: the model arrives
+       |# already fitted, so this operator cannot ask which estimator it holds and
+       |# drops on every column to be safe. Scoring the rows it skips would answer
+       |# with a number the run never reported, or fail inside scikit-learn.
+       |rows_read = len(in2df)
+       |scored_df = in2df.dropna()
+       |if len(scored_df) < rows_read:
+       |    print("Skipped", rows_read - len(scored_df), "of", rows_read, "rows with missing values")
+       |Y = scored_df[$targetLit]
+       |X = scored_df.drop($targetLit, axis=1)
+       |${narrowToFittableColumns("X", "")}
+       |predictions = model.predict(X.squeeze())
+       |if $isRegressionStr:
+       |    out1df["R2"] = r2_score(Y, predictions)
+       |    out1df["RMSE"] = root_mean_squared_error(Y, predictions)
+       |    out1df["MAE"] = mean_absolute_error(Y, predictions)
+       |else:
+       |    out1df["accuracy"] = round(accuracy_score(Y, predictions), 4)
+       |    out1df["f1"] = f1_score(Y, predictions, average="weighted")
+       |    out1df["precision"] = precision_score(Y, predictions, average="weighted")
+       |    out1df["recall"] = recall_score(Y, predictions, average="weighted")""".stripMargin
+  }
+
 }

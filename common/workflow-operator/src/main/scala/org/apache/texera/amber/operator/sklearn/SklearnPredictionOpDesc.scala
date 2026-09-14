@@ -24,14 +24,15 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
+class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
   @JsonPropertyDescription("attribute corresponding to ML model")
   @AutofillAttributeName
@@ -98,5 +99,62 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, resultType)
     )
+  }
+
+  /** Python that narrows `X` to the columns the model was fitted on.
+    *
+    * The fitting side leaves out the columns an estimator cannot fit, so this
+    * side has to leave out the same ones or scikit-learn refuses the frame for
+    * naming features it never saw. Read off the model rather than re-derived:
+    * what it was fitted on is a fact it carries, and asking it cannot drift from
+    * whatever rule the fitting operator applied.
+    */
+  private val narrowToFittedFeatures: String =
+    """_fitted = getattr(model, "feature_names_in_", None)
+      |if _fitted is not None:
+      |    X = X[list(_fitted)]""".stripMargin
+
+  /** Python that predicts on the rows whose features are all present.
+    *
+    * The executor takes a row at a time and leaves the result empty where a
+    * feature is missing, so the row keeps its place. One call over the whole
+    * frame cannot do that: scikit-learn ends the run on the first missing value
+    * rather than leaving a gap. So predict on the complete rows and write those
+    * answers back where they came from. A frame with nothing missing is
+    * assigned in one piece, which keeps the type `predict` returned.
+    */
+  private def predictLeavingIncompleteRowsEmpty(resultLit: String, asText: Boolean): String = {
+    val predicted =
+      if (asText) "[str(_p) for _p in model.predict(X[_complete])]"
+      else "model.predict(X[_complete]).tolist()"
+    s"""_complete = X.notna().all(axis=1)
+       |_predicted = $predicted if _complete.any() else []
+       |if _complete.all():
+       |    out1df[$resultLit] = _predicted
+       |else:
+       |    out1df[$resultLit] = None
+       |    out1df.loc[_complete, $resultLit] = _predicted""".stripMargin
+  }
+
+  override def generateStandaloneCode(): String = {
+    val modelLit = pyStringLiteral(model)
+    val resultLit = pyStringLiteral(resultAttribute)
+    if (groundTruthAttribute.nonEmpty) {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |model = in1df[$modelLit].iloc[0]
+         |out1df = in2df.copy()
+         |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
+         |$narrowToFittedFeatures
+         |${predictLeavingIncompleteRowsEmpty(resultLit, asText = false)}""".stripMargin
+    } else {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |model = in1df[$modelLit].iloc[0]
+         |out1df = in2df.copy()
+         |X = in2df
+         |$narrowToFittedFeatures
+         |${predictLeavingIncompleteRowsEmpty(resultLit, asText = true)}""".stripMargin
+    }
   }
 }
