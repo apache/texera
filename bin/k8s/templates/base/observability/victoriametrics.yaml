@@ -1,0 +1,112 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.metrics.enabled }}
+# VictoriaMetrics: metrics store, k8s counterpart of the docker-compose
+# victoriametrics service. Accepts Prometheus remote-write from the
+# collector; MetricsQL query API on the same port.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-victoriametrics-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victoriametrics
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.observability.metrics.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.metrics.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-victoriametrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victoriametrics
+spec:
+  replicas: 1
+  # Single writer bound to one RWO volume; never run two at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-victoriametrics
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-victoriametrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10003
+        fsGroup: 10003
+      containers:
+        - name: victoriametrics
+          image: {{ .Values.observability.metrics.image }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          args:
+            - "-storageDataPath=/data"
+            - "-retentionPeriod={{ .Values.observability.metrics.retentionPeriod }}"
+            - "-httpListenAddr=:{{ .Values.observability.metrics.port }}"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.metrics.port }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.observability.metrics.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.metrics.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-victoriametrics-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-victoriametrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-victoriametrics
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-victoriametrics
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.observability.metrics.port }}
+      targetPort: {{ .Values.observability.metrics.port }}
+{{- end }}

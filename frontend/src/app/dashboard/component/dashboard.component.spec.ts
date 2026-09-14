@@ -292,9 +292,9 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs and Models) + 4 admin links + 1 about link
-    // + 1 feedback link = 13
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 5 admin links (incl. Observability)
+    // + 1 about link + 1 feedback link = 14
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(14);
   });
 
   describe("sidebar active-route highlighting (#3490)", () => {

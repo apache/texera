@@ -58,6 +58,8 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
       configuration: AccessControlServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("access-control-service")
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
