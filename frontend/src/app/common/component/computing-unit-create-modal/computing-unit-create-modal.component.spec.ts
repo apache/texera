@@ -21,6 +21,7 @@ import { ApplicationRef, DebugElement, getDebugNode, SimpleChange } from "@angul
 import { NgModel } from "@angular/forms";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { CuImage, CuImageService } from "../../../dashboard/service/admin/cu-image/cu-image.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
@@ -38,12 +39,27 @@ import { buildLocalComputingUnitUri, getJvmMemorySliderConfig } from "../../util
 describe("ComputingUnitCreateModalComponent", () => {
   let component: ComputingUnitCreateModalComponent;
   let fixture: ComponentFixture<ComputingUnitCreateModalComponent>;
+  const curatedImage = (over: Partial<CuImage> = {}): CuImage => ({
+    iid: 1,
+    name: "Python ML",
+    sourceRef: "owner/name:1",
+    sourceDigest: "sha256:abc",
+    status: "READY",
+    imageTag: "owner/name@sha256:abc",
+    attempt: 1,
+    creationTime: 0,
+    updateTime: 0,
+    ...over,
+  });
+  const mockCuImageService = { list: vi.fn() };
   let mockComputingUnitService: Mocked<WorkflowComputingUnitManagingService>;
   let mockNotificationService: Mocked<NotificationService>;
 
   const createdUnit = { computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit;
 
   beforeEach(async () => {
+    // No curated images by default, so the existing tests see today's behaviour.
+    mockCuImageService.list.mockReturnValue(of([]));
     mockComputingUnitService = {
       getComputingUnitTypes: vi.fn(),
       getComputingUnitLimitOptions: vi.fn(),
@@ -65,6 +81,7 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     await TestBed.configureTestingModule({
       providers: [
+        { provide: CuImageService, useValue: mockCuImageService },
         // The real NzModalService is required here: the declarative <nz-modal>
         // in this component's template delegates opening to NzModalService.create(),
         // so a stub breaks every test that renders the modal open.
@@ -79,6 +96,51 @@ describe("ComputingUnitCreateModalComponent", () => {
 
     fixture = TestBed.createComponent(ComputingUnitCreateModalComponent);
     component = fixture.componentInstance;
+  });
+
+  it("offers only ready images, and none when there are none", () => {
+    mockCuImageService.list.mockReturnValue(
+      of([curatedImage({ iid: 1 }), curatedImage({ iid: 2, name: "Still checking", status: "VALIDATING" })])
+    );
+    fixture.detectChanges();
+    // A unit cannot start from an image that has not passed its check.
+    expect(component.curatedImages.map(i => i.iid)).toEqual([1]);
+    // Nothing is preselected: the default is the deployment's own image.
+    expect(component.selectedImageId).toBe(component.DEPLOYMENT_IMAGE);
+  });
+
+  it("shows no images when the deployment has the feature switched off", () => {
+    // The API answers 503 there. The dropdown is hidden and nothing else changes.
+    mockCuImageService.list.mockReturnValue(throwError(() => new Error("503")));
+    fixture.detectChanges();
+    expect(component.curatedImages).toEqual([]);
+  });
+
+  it("sends the chosen image, and forgets it when the modal reopens", () => {
+    mockCuImageService.list.mockReturnValue(of([curatedImage({ iid: 7 })]));
+    mockComputingUnitService.getComputingUnitTypes.mockReturnValue(
+      of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
+    );
+    mockComputingUnitService.createKubernetesBasedComputingUnit.mockReturnValue(of(createdUnit));
+    fixture.detectChanges();
+
+    component.newComputingUnitName = "On a curated image";
+    component.selectedImageId = 7;
+    component.startComputingUnit();
+    expect(mockComputingUnitService.createKubernetesBasedComputingUnit).toHaveBeenCalledWith(
+      "On a curated image",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      7
+    );
+
+    // The image is chosen per unit, so the next one must not inherit it.
+    component.visible = true;
+    component.ngOnChanges({ visible: { currentValue: true } as never });
+    expect(component.selectedImageId).toBe(component.DEPLOYMENT_IMAGE);
   });
 
   it("should create", () => {
@@ -180,7 +242,9 @@ describe("ComputingUnitCreateModalComponent", () => {
       "4Gi",
       "0",
       "2G",
-      "128Mi"
+      "128Mi",
+      // No curated image chosen, so the unit runs the deployment's own.
+      undefined
     );
     expect(mockNotificationService.success).toHaveBeenCalledWith("Successfully created the new compute unit");
     expect(unitCreatedSpy).toHaveBeenCalledWith(createdUnit);

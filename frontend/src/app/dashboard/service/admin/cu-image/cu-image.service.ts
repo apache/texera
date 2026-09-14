@@ -51,6 +51,11 @@ export interface CuImageValidationLog {
   log: string;
 }
 
+/** Only a READY image can back a computing unit. */
+export function isStartable(image: CuImage): boolean {
+  return image.status === "READY";
+}
+
 /** Whether the list is worth polling. */
 export function isInProgress(image: CuImage): boolean {
   return image.status === "PENDING" || image.status === "VALIDATING";
