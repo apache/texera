@@ -128,9 +128,14 @@ object KubernetesClient {
       .endMetadata()
       .withNewSpec()
 
-    // Only add runtimeClassName when using NVIDIA GPU
-    if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
-      specBuilder.withRuntimeClassName("nvidia")
+    val runtimeClassOpt: Option[String] = if (gpuLimit != "0") {
+      sys.env.get("KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_GPU").filter(_.nonEmpty)
+    } else {
+      sys.env.get("KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_CPU").filter(_.nonEmpty)
+    }
+
+    runtimeClassOpt.foreach { runtimeClass =>
+      specBuilder.withRuntimeClassName(runtimeClass)
     }
 
     val containerBuilder = specBuilder
