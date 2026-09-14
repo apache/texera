@@ -67,12 +67,18 @@ class VisualizationHtmlComparatorSpec extends AnyFlatSpec with Matchers {
     noException should be thrownBy VisualizationHtmlComparator.assertEqual(actual, expected)
   }
 
-  // A Styler does not escape a cell, so a value can read exactly like a uuid.
-  it should "still reject two sides whose cell text only looks like a Styler uuid" in {
-    val actual = writeActual("cell-uuid-actual.jsonl", styledCell("T_a1b2c3", "T_dead"))
-    val expected = writeExpected("cell-uuid-expected.html", styledCell("T_a1b2c3", "T_beef"))
-    a[VisualizationHtmlMismatchException] should be thrownBy VisualizationHtmlComparator
-      .assertEqual(actual, expected)
+  // A Styler does not escape a cell, so a value can read exactly like a uuid,
+  // `#` and all. What the table says is compared wherever it lands.
+  Seq("T_dead" -> "T_beef", "#T_dead" -> "#T_beef").foreach {
+    case (oneValue, otherValue) =>
+      it should s"still reject two sides whose cell reads $oneValue against $otherValue" in {
+        val name = oneValue.filter(_.isLetterOrDigit)
+        val actual = writeActual(s"cell-$name-actual.jsonl", styledCell("T_a1b2c3", oneValue))
+        val expected =
+          writeExpected(s"cell-$name-expected.html", styledCell("T_a1b2c3", otherValue))
+        a[VisualizationHtmlMismatchException] should be thrownBy VisualizationHtmlComparator
+          .assertEqual(actual, expected)
+      }
   }
 
   it should "still reject markup that differs in more than its line endings" in {

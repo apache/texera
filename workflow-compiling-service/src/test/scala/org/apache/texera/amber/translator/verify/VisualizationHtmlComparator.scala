@@ -23,6 +23,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import scala.util.matching.Regex
 
 object VisualizationHtmlComparator {
 
@@ -30,11 +31,19 @@ object VisualizationHtmlComparator {
     * the same table rendered twice differs in every `id=` and every selector even
     * though the markup is identical. The uuid carries no information about the
     * table, it only keeps two tables on one page from colliding, so it is
-    * normalized away before comparing. The rewrite reaches only the `id` attribute
-    * and the `#` selector, and keeps the `_row0_col0` suffix, so a real difference
-    * in a cell still fails.
+    * normalized away before comparing.
+    *
+    * It is normalized only where the markup uses it, never in what the table
+    * says. A Styler writes it in the `#` selectors inside its `<style>` element
+    * and in the `id` attribute of the table and its cells, so the rewrite visits
+    * those two places and leaves text content alone. A cell reading `#T_dead` is
+    * the table's own value and still has to match the other side, and the
+    * `_row0_col0` suffix stays, so a real difference still fails.
     */
-  private val StylerUuid = """(?<=#|id=")T_[0-9a-f]+""".r
+  private val StyleElement = "(?s)<style\\b.*?</style>".r
+  private val Tag = "<[^>]*>".r
+  private val SelectorUuid = "(?<=#)T_[0-9a-f]+".r
+  private val IdUuid = """(?<=id=")T_[0-9a-f]+""".r
 
   /** The standalone script writes its page with Python's text mode, which on Windows
     * turns every newline into CRLF, while the runtime path carries the same markup
@@ -43,8 +52,15 @@ object VisualizationHtmlComparator {
     */
   private val LineEnding = "\r\n|\r".r
 
-  private def normalize(html: String): String =
-    StylerUuid.replaceAllIn(LineEnding.replaceAllIn(html, "\n"), "T_uuid")
+  private def normalize(html: String): String = {
+    val page = LineEnding.replaceAllIn(html, "\n")
+    val styled = StyleElement.replaceAllIn(page, within(SelectorUuid))
+    Tag.replaceAllIn(styled, within(IdUuid))
+  }
+
+  /** The same page with `uuid` normalized inside the region that matched. */
+  private def within(uuid: Regex): Regex.Match => String =
+    region => Regex.quoteReplacement(uuid.replaceAllIn(region.matched, "T_uuid"))
 
   def assertEqual(actualVisualizationJsonl: Path, expectedHtmlFile: Path): Unit = {
     val actual = readActualHtml(actualVisualizationJsonl)
