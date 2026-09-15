@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.visualization.filledAreaPlot
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -30,6 +31,7 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
@@ -369,5 +371,29 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     fp.color shouldBe "c"
     fp.facetColumn shouldBe true
     fp.pattern shouldBe "p"
+  }
+
+  // The assertion tested above is the last line of defence, reached only once the
+  // user has hit run. The schema is what refuses the configuration while it is
+  // still being written, and only under the switch: with it off nothing reads the
+  // field, so a freshly dropped operator is not flagged for it.
+  "FilledAreaPlotOpDesc JSON schema" should
+    "require the line group only when the plot is split by it" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[FilledAreaPlotOpDesc])
+
+    val baseRequired = schema.get("required").elements().asScala.map(_.asText()).toSet
+    baseRequired should contain("x")
+    baseRequired should not contain "lineGroup"
+
+    val rule = schema
+      .get("allOf")
+      .elements()
+      .asScala
+      .find(node => node.has("if") && node.has("then"))
+      .getOrElse(fail("expected a conditional if/then rule in the FilledAreaPlot schema"))
+    rule.get("if").get("properties").get("facetColumn").get("const").asBoolean() shouldBe true
+    val thenRequired = rule.get("then").get("required").elements().asScala.map(_.asText()).toList
+    thenRequired should contain("lineGroup")
   }
 }
