@@ -30,6 +30,8 @@ on:
       - labeled
       - unlabeled
   merge_group:
+  # Also dispatched by direct-backport-push.yml after its GITHUB_TOKEN push
+  # to a release branch, which starts no push-triggered runs.
   workflow_dispatch:
 
 permissions:

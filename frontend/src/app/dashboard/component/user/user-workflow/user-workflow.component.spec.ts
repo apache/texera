@@ -745,10 +745,25 @@ describe("SavedWorkflowSectionComponent", () => {
         const result = await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
         expect(result).toBe(false);
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf");
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf", undefined);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toContain("wf");
         expect(searchSpy).toHaveBeenCalledWith(true);
         expect(successSpy).toHaveBeenCalledWith("Upload Successful");
+      });
+
+      it("restores a form-default workflow's landing view, keeping it out of the content", async () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(43, "form-wf")));
+        vi.spyOn(component, "search").mockResolvedValue(undefined);
+        vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => undefined as any);
+        const content = testWorkflowContent([]);
+        const file = new File([JSON.stringify({ ...content, defaultView: "FORM" })], "form-wf.json");
+        setEntries([]);
+
+        await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
+
+        // defaultView is pulled out and passed on its own; the content stored is unchanged.
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "form-wf", "FORM");
       });
 
       it("toasts an error and errors the stream when the file is not JSON", async () => {
@@ -773,7 +788,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME);
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME, undefined);
       });
 
       it("imports every workflow file inside an uploaded .zip", async () => {
@@ -987,6 +1002,19 @@ describe("SavedWorkflowSectionComponent", () => {
           expect(entries[0].accessibleUserIds).toEqual([1]);
         });
 
+        it("asks for the copy's size, which the duplicate response does not carry", async () => {
+          const persist = TestBed.inject(WorkflowPersistService) as any;
+          persist.duplicateWorkflow = vi.fn().mockReturnValue(of([makeDashboardWorkflow(201, "dup")]));
+          persist.getSizes = vi.fn().mockReturnValue(of({ 201: 4096 }));
+          setEntries([]);
+
+          await component.onClickDuplicateWorkflow(makeEntry(5, "orig"));
+
+          expect(persist.getSizes).toHaveBeenCalledWith([201]);
+          // Without this the row would claim 0 B next to correctly-sized siblings.
+          expect(component.searchResultsComponent.entries[0].size).toBe(4096);
+        });
+
         it("skips the user-info lookup and access grant when there is no owner or current user", async () => {
           const persist = TestBed.inject(WorkflowPersistService) as any;
           persist.duplicateWorkflow = vi
@@ -1092,7 +1120,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
           await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext");
+          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext", undefined);
         });
 
         it("errors the upload stream and does not toast success when createWorkflow fails", async () => {
