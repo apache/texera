@@ -34,6 +34,7 @@ import { DatasetVersionSelectorComponent } from "../../workspace/component/datas
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
 import { HuggingFaceComponent } from "../../workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "../../workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -77,7 +78,7 @@ export const TEXERA_FORMLY_CONFIG = {
       },
     },
     { name: "boolean", extends: "checkbox" },
-    { name: "enum", extends: "select" },
+    { name: "enum", extends: "select", component: SearchableSelectTypeComponent },
     { name: "null", component: NullTypeComponent, wrappers: ["form-field"] },
     { name: "array", component: ArrayTypeComponent },
     { name: "object", component: ObjectTypeComponent },
