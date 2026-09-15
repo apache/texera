@@ -46,6 +46,7 @@ import { USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { EntityType } from "./hub/service/hub.service";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
+import { AdminCuImageComponent } from "./dashboard/component/admin/cu-image/admin-cu-image.component";
 import { OrcidCallbackComponent } from "./hub/component/login/orcid-callback.component";
 
 const routes: Routes = [];
@@ -207,6 +208,10 @@ routes.push({
         {
           path: "settings",
           component: AdminSettingsComponent,
+        },
+        {
+          path: "cu-image",
+          component: AdminCuImageComponent,
         },
       ],
     },
