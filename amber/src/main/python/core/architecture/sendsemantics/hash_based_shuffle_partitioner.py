@@ -50,7 +50,7 @@ class HashBasedShufflePartitioner(Partitioner):
             if not self.hash_attribute_names
             else tuple_.get_partial_tuple(self.hash_attribute_names)
         )
-        hash_code = hash(partial_tuple) % len(self.receivers)
+        hash_code = partial_tuple.__hash__() % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
         if len(batch) == self.batch_size:
