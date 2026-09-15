@@ -768,10 +768,11 @@ export class WorkflowActionService {
     this.formBinding = formBinding ?? getDefaultFormBinding();
   }
 
-  /** A form binding worth persisting: an author populated it (fields, results, or an
-   *  instruction), as opposed to the empty default a plain workflow carries. */
+  /** A form binding worth persisting: an author populated it (fields, a chosen result list -- an
+   *  empty one included, it means "none" -- or an instruction), as opposed to the empty default a
+   *  plain workflow carries. */
   private isFormBindingNonEmpty(fb: FormBindingConfig): boolean {
-    return fb.fields.length > 0 || fb.resultOperatorIds.length > 0 || fb.instruction !== undefined;
+    return fb.fields.length > 0 || fb.shownResultIds !== undefined || fb.instruction !== undefined;
   }
 
   /**

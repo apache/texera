@@ -22,7 +22,7 @@ texera:
   imageTag: 1.4.0-incubating-SNAPSHOT
 
 global:
-  # Required by Bitnami sub-charts (postgresql, minio) to allow custom images
+  # Required by the Bitnami postgresql sub-chart to allow custom images
   security:
     allowInsecureImages: true
 
@@ -34,10 +34,10 @@ global:
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
   removeAfterUninstall: true
-  minioHostLocalPath: ""
+  rustfsHostLocalPath: ""
   postgresqlHostLocalPath: ""
 
-# Part 1: the configuration of Postgres, Minio and LakeFS
+# Part 1: the configuration of Postgres, RustFS and LakeFS
 postgresql:
   image:
     repository: groonga/pgroonga
@@ -66,47 +66,74 @@ postgresql:
       scriptsConfigMap: "postgresql-init-script"
 
 # Object storage (S3) used by the Texera services. Leave storage.s3.endpoint
-# empty to use the in-cluster MinIO (the `minio:` block below). Set it to an
+# empty to use the in-cluster RustFS (the `rustfs:` block below). Set it to an
 # S3-compatible endpoint URL -- together with region and credentials -- to
 # point the services at an external store (e.g. AWS S3) instead.
 storage:
   s3:
-    endpoint: ""            # "" => in-cluster MinIO; otherwise an S3 endpoint URL
+    endpoint: ""            # "" => in-cluster RustFS; otherwise an S3 endpoint URL
     region: "us-west-2"
     existingSecret: ""      # existing Secret with access-key-id / secret-access-key; "" => chart creates one
     accessKeyId: ""
     secretAccessKey: ""
 
-minio:
-  # Set to false to disable the in-cluster MinIO and point the services at an
+rustfs:
+  # Set to false to disable the in-cluster RustFS and point the services at an
   # external S3 store instead (configure storage.s3 above and the lakefs/
   # lakekeeperInit blocks below). See values-aws.yaml for a complete example.
   enabled: true
-  mode: standalone
+  # Single-node object store, matching the previous standalone MinIO. The
+  # upstream chart defaults to a 4-replica distributed cluster; Texera's
+  # in-cluster store is a convenience for single-node installs, so keep it to
+  # one pod and one drive.
+  replicaCount: 1
+  drivesPerNode: 1
+  mode:
+    standalone:
+      enabled: true
+      existingClaim:
+        dataClaim: "rustfs-data-pvc"
+    distributed:
+      enabled: false
   image:
-    repository: bitnamilegacy/minio
-    tag: 2025.3.12-debian-12-r0
+    rustfs:
+      repository: rustfs/rustfs
+      tag: 1.0.0-rc.6
+  # Texera fronts the object store with Envoy Gateway (the `gateway` block
+  # below), not with an Ingress -- the upstream chart turns one on by default.
+  ingress:
+    enabled: false
   gateway:
     enabled: false
-    hostname: "" # the url for the minio, e.g. "minio.example.com"
-    tlsSecretName: "" # e.g. "minio-tls-secret"
-  auth:
-    rootUser: texera_minio
-    rootPassword: password
+    hostname: "" # the url for the object store, e.g. "rustfs.example.com"
+    tlsSecretName: "" # e.g. "rustfs-tls-secret"
+  secret:
+    rustfs:
+      access_key: texera_rustfs
+      secret_key: password
+  config:
+    rustfs:
+      # Must match storage.s3.region: the region is part of the SigV4 scope.
+      region: us-west-2
+      # Empty => log to stdout (`kubectl logs`) instead of a log PVC.
+      obs_log_directory: ""
+      log_level: warn
   service:
-    # In production, use ClusterIP to avoid exposing the minio to the internet
+    # In production, use ClusterIP to avoid exposing the object store to the internet
     # type: ClusterIP
     type: NodePort
-    nodePorts:
-      api: 31000
+    endpoint:
+      nodePort: 31000
+  # The chart's own PVC template is unused here: Texera provisions the claim
+  # itself (templates/on-prem/rustfs-persistence.yaml) so that the local-path
+  # host directory stays under persistence.rustfsHostLocalPath.
   persistence:
     enabled: true
     size: 20Gi
     storageClass: local-path
-    existingClaim: "minio-data-pvc"
 
 lakefs:
-  # The blockstore below points LakeFS at the in-cluster MinIO. To use an
+  # The blockstore below points LakeFS at the in-cluster RustFS. To use an
   # external S3 store, override lakefsConfig (region-only blockstore) and inject
   # the S3 credentials via extraEnvVars -- see values-aws.yaml for an example.
   secrets:
@@ -124,12 +151,12 @@ lakefs:
     blockstore:
       type: s3
       s3:
-        endpoint: http://texera-minio:9000
+        endpoint: http://texera-rustfs-svc:9000
         pre_signed_expiry: 15m
         pre_signed_endpoint: http://localhost:31000
         force_path_style: true
         credentials:
-          access_key_id: texera_minio
+          access_key_id: texera_rustfs
           secret_access_key: password
 
 lakekeeper:
@@ -156,10 +183,14 @@ lakekeeper:
 
 lakekeeperInit:
   enabled: true
-  # Create the object-store bucket from the init job (true for in-cluster MinIO).
+  # Create the object-store bucket from the init job (true for in-cluster RustFS).
   # Set false when pointing at a pre-existing external bucket (e.g. AWS S3) whose
   # IAM principal can't CreateBucket.
   createBucket: true
+  # S3 client image used by the create-bucket init container. `rc` is RustFS's
+  # client; any image whose entrypoint is an `mc`-style client with
+  # `alias set` / `bucket create` would do.
+  bucketClientImage: rustfs/rc:v0.1.35
   defaultProject:
     id: "00000000-0000-0000-0000-000000000000"
     name: default
@@ -167,7 +198,7 @@ lakekeeperInit:
     name: texera
     region: us-west-2
     s3Bucket: texera-iceberg
-    # Lakekeeper S3 storage-profile flavor: "s3-compat" (MinIO/other; adds
+    # Lakekeeper S3 storage-profile flavor: "s3-compat" (RustFS/other; adds
     # endpoint + path-style-access) or "aws" (real AWS S3; omits both).
     flavor: s3-compat
     # Object-key prefix for this warehouse. Must stay non-empty: a warehouse at the
