@@ -213,6 +213,7 @@ lazy val FileService = (project in file("file-service"))
   .dependsOn(WorkflowCore, Auth, Config, Resource, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
+  .dependsOn(WorkflowCore % "test->test") // reuse RustFSContainer in MockLakeFS
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -220,7 +221,7 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     ) ++ nettyDependencyOverrides,
-    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    // Each testcontainers-based suite starts its own LakeFS/RustFS/Postgres stack
     // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
     // so every suite gets its own forked JVM; sbt runs forked groups one at a
     // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
