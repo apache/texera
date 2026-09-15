@@ -28,9 +28,17 @@ import {
   Point,
 } from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
+import { FormBindingConfig, WorkflowSettings } from "../../../../common/type/workflow";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
+
+/**
+ * The values `contentMetaMap` holds: the non-graph pieces of a workflow's content that sync in
+ * the shared doc. Keyed "settings" (WorkflowSettings) and "formBinding" (the Form View
+ * definition); the union keeps the map off `unknown` and rejects unrelated values.
+ */
+export type ContentMetaValue = WorkflowSettings | FormBindingConfig;
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -45,6 +53,11 @@ export class SharedModel {
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
   public debugState: Y.Map<Y.Map<BreakpointInfo>>;
+  // Non-graph workflow content that used to live as a per-client private field and so was
+  // silently overwritten by another editor's whole-content autosave (workflowSettings, and
+  // the Form View definition). Kept in the shared doc, keyed "settings"/"formBinding", so it
+  // syncs live like the graph and every autosave writes the current value, not a stale copy.
+  public contentMetaMap: Y.Map<ContentMetaValue>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -68,6 +81,7 @@ export class SharedModel {
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
     this.elementPositionMap = this.yDoc.getMap("elementPositionMap");
+    this.contentMetaMap = this.yDoc.getMap("contentMeta");
 
     // Initialize Y-undo manager by aggregating intended  Y-structures. Only structures included here will be undoable.
     this.undoManager = new Y.UndoManager(
