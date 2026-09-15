@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.hashJoin
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
@@ -26,6 +27,12 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -75,6 +82,77 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     out(d.operatorInfo.outputPorts.head.id).getAttributeNames shouldBe List("a", "k", "k#@1")
   }
 
+  "HashJoinOpDesc.generateStandaloneCode" should
+    "drop the probe key under the name the merge left it with" in {
+    val d = new HashJoinOpDesc[String]
+    d.buildAttributeName = "id"
+    d.probeAttributeName = "key"
+    // "key" is only suffixed when the left frame has a column of that name, and
+    // the frame is not known until the script runs, so the choice is in Python.
+    d.generateStandaloneCode() should include(
+      """drop(columns=["key#@1" if "key" in in1df.columns else "key"])"""
+    )
+  }
+
+  it should "keep the shared key when both sides name it the same" in {
+    val d = new HashJoinOpDesc[String]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "k"
+    d.generateStandaloneCode() should not include "drop(columns="
+  }
+
+  /** The bug this pins: with a left `key` payload and a right `key` join column,
+    * dropping the bare `key` took the payload and kept the right key. Run the
+    * generated pandas and hold its columns against the schema the operator
+    * itself promises for the same two inputs.
+    */
+  it should "return the columns getExternalOutputSchemas promises" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("id", AttributeType.INTEGER))
+      .add(new Attribute("key", AttributeType.STRING))
+    val right = Schema()
+      .add(new Attribute("key", AttributeType.INTEGER))
+      .add(new Attribute("value", AttributeType.INTEGER))
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "id"
+    d.probeAttributeName = "key"
+    val promised = d
+      .getExternalOutputSchemas(Map(PortIdentity() -> left, PortIdentity(1) -> right))(
+        d.operatorInfo.outputPorts.head.id
+      )
+      .getAttributeNames
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"id": [1], "key": ["payload"]})
+         |in2df = pd.DataFrame({"key": [1], "value": [9]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |print(",".join(map(str, out1df.iloc[0].tolist())))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-columns-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head.split(",").toList shouldBe promised
+      // The payload the drop used to take, not the right key it used to keep.
+      lines(1) shouldBe "1,payload,9"
+    }
+  }
+
   "HashJoinOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new HashJoinOpDesc[String]
     d.buildAttributeName = "lk"
@@ -89,4 +167,33 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     r.probeAttributeName shouldBe "rk"
     r.joinType shouldBe JoinType.LEFT_OUTER
   }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }
