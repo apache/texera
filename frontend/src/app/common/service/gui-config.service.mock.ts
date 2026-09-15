@@ -34,6 +34,7 @@ export class MockGuiConfigService {
     localLogin: true,
     googleLogin: true,
     orcidLogin: true,
+    appleLogin: true,
     inviteOnly: false,
     emailVerification: false,
     userPresetEnabled: true,

@@ -81,6 +81,7 @@
 #user-buttons,
 #execution-buttons,
 nz-button-group,
+nz-upload,
 texera-computing-unit-selection {
   display: inline-flex;
   align-items: center;
@@ -214,4 +215,65 @@ texera-coeditor-user-icon {
   height: 1.1em;
   width: auto;
   vertical-align: -0.2em;
+}
+
+/* One workflow, two ways of working on it. Rendered identically in the operator canvas
+   and the Form View, in the same slot of the same title row, so the control
+   never moves when the view does -- that stillness is what makes the two read as two
+   views of one thing rather than two pages.
+
+   Deliberately quiet: the indicator is a rule sitting on the row's own bottom border,
+   not a filled button. This is secondary navigation and it shares a screen with Run,
+   which is the one thing here that should be solid blue. The current view is inert --
+   clicking the view you are already in should do nothing. */
+.view-switch {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: stretch;
+  flex: none;
+  gap: 20px;
+  margin-right: 20px;
+
+  button {
+    appearance: none;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.45);
+    padding: 0;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: color 0.15s;
+
+    /* Sits on the row's bottom rule, so the two read as tabs of the row rather than
+       as a widget dropped into it. */
+    &::after {
+      content: "";
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      bottom: -1px;
+      height: 2px;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    &:hover:not(.on) {
+      color: rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  button.on {
+    color: rgba(0, 0, 0, 0.85);
+    font-weight: 500;
+    cursor: default;
+
+    &::after {
+      background: #1890ff;
+    }
+  }
 }
