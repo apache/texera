@@ -6,9 +6,9 @@
   "type": "module",
   "dependencies": {
     "express": "5.2.1",
-    "pyright": "1.1.413",
+    "pyright": "1.1.414",
     "typescript": "6.0.3",
-    "vscode-languageserver": "10.1.0",
+    "vscode-languageserver": "10.1.1",
     "vscode-ws-jsonrpc": "3.5.0",
     "ws": "8.21.3"
   },
