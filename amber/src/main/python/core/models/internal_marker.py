@@ -16,6 +16,9 @@
 # under the License.
 
 
+from dataclasses import dataclass
+
+
 class InternalMarker:
     """
     A special Data Message, only being generated in un-packaging a batch into Tuples.
@@ -25,9 +28,24 @@ class InternalMarker:
     pass
 
 
-class StartChannel(InternalMarker):
-    pass
+@dataclass(frozen=True)
+class PortMarker(InternalMarker):
+    """A control marker bound to the input port that produced it."""
+
+    port_id: int
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.port_id, int)
+            or isinstance(self.port_id, bool)
+            or self.port_id < 0
+        ):
+            raise ValueError("marker port_id must be a nonnegative integer")
 
 
-class EndChannel(InternalMarker):
-    pass
+class StartChannel(PortMarker):
+    """Start-of-channel marker with immutable input-port provenance."""
+
+
+class EndChannel(PortMarker):
+    """End-of-channel marker with immutable input-port provenance."""
