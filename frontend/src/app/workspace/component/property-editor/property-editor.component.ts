@@ -235,15 +235,16 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     // The Form View's read-only copy (persistPlacement=false) must not persist geometry: it is not
     // the docked canvas panel, so writing these keys would overwrite the real panel's saved size.
-    if (!this.persistPlacement) {
-      return;
-    }
-    localStorage.setItem("right-panel-width", String(this.width));
-    localStorage.setItem("right-panel-height", String(this.height));
+    // Guarding the block rather than returning early keeps any teardown added below it running for
+    // both mounts.
+    if (this.persistPlacement) {
+      localStorage.setItem("right-panel-width", String(this.width));
+      localStorage.setItem("right-panel-height", String(this.height));
 
-    const rightContainer = document.getElementById("right-container");
-    if (rightContainer) {
-      localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+      const rightContainer = document.getElementById("right-container");
+      if (rightContainer) {
+        localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+      }
     }
   }
 

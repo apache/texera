@@ -38,6 +38,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     // ORCID ships off: it needs credentials only an operator can supply, and with the button on
     // and nothing configured /auth/orcid/config reports it unavailable on every visit.
     ifUnset("GUI_LOGIN_ORCID_LOGIN")(GuiConfig.guiLoginOrcidLogin shouldBe false)
+    // Apple ships off too: it needs a Services ID only an operator can supply, and Apple rejects
+    // an unregistered or non-HTTPS redirect, so a local checkout cannot complete the flow.
+    ifUnset("GUI_LOGIN_APPLE_LOGIN")(GuiConfig.guiLoginAppleLogin shouldBe false)
     ifUnset("GUI_WORKFLOW_WORKSPACE_USER_PRESET_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceUserPresetEnabled shouldBe false
     )

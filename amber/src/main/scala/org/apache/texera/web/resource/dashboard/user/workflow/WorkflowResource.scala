@@ -489,10 +489,13 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * Persists a plain save by updating only the fields the client sends
-    * (name/description/content/is_public). It deliberately leaves `default_view` untouched --
-    * that column is owned by /set-default-view alone -- so a save can never clobber a
-    * concurrent change. Timestamps are likewise not rewritten here.
+    * Persists a plain save by updating only what a save is: name, description and content.
+    * `is_public` is not written here. Publishing has its own endpoints (/public, /private), and
+    * a save payload does not reliably carry the flag: the frontend feeds the saved row straight
+    * back as its metadata, where the flag has another name, so the very next autosave arrives
+    * without it. Writing that null violated the column's NOT NULL constraint and every second
+    * save failed with 500. `default_view` is likewise owned by /set-default-view alone, and the
+    * timestamps are not rewritten here, so a save can never clobber a concurrent change to either.
     */
   private def saveWorkflowFields(workflow: Workflow): Unit = {
     context
@@ -500,7 +503,6 @@ class WorkflowResource extends LazyLogging {
       .set(WORKFLOW.NAME, workflow.getName)
       .set(WORKFLOW.DESCRIPTION, workflow.getDescription)
       .set(WORKFLOW.CONTENT, workflow.getContent)
-      .set(WORKFLOW.IS_PUBLIC, workflow.getIsPublic)
       .where(WORKFLOW.WID.eq(workflow.getWid))
       .execute()
   }
