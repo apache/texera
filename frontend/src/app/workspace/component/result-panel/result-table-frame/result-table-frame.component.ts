@@ -463,6 +463,16 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }));
   }
 
+  /**
+   * Result export is a deployment switch (`export-execution-result-enabled`). The top menu and
+   * the context menu already honour it; the per-cell download button did not -- it rendered
+   * regardless, and clicking it returned silently from the export service with no request and
+   * no message. Disable it here so the reader sees why nothing happens.
+   */
+  get exportEnabled(): boolean {
+    return this.guiConfigService.env.exportExecutionResultEnabled === true;
+  }
+
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
     const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
     const defaultFileName = `${columnName}_${realRowNumber}`;

@@ -198,7 +198,8 @@
               nz-button
               nzType="link"
               class="download-button"
-              title="Download data">
+              [disabled]="!exportEnabled"
+              [title]="exportEnabled ? 'Download data' : 'Result export is disabled on this deployment'">
               <i
                 nz-icon
                 nzType="cloud-download"></i>
