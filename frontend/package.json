@@ -131,7 +131,7 @@
     "sass": "1.71.1",
     "ts-proto": "2.2.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "browserslist": [
     "defaults",
