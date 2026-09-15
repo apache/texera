@@ -88,7 +88,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
     val startOffset = offset.getOrElse(0)
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + inferSampleSize
     reader
       .lines()
       .iterator()

@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeTypeUtils, TupleLike}
 import org.apache.texera.amber.operator.source.BufferedBlockReader
+import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.tukaani.xz.SeekableFileInputStream
 
@@ -40,13 +41,17 @@ class ParallelCSVScanSourceOpExec private[csv] (
     objectMapper.readValue(descString, classOf[ParallelCSVScanSourceOpDesc])
   private var reader: BufferedBlockReader = _
   private val schema = desc.sourceSchema()
+  private val skippedRows = new SkippedRowReporter()
+
+  override def getWarnings: Seq[String] = skippedRows.warnings
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
       override def hasNext: Boolean = reader.hasNext
 
       override def next(): TupleLike = {
-
+        // hoisted so the catch block can report the raw values of a failing row
+        var fields: Array[AnyRef] = null
         try {
           // obtain String representation of each field
           // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
@@ -54,7 +59,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           if (line == null) {
             return null
           }
-          var fields: Array[AnyRef] = line.toArray
+          fields = line.toArray
 
           if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
             // discard tuple if it's null or it only contains null
@@ -81,7 +86,22 @@ class ParallelCSVScanSourceOpExec private[csv] (
           )
           TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
         } catch {
-          case _: Throwable => null
+          case e: Throwable =>
+            // Skip the unparsable row but surface it as a warning instead of
+            // dropping it silently. The legitimate silent skips above (exhausted
+            // block, all-null/blank line) return early and never reach here.
+            // rowNumber is None: this scan is byte-partitioned across workers, so a
+            // per-worker row count would not match the file's actual line numbers.
+            skippedRows.record(
+              ScanRowParseError.skipWarning(
+                Option(fields).map(_.toSeq).getOrElse(Seq.empty),
+                schema,
+                desc.inferSampleSize,
+                None,
+                e
+              )
+            )
+            null
         }
       }
 
