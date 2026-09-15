@@ -27,9 +27,15 @@ import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./perform
   providedIn: "root",
 })
 export class WorkflowStatusService {
-  // status is responsible for passing websocket responses to other components
-  private statusSubject = new Subject<Record<string, OperatorStatistics>>();
-  private currentStatus: Record<string, OperatorStatistics> = {};
+  // The engine streams operator state and operator statistics bundled in one
+  // wire object (OperatorRuntimeStatus); this service splits them into two
+  // separate sub-concepts, each with its own stream and snapshot. Derived
+  // performance metrics are the third, separate concept.
+  private stateSubject = new Subject<Record<string, OperatorState>>();
+  private currentState: Record<string, OperatorState> = {};
+
+  private statisticsSubject = new Subject<Record<string, OperatorStatistics>>();
+  private currentStatistics: Record<string, OperatorStatistics> = {};
 
   // Derived, ground-truth performance metrics for the heat-map overlay. Backed by
   // a BehaviorSubject so a consumer that subscribes after a run already streamed
@@ -37,27 +43,57 @@ export class WorkflowStatusService {
   private performanceMetricsSubject = new BehaviorSubject<Record<string, OperatorPerformanceMetrics>>({});
 
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
-    // Single derivation path: every status emission (websocket, reset, clear, or
-    // externally fed historical stats) recomputes the performance metrics.
-    this.getStatusUpdateStream().subscribe(status => {
-      this.currentStatus = status;
-      this.performanceMetricsSubject.next(this.buildPerformanceMetrics(status));
+    this.getStateUpdateStream().subscribe(state => {
+      this.currentState = state;
     });
 
+    // Single derivation path: every statistics emission (websocket, reset, or
+    // clear) recomputes the performance metrics.
+    this.getStatisticsUpdateStream().subscribe(statistics => {
+      this.currentStatistics = statistics;
+      this.performanceMetricsSubject.next(this.buildPerformanceMetrics(statistics));
+    });
+
+    // Each wire event produces exactly one emission on each stream, state
+    // first and statistics second (resetStatus/clearStatus follow the same
+    // order). The guarantee is one-directional: a statistics subscriber may
+    // read getCurrentState() and see the matching snapshot, but a state
+    // subscriber reading getCurrentStatistics() sees the previous emission.
+    // Pinned by the "emits state before statistics" spec.
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
-      this.statusSubject.next(event.operatorStatistics);
+      const state: Record<string, OperatorState> = {};
+      const statistics: Record<string, OperatorStatistics> = {};
+      for (const [operatorId, update] of Object.entries(event.operatorStatistics)) {
+        const { operatorState, ...statisticsOnly } = update;
+        state[operatorId] = operatorState;
+        statistics[operatorId] = statisticsOnly;
+      }
+      this.stateSubject.next(state);
+      this.statisticsSubject.next(statistics);
     });
   }
 
-  public getStatusUpdateStream(): Observable<Record<string, OperatorStatistics>> {
-    return this.statusSubject.asObservable();
+  /** Stream of per-operator execution states, keyed by operator id. */
+  public getStateUpdateStream(): Observable<Record<string, OperatorState>> {
+    return this.stateSubject.asObservable();
   }
 
-  public getCurrentStatus(): Record<string, OperatorStatistics> {
-    return this.currentStatus;
+  /** Synchronous snapshot of the latest per-operator execution states. */
+  public getCurrentState(): Record<string, OperatorState> {
+    return this.currentState;
+  }
+
+  /** Stream of per-operator statistics (row counts, sizes, timing), keyed by operator id. */
+  public getStatisticsUpdateStream(): Observable<Record<string, OperatorStatistics>> {
+    return this.statisticsSubject.asObservable();
+  }
+
+  /** Synchronous snapshot of the latest per-operator statistics. */
+  public getCurrentStatistics(): Record<string, OperatorStatistics> {
+    return this.currentStatistics;
   }
 
   /** Stream of derived per-operator performance metrics, keyed by operator id. */
@@ -71,34 +107,35 @@ export class WorkflowStatusService {
   }
 
   private buildPerformanceMetrics(
-    status: Record<string, OperatorStatistics>
+    statistics: Record<string, OperatorStatistics>
   ): Record<string, OperatorPerformanceMetrics> {
     const metrics: Record<string, OperatorPerformanceMetrics> = {};
-    for (const operatorId of Object.keys(status)) {
-      metrics[operatorId] = extractPerformanceMetrics(status[operatorId]);
+    for (const operatorId of Object.keys(statistics)) {
+      metrics[operatorId] = extractPerformanceMetrics(statistics[operatorId]);
     }
     return metrics;
   }
 
   public resetStatus(): void {
-    const initStatus: Record<string, OperatorStatistics> = Object.keys(this.currentStatus).reduce(
-      (accumulator, operatorId) => {
-        accumulator[operatorId] = {
-          operatorState: OperatorState.Uninitialized,
-          aggregatedInputRowCount: 0,
-          inputPortMetrics: {},
-          aggregatedOutputRowCount: 0,
-          outputPortMetrics: {},
-        };
-        return accumulator;
-      },
-      {} as Record<string, OperatorStatistics>
-    );
-    this.statusSubject.next(initStatus);
+    const initState: Record<string, OperatorState> = {};
+    for (const operatorId of Object.keys(this.currentState)) {
+      initState[operatorId] = OperatorState.Uninitialized;
+    }
+    const initStatistics: Record<string, OperatorStatistics> = {};
+    for (const operatorId of Object.keys(this.currentStatistics)) {
+      initStatistics[operatorId] = {
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        aggregatedOutputRowCount: 0,
+        outputPortMetrics: {},
+      };
+    }
+    this.stateSubject.next(initState);
+    this.statisticsSubject.next(initStatistics);
   }
 
   public clearStatus(): void {
-    this.currentStatus = {};
-    this.statusSubject.next({});
+    this.stateSubject.next({});
+    this.statisticsSubject.next({});
   }
 }
