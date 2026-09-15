@@ -165,14 +165,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # read is deferred to here rather than done when the state arrives: at
         # arrival time THIS worker's own materialization reader is still
         # streaming its input, and in runs where this read overlapped that
-        # reader, the reader failed with S3 "Access Denied" (MinIO's answer
-        # for a deleted key) while iterating a lazily-pinned snapshot of a doc
-        # that region re-execution drops and recreates. Removing the overlap
-        # made those failures stop; that the overlap CAUSED them is the
-        # working hypothesis, not a ruled-out fact -- a doc dropped under a
-        # live reader would break the reader with or without this read -- so
-        # treat a recurrence as new evidence. By EndChannel the reader has
-        # finished, so the two never overlap.
+        # reader, the reader failed with S3 "Access Denied" (which was MinIO's
+        # answer for a deleted key; RustFS returns the standard NoSuchKey, so a
+        # recurrence will surface under that code instead) while iterating a
+        # lazily-pinned snapshot of a doc that region re-execution drops and
+        # recreates. Removing the overlap made those failures stop; that the
+        # overlap CAUSED them is the working hypothesis, not a ruled-out fact
+        # -- a doc dropped under a live reader would break the reader with or
+        # without this read -- so treat a recurrence as new evidence. By
+        # EndChannel the reader has finished, so the two never overlap.
         if self._pending_loop_state is None:
             return
         pending = self._pending_loop_state
