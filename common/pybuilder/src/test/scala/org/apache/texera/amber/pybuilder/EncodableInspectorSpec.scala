@@ -404,11 +404,10 @@ class EncodableInspectorSpec extends AnyFunSuite {
 
   test("a def whose result type carries the marker is Encodable") {
     // End-to-end assertion: this shape must classify Encodable. It does NOT pin the
-    // `methodReturnHasAnn` clause (lines 117-123) that it happens to execute - `tree.tpe` carries
-    // the same annotation, so replacing the `MethodSymbol` arm with `false` passes every test in
-    // the module on a forced clean rebuild (measured, including the compile-time `pyb` expansions
-    // in PythonTemplateBuilderSpec). Isolating that arm would need a production seam, so it stays
-    // unpinned rather than falsely credited.
+    // `methodReturnHasAnn` clause that it happens to execute: `EncodableString` is a type *alias*,
+    // so `tree.tpe` dealiases to the same annotated type and the last disjunct answers true on its
+    // own (measured: replacing the `MethodSymbol` arm with `false` passes this test). The
+    // inline-annotation fixture in the last section is the one that pins the clause.
     assert(
       evalProbe(
         """object H { def ui: EncodableString = "x" }
@@ -540,6 +539,108 @@ class EncodableInspectorSpec extends AnyFunSuite {
       evalProbe(
         """val m: Map[String, EncodableString] = Map("k" -> "v")
           |classify(m)""".stripMargin
+      ) == "ptb=false sr=false enc=true treeEnc=true"
+    )
+  }
+
+  // ========================================================================
+  // Accessors with no backing field.
+  //
+  // `safeAccessed` hops from an accessor to the field it accesses, because a class
+  // `val` parks its annotations on that field. A trait member has no field of its
+  // own, so the hop lands on `NoSymbol`, and scalac leaves the marker on the
+  // accessor instead (`@EncodableStringAnnotation` targets `METHOD` as well as
+  // `FIELD`). Losing it fails *open* - the string is emitted raw rather than
+  // encoded, with no diagnostic - so the fallback is a safety property, not a
+  // convenience.
+  // ========================================================================
+
+  test("a trait's marked val is Encodable even though its accessor has no backing field") {
+    val abstractVal = evalProbe(
+      """trait TAbs { @EncodableStringAnnotation val s: String }
+        |def t: TAbs = ???
+        |classify(t.s)""".stripMargin
+    )
+    assert(abstractVal == "ptb=false sr=false enc=true treeEnc=true", abstractVal)
+
+    // A *concrete* trait val is the same shape as far as the macro is concerned: the field is
+    // created later, in whichever class mixes the trait in, so `accessed` is `NoSymbol` here too.
+    val concreteVal = evalProbe(
+      """trait TCon { @EncodableStringAnnotation val s: String = "x" }
+        |def t: TCon = ???
+        |classify(t.s)""".stripMargin
+    )
+    assert(concreteVal == "ptb=false sr=false enc=true treeEnc=true", concreteVal)
+
+    val varMember = evalProbe(
+      """trait TVar { @EncodableStringAnnotation var s: String = "x" }
+        |def t: TVar = ???
+        |classify(t.s)""".stripMargin
+    )
+    assert(varMember == "ptb=false sr=false enc=true treeEnc=true", varMember)
+  }
+
+  test("a marked trait val is lowered to an EncodableStringRenderer") {
+    // The classification only matters for what it lowers to: `wrapArg` has to reach priority 2 and
+    // encode, instead of falling through to the raw-literal default.
+    val wrap = evalProbe(
+      """trait TW { @EncodableStringAnnotation val s: String }
+        |def t: TW = ???
+        |wrapCode(t.s)""".stripMargin
+    )
+    assert(wrap.contains("EncodableStringRenderer("), wrap)
+    assert(!wrap.contains("PyLiteralStringRenderer("), wrap)
+  }
+
+  test("an unmarked trait val stays a plain literal") {
+    // The fallback must still read the accessor's *own* annotations: turning it into an
+    // unconditional "fieldless accessors are Encodable" fails here.
+    val bare = evalProbe(
+      """trait TPlain { val s: String }
+        |def t: TPlain = ???
+        |classify(t.s)""".stripMargin
+    )
+    assert(bare == "ptb=false sr=false enc=false treeEnc=false", bare)
+
+    // And it must read them *selectively*. The accessor is a newly reachable place to find symbol
+    // annotations, so this is the first fixture that puts a foreign one there: without it,
+    // weakening the symbol-annotation scan to `annotations.nonEmpty` survives the whole module.
+    val foreign = evalProbe(
+      """import scala.annotation.meta.getter
+        |class ZzAnnG extends scala.annotation.StaticAnnotation
+        |trait TForeign { @(ZzAnnG @getter) val s: String }
+        |def t: TForeign = ???
+        |classify(t.s)""".stripMargin
+    )
+    assert(foreign == "ptb=false sr=false enc=false treeEnc=false", foreign)
+  }
+
+  test("an abstract class's abstract val needs the marker in type position") {
+    // Recorded so the trait tests above are not read as covering every fieldless accessor. For
+    // `abstract class C { @EncodableStringAnnotation val s: String }` scalac keeps the marker on
+    // neither the accessor nor any field - measured: the accessor's `annotations` is empty once
+    // its info is forced, and its `accessed` is `NoSymbol` - so the macro never sees it and no
+    // `safeAccessed` fallback can recover it. Type position is the shape that works there, and it
+    // is what the `EncodableString` alias expands to anyway.
+    assert(
+      evalProbe(
+        """abstract class CAbs { val s: String @EncodableStringAnnotation }
+          |def c: CAbs = ???
+          |classify(c.s)""".stripMargin
+      ) == "ptb=false sr=false enc=true treeEnc=true"
+    )
+  }
+
+  test("a def whose inline-annotated result type is stripped at the call site is Encodable") {
+    // Pins `methodReturnHasAnn`. Unlike the `EncodableString`-*alias* fixture earlier, an inline
+    // `String @EncodableStringAnnotation` result type does not survive onto the call-site tree:
+    // `tree.tpe` there is a bare `String`, and the def's symbol carries no annotation either, so
+    // the method signature is the only place left to look. Replacing the `MethodSymbol` arm with
+    // `false` fails here.
+    assert(
+      evalProbe(
+        """object HInline { def ui: String @EncodableStringAnnotation = "x" }
+          |classify(HInline.ui)""".stripMargin
       ) == "ptb=false sr=false enc=true treeEnc=true"
     )
   }
