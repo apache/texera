@@ -331,6 +331,19 @@ class TestRangeBasedShufflePartitioner:
         assert partitioner.get_receiver_index(8) == 2
         assert partitioner.get_receiver_index(9) == 2
 
+    def test_nan_key_routes_like_scala_zero(self):
+        p = RangeBasedShufflePartitioner(
+            RangeBasedShufflePartitioning(
+                batch_size=1,
+                channels=[_channel("S", "A"), _channel("S", "B")],
+                range_attribute_names=["k"],
+                range_min=-10,
+                range_max=9,
+            )
+        )
+        out = list(p.add_tuple_to_batch(_tuple(k=float("nan"))))
+        assert out[0][0] == _worker("B")
+
     def test_add_tuple_routes_using_first_attribute(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=2)))
         list(partitioner.add_tuple_to_batch(_tuple(k=5)))
