@@ -32,7 +32,11 @@ import jakarta.servlet.{DispatcherType, Filter, FilterChain}
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.WorkflowCompilingServiceRunSpec.SpecPayload
-import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
+import org.apache.texera.service.resource.{
+  HealthCheckResource,
+  WorkflowCompilationResource,
+  WorkflowToPythonResource
+}
 import org.eclipse.jetty.servlet.{FilterHolder, ServletHandler}
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.mockito.ArgumentCaptor
@@ -75,10 +79,11 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
     verify(jersey).setUrlPattern("/api/*")
   }
 
-  it should "register the health check and compilation endpoints" in {
+  it should "register the health check, compilation and export endpoints" in {
     val (jersey, _) = ranService
     verify(jersey).register(classOf[HealthCheckResource])
     verify(jersey).register(classOf[WorkflowCompilationResource])
+    verify(jersey).register(classOf[WorkflowToPythonResource])
   }
 
   it should "install the auth stack" in {
@@ -184,7 +189,11 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
   // Every endpoint this service registers declares @RolesAllowed/@PermitAll/@DenyAll.
   "WorkflowCompilingService's registered resources" should "all declare access control" in {
     RoleAnnotationEnforcer.findUnannotatedEndpoints(
-      Seq(classOf[WorkflowCompilationResource], classOf[HealthCheckResource])
+      Seq(
+        classOf[WorkflowCompilationResource],
+        classOf[HealthCheckResource],
+        classOf[WorkflowToPythonResource]
+      )
     ) shouldBe empty
   }
 
