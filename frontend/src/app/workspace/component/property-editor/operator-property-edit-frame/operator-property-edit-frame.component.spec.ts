@@ -161,6 +161,82 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  it("broadcasts currentlyEditing and syncs the operator version by default when an operator opens", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const spy = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    expect(spy).toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, expect.anything());
+  });
+
+  it("writes nothing at all when actsAsEditor is false (read-only inspect)", fakeAsync(() => {
+    // The Form View mounts this frame with actsAsEditor=false so that a reader inspecting a
+    // step is not announced as editing the graph and, more importantly, so that merely OPENING the
+    // step writes nothing: rerenderEditorForm runs ajv with useDefaults, which fills in any new
+    // schema defaults and then emits a form change, and that change is a property write like any
+    // other. Ticking past the debounce is what makes this test see that path at all.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    const awareness = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    component.onFormChanges({ tableName: "someone_else_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(awareness).not.toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).not.toHaveBeenCalled();
+    expect(propertySpy).not.toHaveBeenCalled();
+    // The stored properties are the ones the author left, untouched by the visit.
+    expect(workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+      mockScanPredicate.operatorProperties
+    );
+    discardPeriodicTasks();
+  }));
+
+  it("stays non-interactive when writes are not allowed, even after modification is re-enabled", () => {
+    // A finished run re-enables workflow modification for the canvas's sake, and the runtime unlock
+    // button calls setInteractivity(true) directly. Neither may turn a viewer mount editable.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    component.setInteractivity(true);
+    expect(component.interactive).toBe(false);
+
+    component.allowModifyOperatorLogic();
+    expect(component.interactive).toBe(false);
+    expect(component.formlyFormGroup?.disabled).toBe(true);
+  });
+
+  it("writes the same form change when writes are allowed (the gate is what stops it)", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.onFormChanges({ tableName: "the_author_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(propertySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { tableName: "the_author_typed_this" });
+    discardPeriodicTasks();
+  }));
+
   /**
    * test if the property editor correctly receives the operator highlight stream,
    *  get the operator data (id, property, and metadata), and then display the form.
@@ -270,6 +346,36 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
       tableName: "after",
       uiParameters: inferredParameters,
+    });
+    discardPeriodicTasks();
+  }));
+
+  it("shows code-inferred UI parameters read-only without writing them to the workflow", fakeAsync(() => {
+    // The inferred parameters are worth showing to a reader -- they are what the step's script now
+    // declares -- but a viewer mount must not persist them, so the model updates and the graph
+    // does not.
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "before",
+      uiParameters: [],
     });
     discardPeriodicTasks();
   }));

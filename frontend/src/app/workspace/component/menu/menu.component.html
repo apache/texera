@@ -75,6 +75,30 @@
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 
+      <!-- One workflow, two ways of working on it: the Canvas and the Form View. The
+           same control sits in the same place on both, so switching never means hunting
+           for a different affordance; the pressed segment is the view you are looking at.
+           Every workflow offers both views, so this shows wherever the feature flag is on. -->
+      <div
+        class="view-switch"
+        *ngIf="this.config.env.formViewEnabled && !displayParticularWorkflowVersion">
+        <!-- The pressed segment stays a live button with no handler, deliberately: clicking the view
+             you are already on is a no-op, and a real button keeps the segment focusable and announced
+             with its pressed state. The Form View page mirrors this exactly, roles swapped. -->
+        <button
+          type="button"
+          class="on"
+          aria-pressed="true">
+          Canvas
+        </button>
+        <button
+          type="button"
+          aria-pressed="false"
+          (click)="onClickOpenFormView()">
+          Form View
+        </button>
+      </div>
+
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
         <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
