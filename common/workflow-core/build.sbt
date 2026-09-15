@@ -87,8 +87,9 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
-  "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
-  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test        // MinIO Testcontainer Scala integration
+  // RustFS has no dedicated testcontainers-scala module; RustFSContainer builds it on the
+  // GenericContainer that testcontainers-scala-core (pulled in by -scalatest) provides.
+  "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test    // Testcontainers ScalaTest integration
 )
 
 

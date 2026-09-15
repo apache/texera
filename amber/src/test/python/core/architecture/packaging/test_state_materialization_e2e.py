@@ -80,7 +80,7 @@ _WAREHOUSE_DIR = tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-")
 @pytest.fixture(scope="module", autouse=True)
 def sqlite_iceberg_catalog():
     """Inject a sqlite-backed SqlCatalog so the test runs without external
-    iceberg infra (postgres/minio).
+    iceberg infra (postgres/rustfs).
 
     Module-scoped so all tests in this file share one warehouse, and so
     namespace creation only happens once. We save/restore the original

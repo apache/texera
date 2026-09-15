@@ -41,17 +41,17 @@ spec:
           env:
             # LakeFS & S3 Access
             - name: STORAGE_S3_ENDPOINT
-              value: http://{{ .Release.Name }}-minio:9000
+              value: http://{{ .Release.Name }}-rustfs-svc:9000
             - name: STORAGE_S3_AUTH_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-user
+                  name: {{ .Release.Name }}-rustfs-secret
+                  key: RUSTFS_ACCESS_KEY
             - name: STORAGE_S3_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-minio
-                  key: root-password
+                  name: {{ .Release.Name }}-rustfs-secret
+                  key: RUSTFS_SECRET_KEY
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs:8000/api/v1
             - name: STORAGE_LAKEFS_AUTH_USERNAME
