@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
 
-from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
+from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
 from .state import State
 from .table import all_output_to_tuple
 
@@ -91,6 +91,23 @@ class Operator(ABC):
     @overrides.final
     def is_source(self, value: bool) -> None:
         self.__internal_is_source = value
+
+    __internal_input_schemas: Optional[MutableMapping[int, Schema]] = None
+
+    @property
+    @overrides.final
+    def input_schemas(self) -> MutableMapping[int, Schema]:
+        """
+        What each input port was declared to carry, keyed by port index and
+        written by the runtime before that port's data is handed over.
+
+        The tuples themselves say this too, so an operator only needs to ask
+        when there are none: a port can finish having carried no rows at all,
+        and its schema is then the only record of what its columns were.
+        """
+        if self.__internal_input_schemas is None:
+            self.__internal_input_schemas = {}
+        return self.__internal_input_schemas
 
     def open(self) -> None:
         """
@@ -276,7 +293,11 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(self.__table_data[port])
+        rows = self.__table_data[port]
+        schema = self.input_schemas.get(port)
+        # A port that carried no rows has no tuples to read column names off,
+        # and a table of no columns fails every operator that names one.
+        table = Table(rows) if rows or schema is None else Table.empty_of(schema)
         yield from self.process_table(table, port)
 
     @abstractmethod

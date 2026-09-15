@@ -215,6 +215,10 @@ class TestMainLoop:
         # from `produce_state_on_finish` so EndChannel handling can be
         # observed.
         class StateProcessingExecutor:
+            # What Operator gives a real executor, for DataProcessor to record
+            # the finishing port's declared schema in.
+            input_schemas: dict = {}
+
             @staticmethod
             def process_tuple(tuple_, port):
                 yield tuple_
