@@ -58,7 +58,9 @@ describe("ComputingUnitCreateModalComponent", () => {
   const createdUnit = { computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit;
 
   beforeEach(async () => {
-    // No curated images by default, so the existing tests see today's behaviour.
+    // No curated images by default, so the existing tests see today's behaviour. Cleared
+    // as well as stubbed: the mock is shared, so call counts would carry between tests.
+    mockCuImageService.list.mockClear();
     mockCuImageService.list.mockReturnValue(of([]));
     mockComputingUnitService = {
       getComputingUnitTypes: vi.fn(),
@@ -98,11 +100,19 @@ describe("ComputingUnitCreateModalComponent", () => {
     component = fixture.componentInstance;
   });
 
+  /** Both hosts render this modal always, so the list is read when it opens, not on init. */
+  const openDialog = () => {
+    fixture.detectChanges();
+    component.visible = true;
+    component.ngOnChanges({ visible: { currentValue: true } as never });
+    fixture.detectChanges();
+  };
+
   it("offers only ready images, and none when there are none", () => {
     mockCuImageService.list.mockReturnValue(
       of([curatedImage({ iid: 1 }), curatedImage({ iid: 2, name: "Still checking", status: "VALIDATING" })])
     );
-    fixture.detectChanges();
+    openDialog();
     // A unit cannot start from an image that has not passed its check.
     expect(component.curatedImages.map(i => i.iid)).toEqual([1]);
     // Nothing is preselected: the default is the deployment's own image.
@@ -112,7 +122,7 @@ describe("ComputingUnitCreateModalComponent", () => {
   it("shows no images when the deployment has the feature switched off", () => {
     // The API answers 503 there. The dropdown is hidden and nothing else changes.
     mockCuImageService.list.mockReturnValue(throwError(() => new Error("503")));
-    fixture.detectChanges();
+    openDialog();
     expect(component.curatedImages).toEqual([]);
   });
 
@@ -122,7 +132,7 @@ describe("ComputingUnitCreateModalComponent", () => {
       of({ typeOptions: ["kubernetes"] as WorkflowComputingUnitType[] })
     );
     mockComputingUnitService.createKubernetesBasedComputingUnit.mockReturnValue(of(createdUnit));
-    fixture.detectChanges();
+    openDialog();
 
     component.newComputingUnitName = "On a curated image";
     component.selectedImageId = 7;
@@ -141,6 +151,19 @@ describe("ComputingUnitCreateModalComponent", () => {
     component.visible = true;
     component.ngOnChanges({ visible: { currentValue: true } as never });
     expect(component.selectedImageId).toBe(component.DEPLOYMENT_IMAGE);
+  });
+
+  // The regression this guards: read in ngOnInit, which runs at page load because neither
+  // host wraps this modal in an *ngIf, an image that became ready since then never showed.
+  it("re-reads the images each time the dialog opens", () => {
+    mockCuImageService.list.mockReturnValue(of([]));
+    fixture.detectChanges();
+    expect(mockCuImageService.list).not.toHaveBeenCalled();
+
+    mockCuImageService.list.mockReturnValue(of([curatedImage({ iid: 9, name: "Ready later" })]));
+    component.visible = true;
+    component.ngOnChanges({ visible: { currentValue: true } as never });
+    expect(component.curatedImages.map(i => i.iid)).toEqual([9]);
   });
 
   it("should create", () => {

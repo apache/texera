@@ -157,16 +157,6 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
           this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
       });
 
-    // Readable by any signed-in user. A deployment with curated images off answers 503,
-    // and a user who never sees the dropdown gets exactly today's behaviour.
-    this.cuImageService
-      .list()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: images => (this.curatedImages = images.filter(isStartable)),
-        error: () => (this.curatedImages = []),
-      });
-
     this.computingUnitService
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
@@ -192,7 +182,26 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["visible"]?.currentValue === true) {
       this.resetAdvancedSettings();
+      this.loadCuratedImages();
     }
+  }
+
+  /**
+   * Read when the dialog opens rather than in ngOnInit: both hosts render this component
+   * unconditionally, so ngOnInit runs once at page load. An image that became ready since
+   * then would never appear, and one failed read would hide the field for the session.
+   *
+   * Readable by any signed-in user. A deployment with curated images off answers 503, and
+   * a user who never sees the dropdown gets exactly today's behaviour.
+   */
+  private loadCuratedImages(): void {
+    this.cuImageService
+      .list()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: images => (this.curatedImages = images.filter(isStartable)),
+        error: () => (this.curatedImages = []),
+      });
   }
 
   // Runs every time the modal opens: re-collapse the advanced panel so it
