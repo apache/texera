@@ -408,7 +408,7 @@ describe("ConsoleFrameComponent", () => {
       expect(component.hiddenMessageCount).toBe(1);
       const notice = fixture.debugElement.query(By.css(".hidden-count-notice"));
       expect(notice).toBeTruthy();
-      expect(notice.nativeElement.textContent).toContain("1 message(s) hidden");
+      expect(notice.nativeElement.textContent).toContain("Hidden by filter: 1");
     });
 
     it("restores the hidden rows when the type is switched back on", () => {
@@ -434,7 +434,7 @@ describe("ConsoleFrameComponent", () => {
       expect(fixture.nativeElement.textContent).toContain("plain B");
     });
 
-    it("keeps the filter when the console is cleared for a new run", () => {
+    it("keeps the filter when clearConsole empties the list", () => {
       component.setTypeVisibility("PRINT", false);
       component.consoleMessages = [withBody, noBody];
       component.clearConsole();
@@ -484,8 +484,6 @@ describe("ConsoleFrameComponent", () => {
 
       const scrolled = watchScroll(fixture);
 
-      // a hidden PRINT arrives: no visible row changes, so the reader must be
-      // left where they are
       getConsoleMessages.mockReturnValue([print, error, { ...print, title: "later print" }]);
       component.displayConsoleMessages("op1");
       tick();
@@ -681,8 +679,6 @@ describe("ConsoleFrameComponent settings dropdown", () => {
 
   const checkboxOf = (label: HTMLElement): HTMLElement => {
     const box = label.querySelector(".ant-checkbox");
-    // Without this the class assertions below would read `false` for "this is
-    // not a checkbox at all", which satisfies every toBe(false) in the suite.
     expect(box).toBeTruthy();
     return box as HTMLElement;
   };
@@ -691,6 +687,26 @@ describe("ConsoleFrameComponent settings dropdown", () => {
 
   const isIndeterminate = (label: HTMLElement): boolean =>
     checkboxOf(label).classList.contains("ant-checkbox-indeterminate");
+
+  it("exposes both toolbar triggers as labelled buttons", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.detectChanges();
+
+    const triggers = fixture.debugElement.queryAll(By.css(".console-toolbar button[nz-dropdown]"));
+    expect(triggers.map(t => t.nativeElement.getAttribute("aria-label"))).toEqual([
+      "Display options",
+      "Filter by message type",
+    ]);
+    expect(triggers.every(t => t.nativeElement.tabIndex === 0)).toBe(true);
+    expect(triggers.every(t => t.nativeElement.getAttribute("aria-haspopup") === "true")).toBe(true);
+    expect(triggers.map(t => t.nativeElement.getAttribute("aria-expanded"))).toEqual(["false", "false"]);
+
+    openMenu(fixture, 1);
+    expect(triggers[1].nativeElement.getAttribute("aria-expanded")).toBe("true");
+
+    fixture.destroy();
+    flush();
+  }));
 
   it("keeps the settings gear to display options only", fakeAsync(() => {
     const fixture = TestBed.createComponent(ConsoleFrameComponent);
@@ -751,6 +767,17 @@ describe("ConsoleFrameComponent settings dropdown", () => {
 
     expect(menuItemText("console-type-filter")).toEqual(["Select all", "Print", "Command", "Debugger", "Error"]);
     expect(typeCheckboxes().length).toBe(5);
+    // each option carries the same badge status as the rows it controls
+    expect(
+      Array.from(document.querySelectorAll(".console-type-filter .ant-badge-status-dot")).map(dot =>
+        Array.from(dot.classList).find(c => c.startsWith("ant-badge-status-") && c !== "ant-badge-status-dot")
+      )
+    ).toEqual([
+      "ant-badge-status-default",
+      "ant-badge-status-processing",
+      "ant-badge-status-warning",
+      "ant-badge-status-error",
+    ]);
     expect(typeCheckboxes().every(isChecked)).toBe(true);
 
     fixture.destroy();
@@ -796,9 +823,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
     openMenu(fixture, 1);
     expect(typeCheckboxes().length).toBe(5);
 
-    // Untick one box at a time and confirm the row that disappears is the one
-    // bearing that box's own type. Asserting only the row count here would be
-    // swap-invariant: two bindings could be crossed and still remove one row.
+    // Check row content to catch swapped checkbox bindings.
     types.forEach((name, index) => {
       typeCheckboxes()[index + 1].click();
       tick(300);

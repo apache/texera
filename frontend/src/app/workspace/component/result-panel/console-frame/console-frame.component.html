@@ -31,9 +31,12 @@
     [nzClickHide]="false"
     nzOverlayClassName="console-display-settings"
     [nzDropdownMenu]="settingsMenu"
+    [(nzVisible)]="settingsMenuOpen"
     nz-tooltip
     nzTooltipTitle="Display options"
-    aria-label="Display options">
+    aria-label="Display options"
+    aria-haspopup="true"
+    [attr.aria-expanded]="settingsMenuOpen">
     <span
       nz-icon
       nzType="setting"
@@ -48,9 +51,12 @@
     [nzClickHide]="false"
     nzOverlayClassName="console-type-filter"
     [nzDropdownMenu]="typeFilterMenu"
+    [(nzVisible)]="typeFilterMenuOpen"
     nz-tooltip
     nzTooltipTitle="Filter by message type"
-    aria-label="Filter by message type">
+    aria-label="Filter by message type"
+    aria-haspopup="true"
+    [attr.aria-expanded]="typeFilterMenuOpen">
     <span
       nz-icon
       nzType="filter"
@@ -92,7 +98,7 @@
       <label
         nz-checkbox
         [nzChecked]="allTypesVisible"
-        [nzIndeterminate]="someTypesHidden"
+        [nzIndeterminate]="typeFilterIndeterminate"
         (nzCheckedChange)="setAllTypesVisible($event)"
         >Select all</label
       >
@@ -115,7 +121,7 @@
 <div
   *ngIf="hiddenMessageCount > 0"
   class="hidden-count-notice">
-  {{ hiddenMessageCount }} message(s) hidden by the type filter
+  Hidden by filter: {{ hiddenMessageCount }}
 </div>
 
 <nz-list

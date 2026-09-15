@@ -41,25 +41,24 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  // Plus each button's own padding, this leaves ~12px between the glyphs.
+  gap: 2px;
   margin-bottom: 8px;
 
-  // Strip the button chrome back to a bare icon: the element is a button for
-  // keyboard reach, not for the look. Centring here also takes nz-icon's
-  // vertical-align: -0.125em out of play, which scales with each icon's own
-  // font size and would otherwise land the two icons on different baselines.
+  // Center icons within a 24px minimum pointer target.
   > button {
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
     height: auto;
     padding: 0;
     border: none;
     background: transparent;
   }
 
-  // The gear glyph fills its viewBox; the funnel fills ~80% of it, so at a
-  // shared font size the funnel reads smaller. It is also proportionally
-  // wider, so matching height alone would overshoot — 16px balances both.
+  // Enlarge the filter glyph to visually match the settings icon.
   .filter-icon {
     font-size: 16px;
   }
@@ -78,9 +77,9 @@
   text-overflow: ellipsis;
 }
 
-// The dropdown overlay renders outside this component, so it can only be
-// reached through its nzOverlayClassName. A dropdown menu item gets
-// .ant-dropdown-menu-item, not the .ant-menu-item that styles.scss covers.
+// The overlay renders outside this component, so it is only reachable through
+// nzOverlayClassName. Items here are .ant-dropdown-menu-item, which the
+// .ant-menu-item rule in styles.scss does not cover.
 ::ng-deep .console-type-filter {
   li[nz-menu-item] {
     user-select: none;

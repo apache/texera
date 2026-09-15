@@ -110,6 +110,11 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   // so a type the console has never seen before is shown rather than hidden.
   private hiddenTypes = new Set<string>();
 
+  // Mirrors each dropdown's open state so the trigger can expose aria-expanded,
+  // which nz-dropdown does not set itself.
+  settingsMenuOpen = false;
+  typeFilterMenuOpen = false;
+
   // Configuration Menu items
   // TODO: move Configuration Menu to a separate component
   showTimestamp: boolean = true;
@@ -144,20 +149,15 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.applyTypeFilter();
   }
 
-  // The types are wire constants (PRINT, ERROR, ...); the menu shows words.
   typeLabel(type: string): string {
     return type.charAt(0) + type.slice(1).toLowerCase();
   }
 
-  // Both read the types the menu offers rather than the size of hiddenTypes,
-  // which is unbounded and would skew if a type outside the menu were hidden.
   get allTypesVisible(): boolean {
     return this.messageTypes.every(type => this.isTypeVisible(type));
   }
 
-  // Indeterminate is the mixed case only, so "all hidden" reads as a definite
-  // unchecked box.
-  get someTypesHidden(): boolean {
+  get typeFilterIndeterminate(): boolean {
     return !this.allTypesVisible && this.messageTypes.some(type => this.isTypeVisible(type));
   }
 
@@ -232,9 +232,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     const lastVisible = this.filteredMessages[this.filteredMessages.length - 1];
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
 
-    // Messages of a hidden type still arrive and still refresh the list. Only
-    // follow the tail when something visible landed, or reading an earlier
-    // error would be interrupted by output the filter is there to hide.
+    // Preserve scroll position when no new visible message arrives.
     if (this.filteredMessages[this.filteredMessages.length - 1] === lastVisible) {
       return;
     }
