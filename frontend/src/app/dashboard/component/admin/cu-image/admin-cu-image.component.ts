@@ -35,7 +35,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { EMPTY, timer } from "rxjs";
-import { catchError, filter, switchMap } from "rxjs/operators";
+import { catchError, exhaustMap, filter } from "rxjs/operators";
 import { CuImage, CuImageService, CuImageStatus, isInProgress } from "../../../service/admin/cu-image/cu-image.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { extractErrorMessage } from "../../../../common/util/error";
@@ -80,6 +80,9 @@ export class AdminCuImageComponent implements OnInit {
   newSourceRef = "";
   submitting = false;
 
+  /** Images with a refresh or remove in flight, so a second click is ignored. */
+  private readonly busy = new Set<number>();
+
   logVisible = false;
   logIid?: number;
   logName = "";
@@ -98,9 +101,11 @@ export class AdminCuImageComponent implements OnInit {
     timer(CHECK_POLL_INTERVAL_MS, CHECK_POLL_INTERVAL_MS)
       .pipe(
         filter(() => this.anyInProgress(this.images)),
+        // exhaustMap, not switchMap: a read takes longest while a check is running, which
+        // is exactly when this polls, and switchMap would cancel each one at the next tick.
         // Caught inside the projection: an error reaching the outer stream would end the
         // subscription, and polling would never resume.
-        switchMap(() => this.cuImageService.list().pipe(catchError(() => EMPTY))),
+        exhaustMap(() => this.cuImageService.list().pipe(catchError(() => EMPTY))),
         untilDestroyed(this)
       )
       .subscribe(images => {
@@ -178,23 +183,41 @@ export class AdminCuImageComponent implements OnInit {
 
   /** Re-checks the same reference: picks up a moved tag, retries a failed check. */
   refresh(image: CuImage): void {
+    if (this.busy.has(image.iid)) {
+      return;
+    }
+    this.busy.add(image.iid);
     this.cuImageService
       .refresh(image.iid)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.load(),
-        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+        next: () => this.finish(image.iid),
+        error: (err: unknown) => this.fail(image.iid, err),
       });
   }
 
   remove(image: CuImage): void {
+    if (this.busy.has(image.iid)) {
+      return;
+    }
+    this.busy.add(image.iid);
     this.cuImageService
       .delete(image.iid)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.load(),
-        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+        next: () => this.finish(image.iid),
+        error: (err: unknown) => this.fail(image.iid, err),
       });
+  }
+
+  private finish(iid: number): void {
+    this.busy.delete(iid);
+    this.load();
+  }
+
+  private fail(iid: number, err: unknown): void {
+    this.busy.delete(iid);
+    this.notificationService.error(extractErrorMessage(err));
   }
 
   showLog(image: CuImage): void {

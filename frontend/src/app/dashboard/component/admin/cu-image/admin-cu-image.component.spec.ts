@@ -176,6 +176,42 @@ describe("AdminCuImageComponent", () => {
     discardPeriodicTasks();
   }));
 
+  // Refresh is disabled only once load() returns, so a double-click gets two requests in
+  // before that -- two validation jobs, one of which may never be reaped.
+  it("sends one request when Refresh is clicked twice", () => {
+    initWith([image()]);
+    component.refresh(image());
+    component.refresh(image());
+    httpTestingController.expectOne(req => req.method === "POST" && req.url.endsWith("/refresh"));
+  });
+
+  // The second delete would 404 and pop "No curated image N" right after a successful one.
+  it("sends one request when Remove is clicked twice", () => {
+    initWith([image()]);
+    component.remove(image());
+    component.remove(image());
+    httpTestingController.expectOne(req => req.method === "DELETE");
+  });
+
+  // The regression this guards: switchMap cancelled any read slower than the interval, and
+  // a read is slowest while a check is running -- exactly when this polls.
+  it("does not cancel a slow poll at the next tick", fakeAsync(() => {
+    component.ngOnInit();
+    httpTestingController.expectOne(CU_IMAGE_URL).flush([image({ status: "VALIDATING" })]);
+
+    tick(3000);
+    const slow = httpTestingController.expectOne(CU_IMAGE_URL);
+
+    // A second tick passes while the first read is still outstanding.
+    tick(3000);
+    httpTestingController.expectNone(CU_IMAGE_URL);
+
+    slow.flush([image({ status: "READY" })]);
+    expect(component.images[0].status).toBe("READY");
+
+    discardPeriodicTasks();
+  }));
+
   it("offers Refresh only when a check is not already running", () => {
     initWith([image({ status: "VALIDATING" })]);
     const refresh = Array.from(fixture.nativeElement.querySelectorAll("button") as NodeListOf<HTMLButtonElement>).find(
