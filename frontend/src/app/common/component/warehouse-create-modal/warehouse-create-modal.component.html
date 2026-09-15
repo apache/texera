@@ -28,13 +28,12 @@
       <div class="select-unit name-field">
         <span>Warehouse Name</span>
         <input
-          [required]="true"
           nz-input
           placeholder="Enter the name of your warehouse (required)"
           maxlength="64"
           [(ngModel)]="newWarehouseName"
           class="warehouse-name-input"
-          (keyup.enter)="createWarehouse()" />
+          (keyup.enter)="handleCreateWarehouseModalOk()" />
         <p class="warehouse-name-hint">Letters, digits, '-' and '_' only; must start with a letter or digit.</p>
       </div>
     </div>
@@ -51,8 +50,7 @@
       nzType="primary"
       id="confirm-create-warehouse-btn"
       [disabled]="!newWarehouseName.trim()"
-      [nzLoading]="creating"
-      (click)="createWarehouse()">
+      (click)="handleCreateWarehouseModalOk()">
       Create
     </button>
   </ng-template>

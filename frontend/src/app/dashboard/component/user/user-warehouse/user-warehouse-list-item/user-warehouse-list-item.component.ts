@@ -27,7 +27,6 @@ import { NzCardComponent } from "ng-zorro-antd/card";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 
 /**
  * One warehouse row of the dashboard tab (#6933), mirroring
@@ -44,25 +43,12 @@ import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
     NzColDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
-    NzSpaceCompactItemDirective,
     NzButtonComponent,
   ],
 })
 export class UserWarehouseListItemComponent {
-  private _warehouse?: DashboardWarehouse;
+  @Input({ required: true }) warehouse!: DashboardWarehouse;
   @Output() deleted = new EventEmitter<void>();
-
-  @Input()
-  get warehouse(): DashboardWarehouse {
-    if (!this._warehouse) {
-      throw new Error("warehouse property must be provided to UserWarehouseListItemComponent.");
-    }
-    return this._warehouse;
-  }
-
-  set warehouse(value: DashboardWarehouse) {
-    this._warehouse = value;
-  }
 
   constructor(private modalService: NzModalService) {}
 

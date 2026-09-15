@@ -47,12 +47,6 @@ describe("UserWarehouseListItemComponent", () => {
     }).compileComponents();
   });
 
-  it("throws when rendered without a warehouse", () => {
-    const item = new UserWarehouseListItemComponent({} as NzModalService);
-
-    expect(() => item.warehouse).toThrowError("warehouse property must be provided to UserWarehouseListItemComponent.");
-  });
-
   it("renders the id, the name, and the metadata columns", () => {
     fixture = TestBed.createComponent(UserWarehouseListItemComponent);
     fixture.componentInstance.warehouse = warehouse;

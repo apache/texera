@@ -65,10 +65,10 @@
 
     <cdk-virtual-scroll-viewport
       *ngIf="warehouseEnabled && warehouses.length > 0"
-      itemSize="70"
+      itemSize="78"
       class="virtual-scroll-container">
       <nz-list>
-        <ng-container *cdkVirtualFor="let warehouse of warehouses">
+        <ng-container *cdkVirtualFor="let warehouse of warehouses; trackBy: trackByWarehouse">
           <texera-user-warehouse-list-item
             (deleted)="deleteWarehouse(warehouse)"
             [warehouse]="warehouse"></texera-user-warehouse-list-item>

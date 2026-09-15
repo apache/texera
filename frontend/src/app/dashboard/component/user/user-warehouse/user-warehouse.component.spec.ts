@@ -141,6 +141,10 @@ describe("UserWarehouseComponent", () => {
     expect(fixture.nativeElement.querySelector(".warehouse-page-empty")).toBeNull();
   });
 
+  it("tracks virtual-scroll rows by warehouse id", () => {
+    expect(component.trackByWarehouse(0, warehouse(5, "any"))).toBe(5);
+  });
+
   it("renders the scroll viewport only when there are rows to show", () => {
     // In the disabled/failed/empty states the viewport would otherwise render
     // as an empty bordered box below the notice.
@@ -234,7 +238,7 @@ describe("UserWarehouseComponent", () => {
 
     fixture.detectChanges();
 
-    expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch warehouses.");
+    expect(notificationSpy.error).toHaveBeenCalledWith("Failed to fetch warehouses: boom");
     // Still undefined, so the page reports the failure rather than claiming the
     // feature is disabled.
     expect(component.warehouseEnabled).toBeUndefined();

@@ -20,7 +20,6 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Subject, takeUntil } from "rxjs";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -58,13 +57,6 @@ export class WarehouseCreateModalComponent implements OnChanges {
   @Output() warehouseCreated = new EventEmitter<DashboardWarehouse>();
 
   newWarehouseName = "";
-  creating = false;
-
-  // Closing the dialog ends the attempt it was showing. Without this the request
-  // outlives the dialog (the component itself is never torn down), so Cancel
-  // would still create the warehouse and a late response would close — and
-  // discard — whatever the user had typed after reopening.
-  private readonly closed$ = new Subject<void>();
 
   constructor(
     private warehouseActionsService: WarehouseActionsService,
@@ -74,48 +66,47 @@ export class WarehouseCreateModalComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["visible"]?.currentValue === true) {
       this.newWarehouseName = "";
-      // Cancelling mid-flight leaves creating set; without this the Create button
-      // reopens stuck in its loading state.
-      this.creating = false;
-    } else if (changes["visible"]?.currentValue === false) {
-      // The host can also close the dialog by flipping [(visible)] itself; that
-      // close must abandon the in-flight attempt exactly like Cancel does, or a
-      // late response would close — and discard — a reopened dialog.
-      this.closed$.next();
     }
   }
 
-  createWarehouse(): void {
+  /**
+   * Mirrors ComputingUnitCreateModalComponent's submit flow: Create fires the
+   * request and closes the dialog at once; the outcome arrives later as a toast
+   * plus (warehouseCreated). There is no in-flight dialog state left to cancel,
+   * so a create that lands after the close shows up visibly in the list instead
+   * of surprising a retry with "already exists". Unlike the computing-unit
+   * dialog, an empty name never reaches the request: the Create button is
+   * disabled and the Enter path returns early, keeping the dialog open.
+   */
+  handleCreateWarehouseModalOk(): void {
     const name = this.newWarehouseName.trim();
-    if (!name || this.creating) {
+    if (!name) {
       return;
     }
-    this.creating = true;
-    this.warehouseActionsService
-      .create(name)
-      .pipe(takeUntil(this.closed$), untilDestroyed(this))
-      .subscribe({
-        next: created => {
-          this.creating = false;
-          this.notificationService.success(`Warehouse "${created.name}" created.`);
-          this.warehouseCreated.emit(created);
-          this.closeModal();
-        },
-        error: (err: unknown) => {
-          // Keep the modal open so the name can be corrected.
-          this.creating = false;
-          this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`);
-        },
-      });
+    this.createWarehouse(name);
+    this.closeModal();
   }
 
   handleCreateWarehouseModalCancel(): void {
     this.closeModal();
   }
 
+  private createWarehouse(name: string): void {
+    this.warehouseActionsService
+      .create(name)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: created => {
+          this.notificationService.success(`Warehouse "${created.name}" created.`);
+          this.warehouseCreated.emit(created);
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`);
+        },
+      });
+  }
+
   private closeModal(): void {
-    this.closed$.next();
-    this.creating = false;
     this.visible = false;
     this.visibleChange.emit(false);
   }

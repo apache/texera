@@ -22,7 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { Subject, of, throwError } from "rxjs";
+import { Subject, of } from "rxjs";
 import { WarehouseCreateModalComponent } from "./warehouse-create-modal.component";
 import { NotificationService } from "../../service/notification/notification.service";
 import { WarehouseActionsService } from "../../service/warehouse/warehouse-actions.service";
@@ -88,26 +88,6 @@ describe("WarehouseCreateModalComponent", () => {
     expect(createButton?.disabled).toBe(false);
   });
 
-  it("drives create from the dialog's own controls, not just the component method", async () => {
-    // The buttons and the Enter key are the only paths a user has; asserting on
-    // the component method alone leaves those bindings unverified.
-    component.visible = true;
-    component.newWarehouseName = "mybucket";
-    fixture.detectChanges();
-
-    document.querySelector<HTMLButtonElement>("#confirm-create-warehouse-btn")!.click();
-    expect(warehouseActions.create).toHaveBeenCalledWith("mybucket");
-
-    warehouseActions.create.mockClear();
-    component.visible = true;
-    component.newWarehouseName = "again";
-    fixture.detectChanges();
-    document
-      .querySelector<HTMLInputElement>("input[nz-input]")!
-      .dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
-    expect(warehouseActions.create).toHaveBeenCalledWith("again");
-  });
-
   it("takes what the user types through the two-way binding", async () => {
     component.visible = true;
     fixture.detectChanges();
@@ -120,20 +100,93 @@ describe("WarehouseCreateModalComponent", () => {
     expect(component.newWarehouseName).toBe("typed-in");
   });
 
-  it("closes from the dialog's Cancel button", () => {
+  it("create fires the trimmed request and closes at once, like the computing-unit dialog", () => {
+    // The outcome arrives later as a toast; the dialog does not wait for it.
+    warehouseActions.create.mockReturnValue(new Subject<DashboardWarehouse>().asObservable());
     const visibleSpy = vi.fn();
     component.visibleChange.subscribe(visibleSpy);
     component.visible = true;
+    component.newWarehouseName = "  mybucket  ";
     fixture.detectChanges();
 
-    const cancel = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
-      b => b.textContent?.trim() === "Cancel"
-    )!;
-    cancel.click();
+    document.querySelector<HTMLButtonElement>("#confirm-create-warehouse-btn")!.click();
 
+    expect(warehouseActions.create).toHaveBeenCalledWith("mybucket");
     expect(component.visible).toBe(false);
     expect(visibleSpy).toHaveBeenCalledWith(false);
+  });
+
+  it("the Enter key submits and closes the same way", () => {
+    warehouseActions.create.mockReturnValue(new Subject<DashboardWarehouse>().asObservable());
+    component.visible = true;
+    component.newWarehouseName = "again";
+    fixture.detectChanges();
+
+    document
+      .querySelector<HTMLInputElement>("input[nz-input]")!
+      .dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+
+    expect(warehouseActions.create).toHaveBeenCalledWith("again");
+    expect(component.visible).toBe(false);
+  });
+
+  it("Enter on a blank name does nothing and keeps the dialog open", () => {
+    component.visible = true;
+    component.newWarehouseName = "   ";
+    fixture.detectChanges();
+
+    document
+      .querySelector<HTMLInputElement>("input[nz-input]")!
+      .dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+
     expect(warehouseActions.create).not.toHaveBeenCalled();
+    expect(component.visible).toBe(true);
+  });
+
+  it("a create that lands after the close reports itself without touching a reopened dialog", () => {
+    // This is what makes close-and-forget safe: the user who cancelled watching
+    // still sees the toast and the refreshed list, while the dialog they have
+    // since reopened — mid-typing — is left alone.
+    const inFlight = new Subject<DashboardWarehouse>();
+    warehouseActions.create.mockReturnValue(inFlight.asObservable());
+    const createdSpy = vi.fn();
+    component.warehouseCreated.subscribe(createdSpy);
+    component.visible = true;
+    component.newWarehouseName = "first";
+    component.handleCreateWarehouseModalOk();
+
+    component.visible = true;
+    component.newWarehouseName = "second-in-progress";
+    inFlight.next(created);
+    inFlight.complete();
+
+    expect(notificationService.success).toHaveBeenCalledWith('Warehouse "mybucket" created.');
+    expect(createdSpy).toHaveBeenCalledWith(created);
+    expect(component.visible).toBe(true);
+    expect(component.newWarehouseName).toBe("second-in-progress");
+  });
+
+  it("a create that fails after the close surfaces the backend message as a toast", () => {
+    const inFlight = new Subject<DashboardWarehouse>();
+    warehouseActions.create.mockReturnValue(inFlight.asObservable());
+    component.visible = true;
+    component.newWarehouseName = "mybucket";
+    component.handleCreateWarehouseModalOk();
+
+    inFlight.error({ error: "a warehouse named 'mybucket' already exists" });
+
+    expect(notificationService.error).toHaveBeenCalledWith(
+      "Failed to create warehouse: a warehouse named 'mybucket' already exists"
+    );
+  });
+
+  it("clears the previous name when the modal opens", () => {
+    component.newWarehouseName = "leftover";
+    component.visible = true;
+
+    component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
+
+    expect(component.newWarehouseName).toBe("");
   });
 
   it("leaves the form alone when a change does not open the dialog", () => {
@@ -144,120 +197,16 @@ describe("WarehouseCreateModalComponent", () => {
     expect(component.newWarehouseName).toBe("typing");
   });
 
-  it("creates the trimmed name, then emits the warehouse and closes", () => {
-    const createdSpy = vi.fn();
-    const visibleSpy = vi.fn();
-    component.warehouseCreated.subscribe(createdSpy);
-    component.visibleChange.subscribe(visibleSpy);
-    component.visible = true;
-    component.newWarehouseName = "  mybucket  ";
-
-    component.createWarehouse();
-
-    expect(warehouseActions.create).toHaveBeenCalledWith("mybucket");
-    expect(notificationService.success).toHaveBeenCalledWith('Warehouse "mybucket" created.');
-    expect(createdSpy).toHaveBeenCalledWith(created);
-    expect(component.visible).toBe(false);
-    expect(visibleSpy).toHaveBeenCalledWith(false);
-    expect(component.creating).toBe(false);
-  });
-
-  it("does nothing for a blank name", () => {
-    component.newWarehouseName = "   ";
-
-    component.createWarehouse();
-
-    expect(warehouseActions.create).not.toHaveBeenCalled();
-  });
-
-  it("does not double-submit while a create is in flight", () => {
-    component.newWarehouseName = "mybucket";
-    component.creating = true;
-
-    component.createWarehouse();
-
-    expect(warehouseActions.create).not.toHaveBeenCalled();
-  });
-
-  it("keeps the modal open and surfaces the backend message when the create fails", () => {
-    warehouseActions.create.mockReturnValue(
-      throwError(() => ({ error: "a warehouse named 'mybucket' already exists" }))
-    );
-    const visibleSpy = vi.fn();
-    component.visibleChange.subscribe(visibleSpy);
-    component.visible = true;
-    component.newWarehouseName = "mybucket";
-
-    component.createWarehouse();
-
-    expect(component.visible).toBe(true);
-    expect(visibleSpy).not.toHaveBeenCalled();
-    expect(component.creating).toBe(false);
-    expect(notificationService.error).toHaveBeenCalledWith(
-      "Failed to create warehouse: a warehouse named 'mybucket' already exists"
-    );
-  });
-
-  it("clears the previous name and any stuck loading state when the modal opens", () => {
-    component.newWarehouseName = "leftover";
-    // Cancelling mid-flight leaves creating set; reopening must not show a Create
-    // button stuck in its loading state.
-    component.creating = true;
-    component.visible = true;
-
-    component.ngOnChanges({ visible: new SimpleChange(false, true, false) });
-
-    expect(component.newWarehouseName).toBe("");
-    expect(component.creating).toBe(false);
-  });
-
-  it("cancel abandons an in-flight create instead of letting it land later", () => {
-    // The component outlives the dialog, so without an explicit teardown the
-    // request would still succeed: creating the warehouse the user cancelled and
-    // closing the dialog they had already reopened.
-    const inFlight = new Subject<DashboardWarehouse>();
-    warehouseActions.create.mockReturnValue(inFlight.asObservable());
-    const createdSpy = vi.fn();
-    component.warehouseCreated.subscribe(createdSpy);
-    component.visible = true;
-    component.newWarehouseName = "first";
-    component.createWarehouse();
-
-    component.handleCreateWarehouseModalCancel();
-    inFlight.next(created);
-    inFlight.complete();
-
-    expect(createdSpy).not.toHaveBeenCalled();
-    expect(notificationService.success).not.toHaveBeenCalled();
-    expect(component.creating).toBe(false);
-  });
-
-  it("a host-driven close abandons the in-flight create like Cancel does", () => {
-    // The workspace picker (#7817) will close this dialog by flipping
-    // [(visible)] itself, without going through the Cancel handler.
-    const inFlight = new Subject<DashboardWarehouse>();
-    warehouseActions.create.mockReturnValue(inFlight.asObservable());
-    const createdSpy = vi.fn();
-    component.warehouseCreated.subscribe(createdSpy);
-    component.visible = true;
-    component.newWarehouseName = "first";
-    component.createWarehouse();
-
-    component.visible = false;
-    component.ngOnChanges({ visible: new SimpleChange(true, false, false) });
-    inFlight.next(created);
-    inFlight.complete();
-
-    expect(createdSpy).not.toHaveBeenCalled();
-    expect(notificationService.success).not.toHaveBeenCalled();
-  });
-
   it("cancel closes without creating", () => {
     const visibleSpy = vi.fn();
     component.visibleChange.subscribe(visibleSpy);
     component.visible = true;
+    fixture.detectChanges();
 
-    component.handleCreateWarehouseModalCancel();
+    const cancel = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      b => b.textContent?.trim() === "Cancel"
+    )!;
+    cancel.click();
 
     expect(component.visible).toBe(false);
     expect(visibleSpy).toHaveBeenCalledWith(false);

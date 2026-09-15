@@ -42,7 +42,6 @@ import type { Mock } from "vitest";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
-import { WarehouseService } from "../../common/service/warehouse/warehouse.service";
 import {
   ABOUT,
   ADMIN_EXECUTION,
@@ -312,51 +311,14 @@ describe("DashboardComponent", () => {
       component.sidebarTabs = { ...component.sidebarTabs, your_work_enabled: true };
     });
 
-    it("shows the Warehouses item only while the backend reports the feature enabled", () => {
-      component.warehouseEnabled = false;
+    it("shows the Warehouses item only while the deployment's config enables the feature", () => {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
       fixture.detectChanges();
       expect(warehouseMenuItem()).toBeUndefined();
 
-      component.warehouseEnabled = true;
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
       fixture.detectChanges();
       expect(warehouseMenuItem()).toBeTruthy();
-    });
-
-    it("asks the status endpoint exactly once per dashboard load", () => {
-      // userChanged() replays the current user synchronously (a ReplaySubject(1)
-      // primed in UserService's constructor), so that subscription already covers
-      // the initial load: a second explicit call in ngOnInit would double every
-      // dashboard load, and dropping both would leave the tab permanently hidden.
-      (userServiceMock.isLogin as Mock).mockReturnValue(true);
-      const statusSpy = vi
-        .spyOn(TestBed.inject(WarehouseService), "getStatus")
-        .mockReturnValue(of({ enabled: true, warehouses: [] }));
-
-      const freshFixture = TestBed.createComponent(DashboardComponent);
-      freshFixture.detectChanges();
-
-      expect(statusSpy).toHaveBeenCalledTimes(1);
-      expect(freshFixture.componentInstance.warehouseEnabled).toBe(true);
-      freshFixture.destroy();
-    });
-
-    it("loadWarehouseEnabled follows the status endpoint, and stays hidden when logged out or failing", () => {
-      const statusSpy = vi
-        .spyOn(TestBed.inject(WarehouseService), "getStatus")
-        .mockReturnValue(of({ enabled: true, warehouses: [] }));
-
-      component.isLogin = false;
-      component.loadWarehouseEnabled();
-      expect(statusSpy).not.toHaveBeenCalled();
-      expect(component.warehouseEnabled).toBe(false);
-
-      component.isLogin = true;
-      component.loadWarehouseEnabled();
-      expect(component.warehouseEnabled).toBe(true);
-
-      statusSpy.mockReturnValue(throwError(() => new Error("401")));
-      component.loadWarehouseEnabled();
-      expect(component.warehouseEnabled).toBe(false);
     });
   });
 

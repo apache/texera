@@ -29,13 +29,13 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzListComponent } from "ng-zorro-antd/list";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 
 import { WarehouseCreateModalComponent } from "../../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WarehouseActionsService } from "../../../../common/service/warehouse/warehouse-actions.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { DashboardWarehouse } from "../../../../common/type/warehouse";
+import { extractErrorMessage } from "../../../../common/util/error";
 import { UserWarehouseListItemComponent } from "./user-warehouse-list-item/user-warehouse-list-item.component";
 
 /**
@@ -52,7 +52,6 @@ import { UserWarehouseListItemComponent } from "./user-warehouse-list-item/user-
   imports: [
     NgIf,
     NzCardComponent,
-    NzSpaceCompactItemDirective,
     NzButtonComponent,
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
@@ -105,7 +104,7 @@ export class UserWarehouseComponent implements OnInit {
               this.warehouseEnabled = undefined;
               this.warehouses = [];
               console.error("Failed to fetch warehouses", err);
-              this.notificationService.error("Failed to fetch warehouses.");
+              this.notificationService.error(`Failed to fetch warehouses: ${extractErrorMessage(err)}`);
               return EMPTY;
             })
           )
@@ -123,6 +122,10 @@ export class UserWarehouseComponent implements OnInit {
   retry(): void {
     this.refresh();
   }
+
+  // Identity for *cdkVirtualFor, so a refresh reuses the rendered rows instead
+  // of rebuilding every one.
+  trackByWarehouse = (_: number, warehouse: DashboardWarehouse): number => warehouse.whid;
 
   private refresh(): void {
     this.refreshRequested$.next();

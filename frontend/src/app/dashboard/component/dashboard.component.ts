@@ -25,7 +25,6 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
-import { WarehouseService } from "../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
 import {
@@ -116,10 +115,6 @@ export class DashboardComponent implements OnInit {
     about_enabled: false,
   };
 
-  // Unlike sidebarTabs (admin-configured), the Warehouses tab follows the
-  // backend's warehouse feature flag, reported by GET /warehouse/status (#6933).
-  warehouseEnabled = false;
-
   protected readonly LOGIN = LOGIN;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
@@ -145,8 +140,7 @@ export class DashboardComponent implements OnInit {
     private ngZone: NgZone,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
-    protected config: GuiConfigService,
-    private warehouseService: WarehouseService
+    protected config: GuiConfigService
   ) {}
 
   ngOnInit(): void {
@@ -171,33 +165,12 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.forumLogin();
-          this.loadWarehouseEnabled();
         });
       });
 
     this.loadLogos();
 
     this.loadTabs();
-  }
-
-  // The status endpoint needs an authenticated user; logged out (or on any
-  // fetch failure) the tab simply stays hidden.
-  loadWarehouseEnabled(): void {
-    if (!this.isLogin) {
-      this.warehouseEnabled = false;
-      return;
-    }
-    this.warehouseService
-      .getStatus()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: status => {
-          this.warehouseEnabled = status.enabled;
-        },
-        error: () => {
-          this.warehouseEnabled = false;
-        },
-      });
   }
 
   // A missing key or a failed settings fetch keeps the branding/tab defaults;
