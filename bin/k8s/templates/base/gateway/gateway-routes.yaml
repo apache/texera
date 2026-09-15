@@ -39,6 +39,12 @@ spec:
         - path:
             type: PathPrefix
             value: /api/compile
+        # The Python export reads the same compiled workflow the compile endpoint does, so it
+        # is served by the same service. Without a rule of its own it falls to the /api
+        # catch-all below and reaches the webserver, which has no such resource.
+        - path:
+            type: PathPrefix
+            value: /api/workflow-to-python
       backendRefs:
         - name: workflow-compiling-service-svc
           port: 9090
