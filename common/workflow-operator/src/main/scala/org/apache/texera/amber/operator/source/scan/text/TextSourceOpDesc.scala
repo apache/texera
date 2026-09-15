@@ -48,6 +48,10 @@ trait TextSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var attributeName: String = "line"
 
+  // Named explicitly so reflection can see it. These are the row-window knobs the
+  // text sources actually read — the ones they inherit are ignored — but they carried
+  // no @JsonProperty, which leaves them invisible to anything walking the config.
+  @JsonProperty
   @JsonSchemaTitle("Limit (lines)")
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonPropertyDescription(
@@ -66,6 +70,7 @@ trait TextSourceOpDesc {
   )
   var fileScanLimit: Option[Int] = None
 
+  @JsonProperty
   @JsonSchemaTitle("Offset (lines)")
   @JsonPropertyDescription(
     "Number of lines to skip from the start before reading. " +

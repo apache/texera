@@ -209,6 +209,35 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.close()
   }
 
+  "FileScanSourceOpDesc.generateStandaloneCode" should
+    "slice the raw lines before converting them" in {
+    fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
+
+    fileScanSourceOpDesc.fileScanOffset = Option(3)
+    fileScanSourceOpDesc.fileScanLimit = None
+    assert(
+      fileScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""{"line": [int(l.rstrip()) for l in _f.readlines()[3:]]}""")
+    )
+
+    fileScanSourceOpDesc.fileScanOffset = None
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
+    assert(
+      fileScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""{"line": [int(l.rstrip()) for l in _f.readlines()[:5]]}""")
+    )
+
+    fileScanSourceOpDesc.fileScanOffset = Option(3)
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
+    assert(
+      fileScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""{"line": [int(l.rstrip()) for l in _f.readlines()[3:][:5]]}""")
+    )
+  }
+
   "FileScanSourceOpDesc.getPhysicalOp" should
     "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
     val physical =

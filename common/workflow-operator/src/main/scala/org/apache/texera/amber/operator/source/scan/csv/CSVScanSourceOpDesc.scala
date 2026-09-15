@@ -28,22 +28,28 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
+import scala.util.Try
 
-class CSVScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   // One character: every reader narrows this with charAt(0), because univocity's
   // setDelimiter and scala-csv's DefaultCSVFormat both take a Char.
+  //
+  // `examples` names a delimiter the fixture's rows do not contain, so the
+  // verification config generator does not pick one that parses them ragged.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -145,4 +151,77 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   }
 
+  override def generateStandaloneCode(): String = {
+    // Strip to just the basename. The standalone script assumes the CSV
+    // lives in the same directory as the script (Texera's resolved URIs
+    // can't be used directly outside the system).
+    val basename = sourceBasename(fileName.getOrElse(""))
+
+    // Resolve the delimiter the same way the parser above does — first character, empty
+    // means comma — and escape it. Every value the field accepts has to survive this:
+    // pandas reads a separator longer than one character as a REGULAR EXPRESSION, and a
+    // backslash spliced raw produced `sep="\"`, which is not valid Python at all.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    // Texera's encoding enum uses values like UTF_8; pandas expects utf-8.
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"""filepath_or_buffer=${pyStringLiteral(basename)}"""
+    args += s"sep=${pyStringLiteral(sep)}"
+    args += s"""encoding=${pyStringLiteral(encoding)}"""
+    args += s"header=$headerArg"
+
+    // The parser above sets no null value, so only an empty field is null and every other
+    // text stands for itself. pandas instead reads a list of words as missing by default,
+    // "NA" and "null" among them, which turned a column holding the country code NA into
+    // nulls. Both halves are needed: dropping the default list stops the words, and naming
+    // the empty string keeps the blank cell null.
+    args += "keep_default_na=False"
+    args += """na_values=[""]"""
+
+    // A CSV carries no types, so both readers infer, and they do not infer
+    // alike: the schema above tries TIMESTAMP and parses what it can, while
+    // pd.read_csv leaves a date column as text. Name the columns this operator
+    // decided were timestamps so pandas parses the same ones — by position when
+    // there is no header, the frame's columns having no names until the rename
+    // below. A schema that cannot be read (an unresolved file) leaves the
+    // argument off rather than failing the export.
+    val dateColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.TIMESTAMP)
+          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+      )
+    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
+
+    offset.foreach { o =>
+      // With a header, skip offset rows after row 0; without, skip offset rows from the start.
+      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      else args += s"skiprows=$o"
+    }
+    limit.foreach(l => args += s"nrows=$l")
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    // The schema's own names, which every downstream operator was configured
+    // against. They differ from pandas' in both directions: a blank header is
+    // `column-2` here and `Unnamed: 1` there, and a header the user really did
+    // spell `Unnamed: 1` is kept. Matching the placeholder against the index
+    // cannot tell those two apart when they coincide; taking the names by
+    // position can.
+    val schemaNames: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq
+        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+
+    if (schemaNames.nonEmpty)
+      s"""$readCall
+         |out1df.columns = [${schemaNames.mkString(", ")}]""".stripMargin
+    else if (hasHeader) readCall
+    else {
+      // Unresolved file: fall back to Texera's headerless naming.
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+    }
+  }
 }

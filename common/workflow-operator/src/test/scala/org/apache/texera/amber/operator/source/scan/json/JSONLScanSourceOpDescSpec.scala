@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.json
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
@@ -27,6 +28,12 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -86,4 +93,76 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.limit shouldBe Some(10)
     r.offset shouldBe Some(5)
   }
+
+  // The executor drops and takes on the raw lines, so a line the window skips is
+  // never read as JSON. Reading the file whole and slicing the frame afterwards
+  // ends the export on a line the workflow never looked at.
+  "JSONLScanSourceOpDesc.generateStandaloneCode" should
+    "skip a line the window excludes without parsing it" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-window-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    Files.write(
+      data,
+      "not json at all\n{\"id\":1}\n{\"id\":2}\n".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.offset = Some(1)
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.generateStandaloneCode()}
+         |print(list(out1df["id"]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      out.trim should endWith("[1, 2]")
+    }
+  }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }

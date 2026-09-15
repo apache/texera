@@ -28,19 +28,22 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
+import scala.util.Try
 
-class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")
@@ -74,6 +77,45 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val basename = sourceBasename(fileName.getOrElse(""))
+    // First character, empty means comma — the same resolution the reader below does —
+    // and escaped, so every value the field accepts survives being spliced into Python.
+    // See CSVScanSourceOpDesc for what handing pandas the raw value did.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"""filepath_or_buffer=${pyStringLiteral(basename)}"""
+    args += s"sep=${pyStringLiteral(sep)}"
+    args += s"""encoding=${pyStringLiteral(encoding)}"""
+    args += s"header=$headerArg"
+
+    // Name the columns this operator inferred as timestamps, so pandas parses
+    // the same ones instead of leaving them as text. See CSVScanSourceOpDesc.
+    val dateColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.TIMESTAMP)
+          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+      )
+    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
+
+    offset.foreach { o =>
+      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      else args += s"skiprows=$o"
+    }
+    limit.foreach(l => args += s"nrows=$l")
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    if (hasHeader) readCall
+    else
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
   }
 
   override def sourceSchema(): Schema = {

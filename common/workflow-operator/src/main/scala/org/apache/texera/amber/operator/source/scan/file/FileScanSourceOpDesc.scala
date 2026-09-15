@@ -29,13 +29,22 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  ScanSourceOpDesc
+}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
+class FileScanSourceOpDesc
+    extends ScanSourceOpDesc
+    with TextSourceOpDesc
+    with StandaloneCodeGenerator {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(
@@ -63,6 +72,61 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   val outputFileName: Boolean = false
 
   fileTypeName = Option("")
+
+  override def generateStandaloneCode(): String = {
+    val basename = sourceBasename(fileName.getOrElse(""))
+    val col = attributeName
+    val enc = encoding.toString.replace("_", "-").toLowerCase
+    val basenameLit = pyStringLiteral(basename)
+    val colLit = pyStringLiteral(col)
+    val encLit = pyStringLiteral(enc)
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+
+    if (extract)
+      buf += s"""# WARNING: extract=true is not supported in standalone mode; provide the unarchived $basenameLit directly."""
+
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+
+    if (attributeType.isSingle) {
+      val openArgs =
+        if (isBinary) s"""$basenameLit, "rb""""
+        else s"""$basenameLit, "r", encoding=$encLit"""
+      val dfCols =
+        if (outputFileName) s"""{"filename": $basenameLit, $colLit: [_f.read()]}"""
+        else s"""{$colLit: [_f.read()]}"""
+      buf += s"""with open($openArgs) as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+    } else {
+      val castExpr = attributeType match {
+        case FileAttributeType.INTEGER   => "int(l.rstrip())"
+        case FileAttributeType.LONG      => "int(l.rstrip())"
+        case FileAttributeType.DOUBLE    => "float(l.rstrip())"
+        case FileAttributeType.BOOLEAN   => """l.rstrip().lower() == "true""""
+        case FileAttributeType.TIMESTAMP => "pd.Timestamp(l.rstrip())"
+        case _                           => """l.rstrip("\n")"""
+      }
+      // The slice applies to the raw lines, as the engine drops and takes
+      // before parsing: a line outside the window is never converted, so an
+      // unparseable one there costs nothing. Taking after dropping also keeps
+      // a large limit from overflowing the end index.
+      val linesExpr =
+        if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) "_f"
+        else {
+          val dropped =
+            fileScanOffset.filter(_ > 0).fold("_f.readlines()")(o => s"_f.readlines()[$o:]")
+          fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
+        }
+      val dfCols =
+        if (outputFileName)
+          s"""{"filename": $basenameLit, $colLit: [$castExpr for l in $linesExpr]}"""
+        else s"""{$colLit: [$castExpr for l in $linesExpr]}"""
+      buf += s"""with open($basenameLit, "r", encoding=$encLit) as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+    }
+
+    buf.mkString("\n")
+  }
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

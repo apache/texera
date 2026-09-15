@@ -211,6 +211,60 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  it should "use the csv basename in standalone code" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("""filepath_or_buffer="country_sales_small_multi_line.csv""""))
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
+  it should "use the unresolved csv basename in standalone code" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("""filepath_or_buffer="country_sales_small_multi_line.csv""""))
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
+  // The parser sets no null value, so only an empty field is null. pandas reads a list of
+  // words as missing by default, which turned the country code NA into a null.
+  it should "read only an empty field as null, the way the parser does" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("keep_default_na=False"))
+    assert(code.contains("""na_values=[""]"""))
+  }
+
+  // sourceSchema names a blank header column-N; pandas names it "Unnamed: N". A downstream
+  // operator asks for the name the schema gave, so the frame has to carry that one, and by
+  // position rather than by matching the placeholder: a header the user really did spell
+  // "Unnamed: 1" is kept, and matching cannot tell the two apart where they coincide.
+  it should "give the frame the names the schema gives it" in {
+    val path = writeCsvWithEmptyHeader()
+    csvScanSourceOpDesc.fileName = Some(path)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("""out1df.columns = ["id", "name", "column-3", "age"]"""))
+  }
+
   it should "use comma as the default delimiter when customDelimiter is not set for parallel CSV" in {
     parallelCsvScanSourceOpDesc.customDelimiter = None
 

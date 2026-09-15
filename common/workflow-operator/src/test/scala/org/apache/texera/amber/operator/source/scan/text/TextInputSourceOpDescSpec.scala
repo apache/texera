@@ -276,6 +276,36 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
   }
 
+  "TextInputSourceOpDesc.generateStandaloneCode" should
+    "slice the raw lines before converting them" in {
+    textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    textInputSourceOpDesc.textInput = "1\n2\n3"
+
+    textInputSourceOpDesc.fileScanOffset = Option(3)
+    textInputSourceOpDesc.fileScanLimit = None
+    assert(
+      textInputSourceOpDesc
+        .generateStandaloneCode()
+        .endsWith("""{"line": [int(l) for l in _text.splitlines()[3:]]})""")
+    )
+
+    textInputSourceOpDesc.fileScanOffset = None
+    textInputSourceOpDesc.fileScanLimit = Option(5)
+    assert(
+      textInputSourceOpDesc
+        .generateStandaloneCode()
+        .endsWith("""{"line": [int(l) for l in _text.splitlines()[:5]]})""")
+    )
+
+    textInputSourceOpDesc.fileScanOffset = Option(3)
+    textInputSourceOpDesc.fileScanLimit = Option(5)
+    assert(
+      textInputSourceOpDesc
+        .generateStandaloneCode()
+        .endsWith("""{"line": [int(l) for l in _text.splitlines()[3:][:5]]})""")
+    )
+  }
+
   "TextInputSourceOpDesc.getPhysicalOp" should
     "wire the TextInputSourceOpExec class as a source op with one output port" in {
     val physical =
