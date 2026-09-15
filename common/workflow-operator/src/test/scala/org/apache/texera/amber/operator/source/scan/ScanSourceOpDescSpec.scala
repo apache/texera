@@ -19,8 +19,13 @@
 
 package org.apache.texera.amber.operator.source.scan
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.IntNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import org.apache.texera.amber.core.workflow.OutputPort
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.csv.{
   CSVScanSourceOpDesc,
   ParallelCSVScanSourceOpDesc
@@ -206,5 +211,32 @@ class ScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     tree.has("fileName") shouldBe false
     tree.has("limit") shouldBe false
     tree.has("offset") shouldBe false
+  }
+
+  // The two window fields mean nothing below zero, and a negative one is not read
+  // the same way twice: `drop(-1)` keeps every row while `iloc[-1:]` keeps the
+  // last. Validate through the schema the property editor validates against,
+  // rather than restating the bound it declares.
+  private def windowSchema(field: String): JsonNode =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]: Class[_ <: LogicalOp])
+      .path("properties")
+      .path(field)
+
+  private def schemaTakes(field: String, value: Int): Boolean =
+    JsonSchemaFactory
+      .byDefault()
+      .getJsonSchema(windowSchema(field))
+      .validate(IntNode.valueOf(value))
+      .isSuccess
+
+  "A scan source's window" should "refuse a negative limit or offset" in {
+    Seq("limit", "offset").foreach { field =>
+      withClue(s"$field: ") {
+        schemaTakes(field, -1) shouldBe false
+        schemaTakes(field, 0) shouldBe true
+        schemaTakes(field, 5) shouldBe true
+      }
+    }
   }
 }
