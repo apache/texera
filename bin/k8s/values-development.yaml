@@ -374,6 +374,10 @@ texeraEnvVars:
   # button renders disabled and /auth/orcid/config reports the provider unavailable on every visit.
   - name: GUI_LOGIN_ORCID_LOGIN
     value: "false"
+  # Turn on together with USER_SYS_APPLE_CLIENT_ID below. Apple also rejects an unregistered or
+  # non-HTTPS redirect, so the flow cannot complete until the Services ID names this deployment.
+  - name: GUI_LOGIN_APPLE_LOGIN
+    value: "false"
   - name: GUI_DATASET_SINGLE_FILE_UPLOAD_MAXIMUM_SIZE_MB
     value: "1024"
   - name: GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED
@@ -394,6 +398,8 @@ texeraEnvVars:
   - name: USER_SYS_EMAIL_VERIFICATION
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
+    value: ""
+  - name: USER_SYS_APPLE_CLIENT_ID
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_GMAIL
     value: ""
