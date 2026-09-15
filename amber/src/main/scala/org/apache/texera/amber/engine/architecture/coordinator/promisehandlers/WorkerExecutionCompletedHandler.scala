@@ -20,10 +20,7 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  ExecutionStateUpdate
-}
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest,
@@ -51,27 +48,10 @@ trait WorkerExecutionCompletedHandler {
     // after worker execution is completed, query statistics immediately one last time
     // because the worker might be killed before the next query statistics interval
     // and the user sees the last update before completion
-    val statsRequest =
-      coordinatorInterface.coordinatorInitiateQueryStatistics(
-        QueryStatisticsRequest(Seq(ctx.sender), StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE),
-        mkContext(SELF)
-      )
-
-    Future
-      .collect(Seq(statsRequest))
-      .flatMap(_ => {
-        // if entire workflow is completed, clean up
-        val isWorkflowTerminal =
-          cp.workflowExecution.isCompleted &&
-            !cp.workflowScheduler.hasPendingRegions &&
-            !cp.workflowExecutionManager.hasUnfinishedRegionManagers
-        if (isWorkflowTerminal) {
-          // after query result come back: send completed event, cleanup ,and kill workflow
-          sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
-          cp.coordinatorTimerService.disableStatusUpdate()
-          cp.coordinatorTimerService.disableRuntimeStatisticsCollection()
-        }
-      })
+    coordinatorInterface.coordinatorInitiateQueryStatistics(
+      QueryStatisticsRequest(Seq(ctx.sender), StatisticsUpdateTarget.BOTH_UI_AND_PERSISTENCE),
+      mkContext(SELF)
+    )
     EmptyReturn()
   }
 }

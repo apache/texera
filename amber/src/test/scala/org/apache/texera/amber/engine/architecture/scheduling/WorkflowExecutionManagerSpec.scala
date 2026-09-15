@@ -150,6 +150,41 @@ class WorkflowExecutionManagerSpec
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
   }
 
+  it should "run workflow-completion cleanup exactly once after the workflow becomes terminal" in {
+    val workflowExecution = WorkflowExecution()
+    workflowExecution.initRegionExecution(jumpRegion(1, "completed"))
+    assert(workflowExecution.isCompleted)
+
+    val rpcProbe = new CoordinatorRpcProbe(_ => Some(EmptyReturn()))
+    var cleanupCalls = 0
+    val workflowManager = new WorkflowExecutionManager(
+      workflowExecution,
+      CoordinatorConfig(None, None, None, None),
+      rpcProbe.asyncRPCClient,
+      onWorkflowCompleted = () => cleanupCalls += 1
+    )
+
+    await(workflowManager.advanceRegionExecutions(null))
+    await(workflowManager.advanceRegionExecutions(null))
+
+    assert(cleanupCalls == 1)
+  }
+
+  it should "not run workflow-completion cleanup for an uninitialized workflow" in {
+    val rpcProbe = new CoordinatorRpcProbe(_ => Some(EmptyReturn()))
+    var cleanupCalls = 0
+    val workflowManager = new WorkflowExecutionManager(
+      WorkflowExecution(),
+      CoordinatorConfig(None, None, None, None),
+      rpcProbe.asyncRPCClient,
+      onWorkflowCompleted = () => cleanupCalls += 1
+    )
+
+    await(workflowManager.advanceRegionExecutions(null))
+
+    assert(cleanupCalls == 0)
+  }
+
   "Jumping to an operator's region" should
     "make the next scheduled region contain the target operator's region" in {
     val (first, second, _, schedule) = threeLevelSchedule()

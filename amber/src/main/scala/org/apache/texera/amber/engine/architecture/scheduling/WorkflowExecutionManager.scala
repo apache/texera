@@ -38,7 +38,8 @@ import scala.collection.mutable
 class WorkflowExecutionManager(
     workflowExecution: WorkflowExecution,
     coordinatorConfig: CoordinatorConfig,
-    asyncRPCClient: AsyncRPCClient
+    asyncRPCClient: AsyncRPCClient,
+    onWorkflowCompleted: () => Unit = () => ()
 ) extends LazyLogging {
 
   var schedule: Schedule = Schedule(Map.empty)
@@ -132,6 +133,7 @@ class WorkflowExecutionManager(
     if (nextRegions.isEmpty) {
       if (workflowExecution.isCompleted && completionNotified.compareAndSet(false, true)) {
         asyncRPCClient.sendToClient(ExecutionStateUpdate(workflowExecution.getState))
+        onWorkflowCompleted()
       }
       return Future.Unit
     }

@@ -46,7 +46,12 @@ class CoordinatorProcessor(
   val workflowExecutionManager: WorkflowExecutionManager = new WorkflowExecutionManager(
     workflowExecution,
     coordinatorConfig,
-    asyncRPCClient
+    asyncRPCClient,
+    onWorkflowCompleted = () =>
+      Option(coordinatorTimerService).foreach { timerService =>
+        timerService.disableStatusUpdate()
+        timerService.disableRuntimeStatisticsCollection()
+      }
   )
 
   private val initializer = new CoordinatorAsyncRPCHandlerInitializer(this)
