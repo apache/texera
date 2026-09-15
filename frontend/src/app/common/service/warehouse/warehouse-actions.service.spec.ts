@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { Subject, firstValueFrom, of, throwError } from "rxjs";
+import { Observable, Subject, firstValueFrom, of, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WarehouseActionsService } from "./warehouse-actions.service";
 import { WarehouseService } from "./warehouse.service";
@@ -63,6 +63,53 @@ describe("WarehouseActionsService", () => {
       ],
     });
     service = TestBed.inject(WarehouseActionsService);
+  });
+
+  describe("create", () => {
+    it("toasts the success and hands the created warehouse to the caller", async () => {
+      const seen = firstValueFrom(service.create("sales"));
+
+      expect(warehouseService.createWarehouse).toHaveBeenCalledWith("sales");
+      expect(notificationService.success).toHaveBeenCalledWith('Warehouse "sales" created.');
+      expect(await seen).toEqual(warehouse);
+    });
+
+    it("toasts the backend message when the create fails", () => {
+      warehouseService.createWarehouse.mockReturnValue(throwError(() => ({ error: "'sales' already exists" })));
+
+      service.create("sales").subscribe({ error: () => {} });
+
+      expect(notificationService.error).toHaveBeenCalledWith("Failed to create warehouse: 'sales' already exists");
+    });
+
+    it("the request and its toast outlive the caller's subscription", () => {
+      // The dialog (or its whole page) can be destroyed mid-create; the
+      // service still owns the request, so nothing is aborted or swallowed.
+      const inFlight = new Subject<DashboardWarehouse>();
+      warehouseService.createWarehouse.mockReturnValue(inFlight.asObservable());
+
+      const callerSub = service.create("sales").subscribe();
+      callerSub.unsubscribe();
+      inFlight.next(warehouse);
+      inFlight.complete();
+
+      expect(notificationService.success).toHaveBeenCalledWith('Warehouse "sales" created.');
+    });
+
+    it("issues exactly one request even with the service and the caller both subscribed", () => {
+      // HttpClient observables are cold — every subscription is its own HTTP
+      // request — so count subscriptions to the source, not mock calls.
+      let subscriptions = 0;
+      warehouseService.createWarehouse.mockReturnValue(
+        new Observable<DashboardWarehouse>(() => {
+          subscriptions++;
+        })
+      );
+
+      service.create("sales").subscribe();
+
+      expect(subscriptions).toBe(1);
+    });
   });
 
   it("creates through the warehouse service, so create and delete share one entry point", async () => {

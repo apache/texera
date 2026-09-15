@@ -139,7 +139,9 @@ export class UserWarehouseComponent implements OnInit {
     this.addWarehouseModalVisible = true;
   }
 
-  onWarehouseCreated(): void {
-    this.refresh();
+  onWarehouseCreated(created: DashboardWarehouse): void {
+    // The backend lists warehouses by created_at ascending, so appending keeps
+    // the order without another round trip.
+    this.warehouses = [...this.warehouses, created];
   }
 }

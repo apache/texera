@@ -25,10 +25,8 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzModalComponent } from "ng-zorro-antd/modal";
-import { NotificationService } from "../../service/notification/notification.service";
 import { WarehouseActionsService } from "../../service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../type/warehouse";
-import { extractErrorMessage } from "../../util/error";
 
 /**
  * Shared create-warehouse modal (#6933), embedded the same way
@@ -58,10 +56,7 @@ export class WarehouseCreateModalComponent implements OnChanges {
 
   newWarehouseName = "";
 
-  constructor(
-    private warehouseActionsService: WarehouseActionsService,
-    private notificationService: NotificationService
-  ) {}
+  constructor(private warehouseActionsService: WarehouseActionsService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["visible"]?.currentValue === true) {
@@ -69,41 +64,40 @@ export class WarehouseCreateModalComponent implements OnChanges {
     }
   }
 
+  // Mirrors the backend's VFSURIFactory.warehouseNamePattern (≤64 comes from
+  // the input's maxlength), so an invalid name never leaves the dialog: the
+  // Create button stays disabled and the Enter path returns early.
+  private static readonly VALID_WAREHOUSE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+  isValidWarehouseName(): boolean {
+    return WarehouseCreateModalComponent.VALID_WAREHOUSE_NAME.test(this.newWarehouseName.trim());
+  }
+
   /**
    * Mirrors ComputingUnitCreateModalComponent's submit flow: Create fires the
-   * request and closes the dialog at once; the outcome arrives later as a toast
-   * plus (warehouseCreated). There is no in-flight dialog state left to cancel,
-   * so a create that lands after the close shows up visibly in the list instead
-   * of surprising a retry with "already exists". Unlike the computing-unit
-   * dialog, an empty name never reaches the request: the Create button is
-   * disabled and the Enter path returns early, keeping the dialog open.
+   * request and closes the dialog at once. The actions service owns the request
+   * and its toasts, so the outcome arrives even if the user has navigated away;
+   * this dialog only relays the created warehouse to its host while it is
+   * still alive.
    */
   handleCreateWarehouseModalOk(): void {
-    const name = this.newWarehouseName.trim();
-    if (!name) {
+    if (!this.isValidWarehouseName()) {
       return;
     }
-    this.createWarehouse(name);
+    const name = this.newWarehouseName.trim();
+    // The dialog stays clickable through its close animation; clearing the
+    // name drops a second rapid click into the guard above instead of firing
+    // a duplicate create.
+    this.newWarehouseName = "";
+    this.warehouseActionsService
+      .create(name)
+      .pipe(untilDestroyed(this))
+      .subscribe(created => this.warehouseCreated.emit(created));
     this.closeModal();
   }
 
   handleCreateWarehouseModalCancel(): void {
     this.closeModal();
-  }
-
-  private createWarehouse(name: string): void {
-    this.warehouseActionsService
-      .create(name)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: created => {
-          this.notificationService.success(`Warehouse "${created.name}" created.`);
-          this.warehouseCreated.emit(created);
-        },
-        error: (err: unknown) => {
-          this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`);
-        },
-      });
   }
 
   private closeModal(): void {

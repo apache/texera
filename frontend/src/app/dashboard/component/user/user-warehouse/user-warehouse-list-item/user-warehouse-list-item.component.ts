@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnChanges, Output } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WarehouseMetadataComponent } from "../../../../../common/component/warehouse-metadata/warehouse-metadata.component";
 import { DashboardWarehouse } from "../../../../../common/type/warehouse";
@@ -46,11 +46,19 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
     NzButtonComponent,
   ],
 })
-export class UserWarehouseListItemComponent {
+export class UserWarehouseListItemComponent implements OnChanges {
   @Input({ required: true }) warehouse!: DashboardWarehouse;
   @Output() deleted = new EventEmitter<void>();
 
+  // Computed when the input changes rather than in the template, which would
+  // re-run the formatting on every change-detection pass of every row.
+  createdRelative = "";
+
   constructor(private modalService: NzModalService) {}
+
+  ngOnChanges(): void {
+    this.createdRelative = formatRelativeTime(this.warehouse.createdAtMillis);
+  }
 
   openWarehouseMetadataModal(): void {
     this.modalService.create({
@@ -62,6 +70,4 @@ export class UserWarehouseListItemComponent {
       nzWidth: "600px",
     });
   }
-
-  formatRelativeTime = formatRelativeTime;
 }

@@ -49,7 +49,7 @@
       nz-button
       nzType="primary"
       id="confirm-create-warehouse-btn"
-      [disabled]="!newWarehouseName.trim()"
+      [disabled]="!isValidWarehouseName()"
       (click)="handleCreateWarehouseModalOk()">
       Create
     </button>

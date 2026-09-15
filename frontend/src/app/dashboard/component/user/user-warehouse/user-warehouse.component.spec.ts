@@ -263,14 +263,16 @@ describe("UserWarehouseComponent", () => {
     expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
   });
 
-  it("refreshes the warehouse list when the modal emits warehouseCreated", () => {
+  it("appends the created warehouse instead of refetching the list", () => {
     fixture.detectChanges();
     warehouseServiceSpy.getStatus.mockClear();
 
     const modal = fixture.debugElement.query(By.directive(WarehouseCreateModalComponent)).componentInstance;
-    modal.warehouseCreated.emit(warehouse(1, "mybucket"));
+    modal.warehouseCreated.emit(warehouse(9, "fresh"));
 
-    expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
+    // The backend orders by created_at ascending, so the append keeps order.
+    expect(component.warehouses.map(w => w.whid)).toEqual([9]);
+    expect(warehouseServiceSpy.getStatus).not.toHaveBeenCalled();
   });
 
   it("syncs visibility when the embedded modal closes itself", () => {
