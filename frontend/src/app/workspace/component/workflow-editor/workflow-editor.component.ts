@@ -128,10 +128,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * Set by a view that shows the graph but must never re-shape it. Separate from the
    * workflow-modification lock (which also gates property editing, so reusing that alone would
    * disable the property panel a later authoring mode needs). It locks the paper's own
-   * interactions -- dragging, linking, and the keyboard delete/cut/port commands. The right-click
-   * menu's structural commands follow the modification lock instead, so a read-only view like the
-   * Form View, which also disables modification, is fully locked; an authoring view that re-enables
-   * modification will need to carry this lock into the menu too.
+   * interactions -- dragging, linking, and the keyboard delete/cut/port commands -- and is passed on
+   * to the right-click menu, whose re-shaping commands otherwise follow the modification lock alone:
+   * the Form View's edit mode re-enables modification for the property panel, and without the
+   * hand-off the preview's menu would cut, paste and delete again.
    */
   @Input() structureLocked = false;
 
@@ -1200,7 +1200,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        // A structure-locked preview (the Form View's) unfolds the state and port counts only: its
+        // delete, chat and port buttons could not act there, and would only suggest it can be edited.
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
@@ -1213,7 +1215,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     // Handle right-click on links
@@ -1533,6 +1535,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(linkView => {
+        // A structure-locked preview (the Form View's) offers neither: the link cannot be removed
+        // there, and a breakpoint is a canvas debugging tool. Buttons that do nothing would only
+        // suggest the preview can be edited.
+        if (this.structureLocked) {
+          return;
+        }
         // Create an array to hold the tools
         const tools: joint.dia.ToolView[] = [new this.removeButton()];
 
@@ -1583,6 +1591,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getJointLinkCellAddStream()
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
+        // No breakpoint tool on a structure-locked preview either (see handleLinkCursorHover).
+        if (this.structureLocked) {
+          return;
+        }
         const linkView = link.findView(this.paper);
         const breakpointButtonTool = this.breakpointButton;
         const breakpointButton = new breakpointButtonTool();
