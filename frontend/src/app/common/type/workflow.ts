@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
+import { DefaultView, WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
 export enum ExecutionMode {
@@ -104,3 +104,17 @@ export interface WorkflowContent
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;
+
+/**
+ * The JSON a workflow is exported as, from the dashboard download and the canvas menu alike: the
+ * content plus, when the workflow has one, the landing view as one extra top-level key next to the
+ * content's own (operators/links/...). The importer (upload) destructures it back out onto the
+ * workflow row, so a download-then-upload keeps a form-default workflow opening as a form; an
+ * older importer that reads the whole object as content simply ignores the unknown key, and an
+ * older export without it imports unchanged.
+ */
+export type ExportedWorkflow = WorkflowContent & { defaultView?: DefaultView };
+
+export function exportedWorkflow(content: WorkflowContent, defaultView: DefaultView | undefined): ExportedWorkflow {
+  return defaultView === undefined ? content : { ...content, defaultView };
+}

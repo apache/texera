@@ -135,6 +135,7 @@ class ConfigResourceSpec
       // The login page needs this before anyone is signed in, for the same reason as the other two
       // provider flags: it decides whether the ORCID button is rendered at all.
       "orcidLogin",
+      "appleLogin",
       "defaultLocalUser",
       "attributionEnabled",
       "deploymentVersionCheckEnabled",
@@ -171,6 +172,7 @@ class ConfigResourceSpec
       "localLogin",
       "googleLogin",
       "orcidLogin",
+      "appleLogin",
       "defaultLocalUser",
       "attributionEnabled"
     )
