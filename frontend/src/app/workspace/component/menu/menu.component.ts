@@ -665,11 +665,14 @@ export class MenuComponent implements OnInit, OnDestroy {
     // save that fails keeps the user here with the error shown, rather than leaving with changes
     // that were never stored. The form's own switch (openRegularCanvas) does the same.
     //
-    // Two more things the hand-over must not lose. An autosave already in flight when the switch
+    // Three more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
-    // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the load): workflowChanged marks it, and the drain below saves once more before handing
-    // over rather than letting the full-page load abort that edit's own debounced autosave.
+    // it and completes after it. A graph edit made while our save is out (the page stays editable
+    // until the load): workflowChanged marks it, and saveThenOpenFormView saves once more before
+    // handing over rather than letting the full-page load abort that edit's own debounced autosave.
+    // And a save queued behind ours (a rename's or a description's, which save through the menu
+    // itself and do not go through workflowChanged): the hand-over leaves only once the service's
+    // save queue has drained.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -702,8 +705,15 @@ export class MenuComponent implements OnInit, OnDestroy {
             this.saveThenOpenFormView(target);
             return;
           }
-          this.isSaving = false;
-          this.openFormViewPage(target);
+          // A save queued behind ours (a rename's, a description's: those save through the menu
+          // itself, not the autosave) must land too, or the page load aborts it.
+          this.workflowPersistService
+            .whenSavesDrained()
+            .pipe(untilDestroyed(this))
+            .subscribe(() => {
+              this.isSaving = false;
+              this.openFormViewPage(target);
+            });
         },
       });
   }
