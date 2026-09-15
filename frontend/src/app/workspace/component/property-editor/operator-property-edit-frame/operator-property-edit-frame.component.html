@@ -197,10 +197,14 @@
     currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
 </form>
 
+<!-- A viewer mount hides the unlock rather than showing it disabled: setInteractivity clamps to
+     non-interactive there, so the button would be present and do nothing. The paused state is
+     reachable from such a frame, because a co-editor can pause a run the reader never started. -->
 <button
   (click)="allowModifyOperatorLogic()"
   *ngIf="
 		currentOperatorId !== undefined &&
+		this.actsAsEditor &&
 		(this.executeWorkflowService.getExecutionState().state ===
 			ExecutionState.Paused) &&
 		!this.interactive"

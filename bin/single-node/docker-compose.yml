@@ -18,33 +18,43 @@
 name: texera-single-node
 services:
   # Part1: Specification of the storage services used by Texera
-  # MinIO is an S3-compatible object storage used to store datasets and files.
-  minio:
-    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
-    container_name: texera-minio
+  # RustFS is an S3-compatible object storage used to store datasets and files.
+  rustfs:
+    image: rustfs/rustfs:1.0.0-rc.6
+    container_name: texera-rustfs
     ports:
-      - "${MINIO_PORT:-9000}:9000"
+      - "${RUSTFS_PORT:-9000}:9000"
     env_file:
       - .env
     environment:
-      - MINIO_ROOT_USER=${STORAGE_S3_AUTH_USERNAME}
-      - MINIO_ROOT_PASSWORD=${STORAGE_S3_AUTH_PASSWORD}
+      - RUSTFS_ACCESS_KEY=${STORAGE_S3_AUTH_USERNAME}
+      - RUSTFS_SECRET_KEY=${STORAGE_S3_AUTH_PASSWORD}
+      # Must match STORAGE_S3_REGION: the region is part of the SigV4 scope, and
+      # LakeFS sends its blockstore region on every request.
+      - RUSTFS_REGION=${STORAGE_S3_REGION}
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      # Empty log directory => log to stdout, so `docker compose logs rustfs`
+      # works and no second volume is needed. `warn` keeps that readable; the
+      # server is very chatty at info.
+      - RUSTFS_OBS_LOG_DIRECTORY=
+      - RUSTFS_OBS_LOGGER_LEVEL=warn
     volumes:
-      - minio_data:/data
-    command: server --console-address ":9001" /data
+      - rustfs_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/health"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   # This job creates the S3 bucket used by the Iceberg warehouse that the
-  # Lakekeeper service manages.
-  minio-init:
-    image: minio/mc:RELEASE.2025-05-21T01-59-54Z
-    container_name: texera-minio-init
+  # Lakekeeper service manages. `rc` is RustFS's S3 client, the counterpart of
+  # the `mc` client this used to run.
+  rustfs-init:
+    image: rustfs/rc:v0.1.35
+    container_name: texera-rustfs-init
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     env_file:
       - .env
@@ -53,9 +63,10 @@ services:
     command:
       - |
         set -e
-        mc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD"
-        mc mb --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
-        echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
+        rc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD" \
+          --region "$$STORAGE_S3_REGION" --bucket-lookup path
+        rc bucket create --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
+        echo "RustFS bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
 
   # PostgreSQL with PGroonga extension for full-text search.
   # Used by lakeFS and Texera's metadata storage.
@@ -83,13 +94,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
     env_file:
       - .env
     environment:
-      # This port also need to be changed if the port of MinIO service is changed
-      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${MINIO_PORT:-9000}
+      # This port also need to be changed if the port of RustFS service is changed
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${RUSTFS_PORT:-9000}
       - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=${STORAGE_S3_AUTH_USERNAME}
       - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=${STORAGE_S3_AUTH_PASSWORD}
     entrypoint: ["/bin/sh", "-c"]
@@ -126,7 +137,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
       lakekeeper-migrate:
         condition: service_completed_successfully
@@ -142,14 +153,14 @@ services:
       start_period: 10s
 
   # One-shot init container that creates the Lakekeeper default project and
-  # the Iceberg warehouse pointing at the MinIO bucket prepared by minio-init.
+  # the Iceberg warehouse pointing at the RustFS bucket prepared by rustfs-init.
   lakekeeper-init:
     image: alpine:3.19
     container_name: texera-lakekeeper-init
     depends_on:
       lakekeeper:
         condition: service_healthy
-      minio-init:
+      rustfs-init:
         condition: service_completed_successfully
     env_file:
       - .env
@@ -222,7 +233,7 @@ services:
           # The warehouse persists its S3 endpoint in Lakekeeper's own DB. The
           # local-dev launcher sets STORAGE_S3_ENDPOINT to the host LAN IP so
           # both this container and the host JVMs (Iceberg remote-signing) reach
-          # the same MinIO — but that IP changes across networks / DHCP leases.
+          # the same RustFS — but that IP changes across networks / DHCP leases.
           # This init is idempotent and would otherwise just skip, leaving a
           # stale endpoint that breaks workflow execution with an opaque Iceberg
           # RESTException. Refresh the stored endpoint on every run (#6195).
@@ -314,7 +325,7 @@ services:
     container_name: file-service
     restart: unless-stopped
     depends_on:
-      minio:
+      rustfs:
         condition: service_started
       lakefs:
         condition: service_healthy
@@ -584,6 +595,6 @@ networks:
 
 # persistent volumes
 volumes:
-  minio_data:
+  rustfs_data:
   postgres_data:
   workflow_result_data:

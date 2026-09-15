@@ -37,9 +37,11 @@ import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
+import { ModelService } from "../../../service/user/model/model.service";
 import { EntityType } from "src/app/hub/service/hub.service";
 import { By } from "@angular/platform-browser";
-import { of } from "rxjs";
+import { of, throwError, Subject } from "rxjs";
+import { SimpleChange } from "@angular/core";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -148,6 +150,25 @@ describe("FiltersComponent", () => {
         // Operator metadata is not login-gated, so it is still loaded.
         expect(loggedOutComponent.operatorGroups).toEqual(["Source", "Analysis", "View Results"]);
         loggedOutFixture.destroy();
+      } finally {
+        stubUser.user = previousUser;
+      }
+    });
+
+    it("offers no owner facet to a signed-out hub visitor", () => {
+      // The hub is reachable signed out, but /hub/owners is @RolesAllowed and the list is emails.
+      const stubUser = TestBed.inject(UserService) as unknown as StubUserService;
+      const previousUser = stubUser.user;
+      try {
+        stubUser.user = undefined;
+        const anonFixture = TestBed.createComponent(FiltersComponent);
+        anonFixture.componentInstance.ownerScope = "public";
+        anonFixture.detectChanges();
+
+        expect(anonFixture.componentInstance.owners).toEqual([]);
+        const ownerButton = anonFixture.nativeElement.querySelector(".search-owners-button") as HTMLElement;
+        expect(ownerButton.hidden).toBe(true);
+        anonFixture.destroy();
       } finally {
         stubUser.user = previousUser;
       }
@@ -439,10 +460,12 @@ describe("FiltersComponent per-resource owners", () => {
   let datasetOwners: ReturnType<typeof vi.fn>;
   let workflowOwners: ReturnType<typeof vi.fn>;
   let workflowIds: ReturnType<typeof vi.fn>;
+  let modelOwners: ReturnType<typeof vi.fn>;
 
   /** The input has to be set before ngOnInit reads it. */
-  async function render(entityType?: EntityType): Promise<void> {
+  async function render(entityType?: EntityType | null): Promise<void> {
     datasetOwners = vi.fn(() => of(["dataset-owner"]));
+    modelOwners = vi.fn(() => of(["model-owner"]));
     workflowOwners = vi.fn(() => of(["workflow-owner"]));
     workflowIds = vi.fn(() => of([7]));
 
@@ -455,6 +478,7 @@ describe("FiltersComponent per-resource owners", () => {
           useValue: { retrieveOwners: workflowOwners, retrieveWorkflowIDs: workflowIds },
         },
         { provide: DatasetService, useValue: { retrieveOwners: datasetOwners } },
+        { provide: ModelService, useValue: { retrieveOwners: modelOwners } },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
         provideNzI18n(en_US),
@@ -478,7 +502,7 @@ describe("FiltersComponent per-resource owners", () => {
     }
   });
 
-  it("defaults to workflows, so the call sites that pass nothing are unaffected", async () => {
+  it("defaults to workflows, which the Your Work workflows page still relies on", async () => {
     await render();
 
     expect(component.entityType).toBe(EntityType.Workflow);
@@ -520,5 +544,161 @@ describe("FiltersComponent per-resource owners", () => {
     await render(EntityType.Workflow);
 
     expect(fixture.debugElement.query(By.css(".search-wids-button"))).not.toBeNull();
+  });
+
+  it("unions every kind's owners for a page that lists them all", async () => {
+    // The search page's All tab, where there is no single kind to ask about.
+    await render(null);
+
+    expect(workflowOwners).toHaveBeenCalled();
+    expect(datasetOwners).toHaveBeenCalled();
+    expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner", "dataset-owner", "model-owner"]);
+  });
+
+  it("keeps the workflow id filter on a page that lists every kind", async () => {
+    // That page lists workflows too, and the backend binds `id=` to the workflow arm.
+    await render(null);
+
+    expect(component.hasIdFilter).toBe(true);
+    expect(component.wids.map(wid => wid.id)).toEqual(["7"]);
+  });
+
+  it("reloads the owners when the listed kind changes", async () => {
+    await render(EntityType.Workflow);
+    expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);
+
+    component.entityType = EntityType.Dataset;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    fixture.detectChanges();
+
+    expect(component.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
+  });
+
+  it("loads the owners once on first render, not twice", async () => {
+    await render(EntityType.Workflow);
+    // ngOnChanges runs before ngOnInit; only ngOnInit may load, or every page pays two requests.
+    component.ngOnChanges({ entityType: new SimpleChange(undefined, EntityType.Workflow, true) });
+
+    expect(workflowOwners).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads the ids too, so the id filter works after a tab switch", async () => {
+    // Datasets have no id endpoint, so switching back to workflows must refetch them, or the id
+    // button opens on an empty menu and a typed id is rejected as invalid.
+    await render(EntityType.Dataset);
+    expect(component.wids).toEqual([]);
+
+    component.entityType = EntityType.Workflow;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+
+    expect(workflowIds).toHaveBeenCalled();
+    expect(component.wids.map(wid => wid.id)).toEqual(["7"]);
+  });
+
+  it("lets a tab switch cancel the load already in flight", async () => {
+    // The init fetch runs through the same subject as a reload, so switchMap can cancel it. A slow
+    // init response landing after a switch would otherwise refill the facet with the old kind.
+    await render(EntityType.Dataset);
+    const slowWorkflowOwners = new Subject<string[]>();
+    workflowOwners.mockReturnValue(slowWorkflowOwners.asObservable());
+
+    // A second component, so the slow response is the one its init is waiting on.
+    const pending = TestBed.createComponent(FiltersComponent);
+    pending.componentInstance.entityType = EntityType.Workflow;
+    pending.detectChanges();
+    expect(pending.componentInstance.owners).toEqual([]);
+
+    pending.componentInstance.entityType = EntityType.Dataset;
+    pending.componentInstance.ngOnChanges({
+      entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false),
+    });
+    expect(pending.componentInstance.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
+
+    // The superseded request answering late must not put workflow owners on the Datasets tab.
+    slowWorkflowOwners.next(["workflow-owner"]);
+    slowWorkflowOwners.complete();
+
+    expect(pending.componentInstance.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
+    pending.destroy();
+  });
+
+  it("survives a failing id request, and keeps reloading afterwards", async () => {
+    // The error has to happen on a reload that actually fetches ids, so start on datasets, which
+    // have no id endpoint, and switch to workflows with the id request failing.
+    await render(EntityType.Dataset);
+    workflowIds.mockReturnValue(throwError(() => new Error("boom")));
+
+    component.entityType = EntityType.Workflow;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+
+    // The owner facet still lands: a failed id request costs its own facet, not the other one.
+    expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);
+    expect(component.wids).toEqual([]);
+
+    // And the subscription is still alive, so later switches keep working.
+    workflowIds.mockReturnValue(of([7]));
+    component.entityType = EntityType.Dataset;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+    expect(component.owners.map(owner => owner.userName)).toEqual(["dataset-owner"]);
+
+    component.entityType = EntityType.Workflow;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    expect(component.wids.map(wid => wid.id)).toEqual(["7"]);
+  });
+
+  it("keeps an id tag that the new kind still offers", async () => {
+    await render(EntityType.Dataset);
+    component.entityType = EntityType.Workflow;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Dataset, EntityType.Workflow, false) });
+    component.masterFilterList = ["id: 7"];
+
+    expect(component.selectedIDs).toEqual(["7"]);
+  });
+
+  it("leaves nothing applied after signing out, whose facets it cannot refetch", async () => {
+    await render(EntityType.Workflow);
+    component.masterFilterList = ["owner: workflow-owner"];
+    expect(component.selectedOwners).toEqual(["workflow-owner"]);
+
+    // The stub's logout() is a no-op; a sign-out is the user going away and the subject firing.
+    const userService = TestBed.inject(UserService) as unknown as StubUserService;
+    userService.user = undefined;
+    userService.userChangeSubject.next(undefined);
+
+    // Otherwise the anonymous hub stays filtered by an owner its facet no longer offers, with the
+    // dropdown hidden and no way to clear it.
+    expect(component.selectedOwners).toEqual([]);
+    expect(component.owners).toEqual([]);
+  });
+
+  it("drops a selection belonging to the previous kind, without scolding the user for switching", async () => {
+    await render(EntityType.Workflow);
+    const error = vi.spyOn(TestBed.inject(NotificationService), "error");
+    component.masterFilterList = ["owner: workflow-owner"];
+    expect(component.selectedOwners).toEqual(["workflow-owner"]);
+
+    component.entityType = EntityType.Dataset;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+
+    // Cleared with the facet it came from, so no search carries it into the new kind.
+    expect(component.selectedOwners).toEqual([]);
+    expect(component.masterFilterList).not.toContain("owner: workflow-owner");
+    // Switching tabs is not a mistake, so it is not reported as one.
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("drops a selection even when the new kind offers the same owner", async () => {
+    // A deliberate trade: the bar cannot know the selection is still valid until the new facet
+    // lands, and by then the host has already searched with it. Losing a still-valid owner costs
+    // one re-tick; keeping it costs an empty tab on every switch.
+    await render(EntityType.Workflow);
+    datasetOwners.mockReturnValue(of(["workflow-owner"]));
+    component.masterFilterList = ["owner: workflow-owner"];
+
+    component.entityType = EntityType.Dataset;
+    component.ngOnChanges({ entityType: new SimpleChange(EntityType.Workflow, EntityType.Dataset, false) });
+
+    expect(component.selectedOwners).toEqual([]);
+    expect(component.owners.map(owner => owner.userName)).toEqual(["workflow-owner"]);
   });
 });

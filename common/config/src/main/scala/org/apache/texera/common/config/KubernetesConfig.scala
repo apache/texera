@@ -30,6 +30,7 @@ object KubernetesConfig {
   val computeUnitServiceName: String = conf.getString("kubernetes.compute-unit-service-name")
   val computeUnitPoolName: String = conf.getString("kubernetes.compute-unit-pool-name")
   val computeUnitPoolNamespace: String = conf.getString("kubernetes.compute-unit-pool-namespace")
+  val computeUnitPodNamePrefix: String = conf.getString("kubernetes.compute-unit-pod-name-prefix")
   val computeUnitImageName: String = conf.getString("kubernetes.image-name")
   val computingUnitImagePullPolicy: String = conf.getString("kubernetes.image-pull-policy")
 
@@ -64,4 +65,29 @@ object KubernetesConfig {
 
   // GPU resource key used directly in Kubernetes resource specifications
   val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
+
+  // Per-user JupyterLab pods, gated independently of computing units.
+  val jupyterEnabled: Boolean = conf.getBoolean("kubernetes.jupyter-enabled")
+  val jupyterNamespace: String = conf.getString("kubernetes.jupyter-namespace")
+  val jupyterServiceName: String = conf.getString("kubernetes.jupyter-service-name")
+  val jupyterImageName: String = conf.getString("kubernetes.jupyter-image-name")
+  val jupyterPortNumber: Int = conf.getInt("kubernetes.jupyter-port-num")
+  val jupyterBaseUrl: String = conf.getString("kubernetes.jupyter-base-url")
+  val jupyterTexeraOrigin: String = conf.getString("kubernetes.jupyter-texera-origin")
+  val jupyterCpuLimit: String = conf.getString("kubernetes.jupyter-cpu-limit")
+  val jupyterMemoryLimit: String = conf.getString("kubernetes.jupyter-memory-limit")
+
+  // Browser-facing address with {uid} substituted; empty means use the in-network one.
+  val jupyterPublicUrlTemplate: String =
+    conf.getString("kubernetes.jupyter-public-url-template")
+
+  // Whether the deployment opted into out-of-pod dataset mounting. When false the CU pod is
+  // built exactly as it was before the feature existed -- no hostPath, no mount env -- so a
+  // cluster enforcing a Pod Security Standard on the pool namespace is unaffected.
+  val mounterEnabled: Boolean = conf.getBoolean("kubernetes.mounter-enabled")
+
+  // Root of the per-node mounter's host directory. This service never talks to the mounter
+  // -- access-control-service does -- but it builds the CU pod spec, and the pod's hostPath
+  // must be the <root>/<cuid> subtree the mounter mounts into.
+  val mounterHostRoot: String = conf.getString("kubernetes.mounter-host-root")
 }
