@@ -231,20 +231,10 @@ object TestUtils {
     org.apache.texera.dao.MockTexeraDB.ensureInitialized()
     val embedded = org.apache.texera.dao.MockTexeraDB.getDBInstance
 
-    val dbName = "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
+    val dbName =
+      "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
 
-    scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
-      scala.util.Using.resource(conn.createStatement()) { stmt =>
-        stmt.execute(s"CREATE DATABASE $dbName")
-      }
-    }
-
-    scala.util.Using.resource(embedded.getDatabase("postgres", dbName).getConnection) {
-      targetDbConn =>
-        scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
-          stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
-        }
-    }
+    org.apache.texera.dao.MockTexeraDB.createTestDatabase(dbName)
 
     SqlServer.initConnection(
       embedded.getJdbcUrl("postgres", dbName),
