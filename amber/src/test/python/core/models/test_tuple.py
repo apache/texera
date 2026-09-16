@@ -561,6 +561,14 @@ class TestTuple:
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
 
+    def test_hash_supports_local_epoch_timestamp(self):
+        tuple_ = Tuple(
+            {"value": datetime.datetime.fromtimestamp(0)},
+            Schema(raw_schema={"value": "TIMESTAMP"}),
+        )
+
+        assert hash(tuple_) == 31
+
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
         from core.models.type.large_binary import largebinary
