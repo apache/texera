@@ -56,6 +56,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -624,6 +625,16 @@ describe("MenuComponent", () => {
 
       expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).toHaveBeenCalledTimes(1);
       expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("recomputes the Run button snapshot when the warehouse pick changes", () => {
+      // The button text is a stored snapshot; without the subscription it
+      // would keep saying "Run" after the warehouse load leaves none.
+      const applySpy = vi.spyOn(component, "applyRunButtonBehavior");
+
+      TestBed.inject(WarehouseService).selectWarehouse(7);
+
+      expect(applySpy).toHaveBeenCalled();
     });
 
     it("submits the execution when a warehouse is selected", () => {

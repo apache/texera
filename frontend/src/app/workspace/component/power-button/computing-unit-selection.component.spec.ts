@@ -2695,5 +2695,49 @@ describe("PowerButtonComponent", () => {
 
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
     });
+
+    it("a stale last-execution warehouse never steers the next workflow's fallback", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+
+      // The next workflow has no history: its fallback must be the FIRST
+      // warehouse, not the previous workflow's.
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      emit(200);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("a late response from a superseded refresh cannot restore stale state", () => {
+      const first = new Subject<{ enabled: boolean; warehouses: DashboardWarehouse[] }>();
+      const second = new Subject<{ enabled: boolean; warehouses: DashboardWarehouse[] }>();
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus")
+        .mockReturnValueOnce(first.asObservable())
+        .mockReturnValueOnce(second.asObservable());
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const pickerFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      pickerFixture.detectChanges();
+      const comp = pickerFixture.componentInstance;
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+      second.next({ enabled: true, warehouses: [makeWarehouse(2, "kept")] });
+      second.complete();
+      // The older request settles last; switchMap must already have dropped it.
+      first.next({ enabled: true, warehouses: [makeWarehouse(1, "stale"), makeWarehouse(9, "gone")] });
+      first.complete();
+
+      expect(comp.warehouses.map(w => w.name)).toEqual(["kept"]);
+    });
   });
 });

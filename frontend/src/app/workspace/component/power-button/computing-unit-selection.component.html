@@ -96,7 +96,7 @@
       <li
         nz-menu-item
         *ngFor="let warehouse of warehouses; trackBy: trackByWhid"
-        id="warehouse-option"
+        [id]="'warehouse-option-' + warehouse.whid"
         class="warehouse-option"
         [ngClass]="{ 'warehouse-selected': warehouse.whid === selectedWarehouseId }"
         (click)="onWarehouseSelected(warehouse.whid)">

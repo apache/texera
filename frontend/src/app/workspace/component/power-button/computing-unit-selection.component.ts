@@ -18,7 +18,8 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, NgZone, ViewChild } from "@angular/core";
-import { filter, take } from "rxjs/operators";
+import { catchError, filter, switchMap, take } from "rxjs/operators";
+import { EMPTY, Subject } from "rxjs";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -168,6 +169,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // execution are fetched concurrently, so preselection re-runs after
   // whichever response lands last.
   private lastExecutionWhid?: number;
+  // All warehouse refreshes flow through one switchMap'd stream (like
+  // UserWarehouseComponent): a new request cancels the in-flight one, so an
+  // older response can never restore a deleted row or clobber a newer answer.
+  private readonly warehouseRefreshRequested$ = new Subject<void>();
 
   // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
@@ -249,6 +254,37 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
     // Warehouse picker state (#7817). The pick itself lives in WarehouseService,
     // where ExecuteWorkflowService reads it at execution time.
+    this.warehouseRefreshRequested$
+      .pipe(
+        switchMap(() =>
+          this.warehouseService.getStatus().pipe(
+            // Caught inside the switchMap so a failure ends only this request,
+            // not the stream.
+            catchError((err: unknown) => {
+              // The pick lives in the root-scoped service, so hiding the picker
+              // is not enough: a stale id from a previous workflow would still
+              // ride the next execution request. Clear it whenever the picker
+              // cannot be shown.
+              this.warehouseEnabled = false;
+              this.warehouses = [];
+              this.warehouseService.selectWarehouse(undefined);
+              console.error("Failed to fetch warehouse status", err);
+              return EMPTY;
+            })
+          )
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(status => {
+        this.warehouseEnabled = status.enabled;
+        this.warehouses = [...status.warehouses];
+        if (
+          this.selectedWarehouseId === undefined ||
+          !this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
+        ) {
+          this.applyWarehousePreselect();
+        }
+      });
     this.refreshWarehouses();
 
     this.warehouseService
@@ -300,6 +336,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
+          // The previous workflow's execution must not steer this one's
+          // preselect: with the stale value, a workflow without history would
+          // fall back to the OLD workflow's warehouse instead of the first one.
+          this.lastExecutionWhid = undefined;
           if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
             this.selectInitialUnit(this.workflowId);
           }
@@ -457,30 +497,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * routine refresh cannot override a manual pick.
    */
   private refreshWarehouses(): void {
-    this.warehouseService
-      .getStatus()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: status => {
-          this.warehouseEnabled = status.enabled;
-          this.warehouses = [...status.warehouses];
-          if (
-            this.selectedWarehouseId === undefined ||
-            !this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
-          ) {
-            this.applyWarehousePreselect();
-          }
-        },
-        error: (err: unknown) => {
-          // The pick lives in the root-scoped service, so hiding the picker is not
-          // enough: a stale id from a previous workflow would still ride the next
-          // execution request. Clear it whenever the picker cannot be shown.
-          this.warehouseEnabled = false;
-          this.warehouses = [];
-          this.warehouseService.selectWarehouse(undefined);
-          console.error("Failed to fetch warehouse status", err);
-        },
-      });
+    this.warehouseRefreshRequested$.next();
   }
 
   /**

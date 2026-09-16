@@ -47,6 +47,7 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
 import { PanelService } from "../../service/panel/panel.service";
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -190,6 +191,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService,
     protected config: GuiConfigService,
     private router: Router,
     private jupyterPanelService: JupyterPanelService,
@@ -283,6 +285,17 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(status => {
         this.computingUnitStatus = status;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // The warehouse pick also feeds getRunButtonBehavior (#7817); without this
+    // the snapshot keeps saying "Run" after the load leaves no warehouse, and
+    // "Create Warehouse" after one is created. Every relevant transition ends
+    // in a selectWarehouse call, so the pick stream covers them all.
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
   }
