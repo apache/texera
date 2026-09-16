@@ -103,11 +103,11 @@ class TestTuple:
         assert Tuple({"x": 1, "y": "b"}) != target_tuple
 
     def test_reject_empty_tuplelike(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError, match="cannot be empty"):
             Tuple([])
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError, match="cannot be empty"):
             Tuple({})
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError, match="cannot be empty"):
             Tuple(pandas.Series(dtype=pandas.StringDtype()))
 
     def test_reject_invalid_tuplelike(self):
