@@ -220,4 +220,27 @@ describe("WorkflowStatusService", () => {
     expect(service.getCurrentStatistics()).toEqual({});
     expect(service.getCurrentPerformanceMetrics()).toEqual({});
   });
+
+  it("setExternalStatus ingests through the same split path as a websocket update", () => {
+    const order: string[] = [];
+    service.getStateUpdateStream().subscribe(() => order.push("state"));
+    service.getStatisticsUpdateStream().subscribe(() => order.push("statistics"));
+
+    service.setExternalStatus({ op1: sampleRuntimeStatus });
+
+    // Same contract as the wire path: state first, statistics second, no
+    // operatorState leaking into the statistics concept, metrics derived.
+    expect(order).toEqual(["state", "statistics"]);
+    expect(service.getCurrentState()).toEqual({ op1: OperatorState.Running });
+    expect(service.getCurrentStatistics()).toEqual({ op1: sampleStatistics });
+    expect(service.getCurrentStatistics()["op1"]).not.toHaveProperty("operatorState");
+    expect(service.getCurrentPerformanceMetrics()["op1"].dataProcessingTimeNs).toBe(5_000_000);
+  });
+
+  it("a later live websocket update overrides externally restored status", () => {
+    service.setExternalStatus({ op1: sampleRuntimeStatus });
+    websocketEventSubject.next(statsEvent({ op1: { ...sampleRuntimeStatus, operatorState: OperatorState.Paused } }));
+
+    expect(service.getCurrentState()).toEqual({ op1: OperatorState.Paused });
+  });
 });
