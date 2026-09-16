@@ -82,6 +82,7 @@ class State(dict):
 _TYPE_MARKER = "__texera_type__"
 _PAYLOAD_MARKER = "payload"
 _BYTES_TYPE = "bytes"
+_DICT_TYPE = "dict"
 
 
 def _to_json_value(value: Any) -> Any:
@@ -93,7 +94,10 @@ def _to_json_value(value: Any) -> Any:
             _PAYLOAD_MARKER: base64.b64encode(value).decode("ascii"),
         }
     if isinstance(value, dict):
-        return {str(key): _to_json_value(inner) for key, inner in value.items()}
+        encoded = {str(key): _to_json_value(inner) for key, inner in value.items()}
+        if _TYPE_MARKER in encoded:
+            return {_TYPE_MARKER: _DICT_TYPE, _PAYLOAD_MARKER: encoded}
+        return encoded
     if isinstance(value, (list, tuple)):
         return [_to_json_value(inner) for inner in value]
     raise TypeError(
@@ -105,7 +109,13 @@ def _from_json_value(value: Any) -> Any:
     if isinstance(value, list):
         return [_from_json_value(inner) for inner in value]
     if isinstance(value, dict):
-        if value.get(_TYPE_MARKER) == _BYTES_TYPE:
+        marker_keys = {_TYPE_MARKER, _PAYLOAD_MARKER}
+        if set(value) == marker_keys and value.get(_TYPE_MARKER) == _BYTES_TYPE:
             return base64.b64decode(value[_PAYLOAD_MARKER])
+        if set(value) == marker_keys and value.get(_TYPE_MARKER) == _DICT_TYPE:
+            return {
+                key: _from_json_value(inner)
+                for key, inner in value[_PAYLOAD_MARKER].items()
+            }
         return {key: _from_json_value(inner) for key, inner in value.items()}
     return value
