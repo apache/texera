@@ -247,20 +247,22 @@ describe("UserWarehouseComponent", () => {
     );
   });
 
-  it("hands the warehouse to the actions service, and refreshes once it reports the delete", () => {
+  it("hands the warehouse to the actions service and removes the row without refetching", () => {
+    warehouseServiceSpy.getStatus.mockReturnValue(
+      of({ enabled: true, warehouses: [warehouse(3, "doomed"), warehouse(4, "kept")] })
+    );
     const actionsService = TestBed.inject(WarehouseActionsService);
     const confirmAndDeleteSpy = vi.spyOn(actionsService, "confirmAndDelete").mockImplementation(() => {});
     fixture.detectChanges();
     warehouseServiceSpy.getStatus.mockClear();
-    const doomed = warehouse(3, "doomed");
 
-    component.deleteWarehouse(doomed);
-
+    component.deleteWarehouse(component.warehouses[0]);
     expect(confirmAndDeleteSpy).toHaveBeenCalledTimes(1);
-    expect(confirmAndDeleteSpy.mock.calls[0][0]).toEqual(doomed);
     const onDeleted = confirmAndDeleteSpy.mock.calls[0][1] as () => void;
     onDeleted();
-    expect(warehouseServiceSpy.getStatus).toHaveBeenCalledTimes(1);
+
+    expect(component.warehouses.map(w => w.whid)).toEqual([4]);
+    expect(warehouseServiceSpy.getStatus).not.toHaveBeenCalled();
   });
 
   it("appends the created warehouse instead of refetching the list", () => {

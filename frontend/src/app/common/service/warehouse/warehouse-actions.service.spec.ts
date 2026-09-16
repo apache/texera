@@ -82,6 +82,22 @@ describe("WarehouseActionsService", () => {
       expect(notificationService.error).toHaveBeenCalledWith("Failed to create warehouse: 'sales' already exists");
     });
 
+    it("a failed create completes the caller's stream empty instead of erroring it", () => {
+      // A replayed error would land in relays that have no error path and
+      // surface as an unhandled RxJS error; the failure was already toasted.
+      warehouseService.createWarehouse.mockReturnValue(throwError(() => ({ error: "boom" })));
+      const next = vi.fn();
+      const error = vi.fn();
+      const complete = vi.fn();
+
+      service.create("sales").subscribe({ next, error, complete });
+
+      expect(error).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+      expect(complete).toHaveBeenCalled();
+      expect(notificationService.error).toHaveBeenCalledWith("Failed to create warehouse: boom");
+    });
+
     it("the request and its toast outlive the caller's subscription", () => {
       // The dialog (or its whole page) can be destroyed mid-create; the
       // service still owns the request, so nothing is aborted or swallowed.

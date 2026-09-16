@@ -181,6 +181,28 @@ describe("WarehouseCreateModalComponent", () => {
     expect(component.newWarehouseName).toBe("second-in-progress");
   });
 
+  it("a create that fails after the close never surfaces as an unhandled RxJS error", () => {
+    // RxJS reports an error hitting a subscriber without an error path via a
+    // thrown setTimeout; flushing fake timers makes that deterministic.
+    vi.useFakeTimers();
+    try {
+      const inFlight = new Subject<DashboardWarehouse>();
+      warehouseActions.create.mockReturnValue(inFlight.asObservable());
+      const createdSpy = vi.fn();
+      component.warehouseCreated.subscribe(createdSpy);
+      component.visible = true;
+      component.newWarehouseName = "first";
+      component.handleCreateWarehouseModalOk();
+
+      inFlight.error({ error: "boom" });
+
+      expect(() => vi.runAllTimers()).not.toThrow();
+      expect(createdSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("clears the previous name when the modal opens", () => {
     component.newWarehouseName = "leftover";
     component.visible = true;

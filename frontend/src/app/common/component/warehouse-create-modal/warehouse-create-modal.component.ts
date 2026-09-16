@@ -92,7 +92,13 @@ export class WarehouseCreateModalComponent implements OnChanges {
     this.warehouseActionsService
       .create(name)
       .pipe(untilDestroyed(this))
-      .subscribe(created => this.warehouseCreated.emit(created));
+      .subscribe({
+        next: created => this.warehouseCreated.emit(created),
+        // The service reports failures and returns a stream that completes
+        // empty; this guard only keeps a future contract change from
+        // surfacing as an unhandled RxJS error.
+        error: () => {},
+      });
     this.closeModal();
   }
 

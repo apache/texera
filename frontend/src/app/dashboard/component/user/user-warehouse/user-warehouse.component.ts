@@ -132,7 +132,10 @@ export class UserWarehouseComponent implements OnInit {
   }
 
   deleteWarehouse(warehouse: DashboardWarehouse): void {
-    this.warehouseActionsService.confirmAndDelete(warehouse, () => this.refresh());
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => {
+      // Same reasoning as the append on create: no round trip needed.
+      this.warehouses = this.warehouses.filter(w => w.whid !== warehouse.whid);
+    });
   }
 
   showAddWarehouseModalVisible(): void {

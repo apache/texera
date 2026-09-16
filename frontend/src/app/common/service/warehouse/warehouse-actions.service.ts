@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { shareReplay } from "rxjs";
+import { EMPTY, catchError, shareReplay } from "rxjs";
 import { Observable, firstValueFrom } from "rxjs";
 import { NotificationService } from "../notification/notification.service";
 import { DashboardWarehouse } from "../../type/warehouse";
@@ -49,7 +49,10 @@ export class WarehouseActionsService {
    * aborts the browser request while the server finishes anyway: the warehouse
    * exists, nothing was reported, and the next same-name attempt fails
    * confusingly. The returned observable replays the created warehouse for
-   * callers that want it (the dialog relays it to its host).
+   * callers that want it (the dialog relays it to its host) and never errors:
+   * a failure is already reported here, and replaying it would surface in
+   * relays with no error path as an unhandled RxJS error — the stream just
+   * completes empty instead.
    */
   create(name: string): Observable<DashboardWarehouse> {
     const request$ = this.warehouseService.createWarehouse(name).pipe(shareReplay({ bufferSize: 1, refCount: false }));
@@ -58,7 +61,7 @@ export class WarehouseActionsService {
       error: (err: unknown) =>
         this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`),
     });
-    return request$;
+    return request$.pipe(catchError(() => EMPTY));
   }
 
   /**
