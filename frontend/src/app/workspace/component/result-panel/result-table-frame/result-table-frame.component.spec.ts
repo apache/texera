@@ -31,13 +31,14 @@ import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 import {
   OperatorPaginationResultService,
   WorkflowResultService,
 } from "../../../service/workflow-result/workflow-result.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
-import { OperatorState, OperatorStatistics, WebResultUpdate } from "../../../types/execute-workflow.interface";
+import { OperatorState, WebResultUpdate } from "../../../types/execute-workflow.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -82,14 +83,6 @@ describe("ResultTableFrameComponent", () => {
     );
     return paginatedResultService;
   };
-
-  const makeStatistics = (state: OperatorState): OperatorStatistics => ({
-    operatorState: state,
-    aggregatedInputRowCount: 0,
-    inputPortMetrics: {},
-    aggregatedOutputRowCount: 0,
-    outputPortMetrics: {},
-  });
 
   const paginationUpdate = (totalNumTuples: number, dirtyPageIndices: number[]): WebResultUpdate => ({
     mode: { type: "PaginationMode" },
@@ -148,10 +141,13 @@ describe("ResultTableFrameComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result", () => {
+  // NOTE: this exercises the *missing operator* guard, not the empty-result guard - the
+  // fixture built in beforeEach has no operatorId, so setupResultTable returns before it
+  // ever looks at the row count. The empty-result guard is covered by
+  // "keeps the existing table when the fetched page comes back empty" below.
+  it("currentResult should not be modified if setupResultTable is called without a selected operator", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([], 0);
-
+    component.setupResultTable([], 0);
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 
@@ -235,6 +231,28 @@ describe("ResultTableFrameComponent", () => {
       expect(component.totalNumTuples).toBe(0);
     });
 
+    it("keeps the existing table when the fetched page comes back empty", () => {
+      component.operatorId = "op1";
+      const row: IndexableObject = { media: "https://example.com/clip.mp4" };
+      // build the "existing table" through the real code path so that cellMediaTypes is
+      // populated for real, making a guard that wiped it visible in the assertions below
+      component.setupResultTable([row], 5);
+
+      // An empty page whose reported total is NONZERO: the row count shrank while the user
+      // sat on a page index past the new end. The two comparands differ, so this pins that
+      // the guard tests the length of the fetched page and not the reported total.
+      component.setupResultTable([], 7);
+
+      expect(component.currentResult).toEqual([row]);
+      expect(component.currentColumns?.map(c => c.columnDef)).toEqual(["media"]);
+      // still the total from the non-empty page: the guard returns before totalNumTuples is
+      // reassigned from totalRowCount
+      expect(component.totalNumTuples).toBe(5);
+      // the precomputed media-type map is part of the table state and must survive as well,
+      // otherwise every media cell of the still-displayed table degrades to plain text
+      expect(component.getCellMediaType(row, 0)).toBe("video");
+    });
+
     it("builds columns from the first row and drops the internal _id column", () => {
       component.operatorId = "op1";
       component.isLoadingResult = true;
@@ -252,17 +270,17 @@ describe("ResultTableFrameComponent", () => {
 
   describe("workflow status stream", () => {
     it("marks the operator finished only while its reported state is Completed", () => {
-      const statusStream = new Subject<Record<string, OperatorStatistics>>();
-      vi.spyOn(workflowStatusService, "getStatusUpdateStream").mockReturnValue(statusStream.asObservable());
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
       recreateComponent("op1");
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ op1: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(true);
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Running) });
+      stateStream.next({ op1: OperatorState.Running });
       expect(component.isOperatorFinished).toBe(false);
 
-      statusStream.next({ otherOp: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ otherOp: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(false);
     });
   });
@@ -399,6 +417,78 @@ describe("ResultTableFrameComponent", () => {
       component.compare("col", "count");
 
       expect(bypassSpy).toHaveBeenCalledWith(black("3") + black(".") + black("0") + black("0"));
+    });
+
+    // `tableStats` is declared Record<string, Record<string, number>>, but the backend
+    // does put non-numeric values in it: IcebergDocument.getTableStatistics seeds a
+    // Timestamp column's min/max with an ISO date *string*, and the template feeds those
+    // straight into compare(). The casts below model that real payload, which is the only
+    // way to reach the non-numeric formatting branch. Note that String#toLocaleString is
+    // the identity, so a string payload cannot observe that call at all; what this test
+    // pins is that previousStr is derived from the previous snapshot instead of collapsing
+    // onto currentStr. The toLocaleString call itself is pinned by the numeric test below.
+    it("highlights only the character that changed when both stats are non-numeric strings", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      component.isOperatorFinished = false;
+      component.tableStats = { ts: { min: "2024-01-02" as unknown as number } };
+      component.prevTableStats = { ts: { min: "2024-01-09" as unknown as number } };
+
+      component.compare("ts", "min");
+
+      // the two dates agree up to the last character, which is the only one highlighted
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        "2024-01-0"
+          .split("")
+          .map(char => black(char))
+          .join("") + blue("2")
+      );
+    });
+
+    it("highlights the trailing characters that the shorter previous snapshot never reaches", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      component.isOperatorFinished = false;
+      component.tableStats = { ts: { min: "2024-01-02" as unknown as number } };
+      component.prevTableStats = { ts: { min: "2024" as unknown as number } };
+
+      component.compare("ts", "min");
+
+      // the first four characters match and stay black; for every index past the end of
+      // previousStr the lookup yields undefined, which counts as changed
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        "2024"
+          .split("")
+          .map(char => black(char))
+          .join("") +
+          "-01-02"
+            .split("")
+            .map(char => blue(char))
+            .join("")
+      );
+    });
+
+    // The non-numeric branch is also taken for a *numeric* current stat whose previous
+    // snapshot is missing (a column that has only just appeared in the stats stream), and
+    // there the difference between toLocaleString and plain String conversion is
+    // user-visible: a row count in the millions is rendered with group separators. The
+    // expectation is computed rather than hard-coded so it holds under any locale, and the
+    // first assertion keeps it from going vacuous on a runtime without number grouping.
+    it("formats large numeric stats with locale group separators", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      const toLocaleSpy = vi.spyOn(Number.prototype, "toLocaleString");
+      component.isOperatorFinished = false;
+      component.tableStats = { col: { count: 1234567 } };
+      component.prevTableStats = { col: {} };
+
+      component.compare("col", "count");
+
+      expect(toLocaleSpy).toHaveBeenCalled();
+      const grouped = String(toLocaleSpy.mock.results[0]?.value);
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        grouped
+          .split("")
+          .map(char => black(char))
+          .join("")
+      );
     });
 
     it("falls back to plain formatting when the previous stat is missing", () => {
@@ -645,6 +735,103 @@ describe("ResultTableFrameComponent", () => {
       const download = fixture.debugElement.query(By.css("button.download-button"));
       download.triggerEventHandler("click", { stopPropagation: vi.fn() });
       expect(downloadSpy).toHaveBeenCalledWith("alice", 0, 0, "name");
+    });
+  });
+
+  it("should detect media URLs for result cells", () => {
+    expect(component.isVideoCell("https://example.com/clip.mp4")).toBe(true);
+    expect(component.isAudioCell("https://example.com/sound.wav")).toBe(true);
+    expect(component.isImageCell("data:image/png;base64,AAAA")).toBe(true);
+  });
+
+  it("should reject non-media values for result cells", () => {
+    expect(component.isVideoCell("plain text")).toBe(false);
+    expect(component.isAudioCell(123 as unknown)).toBe(false);
+    expect(component.isImageCell(null as unknown)).toBe(false);
+  });
+
+  it("media-type util helpers should classify URLs consistently", () => {
+    expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
+    expect(isAudioUrl("https://example.com/track.flac")).toBe(true);
+    expect(isImageUrl("https://example.com/image.webp")).toBe(true);
+    expect(isVideoUrl("text")).toBe(false);
+    expect(isAudioUrl("text")).toBe(false);
+    expect(isImageUrl("text")).toBe(false);
+  });
+
+  describe("getCellMediaType", () => {
+    it("returns the media type precomputed for that exact row and column", () => {
+      component.cellMediaTypes = new Map();
+      expect(component.getCellMediaType({ media: "https://example.com/clip.mp4" }, 0)).toBe("text");
+
+      component.operatorId = "op1";
+      // Two rows x two columns with the media cells on opposite diagonals. A 1x1 fixture
+      // would leave both of the correspondences this map exists to encode unpinned: the
+      // per-row entry (keyed by row identity) and the position of each column's type
+      // inside that entry, which the template indexes by the *ngFor index over
+      // currentColumns.
+      const rows: IndexableObject[] = [
+        { pic: "https://example.com/a.png", clip: "plain" },
+        { pic: "plain", clip: "https://example.com/b.mp4" },
+      ];
+      component.setupResultTable(rows, 2);
+
+      expect(component.getCellMediaType(rows[0], 0)).toBe("image");
+      expect(component.getCellMediaType(rows[0], 1)).toBe("text");
+      expect(component.getCellMediaType(rows[1], 0)).toBe("text");
+      expect(component.getCellMediaType(rows[1], 1)).toBe("video");
+      // in the map, but past the end of its column list
+      expect(component.getCellMediaType(rows[1], 3)).toBe("text");
+      // an equal-valued row object that never went through setupResultTable: the map is
+      // keyed by identity, so this misses and falls back
+      expect(component.getCellMediaType({ ...rows[1] }, 1)).toBe("text");
+    });
+  });
+
+  describe("media cell rendering in table", () => {
+    beforeEach(() => {
+      component.operatorId = "test-op";
+    });
+
+    it("should render Play Video indicator for video URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp4" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Video");
+    });
+
+    it("should render Play Audio indicator for audio URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp3" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Audio");
+    });
+
+    it("should render View Image indicator for image URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/photo.jpg" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("View Image");
+    });
+
+    it("should render plain text for non-media cell values", () => {
+      (component as any).setupResultTable([{ label: "just text" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("just text");
+    });
+
+    it("should render column headers matching the row keys", () => {
+      (component as any).setupResultTable([{ score: "0.95", url: "https://example.com/a.png" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("score");
+      expect(el.textContent).toContain("url");
     });
   });
 });

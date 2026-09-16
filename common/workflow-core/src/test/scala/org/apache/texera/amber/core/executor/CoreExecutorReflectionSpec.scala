@@ -242,16 +242,60 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // JavaRuntimeCompilation.compileCode
+  // ExecFactory.newExecFromJavaCode
   //
-  // A success-path test that compiles a real OperatorExecutor subclass from a
-  // string is intentionally omitted: `compiler.getTask(...)` is invoked with
-  // null compilation options, which means the system javac picks up its own
-  // (test) classpath rather than the project classpath. Under sbt test that
-  // does not include workflow-core itself, so the compile fails with
-  // "package org.apache.texera... does not exist" — a deployment-environment
-  // artifact rather than a contract violation. We exercise just the diagnostic
-  // path here.
+  // `compileCode` passes null compilation options, so the system javac resolves
+  // types against its own default classpath — `java.class.path`. This module sets
+  // `Test / fork := true`, so the forked test JVM is launched with the full test
+  // classpath on `-cp` and javac therefore does see workflow-core's own classes;
+  // a source string that names `OperatorExecutor` compiles here.
+  // ---------------------------------------------------------------------------
+
+  /** Java source for a UDF class implementing the trait; `single` echoes the input tuple. */
+  private val echoUDFSource: String =
+    """public class JavaUDFOpExec
+      |    implements org.apache.texera.amber.core.executor.OperatorExecutor {
+      |    public scala.collection.Iterator<org.apache.texera.amber.core.tuple.TupleLike>
+      |            processTuple(org.apache.texera.amber.core.tuple.Tuple tuple, int port) {
+      |        return scala.collection.Iterator$.MODULE$.single(tuple);
+      |    }
+      |}""".stripMargin
+
+  "ExecFactory.newExecFromJavaCode" should "compile java source into a live OperatorExecutor" in {
+    val exec = ExecFactory.newExecFromJavaCode(echoUDFSource)
+    assert(exec.getClass.getName == "org.apache.texera.amber.operators.udf.java.JavaUDFOpExec")
+    // Reachable through the trait, not merely castable to it: dispatching
+    // processTuple must run the freshly compiled override...
+    assert(exec.processTuple(tuple(7), 0).toList == List(tuple(7)))
+    // ...and the class must inherit the trait's defaults for what it left out.
+    assert(exec.onFinish(0).isEmpty)
+    assert(exec.produceStateOnStart(0).isEmpty)
+  }
+
+  it should "hand back an independent instance on every call" in {
+    // The factory constructs per call; two executors compiled from the same
+    // source must not be the same object (nor share a class-level cache).
+    val first = ExecFactory.newExecFromJavaCode(echoUDFSource)
+    val second = ExecFactory.newExecFromJavaCode(echoUDFSource)
+    assert(first ne second)
+    assert(first.getClass.getName == second.getClass.getName)
+  }
+
+  it should "surface the compiler diagnostics when the java source does not compile" in {
+    // A class that claims the trait but never implements `processTuple` is
+    // rejected by javac, so no instance is ever constructed.
+    val ex = intercept[RuntimeException] {
+      ExecFactory.newExecFromJavaCode(
+        """public class JavaUDFOpExec
+          |    implements org.apache.texera.amber.core.executor.OperatorExecutor {
+          |}""".stripMargin
+      )
+    }
+    assert(ex.getMessage.contains("Error at line"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // JavaRuntimeCompilation.compileCode
   // ---------------------------------------------------------------------------
 
   "JavaRuntimeCompilation.compileCode" should "compile a self-contained Java class with no external deps" in {

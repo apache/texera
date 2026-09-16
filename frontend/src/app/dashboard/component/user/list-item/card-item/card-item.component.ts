@@ -38,31 +38,24 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
-import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { UserAvatarComponent } from "../../user-avatar/user-avatar.component";
-import {
-  DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService,
-} from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, Observable } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../../hub/service/hub.service";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatRelativeTime, formatCount } from "src/app/common/util/format.util";
-import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { extractErrorMessage } from "../../../../../common/util/error";
 import { WorkflowCoverService } from "../../../../service/user/workflow-cover/workflow-cover.service";
-import {
-  HUB_DATASET_RESULT_DETAIL,
-  HUB_WORKFLOW_RESULT_DETAIL,
-  USER_DATASET,
-  USER_PROJECT,
-  USER_WORKSPACE,
-} from "../../../../../app-routing.constant";
 import { isDefined } from "../../../../../common/util/predicate";
+import { ResourceRegistryService } from "../../../../service/user/resource-registry/resource-registry.service";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
+import { DefaultView } from "../../../../type/workflow-metadata.interface";
+import { defaultsToFormView, landingLink } from "../default-view-landing";
 
 @UntilDestroy()
 @Component({
@@ -83,10 +76,10 @@ import { isDefined } from "../../../../../common/util/predicate";
   ],
 })
 export class CardItemComponent implements OnChanges {
-  private owners: number[] = [];
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
   public disableDelete: boolean = false;
+  public canDownload: boolean = false;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -104,7 +97,9 @@ export class CardItemComponent implements OnChanges {
   hovering: boolean = false;
   /** The default top image, used when the user has not uploaded a custom one. */
   static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.jpg";
-  /** Resolved preview/cover image; stays the placeholder until a dataset cover loads. */
+  /** Whether this kind can be shared at all; the button is hidden when it cannot. */
+  public canShare: boolean = false;
+  /** Resolved preview/cover image; stays the placeholder until a file-backed cover loads. */
   coverImageSrc: string = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
 
   /** The workflow's custom cover image data URL, if one has been set. */
@@ -130,14 +125,14 @@ export class CardItemComponent implements OnChanges {
 
   constructor(
     private modalService: NzModalService,
-    private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
     private modal: NzModalService,
     private hubService: HubService,
-    private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService,
-    private workflowCoverService: WorkflowCoverService
+    private workflowCoverService: WorkflowCoverService,
+    private resourceRegistry: ResourceRegistryService,
+    private workflowPersistService: WorkflowPersistService,
+    private config: GuiConfigService
   ) {}
 
   get hasCustomImage(): boolean {
@@ -147,6 +142,45 @@ export class CardItemComponent implements OnChanges {
   /** Whether the cover-image controls are shown: an editable workflow in private search. */
   get canEditCover(): boolean {
     return this.isPrivateSearch && this.entry.type === "workflow" && this.entry.workflow.isOwner;
+  }
+
+  /** Whether this card is a form-default workflow (Form View icon, deep-links into the form). */
+  public defaultsToForm = false;
+
+  /**
+   * Whether the default-view toggle is offered: the same rule as the list row. Setting the default
+   * view writes the workflow row, so it needs WRITE access, not just ownership of the card.
+   */
+  get canToggleDefaultView(): boolean {
+    return (
+      this.isPrivateSearch &&
+      this.entry.type === "workflow" &&
+      this.config.env.formViewEnabled &&
+      this.entry.accessLevel === "WRITE"
+    );
+  }
+
+  public onToggleDefaultView(): void {
+    // The rule the button is gated on, checked here too: the write needs WRITE access whoever calls.
+    if (!this.canToggleDefaultView) {
+      return;
+    }
+    const next = this.defaultsToForm ? DefaultView.CANVAS : DefaultView.FORM;
+    this.workflowPersistService
+      .setDefaultView(this.entry.id as number, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          if (this.entry.workflow?.workflow) {
+            this.entry.workflow.workflow.defaultView = next;
+          }
+          // Re-derive from the descriptor so the icon and link fully reset when turning it
+          // off, not just when turning it on.
+          this.initializeEntry();
+          this.cdr.detectChanges();
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
   }
 
   openImagePicker(): void {
@@ -196,41 +230,28 @@ export class CardItemComponent implements OnChanges {
   initializeEntry() {
     this.coverImageSrc = CardItemComponent.DEFAULT_PREVIEW_IMAGE;
     this.customImage = undefined;
+    const descriptor = this.resourceRegistry.get(this.entry.type);
+    this.iconType = descriptor.iconType;
+    this.disableDelete = !descriptor.isOwner(this.entry);
+    this.canDownload = descriptor.download !== undefined;
+    this.canShare = descriptor.retrieveOwners !== undefined;
+    this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid);
+    // Same landing rule as the list row (default-view-landing.ts): a form-default workflow shows
+    // the Form View icon and opens in its form, so the card and the row never disagree.
+    this.defaultsToForm = defaultsToFormView(this.entry, this.config.env.formViewEnabled);
+    if (this.defaultsToForm) {
+      this.iconType = "solution";
+    }
+    this.entryLink = landingLink(this.entry, this.entryLink, this.config.env.formViewEnabled);
+    if (descriptor.hasSize && typeof this.entry.id === "number") {
+      this.size = this.entry.size;
+    }
+    // A workflow cover is a data URL already on the entry; the file-backed kinds have to fetch one.
     if (this.entry.type === "workflow") {
-      if (typeof this.entry.id === "number") {
-        this.disableDelete = !this.entry.workflow.isOwner;
-        this.owners = this.entry.accessibleUserIds;
-        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [USER_WORKSPACE, String(this.entry.id)];
-        } else {
-          this.entryLink = [HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
-        }
-        this.size = this.entry.size;
-        this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
-        this.customImage = this.entry.coverImageUrl ?? undefined;
-      }
-      this.iconType = "project";
-    } else if (this.entry.type === "project") {
-      this.entryLink = [USER_PROJECT, String(this.entry.id)];
-      this.iconType = "container";
-    } else if (this.entry.type === "dataset") {
-      if (typeof this.entry.id === "number") {
-        this.disableDelete = !this.entry.dataset.isOwner;
-        this.owners = this.entry.accessibleUserIds;
-        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-          this.entryLink = [USER_DATASET, String(this.entry.id)];
-        } else {
-          this.entryLink = [HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
-        }
-        this.iconType = "database";
-        this.size = this.entry.size;
-        this.loadDatasetCover(this.entry.id);
-      }
-    } else if (this.entry.type === "file") {
-      // not sure where to redirect
-      this.iconType = "folder-open";
-    } else {
-      throw new Error("Unexpected type in DashboardEntry.");
+      this.coverImageSrc = this.entry.coverImageUrl ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
+      this.customImage = this.entry.coverImageUrl ?? undefined;
+    } else if (descriptor.coverUrl && this.entry.coverImageUrl && typeof this.entry.id === "number") {
+      this.loadCover(descriptor.coverUrl, this.entry.id);
     }
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
@@ -243,16 +264,12 @@ export class CardItemComponent implements OnChanges {
     }
   }
 
-  /** Loads the dataset cover into the preview slot, falling back to the placeholder. */
-  private loadDatasetCover(did: number): void {
-    if (!this.entry.coverImageUrl) {
-      return;
-    }
-    this.datasetService
-      .getDatasetCoverUrl(did)
+  /** Loads a file-backed cover into the preview slot, falling back to the placeholder. */
+  private loadCover(coverUrl: (id: number) => Observable<string | null>, id: number): void {
+    coverUrl(id)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ url }) => {
+        next: url => {
           this.coverImageSrc = url ?? CardItemComponent.DEFAULT_PREVIEW_IMAGE;
           this.cdr.markForCheck();
         },
@@ -275,56 +292,33 @@ export class CardItemComponent implements OnChanges {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    let modal: NzModalRef<ShareAccessComponent> | undefined;
-
-    if (this.entry.type === "workflow") {
-      modal = this.modalService.create({
-        nzContent: ShareAccessComponent,
-        nzData: {
-          writeAccess: this.entry.workflow.accessLevel === "WRITE",
-          type: this.entry.type,
-          id: this.entry.id,
-          allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
-          inWorkspace: false,
-        },
-        nzFooter: null,
-        nzTitle: "Share this workflow with others",
-        nzCentered: true,
-        nzWidth: "700px",
-      });
-    } else if (this.entry.type === "dataset") {
-      modal = this.modalService.create({
-        nzContent: ShareAccessComponent,
-        nzData: {
-          writeAccess: this.entry.accessLevel === "WRITE",
-          type: "dataset",
-          id: this.entry.id,
-          allOwners: await firstValueFrom(this.datasetService.retrieveOwners()),
-        },
-        nzFooter: null,
-        nzTitle: "Share this dataset with others",
-        nzCentered: true,
-        nzWidth: "700px",
-      });
+    const retrieveOwners = this.resourceRegistry.get(this.entry.type).retrieveOwners;
+    if (!retrieveOwners) {
+      return;
     }
-    if (modal) {
-      modal.componentInstance?.refresh.pipe(untilDestroyed(this)).subscribe(() => {
-        this.refresh.emit();
-      });
-    }
+    const modal = this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.entry.accessLevel === "WRITE",
+        type: this.entry.type,
+        id: this.entry.id,
+        allOwners: await firstValueFrom(retrieveOwners()),
+        inWorkspace: false,
+      },
+      nzFooter: null,
+      nzTitle: `Share this ${this.entry.type} with others`,
+      nzCentered: true,
+      nzWidth: "700px",
+    });
+    modal.componentInstance?.refresh.pipe(untilDestroyed(this)).subscribe(() => {
+      this.refresh.emit();
+    });
   }
 
   public onClickDownload = (): void => {
-    if (!this.entry.id) return;
-
-    if (this.entry.type === "workflow") {
-      this.downloadService
-        .downloadWorkflow(this.entry.id, this.entry.workflow.workflow.name)
-        .pipe(untilDestroyed(this))
-        .subscribe();
-    } else if (this.entry.type === "dataset") {
-      this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
-    }
+    const download = this.resourceRegistry.get(this.entry.type).download;
+    if (!this.entry.id || !download) return;
+    download(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
   };
 
   onEditName(): void {
@@ -370,8 +364,8 @@ export class CardItemComponent implements OnChanges {
         next: () => {
           this.entry[propertyName] = newValue; // Dynamic property assignment
         },
-        error: () => {
-          this.notificationService.error("Update failed");
+        error: (err: unknown) => {
+          this.notificationService.error(extractErrorMessage(err));
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           this.setEditingState(propertyName, false);
         },
@@ -394,23 +388,21 @@ export class CardItemComponent implements OnChanges {
       this.editingName = false;
       return;
     }
-    const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
-
-    if (this.entry.type === "workflow") {
-      this.updateProperty(
-        this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
-        "name",
-        newName,
-        this.originalName
-      );
-    } else if (this.entry.type === "dataset") {
-      this.updateProperty(
-        this.datasetService.updateDatasetName.bind(this.datasetService),
-        "name",
-        newName,
-        this.originalName
-      );
+    const descriptor = this.resourceRegistry.get(this.entry.type);
+    if (!descriptor.rename) {
+      return;
     }
+    const newName = name || descriptor.defaultName || "";
+
+    const nameError = descriptor.validateName?.(newName);
+    if (nameError) {
+      this.notificationService.error(nameError);
+      this.entry.name = this.originalName;
+      this.editingName = false;
+      return;
+    }
+
+    this.updateProperty(descriptor.rename, "name", newName, this.originalName);
   }
 
   public confirmUpdateCustomDescription(description: string | undefined): void {
@@ -418,23 +410,11 @@ export class CardItemComponent implements OnChanges {
       this.editingDescription = false;
       return;
     }
-    const updatedDescription = description ?? "";
-
-    if (this.entry.type === "workflow") {
-      this.updateProperty(
-        this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
-        "description",
-        updatedDescription,
-        this.originalDescription
-      );
-    } else if (this.entry.type === "dataset") {
-      this.updateProperty(
-        this.datasetService.updateDatasetDescription.bind(this.datasetService),
-        "description",
-        updatedDescription,
-        this.originalDescription
-      );
+    const descriptor = this.resourceRegistry.get(this.entry.type);
+    if (!descriptor.updateDescription) {
+      return;
     }
+    this.updateProperty(descriptor.updateDescription, "description", description ?? "", this.originalDescription);
   }
 
   openDetailModal(wid: number | undefined): void {

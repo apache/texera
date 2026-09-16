@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 # Frontend testing guide
 
 Canonical reference for writing, running, and maintaining unit tests in `frontend/`. Written for both human contributors and AI agents — read it on demand when [`AGENTS.md`](AGENTS.md)'s rules need a deeper recipe, the mental model behind a constraint, or troubleshooting steps.
@@ -28,6 +47,7 @@ For repo-wide testing philosophy (TDD, characterization tests, "every test must 
 | Coverage                 | `@vitest/coverage-v8`                                                                                                                  |
 | Test setup               | `src/test-zone-setup.ts` wraps `it`/`test` in an Angular ProxyZone (Vitest does not provide one and Angular's `fakeAsync` requires it) |
 | Globals                  | `globals: true` in `vitest.config.ts`, so `describe / it / expect / vi / beforeEach` come from the runtime — no per-file imports       |
+| Timeouts                 | Raised over Vitest's defaults because macOS CI runners stall for seconds at a time (#6073, #7713). jsdom: 20s per test / 30s per hook (`vitest.config.ts`, defaults 5s/10s). Browser mode: 30s per test (`vitest.browser.config.ts`), hooks left at the 30s default that `browser.enabled` already resolves — its per-test default is 15s |
 
 `src/main.test.ts` is intentionally a near-empty `export {}`. The `unit-test` builder uses `buildTarget`'s `main` to seed the bundle graph; if it pointed at the real `main.ts`, every component declared in `AppModule` would be type-checked for every spec, surfacing template errors for components no active spec touches. Keeping `main.test.ts` empty narrows the graph to what each spec actually imports.
 

@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 
 class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -113,6 +114,23 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""body["choices"][0]["message"]["content"]""")
   }
 
+  it should "send the provider-specific model id on provider-scoped chat routes" in {
+    val code = makeDesc().generatePythonCode()
+    // hf-inference's chat-completions endpoint carries the model in the URL path.
+    code should include(
+      "https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}/v1/chat/completions"
+    )
+    // The chat branch posts a per-provider copy of the payload with the
+    // provider's own model name (providerId) — the Hub ID is only valid on
+    // hf-inference itself. Matched as one block so the assertion is anchored
+    // to the chat branch: pipeline routes elsewhere legitimately post the
+    // shared pipeline_payload directly.
+    code should include(
+      "chat_payload = {**pipeline_payload, \"model\": provider_id}\n" +
+        "                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)"
+    )
+  }
+
   it should
     "emit a runtime check that rejects malformed MODEL_ID values before any HF URL is built" in {
     val code = makeDesc().generatePythonCode()
@@ -123,6 +141,10 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("if not _HF_MODEL_ID_PATTERN.match(")
     code should include("raise ValueError(")
     code should include("Invalid Hugging Face model ID")
+    // #7196: reject `..` path traversal (leading negative lookahead) and accept
+    // single-segment legacy IDs like `gpt2` (trailing /segment group optional).
+    code should include("(?!.*\\.\\.)")
+    code should include("(/[A-Za-z0-9._-]+)*$")
   }
 
   it should "not leak raw user-input strings into the generated Python source" in {
@@ -304,6 +326,41 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "open(audio_input"
   }
 
+  it should "re-validate every redirect hop in _fetch_remote_url instead of following blindly" in {
+    // requests follows redirects by default, which would skip the scheme/IP
+    // checks on the redirect target: a 302 to http://169.254.169.254/... or an
+    // internal host would be fetched. The helper must disable automatic
+    // redirects and re-run _validate_remote_url on each hop.
+    val code = makeDesc(task = "image-to-image", inputImageColumn = "img").generatePythonCode()
+    // Automatic redirect-following is off, and no redirect-following variant
+    // of the fetch remains anywhere in the helper.
+    code should include(
+      "resp = requests.get(current_url, timeout=120, stream=True, allow_redirects=False)"
+    )
+    code should not include "resp = requests.get(url, timeout=120, stream=True)"
+    // The per-hop validator exists and runs BEFORE the request inside the loop.
+    code should include("def _validate_remote_url(self, url):")
+    val validateCall = code.indexOf("self._validate_remote_url(current_url)")
+    val fetchCall = code.indexOf("resp = requests.get(current_url")
+    validateCall should be > 0
+    fetchCall should be > validateCall
+    // Every redirect status is intercepted; relative Location values are
+    // resolved against the current URL before re-validation.
+    code should include("if resp.status_code in (301, 302, 303, 307, 308):")
+    code should include("current_url = _urljoin(current_url, location)")
+    // Degenerate redirects fail closed: missing Location and unbounded chains.
+    code should include("Redirect response has no Location header.")
+    code should include("MAX_REDIRECT_HOPS = 5")
+    code should include("Too many redirects")
+    // The validator keeps the full pre-existing checks (https-only + public
+    // address) so each hop gets the same scrutiny as the original URL, and
+    // takes an allowlist stance (globally-routable only) that also blocks the
+    // CGNAT/shared range the predicate list alone misses.
+    code should include("""if parsed.scheme != "https":""")
+    code should include("not ip.is_global")
+    code should include("ip.is_multicast")
+  }
+
   it should "treat pandas NA sentinels (NaN, pd.NA, NaT) as missing in _read_binary_value" in {
     // isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
     // floats and previously fell through to be str()-ified into bytes. The
@@ -354,24 +411,19 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should
-    "fail fast at runtime when zero-shot-image-classification has fewer than 2 candidate labels" in {
-    // Without a dedicated candidateLabels field (lands in PR 5), zero-shot
-    // reuses prompt_value as a comma-
-    // separated list. Two failure modes the bare list comprehension hides
-    // are both caught by the >= 2 check:
-    //  1. Empty prompt column → labels = [] → HF API rejects
-    //     candidate_labels: [] with an opaque 400.
-    //  2. Missing prompt column → upstream falls back to "What is shown in
-    //     this image?" (no comma) → labels = ["What is shown in this image?"],
-    //     a single nonsense label that returns a useless 1.0 score.
-    // Zero-shot classification needs >= 2 candidate labels to be meaningful,
-    // so the fix raises ValueError before the request goes out and the user
-    // sees a clear configuration error instead of a generic HTTP failure or
-    // misleading 100%-confidence garbage.
+    "validate zero-shot-image-classification candidate labels before the row loop" in {
+    // #7199 Part B: the >= 2 candidate-labels check is a config validation, so it
+    // runs in the pre-loop validation block (fail-fast with a clear ValueError),
+    // consistent with the other config checks — instead of being raised inside the
+    // per-row payload build, where an uncaught ValueError crashed the operator.
+    // Labels come from the Candidate Labels property; the old prompt-column
+    // fallback is dropped.
     val code = makeDesc(task = "zero-shot-image-classification").generatePythonCode()
     code should include("if len(labels) < 2:")
     code should include("raise ValueError(")
-    code should include("at least 2 candidate")
+    code should include("requires at least 2 Candidate Labels")
+    // The per-row prompt-column fallback is gone.
+    code should not include ("label_source")
   }
 
   it should
@@ -515,9 +567,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("ctx_col = self.CONTEXT_COLUMN")
     code should include("Context column")
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route table-question-answering with a precomputed table payload" in {
@@ -525,9 +576,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""if task == "table-question-answering":""")
     code should include("table_dict = {}")
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route zero-shot-classification with candidate labels" in {
@@ -578,6 +628,24 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should
+    "reformulate structured tasks into a chat message on fallback providers (#7195)" in {
+    // On third-party chat providers the structured pipeline_payload (context /
+    // table / labels / sentences) is inlined into the chat message via the
+    // helper, instead of sending only prompt_value and dropping the rest.
+    val code = makeDesc(task = "question-answering", contextColumn = "context").generatePythonCode()
+    code should include("def _chat_content_for_task(")
+    // Every chat branch (zai-org, OpenAI-compatible, unknown-fallback) uses it.
+    code should include("self._chat_content_for_task(pipeline_payload, prompt_value)")
+    code should not include ("""messages = [{"role": "user", "content": prompt_value}]""")
+    // Per-task reformulations are present.
+    code should include("Answer the question using only the context below.")
+    code should include("Answer the question using the table below")
+    code should include("Classify the text into exactly one of these labels:")
+    code should include("Rate how semantically similar the source sentence")
+    code should include("Rank the passages below by relevance to the query")
+  }
+
   "getOutputSchemas" should "add the result column as a STRING to the inherited schema" in {
     val desc = makeDesc(resultColumn = "answer")
     val inputSchema = Schema().add("prompt", AttributeType.STRING)
@@ -594,5 +662,60 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val out = desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
     val outSchema = out(desc.operatorInfo.outputPorts.head.id)
     outSchema.getAttributeNames.contains("hf_response") shouldBe true
+  }
+
+  it should "validate config with raise ValueError rather than assert (which python -O strips)" in {
+    val code = makeDesc().generatePythonCode()
+    // No `assert` in the generated script — asserts are removed under `python -O`,
+    // silently disabling the checks, and raise AssertionError rather than ValueError.
+    code should not include ("assert ")
+    // The pre-loop config checks now raise ValueError explicitly.
+    code should include("if prompt_col not in table.columns:")
+    code should include("if not (ctx_col and ctx_col in table.columns):")
+    code should include("if not (sent_col and sent_col in table.columns):")
+  }
+
+  it should "validate base64 in the binary-column fallback so plain text isn't decoded to garbage" in {
+    val code = makeDesc().generatePythonCode()
+    // validate=True makes b64decode reject non-base64 input, so real text falls
+    // through to utf-8 instead of decoding to garbage bytes.
+    code should include("base64.b64decode(val, validate=True)")
+  }
+
+  it should "treat a 401 as retryable so one provider's auth failure doesn't abort the fallback" in {
+    val code = makeDesc().generatePythonCode()
+    // 401 is in the retryable set -> the loop tries the next provider instead of bailing.
+    code should include("RETRYABLE = (400, 401, 404, 422, 429, 502, 503)")
+    // The old short-circuit (return immediately on the first 401) must be gone.
+    code should not include ("            if resp.status_code == 401:\n                return resp, None")
+  }
+
+  it should "mask the API token field as a password widget in the generated schema" in {
+    val tokenProp = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[HuggingFaceInferenceOpDesc])
+      .path("properties")
+      .path("hfApiToken")
+    tokenProp
+      .path("widget")
+      .path("formlyConfig")
+      .path("templateOptions")
+      .path("type")
+      .asText() shouldBe "password"
+  }
+
+  it should "report a clear error when a configured image/audio column is missing from the input table" in {
+    val code = makeDesc().generatePythonCode()
+    code should include("Input Image Column '")
+    code should include("Input Audio Column '")
+    code should include("not found in the input table")
+  }
+
+  it should "give a clear error when the result column collides with an input column" in {
+    val desc = makeDesc(resultColumn = "prompt")
+    val inputSchema = Schema().add("prompt", AttributeType.STRING)
+    val ex = intercept[RuntimeException] {
+      desc.getOutputSchemas(Map(PortIdentity(0) -> inputSchema))
+    }
+    ex.getMessage should include("Result column 'prompt'")
   }
 }

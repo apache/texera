@@ -31,7 +31,6 @@ class SessionUserSpec extends AnyFlatSpec with Matchers {
     user.setUid(42)
     user.setName("alice")
     user.setEmail("alice@example.com")
-    user.setGoogleId("g-123")
     user.setRole(role)
     user
   }
@@ -52,12 +51,6 @@ class SessionUserSpec extends AnyFlatSpec with Matchers {
     val user = buildUser()
     val session = new SessionUser(user)
     session.getEmail shouldBe user.getEmail
-  }
-
-  it should "expose the underlying User's googleId via getGoogleId" in {
-    val user = buildUser()
-    val session = new SessionUser(user)
-    session.getGoogleId shouldBe user.getGoogleId
   }
 
   it should "return the same User instance via getUser" in {

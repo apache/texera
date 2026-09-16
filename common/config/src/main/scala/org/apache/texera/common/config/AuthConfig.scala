@@ -28,20 +28,12 @@ object AuthConfig {
   // Read jwt Expiration time in minutes
   final val jwtExpirationMinutes: Int = conf.getInt("auth.jwt.expiration-in-minutes")
 
-  // For storing the generated/configured secret
-  @volatile private var secretKey: String = _
-
-  // Read JWT secret key with support for random generation
-  def jwtSecretKey: String = {
-    synchronized {
-      if (secretKey == null) {
-        secretKey = conf.getString("auth.jwt.256-bit-secret").toLowerCase() match {
-          case "random" => getRandomHexString
-          case key      => key
-        }
-      }
-    }
-    secretKey
+  // Read JWT secret key with support for random generation.
+  // `lazy val` already compiles to a thread-safe, initialize-once accessor, so it
+  // replaces the hand-rolled @volatile + synchronized double-checked lock.
+  lazy val jwtSecretKey: String = conf.getString("auth.jwt.256-bit-secret").toLowerCase() match {
+    case "random" => getRandomHexString
+    case key      => key
   }
 
   private def getRandomHexString: String = {

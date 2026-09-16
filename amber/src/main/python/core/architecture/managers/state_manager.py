@@ -37,6 +37,13 @@ class StateManager:
     def __init__(self, state_transition_graph: Dict[T, Set[T]], initial_state: T):
         self._state_transition_graph = state_transition_graph
         self._current_state: T = initial_state
+        # Monotonically increasing version, bumped on every successful transition.
+        # It is the state machine's logical clock: since a single owner drives all
+        # transitions, the version totally orders them causally. Reporting it
+        # alongside the state lets the controller reject stale state reports that
+        # arrive out of order, without comparing wall-clock timestamps across
+        # processes. Must mirror the Scala StateManager.
+        self._state_version: int = 0
 
     def assert_state(self, state: T) -> None:
         """
@@ -75,6 +82,7 @@ class StateManager:
             )
 
         self._current_state = state
+        self._state_version += 1
 
     def get_current_state(self) -> T:
         """
@@ -82,3 +90,21 @@ class StateManager:
         :return:
         """
         return self._current_state
+
+    def get_state_version(self) -> int:
+        """
+        Return the monotonic version of the current state.
+        :return:
+        """
+        return self._state_version
+
+    def get_state_with_version(self) -> Tuple[T, int]:
+        """
+        Return the current state together with its version as one pair, so a
+        report site cannot interleave a transition between reading the state and
+        reading the version. Every state-report site must use this instead of
+        separate get_current_state/get_state_version calls. Mirrors the Scala
+        StateManager's getStateWithVersion.
+        :return:
+        """
+        return self._current_state, self._state_version

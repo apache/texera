@@ -161,7 +161,38 @@
             class="table-cell"
             nzEllipsis
             (click)="open(i, row)">
-            <span class="cell-content">{{ column.getCell(row) }}</span>
+            <span class="cell-content">
+              <ng-container [ngSwitch]="getCellMediaType(row, columnIndex)">
+                <ng-container *ngSwitchCase="'video'">
+                  <i
+                    nz-icon
+                    nzType="play-circle"
+                    nzTheme="outline"
+                    title="Play video"
+                    style="margin-right: 4px"></i>
+                  Play Video
+                </ng-container>
+                <ng-container *ngSwitchCase="'audio'">
+                  <i
+                    nz-icon
+                    nzType="sound"
+                    nzTheme="outline"
+                    title="Play audio"
+                    style="margin-right: 4px"></i>
+                  Play Audio
+                </ng-container>
+                <ng-container *ngSwitchCase="'image'">
+                  <i
+                    nz-icon
+                    nzType="eye"
+                    nzTheme="outline"
+                    title="View image"
+                    style="margin-right: 4px"></i>
+                  View Image
+                </ng-container>
+                <ng-container *ngSwitchDefault>{{ column.getCell(row) }}</ng-container>
+              </ng-container>
+            </span>
             <button
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button

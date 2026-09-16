@@ -1,0 +1,319 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Blocks the merge while a `release/*` label on the PR is not approved by that
+# branch's release manager (.github/release-branches.yml).
+#
+# A label only nominates a branch. Before this, a manager declined by staying
+# silent and the label stayed on, so a merged PR claimed a backport that never
+# happened. Declining is now an action — approve, or remove the label — and the
+# merge waits for every remaining label, so a merged PR's labels are the
+# branches it reached.
+#
+# `Backport Approvals` is a required check on the default branch (.asf.yaml), so
+# this must report on every PR into `main` or one that never runs it waits
+# forever: hence no condition on title, labels, or base. A PR into a release
+# branch is itself a backport and reports success. Merge groups are
+# re-evaluated rather than waved through, and one whose PRs cannot be resolved
+# fails closed. Do not rename the job — its name is the required context.
+
+name: Backport Approval Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      # Retargeting arrives as `edited`, and the verdict depends on the base
+      # branch: a backport PR into release/* has nothing to approve, the same
+      # PR moved onto main does.
+      - edited
+  pull_request_review:
+    types:
+      - submitted
+      - dismissed
+  merge_group:
+
+# Read-only: this job never writes to the PR, and `pull_request_review` runs
+# with the base repository's token even for fork PRs.
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: backport-approvals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backport-approvals:
+    # Do not rename — this display name is the required status check context
+    # referenced in .asf.yaml.
+    name: Backport Approvals
+    runs-on: ubuntu-latest
+    steps:
+      # The default branch, not the PR's head or base. Both can predate #6941,
+      # which added release-branches.yml — and `base.sha` is main's tip at the
+      # PR's last synchronize rather than now, stale for 33 of the open PRs into
+      # main. Either would fail the step below with a file-not-found and turn
+      # this required check red unclearably; backport-auto-label.yml pinned
+      # `base.sha` and failed that way 20 times in production. Reading main also
+      # lets a PR retargeted onto a release branch, where the config is absent,
+      # reach the report instead of dying before it.
+      #
+      # Backport Auto Label and Direct Backport Push read main too, so all three
+      # consumers judge a backport by the same config. A PR editing that config
+      # is judged by the pre-edit copy; those are `ci:`-typed and carry no
+      # `release/*` labels.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Read release branches
+        id: targets
+        run: |
+          entries=$(python3 .github/scripts/release_branches.py .github/release-branches.yml)
+          echo "entries=${entries}" >> "$GITHUB_OUTPUT"
+          echo "Release branch targets: ${entries}"
+
+      - name: Check release manager approvals
+        uses: actions/github-script@v9
+        env:
+          ENTRIES: ${{ steps.targets.outputs.entries }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const managers = new Map(
+              JSON.parse(process.env.ENTRIES || "[]").map((e) => [
+                e.branch,
+                e.manager || "",
+              ])
+            );
+
+            // A merge group carries several PRs and its commits are the squash
+            // merges, so the number is parsed out of each subject — the same way
+            // precheck.yml resolves them.
+            async function pullRequestNumbers() {
+              if (context.eventName !== "merge_group") {
+                return [context.payload.pull_request.number];
+              }
+              const mg = context.payload.merge_group;
+              const { data: comparison } = await github.rest.repos.compareCommits({
+                owner, repo, base: mg.base_sha, head: mg.head_sha,
+              });
+              // An empty comparison would leave the loop below with nothing to
+              // check and publish a green context for a group whose approvals
+              // were never read. Fail closed, the same way the throw below does.
+              if (comparison.commits.length === 0) {
+                throw new Error(`no commits between ${mg.base_sha} and ${mg.head_sha}`);
+              }
+              return comparison.commits.map((c) => {
+                const m = c.commit.message.split("\n", 1)[0].match(/\(#(\d+)\)\s*$/);
+                if (!m) throw new Error(`no PR number in the message of ${c.sha}`);
+                return Number(m[1]);
+              });
+            }
+
+            // Latest state per login: COMMENTED never changes an approval, a
+            // later CHANGES_REQUESTED or DISMISSED revokes one, and listReviews
+            // is documented to return them chronologically. `null` means the
+            // list could not be read — kept distinct from empty, so "we did not
+            // look" is never reported as "nobody approved".
+            async function reviewStates(number) {
+              try {
+                const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                  owner, repo, pull_number: number, per_page: 100,
+                });
+                const states = new Map();
+                for (const review of reviews) {
+                  const login = review.user?.login;
+                  if (!login || review.state === "COMMENTED") continue;
+                  states.set(login.toLowerCase(), review.state);
+                }
+                return states;
+              } catch (e) {
+                core.warning(
+                  `listReviews for #${number} failed (${e.status ?? "?"}): ${e.message}`
+                );
+                return null;
+              }
+            }
+
+            // Managers gate their own branch and nothing else, so approvals
+            // compose: an approval from the v1.2 manager alone clears v1.2 and
+            // leaves v1.3 blocked.
+            function decide(targets, author, states) {
+              const authorLogin = (author || "").toLowerCase();
+              const cleared = [];
+              const blocked = [];
+              for (const target of targets) {
+                // A label naming a branch the config does not list has nobody
+                // who could approve it — different from an entry that omits
+                // `manager`, and reachable, since retiring a branch drops its
+                // entry while the label lives on.
+                if (!managers.has(target)) {
+                  blocked.push({ target, manager: "", state: "UNCONFIGURED" });
+                  continue;
+                }
+                const manager = managers.get(target);
+                if (!manager) {
+                  cleared.push({ target, note: "no release manager configured for this branch" });
+                  continue;
+                }
+                // GitHub does not let anyone approve their own PR, so a manager
+                // who wrote the fix counts as having signed off. Logins are
+                // case-insensitive while `manager` is typed by hand, so fold both.
+                if (manager.toLowerCase() === authorLogin) {
+                  cleared.push({ target, note: `@${manager} is the author of this PR` });
+                  continue;
+                }
+                const state = states ? states.get(manager.toLowerCase()) : "UNKNOWN";
+                if (state === "APPROVED") {
+                  cleared.push({ target, note: `approved by @${manager}` });
+                } else {
+                  blocked.push({ target, manager, state: state || "NONE" });
+                }
+              }
+              return { cleared, blocked };
+            }
+
+            // Say only what the state proves. A dismissal lands on DISMISSED
+            // whatever the review was, so calling it an approval would put a
+            // guess in the manager's mouth.
+            function reason(e) {
+              if (e.state === "VETOED") {
+                return "`no-backport-needed` says this fix reaches no release " +
+                  "branch, so this label contradicts it and would be left on a " +
+                  "merged PR promising a backport nobody performs — remove the " +
+                  "label, or remove `no-backport-needed`";
+              }
+              if (e.state === "UNCONFIGURED") {
+                return "this branch is not listed in .github/release-branches.yml, " +
+                  "so no release manager governs it — drop the label, or add the " +
+                  "branch back to that file";
+              }
+              if (e.state === "DISMISSED") {
+                return `@${e.manager}'s review was dismissed, so no approval stands`;
+              }
+              if (e.state === "CHANGES_REQUESTED") {
+                return `@${e.manager} requested changes and has not approved since`;
+              }
+              if (e.state === "UNKNOWN") {
+                return `this PR's reviews could not be read, so @${e.manager}'s ` +
+                  `approval could not be confirmed`;
+              }
+              return `needs an approving review from @${e.manager}`;
+            }
+
+            let numbers;
+            try {
+              numbers = await pullRequestNumbers();
+            } catch (e) {
+              // Fail closed: a group whose approvals cannot be read is not one
+              // this can vouch for. Ejecting it is recoverable — its PRs
+              // re-queue, each still holding its own passing check.
+              core.setFailed(
+                `Could not resolve the pull requests in this merge group ` +
+                `(${e.message}). Refusing to pass a check that could not be ` +
+                `computed.`
+              );
+              return;
+            }
+
+            const lines = [];
+            let failed = false;
+
+            for (const number of numbers) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner, repo, pull_number: number,
+              });
+              const labels = (pr.labels || []).map((l) => l.name);
+              const releaseLabels = [...new Set(
+                labels.filter((n) => /^release\/.+$/.test(n))
+              )].sort();
+              // A PR already targeting a release branch is itself a backport and
+              // is not backported onward, so there is nothing here to approve.
+              const intoMain = pr.base.ref === "main";
+              // The veto says the fix reaches no release branch, but nothing
+              // removes the labels it overrides, and precheck documents adding
+              // it mid-review — after the labeler has run. Merging in that state
+              // leaves a label promising a backport the push will skip, so the
+              // contradiction is reported rather than settled silently.
+              const vetoed = labels.includes("no-backport-needed");
+              const targets = intoMain && !vetoed ? releaseLabels : [];
+              const contradictions =
+                intoMain && vetoed
+                  ? releaseLabels.map((target) => ({
+                      target, manager: "", state: "VETOED",
+                    }))
+                  : [];
+
+              if (numbers.length > 1) lines.push(`### PR #${number}`, "");
+              if (targets.length === 0 && contradictions.length === 0) {
+                lines.push(
+                  intoMain
+                    ? "No `release/*` labels — nothing to approve."
+                    : "Not a pull request into `main` — a backport is not " +
+                      "itself backported onward, so there is nothing to approve.",
+                  ""
+                );
+                continue;
+              }
+
+              const { cleared, blocked } =
+                targets.length > 0
+                  ? decide(targets, pr.user?.login, await reviewStates(number))
+                  : { cleared: [], blocked: [] };
+              blocked.push(...contradictions);
+              for (const e of cleared) lines.push(`- **OK** \`${e.target}\` — ${e.note}`);
+              for (const e of blocked) lines.push(`- **BLOCKED** \`${e.target}\` — ${reason(e)}`);
+              lines.push("");
+              if (blocked.length > 0) failed = true;
+            }
+
+            if (failed) {
+              lines.push(
+                "Every `release/*` label on this PR must be approved by that " +
+                "branch's release manager before it can merge, so that the " +
+                "labels on a merged PR are exactly the branches it was " +
+                "backported to.",
+                "",
+                "A block naming a manager is that manager's call, and either " +
+                "answer clears it: **approve this PR** to send the fix to their " +
+                "branch, or **remove the label** to decline the backport to it. " +
+                "Authors: your part is to ask them to make that call, not to " +
+                "make it for them.",
+                "",
+                "Editing labels needs triage access, so outside contributors and " +
+                "bots cannot remove a label themselves — ask the release manager " +
+                "or any committer to remove it."
+              );
+            }
+
+            const report = lines.join("\n");
+            core.summary.addHeading("Backport approvals", 3).addRaw(report);
+            await core.summary.write();
+            core.info(report);
+            if (failed) {
+              core.setFailed(
+                "A release/* label on this PR is not approved by its release " +
+                "manager. See this job's summary for which one and what clears it."
+              );
+            }

@@ -80,7 +80,7 @@ _WAREHOUSE_DIR = tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-")
 @pytest.fixture(scope="module", autouse=True)
 def sqlite_iceberg_catalog():
     """Inject a sqlite-backed SqlCatalog so the test runs without external
-    iceberg infra (postgres/minio).
+    iceberg infra (postgres/rustfs).
 
     Note: the other iceberg-backed tests (e.g. test_iceberg_document.py) use a
     postgres/REST catalog to mirror production. This e2e deliberately diverges
@@ -89,8 +89,8 @@ def sqlite_iceberg_catalog():
     catalog-agnostic, so the sqlite backend exercises the same code path.
 
     Module-scoped so all tests in this file share one warehouse, and so
-    namespace creation only happens once. We save/restore the original
-    `IcebergCatalogInstance` singleton so other test modules that expect
+    namespace creation only happens once. We save/restore the
+    `IcebergCatalogInstance` cache so other test modules that expect
     a real postgres-backed catalog (e.g. test_iceberg_document.py) are
     not affected by our replacement.
     """
@@ -117,7 +117,7 @@ def sqlite_iceberg_catalog():
             s3_large_binaries_base_uri="s3://texera-large-binaries/objects/0/",
         )
 
-    original_instance = IcebergCatalogInstance._instance
+    original_catalogs = dict(IcebergCatalogInstance._catalogs)
     db_path = f"{_WAREHOUSE_DIR}/catalog.sqlite"
     catalog = SqlCatalog(
         "texera_iceberg_e2e",
@@ -134,7 +134,8 @@ def sqlite_iceberg_catalog():
     try:
         yield catalog
     finally:
-        IcebergCatalogInstance.replace_instance(original_instance)
+        IcebergCatalogInstance._catalogs.clear()
+        IcebergCatalogInstance._catalogs.update(original_catalogs)
 
 
 def _fresh_base_uri() -> str:

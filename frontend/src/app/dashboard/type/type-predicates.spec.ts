@@ -20,12 +20,10 @@
 import {
   isDashboardDataset,
   isDashboardFile,
-  isDashboardProject,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
 } from "./type-predicates";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
@@ -53,20 +51,9 @@ const workflowFixture: DashboardWorkflow = {
     isPublished: 0,
     readonly: false,
   },
-  projectIDs: [1, 2],
   accessLevel: "WRITE",
   ownerId: 10,
   coverImage: null,
-};
-
-const projectFixture: DashboardProject = {
-  pid: 5,
-  name: "My Project",
-  description: "A sample project",
-  ownerId: 10,
-  creationTime: 1700000000000,
-  color: "#ff0000",
-  accessLevel: "WRITE",
 };
 
 const fileFixture: DashboardFile = {
@@ -126,7 +113,7 @@ const computingUnitFixture: DashboardWorkflowComputingUnit = {
   },
   isOwner: true,
   accessPrivilege: "WRITE",
-  ownerGoogleAvatar: "",
+  ownerAvatar: "",
   ownerName: "Alice",
 };
 
@@ -135,11 +122,9 @@ describe("isDashboardWorkflow", () => {
     expect(isDashboardWorkflow(workflowFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardWorkflow(null)).toBeFalsy();
-    expect(isDashboardWorkflow(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflow(null)).toBe(false);
+    expect(isDashboardWorkflow(undefined)).toBe(false);
   });
 
   it("should return false for an object without a workflow field", () => {
@@ -150,40 +135,9 @@ describe("isDashboardWorkflow", () => {
     expect(isDashboardWorkflow({ workflow: "not an object" })).toBe(false);
   });
 
-  it("should return true when workflow is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardWorkflow({ workflow: null })).toBe(true);
-  });
-});
-
-describe("isDashboardProject", () => {
-  it("should return true for a realistic DashboardProject", () => {
-    expect(isDashboardProject(projectFixture)).toBe(true);
-  });
-
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardProject(null)).toBeFalsy();
-    expect(isDashboardProject(undefined)).toBeFalsy();
-  });
-
-  it("should return false for an object without a name field", () => {
-    expect(isDashboardProject({})).toBe(false);
-  });
-
-  it("should return false when name is not a string", () => {
-    expect(isDashboardProject({ name: 42 })).toBe(false);
-  });
-
-  it("should return false when a workflow field is also present", () => {
-    expect(isDashboardProject({ name: "x", workflow: workflowFixture.workflow })).toBe(false);
-  });
-
-  it("should return true when name is a string and workflow is null (current behavior)", () => {
-    // Documents current behavior: `!value.workflow` is true for a null workflow,
-    // so the exclusion branch does not reject it.
-    expect(isDashboardProject({ name: "x", workflow: null })).toBe(true);
+  it("should return false when workflow is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflow({ workflow: null })).toBe(false);
   });
 });
 
@@ -192,11 +146,9 @@ describe("isDashboardFile", () => {
     expect(isDashboardFile(fileFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardFile(null)).toBeFalsy();
-    expect(isDashboardFile(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardFile(null)).toBe(false);
+    expect(isDashboardFile(undefined)).toBe(false);
   });
 
   it("should return false for an empty object", () => {
@@ -215,9 +167,9 @@ describe("isDashboardFile", () => {
     expect(isDashboardFile({ ownerEmail: 42, file: fileFixture.file })).toBe(false);
   });
 
-  it("should return true when file is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardFile({ ownerEmail: "a@b.com", file: null })).toBe(true);
+  it("should return false when file is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardFile({ ownerEmail: "a@b.com", file: null })).toBe(false);
   });
 });
 
@@ -226,11 +178,9 @@ describe("isDashboardDataset", () => {
     expect(isDashboardDataset(datasetFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardDataset(null)).toBeFalsy();
-    expect(isDashboardDataset(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardDataset(null)).toBe(false);
+    expect(isDashboardDataset(undefined)).toBe(false);
   });
 
   it("should return false for an object without a dataset field", () => {
@@ -241,9 +191,9 @@ describe("isDashboardDataset", () => {
     expect(isDashboardDataset({ dataset: "not an object" })).toBe(false);
   });
 
-  it("should return true when dataset is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardDataset({ dataset: null })).toBe(true);
+  it("should return false when dataset is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardDataset({ dataset: null })).toBe(false);
   });
 });
 
@@ -252,11 +202,9 @@ describe("isDashboardWorkflowComputingUnit", () => {
     expect(isDashboardWorkflowComputingUnit(computingUnitFixture)).toBe(true);
   });
 
-  // The guard returns the falsy input itself via the `value && ...` short-circuit,
-  // so the result is null/undefined rather than the boolean false.
-  it("should be falsy for null and undefined", () => {
-    expect(isDashboardWorkflowComputingUnit(null)).toBeFalsy();
-    expect(isDashboardWorkflowComputingUnit(undefined)).toBeFalsy();
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflowComputingUnit(null)).toBe(false);
+    expect(isDashboardWorkflowComputingUnit(undefined)).toBe(false);
   });
 
   it("should return false for an object without a computingUnit field", () => {
@@ -267,9 +215,9 @@ describe("isDashboardWorkflowComputingUnit", () => {
     expect(isDashboardWorkflowComputingUnit({ computingUnit: "not an object" })).toBe(false);
   });
 
-  it("should return true when computingUnit is null (current behavior)", () => {
-    // Documents current behavior: typeof null === "object", so a null field passes the guard.
-    expect(isDashboardWorkflowComputingUnit({ computingUnit: null })).toBe(true);
+  it("should return false when computingUnit is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflowComputingUnit({ computingUnit: null })).toBe(false);
   });
 });
 
@@ -279,7 +227,6 @@ describe("isDashboardWorkflowComputingUnit", () => {
 describe("type predicate cross-classification", () => {
   const fixtures: ReadonlyArray<[string, unknown, string]> = [
     ["DashboardWorkflow fixture", workflowFixture, "isDashboardWorkflow"],
-    ["DashboardProject fixture", projectFixture, "isDashboardProject"],
     ["DashboardFile fixture", fileFixture, "isDashboardFile"],
     ["DashboardDataset fixture", datasetFixture, "isDashboardDataset"],
     ["DashboardWorkflowComputingUnit fixture", computingUnitFixture, "isDashboardWorkflowComputingUnit"],
@@ -287,7 +234,6 @@ describe("type predicate cross-classification", () => {
 
   const predicates: ReadonlyArray<[string, (value: unknown) => boolean]> = [
     ["isDashboardWorkflow", isDashboardWorkflow],
-    ["isDashboardProject", isDashboardProject],
     ["isDashboardFile", isDashboardFile],
     ["isDashboardDataset", isDashboardDataset],
     ["isDashboardWorkflowComputingUnit", isDashboardWorkflowComputingUnit],

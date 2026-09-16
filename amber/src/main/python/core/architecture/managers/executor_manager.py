@@ -15,13 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import fs
 import importlib
 import inspect
 import itertools
 import sys
+import tempfile
 from cached_property import cached_property
-from fs.base import FS
 from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional
@@ -46,30 +45,42 @@ class ExecutorManager:
     def __init__(self):
         self.executor: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
+        # Owns the tmp directory's lifetime; see `tmp_dir`.
+        self._tmp_dir_handle: Optional[tempfile.TemporaryDirectory] = None
 
     @cached_property
-    def fs(self) -> FS:
+    def tmp_dir(self) -> Path:
         """
-        Creates a tmp fs for storing source code, which will be removed when the
-        workflow is completed.
+        Creates a tmp directory for storing source code, which will be removed
+        when the workflow is completed.
         :return:
         """
         # TODO:
         #       For various reasons when the workflow is not completed successfully,
-        #  the tmp fs could not be closed properly. This means it may leave files
-        #  in the /var/tmp folder after a partially started or failed execution.
-        #       A full-life-cycle management of tmp fs is required to consider all
-        #  possible errors happened during execution. However, the full-life-cycle
-        #  management could be hard due to errors from JAVA side which causes force
-        #  kill on the Python process.
+        #  the tmp directory could not be removed properly. This means it may leave
+        #  files in the /var/tmp folder after a partially started or failed
+        #  execution.
+        #       A full-life-cycle management of the tmp directory is required to
+        #  consider all possible errors happened during execution. However, the
+        #  full-life-cycle management could be hard due to errors from JAVA side
+        #  which causes force kill on the Python process.
         #       As each python file is usually tiny in size, and the OS can
         #  periodically clean up /var/tmp anyway, the full-life-cycle management is
         #  not a priority to be fixed.
-        temp_fs = fs.open_fs("temp://")
-        root = Path(temp_fs.getsyspath("/"))
+        #       `TemporaryDirectory` is held on the instance rather than using a
+        #  bare `mkdtemp` so that a manager abandoned without `close()` still has
+        #  its directory reclaimed when it is garbage-collected. `fs` gave us that
+        #  for free (`FS.__del__` -> `TempFS.close()` -> `clean()`); dropping it
+        #  would turn every abandoned manager into a permanent leak. Force kill
+        #  runs no finalizers either way, which is the case the TODO above is about.
+        #  `ignore_cleanup_errors=True` matches TempFS's `ignore_clean_errors=True`.
+        self._tmp_dir_handle = tempfile.TemporaryDirectory(
+            prefix="texera-udf-", ignore_cleanup_errors=True
+        )
+        root = Path(self._tmp_dir_handle.name)
         logger.debug(f"Opening a tmp directory at {root}.")
         sys.path.append(str(root))
-        return temp_fs
+        return root
 
     def gen_module_file_name(self) -> Tuple[str, str]:
         """
@@ -92,16 +103,22 @@ class ExecutorManager:
         """
         module_name, file_name = self.gen_module_file_name()
 
-        with self.fs.open(file_name, "w") as file:
+        file_path = self.tmp_dir.joinpath(file_name)
+        # Pin the encoding: importlib always decodes source as UTF-8 (PEP
+        # 3120), while the builtin open() writes in the locale encoding, so a
+        # UDF containing non-ASCII text would fail to write under a non-UTF-8
+        # locale (cp1252, LC_ALL=C). `fs` was passing encoding="utf-8" and
+        # newline="" to io.open on our behalf; both are now explicit.
+        with open(file_path, "w", encoding="utf-8", newline="\n") as file:
             file.write(code)
-        logger.debug(
-            "A tmp py file is written to "
-            f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
-        )
+        logger.debug(f"A tmp py file is written to {file_path}.")
 
+        # Clear importlib's directory listing cache so freshly written
+        # temporary modules are discoverable on systems with coarse mtime.
+        importlib.invalidate_caches()
         # gen_module_file_name guarantees module_name is unique across
         # the process, so import_module will always cleanly load source
-        # from the tmp fs we just wrote — no re-import / reload dance.
+        # from the tmp directory we just wrote — no re-import / reload dance.
         executor_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
 
@@ -113,20 +130,21 @@ class ExecutorManager:
 
     def close(self) -> None:
         """
-        Close the tmp fs and release all resources created within it.
+        Remove the tmp directory and release all resources created within it.
         This also evicts the loaded operator module from ``sys.modules``
-        and removes the tmp fs path from ``sys.path`` so a single call
-        fully reverses every global side-effect performed by ``fs`` and
+        and removes the tmp directory from ``sys.path`` so a single call
+        fully reverses every global side-effect performed by ``tmp_dir`` and
         ``load_executor_definition``.
         :return:
         """
-        if "fs" not in self.__dict__:
-            # fs was never materialized; nothing to clean up.
+        if "tmp_dir" not in self.__dict__:
+            # the tmp directory was never materialized; nothing to clean up.
             return
-        root = self.fs.getsyspath("/")
-        self.fs.close()
+        root = self.tmp_dir
+        self._tmp_dir_handle.cleanup()
+        self._tmp_dir_handle = None
         try:
-            sys.path.remove(str(Path(root)))
+            sys.path.remove(str(root))
         except ValueError:
             pass
         if self.operator_module_name is not None:

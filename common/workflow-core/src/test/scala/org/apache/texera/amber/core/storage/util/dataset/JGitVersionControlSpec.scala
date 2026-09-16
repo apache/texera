@@ -382,4 +382,175 @@ class JGitVersionControlSpec extends AnyFlatSpec with Matchers {
       deleteIfExists(repo)
     }
   }
+
+  it should "return the branch name that the new repository actually has checked out" in {
+    val repo = Files.createTempDirectory("texera-jgit-branch")
+    try {
+      val branch = JGitVersionControl.initRepo(repo)
+      // initRepo strips the "refs/heads/" prefix off the HEAD symref; the result must
+      // be the very branch JGit reports for the fresh repository.
+      val actual = Using.resource(Git.open(repo.toFile))(_.getRepository.getBranch)
+      branch shouldBe actual
+      branch should not startWith "refs/heads/"
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  "JGitVersionControl.getRootFileNodeOfCommit" should "return an empty set for a commit with no files" in {
+    val repo = Files.createTempDirectory("texera-jgit-empty-tree")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+      // an initial commit with nothing staged has an empty tree, so the tree walk
+      // yields no entries at all
+      val hash = JGitVersionControl.commit(repo, "empty commit")
+
+      JGitVersionControl.getRootFileNodeOfCommit(repo, hash).asScala shouldBe empty
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  it should "link nested directories at depth two down to the leaf file" in {
+    val repo = Files.createTempDirectory("texera-jgit-deep-tree")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+
+      val leafContent = "deep-content"
+      writeFile(repo.resolve("a").resolve("b").resolve("leaf.txt"), leafContent)
+      stageAll(repo)
+      val hash = JGitVersionControl.commit(repo, "add nested dirs")
+
+      val rootNodes = JGitVersionControl.getRootFileNodeOfCommit(repo, hash).asScala.toSeq
+      // only the top-level directory "a" is a root node; everything else hangs off it
+      rootNodes.map(_.getRelativePath.toString) shouldBe Seq("a")
+
+      val aNode = rootNodes.head
+      aNode.isDirectory shouldBe true
+      aNode.getChildren.size shouldBe 1
+
+      val bNode = aNode.getChildren.asScala.head
+      bNode.getRelativePath.toString should (be("a/b") or be("a\\b"))
+      bNode.isDirectory shouldBe true
+      bNode.getChildren.size shouldBe 1
+
+      val leafNode = bNode.getChildren.asScala.head
+      leafNode.getRelativePath.toString should (be("a/b/leaf.txt") or be("a\\b\\leaf.txt"))
+      leafNode.isDirectory shouldBe false
+      leafNode.getSize shouldBe leafContent.getBytes(StandardCharsets.UTF_8).length.toLong
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  "JGitVersionControl commit-hash resolution" should "accept a symbolic ref such as HEAD" in {
+    val repo = Files.createTempDirectory("texera-jgit-symref")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+      val file = repo.resolve("data.txt")
+      writeFile(file, "head-content")
+      JGitVersionControl.add(repo, file)
+      JGitVersionControl.commit(repo, "add")
+
+      // the commitHash argument is resolved by JGit, so any revision expression works
+      val out = new ByteArrayOutputStream()
+      JGitVersionControl.readFileContentOfCommitAsOutputStream(repo, "HEAD", file, out)
+      new String(out.toByteArray, StandardCharsets.UTF_8) shouldBe "head-content"
+
+      Using.resource(JGitVersionControl.readFileContentOfCommitAsInputStream(repo, "HEAD", file)) {
+        in => new String(in.readAllBytes(), StandardCharsets.UTF_8) shouldBe "head-content"
+      }
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  it should "read the version stored in each commit after a tracked file is modified" in {
+    val repo = Files.createTempDirectory("texera-jgit-history")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+
+      val file = repo.resolve("data.txt")
+      writeFile(file, "v1")
+      JGitVersionControl.add(repo, file)
+      val firstHash = JGitVersionControl.commit(repo, "v1")
+
+      // re-staging a tracked file picks up the modification
+      writeFile(file, "v2-longer")
+      JGitVersionControl.add(repo, file)
+      val secondHash = JGitVersionControl.commit(repo, "v2")
+
+      secondHash should not be firstHash
+
+      def contentAt(hash: String): String = {
+        val out = new ByteArrayOutputStream()
+        JGitVersionControl.readFileContentOfCommitAsOutputStream(repo, hash, file, out)
+        new String(out.toByteArray, StandardCharsets.UTF_8)
+      }
+      contentAt(firstHash) shouldBe "v1"
+      contentAt(secondHash) shouldBe "v2-longer"
+
+      // the node size reported for the latest commit follows the new content
+      val node = JGitVersionControl
+        .getRootFileNodeOfCommit(repo, secondHash)
+        .asScala
+        .find(_.getRelativePath.toString == "data.txt")
+        .get
+      node.getSize shouldBe "v2-longer".length.toLong
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  "JGitVersionControl.readFileContentOfCommitAsOutputStream" should "copy binary content byte-for-byte" in {
+    val repo = Files.createTempDirectory("texera-jgit-binary")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+
+      val bytes = Array[Byte](0, 1, 127, -128, -1, 13, 10, 0)
+      val file = repo.resolve("blob.bin")
+      Files.write(file, bytes)
+      JGitVersionControl.add(repo, file)
+      val hash = JGitVersionControl.commit(repo, "add binary")
+
+      val out = new ByteArrayOutputStream()
+      JGitVersionControl.readFileContentOfCommitAsOutputStream(repo, hash, file, out)
+      out.toByteArray shouldBe bytes
+
+      Using.resource(JGitVersionControl.readFileContentOfCommitAsInputStream(repo, hash, file)) {
+        in => in.readAllBytes() shouldBe bytes
+      }
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
+
+  "JGitVersionControl.hasUncommittedChanges" should "report a staged deletion as uncommitted" in {
+    val repo = Files.createTempDirectory("texera-jgit-staged-rm")
+    try {
+      JGitVersionControl.initRepo(repo)
+      setIdentity(repo)
+
+      val file = repo.resolve("data.txt")
+      writeFile(file, "content")
+      JGitVersionControl.add(repo, file)
+      JGitVersionControl.commit(repo, "add")
+      JGitVersionControl.hasUncommittedChanges(repo) shouldBe false
+
+      // rm only stages the removal; the index now differs from HEAD
+      JGitVersionControl.rm(repo, file)
+      JGitVersionControl.hasUncommittedChanges(repo) shouldBe true
+      Files.exists(file) shouldBe false
+
+      JGitVersionControl.commit(repo, "remove")
+      JGitVersionControl.hasUncommittedChanges(repo) shouldBe false
+    } finally {
+      deleteIfExists(repo)
+    }
+  }
 }

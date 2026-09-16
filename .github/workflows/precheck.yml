@@ -1,0 +1,346 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Reusable pre-flight that both Required Checks (main build) and Backport
+# Checks (backport preflight/build) call, so the label -> stack mapping and
+# the labeler-wait live in exactly one place. On PR events it waits for the
+# Pull Request Labeler to finish, then maps the PR's labels to the build
+# stacks each requires and to the release/* backport targets. Push and
+# workflow_dispatch events run every stack. Merge groups resolve the PRs in
+# the group and either skip every stack (group tree identical to a PR head
+# that already passed Required Checks) or apply the same label -> stack
+# filter using the union of the group's PR labels; resolution failures fall
+# open to a full run. Non-PR events request no backports.
+name: Precheck
+
+on:
+  workflow_call:
+    outputs:
+      run_frontend:
+        value: ${{ jobs.decide.outputs.run_frontend }}
+      run_amber:
+        value: ${{ jobs.decide.outputs.run_amber }}
+      run_amber_integration:
+        value: ${{ jobs.decide.outputs.run_amber_integration }}
+      run_platform:
+        value: ${{ jobs.decide.outputs.run_platform }}
+      run_platform_integration:
+        value: ${{ jobs.decide.outputs.run_platform_integration }}
+      run_pyamber:
+        value: ${{ jobs.decide.outputs.run_pyamber }}
+      run_agent_service:
+        value: ${{ jobs.decide.outputs.run_agent_service }}
+      run_infra:
+        value: ${{ jobs.decide.outputs.run_infra }}
+      run_pyright_language_service:
+        value: ${{ jobs.decide.outputs.run_pyright_language_service }}
+      backport_targets:
+        value: ${{ jobs.decide.outputs.backport_targets }}
+
+permissions:
+  checks: read
+  # contents: read backs the git-data commit lookups (tree SHAs) in the
+  # merge-queue fast path.
+  contents: read
+  pull-requests: read
+
+jobs:
+  decide:
+    name: Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      run_frontend: ${{ steps.decide.outputs.run_frontend }}
+      run_amber: ${{ steps.decide.outputs.run_amber }}
+      run_amber_integration: ${{ steps.decide.outputs.run_amber_integration }}
+      run_platform: ${{ steps.decide.outputs.run_platform }}
+      run_platform_integration: ${{ steps.decide.outputs.run_platform_integration }}
+      run_pyamber: ${{ steps.decide.outputs.run_pyamber }}
+      run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
+      run_infra: ${{ steps.decide.outputs.run_infra }}
+      run_pyright_language_service: ${{ steps.decide.outputs.run_pyright_language_service }}
+      backport_targets: ${{ steps.decide.outputs.backport_targets }}
+    steps:
+      - name: Wait for Pull Request Labeler
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const ref = context.payload.pull_request.head.sha;
+            const maxAttempts = 30;
+            for (let i = 0; i < maxAttempts; i++) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                check_name: "labeler",
+              });
+              const check = data.check_runs[0];
+              if (check && check.status === "completed") {
+                core.info(`labeler ${check.conclusion}`);
+                return;
+              }
+              core.info(`labeler not ready (attempt ${i + 1}/${maxAttempts})`);
+              await new Promise((r) => setTimeout(r, 10000));
+            }
+            core.warning("labeler did not complete within 5 minutes; proceeding with current labels.");
+
+      - name: Decide which jobs to run
+        id: decide
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const eventName = context.eventName;
+            let labels = [];
+
+            // When true, the LABEL_STACKS filter below applies to `labels`;
+            // when false the event runs every stack.
+            let applyLabelFilter = false;
+
+            // Merge-queue path, two tiers, evaluated per group:
+            //
+            //  1. Fast path — a merge group whose squash result has the same
+            //     git tree as a PR head that already passed Required Checks
+            //     would re-validate byte-identical content: skip every stack.
+            //     Tree equality only holds for a single-entry group whose PR
+            //     was based on the then-current main (or a stacked PR that
+            //     contains the group's other entries), so the skip is
+            //     content-exact rather than heuristic.
+            //  2. Label union — otherwise, resolve every PR in the group from
+            //     its squash commit message (PR_TITLE_AND_DESC squash titles
+            //     end with "(#N)", same convention direct-backport-push.yml
+            //     relies on) and apply the same label -> stack filter a PR
+            //     event gets, using the union of all the group's PR labels.
+            //
+            // Any resolution failure falls open to a full run.
+            let mergeGroupAlreadyValidated = false;
+            if (eventName === "merge_group") {
+              try {
+                const { owner, repo } = context.repo;
+                const mg = context.payload.merge_group;
+                const { data: comparison } = await github.rest.repos.compareCommits({
+                  owner,
+                  repo,
+                  base: mg.base_sha,
+                  head: mg.head_sha,
+                });
+                const prNumbers = comparison.commits.map((c) => {
+                  const m = c.commit.message.split("\n", 1)[0].match(/\(#(\d+)\)\s*$/);
+                  if (!m) throw new Error(`no PR number in the message of ${c.sha}`);
+                  return Number(m[1]);
+                });
+                if (prNumbers.length === 0) {
+                  throw new Error(`no commits between ${mg.base_sha} and ${mg.head_sha}`);
+                }
+                const pullRequests = [];
+                for (const pullNumber of prNumbers) {
+                  const { data: pr } = await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: pullNumber,
+                  });
+                  pullRequests.push(pr);
+                }
+
+                // Tier 1: tree match against the newest entry's PR head.
+                const headPr = pullRequests[pullRequests.length - 1];
+                const mgTree = (
+                  await github.rest.git.getCommit({ owner, repo, commit_sha: mg.head_sha })
+                ).data.tree.sha;
+                const prTree = (
+                  await github.rest.git.getCommit({ owner, repo, commit_sha: headPr.head.sha })
+                ).data.tree.sha;
+                if (mgTree === prTree) {
+                  // The aggregator job in required-checks.yml publishes the
+                  // "Required Checks" check run on the PR head.
+                  const { data: checkData } = await github.rest.checks.listForRef({
+                    owner,
+                    repo,
+                    ref: headPr.head.sha,
+                    check_name: "Required Checks",
+                  });
+                  const check = checkData.check_runs[0];
+                  if (check && check.status === "completed" && check.conclusion === "success") {
+                    mergeGroupAlreadyValidated = true;
+                    core.info(
+                      `Merge group tree matches PR #${headPr.number} head ${headPr.head.sha}, which already passed Required Checks; skipping all stacks.`
+                    );
+                  }
+                }
+
+                // Tier 2: label union across the group's PRs.
+                if (!mergeGroupAlreadyValidated) {
+                  labels = [...new Set(pullRequests.flatMap((pr) => pr.labels.map((l) => l.name)))];
+                  applyLabelFilter = true;
+                  core.info(
+                    `Merge group PRs: ${prNumbers.map((n) => `#${n}`).join(", ")}; label union: ${labels.join(", ") || "(none)"}`
+                  );
+                }
+              } catch (e) {
+                core.warning(`Merge-group PR resolution failed (${e.message}); running all stacks.`);
+                labels = [];
+                applyLabelFilter = false;
+                mergeGroupAlreadyValidated = false;
+              }
+            }
+
+            if (eventName === "pull_request") {
+              // Re-fetch labels: the labeler may have just added some.
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              labels = pr.labels.map((l) => l.name);
+              applyLabelFilter = true;
+              core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
+            }
+
+            // Map each labeler-applied label to the stacks it requires. The
+            // run set is the union across all PR labels. Labels not listed
+            // here (release/*, feature, fix, refactor) contribute no stacks.
+            // dependencies is intentionally a no-op: every dep manifest the
+            // labeler matches lives under a component dir and is already
+            // covered by that component's label — including
+            // pyright-language-service/package.json, kept honest by the
+            // `pyright-language-service` component label below.
+            //
+            // `infra` and `pyright-language-service` are 1:1 self-mapping
+            // labels (each fires only its own like-named stack); they are
+            // omitted from the illustrative table below to keep it narrow.
+            //
+            // `platform-integration` mirrors `amber-integration`: a dedicated
+            // `platform-integration` label fires only the integration stack
+            // (a spec-only change) without the full `platform` job. It is
+            // omitted from the table below to keep it narrow. No labeler rule
+            // applies it yet — platform has no integration specs (#6047) — so
+            // today it is a forward hook (applied manually until then).
+            //
+            //   label             | frontend | amber | amber-integ | platform | pyamber | agent-service
+            //   ------------------|----------|-------|-------------|----------|---------|--------------
+            //   frontend          |    x     |       |             |          |         |
+            //   pyamber           |          |       |      x      |          |    x    |
+            //   engine            |          |   x   |      x      |          |         |
+            //   amber-integration |          |       |      x      |          |         |
+            //   platform          |          |       |             |    x     |         |
+            //   agent-service     |          |       |             |          |         |     x
+            //   common            |          |   x   |      x      |    x     |         |  (root
+            //                                                                             scala
+            //                                                                             build/lint
+            //                                                                             config)
+            //   ddl-change        |          |   x   |      x      |    x     |         |
+            //   ci                |    x     |   x   |      x      |    x     |    x    |     x
+            //   docs / deps /     |          |       |             |          |         |
+            //   release/*         |          |       |             |          |         |
+            //   * / branch        |          |       |             |          |         |
+            //
+            // amber-integration runs the Scala tests tagged
+            // @org.apache.texera.amber.tags.IntegrationTest (e2e specs that
+            // spawn Python UDF workers). The labeler attaches `pyamber` to
+            // any *.py change (including amber/src/{main,test}/python/**),
+            // so `engine` does not need to fire the pyamber stack itself —
+            // pure-Python amber changes pick up `pyamber` directly. The
+            // `amber-integration` label catches *IntegrationSpec.scala
+            // edits so a test-only change does not trigger the full
+            // Scala-only amber stack.
+            const LABEL_STACKS = {
+              frontend: ["frontend"],
+              pyamber: ["amber-integration", "pyamber"],
+              engine: ["amber", "amber-integration"],
+              "amber-integration": ["amber-integration"],
+              platform: ["platform", "platform-integration"],
+              "platform-integration": ["platform-integration"],
+              "agent-service": ["agent-service"],
+              "pyright-language-service": ["pyright-language-service"],
+              common: ["amber", "amber-integration", "platform", "platform-integration"],
+              "ddl-change": ["amber", "amber-integration", "platform", "platform-integration"],
+              infra: ["infra"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "platform-integration", "pyamber", "agent-service", "infra", "pyright-language-service"],
+            };
+
+            let runFrontend = true;
+            let runAmber = true;
+            let runAmberIntegration = true;
+            let runPlatform = true;
+            let runPlatformIntegration = true;
+            let runPyamber = true;
+            let runAgentService = true;
+            let runInfra = true;
+            let runPyrightLanguageService = true;
+
+            if (applyLabelFilter) {
+              const stacks = new Set();
+              for (const label of labels) {
+                for (const stack of LABEL_STACKS[label] || []) {
+                  stacks.add(stack);
+                }
+              }
+              runFrontend = stacks.has("frontend");
+              runAmber = stacks.has("amber");
+              runAmberIntegration = stacks.has("amber-integration");
+              runPlatform = stacks.has("platform");
+              runPlatformIntegration = stacks.has("platform-integration");
+              runPyamber = stacks.has("pyamber");
+              runAgentService = stacks.has("agent-service");
+              runInfra = stacks.has("infra");
+              runPyrightLanguageService = stacks.has("pyright-language-service");
+              core.info(
+                `Stacks selected by label union: ${[...stacks].sort().join(", ") || "(none)"}`
+              );
+            }
+
+            if (mergeGroupAlreadyValidated) {
+              runFrontend = false;
+              runAmber = false;
+              runAmberIntegration = false;
+              runPlatform = false;
+              runPlatformIntegration = false;
+              runPyamber = false;
+              runAgentService = false;
+              runInfra = false;
+              runPyrightLanguageService = false;
+            }
+
+            core.setOutput("run_frontend", runFrontend ? "true" : "false");
+            core.setOutput("run_amber", runAmber ? "true" : "false");
+            core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
+            core.setOutput("run_platform", runPlatform ? "true" : "false");
+            core.setOutput("run_platform_integration", runPlatformIntegration ? "true" : "false");
+            core.setOutput("run_pyamber", runPyamber ? "true" : "false");
+            core.setOutput("run_agent_service", runAgentService ? "true" : "false");
+            core.setOutput("run_infra", runInfra ? "true" : "false");
+            core.setOutput("run_pyright_language_service", runPyrightLanguageService ? "true" : "false");
+
+            // Backport targets: all current release/* labels on the PR, unless
+            // `no-backport-needed` vetoes backporting entirely (e.g. a fix for
+            // a feature that does not exist on any release branch). The veto
+            // wins even if release/* labels are also present, so adding it
+            // mid-review cancels the backport apply-check/build on the re-run.
+            // PR events only: merge_group also populates `labels` now, but its
+            // backports are discovered post-merge by direct-backport-push.yml.
+            let targets =
+              eventName === "pull_request"
+                ? [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort()
+                : [];
+            if (labels.includes("no-backport-needed")) {
+              core.info("no-backport-needed present; skipping all backport targets.");
+              targets = [];
+            } else if (targets.length === 0) {
+              core.info("No backport targets on PR.");
+            } else {
+              core.info(`Backport targets: ${targets.join(", ")}`);
+            }
+            core.setOutput("backport_targets", JSON.stringify(targets));

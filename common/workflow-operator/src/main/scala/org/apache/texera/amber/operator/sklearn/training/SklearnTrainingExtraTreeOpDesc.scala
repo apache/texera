@@ -22,4 +22,5 @@ package org.apache.texera.amber.operator.sklearn.training
 class SklearnTrainingExtraTreeOpDesc extends SklearnTrainingOpDesc {
   override def getImportStatements = "from sklearn.tree import ExtraTreeClassifier"
   override def getUserFriendlyModelName = "Training: Extra Tree"
+  override def handlesMissingValues = true
 }

@@ -45,6 +45,9 @@ trait EndChannelHandler {
     try {
       val outputState = dp.executor.produceStateOnFinish(portId.id)
       if (outputState.isDefined) {
+        // Operator-ORIGINATED boundary state, so no LoopStart stamp
+        // (loopCounter = 0, loopStartId = ""); see
+        // `main_loop._process_state_frame` for how a Loop End treats it.
         dp.outputManager.emitState(outputState.get)
       }
       // Columnar source path: emit Arrow batches directly (no per-row Tuple),

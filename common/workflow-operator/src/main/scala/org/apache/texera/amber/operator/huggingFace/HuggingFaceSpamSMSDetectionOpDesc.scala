@@ -60,7 +60,16 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        result = self.pipeline(tuple_[$attribute])[0]
+       |        text = tuple_[$attribute]
+       |        # An empty cell arrives as None, which the pipeline rejects. Keep the row
+       |        # and leave the results empty rather than ending the run over a value the
+       |        # model has nothing to say about.
+       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |            tuple_[$resultAttributeSpam] = None
+       |            tuple_[$resultAttributeProbability] = None
+       |            yield tuple_
+       |            return
+       |        result = self.pipeline(text)[0]
        |        tuple_[$resultAttributeSpam] = (result["label"] == "LABEL_1")
        |        tuple_[$resultAttributeProbability] = result["score"]
        |        yield tuple_""".encode

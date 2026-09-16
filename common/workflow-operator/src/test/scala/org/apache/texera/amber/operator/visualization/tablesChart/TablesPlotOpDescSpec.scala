@@ -77,4 +77,26 @@ class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     assert(carries(code, "col_two"))
     code should include("class TableChartOperator(UDFTableOperator)")
   }
+
+  it should "join multiple columns with a comma, not the literal ',' (valid Python)" in {
+    // Each column renders to a decode(...) call, so they must be comma-joined;
+    // joining with the literal ',' puts a string right after a call (invalid Python).
+    opDesc.includedColumns = List(column("col_one"), column("col_two"))
+    val code = opDesc.generatePythonCode()
+    code should include(
+      s"self.decode_python_template('${b64("col_one")}'),self.decode_python_template('${b64("col_two")}')"
+    )
+    code should not include "')','"
+  }
+
+  it should "define the render_error the empty-table branches call" in {
+    // Both empty-table branches call self.render_error; without the definition they
+    // raised AttributeError instead of rendering the message.
+    opDesc.includedColumns = List(column("col_one"), column("col_two"))
+    val code = opDesc.generatePythonCode()
+    code should include("def render_error(self, error_msg) -> str:")
+    code should include(
+      """return f"<h1>Tables Plot is not available.</h1><p>Reason is: {error_msg}</p>""""
+    )
+  }
 }

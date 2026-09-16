@@ -36,7 +36,6 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -58,7 +57,6 @@ import { sessionGetObject, sessionSetObject } from "../../../common/util/storage
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
-  let mockWorkflowSnapshotService: WorkflowSnapshotService;
   let mockDocument: Document;
 
   beforeEach(() => {
@@ -89,7 +87,6 @@ describe("ExecuteWorkflowService", () => {
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
-    mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
   });
 
   afterEach(() => {

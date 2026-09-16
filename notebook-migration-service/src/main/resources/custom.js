@@ -47,6 +47,40 @@ require(["base/js/events"], function (events) {
   });
 });
 
+// Read-only viewing: the embedded notebook is a reference view of the generated
+// workflow, not an editing surface. Make every code cell's editor read-only and
+// disable Jupyter's keyboard shortcuts so cells cannot be edited or executed.
+// (The chrome hidden via custom.css already removes the run/save/menu controls.)
+require(["base/js/events"], function (events) {
+  function makeReadOnly() {
+    if (!window.Jupyter || !Jupyter.notebook) {
+      return;
+    }
+    // readOnly "true" blocks editing while still letting the
+    // editor take focus, so a viewer can select and copy the generated code.
+    Jupyter.notebook.get_cells().forEach(function (cell) {
+      if (cell.code_mirror) {
+        cell.code_mirror.setOption("readOnly", true);
+      }
+    });
+    if (Jupyter.keyboard_manager) {
+      Jupyter.keyboard_manager.disable();
+    }
+  }
+
+  // notebook_loaded fires once cells (and their editors) exist; kernel_ready
+  // fires on every (re)start and re-applies in case the manager was re-enabled.
+  events.on("notebook_loaded.Notebook", makeReadOnly);
+  events.on("kernel_ready.Kernel", makeReadOnly);
+});
+
+// Keep markdown cells rendered: overriding unrender() stops a double-click (or
+// Enter) from dropping a markdown cell into its editable source view. The
+// prototype override applies to all existing and future markdown cells.
+require(["notebook/js/textcell"], function (textcell) {
+  textcell.MarkdownCell.prototype.unrender = function () {};
+});
+
 // Listen for messages from the Texera app (or parent window)
 window.addEventListener("message", function (event) {
   // Verify the message origin
