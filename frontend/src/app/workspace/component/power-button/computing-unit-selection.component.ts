@@ -211,12 +211,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private ngZone: NgZone,
     private warehouseService: WarehouseService,
     private warehouseActionsService: WarehouseActionsService
-  ) {
-    // Fail closed: until (and unless) the status endpoint answers, the boot-time
-    // flag decides whether a run needs a warehouse — a transport failure must
-    // not un-gate execution on an enabled deployment.
-    this.warehouseEnabled = this.config.env.warehouseEnabled;
-  }
+  ) {}
 
   ngOnInit(): void {
     // GPU options drive the GPU row in the metrics popover. The shared
@@ -272,9 +267,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
             catchError((err: unknown) => {
               // The pick lives in the root-scoped service, so clearing the list
               // is not enough: a stale id would still ride the next execution
-              // request. warehouseEnabled deliberately stays as-is — dropping it
-              // here would fail open, un-gating Run on an enabled deployment
-              // just because one status request failed.
+              // request. The flag falls back to the boot-time config instead of
+              // false — failing open here would un-gate Run on an enabled
+              // deployment just because one status request failed.
+              this.warehouseEnabled = this.config.env.warehouseEnabled;
               this.warehouses = [];
               this.warehouseService.selectWarehouse(undefined);
               console.error("Failed to fetch warehouse status", err);
