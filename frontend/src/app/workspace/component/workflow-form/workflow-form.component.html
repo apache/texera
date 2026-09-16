@@ -61,6 +61,30 @@
 </div>
 
 <div class="pc-page">
+  <!-- Only a writer sees Edit, which flips the whole page into in-place authoring; the lede appears
+       only while authoring, to say what edit mode is for. -->
+  <header
+    class="pc-head"
+    *ngIf="canEdit">
+    <p
+      class="lede"
+      *ngIf="authoring">
+      Choose what people fill in, then run to see it as they will.
+    </p>
+    <span class="spacer"></span>
+    <button
+      nz-button
+      class="author-toggle"
+      [nzType]="authoring ? 'primary' : 'default'"
+      (click)="toggleAuthoring()">
+      <i
+        nz-icon
+        nzType="edit"
+        aria-hidden="true"></i>
+      {{ authoring ? "Done" : "Edit" }}
+    </button>
+  </header>
+
   <div class="pc-rule"></div>
 
   <div
@@ -70,74 +94,259 @@
   </div>
 
   <div [hidden]="loading">
-    <!-- The author's one piece of guidance, shown as rendered markdown, collapsible, and only when
-         there is instruction text to show. Editing it is part of the authoring PR. -->
+    <!-- The author's one piece of guidance, shown as rendered markdown, collapsible. A reader sees
+         it only when there is text; an author always sees the section, to write it (write/preview). -->
     <section
       class="card instr"
-      *ngIf="hasInstruction"
+      *ngIf="hasInstruction || authoring"
       [class.open]="instructionOpen">
-      <button
-        type="button"
+      <!-- The header is a row, not one big button, because while authoring it holds the title INPUT,
+           and an input inside a button is invalid interactive nesting (assistive tech gets two
+           controls fighting over one click). Reading: the whole row is the toggle. Authoring: the
+           row is icon, title input, and a chevron button that toggles, so the input is the control's
+           sibling rather than its child. Either toggle names the body it opens (aria-controls). -->
+      <div
         class="instr-bar"
-        [attr.aria-expanded]="instructionOpen"
-        (click)="toggleInstruction()">
-        <i
-          nz-icon
-          nzType="info-circle"
-          class="lead"
-          aria-hidden="true"></i>
-        <h2>{{ instructionTitle || "How to use this" }}</h2>
-        <i
-          nz-icon
-          nzType="down"
-          class="chev"
-          aria-hidden="true"></i>
-      </button>
+        [class.authoring]="authoring">
+        <button
+          *ngIf="!authoring"
+          type="button"
+          class="instr-toggle"
+          [attr.aria-expanded]="instructionOpen"
+          aria-controls="instr-body"
+          (click)="toggleInstruction()">
+          <i
+            nz-icon
+            nzType="info-circle"
+            class="lead"
+            aria-hidden="true"></i>
+          <h2>{{ instructionTitle || "How to use this" }}</h2>
+          <i
+            nz-icon
+            nzType="down"
+            class="chev"
+            aria-hidden="true"></i>
+        </button>
+
+        <ng-container *ngIf="authoring">
+          <i
+            nz-icon
+            nzType="info-circle"
+            class="lead"
+            aria-hidden="true"></i>
+          <!-- An author edits the heading in place here, not in a separate Title box. -->
+          <input
+            class="instr-title-input"
+            [(ngModel)]="instructionTitle"
+            (ngModelChange)="onInstructionChange()"
+            placeholder="How to use this"
+            aria-label="Instruction heading" />
+          <button
+            type="button"
+            class="instr-toggle instr-chev"
+            [attr.aria-expanded]="instructionOpen"
+            aria-controls="instr-body"
+            [attr.aria-label]="instructionOpen ? 'Collapse the instruction' : 'Expand the instruction'"
+            (click)="toggleInstruction()">
+            <i
+              nz-icon
+              nzType="down"
+              class="chev"
+              aria-hidden="true"></i>
+          </button>
+        </ng-container>
+      </div>
 
       <div
+        id="instr-body"
         class="instr-body"
         [hidden]="!instructionOpen">
         <div
           class="md"
+          *ngIf="!authoring"
           [innerHTML]="instructionPreviewHtml"></div>
+
+        <ng-container *ngIf="authoring">
+          <div class="tabs">
+            <button
+              type="button"
+              [attr.aria-current]="instructionMode === 'write'"
+              (click)="setInstructionMode('write')">
+              Write
+            </button>
+            <button
+              type="button"
+              [attr.aria-current]="instructionMode === 'preview'"
+              (click)="setInstructionMode('preview')">
+              Preview
+            </button>
+          </div>
+
+          <ng-container *ngIf="instructionMode === 'write'">
+            <textarea
+              class="md-input"
+              [(ngModel)]="instructionBody"
+              (ngModelChange)="onInstructionChange()"
+              aria-label="Instruction body"
+              placeholder="Explain what this does and what to fill in."></textarea>
+            <p class="hint">Markdown. Add a picture with <code>![alt](https://…)</code>.</p>
+          </ng-container>
+
+          <div
+            class="md"
+            *ngIf="instructionMode === 'preview'"
+            [innerHTML]="instructionPreviewHtml"></div>
+        </ng-container>
       </div>
     </section>
 
     <!-- The inputs an author exposed, each rendered as its operator's own field. -->
+    <!-- The heading takes the focus (tabindex -1, not in the tab order) when the last card is removed
+         and there is no neighbouring card to hand the focus to. -->
     <div class="pc-section-head">
-      <span class="label">Inputs</span>
+      <span
+        class="label"
+        tabindex="-1"
+        >Inputs</span
+      >
+      <span
+        class="hint"
+        *ngIf="authoring"
+        >Drag to reorder. Click a step in the workflow to add more</span
+      >
     </div>
 
     <div
       class="empty"
       *ngIf="visibleFields.length === 0">
-      This workflow has no inputs to fill in.
+      {{ authoring ? "No inputs yet. Open the workflow below and click a step to expose its settings." : "This workflow
+      has no inputs to fill in." }}
     </div>
 
-    <div class="params">
+    <div
+      class="params"
+      cdkDropList
+      (cdkDropListDropped)="onDrop($event)">
       <section
         class="card param"
         [class.read-only]="!canEdit"
-        *ngFor="let r of rendered; trackBy: trackByRendered">
-        <!-- The operator's own field, so a file property gets the real file picker and an
-             attribute property a column dropdown. -->
-        <form
-          [formGroup]="r.form"
-          class="param-form">
-          <formly-form
-            [model]="r.model"
-            [fields]="r.fields"
-            [form]="r.form"></formly-form>
-        </form>
+        *ngFor="let r of rendered; let i = index; trackBy: trackByRendered"
+        cdkDrag
+        [cdkDragDisabled]="!authoring">
+        <!-- Author row: the drag handle, the "From <step>" provenance line, and the keyboard way to
+             reorder. The provenance is hidden for a broken input, whose operatorLabel is the raw id;
+             the broken card below says what happened. -->
+        <div
+          class="field-top"
+          *ngIf="authoring">
+          <i
+            nz-icon
+            nzType="holder"
+            class="grip"
+            cdkDragHandle
+            aria-hidden="true"></i>
+          <div
+            class="field-help"
+            *ngIf="!r.resolved.brokenReason">
+            From {{ r.resolved.operatorLabel }}
+          </div>
+          <span class="field-top-spacer"></span>
+          <!-- The drag handle is pointer-only and hidden from assistive tech (CDK drag-drop has no
+               keyboard path), so these two are how a keyboard author reorders. Same reorder as the
+               drag. At the ends they are aria-disabled, not disabled: a move that reaches the top or
+               bottom would otherwise disable the very button that has the focus and drop it, and the
+               handler already moves nothing off either end. Named with the input, since every card
+               has the same two buttons. -->
+          <button
+            type="button"
+            class="move"
+            [attr.aria-disabled]="i === 0 ? true : null"
+            [attr.aria-label]="'Move ' + cardName(r) + ' up'"
+            title="Move up"
+            (click)="onMoveBinding(r, -1)">
+            <i
+              nz-icon
+              nzType="up"
+              aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            class="move"
+            [attr.aria-disabled]="i === rendered.length - 1 ? true : null"
+            [attr.aria-label]="'Move ' + cardName(r) + ' down'"
+            title="Move down"
+            (click)="onMoveBinding(r, 1)">
+            <i
+              nz-icon
+              nzType="down"
+              aria-hidden="true"></i>
+          </button>
+        </div>
 
-        <!-- The one line of guidance a reader gets, when the author wrote one. The operator
-             schema's own field descriptions are dropped (author notes, not reader guidance), so
-             this is the only help text under an input. -->
-        <p
-          *ngIf="r.resolved.binding.helpText"
-          class="param-help-text">
-          {{ r.resolved.binding.helpText }}
-        </p>
+        <!-- A broken input (its operator removed) can never be filled; only an author reaches it,
+             only to remove it. -->
+        <div
+          class="broken"
+          *ngIf="r.resolved.brokenReason">
+          {{ r.resolved.brokenReason }}
+        </div>
+
+        <ng-container *ngIf="!r.resolved.brokenReason">
+          <!-- The operator's own field, so a file property gets the real file picker and an
+               attribute property a column dropdown. -->
+          <form
+            [formGroup]="r.form"
+            class="param-form">
+            <formly-form
+              [model]="r.model"
+              [fields]="r.fields"
+              [form]="r.form"></formly-form>
+          </form>
+
+          <!-- The one line of guidance a reader gets, when the author wrote one. Hidden while
+               authoring, where the help text is edited in its own box below. -->
+          <p
+            *ngIf="!authoring && r.resolved.binding.helpText"
+            class="param-help-text">
+            {{ r.resolved.binding.helpText }}
+          </p>
+        </ng-container>
+
+        <!-- Author edits the input in place, right under what it looks like. The name is renamed by
+             clicking the title above (the same gesture that renames every nested box); here it is
+             the help text and the way to take the input off the form. -->
+        <div
+          class="edit"
+          *ngIf="authoring">
+          <label
+            class="field wide"
+            *ngIf="!r.resolved.brokenReason">
+            <span class="label">Help text</span>
+            <input
+              [value]="r.resolved.binding.helpText || ''"
+              (input)="onEditHelpText(r.resolved, $any($event.target).value)" />
+          </label>
+          <div class="edit-foot">
+            <span
+              class="hint"
+              *ngIf="!r.resolved.brokenReason"
+              >Set on {{ r.resolved.operatorLabel }}: {{ r.resolved.binding.propertyKey }}</span
+            >
+            <span class="spacer"></span>
+            <button
+              type="button"
+              class="remove"
+              [attr.data-binding]="r.resolved.binding.id"
+              [attr.aria-label]="'Remove ' + cardName(r)"
+              (click)="onRemoveBinding(r.resolved)">
+              <i
+                nz-icon
+                nzType="delete"
+                aria-hidden="true"></i>
+              Remove
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -207,7 +416,10 @@
           aria-hidden="true"></i>
         <span class="wf-titles">
           <span class="wf-title">Workflow</span>
-          <span class="wf-sub">Optional. The steps that will run.</span>
+          <span class="wf-sub"
+            >{{ authoring ? "Click a step to choose which of its settings people fill in." : "Optional. The steps that
+            will run." }}</span
+          >
         </span>
         <span class="spacer"></span>
       </button>
@@ -237,17 +449,24 @@
             aria-hidden="true"></i>
         </button>
 
-        <!-- A reader can open a step to view its settings, read-only. Read-only is enforced twice,
-             at different layers, because neither layer alone is enough:
-             [actsAsEditor]="false" stops every write the panel can make (co-editor
-             awareness, operator version, operator properties) -- that is the one that matters, since
-             merely opening a step makes ajv fill in schema defaults and emit a change; and `inert`
-             stops the interaction, blocking pointer, keyboard and focus. Disabling the form is not a
-             substitute for `inert`: the preset save/apply/delete buttons, the array add/remove
-             buttons and the drag-to-reorder handles are plain controls that a disabled FormGroup
-             does not reach. Turning the panel live for choosing what to expose is the authoring PR.
-             The panel is the scroll container and takes the focus itself (tabindex, aria-label), so
-             a keyboard reader can still scroll a long panel that `inert` content cannot hold focus in.
+        <!-- Reader / inspect: read-only is enforced twice, at different layers, because neither
+             layer alone is enough. [actsAsEditor]="false" stops every write the panel can make
+             (co-editor awareness, operator version, operator properties) -- that is the one that
+             matters, since merely opening a step makes ajv fill in schema defaults and emit a
+             change; and `inert` stops the interaction, blocking pointer, keyboard and focus.
+             Disabling the form is not a substitute for `inert`: the preset save/apply/delete
+             buttons, the array add/remove buttons and the drag-to-reorder handles are plain
+             controls that a disabled FormGroup does not reach. Since `inert` content cannot hold
+             focus, the panel takes the tab stop itself so a keyboard reader can still scroll a long
+             panel.
+             Authoring: the panel goes live -- inert off, acting as an editor, exposeChoosing on
+             (tick boxes to pick what the form exposes), so it edits like the canvas, which edit mode
+             has already enabled workflow modification for. Live follows the lock's own rule
+             (panelLive: edit mode, write access, and no run in flight), not edit mode alone: the
+             frame does not consult the lock before its own writes, so mid-run it stays a read-only,
+             inert mount and turns live when the run ends. The panel's own tab stop goes away with
+             inert, so it does not sit in front of the form it now contains. persistPlacement stays
+             off either way (this is not the docked canvas panel).
              [hidden], not *ngIf: the property editor shows its operator by REACTING to the highlight
              stream (no initial pull), so it must already be mounted and subscribed when the click
              highlights a step. Mounting it on selection (*ngIf) subscribes too late, misses that
@@ -255,14 +474,14 @@
         <div
           class="panel"
           role="group"
-          tabindex="0"
-          aria-label="Step settings, read-only"
+          [attr.tabindex]="panelLive ? null : 0"
+          [attr.aria-label]="panelLive ? 'Step settings' : 'Step settings, read-only'"
           [hidden]="!selectedOperatorId">
           <texera-property-editor
-            [exposeChoosing]="false"
+            [exposeChoosing]="panelLive"
             [persistPlacement]="false"
-            [actsAsEditor]="false"
-            [attr.inert]="''"></texera-property-editor>
+            [actsAsEditor]="panelLive"
+            [attr.inert]="panelLive ? null : ''"></texera-property-editor>
         </div>
       </div>
     </section>
@@ -335,6 +554,38 @@
           </div>
         </div>
       </ng-container>
+    </section>
+
+    <!-- Which results show after a run. Everyone gets the picker: in edit mode a pill sets the default
+         for all readers (written to the config); otherwise it changes only this viewer's page. A reader
+         with nothing to choose from sees no section; an author always does, with the hint on how to
+         add steps. The pills are tracked by step, not by object: a toggle rebuilds the choices as new
+         objects, and re-created buttons would drop the keyboard focus from the pill just pressed. -->
+    <section
+      class="card respick"
+      *ngIf="authoring || resultChoices.length > 0">
+      <h3>Results shown here</h3>
+      <p>
+        {{ authoring ? "What everyone sees after a run. Until you choose, every final step is on; an earlier step needs
+        its result view on the canvas first." : "Choose which results to show after a run. This changes only your view."
+        }}
+      </p>
+      <div class="opts">
+        <button
+          type="button"
+          class="pill"
+          *ngFor="let choice of resultChoices; trackBy: trackByChoice"
+          [class.on]="choice.shown"
+          [attr.aria-pressed]="choice.shown"
+          (click)="onToggleResult(choice)">
+          {{ choice.label }}
+        </button>
+        <p
+          class="hint"
+          *ngIf="resultChoices.length === 0">
+          No steps to choose from yet. Turn on a step's result view on the canvas to feature it here.
+        </p>
+      </div>
     </section>
   </div>
 </div>

@@ -17,20 +17,23 @@
 
 name: texera-lakefs
 services:
-  minio:
-    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
-    container_name: texera-lakefs-minio
+  rustfs:
+    image: rustfs/rustfs:1.0.0-rc.6
+    container_name: texera-lakefs-rustfs
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=texera_minio
-      - MINIO_ROOT_PASSWORD=password
-    command: server --console-address ":9001" /data
+      - RUSTFS_ACCESS_KEY=texera_rustfs
+      - RUSTFS_SECRET_KEY=password
+      # Must match the region the AWS SDK signs with: it is part of the SigV4 scope.
+      - RUSTFS_REGION=us-west-2
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
     # The lines below are recommended to mount a host path in order to persist your data even if the container is removed.
     volumes:
-      - minio_data:/data
+      - rustfs_data:/data
 
   postgres:
     image: postgres:15
@@ -56,16 +59,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
     ports:
       - "8000:8000"
     environment:
       - LAKEFS_BLOCKSTORE_TYPE=s3
       - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
-      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://minio:9000
+      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://rustfs:9000
       - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=http://localhost:9000
-      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_rustfs
       - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password
       - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs
       - LAKEFS_LOGGING_LEVEL=INFO
@@ -94,5 +97,5 @@ networks:
 
 # Named Docker volumes — uncomment the following lines if you mounted host paths above.
 volumes:
-  minio_data:
+  rustfs_data:
   postgres_data:

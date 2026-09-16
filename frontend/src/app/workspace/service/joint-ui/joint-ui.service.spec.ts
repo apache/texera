@@ -425,6 +425,19 @@ describe("JointUIService", () => {
       expect(payload[".delete-button"].visibility).toBe("visible");
       expect(payload[".chat-button"].visibility).toBe("visible");
     });
+    it("unfolds the state and metrics without the action buttons when asked (a structure-locked preview)", () => {
+      // The buttons start hidden and stay so: none of delete, chat, add/remove port can act on a
+      // locked preview, and a button that does nothing would suggest the preview can be edited.
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.unfoldOperatorDetails(paper, "op-1", false);
+      const [payload] = attrSpy.mock.calls[0];
+      expect(payload[`.${operatorStateClass}`].visibility).toBe("visible");
+      expect(payload[`.${operatorPortMetricsClass}`].visibility).toBe("visible");
+      expect(Object.keys(payload)).not.toContain(".delete-button");
+      expect(Object.keys(payload)).not.toContain(".chat-button");
+      expect(Object.keys(payload).some(key => key.endsWith("-port-button"))).toBe(false);
+    });
   });
 
   describe("showAgentActionLabel / hideAgentActionLabel", () => {

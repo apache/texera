@@ -34,7 +34,7 @@ import org.scalatest.TagAnnotation;
  * runs in parallel in a single shared group.
  *
  * <p>Use this for suites that share a JVM-wide singleton backed by an external resource and would
- * otherwise contend when the ScalaTest distributor runs them in parallel — e.g. the MinIO-backed
+ * otherwise contend when the ScalaTest distributor runs them in parallel — e.g. the RustFS-backed
  * suites mixing {@code S3StorageTestBase}, which share one {@code S3StorageClient.s3Client} and
  * {@code StorageConfig} endpoint (see issue #7049).
  *
