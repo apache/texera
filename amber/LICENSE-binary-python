@@ -276,7 +276,7 @@ Python packages:
   - rich==14.3.4
   - scramp==1.4.15
   - six==1.17.0
-  - sqlalchemy==2.0.51
+  - sqlalchemy==2.0.52
   - strictyaml==1.7.3
   - typer==0.27.0
   - typing-inspection==0.4.2

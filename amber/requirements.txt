@@ -36,7 +36,7 @@ readerwriterlock==1.0.9
 tenacity==9.1.4
 # Not imported directly: pyiceberg's SqlCatalog needs SQLAlchemy with the
 # pg8000 driver (postgresql+pg8000:// connection string in iceberg_utils.py).
-SQLAlchemy==2.0.51
+SQLAlchemy==2.0.52
 pg8000==1.31.5
 pympler==1.1
 boto3==1.42.90
