@@ -165,6 +165,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   warehouseEnabled: boolean = false;
   warehouses: DashboardWarehouse[] = [];
   selectedWarehouseId?: number;
+  // An explicit pick from the dropdown (or a create). Preselection never
+  // overrides it: a late latest-execution answer must not undo what the user
+  // chose in the meantime. Reset when the workflow changes.
+  private manualWarehousePick = false;
   // The latest execution's warehouse; the warehouse list and the latest
   // execution are fetched concurrently, so preselection re-runs after
   // whichever response lands last.
@@ -207,7 +211,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private ngZone: NgZone,
     private warehouseService: WarehouseService,
     private warehouseActionsService: WarehouseActionsService
-  ) {}
+  ) {
+    // Fail closed: until (and unless) the status endpoint answers, the boot-time
+    // flag decides whether a run needs a warehouse — a transport failure must
+    // not un-gate execution on an enabled deployment.
+    this.warehouseEnabled = this.config.env.warehouseEnabled;
+  }
 
   ngOnInit(): void {
     // GPU options drive the GPU row in the metrics popover. The shared
@@ -261,11 +270,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
             // Caught inside the switchMap so a failure ends only this request,
             // not the stream.
             catchError((err: unknown) => {
-              // The pick lives in the root-scoped service, so hiding the picker
-              // is not enough: a stale id from a previous workflow would still
-              // ride the next execution request. Clear it whenever the picker
-              // cannot be shown.
-              this.warehouseEnabled = false;
+              // The pick lives in the root-scoped service, so clearing the list
+              // is not enough: a stale id would still ride the next execution
+              // request. warehouseEnabled deliberately stays as-is — dropping it
+              // here would fail open, un-gating Run on an enabled deployment
+              // just because one status request failed.
               this.warehouses = [];
               this.warehouseService.selectWarehouse(undefined);
               console.error("Failed to fetch warehouse status", err);
@@ -336,10 +345,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
-          // The previous workflow's execution must not steer this one's
-          // preselect: with the stale value, a workflow without history would
-          // fall back to the OLD workflow's warehouse instead of the first one.
+          // The previous workflow's execution — and pick — must not steer this
+          // one: with the stale value, a workflow without history would fall
+          // back to the OLD workflow's warehouse instead of the first one.
           this.lastExecutionWhid = undefined;
+          this.manualWarehousePick = false;
+          this.warehouseService.selectWarehouse(undefined);
           if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
             this.selectInitialUnit(this.workflowId);
           }
@@ -506,6 +517,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * warehouse — so a run needs no explicit pick.
    */
   private applyWarehousePreselect(): void {
+    if (
+      this.manualWarehousePick &&
+      this.selectedWarehouseId !== undefined &&
+      this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
+    ) {
+      return;
+    }
     if (!this.warehouseEnabled || this.warehouses.length === 0) {
       // Nothing selectable: drop any pick the root-scoped service still holds, so a
       // stale id cannot ride the next execution while the picker stays hidden.
@@ -538,6 +556,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   onWarehouseSelected(whid: number): void {
+    this.manualWarehousePick = true;
     this.warehouseService.selectWarehouse(whid);
   }
 
@@ -575,7 +594,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   onWarehouseCreated(warehouse: DashboardWarehouse): void {
     // Mirrors onComputingUnitCreated: a warehouse created from the workspace is
-    // what the next execution should write to.
+    // what the next execution should write to — as explicit a choice as a pick.
+    this.manualWarehousePick = true;
     this.warehouseService.selectWarehouse(warehouse.whid);
     this.refreshWarehouses();
   }

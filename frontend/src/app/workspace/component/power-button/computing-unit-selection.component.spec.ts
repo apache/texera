@@ -2739,5 +2739,63 @@ describe("PowerButtonComponent", () => {
 
       expect(comp.warehouses.map(w => w.name)).toEqual(["kept"]);
     });
+
+    it("a status failure keeps the gate closed on an enabled deployment", () => {
+      // Failing open would un-gate Run and let the execution write to the
+      // shared default storage with no warehouseId.
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        throwError(() => new Error("status unavailable"))
+      );
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      failedFixture.detectChanges();
+
+      expect(failedFixture.componentInstance.warehouseRequiredButMissing).toBe(true);
+      expect(failedFixture.componentInstance.warehouses).toEqual([]);
+      errorSpy.mockRestore();
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    });
+
+    it("a manual pick survives a late latest-execution answer", () => {
+      const inFlight = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveLatestWorkflowExecution").mockReturnValue(
+        inFlight.asObservable()
+      );
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      emit(100);
+
+      comp.onWarehouseSelected(2);
+      inFlight.next({ cuId: 55, whId: 1 } as unknown as WorkflowExecutionsEntry);
+      inFlight.complete();
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("switching workflows clears the pick at once, before the new preselect answers", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      comp.onWarehouseSelected(2);
+
+      // The new workflow's lookup stays pending: in that window nothing of the
+      // old workflow's pick may ride an execution.
+      const pending = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveLatestWorkflowExecution").mockReturnValue(
+        pending.asObservable()
+      );
+      emit(200);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+
+      pending.error(new Error("no execution"));
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
   });
 });
