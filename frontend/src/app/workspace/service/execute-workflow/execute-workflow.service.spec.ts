@@ -32,6 +32,8 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { of, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -396,6 +398,27 @@ describe("ExecuteWorkflowService", () => {
       "WorkflowExecuteRequest",
       expect.objectContaining({ computingUnitId: 99, emailNotificationEnabled: true, executionName: "exec" })
     );
+  }));
+
+  it("refuses to run without a warehouse while the deployment requires one (#7817)", fakeAsync(() => {
+    // Paths that bypass the menu gate (form view, run-up-to, replay) all funnel
+    // through sendExecutionRequest; the shared storage must not catch them.
+    TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+    try {
+      TestBed.inject(WarehouseService).selectWarehouse(undefined);
+      const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+      const settings = service["workflowActionService"].getWorkflowSettings();
+
+      service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+
+      expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith("Create or select a warehouse before running.");
+    } finally {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    }
   }));
 
   it("sendExecutionRequest carries the picked warehouse id, and none when unset (#7817)", fakeAsync(() => {

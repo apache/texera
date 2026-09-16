@@ -49,6 +49,7 @@ import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -102,7 +103,8 @@ export class ExecuteWorkflowService {
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private config: GuiConfigService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -247,6 +249,16 @@ export class ExecuteWorkflowService {
     // which the backend today reads as the shared default storage (#7751
     // tightens that to a rejection while the feature is enabled).
     const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
+
+    // Every execution path funnels through here — the menu's Run button offers
+    // the create dialog, but a run reached from anywhere else (the form view,
+    // run-up-to-operator, a replay) must not fall through to the shared
+    // storage while the deployment requires a warehouse (#7751 adds the
+    // backend-side rejection).
+    if (this.config.env.warehouseEnabled && warehouseId === undefined) {
+      this.notificationService.error("Create or select a warehouse before running.");
+      return;
+    }
 
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {
