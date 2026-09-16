@@ -358,7 +358,7 @@ class WorkflowService(
     *  2. Clears URI references from the execution registry
     *  3. Safely clears all result and console message documents
     *  4. Expires Iceberg snapshots for runtime statistics
-    *  5. Deletes this execution's large binaries from MinIO
+    *  5. Deletes this execution's large binaries from the object store
     *
     * @param eid The execution identity to clean up resources for
     */

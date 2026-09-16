@@ -140,6 +140,35 @@ describe("EmailRequestModalComponent", () => {
     expect(code.getAttribute("autocomplete")).toBe("one-time-code");
   });
 
+  /**
+   * The spec above reads the code box's rendered attributes; nothing had ever typed into it, so its
+   * [(ngModel)] write-back had never fired. That is the direction that matters: the dialog's caller
+   * reads the code out of getValues(), and a one-way binding here would hand it a blank code with
+   * no visible symptom on screen.
+   */
+  it("writes the typed verification code back through ngModel", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+    fixture.componentInstance.email = "sofia@example.com";
+    fixture.componentInstance.step = "code";
+    fixture.detectChanges();
+
+    const [, code] = inputs(fixture);
+    code.value = "246810";
+    code.dispatchEvent(new Event("input"));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.code).toBe("246810");
+    // The two boxes are not crossed: the frozen address is still the one it was mailed to.
+    expect(fixture.componentInstance.getValues()).toEqual({ email: "sofia@example.com", code: "246810" });
+    // ...and not only in the fields. This is the one test that renders the code step with a
+    // non-empty code, so it is the only place the label naming where the code went can be told
+    // apart from the code itself; through getValues() the two are indistinguishable on screen.
+    const label = (fixture.nativeElement as HTMLElement).querySelector(".email-modal-code-label");
+    expect(label?.textContent).toContain("sofia@example.com");
+    expect(label?.textContent).not.toContain("246810");
+  });
+
   function inputs(fixture: ComponentFixture<EmailRequestModalComponent>): HTMLInputElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll("input"));
   }

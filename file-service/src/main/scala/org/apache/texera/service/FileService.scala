@@ -40,6 +40,7 @@ import org.apache.texera.service.resource.{
   ModelResource
 }
 import org.apache.texera.service.util.S3StorageClient
+import org.apache.texera.service.util.S3ProxyServlet
 import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.service.util.StagedFileCleanupJob
 import org.eclipse.jetty.server.session.SessionHandler
@@ -94,6 +95,12 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     environment.jersey.register(classOf[DatasetAccessResource])
     environment.jersey.register(classOf[ModelResource])
     environment.jersey.register(classOf[ModelAccessResource])
+
+    // Register the read-only S3 proxy servlet for in-pod GeeseFS dataset mounts. GeeseFS
+    // authenticates with the pod's per-user JWT (carried as its S3 access key) and issues
+    // path-style requests at the root (/<bucket>/<key>), while Jersey serves the REST API
+    // at /api/* (more specific, so it keeps taking precedence).
+    environment.servlets.addServlet("s3-mount-proxy", new S3ProxyServlet).addMapping("/*")
 
     RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "FileService")
 

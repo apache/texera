@@ -91,12 +91,11 @@ class ModelSearchQueryBuilderSpec
     sql should include("model.format as model_format")
   }
 
-  it should "leave the workflow, project and dataset-only slots null" in {
-    // The union requires all builders to project the same 26 columns in the same order.
+  it should "leave the workflow and dataset-only slots null" in {
+    // The union requires all builders to project the same 23 columns in the same order.
     val sql = sqlFor(callerUid, includePublic = true)
 
     sql should include("cast(null as int) as wid")
-    sql should include("cast(null as int) as pid")
     sql should include("cast(null as varchar) as dataset_storage_path")
     sql should include("cast(null as varchar) as workflow_cover_image")
   }
