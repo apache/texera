@@ -25,6 +25,7 @@ import { AppSettings } from "../../../../common/app-setting";
 import { Model, ModelVersion } from "../../../../common/type/model";
 import { DashboardModel } from "../../../type/dashboard-model.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
+import { verifyCompleteDownload } from "../../../../common/util/download-integrity.util";
 
 export const MODEL_BASE_URL = "model";
 export const MODEL_CREATE_URL = MODEL_BASE_URL + "/create";
@@ -168,10 +169,13 @@ export class ModelService {
         ? new HttpParams().set("mvid", mvid.toString())
         : new HttpParams().set("latest", "true");
 
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/versionZip`, {
-      params,
-      responseType: "blob",
-    });
+    return this.http
+      .get(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/versionZip`, {
+        params,
+        responseType: "blob",
+        observe: "response",
+      })
+      .pipe(verifyCompleteDownload());
   }
 
   /**
@@ -183,9 +187,10 @@ export class ModelService {
     const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
     const endpoint = `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
 
-    return this.http
-      .get<{ presignedUrl: string }>(endpoint)
-      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+    return this.http.get<{ presignedUrl: string }>(endpoint).pipe(
+      switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob", observe: "response" })),
+      verifyCompleteDownload()
+    );
   }
 
   /** Flips the model between public and private; the endpoint toggles rather than taking a value. */
