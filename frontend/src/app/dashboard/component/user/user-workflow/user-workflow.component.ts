@@ -29,7 +29,7 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
+import { ExecutionMode, ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -540,9 +540,11 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           if (typeof result !== "string") {
             throw new Error("Incorrect format: file is not a string");
           }
-          const workflowContent = JSON.parse(result) as WorkflowContent;
+          // The landing view rides as a sibling key next to the content (see exportedWorkflow);
+          // pull it back out so it is stored on the workflow row, not inside content.
+          const { defaultView, ...workflowContent } = JSON.parse(result) as ExportedWorkflow;
           this.workflowPersistService
-            .createWorkflow(workflowContent, this.deriveWorkflowName(name))
+            .createWorkflow(workflowContent, this.deriveWorkflowName(name), defaultView)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: uploadedWorkflow => {

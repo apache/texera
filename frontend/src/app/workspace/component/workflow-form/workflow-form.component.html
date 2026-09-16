@@ -201,12 +201,18 @@
     </section>
 
     <!-- The inputs an author exposed, each rendered as its operator's own field. -->
+    <!-- The heading takes the focus (tabindex -1, not in the tab order) when the last card is removed
+         and there is no neighbouring card to hand the focus to. -->
     <div class="pc-section-head">
-      <span class="label">Inputs</span>
+      <span
+        class="label"
+        tabindex="-1"
+        >Inputs</span
+      >
       <span
         class="hint"
         *ngIf="authoring"
-        >Click a step in the workflow to add more</span
+        >Drag to reorder. Click a step in the workflow to add more</span
       >
     </div>
 
@@ -217,30 +223,130 @@
       has no inputs to fill in." }}
     </div>
 
-    <div class="params">
+    <div
+      class="params"
+      cdkDropList
+      (cdkDropListDropped)="onDrop($event)">
       <section
         class="card param"
         [class.read-only]="!canEdit"
-        *ngFor="let r of rendered; trackBy: trackByRendered">
-        <!-- The operator's own field, so a file property gets the real file picker and an
-             attribute property a column dropdown. -->
-        <form
-          [formGroup]="r.form"
-          class="param-form">
-          <formly-form
-            [model]="r.model"
-            [fields]="r.fields"
-            [form]="r.form"></formly-form>
-        </form>
+        *ngFor="let r of rendered; let i = index; trackBy: trackByRendered"
+        cdkDrag
+        [cdkDragDisabled]="!authoring">
+        <!-- Author row: the drag handle, the "From <step>" provenance line, and the keyboard way to
+             reorder. The provenance is hidden for a broken input, whose operatorLabel is the raw id;
+             the broken card below says what happened. -->
+        <div
+          class="field-top"
+          *ngIf="authoring">
+          <i
+            nz-icon
+            nzType="holder"
+            class="grip"
+            cdkDragHandle
+            aria-hidden="true"></i>
+          <div
+            class="field-help"
+            *ngIf="!r.resolved.brokenReason">
+            From {{ r.resolved.operatorLabel }}
+          </div>
+          <span class="field-top-spacer"></span>
+          <!-- The drag handle is pointer-only and hidden from assistive tech (CDK drag-drop has no
+               keyboard path), so these two are how a keyboard author reorders. Same reorder as the
+               drag. At the ends they are aria-disabled, not disabled: a move that reaches the top or
+               bottom would otherwise disable the very button that has the focus and drop it, and the
+               handler already moves nothing off either end. Named with the input, since every card
+               has the same two buttons. -->
+          <button
+            type="button"
+            class="move"
+            [attr.aria-disabled]="i === 0 ? true : null"
+            [attr.aria-label]="'Move ' + cardName(r) + ' up'"
+            title="Move up"
+            (click)="onMoveBinding(r, -1)">
+            <i
+              nz-icon
+              nzType="up"
+              aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            class="move"
+            [attr.aria-disabled]="i === rendered.length - 1 ? true : null"
+            [attr.aria-label]="'Move ' + cardName(r) + ' down'"
+            title="Move down"
+            (click)="onMoveBinding(r, 1)">
+            <i
+              nz-icon
+              nzType="down"
+              aria-hidden="true"></i>
+          </button>
+        </div>
 
-        <!-- The one line of guidance a reader gets, when the author wrote one. The operator
-             schema's own field descriptions are dropped (author notes, not reader guidance), so
-             this is the only help text under an input. -->
-        <p
-          *ngIf="r.resolved.binding.helpText"
-          class="param-help-text">
-          {{ r.resolved.binding.helpText }}
-        </p>
+        <!-- A broken input (its operator removed) can never be filled; only an author reaches it,
+             only to remove it. -->
+        <div
+          class="broken"
+          *ngIf="r.resolved.brokenReason">
+          {{ r.resolved.brokenReason }}
+        </div>
+
+        <ng-container *ngIf="!r.resolved.brokenReason">
+          <!-- The operator's own field, so a file property gets the real file picker and an
+               attribute property a column dropdown. -->
+          <form
+            [formGroup]="r.form"
+            class="param-form">
+            <formly-form
+              [model]="r.model"
+              [fields]="r.fields"
+              [form]="r.form"></formly-form>
+          </form>
+
+          <!-- The one line of guidance a reader gets, when the author wrote one. Hidden while
+               authoring, where the help text is edited in its own box below. -->
+          <p
+            *ngIf="!authoring && r.resolved.binding.helpText"
+            class="param-help-text">
+            {{ r.resolved.binding.helpText }}
+          </p>
+        </ng-container>
+
+        <!-- Author edits the input in place, right under what it looks like. The name is renamed by
+             clicking the title above (the same gesture that renames every nested box); here it is
+             the help text and the way to take the input off the form. -->
+        <div
+          class="edit"
+          *ngIf="authoring">
+          <label
+            class="field wide"
+            *ngIf="!r.resolved.brokenReason">
+            <span class="label">Help text</span>
+            <input
+              [value]="r.resolved.binding.helpText || ''"
+              (input)="onEditHelpText(r.resolved, $any($event.target).value)" />
+          </label>
+          <div class="edit-foot">
+            <span
+              class="hint"
+              *ngIf="!r.resolved.brokenReason"
+              >Set on {{ r.resolved.operatorLabel }}: {{ r.resolved.binding.propertyKey }}</span
+            >
+            <span class="spacer"></span>
+            <button
+              type="button"
+              class="remove"
+              [attr.data-binding]="r.resolved.binding.id"
+              [attr.aria-label]="'Remove ' + cardName(r)"
+              (click)="onRemoveBinding(r.resolved)">
+              <i
+                nz-icon
+                nzType="delete"
+                aria-hidden="true"></i>
+              Remove
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 

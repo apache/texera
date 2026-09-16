@@ -18,6 +18,7 @@
  */
 
 import { DatePipe } from "@angular/common";
+import { CdkDropList } from "@angular/cdk/drag-drop";
 import { FormGroup } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -36,6 +37,7 @@ import {
   LockOutline,
   MinusOutline,
   PlusOutline,
+  UpOutline,
 } from "@ant-design/icons-angular/icons";
 import { EMPTY, of, Subject } from "rxjs";
 
@@ -199,6 +201,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
             // Author-mode writes the rendered controls reach.
             updateConfig: vi.fn(),
             toggleShownResult: vi.fn(),
+            removeBinding: vi.fn(),
           },
         },
         { provide: FormlyJsonschema, useValue: { toFieldConfig: () => ({ fieldGroup: [] }) } },
@@ -269,6 +272,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
             LockOutline,
             MinusOutline,
             PlusOutline,
+            UpOutline,
           ],
         },
         DatePipe,
@@ -556,6 +560,155 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(after[0]).toBe(pills[0]);
     expect(document.activeElement).toBe(pills[0]);
     expect(after[0].getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("offers Move up / Move down on an author's cards, named with the input and inert at the ends", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = true;
+    c.authoring = true;
+    (c as any).parameters = [{ binding: { id: "b1" } }, { binding: { id: "b2" } }];
+    c.rendered = [
+      {
+        resolved: { binding: { id: "b1", displayName: "File", propertyKey: "fileName" }, operatorLabel: "Scan" },
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+      },
+      {
+        resolved: { binding: { id: "b2", propertyKey: "predicate" }, operatorLabel: "Filter" },
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+      },
+    ] as any;
+    const move = vi.spyOn(c, "onMoveBinding");
+    fixture.detectChanges();
+
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll(".param .move")) as HTMLButtonElement[];
+    // Every card has the same two buttons, so each is named with its input (the author's name, else
+    // the property key).
+    expect(buttons.map(b => b.getAttribute("aria-label"))).toEqual([
+      "Move File up",
+      "Move File down",
+      "Move predicate up",
+      "Move predicate down",
+    ]);
+    // First card cannot move up, last card cannot move down: marked inert for assistive tech, but
+    // NOT disabled, so the button that has the focus after a move to the end keeps it.
+    expect(buttons.map(b => b.getAttribute("aria-disabled"))).toEqual(["true", null, null, "true"]);
+    expect(buttons.map(b => b.disabled)).toEqual([false, false, false, false]);
+
+    // Each button carries its own direction: the first card's Move down, the second card's Move up.
+    buttons[1].click();
+    expect(move).toHaveBeenCalledWith(c.rendered[0], 1);
+    buttons[2].click();
+    expect(move).toHaveBeenCalledWith(c.rendered[1], -1);
+    // An inert end button still takes the click; the handler moves nothing off the end.
+    buttons[0].focus();
+    buttons[0].click();
+    expect(move).toHaveBeenCalledWith(c.rendered[0], -1);
+    expect(document.activeElement).toBe(buttons[0]);
+  });
+
+  it("hands the focus to the Inputs heading when the last card is removed", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = true;
+    c.authoring = true;
+    c.rendered = [
+      {
+        resolved: { binding: { id: "b1", displayName: "File", propertyKey: "fileName" }, operatorLabel: "Scan" },
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+      },
+    ] as any;
+    fixture.detectChanges();
+
+    const remove = el(".param .remove") as HTMLButtonElement;
+    expect(remove.getAttribute("aria-label")).toBe("Remove File");
+    expect(remove.getAttribute("data-binding")).toBe("b1");
+    remove.focus();
+    // The real handler runs: the binding is removed and the re-read (resolveFields -> []) takes the
+    // card away, so there is no neighbour to hand the focus to.
+    remove.click();
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(el(".param")).toBeNull();
+    expect(document.activeElement).toBe(el(".pc-section-head .label"));
+  });
+
+  it("gives an author's card its provenance, drag handle, help-text box and Remove, and drops the reader's help line", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = true;
+    c.authoring = true;
+    c.rendered = [
+      {
+        resolved: { binding: { id: "b1", helpText: "Pick a file", propertyKey: "fileName" }, operatorLabel: "Scan" },
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+      },
+    ] as any;
+    const help = vi.spyOn(c, "onEditHelpText").mockImplementation(() => {});
+    const remove = vi.spyOn(c, "onRemoveBinding").mockImplementation(() => {});
+    fixture.detectChanges();
+
+    expect(el(".param .grip")).not.toBeNull();
+    expect(el(".param .field-help")?.textContent?.trim()).toBe("From Scan");
+    // While authoring, the help text is edited in its own box rather than shown as the reader's line.
+    expect(el(".param .param-help-text")).toBeNull();
+    const box = el(".param .edit input") as HTMLInputElement;
+    expect(box.value).toBe("Pick a file");
+    box.value = "Pick a CSV";
+    box.dispatchEvent(new Event("input"));
+    expect(help).toHaveBeenCalledWith(c.rendered[0].resolved, "Pick a CSV");
+    expect(el(".param .edit-foot .hint")?.textContent).toContain("Set on Scan: fileName");
+    (el(".param .remove") as HTMLButtonElement).click();
+    expect(remove).toHaveBeenCalledWith(c.rendered[0].resolved);
+  });
+
+  it("renders a broken input as its reason plus Remove: no field, no help box, no provenance", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = true;
+    c.authoring = true;
+    c.rendered = [
+      {
+        resolved: { binding: { id: "gone" }, operatorLabel: "gone-op", brokenReason: "This step was removed." },
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+      },
+    ] as any;
+    fixture.detectChanges();
+
+    expect(el(".param .broken")?.textContent?.trim()).toBe("This step was removed.");
+    expect(el(".param form")).toBeNull();
+    expect(el(".param .field-help")).toBeNull();
+    expect(el(".param .edit input")).toBeNull();
+    expect(el(".param .edit-foot .hint")).toBeNull();
+    expect(el(".param .remove")).not.toBeNull();
+  });
+
+  it("hands a drop on the card list to onDrop", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    const drop = vi.spyOn(c, "onDrop").mockImplementation(() => {});
+
+    fixture.debugElement
+      .query(By.directive(CdkDropList))
+      .triggerEventHandler("cdkDropListDropped", { previousIndex: 1, currentIndex: 0 });
+
+    expect(drop).toHaveBeenCalledWith({ previousIndex: 1, currentIndex: 0 });
   });
 
   it("renders the run bar with the run button and the computing-unit selector", () => {

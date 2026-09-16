@@ -921,6 +921,138 @@ $shell: #fafafa;
   }
 }
 
+.field-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.field-top-spacer {
+  flex: 1;
+}
+
+.grip {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  padding-top: 3px;
+}
+
+/* Move up / Move down: quiet icon buttons at the row's right edge, the keyboard route the drag
+   handle does not give. Disabled at the ends rather than hidden, so the row does not reflow as a
+   card reaches the top or bottom. */
+.move {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 3px;
+  border-radius: 3px;
+  color: $text-2;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+
+  &:hover:not([aria-disabled="true"]) {
+    color: $text;
+  }
+
+  /* At the top or bottom the button stays focusable (aria-disabled, not disabled) so a move that
+     reaches the end does not drop the keyboard focus; it only looks inert and does nothing. */
+  &[aria-disabled="true"] {
+    color: rgba(0, 0, 0, 0.15);
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $blue;
+    outline-offset: 1px;
+  }
+}
+
+.field-help {
+  font-size: 13px;
+  color: $text-2;
+  margin-top: 2px;
+}
+
+.broken {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #874d00;
+}
+
+/* A dragged card lifts; the gap it left fades. */
+.cdk-drag-preview {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+.edit {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed $border;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px 18px;
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .label {
+      font-size: 12px;
+      color: $text-2;
+    }
+
+    input {
+      border: 1px solid $border;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+
+      &:focus {
+        border-color: $blue;
+        outline: none;
+      }
+    }
+  }
+
+  .field.wide {
+    grid-column: 1 / -1;
+  }
+
+  .edit-foot {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+
+    .spacer {
+      flex: 1;
+    }
+
+    .remove {
+      background: none;
+      border: 1px solid $border;
+      border-radius: 6px;
+      padding: 4px 10px;
+      color: #ff4d4f;
+      cursor: pointer;
+
+      &:hover {
+        border-color: #ff4d4f;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $blue;
+        outline-offset: 2px;
+      }
+    }
+  }
+}
+
 .respick {
   margin-top: 26px;
   padding: 15px 18px;

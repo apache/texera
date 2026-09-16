@@ -53,6 +53,8 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
 export function setupHarness() {
   const router = { navigate: vi.fn() };
   const workflowChangedStream = new Subject<unknown>();
+  // Announces every form-config write (see formBindingChanged$ and the form-binding mock below).
+  const formBindingChanged = new Subject<unknown>();
   // The root-level modification lock as other writers flip it (the execute service after a run, the
   // computing-unit selector); tests emit `true` to stand in for one of them unlocking the graph.
   const modificationEnabled = new Subject<boolean>();
@@ -165,8 +167,10 @@ export function setupHarness() {
       getCurrentHighlightedOperatorIDs: () => highlightedIds,
       unhighlightOperators,
     }),
-    // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
-    formBindingChanged$: new Subject<unknown>(),
+    // Every config write announces on this stream (setFormBinding emits it); the form re-reads its
+    // config on it unless the write is one of its own presentation edits. The form-binding mock's
+    // writers below emit here, as the real service does, so that chain is under test.
+    formBindingChanged$: formBindingChanged.asObservable(),
   };
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
@@ -179,10 +183,17 @@ export function setupHarness() {
     writeValue: vi.fn(),
     // A result card's friendly label; the mock returns the operator's display name or its id.
     operatorLabel: (op: any) => op?.customDisplayName ?? op?.operatorType ?? op?.operatorID,
-    // Author-mode writes: the component calls these then re-reads config. Spied so a test can
-    // assert the edit was made without needing a real binding store.
-    toggleShownResult: vi.fn(),
-    updateConfig: vi.fn(),
+    // Author-mode writes. Spied so a test can assert the edit was made without needing a real
+    // binding store, and each announces on formBindingChanged$ as the real service does (every
+    // write goes through setFormBinding, which emits), so the page's reaction to its own writes --
+    // rebuild, or not, for a presentation edit -- is what the tests see.
+    updateBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    setFieldOverride: vi.fn(() => formBindingChanged.next(undefined)),
+    removeBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    reorder: vi.fn(() => formBindingChanged.next(undefined)),
+    toggleShownResult: vi.fn(() => formBindingChanged.next(undefined)),
+    updateConfig: vi.fn(() => formBindingChanged.next(undefined)),
+    setFields: vi.fn(),
   };
   // A field per property the tests expose. Real formly json-schema conversion is exercised by the
   // property panel's own spec; here a deterministic map keeps these tests about the component's
@@ -333,6 +344,7 @@ export function setupHarness() {
     datePipe,
     config,
     workflowChangedStream,
+    formBindingChanged,
     workflowMetaDataChangedStream,
     compilationChanged,
     executionStateStream,

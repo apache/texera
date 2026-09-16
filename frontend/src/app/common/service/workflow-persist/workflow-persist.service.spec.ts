@@ -221,6 +221,45 @@ describe("WorkflowPersistService", () => {
       expect(result?.isPublished).toBe(1);
     });
 
+    it("sends saves one at a time, in order, each caller getting its own result", () => {
+      // Two saves in flight at once can land out of order and the older content would win; the
+      // autosave and a Save or a view switch are independent callers, so the ordering lives here.
+      const wf = (name: string) => ({ wid: 9, name, description: "", content: validContent }) as unknown as Workflow;
+      const seen: string[] = [];
+      service.persistWorkflow(wf("first")).subscribe(w => seen.push("first:" + w.name));
+      service.persistWorkflow(wf("second")).subscribe(w => seen.push("second:" + w.name));
+
+      // Only the first request has gone out; the second waits for it.
+      const first = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
+      expect(first.request.body.name).toBe("first");
+      expect(httpTestingController.match(`${API}/${WORKFLOW_PERSIST_URL}`)).toHaveLength(0);
+
+      first.flush({ wid: 9, name: "first", content: "{}" });
+      const second = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
+      expect(second.request.body.name).toBe("second");
+      second.flush({ wid: 9, name: "second", content: "{}" });
+
+      expect(seen).toEqual(["first:first", "second:second"]);
+    });
+
+    it("fails only its own caller when a save fails, and still sends the next", () => {
+      const wf = (name: string) => ({ wid: 9, name, description: "", content: validContent }) as unknown as Workflow;
+      let firstError: unknown;
+      let secondName: string | undefined;
+      service.persistWorkflow(wf("first")).subscribe({ error: (e: unknown) => (firstError = e) });
+      service.persistWorkflow(wf("second")).subscribe(w => (secondName = w.name));
+
+      httpTestingController
+        .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+        .flush("boom", { status: 500, statusText: "Server Error" });
+      expect(firstError).toBeDefined();
+
+      httpTestingController
+        .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+        .flush({ wid: 9, name: "second", content: "{}" });
+      expect(secondName).toBe("second");
+    });
+
     it("persistWorkflow notifies the user when the workflow is broken but still POSTs", () => {
       const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
       const workflow = {
@@ -272,6 +311,24 @@ describe("WorkflowPersistService", () => {
       const created = { workflow: { wid: 99, name: "brand new" } } as unknown as DashboardWorkflow;
       req.flush(created);
       expect(result).toEqual(created);
+    });
+
+    it("createWorkflow sends the default view when given one, and omits it otherwise", () => {
+      const content = jsonCast<WorkflowContent>(testContent);
+
+      service.createWorkflow(content, "form default", DefaultView.FORM).subscribe();
+      const withView = httpTestingController.expectOne(`${API}/${WORKFLOW_CREATE_URL}`);
+      expect(withView.request.body).toEqual({
+        name: "form default",
+        content: JSON.stringify(content),
+        defaultView: DefaultView.FORM,
+      });
+      withView.flush({ workflow: { wid: 1 } } as unknown as DashboardWorkflow);
+
+      service.createWorkflow(content, "no view").subscribe();
+      const withoutView = httpTestingController.expectOne(`${API}/${WORKFLOW_CREATE_URL}`);
+      expect(withoutView.request.body).toEqual({ name: "no view", content: JSON.stringify(content) });
+      withoutView.flush({ workflow: { wid: 2 } } as unknown as DashboardWorkflow);
     });
 
     it("createWorkflow filters out a null response so no value is emitted", () => {
