@@ -299,6 +299,45 @@ class CuratedImageResourceSpec extends AnyFlatSpec with Matchers {
       "sha256:1111111111111111111111111111111111111111111111111111111111111111"
   }
 
+  private val ReadyDigest = "sha256:" + "a" * 64
+
+  // The guard this covers: a deployment that turned the feature off, or left a row behind
+  // from when it was on, must start no unit from a curated image. It was covered by a test
+  // that drove readyImageFor while the flag was off, which stopped being possible once the
+  // flag shipped on -- the flag is read once at class load, so a test cannot turn it off.
+  "an image" should "start nothing while the feature is off, ready or not" in {
+    CuratedImageResource.startableRef(
+      enabled = false,
+      status = "READY",
+      sourceRef = "owner/name:1.0",
+      sourceDigest = ReadyDigest
+    ) shouldBe None
+  }
+
+  it should "start nothing until its check has passed" in {
+    Seq("PENDING", "VALIDATING", "FAILED").foreach { status =>
+      withClue(s"$status: ") {
+        CuratedImageResource.startableRef(
+          enabled = true,
+          status = status,
+          sourceRef = "owner/name:1.0",
+          sourceDigest = ReadyDigest
+        ) shouldBe None
+      }
+    }
+  }
+
+  it should "run the digest its check resolved once it is ready" in {
+    CuratedImageResource
+      .startableRef(
+        enabled = true,
+        status = "READY",
+        sourceRef = "owner/name:1.0",
+        sourceDigest = ReadyDigest
+      )
+      .value shouldBe s"owner/name@$ReadyDigest"
+  }
+
   // On by default now that the pages to manage and choose images have shipped. A
   // deployment short of node disk, or unwilling to offer them, sets it back to false.
   "the feature flag" should "be on unless a deployment turns it off" in {

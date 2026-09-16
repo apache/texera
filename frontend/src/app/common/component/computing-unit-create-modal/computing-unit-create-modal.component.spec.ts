@@ -26,6 +26,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { of, throwError } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
 import type { Mocked } from "vitest";
 import { ComputingUnitCreateModalComponent } from "./computing-unit-create-modal.component";
 import { WorkflowComputingUnitManagingService } from "../../service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -119,11 +120,26 @@ describe("ComputingUnitCreateModalComponent", () => {
     expect(component.selectedImageId).toBe(component.DEPLOYMENT_IMAGE);
   });
 
-  it("shows no images when the deployment has the feature switched off", () => {
-    // The API answers 503 there. The dropdown is hidden and nothing else changes.
-    mockCuImageService.list.mockReturnValue(throwError(() => new Error("503")));
+  // A 503 means the feature is off and is expected; anything else means the picker
+  // vanished for a reason the user should hear about.
+  it("says so when the images cannot be loaded for a real reason", () => {
+    mockCuImageService.list.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 500, statusText: "Server Error" }))
+    );
     openDialog();
     expect(component.curatedImages).toEqual([]);
+    expect(mockNotificationService.error).toHaveBeenCalled();
+  });
+
+  it("shows no images when the deployment has the feature switched off", () => {
+    // The API answers 503 there. The dropdown is hidden and nothing else changes.
+    mockCuImageService.list.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 503, statusText: "Service Unavailable" }))
+    );
+    openDialog();
+    expect(component.curatedImages).toEqual([]);
+    // Expected on such a deployment, so it is not reported.
+    expect(mockNotificationService.error).not.toHaveBeenCalled();
   });
 
   it("sends the chosen image, and forgets it when the modal reopens", () => {

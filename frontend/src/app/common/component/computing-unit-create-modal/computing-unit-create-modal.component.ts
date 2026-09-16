@@ -36,6 +36,7 @@ import { ComputingUnitActionsService } from "../../service/computing-unit/comput
 import { NotificationService } from "../../service/notification/notification.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../type/workflow-computing-unit";
 import { extractErrorMessage } from "../../util/error";
+import { HttpErrorResponse } from "@angular/common/http";
 import { CuImage, CuImageService, isStartable } from "../../../dashboard/service/admin/cu-image/cu-image.service";
 import {
   buildLocalComputingUnitUri,
@@ -200,7 +201,15 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: images => (this.curatedImages = images.filter(isStartable)),
-        error: () => (this.curatedImages = []),
+        error: (err: unknown) => {
+          // The field goes either way -- without a list there is nothing to choose from,
+          // and the unit falls back to the deployment's image. But only 503 means the
+          // feature is off; anything else is worth saying, or the picker just vanishes.
+          this.curatedImages = [];
+          if (!(err instanceof HttpErrorResponse && err.status === 503)) {
+            this.notificationService.error(`Could not load the available images: ${extractErrorMessage(err)}`);
+          }
+        },
       });
   }
 
