@@ -385,16 +385,22 @@ class TestAddOutputPort:
     def test_port_can_only_be_added_once(self, output_manager):
         # A second add of the same port id must not replace the port (or
         # its schema) registered by the first add.
+        output_manager.set_up_port_storage_writer = MagicMock()
         schema_first = MagicMock(name="schema_first")
         port_id = PortIdentity(id=0, internal=False)
 
-        output_manager.add_output_port(port_id, schema_first)
+        output_manager.add_output_port(port_id, schema_first, "vfs:///base")
         output_manager.add_output_port(
-            PortIdentity(id=0, internal=False), MagicMock(name="schema_second")
+            PortIdentity(id=0, internal=False),
+            MagicMock(name="schema_second"),
+            "vfs:///base",
         )
 
         assert output_manager.get_port_ids() == [port_id]
         assert output_manager.get_port().get_schema() is schema_first
+        output_manager.set_up_port_storage_writer.assert_called_once_with(
+            port_id, "vfs:///base"
+        )
 
     def test_sets_up_storage_writer_only_when_uri_given(self, output_manager):
         output_manager.set_up_port_storage_writer = MagicMock()
