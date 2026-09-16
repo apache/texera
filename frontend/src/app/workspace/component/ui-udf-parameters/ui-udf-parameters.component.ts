@@ -39,6 +39,9 @@ const VALUE_COLUMN: UiUdfParameterColumn = { label: "Value", key: "value", disab
 const RESOURCE_VALUE_EDITOR = "resourcevalue";
 const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DATASET_INPUT_TYPE]);
 
+/** The resource a row's value names, or "" for free text. */
+const resourceOf = (inputType?: string): string => (inputType && RESOURCE_INPUT_TYPES.has(inputType) ? inputType : "");
+
 /** Renders inferred Python UDF UI parameters with editable values and locked name/type columns. */
 @Component({
   selector: "texera-ui-udf-parameters",
@@ -56,6 +59,8 @@ const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DAT
 })
 export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> {
   private readonly disabledStateConfigured = new WeakMap<FormlyFieldConfig, boolean>();
+  // The resource each row's value editor was configured for.
+  private readonly rowResources = new WeakMap<FormlyFieldConfig, string>();
 
   readonly fieldColumns: UiUdfParameterColumn[] = [
     VALUE_COLUMN,
@@ -92,9 +97,10 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
 
   override onPopulate(field: FormlyFieldConfig): void {
     this.configureRowTemplate(this.getFieldArrayTemplate(field));
-    super.onPopulate(field);
     // Rows are read from the array being populated: Formly has not assigned each row's model yet.
     const rows = (field.model ?? []) as ReadonlyArray<{ inputType?: string } | undefined>;
+    this.dropRowsWhoseResourceChanged(field, rows);
+    super.onPopulate(field);
     field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType));
   }
 
@@ -118,10 +124,30 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
 
   /** A row whose value names a resource is edited with that resource's browser, not a text box. */
   private configureValueEditor(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
-    const valueField = rowField && this.getColumnField(rowField, VALUE_COLUMN);
-    if (!valueField || !inputType || !RESOURCE_INPUT_TYPES.has(inputType)) return;
+    if (!rowField) return;
+    const resource = resourceOf(inputType);
+    this.rowResources.set(rowField, resource);
+    const valueField = this.getColumnField(rowField, VALUE_COLUMN);
+    if (!valueField || !resource) return;
     valueField.type = RESOURCE_VALUE_EDITOR;
-    valueField.props = { ...(valueField.props ?? {}), resource: inputType };
+    valueField.props = { ...(valueField.props ?? {}), resource };
+  }
+
+  /**
+   * Formly keeps a row's config when the parameters are rebuilt from the code, and re-renders a
+   * cell only when handed a new config. A row whose resource changed is therefore dropped, with
+   * every row after it, so Formly rebuilds them from the template with the editor they now need.
+   */
+  private dropRowsWhoseResourceChanged(
+    field: FormlyFieldConfig,
+    rows: ReadonlyArray<{ inputType?: string } | undefined>
+  ): void {
+    const rowFields = field.fieldGroup ?? [];
+    const firstChanged = rowFields.findIndex(
+      (rowField, index) =>
+        this.rowResources.has(rowField) && this.rowResources.get(rowField) !== resourceOf(rows[index]?.inputType)
+    );
+    if (firstChanged >= 0) rowFields.splice(firstChanged);
   }
 
   private configureRowColumns(
