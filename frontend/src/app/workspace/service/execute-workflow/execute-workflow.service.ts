@@ -211,6 +211,9 @@ export class ExecuteWorkflowService {
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
@@ -223,6 +226,9 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
@@ -232,6 +238,22 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * While the deployment requires a warehouse (#7817) and none is picked,
+   * refuses with a toast and returns true. Checked at every public entry
+   * point before it resets the previous execution's state — a refused click
+   * must not wipe the results already on screen — and again in
+   * sendExecutionRequest as the shared belt (#7751 adds the backend-side
+   * rejection).
+   */
+  private refuseToRunWithoutWarehouse(): boolean {
+    if (!this.config.env.warehouseEnabled || this.warehouseService.getSelectedWarehouseIdValue() !== undefined) {
+      return false;
+    }
+    this.notificationService.error("Create or select a warehouse before running.");
+    return true;
   }
 
   public sendExecutionRequest(
@@ -250,13 +272,9 @@ export class ExecuteWorkflowService {
     // tightens that to a rejection while the feature is enabled).
     const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
 
-    // Every execution path funnels through here — the menu's Run button offers
-    // the create dialog, but a run reached from anywhere else (the form view,
-    // run-up-to-operator, a replay) must not fall through to the shared
-    // storage while the deployment requires a warehouse (#7751 adds the
-    // backend-side rejection).
-    if (this.config.env.warehouseEnabled && warehouseId === undefined) {
-      this.notificationService.error("Create or select a warehouse before running.");
+    // Final belt for callers that reach this method directly; the public entry
+    // points refuse BEFORE they reset the previous execution's state.
+    if (this.refuseToRunWithoutWarehouse()) {
       return;
     }
 

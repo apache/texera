@@ -32,6 +32,7 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { of, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
@@ -399,6 +400,23 @@ describe("ExecuteWorkflowService", () => {
       expect.objectContaining({ computingUnitId: 99, emailNotificationEnabled: true, executionName: "exec" })
     );
   }));
+
+  it("a refused run leaves the previous execution's state untouched (#7817)", () => {
+    TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+    try {
+      TestBed.inject(WarehouseService).selectWarehouse(undefined);
+      const resetSpy = vi.spyOn(service, "resetExecutionState");
+      const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
+      vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+      service.executeWorkflowWithEmailNotification("exec", false);
+
+      expect(resetSpy).not.toHaveBeenCalled();
+      expect(statusResetSpy).not.toHaveBeenCalled();
+    } finally {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    }
+  });
 
   it("refuses to run without a warehouse while the deployment requires one (#7817)", fakeAsync(() => {
     // Paths that bypass the menu gate (form view, run-up-to, replay) all funnel
