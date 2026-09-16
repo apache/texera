@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789480113114,
+  "lastUpdate": 1789564198271,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14080,6 +14080,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 503.615467280868,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Prateek Ganigi",
+            "username": "PG1204",
+            "email": "91584519+PG1204@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "f9b899a52890347d8d44c72c325863ff96fcb714",
+          "message": "refactor(frontend): split operator state from statistics (#8301)\n\n### What changes were proposed in this PR?\n\n`WorkflowStatusService` currently bundles two different concepts in one\nobject: `OperatorStatistics` carries both the operator's execution\n**state** (Running, Completed, …) and its **statistics** (row counts,\nsizes, timing). This PR splits them into separate sub-concepts, so the\nservice now exposes three cleanly separated things: state, statistics,\nand performance metrics (the third was already separate, from #5834).\n\n- `WorkflowStatusService` now has a stream + snapshot pair per concept:\n`getStateUpdateStream()` / `getCurrentState()` for state, and\n`getStatisticsUpdateStream()` / `getCurrentStatistics()` for statistics\n(metrics only). The performance-metrics API is unchanged.\n- `OperatorStatistics` no longer contains `operatorState`. The combined\nshape the engine still sends over the websocket is typed as\n`OperatorRuntimeStatus`, and the service splits each update into the two\nmaps. No backend or wire-format changes.\n- All consumers are migrated: components that only cared about state\n(result panel, code debugger, UDF debug service, property editor) now\nread the state stream; the workflow editor renders state (operator\ncolor) and statistics (port counts, worker count) from their own\nstreams. `JointUIService.changeOperatorStatistics` renders statistics\nonly — state rendering stays in `changeOperatorState` (its two\nlong-unused `isSource`/`isSink` params are dropped along the way).\n- A small `WorkflowGraph.getAllOperatorIDs()` accessor keeps the\nper-update rendering path from materializing full operator predicates\nwhen only IDs are needed.\n\nThe change is behavior-preserving. One deliberate exception: the old\ncode applied the \"Recovering\" display state by mutating the shared\nemitted map, which leaked masked states to other subscribers depending\non subscription order. That accident is removed, and the override is now\napplied explicitly where state is rendered.\n\nRebased on top of the merged heat-map overlay (#6213), which consumes\nonly the unchanged performance-metrics stream; its editor wiring is\nuntouched by this refactor.\n\n### Any related issues, documentation, discussions?\n\nCloses #5919. Part of umbrella #5772. Follow-up from the review\ndiscussion in #5834; follows RFC discussion #5216.\n\n### How was this PR tested?\n\nThe `WorkflowStatusService` spec now asserts state and statistics are\nexposed and update independently, and that statistics never leak\n`operatorState`. Consumer specs were updated to the new API, plus new\ntests for the state-rendering rules in the workflow editor\n(Uninitialized fallback, Recovering override, state label restored after\nnavigation).\n\nFull frontend suite passes (5,350 tests, 209 files); `tsc --noEmit`,\n`eslint ./src`, and Prettier are all clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nThis PR was co-authored using Claude in compliance with ASF.\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-16T04:01:43Z",
+          "url": "https://github.com/apache/texera/commit/f9b899a52890347d8d44c72c325863ff96fcb714"
+        },
+        "date": 1789564197878,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 518.4684144606414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1057.2474456182786,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1141.3063145759909,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 848.3212066043068,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1093.9223092580055,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1146.0940209466503,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 864.3124378415936,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1123.2834614480535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1147.821844392392,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 678.4863869059564,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 876.3163156140001,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 906.759613506154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 703.7013389283858,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 881.4615180414484,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 900.987254567313,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 690.477422690691,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 855.6453206496748,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 879.2963926484721,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 418.17550032553373,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 505.97851483980224,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 511.66247071381616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 426.7062819413361,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 502.8421076413576,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 509.2974054203601,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 399.91272328721743,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 453.40211815255446,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 462.9035363627748,
             "unit": "tuples/sec"
           }
         ]
