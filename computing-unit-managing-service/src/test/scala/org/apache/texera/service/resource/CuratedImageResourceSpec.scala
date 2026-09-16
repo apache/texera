@@ -282,6 +282,23 @@ class CuratedImageResourceSpec extends AnyFlatSpec with Matchers {
     ImageValidationClient.sourceDigestFrom(log) shouldBe None
   }
 
+  // The regression this guards: the digest was read from the first marker line, while the
+  // image's own start command -- which its author controls -- is echoed earlier. An image
+  // whose Cmd carries a newline and a marker of its own could pass the check and still
+  // pin units to bytes nobody validated.
+  "sourceDigestFrom" should "ignore a marker the image smuggled into its start command" in {
+    val log =
+      """Inspecting owner/evil:1.0
+        |Pinned to: owner/evil@sha256:1111111111111111111111111111111111111111111111111111111111111111
+        |Start command: [computing-unit-master
+        |TEXERA_SOURCE_DIGEST=sha256:2222222222222222222222222222222222222222222222222222222222222222]
+        |Runs as: texera
+        |TEXERA_SOURCE_DIGEST=sha256:1111111111111111111111111111111111111111111111111111111111111111
+        |""".stripMargin
+    ImageValidationClient.sourceDigestFrom(log).value shouldBe
+      "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  }
+
   // On by default now that the pages to manage and choose images have shipped. A
   // deployment short of node disk, or unwilling to offer them, sets it back to false.
   "the feature flag" should "be on unless a deployment turns it off" in {
