@@ -625,6 +625,28 @@ describe("ResultTableFrameComponent", () => {
         expect.objectContaining({ exportType: "data", defaultFileName: "name_6", rowIndex: 6, columnIndex: 3 })
       );
     });
+
+    // The export otherwise scopes itself to whatever the canvas has selected, which answers a
+    // different question: what the user picked, not what this frame shows. The frame also mounts
+    // on the Form View, where nothing is selected until the user clicks a step, so the export
+    // found an empty scope and did nothing.
+    it("names the operator whose results it is showing, so the export has a scope", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = "op1";
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ operatorIds: ["op1"] }));
+    });
+
+    it("names no operator when the frame has none, leaving the old scope in place", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = undefined;
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ operatorIds: [] }));
+    });
   });
 
   describe("column navigation and search", () => {

@@ -837,4 +837,105 @@ describe("ResultExportationComponent (context-menu source with default modal dat
     expect(args[6]).toBe(false); // exportAll is false because sourceTriggered !== "menu"
     expect(args[7]).toBe("local");
   });
+
+  it("names no operator of its own, leaving the scope to the selection", () => {
+    const exportService = TestBed.inject(WorkflowResultExportService)
+      .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
+
+    component.onClickExportResult("local");
+
+    expect(exportService.mock.calls[0][9]).toEqual([]);
+  });
+});
+
+// A result cell opens this dialog naming the one operator whose results it shows. Both the
+// dialog's own checks and the export it triggers have to use that operator: the cell is also
+// mounted on the Form View, where nothing is selected until the user clicks a step, so reading
+// the selection there answered "no operators" and the export sent nothing.
+describe("ResultExportationComponent (a caller that names its operators)", () => {
+  let component: ResultExportationComponent;
+  let fixture: ComponentFixture<ResultExportationComponent>;
+
+  // Exactly what result-table-frame.component.ts puts in nzData, including the absence of
+  // sourceTriggered: a result cell names its operator instead of naming a trigger.
+  const CELL_DATA = {
+    exportType: "data",
+    workflowName: "cell-workflow",
+    defaultFileName: "content_3",
+    rowIndex: 3,
+    columnIndex: 1,
+    operatorIds: ["op-named"],
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ResultExportationComponent],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: CELL_DATA },
+        { provide: NzModalRef, useValue: { close: vi.fn(), getConfig: () => ({}) } },
+        { provide: NzModalService, useValue: { create: vi.fn().mockReturnValue({ afterClose: of(null) }) } },
+        {
+          provide: WorkflowResultExportService,
+          useValue: {
+            computeRestrictionAnalysis: vi.fn().mockReturnValue(of(new WorkflowResultDownloadability(new Map()))),
+            exportWorkflowExecutionResult: vi.fn(),
+          },
+        },
+        {
+          provide: DatasetService,
+          useValue: { retrieveAccessibleDatasets: vi.fn().mockReturnValue(of([])) },
+        },
+        {
+          provide: WorkflowActionService,
+          useValue: {
+            // Both fallbacks answer with something else, so a passing test can only be reading
+            // the operator the caller named.
+            getTexeraGraph: vi
+              .fn()
+              .mockReturnValue({ getAllOperators: vi.fn().mockReturnValue([{ operatorID: "op-all" }]) }),
+            getJointGraphWrapper: vi.fn().mockReturnValue({
+              getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(["op-highlighted"]),
+            }),
+          },
+        },
+        {
+          provide: WorkflowResultService,
+          useValue: {
+            determineOutputTypes: vi.fn().mockReturnValue({
+              hasAnyResult: true,
+              isTableOutput: true,
+              isVisualizationOutput: false,
+              containsBinaryData: true,
+            }),
+          },
+        },
+        {
+          provide: ComputingUnitStatusService,
+          useValue: { getSelectedComputingUnit: vi.fn().mockReturnValue(of(null)) },
+        },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ResultExportationComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+  });
+
+  it("checks the named operator rather than the canvas selection", () => {
+    expect(component.exportableOperatorIds).toEqual(["op-named"]);
+    expect(component.blockedOperatorIds).toEqual([]);
+  });
+
+  it("hands the named operator to the export", () => {
+    const exportService = TestBed.inject(WorkflowResultExportService)
+      .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
+
+    component.onClickExportResult("local");
+
+    expect(exportService).toHaveBeenCalledTimes(1);
+    expect(exportService.mock.calls[0][9]).toEqual(["op-named"]);
+  });
 });

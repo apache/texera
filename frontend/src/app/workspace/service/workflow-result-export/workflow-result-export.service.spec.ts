@@ -279,6 +279,96 @@ describe("WorkflowResultExportService", () => {
       expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
     });
 
+    // A caller that already knows which operators it is exporting says so, instead of leaving
+    // the scope to whatever the canvas has selected. That selection is the context menu's scope;
+    // on the Form View it holds the step the user is configuring, and nothing at all until they
+    // click one, so a result cell there found an empty scope and the export returned above
+    // without sending anything.
+    it("exports the operators the caller named, ignoring the canvas selection", () => {
+      enableExport();
+      const download = stubDownloadService();
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opHighlighted"]);
+
+      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", false, "dataset", makeUnit(), ["opNamed"]);
+
+      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
+        "csv",
+        "workflow1",
+        "wf",
+        [{ id: "opNamed", outputType: "csv" }],
+        [7],
+        1,
+        2,
+        "file",
+        expect.anything()
+      );
+    });
+
+    it("exports a named operator even when nothing is selected on the canvas", () => {
+      enableExport();
+      const download = stubDownloadService();
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue([]);
+
+      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", false, "dataset", makeUnit(), ["opNamed"]);
+
+      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
+        "csv",
+        "workflow1",
+        "wf",
+        [{ id: "opNamed", outputType: "csv" }],
+        [7],
+        1,
+        2,
+        "file",
+        expect.anything()
+      );
+    });
+
+    it("still reads the canvas selection when the caller names no operator", () => {
+      enableExport();
+      const download = stubDownloadService();
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opHighlighted"]);
+
+      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", false, "dataset", makeUnit());
+
+      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
+        "csv",
+        "workflow1",
+        "wf",
+        [{ id: "opHighlighted", outputType: "csv" }],
+        [7],
+        1,
+        2,
+        "file",
+        expect.anything()
+      );
+    });
+
+    it("exports the whole workflow for the menu, whatever the caller named", () => {
+      // The top-menu button means "everything", and it passes no operators of its own. Were a
+      // named scope to win here, a future caller could quietly narrow an export-all.
+      enableExport();
+      const download = stubDownloadService();
+      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "opA" }, { operatorID: "opB" }] as any);
+
+      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", true, "dataset", makeUnit(), ["opNamed"]);
+
+      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
+        "csv",
+        "workflow1",
+        "wf",
+        [
+          { id: "opA", outputType: "csv" },
+          { id: "opB", outputType: "csv" },
+        ],
+        [7],
+        1,
+        2,
+        "file",
+        expect.anything()
+      );
+    });
+
     it("errors (no export) when every selected operator is blocked by a non-downloadable dataset", () => {
       enableExport();
       const download = stubDownloadService({ downloadability: { op1: ["ds1 (a@x.com)"] } });

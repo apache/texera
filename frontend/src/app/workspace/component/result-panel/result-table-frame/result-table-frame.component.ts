@@ -475,6 +475,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         defaultFileName: defaultFileName,
         rowIndex: realRowNumber,
         columnIndex: columnIndex,
+        // The operator whose results this frame is showing, named rather than left to the
+        // canvas selection, which answers a different question: what the user has selected.
+        // This frame also mounts on the Form View, where nothing is selected until the user
+        // clicks a step, so the export found an empty scope and the button did nothing.
+        operatorIds: this.operatorId ? [this.operatorId] : [],
       },
       nzFooter: null,
     });

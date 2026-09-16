@@ -198,10 +198,14 @@ export class WorkflowResultExportService {
     columnIndex: number,
     filename: string,
     exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
-    // we should export all operators, otherwise, only highlighted ones
-    // which means export button is selected from context-menu
+    // we should export all operators, otherwise the ones requestedOperatorIds names below, or
+    // the highlighted ones when it names none, which means the export button came from the
+    // context-menu
     destination: "dataset" | "local" = "dataset", // default to dataset
-    unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit | null, // computing unit for cluster setting
+    // The operators to export, for a caller that already knows them. Ignored when exportAll
+    // asks for everything; left out, the scope falls back to the canvas selection.
+    requestedOperatorIds: readonly string[] = []
   ): void {
     this.computeRestrictionAnalysis()
       .pipe(take(1))
@@ -216,7 +220,8 @@ export class WorkflowResultExportService {
           exportAll,
           destination,
           unit,
-          restrictionResult
+          restrictionResult,
+          requestedOperatorIds
         )
       );
   }
@@ -226,7 +231,7 @@ export class WorkflowResultExportService {
    *
    * This method handles the core export logic:
    * 1. Validates configuration and computing unit availability
-   * 2. Determines operator scope (all vs highlighted)
+   * 2. Determines operator scope (all, the operators the caller named, or the highlighted ones)
    * 3. Applies restriction filtering with user feedback
    * 4. Makes the export API call
    * 5. Handles response and shows appropriate notifications
@@ -245,7 +250,8 @@ export class WorkflowResultExportService {
     exportAll: boolean,
     destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null,
-    downloadability: WorkflowResultDownloadability
+    downloadability: WorkflowResultDownloadability,
+    requestedOperatorIds: readonly string[]
   ): void {
     // Validates configuration and computing unit availability
     if (!this.config.env.exportExecutionResultEnabled) {
@@ -262,13 +268,21 @@ export class WorkflowResultExportService {
       return;
     }
 
-    // Determines operator scope
+    // Determines operator scope. "Everything" wins first: the top menu means the whole workflow
+    // whatever else it was handed. Otherwise a caller that names its operators wins over the
+    // canvas selection, which answers a different question -- what the user has selected. That
+    // is the context menu's scope, but not a result cell's: a cell belongs to one operator,
+    // whoever is selected. The Form View selects the step the user is configuring, and until
+    // they click one it selects nothing, so a cell's export there came out with an empty scope
+    // and returned below without sending a request -- a button that did nothing at all.
     const operatorIds = exportAll
       ? this.workflowActionService
           .getTexeraGraph()
           .getAllOperators()
           .map(operator => operator.operatorID)
-      : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
+      : requestedOperatorIds.length > 0
+        ? [...requestedOperatorIds]
+        : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
     if (operatorIds.length === 0) {
       return;
