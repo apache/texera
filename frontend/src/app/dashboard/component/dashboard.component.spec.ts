@@ -52,6 +52,7 @@ import {
   USER_DATASET,
   USER_DISCUSSION,
   USER_QUOTA,
+  USER_WAREHOUSE,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
 
@@ -262,6 +263,7 @@ describe("DashboardComponent", () => {
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");
     expect(USER_COMPUTING_UNIT).toBe("/user/compute");
+    expect(USER_WAREHOUSE).toBe("/user/warehouse");
     expect(USER_QUOTA).toBe("/user/quota");
     expect(USER_DISCUSSION).toBe("/user/discussion");
     expect(ADMIN_USER).toBe("/admin/user");
@@ -295,6 +297,29 @@ describe("DashboardComponent", () => {
     // 7 "Your Work" links (incl. Python Venvs and Models) + 4 admin links + 1 about link
     // + 1 feedback link = 13
     expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+  });
+
+  describe("warehouse tab gating (#6933)", () => {
+    const warehouseMenuItem = () =>
+      fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(de => (de.nativeElement.textContent || "").trim() === "Warehouses");
+
+    beforeEach(() => {
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+      component.sidebarTabs = { ...component.sidebarTabs, your_work_enabled: true };
+    });
+
+    it("shows the Warehouses item only while the deployment's config enables the feature", () => {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+      fixture.detectChanges();
+      expect(warehouseMenuItem()).toBeUndefined();
+
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      fixture.detectChanges();
+      expect(warehouseMenuItem()).toBeTruthy();
+    });
   });
 
   describe("sidebar active-route highlighting (#3490)", () => {

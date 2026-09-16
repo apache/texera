@@ -23,6 +23,7 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
+import { UserWarehouseComponent } from "./dashboard/component/user/user-warehouse/user-warehouse.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { WorkflowFormComponent } from "./workspace/component/workflow-form/workflow-form.component";
@@ -169,6 +170,10 @@ routes.push({
         {
           path: "compute",
           component: UserComputingUnitComponent,
+        },
+        {
+          path: "warehouse",
+          component: UserWarehouseComponent,
         },
         {
           path: "python-venv",

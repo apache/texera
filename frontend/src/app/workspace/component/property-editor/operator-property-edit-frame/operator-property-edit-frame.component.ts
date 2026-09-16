@@ -39,7 +39,7 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
-import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import {
@@ -193,7 +193,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   currentOperatorSchema?: OperatorSchema;
 
   readonly OperatorState = OperatorState;
-  currentOperatorStatus?: OperatorStatistics;
+  currentOperatorState?: OperatorState;
 
   // re-declare enum for angular template to access it
   readonly ExecutionState = ExecutionState;
@@ -570,11 +570,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerOperatorDisplayNameChangeHandler();
 
     this.workflowStatusSerivce
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
         if (this.currentOperatorId) {
-          this.currentOperatorStatus = update[this.currentOperatorId];
+          this.currentOperatorState = update[this.currentOperatorId];
         }
       });
 
@@ -644,7 +644,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       return;
     }
     this.currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-    this.currentOperatorStatus = this.workflowStatusSerivce.getCurrentStatus()[this.currentOperatorId];
+    this.currentOperatorState = this.workflowStatusSerivce.getCurrentState()[this.currentOperatorId];
 
     if (this.actsAsEditor) {
       this.workflowActionService
