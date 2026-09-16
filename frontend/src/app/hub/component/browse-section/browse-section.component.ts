@@ -19,6 +19,7 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+import { EntityType } from "../../service/hub.service";
 import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
@@ -144,6 +145,16 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   }
 
   getCoverImage(entity: DashboardEntry): string {
+<<<<<<< HEAD
     return this.coverImageUrls.get(this.coverCacheKey(entity)) || this.defaultBackground;
+=======
+    // A workflow's cover is a downscaled data URL carried on the entry, so nothing is ever fetched
+    // for it. The file-backed kinds carry a stored path instead, which only the cache above can
+    // turn into something an <img> can load.
+    if (entity.type === EntityType.Workflow) {
+      return entity.coverImageUrl ?? this.defaultBackground;
+    }
+    return this.coverImageUrls.get(this.cacheKey(entity)) || this.defaultBackground;
+>>>>>>> 1facefb18 (fix(frontend): render workflow covers on the hub landing page (#8383))
   }
 }
