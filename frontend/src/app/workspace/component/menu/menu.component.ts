@@ -408,6 +408,18 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
+    // Per-user warehouses enabled but none to write to (#7817): mirror the
+    // Connect state above — name the fixing action, and runWorkflow() routes
+    // the click into the create-warehouse modal.
+    if (this.computingUnitSelectionComponent?.warehouseRequiredButMissing) {
+      return {
+        text: "Create Warehouse",
+        icon: "plus-circle",
+        disable: false,
+        onClick: () => this.runWorkflow(),
+      };
+    }
+
     // Handle execution states when connected to a running computing unit
     switch (this.executionState) {
       case ExecutionState.Uninitialized:
@@ -907,6 +919,14 @@ export class MenuComponent implements OnInit, OnDestroy {
 
       // Show the modal in the ComputingUnitSelectionComponent, seeding the name field
       this.computingUnitSelectionComponent.showAddComputeUnitModalVisible(defaultName);
+      return;
+    }
+
+    // Per-user warehouses enabled but none to write to (#7817): an execution
+    // must have a warehouse, so lead to the create-warehouse modal instead of
+    // running — the same shape as the Connect flow above.
+    if (this.computingUnitSelectionComponent.warehouseRequiredButMissing) {
+      this.computingUnitSelectionComponent.showAddWarehouseModalVisible();
       return;
     }
 

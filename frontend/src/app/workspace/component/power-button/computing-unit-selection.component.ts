@@ -27,6 +27,9 @@ import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
+import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
@@ -73,6 +76,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { WarehouseCreateModalComponent } from "../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 
 type PveUserPackageRow = {
   name: string;
@@ -128,6 +132,7 @@ type PveDraft = {
     NzCollapsePanelComponent,
     DecimalPipe,
     ComputingUnitCreateModalComponent,
+    WarehouseCreateModalComponent,
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
@@ -153,8 +158,22 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
+  // Per-user warehouse picker (#7817): shown whenever the deployment reports
+  // the feature enabled — with zero warehouses it still offers the create
+  // entry, and the Run button leads there too.
+  warehouseEnabled: boolean = false;
+  warehouses: DashboardWarehouse[] = [];
+  selectedWarehouseId?: number;
+  // The latest execution's warehouse; the warehouse list and the latest
+  // execution are fetched concurrently, so preselection re-runs after
+  // whichever response lands last.
+  private lastExecutionWhid?: number;
+
   // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
+
+  // visibility of the shared create-warehouse modal
+  addWarehouseModalVisible = false;
 
   @ViewChild(ComputingUnitCreateModalComponent)
   private computingUnitCreateModal?: ComputingUnitCreateModalComponent;
@@ -180,7 +199,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private warehouseService: WarehouseService,
+    private warehouseActionsService: WarehouseActionsService
   ) {}
 
   ngOnInit(): void {
@@ -224,6 +245,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(units => {
         this.allComputingUnits = units;
+      });
+
+    // Warehouse picker state (#7817). The pick itself lives in WarehouseService,
+    // where ExecuteWorkflowService reads it at execution time.
+    this.refreshWarehouses();
+
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(whid => {
+        this.selectedWarehouseId = whid;
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -304,6 +336,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
         }
         if (units.some(unit => unit.computingUnit.cuid === remembered)) {
           this.selectComputingUnit(wid, remembered);
+          // The remembered shortcut skips the execution lookup the warehouse
+          // preselect rides on, so look the latest execution up for it alone.
+          this.preselectWarehouseFromLatestExecution(wid);
         } else {
           this.forgetComputingUnit(wid);
           this.selectFromLastExecution(wid);
@@ -323,12 +358,18 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
           if (stillShown()) {
             this.selectComputingUnit(wid, latestWorkflowExecution.cuId);
+            this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
+            this.applyWarehousePreselect();
           }
         },
         error: () => {
           const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
           if (stillShown() && runningUnit) {
             this.selectComputingUnit(wid, runningUnit.computingUnit.cuid);
+          }
+          // No execution history: still preselect a warehouse (the first one).
+          if (stillShown()) {
+            this.applyWarehousePreselect();
           }
         },
       });
@@ -407,6 +448,123 @@ export class ComputingUnitSelectionComponent implements OnInit {
     } catch {
       // Best effort, like remembering: a stale entry only costs the list check on the next load.
     }
+  }
+
+  /**
+   * Fetches the warehouse list, on init and on every dropdown open (mirroring
+   * onDropdownVisibilityChange). Preselection re-runs only when the current
+   * pick is gone (first load, or the picked warehouse was deleted), so a
+   * routine refresh cannot override a manual pick.
+   */
+  private refreshWarehouses(): void {
+    this.warehouseService
+      .getStatus()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: status => {
+          this.warehouseEnabled = status.enabled;
+          this.warehouses = [...status.warehouses];
+          if (
+            this.selectedWarehouseId === undefined ||
+            !this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
+          ) {
+            this.applyWarehousePreselect();
+          }
+        },
+        error: (err: unknown) => {
+          // The pick lives in the root-scoped service, so hiding the picker is not
+          // enough: a stale id from a previous workflow would still ride the next
+          // execution request. Clear it whenever the picker cannot be shown.
+          this.warehouseEnabled = false;
+          this.warehouses = [];
+          this.warehouseService.selectWarehouse(undefined);
+          console.error("Failed to fetch warehouse status", err);
+        },
+      });
+  }
+
+  /**
+   * Mirrors the CU preselection for warehouses (#7817): pick the latest
+   * execution's warehouse when it still exists, else the user's first
+   * warehouse — so a run needs no explicit pick.
+   */
+  private applyWarehousePreselect(): void {
+    if (!this.warehouseEnabled || this.warehouses.length === 0) {
+      // Nothing selectable: drop any pick the root-scoped service still holds, so a
+      // stale id cannot ride the next execution while the picker stays hidden.
+      this.warehouseService.selectWarehouse(undefined);
+      return;
+    }
+    const lastUsed = this.warehouses.find(warehouse => warehouse.whid === this.lastExecutionWhid);
+    this.warehouseService.selectWarehouse((lastUsed ?? this.warehouses[0]).whid);
+  }
+
+  /** The warehouse the workflow last ran against, for the preselect; first-warehouse fallback otherwise. */
+  private preselectWarehouseFromLatestExecution(wid: number): void {
+    const stillShown = () => wid === this.workflowId;
+    this.workflowExecutionsService
+      .retrieveLatestWorkflowExecution(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
+          if (stillShown()) {
+            this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
+            this.applyWarehousePreselect();
+          }
+        },
+        error: () => {
+          if (stillShown()) {
+            this.applyWarehousePreselect();
+          }
+        },
+      });
+  }
+
+  onWarehouseSelected(whid: number): void {
+    this.warehouseService.selectWarehouse(whid);
+  }
+
+  public trackByWhid(_idx: number, warehouse: DashboardWarehouse): number {
+    return warehouse.whid;
+  }
+
+  onWarehouseDropdownVisibilityChange(visible: boolean): void {
+    if (visible) {
+      this.refreshWarehouses();
+    }
+  }
+
+  get selectedWarehouse(): DashboardWarehouse | undefined {
+    return this.warehouses.find(warehouse => warehouse.whid === this.selectedWarehouseId);
+  }
+
+  /**
+   * True when the deployment enables per-user warehouses but none is selected.
+   * The menu's Run button redirects to the create-warehouse modal in this
+   * state, mirroring the computing-unit Connect flow: with the feature on,
+   * every execution must have a warehouse to write to.
+   */
+  get warehouseRequiredButMissing(): boolean {
+    return this.warehouseEnabled && this.selectedWarehouseId === undefined;
+  }
+
+  getWarehouseButtonText(): string {
+    return this.selectedWarehouse?.name ?? "Warehouse";
+  }
+
+  showAddWarehouseModalVisible(): void {
+    this.addWarehouseModalVisible = true;
+  }
+
+  onWarehouseCreated(warehouse: DashboardWarehouse): void {
+    // Mirrors onComputingUnitCreated: a warehouse created from the workspace is
+    // what the next execution should write to.
+    this.warehouseService.selectWarehouse(warehouse.whid);
+    this.refreshWarehouses();
+  }
+
+  confirmDeleteWarehouse(warehouse: DashboardWarehouse): void {
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => this.refreshWarehouses());
   }
 
   isComputingUnitRunning(): boolean {

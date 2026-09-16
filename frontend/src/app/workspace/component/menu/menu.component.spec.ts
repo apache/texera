@@ -410,6 +410,23 @@ describe("MenuComponent", () => {
       expect(behavior.disable).toBe(false);
       expect(runSpy).toHaveBeenCalledTimes(1);
     });
+
+    it("offers to create a warehouse when one is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Create Warehouse");
+      expect(behavior.icon).toBe("plus-circle");
+      expect(behavior.disable).toBe(false);
+    });
   });
 
   it("applyRunButtonBehavior copies the behavior onto the bound fields", () => {
@@ -590,6 +607,41 @@ describe("MenuComponent", () => {
       component.runWorkflow();
 
       expect(executeSpy).toHaveBeenCalledWith("Untitled Execution", false);
+    });
+
+    it("leads to the create-warehouse modal when a warehouse is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddComputeUnitModalVisible: vi.fn(),
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).toHaveBeenCalledTimes(1);
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("submits the execution when a warehouse is selected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: false,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
+
+      component.runWorkflow();
+
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).not.toHaveBeenCalled();
     });
   });
 
