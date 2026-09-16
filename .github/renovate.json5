@@ -165,6 +165,22 @@
       enabled: false,
     },
 
+    // `python-version:` on actions/setup-python. The interpreter CI runs
+    // is not a free-floating dependency: it has to stay inside the range
+    // the pyamber matrix in build.yml tests (3.11-3.13), which in turn is
+    // bounded by the numpy/pandas pins frozen just above -- numpy 2.1.0
+    // ships no wheel past cp313 and its C sources do not compile against
+    // the 3.14 C API, so bumping the interpreter alone red-lines
+    // amber-integration on both ubuntu and macOS. Widening the range is a
+    // deliberate change: add the version to the matrix and move the Arrow
+    // trio with it, in that order.
+    {
+      matchManagers: ['github-actions'],
+      matchDepTypes: ['uses-with'],
+      matchDepNames: ['python'],
+      enabled: false,
+    },
+
     // Angular majors need a guided `ng update` migration and the
     // framework/CLI lines must move together (see #6155). The regex
     // also covers @angular-devkit/@angular-builders/@angular-eslint;
