@@ -350,7 +350,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
       if (result?.userRevokedOwnAccess) {
         this.router.navigate([USER_WORKFLOW]);
+        return;
       }
+      // The dialog is where a version gets pinned, and the versions panel behind it marks the pinned
+      // one. Announcing on close rather than on each pin because the panel is covered until then.
+      this.workflowVersionService.notifyPublicVersionChanged();
     });
   }
 

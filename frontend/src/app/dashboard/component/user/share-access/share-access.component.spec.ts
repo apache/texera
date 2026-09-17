@@ -22,7 +22,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
 import { HttpErrorResponse } from "@angular/common/http";
-import { of, throwError } from "rxjs";
+import { Subject, of, throwError } from "rxjs";
 
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -35,6 +35,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { Privilege } from "../../../type/share-access.interface";
 
 interface SetupOptions {
@@ -42,6 +43,7 @@ interface SetupOptions {
   id?: number;
   inWorkspace?: boolean;
   currentEmail?: string | undefined;
+  versionPinningEnabled?: boolean;
 }
 
 describe("ShareAccessComponent", () => {
@@ -56,7 +58,7 @@ describe("ShareAccessComponent", () => {
   let messageSpy: { error: ReturnType<typeof vi.fn> };
   let modalRefSpy: { close: ReturnType<typeof vi.fn> };
   let modalServiceSpy: { create: ReturnType<typeof vi.fn> };
-  let workflowPersistSpy: {
+  let workflowPersistSpy: any /* the publish-status spies vary per test */ & {
     getWorkflowIsPublished: ReturnType<typeof vi.fn>;
     updateWorkflowIsPublished: ReturnType<typeof vi.fn>;
   };
@@ -64,7 +66,10 @@ describe("ShareAccessComponent", () => {
     getDataset: ReturnType<typeof vi.fn>;
     updateDatasetPublicity: ReturnType<typeof vi.fn>;
   };
-  let workflowActionSpy: { setWorkflowIsPublished: ReturnType<typeof vi.fn> };
+  let workflowActionSpy: {
+    setWorkflowIsPublished: ReturnType<typeof vi.fn>;
+    getWorkflow: ReturnType<typeof vi.fn>;
+  };
   let userServiceCurrentEmail: string | undefined;
   // The component reads publicity back after writing it, so the doubles have to hold state:
   // the workflow endpoint sets it absolutely, the dataset one toggles.
@@ -72,6 +77,8 @@ describe("ShareAccessComponent", () => {
   let datasetPublished: boolean;
   let capturedModalConfigs: any[];
   /** The NzModalRef stubs handed back by modalService.create, in creation order. */
+  /** Stands in for the editor's autosave landing, which is what the panel has to follow. */
+  let persisted: Subject<any>;
   let capturedModalRefs: { close: ReturnType<typeof vi.fn> }[];
   /**
    * The fixture built by the most recent setupComponent() call, for the template-level tests.
@@ -81,7 +88,15 @@ describe("ShareAccessComponent", () => {
   let fixture: ComponentFixture<ShareAccessComponent>;
 
   function setupComponent(opts: SetupOptions = {}): ShareAccessComponent {
-    const { type = "workflow", id = 1, inWorkspace = false, currentEmail = "me@example.com" } = opts;
+    const {
+      type = "workflow",
+      id = 1,
+      inWorkspace = false,
+      currentEmail = "me@example.com",
+      // On for the cases that are about the panel; the feature ships behind this flag, and the
+      // case below covers what the dialog looks like while it is off.
+      versionPinningEnabled = true,
+    } = opts;
     userServiceCurrentEmail = currentEmail;
 
     TestBed.configureTestingModule({
@@ -103,6 +118,7 @@ describe("ShareAccessComponent", () => {
         { provide: WorkflowPersistService, useValue: workflowPersistSpy },
         { provide: DatasetService, useValue: datasetServiceSpy },
         { provide: WorkflowActionService, useValue: workflowActionSpy },
+        { provide: GuiConfigService, useValue: { env: { versionPinningEnabled } } },
       ],
     });
     fixture = TestBed.createComponent(ShareAccessComponent);
@@ -110,9 +126,34 @@ describe("ShareAccessComponent", () => {
     return fixture.componentInstance;
   }
 
+  /** Everything the publish panel renders, for the assertions about what the author actually reads. */
+  function publishLineText(): string {
+    fixture.detectChanges();
+    return (fixture.nativeElement.querySelector(".publish-anchor")?.textContent ?? "").replace(/\s+/g, " ").trim();
+  }
+
+  /**
+   * The two sides of the switch. Which one is highlighted is the control's own business -- it paints
+   * the selection from an animation frame, which this environment never runs -- so these assert the
+   * labels and leave the state itself to `publishState`.
+   */
+  function segments(): string[] {
+    fixture.detectChanges();
+    return Array.from(fixture.nativeElement.querySelectorAll(".ant-segmented-item-label")).map((b: any) =>
+      (b.textContent ?? "").trim()
+    );
+  }
+
+  /** The card under the line, which only a pin holding edits back puts on screen. */
+  function publishNoteText(): string {
+    fixture.detectChanges();
+    return (fixture.nativeElement.querySelector(".publish-card")?.textContent ?? "").replace(/\s+/g, " ").trim();
+  }
+
   beforeEach(() => {
     TestBed.resetTestingModule();
     fixture = undefined as unknown as ComponentFixture<ShareAccessComponent>;
+    persisted = new Subject<any>();
     capturedModalConfigs = [];
     capturedModalRefs = [];
     gmailSpy = { sendEmail: vi.fn() };
@@ -135,12 +176,19 @@ describe("ShareAccessComponent", () => {
     };
     workflowPublished = false;
     datasetPublished = false;
+    const followingStatus = { isPublished: true, isPinned: false, hasUnpublishedChanges: false };
     workflowPersistSpy = {
       getWorkflowIsPublished: vi.fn(() => of(workflowPublished ? "Public" : "Private")),
       updateWorkflowIsPublished: vi.fn((_id: number, next: boolean) => {
         workflowPublished = next;
         return of(null);
       }),
+      getPublishStatus: vi.fn().mockReturnValue(of(followingStatus)),
+      getWorkflowPersistedStream: vi.fn().mockReturnValue(persisted.asObservable()),
+      isWorkflowPersistEnabled: vi.fn().mockReturnValue(true),
+      persistWorkflow: vi.fn().mockReturnValue(of({ wid: 3 })),
+      pinLatestVersion: vi.fn().mockReturnValue(of({ ...followingStatus, isPinned: true })),
+      unpinVersion: vi.fn().mockReturnValue(of(followingStatus)),
     };
     datasetServiceSpy = {
       getDataset: vi.fn(() => of({ dataset: { isPublic: datasetPublished } })),
@@ -149,7 +197,11 @@ describe("ShareAccessComponent", () => {
         return of(null);
       }),
     };
-    workflowActionSpy = { setWorkflowIsPublished: vi.fn() };
+    workflowActionSpy = {
+      setWorkflowIsPublished: vi.fn(),
+      // The publish panel never writes; it only re-reads once a save of the author's own lands.
+      getWorkflow: vi.fn().mockReturnValue({ wid: 3, name: "w", content: { operators: [], links: [] } }),
+    };
   });
 
   function getFooterButton(config: any, label: string): { onClick: () => void } {
@@ -1079,6 +1131,342 @@ describe("ShareAccessComponent", () => {
 
       expect(workflowPersistSpy.updateWorkflowIsPublished).not.toHaveBeenCalled();
       expect(datasetServiceSpy.updateDatasetPublicity).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("publish state line", () => {
+    // The owner of the workflow, so hasWriteAccess is true.
+    const asOwner = { currentEmail: "owner@example.com" };
+
+    it("does not fetch publish status for an unpublished workflow", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(workflowPersistSpy.getPublishStatus).not.toHaveBeenCalled();
+      expect(c.publishStatus).toBeUndefined();
+    });
+
+    it("reports unpublished changes on a pinned workflow", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(workflowPersistSpy.getPublishStatus).toHaveBeenCalledWith(3);
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(true);
+    });
+
+    it("does not fetch publish status for a viewer who cannot publish", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      accessServiceSpy.getAccessList.mockReturnValue(
+        of([{ email: "reader@example.com", name: "R", privilege: Privilege.READ }])
+      );
+      const c = setupComponent({ type: "workflow", id: 3, currentEmail: "reader@example.com" });
+      expect(workflowPersistSpy.getPublishStatus).not.toHaveBeenCalled();
+      expect(c.publishStatus).toBeUndefined();
+    });
+
+    it("clears the pending state after moving the pin forward", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      workflowPersistSpy.pinLatestVersion.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      c.choosePublicCopy(true, true);
+
+      expect(workflowPersistSpy.pinLatestVersion).toHaveBeenCalledWith(3);
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(false);
+      expect(c.isPinning).toBe(false);
+    });
+
+    it("goes back to following when the pin is dropped", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      workflowPersistSpy.unpinVersion.mockReturnValue(
+        of({ isPublished: true, isPinned: false, hasUnpublishedChanges: false })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      c.choosePublicCopy(false);
+
+      expect(workflowPersistSpy.unpinVersion).toHaveBeenCalledWith(3);
+      expect(c.publishStatus?.isPinned).toBe(false);
+      // Nothing is held back once the public follows the latest.
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(false);
+      expect(c.isPinning).toBe(false);
+    });
+
+    it("names the pinned version by its date once the author has moved on", () => {
+      // The date is how the same version is named in the revision panel, which is where the author
+      // goes to restore it. Naming it any other way would leave them matching two descriptions.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({
+          isPublished: true,
+          isPinned: true,
+          hasUnpublishedChanges: true,
+          pinnedVersionTime: Date.parse("2026-08-12T23:59:00"),
+        })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishLineText()).toContain("Pinned to Aug 12, 23:59:00");
+      expect(publishLineText()).toContain("Your later edits stay private");
+    });
+
+    it("says the pinned copy is the current one rather than dating it", () => {
+      // A date here would invite the author to work out whether it is still what they have; saying
+      // so is the answer to the question they would be asking.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({
+          isPublished: true,
+          isPinned: true,
+          hasUnpublishedChanges: false,
+          pinnedVersionTime: Date.parse("2026-08-12T23:59:00"),
+        })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishLineText()).toContain("your current version");
+      expect(publishLineText()).not.toContain("Aug 12");
+    });
+
+    it("prints the pinned time to the second, as the revision panel does", () => {
+      // The line names the version the revision panel marks, so the two must print it identically --
+      // one format, never varied, is what guarantees that.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({
+          isPublished: true,
+          isPinned: true,
+          hasUnpublishedChanges: true,
+          pinnedVersionTime: Date.parse("2026-08-12T23:58:51"),
+        })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishLineText()).toContain("Aug 12, 23:58:51");
+    });
+
+    it("says the same thing about both states, with only the answer changing", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: false, hasUnpublishedChanges: false })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishLineText()).toContain("The public sees your latest");
+      expect(segments()).toEqual(["Follow latest", "Pinned"]);
+    });
+
+    it("drops the line when the workflow is unpublished", () => {
+      workflowPublished = true;
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(c.publishStatus).toBeDefined();
+
+      c.setPublished(false);
+
+      expect(c.isPublic).toBe(false);
+      expect(c.publishStatus).toBeUndefined();
+    });
+
+    it("hides the notice when the status request fails", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(throwError(() => new Error("boom")));
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(c.publishStatus).toBeUndefined();
+    });
+
+    it("surfaces a failed pin and stops the spinner", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      workflowPersistSpy.pinLatestVersion.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { message: "nope" }, status: 500 }))
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      c.choosePublicCopy(true, true);
+
+      expect(notificationSpy.error).toHaveBeenCalledWith("nope");
+      expect(c.isPinning).toBe(false);
+      // The pending state stands, so the author can try again.
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(true);
+    });
+
+    it("never asks for publish status on a dataset", () => {
+      const c = setupComponent({ type: "dataset", id: 12, ...asOwner });
+      expect(workflowPersistSpy.getPublishStatus).not.toHaveBeenCalled();
+      expect(c.publishStatus).toBeUndefined();
+    });
+
+    it("fetches the status after publishing from private", () => {
+      workflowPublished = false;
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(workflowPersistSpy.getPublishStatus).not.toHaveBeenCalled();
+
+      c.setPublished(true);
+
+      expect(workflowPersistSpy.updateWorkflowIsPublished).toHaveBeenCalledWith(3, true);
+      expect(workflowPersistSpy.getPublishStatus).toHaveBeenCalledWith(3);
+      expect(c.publishStatus).toBeDefined();
+    });
+
+    it("offers both choices, with the state itself naming the one in force", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(segments()).toEqual(["Follow latest", "Pinned"]);
+      expect(c.publishState).toBe("pinned");
+    });
+
+    it("does nothing when the side already in force is picked again", () => {
+      // Re-picking "Pinned" would otherwise publish whatever has been edited since -- which is the
+      // card's job, and the card says what it would publish.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      c.choosePublicCopy(true);
+
+      expect(workflowPersistSpy.pinLatestVersion).not.toHaveBeenCalled();
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(true);
+    });
+
+    it("does nothing when following is picked while already following", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: false, hasUnpublishedChanges: false })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      c.choosePublicCopy(false);
+
+      expect(workflowPersistSpy.unpinVersion).not.toHaveBeenCalled();
+    });
+
+    it("names the pinned version and the way out while it is holding edits back", () => {
+      // The card is the answer to "my edits are not public": which version is out there, what it
+      // costs, and the act that ends it. In every other state there is nothing to decide.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({
+          isPublished: true,
+          isPinned: true,
+          hasUnpublishedChanges: true,
+          pinnedVersionTime: Date.parse("2026-08-12T23:59:00"),
+        })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishNoteText()).toContain("Pinned to Aug 12, 23:59:00");
+      expect(publishNoteText()).toContain("Your later edits stay private");
+      expect(publishNoteText()).toContain("Update to current");
+    });
+
+    it("points at the version panel once the pinned copy is what the author has", () => {
+      // The recovery path when they do move on, named where they are already looking.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishLineText()).toContain("Currently public");
+    });
+
+    it("shows nothing and asks nothing while the feature is off", () => {
+      // The series ships dark: until the last PR turns the flag on, the dialog is exactly what it
+      // is today, and it does not even ask the server about a state it cannot show.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+
+      setupComponent({ type: "workflow", id: 3, versionPinningEnabled: false, ...asOwner });
+
+      expect(publishLineText()).toBe("");
+      expect(workflowPersistSpy.getPublishStatus).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing when it opens", () => {
+      // The dialog reports on the saved copy rather than forcing the canvas to become it: the canvas
+      // is empty while a workflow loads, and a save nobody asked for could write that emptiness over
+      // every operator the workflow had.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      setupComponent({ type: "workflow", id: 3, inWorkspace: true, ...asOwner });
+
+      expect(workflowPersistSpy.persistWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("re-reads the state when a save lands", () => {
+      // The editor saves on a debounce, so the answer the dialog fetched when it opened describes a
+      // workflow the author may already have moved past. Nothing else tells it -- the canvas changing
+      // is not the save landing, and until the save lands the server still answers with the old copy.
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(publishNoteText()).toBe("");
+
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      persisted.next({ wid: 3 });
+
+      expect(workflowPersistSpy.getPublishStatus).toHaveBeenCalledTimes(2);
+      expect(publishNoteText()).toContain("Update to current");
+    });
+
+    it("says nothing extra when the pinned copy is what the author has", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      expect(publishNoteText()).toBe("");
+    });
+
+    it("publishes the edits a pin was holding back, from the note", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Public"));
+      workflowPersistSpy.getPublishStatus.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: true })
+      );
+      workflowPersistSpy.pinLatestVersion.mockReturnValue(
+        of({ isPublished: true, isPinned: true, hasUnpublishedChanges: false })
+      );
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+
+      fixture.nativeElement.querySelector(".publish-card-action").click();
+
+      expect(workflowPersistSpy.pinLatestVersion).toHaveBeenCalledWith(3);
+      expect(c.publishStatus?.hasUnpublishedChanges).toBe(false);
+      // Answered, so the question goes away.
+      expect(publishNoteText()).toBe("");
+    });
+
+    it("says nothing about the copies before the status arrives", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(of("Private"));
+      const c = setupComponent({ type: "workflow", id: 3, ...asOwner });
+      expect(c.publishStatus).toBeUndefined();
+      expect(publishLineText()).toBe("");
     });
   });
 });

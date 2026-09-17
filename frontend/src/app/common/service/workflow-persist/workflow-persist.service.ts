@@ -52,6 +52,17 @@ export const WORKFLOW_SET_DEFAULT_VIEW_URL = WORKFLOW_BASE_URL + "/set-default-v
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
+/** A published workflow follows the author's latest until they pin a version. */
+export interface WorkflowPublishStatus {
+  isPublished: boolean;
+  /** Whether a version is pinned. False means the public follows the author's latest. */
+  isPinned: boolean;
+  /** When the pinned version was created, which is how the dialog names it. */
+  pinnedVersionTime?: number;
+  /** Whether a pin is holding edits back. Always false while following. */
+  hasUnpublishedChanges: boolean;
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -70,6 +81,9 @@ export class WorkflowPersistService {
    * and does not hold up the next.
    */
   private readonly persistQueue = new Subject<{ send: Observable<Workflow>; result: Subject<Workflow> }>();
+
+  /** Fires when a save lands: the write, not the keystroke, is what changes the saved copy. */
+  private workflowPersisted = new Subject<void>();
 
   constructor(
     private http: HttpClient,
@@ -117,13 +131,19 @@ export class WorkflowPersistService {
       })
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
-        map(WorkflowUtilService.parseWorkflowInfo)
+        map(WorkflowUtilService.parseWorkflowInfo),
+        tap(() => this.workflowPersisted.next())
       );
     // Replayed, so a caller that subscribes after the queue has already relayed the outcome (a
     // save that was quick, or a synchronous test double) still receives it.
     const result = new ReplaySubject<Workflow>(1);
     this.persistQueue.next({ send, result });
     return result.asObservable();
+  }
+
+  /** Emits when a save lands, so panels describing the saved copy can re-read it. */
+  public getWorkflowPersistedStream(): Observable<void> {
+    return this.workflowPersisted.asObservable();
   }
 
   /**
@@ -218,6 +238,8 @@ export class WorkflowPersistService {
         name: name,
       })
       .pipe(
+        // A pin freezes the name too, so a rename is a save like any other.
+        tap(() => this.workflowPersisted.next()),
         catchError((error: unknown) => {
           // @ts-ignore
           this.notificationService.error(error.error.message);
@@ -236,6 +258,8 @@ export class WorkflowPersistService {
         description: description,
       })
       .pipe(
+        // Frozen by a pin like the name and the canvas are.
+        tap(() => this.workflowPersisted.next()),
         catchError((error: unknown) => {
           // @ts-ignore
           this.notificationService.error(error.error.message);
@@ -248,12 +272,36 @@ export class WorkflowPersistService {
     return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/type/${wid}`, { responseType: "text" });
   }
 
+  /**
+   * Publishes the workflow, or unpublishes it. A published workflow follows the author's latest
+   * content until a version is pinned; see {@link pinLatestVersion}.
+   */
   public updateWorkflowIsPublished(wid: number, isPublished: boolean): Observable<void> {
     if (isPublished) {
       return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/public/${wid}`, null);
     } else {
       return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/private/${wid}`, null);
     }
+  }
+
+  /** Pins the author's current version as the public copy, so later edits stop reaching the public. */
+  public pinLatestVersion(wid: number): Observable<WorkflowPublishStatus> {
+    return this.http.post<WorkflowPublishStatus>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/pin/${wid}`,
+      null
+    );
+  }
+
+  /** Drops the pin, so the public follows the author's latest content again. */
+  public unpinVersion(wid: number): Observable<WorkflowPublishStatus> {
+    return this.http.delete<WorkflowPublishStatus>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/pin/${wid}`);
+  }
+
+  /** Whether the workflow is published, whether a version is pinned, and whether it holds edits back. */
+  public getPublishStatus(wid: number): Observable<WorkflowPublishStatus> {
+    return this.http.get<WorkflowPublishStatus>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/publish-status/${wid}`
+    );
   }
 
   public setWorkflowPersistFlag(flag: boolean): void {
