@@ -66,6 +66,17 @@ import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 
 /**
+ * What a conversion yields, whichever input produced it. `notebook` is the uploaded one for an
+ * .ipynb and the LLM-derived one for a .py; either way it is what gets stored and shown in the
+ * Jupyter panel.
+ */
+interface GeneratedWorkflow {
+  workflowContent: WorkflowContent;
+  mappingContent: MappingContent;
+  notebook: Notebook;
+}
+
+/**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section: the list of workflows the user owns or has access to
  *
@@ -280,54 +291,103 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return this.config.env.pythonNotebookMigrationEnabled;
   }
 
-  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromNotebook. */
+  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromFile. */
   public openAiGenerateModal(): void {
     this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
-      nzTitle: "AI Generate Workflow from Python Notebook",
+      nzTitle: "AI Generate Workflow from Source Code",
       nzContent: NotebookImportModalComponent,
       nzWidth: 700,
       nzFooter: null,
       nzCentered: true,
+      nzBodyStyle: { paddingTop: "4px" },
       nzData: {
-        requestImport: (file, model) => this.generateWorkflowFromNotebook(file, model),
+        requestImport: (file, model) => this.generateWorkflowFromFile(file, model),
       },
     });
   }
 
   /**
-   * Parse the notebook, generate a workflow via the LLM, save it, store the cell mapping, and open it.
-   * Resolves true on success (modal closes), false to keep the modal open on a bad file or a failure.
+   * Generate a workflow from an uploaded notebook or Python file, save it, store the mapping,
+   * and open it. Resolves true on success (modal closes), false to keep the modal open on a bad
+   * file or a failure.
    */
-  private async generateWorkflowFromNotebook(file: NzUploadFile, model: string): Promise<boolean> {
+  private async generateWorkflowFromFile(file: NzUploadFile, model: string): Promise<boolean> {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
-    if (fileExtension !== "ipynb") {
-      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+    if (fileExtension !== "ipynb" && fileExtension !== "py") {
+      this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       return false;
     }
+
+    const generated =
+      fileExtension === "ipynb"
+        ? await this.generateFromNotebook(file, model)
+        : await this.generateFromScript(file, model);
+    // Null means the step already told the user what went wrong.
+    if (!generated) {
+      return false;
+    }
+
+    return this.saveAndOpenGenerated(file, generated);
+  }
+
+  /** Read and convert an .ipynb. Null after reporting a read or generation failure. */
+  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
     let notebook: Notebook;
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
     } catch (error) {
       this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
       console.error("Notebook parse failed:", error);
-      return false;
+      return null;
     }
 
-    let generated: { workflowContent: WorkflowContent; mappingContent: MappingContent };
     try {
-      generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      const generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      // The uploaded notebook is what gets stored, so it rides along with the generated pair.
+      return { ...generated, notebook };
     } catch (error) {
-      if (error instanceof LlmRequestTimeoutError) {
-        this.notificationService.error(
-          `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the notebook.`
-        );
-      } else {
-        this.notificationService.error("Error while communicating with the LLM, check console for details.");
-      }
-      console.error("LLM generation failed:", error);
-      return false;
+      this.reportGenerationFailure(error, "notebook");
+      return null;
+    }
+  }
+
+  /** Read and convert a .py. The notebook comes back derived, since the upload had no cells. */
+  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
+    let scriptSource: string;
+    try {
+      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
+    } catch (error) {
+      this.notificationService.error("Failed to read the Python file. Please upload a valid, non-empty .py file.");
+      console.error("Python file read failed:", error);
+      return null;
     }
 
+    try {
+      return await this.notebookMigrationService.sendScriptToAIGenerateWorkflow(scriptSource, model);
+    } catch (error) {
+      this.reportGenerationFailure(error, "script");
+      return null;
+    }
+  }
+
+  // A timeout is worth telling apart from a transport error: the user can act on it by picking
+  // a faster model or trimming the input.
+  private reportGenerationFailure(error: unknown, input: "notebook" | "script"): void {
+    if (error instanceof LlmRequestTimeoutError) {
+      this.notificationService.error(
+        `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
+      );
+    } else {
+      this.notificationService.error("Error while communicating with the LLM, check console for details.");
+    }
+    console.error("LLM generation failed:", error);
+  }
+
+  /**
+   * Persist the generated workflow, attach its notebook and mapping, then open it. Shared by both
+   * inputs: once a conversion has produced a workflow and a notebook, nothing downstream differs.
+   */
+  private async saveAndOpenGenerated(file: NzUploadFile, generated: GeneratedWorkflow): Promise<boolean> {
     // Commit point: persisting captures the expensive LLM result. On failure nothing was created,
     // so returning false to let the user retry is safe.
     let wid: number;
@@ -351,7 +411,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     // Best-effort follow-ups: never discard the created workflow, so log/warn and still open it.
     try {
       await firstValueFrom(
-        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, notebook)
+        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, generated.notebook)
       );
     } catch (error) {
       this.notificationService.warning(
