@@ -111,6 +111,9 @@ rustfs:
     rustfs:
       access_key: texera_rustfs
       secret_key: password
+  extraEnv:
+    - name: RUSTFS_CORS_ALLOWED_ORIGINS
+      value: "*"
   config:
     rustfs:
       # Must match storage.s3.region: the region is part of the SigV4 scope.
