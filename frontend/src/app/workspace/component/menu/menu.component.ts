@@ -46,7 +46,7 @@ import { ResultExportationComponent } from "../result-exportation/result-exporta
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
@@ -777,15 +777,16 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The full-page handover to the Form View, apart from the save so the order is testable.
-   * Excluded from coverage as a whole: jsdom cannot navigate, so the specs stub this method and
-   * assert when it is called rather than what it does.
+   * The hand-over to the Form View, apart from the save so the order is testable.
+   *
+   * A route, not a page load: the two views are views of one open workflow, and reloading threw
+   * away everything that made the workflow live -- the shared document, the computing unit
+   * connection, the execution state -- only to rebuild it on the other side. The canvas keeps
+   * the session on its way out (see its ngOnDestroy) and the Form View attaches to it.
    */
-  /* v8 ignore start */
   private openFormViewPage(wid: number): void {
-    window.location.href = `${USER_WORKSPACE}/${wid}/form`;
+    void this.router.navigateByUrl(workspaceFormUrl(wid));
   }
-  /* v8 ignore stop */
 
   /**
    * Calls Markdown Description Component

@@ -35,7 +35,7 @@ import { asapScheduler, EMPTY, forkJoin, merge, Observable, Subject, timer } fro
 import { catchError, concatMap, debounceTime, finalize, observeOn, switchMap, takeUntil, tap } from "rxjs/operators";
 
 import { CdkDragDrop, DragDropModule } from "@angular/cdk/drag-drop";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { isLeavingWorkspace, USER_WORKFLOW, workspaceCanvasUrl } from "../../../app-routing.constant";
 import { EditableLabelWrapperComponent } from "../../../common/formly/editable-label-wrapper/editable-label-wrapper.component";
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -566,7 +566,18 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // without loading anything, so a request that then fails cannot strand the visitor on
     // an error instead of the page they would have gotten.
     if (!this.config.env.formViewEnabled) {
-      void this.router.navigate([USER_WORKSPACE, String(wid)], { replaceUrl: true });
+      void this.router.navigateByUrl(workspaceCanvasUrl(wid), { replaceUrl: true });
+      return;
+    }
+    // Arriving from the operator canvas of this same workflow, which kept its session for us.
+    // The graph is already here and already in its co-editing room, so there is nothing to fetch
+    // and nothing to rebuild: take the name and access from what is open and settle in.
+    if (this.workflowActionService.hasWorkflowOpen(wid)) {
+      const metadata = this.workflowActionService.getWorkflowMetadata();
+      this.workflowName = metadata.name;
+      this.storedPositions = { ...(this.workflowActionService.getWorkflow().content?.operatorPositions ?? {}) };
+      this.canEdit = !metadata.readonly;
+      this.settleIntoForm();
       return;
     }
     this.workflowActionService.resetAsNewWorkflow();
@@ -587,18 +598,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           this.canEdit = !workflow.readonly;
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.reloadWorkflow(workflow);
-          // The workflow is shown, not edited, from here: dragging operators around or
-          // deleting them belongs to the operator canvas. Lock now, and keep it locked against
-          // anything else that unlocks the graph (clampEditability).
-          this.applyEditability();
-          this.clampEditability();
-          this.refreshSavedState();
-          this.later(() => this.adjustWorkflowNameWidth(), 0);
-          this.readConfig();
-          this.registerMetadataRefresh();
-          this.registerAutoPersist();
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.settleIntoForm();
         },
         // The load can fail for many reasons (no access, a network or server error, the
         // metadata call): a neutral message covers them without claiming it was permissions.
@@ -607,6 +607,23 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           void this.router.navigate([USER_WORKFLOW]);
         },
       });
+  }
+
+  /** What the page does once the workflow is in front of it, whichever way it got there. */
+  private settleIntoForm(): void {
+    // The workflow is shown, not edited, from here: dragging operators around or deleting them
+    // belongs to the operator canvas. Lock now, and keep it locked against anything else that
+    // unlocks the graph (clampEditability). The clamp is dropped when this page is destroyed;
+    // the lock itself is the canvas's to lift when it takes the session back.
+    this.applyEditability();
+    this.clampEditability();
+    this.refreshSavedState();
+    this.later(() => this.adjustWorkflowNameWidth(), 0);
+    this.readConfig();
+    this.registerMetadataRefresh();
+    this.registerAutoPersist();
+    this.loading = false;
+    this.cdr.detectChanges();
   }
 
   /**
@@ -1787,31 +1804,32 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Switch to the operator canvas with a full page load, not a route. The two views share
-   * root-level singletons (the graph, the Yjs shared model, the CU connection); handing
-   * over in-process left the old state attached -- undraggable operators, a ghost coeditor
-   * of yourself, broken runs. A fresh document is the reliable handover.
-   */
+  /** Switch to the operator canvas. */
   public openRegularCanvas(): void {
-    // Save first and hand over only once the save has completed: the full-page load unloads this
-    // document, and a request still in flight at that moment is aborted, so navigating right after
-    // firing the save could lose the very edit the switch is meant to carry across. A save that
-    // fails keeps the author here with the error shown, rather than leaving with changes that were
-    // never stored. A reader, who has nothing to save, goes straight over.
+    // Save first and hand over only once the save has completed, so an edit made here cannot be
+    // left behind by the view that replaces this one. A save that fails keeps the author here
+    // with the error shown, rather than leaving with changes that were never stored. A reader,
+    // who has nothing to save, goes straight over.
     this.save(() => this.openCanvasPage());
   }
 
   /**
-   * The full-page handover to the operator canvas, apart from the save so the order is testable.
-   * Excluded from coverage as a whole: jsdom cannot navigate, so the specs stub this method and
-   * assert when it is called rather than what it does.
+   * The hand-over to the operator canvas, apart from the save so the order is testable.
+   *
+   * A route, not a page load: the two views are views of one open workflow, and reloading threw
+   * away everything that made the workflow live -- the shared document, the computing unit
+   * connection, the execution state -- only to rebuild it on the other side. This page keeps the
+   * session on its way out (see ngOnDestroy) and the canvas attaches to it.
    */
-  /* v8 ignore start */
   private openCanvasPage(): void {
-    window.location.href = `${USER_WORKSPACE}/${this.wid}`;
+    // Reachable without an id: save() runs its callback even for a workflow it declined to save,
+    // and this page keeps none when the route carried no usable one (ngOnInit redirects instead).
+    // There is no canvas to go to then, and "/user/workflow/undefined" is not a place.
+    if (this.wid === undefined) {
+      return;
+    }
+    void this.router.navigateByUrl(workspaceCanvasUrl(this.wid));
   }
-  /* v8 ignore stop */
 
   /**
    * Save the same way the operator canvas does. Both views edit one workflow, so the
@@ -2004,10 +2022,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // drain (not tied to this component) sends what is left in order and ends by itself.
     this.save();
     this.persistQueue.complete();
-    this.workflowActionService.clearWorkflow();
-    this.computingUnitStatusService.disconnect();
-    this.executeWorkflowService.resetExecutionAndWorkers();
-    this.workflowConsoleService.clearConsoleMessages();
-    this.workflowResultService.clearResults();
+    // Kept when this workflow's own operator canvas is taking over: that is a hand-over, not a
+    // departure, and rebuilding all of it on the other side is the cost this avoids.
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getWorkflowMetadata().wid)) {
+      this.workflowActionService.clearWorkflow();
+      this.computingUnitStatusService.disconnect();
+      this.executeWorkflowService.resetExecutionAndWorkers();
+      this.workflowConsoleService.clearConsoleMessages();
+      this.workflowResultService.clearResults();
+    }
   }
 }

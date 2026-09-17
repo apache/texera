@@ -52,7 +52,7 @@ import type { ComputingUnitSelectionComponent } from "../power-button/computing-
 import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
@@ -122,11 +122,21 @@ describe("MenuComponent", () => {
 
   it("does not open the Form View for a workflow that has not been saved yet", () => {
     vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: undefined } as any);
-    const href = window.location.href;
+    const navigate = vi.spyOn(component as any, "openFormViewPage");
 
     component.onClickOpenFormView();
 
-    expect(window.location.href).toBe(href);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  // A route, not a page load: the workflow stays open across the switch, so the shared document,
+  // the computing unit connection and a running execution are handed over rather than rebuilt.
+  it("routes to the Form View rather than reloading the page", () => {
+    const navigateByUrl = vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(true);
+
+    (component as any).openFormViewPage(42);
+
+    expect(navigateByUrl).toHaveBeenCalledWith(workspaceFormUrl(42));
   });
 
   it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {

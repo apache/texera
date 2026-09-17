@@ -136,10 +136,14 @@ describe("WorkflowFormComponent (rendered template)", () => {
           useValue: { coeditors: [{ clientId: "c1", userName: "co", color: "#888" }] },
         },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { id: "7" } } } },
-        { provide: Router, useValue: { navigate } },
+        {
+          provide: Router,
+          useValue: { navigate, navigateByUrl: vi.fn(), getCurrentNavigation: () => null, serializeUrl: String },
+        },
         {
           provide: WorkflowActionService,
           useValue: {
+            hasWorkflowOpen: () => false,
             resetAsNewWorkflow: vi.fn(),
             setNewSharedModel: vi.fn(),
             reloadWorkflow: vi.fn(),

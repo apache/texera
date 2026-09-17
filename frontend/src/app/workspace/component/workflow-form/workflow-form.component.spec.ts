@@ -24,7 +24,7 @@ import { Workflow } from "../../../common/type/workflow";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
 import { setupHarness, formViewWorkflow, resolved } from "./workflow-form.spec-harness";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceCanvasUrl, workspaceFormUrl } from "../../../app-routing.constant";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -40,7 +40,7 @@ import { ComputingUnitState } from "../../../common/type/computing-unit-connecti
 describe("WorkflowFormComponent", () => {
   let component: WorkflowFormComponent;
   let h: ReturnType<typeof setupHarness>;
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: ReturnType<typeof setupHarness>["router"];
   let workflowActionService: any;
   let workflowPersistService: any;
   let formBindingService: any;
@@ -124,7 +124,7 @@ describe("WorkflowFormComponent", () => {
 
       build(formViewWorkflow).ngOnInit();
 
-      expect(router.navigate).toHaveBeenCalledWith([USER_WORKSPACE, "7"], { replaceUrl: true });
+      expect(router.navigateByUrl).toHaveBeenCalledWith(workspaceCanvasUrl(7), { replaceUrl: true });
       expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
       expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
     });
@@ -257,10 +257,11 @@ describe("WorkflowFormComponent", () => {
       expect(h.workflowResultService.clearResults).toHaveBeenCalled();
     });
 
-    // The canvas switch is a full-page navigation, and the browser may keep this document in its
+    // The switch used to be a full-page navigation, and the browser may keep this document in its
     // back/forward cache. Coming back restores the JavaScript state as it was left and re-runs
     // nothing, so anything torn down on the way out would stay torn down on a page that still
-    // looks live (issue #8599).
+    // looks live (issue #8599). The switch routes now, but leaving the app altogether still
+    // unloads, and that is what this covers.
     it("tears nothing down on beforeunload, so a page restored from the cache still works", () => {
       build(formViewWorkflow).ngOnInit();
 
@@ -271,6 +272,80 @@ describe("WorkflowFormComponent", () => {
       expect(h.executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
       expect(h.workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
       expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    // Handing the workflow to its own operator canvas is not leaving it. The session below the
+    // two views -- the shared document and its room, the computing unit, the running execution --
+    // is the same one, and dropping it here would cost the canvas a reconnect for nothing.
+    it("keeps the shared services when this workflow's operator canvas takes over", () => {
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(h.executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(h.workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    // Another workflow's canvas is a different workflow: nothing here belongs to it.
+    it("releases them when the destination is a different workflow", () => {
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(8) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).toHaveBeenCalled();
+    });
+  });
+
+  describe("arriving with the workflow already open", () => {
+    // The operator canvas hands this workflow over still live: the same graph, already in the
+    // same co-editing room. Loading it again would destroy the document and rejoin the room,
+    // which is the whole cost the hand-over exists to avoid.
+    beforeEach(() => {
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+    });
+
+    it("takes what it needs from the open workflow instead of loading it", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.setNewSharedModel).not.toHaveBeenCalled();
+      expect(workflowActionService.reloadWorkflow).not.toHaveBeenCalled();
+      expect(component.workflowName).toBe("scGPT");
+      expect(component.loading).toBe(false);
+    });
+
+    it("shows it read-only all the same, since editing still belongs to the other view", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
+    });
+  });
+
+  describe("handing over to the operator canvas", () => {
+    it("routes there rather than reloading the page", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      (component as any).openCanvasPage();
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith(workspaceCanvasUrl(7));
+    });
+
+    // save() runs its callback even for a workflow it declined to save, so this is reachable
+    // on a page that never got an id, and there is no canvas to go to.
+    it("goes nowhere when the page never got an id", () => {
+      build(formViewWorkflow).ngOnInit();
+      component.wid = undefined;
+
+      (component as any).openCanvasPage();
+
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
   });
 
