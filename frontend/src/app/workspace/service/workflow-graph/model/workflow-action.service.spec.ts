@@ -74,6 +74,24 @@ describe("WorkflowActionService", () => {
     expect(injectedService).toBeTruthy();
   }));
 
+  // The operator canvas and the Form View hand one open workflow between them; the arriving view
+  // asks this before loading, because seeding a second document for the same workflow would leave
+  // the co-editing room and rejoin it.
+  describe("hasWorkflowOpen", () => {
+    it("is true only for the workflow whose room the shared document is in", () => {
+      service.setNewSharedModel(42);
+
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+      expect(service.hasWorkflowOpen(43)).toBe(false);
+    });
+
+    it("is false for every workflow while none is open", () => {
+      service.setNewSharedModel();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+  });
+
   it("should add an operator to both jointjs and texera graph correctly", () => {
     service.addOperator(mockScanPredicate, mockPoint);
 

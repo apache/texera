@@ -630,6 +630,19 @@ export class WorkflowActionService {
   }
 
   /**
+   * Whether this page already holds `workflowId` open: the shared document is in that workflow's
+   * co-editing room, so the graph, the undo history and the room membership are the live ones.
+   *
+   * The operator canvas and the Form View are two views of one open workflow and hand the session
+   * over between them rather than each building its own. The arriving view asks this before
+   * loading: seeding a second document for the same workflow would leave the room and rejoin it,
+   * which is what used to leave a ghost of yourself in the co-editor list.
+   */
+  public hasWorkflowOpen(workflowId: number): boolean {
+    return this.texeraGraph.sharedModel.wid === workflowId;
+  }
+
+  /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    * This method is based on the assumption that this is on a new SharedModel.
    *
