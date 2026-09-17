@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,22 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.amber.core.tuple
+@use "../../section-style" as *;
+@use "../../button-style" as *;
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.texera.amber.util.JSONUtils
-
-object TupleUtils {
-
-  def tuple2json(schema: Schema, fieldVals: Array[Any]): ObjectNode = {
-    val objectNode = JSONUtils.objectMapper.createObjectNode()
-    schema.getAttributeNames.foreach { attrName =>
-      val valueNode =
-        JSONUtils.objectMapper.convertValue(fieldVals(schema.getIndex(attrName)), classOf[JsonNode])
-      objectNode.set[ObjectNode](attrName, valueNode)
-    }
-    objectNode
-  }
-
+.warehouse-page-empty {
+  padding: 24px;
+  color: rgba(0, 0, 0, 0.55);
+  text-align: center;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
 }
