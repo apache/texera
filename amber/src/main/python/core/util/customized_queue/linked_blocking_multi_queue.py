@@ -406,34 +406,38 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :return: returns None if the key is new, or returns the previous SubQueue
         mapped by the key if key is repeated.
         """
-        sub_queue = self.SubQueue(key)
         self.take_lock.acquire()
 
         try:
             old_queue = self.sub_queues.get(key)
-            self.sub_queues[key] = sub_queue
-            if old_queue is None:
-                i = 0
-                added = False
-                for pg in self.priority_groups:
-                    if pg.priority == priority:
-                        pg.add_queue(sub_queue)
-                        added = True
-                        break
-                    elif pg.priority > priority:
-                        new_pg = self.PriorityGroup(priority)
-                        new_pg.add_queue(sub_queue)
-                        self.priority_groups.append(new_pg)
-                        added = True
-                        break
+            if old_queue is not None:
+                # Key already registered — putIfAbsent semantics: leave the map
+                # and all priority groups untouched and return the prior value.
+                return old_queue
 
-                    i += 1
-                if not added:
+            sub_queue = self.SubQueue(key)
+            self.sub_queues[key] = sub_queue
+            i = 0
+            added = False
+            for pg in self.priority_groups:
+                if pg.priority == priority:
+                    pg.add_queue(sub_queue)
+                    added = True
+                    break
+                elif pg.priority > priority:
                     new_pg = self.PriorityGroup(priority)
                     new_pg.add_queue(sub_queue)
                     self.priority_groups.append(new_pg)
+                    added = True
+                    break
 
-            return old_queue
+                i += 1
+            if not added:
+                new_pg = self.PriorityGroup(priority)
+                new_pg.add_queue(sub_queue)
+                self.priority_groups.append(new_pg)
+
+            return None
         finally:
             self.take_lock.release()
 
