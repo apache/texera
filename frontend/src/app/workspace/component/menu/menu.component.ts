@@ -70,6 +70,7 @@ import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { OverboxButtonComponent } from "../overbox/overbox-button.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 /**
@@ -93,6 +94,7 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
   imports: [
+    OverboxButtonComponent,
     NgIf,
     NzSpaceCompactItemDirective,
     NzButtonComponent,

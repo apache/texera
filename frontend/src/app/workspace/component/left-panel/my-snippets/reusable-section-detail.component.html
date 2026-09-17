@@ -1,0 +1,78 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<section class="reusable-section-detail">
+  <div>
+    <span class="field-label">Description</span>
+    <p>{{ section.description || "No description" }}</p>
+  </div>
+  <div>
+    <span class="field-label">Preview</span>
+    <div
+      class="preview-frame"
+      [style.border-color]="section.fragment.sectionBox?.color">
+      <svg
+        class="reusable-section-preview"
+        [attr.viewBox]="viewBox"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        [attr.aria-label]="'Preview of ' + section.name">
+        <line
+          *ngFor="let link of links"
+          [attr.x1]="link.x1"
+          [attr.y1]="link.y1"
+          [attr.x2]="link.x2"
+          [attr.y2]="link.y2"
+          class="preview-link"></line>
+        <g
+          *ngFor="let node of nodes"
+          [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'">
+          <rect
+            width="100"
+            height="42"
+            rx="5"
+            class="preview-node"></rect>
+          <text
+            x="50"
+            y="25"
+            text-anchor="middle"
+            class="preview-label">
+            {{ node.label }}
+          </text>
+        </g>
+      </svg>
+    </div>
+  </div>
+  <div class="detail-actions">
+    <button
+      nz-button
+      nzDanger
+      type="button"
+      (click)="delete()">
+      Delete
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      (click)="insert()">
+      Insert into workflow
+    </button>
+  </div>
+</section>
