@@ -23,6 +23,7 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
+import { UserWarehouseComponent } from "./dashboard/component/user/user-warehouse/user-warehouse.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { WorkflowFormComponent } from "./workspace/component/workflow-form/workflow-form.component";
@@ -46,6 +47,7 @@ import { USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { EntityType } from "./hub/service/hub.service";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
+import { AdminCuImageComponent } from "./dashboard/component/admin/cu-image/admin-cu-image.component";
 import { OrcidCallbackComponent } from "./hub/component/login/orcid-callback.component";
 
 const routes: Routes = [];
@@ -171,6 +173,10 @@ routes.push({
           component: UserComputingUnitComponent,
         },
         {
+          path: "warehouse",
+          component: UserWarehouseComponent,
+        },
+        {
           path: "python-venv",
           component: UserVenvComponent,
         },
@@ -207,6 +213,10 @@ routes.push({
         {
           path: "settings",
           component: AdminSettingsComponent,
+        },
+        {
+          path: "cu-image",
+          component: AdminCuImageComponent,
         },
       ],
     },
