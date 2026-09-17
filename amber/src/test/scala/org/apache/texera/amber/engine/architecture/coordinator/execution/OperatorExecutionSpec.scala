@@ -42,10 +42,10 @@ class OperatorExecutionSpec extends AnyFlatSpec {
     PortTupleMetricsMapping(PortIdentity(portIdx), TupleMetrics(count, size))
 
   /**
-    * Push `(state, stats)` onto an existing `WorkerExecution`. Production
-    * code applies updates only if the timestamp is newer than the
-    * previously-recorded one; we use a monotonically increasing nano-clock
-    * surrogate so each call wins.
+    * Push `(state, stats)` onto an existing `WorkerExecution`. Production code
+    * orders state by a monotonic logical version and stats by timestamp, applying
+    * an update only when it is newer; we use a single monotonically increasing
+    * surrogate for both so each call wins.
     */
   private var clock: Long = 0L
   private def applyUpdate(
@@ -54,14 +54,15 @@ class OperatorExecutionSpec extends AnyFlatSpec {
       stats: WorkerStatistics
   ): Unit = {
     clock += 1
-    worker.update(clock, state, stats)
+    worker.updateState(clock, state)
+    worker.updateStats(clock, stats)
   }
   private def setState(
       worker: org.apache.texera.amber.engine.architecture.deploysemantics.layer.WorkerExecution,
       state: WorkerState
   ): Unit = {
     clock += 1
-    worker.update(clock, state)
+    worker.updateState(clock, state)
   }
 
   // ---------------------------------------------------------------------------
@@ -77,34 +78,15 @@ class OperatorExecutionSpec extends AnyFlatSpec {
     assert(opExec.getWorkerExecution(w) eq workerExec)
   }
 
-  // The class docstring claims `initWorkerExecution` throws
-  // `AssertionError` on a duplicate worker id, but the implementation's
-  // `workerExecutions.contains(workerId)` call resolves to Java
-  // `ConcurrentHashMap.contains(Object)`, which checks VALUES rather than
-  // KEYS — so the assertion never fires and the second call silently
-  // overwrites the prior WorkerExecution. We pin the CURRENT (broken)
-  // behavior here so a future fix is noticed in CI, and document the
-  // intended contract with `pendingUntilFixed` so the failure surfaces
-  // the day the implementation is corrected.
-
   it should
-    "currently overwrite the previous WorkerExecution on a second init for the same id " +
-      "(characterization of the contains-by-value bug)" in {
+    "reject a second init for the same id without replacing the existing execution" in {
     val opExec = OperatorExecution()
     val w = workerId("w-1")
     val firstExec = opExec.initWorkerExecution(w)
-    val secondExec = opExec.initWorkerExecution(w)
-    assert(firstExec ne secondExec, "current impl replaces the prior WorkerExecution instance")
-    assert(opExec.getWorkerExecution(w) eq secondExec)
-  }
-
-  it should "(desired) throw AssertionError when initWorkerExecution is called twice for the same id" in pendingUntilFixed {
-    val opExec = OperatorExecution()
-    val w = workerId("w-1")
-    opExec.initWorkerExecution(w)
     assertThrows[AssertionError] {
       opExec.initWorkerExecution(w)
     }
+    assert(opExec.getWorkerExecution(w) eq firstExec)
   }
 
   "OperatorExecution.getWorkerIds" should "be empty on a freshly constructed operator" in {

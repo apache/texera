@@ -166,19 +166,6 @@ function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResul
   };
 }
 
-function formatWorkflowValidationErrors(validationResult: WorkflowValidationResult): string {
-  if (validationResult.isValid) return "";
-
-  const lines: string[] = ["Workflow validation failed:"];
-  for (const [operatorId, fieldErrors] of Object.entries(validationResult.errors)) {
-    lines.push(`  Operator ${operatorId}:`);
-    for (const [field, message] of Object.entries(fieldErrors)) {
-      lines.push(`    - ${field}: ${message}`);
-    }
-  }
-  return lines.join("\n");
-}
-
 function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string[]): LogicalPlan {
   const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
   const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;

@@ -91,10 +91,14 @@ object ExecutionUtils {
       readyState: T
   ): WorkflowAggregatedState = {
     states match {
-      case _ if states.isEmpty                      => WorkflowAggregatedState.UNINITIALIZED
-      case _ if states.forall(_ == completedState)  => WorkflowAggregatedState.COMPLETED
-      case _ if states.forall(_ == terminatedState) => WorkflowAggregatedState.COMPLETED
-      case _ if states.exists(_ == runningState)    => WorkflowAggregatedState.RUNNING
+      case _ if states.isEmpty => WorkflowAggregatedState.UNINITIALIZED
+      // Every state is terminal: COMPLETED reported by the worker itself, or TERMINATED
+      // stamped by controller-side teardown (which only runs after the region completed,
+      // and preserves already-COMPLETED workers). A mixed terminal set is therefore a
+      // routine end-of-region shape and means the execution is over.
+      case _ if states.forall(s => s == completedState || s == terminatedState) =>
+        WorkflowAggregatedState.COMPLETED
+      case _ if states.exists(_ == runningState) => WorkflowAggregatedState.RUNNING
       case _ =>
         val unCompletedStates = states.filter(_ != completedState)
         if (unCompletedStates.forall(_ == uninitializedState)) {

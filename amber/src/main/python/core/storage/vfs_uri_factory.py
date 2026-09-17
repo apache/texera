@@ -16,7 +16,8 @@
 # under the License.
 
 from enum import Enum
-from typing import Optional
+from typing import NamedTuple, Optional
+import re
 from urllib.parse import urlparse
 
 from core.util.virtual_identity import (
@@ -37,18 +38,30 @@ class VFSResourceType(str, Enum):
     STATE = "state"
 
 
+# See VFSURIFactory._is_valid_warehouse_name.
+_WAREHOUSE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+class VFSUriComponents(NamedTuple):
+    """The named components encoded in a VFS URI, as returned by
+    `VFSURIFactory.decode_uri`. A NamedTuple, so positional unpacking keeps
+    working alongside named access."""
+
+    workflow_id: WorkflowIdentity
+    execution_id: ExecutionIdentity
+    global_port_id: Optional[GlobalPortIdentity]
+    resource_type: VFSResourceType
+    # The warehouse whose catalog holds this URI's table, from the optional leading
+    # "/wh/<name>" segment; None for non-BYO storage, which uses the configured
+    # default. Last so positional unpacking of the earlier fields still works.
+    warehouse: Optional[str] = None
+
+
 class VFSURIFactory:
     VFS_FILE_URI_SCHEME = "vfs"
 
     @staticmethod
-    def decode_uri(
-        uri: str,
-    ) -> (
-        WorkflowIdentity,
-        ExecutionIdentity,
-        Optional[GlobalPortIdentity],
-        VFSResourceType,
-    ):
+    def decode_uri(uri: str) -> "VFSUriComponents":
         """
         Parses a VFS URI and extracts its components.
         """
@@ -81,20 +94,67 @@ class VFSURIFactory:
         except ValueError:
             raise ValueError(f"Unknown resource type: {resource_type_str}")
 
-        return (
+        return VFSUriComponents(
             workflow_id,
             execution_id,
             global_port_id,
             resource_type,
+            VFSURIFactory._warehouse_from(segments),
         )
 
     @staticmethod
-    def create_port_base_uri(workflow_id, execution_id, global_port_id) -> str:
+    def _is_valid_warehouse_name(name: str) -> bool:
+        """A warehouse name becomes a URI path segment, so it may not carry
+        characters that have meaning there: no "/" to add segments, and no "%" to
+        smuggle one in percent-encoded form. Mirrors VFSURIFactory (Scala).
+        """
+        return _WAREHOUSE_NAME_RE.fullmatch(name) is not None
+
+    @staticmethod
+    def _warehouse_from(segments: list) -> Optional[str]:
+        """
+        The warehouse encoded in a VFS URI, if present. Reported as part of
+        VFSUriComponents by decode_uri, which is the only way in. Mirrors
+        VFSURIFactory.warehouseFrom (Scala).
+
+        Anchored to the leading segment: a later segment that happens to be "wh"
+        -- e.g. inside a user-chosen operator id -- must not select a warehouse; it
+        would disagree with document_factory.sanitize_uri_path, which strips only a
+        leading one, and would route the write to another user's warehouse. The
+        segments come from the RAW path (see decode_uri), so a percent-encoded slash
+        stays inside its own segment, and the name must be a legal warehouse name,
+        so anything create_port_base_uri could not have written resolves to no
+        warehouse rather than to a wrong one.
+        """
+        if (
+            len(segments) >= 2
+            and segments[0] == "wh"
+            and VFSURIFactory._is_valid_warehouse_name(segments[1])
+        ):
+            return segments[1]
+        return None
+
+    @staticmethod
+    def create_port_base_uri(
+        workflow_id, execution_id, global_port_id, warehouse: Optional[str] = None
+    ) -> str:
         """Base URI for a port. Result and state URIs derive from it via
         `result_uri` / `state_uri`.
+
+        `warehouse` is written as the leading "/wh/<name>" segment, mirroring the
+        Scala side; when None the URI is byte-for-byte what it was before warehouses
+        existed.
         """
+        if warehouse is not None and not VFSURIFactory._is_valid_warehouse_name(
+            warehouse
+        ):
+            raise ValueError(
+                f"warehouse name must match {_WAREHOUSE_NAME_RE.pattern} "
+                f"(it becomes a URI path segment): {warehouse}"
+            )
+        wh_segment = f"/wh/{warehouse}" if warehouse else ""
         return (
-            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}"
+            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}://{wh_segment}/wid/{workflow_id.id}"
             f"/eid/{execution_id.id}/globalportid/"
             f"{serialize_global_port_identity(global_port_id)}"
         )

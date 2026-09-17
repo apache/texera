@@ -27,20 +27,53 @@ object DefaultsConfig {
   val reinit: Boolean =
     conf.getBoolean("config-service.always-reset-configurations-to-default-values")
 
+  // site_settings rows are keyed by the last path segment of a HOCON key, so
+  // this is the single place that turns a config path into a row key.
+  private def shortKey(fullKey: String): String = fullKey.split("\\.").last
+
   val allDefaults: Map[String, String] = {
-    conf
+    val entries = conf
       .entrySet()
       .asScala
+      .toSeq
       .map { entry =>
-        val shortKey = entry.getKey.split("\\.").last
         val value = entry.getValue.valueType() match {
           case ConfigValueType.STRING | ConfigValueType.NUMBER | ConfigValueType.BOOLEAN =>
             entry.getValue.unwrapped().toString
           case _ =>
             entry.getValue.render(ConfigRenderOptions.concise())
         }
-        shortKey -> value
+        shortKey(entry.getKey) -> value
       }
-      .toMap
+
+    // Since the row key is only the last path segment, two entries under
+    // different sections that share a last segment would silently collapse into
+    // one site_settings row (and one whitelist entry). Fail fast at load time
+    // rather than serving a wrong default or an unaddressable key.
+    val collisions = entries.groupBy(_._1).collect { case (k, vs) if vs.size > 1 => k }
+    require(
+      collisions.isEmpty,
+      s"default.conf declares settings whose last path segment collides: " +
+        s"${collisions.toSeq.sorted.mkString(", ")}. site_settings keys are the last path " +
+        "segment, so give these a unique leaf name."
+    )
+
+    entries.toMap
   }
+
+  /**
+    * Short keys (last path segment, matching the site_settings row keys) of every
+    * default declared under the given top-level sections of default.conf. Lets
+    * callers derive key groups (e.g. the user-visible gui/dataset settings) from
+    * the file that already defines them, instead of maintaining a parallel list.
+    */
+  def keysUnderSections(sections: Set[String]): Set[String] =
+    conf
+      .entrySet()
+      .asScala
+      .collect {
+        case entry if sections.contains(entry.getKey.takeWhile(_ != '.')) =>
+          shortKey(entry.getKey)
+      }
+      .toSet
 }

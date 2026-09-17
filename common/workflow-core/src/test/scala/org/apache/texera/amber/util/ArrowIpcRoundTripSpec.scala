@@ -78,7 +78,8 @@ class ArrowIpcRoundTripSpec extends AnyFlatSpec {
     try {
       // Row path: build the root the way writeArrowStream does.
       val rowRoot =
-        org.apache.arrow.vector.VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+        org.apache.arrow.vector.VectorSchemaRoot
+          .create(ArrowUtils.fromTexeraSchema(schema), allocator)
       rowRoot.allocateNew()
       rows.foreach(t => ArrowUtils.appendTexeraTuple(t, rowRoot))
       rowRoot.setRowCount(n)

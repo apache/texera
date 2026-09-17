@@ -106,7 +106,7 @@
   </nz-dropdown-menu>
 
   <a
-    *ngIf="this.isLogin"
+    *ngIf="this.isLogin && hasIdFilter"
     [nzDropdownMenu]="IDSearchOptions"
     nz-dropdown
     nzTrigger="click"
@@ -174,40 +174,6 @@
             >
           </li>
         </ul>
-      </li>
-    </ul>
-  </nz-dropdown-menu>
-
-  <a
-    *ngIf="pid === undefined"
-    [nzDropdownMenu]="projectSearchOptions"
-    nz-dropdown
-    nzTrigger="click"
-    [nzOverlayStyle]="{'overflow-y': 'scroll', 'max-height': '250px', 'border-style': 'double'}"
-    class="search-projects-button">
-    <button
-      id="sortProject"
-      ngbDropdownToggle
-      nz-button
-      title="Projects">
-      <i
-        nz-icon
-        nzType="file"
-        nzTheme="outline"></i>
-    </button>
-  </a>
-  <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
-    <ul
-      nz-menu
-      *ngFor="let project of userProjectsDropdown">
-      <li nz-menu-item>
-        <label
-          nz-checkbox
-          ngDefaultControl
-          [(ngModel)]="project.checked"
-          (ngModelChange)="updateSelectedProjects()"
-          >{{project.name}}</label
-        >
       </li>
     </ul>
   </nz-dropdown-menu>

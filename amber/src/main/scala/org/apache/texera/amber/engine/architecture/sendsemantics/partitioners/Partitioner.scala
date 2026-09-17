@@ -50,9 +50,9 @@ class NetworkOutputBuffer(
     }
   }
 
-  def sendState(state: State): Unit = {
+  def sendState(state: State, loopCounter: Long = 0L, loopStartId: String = ""): Unit = {
     flush()
-    dataOutputPort.sendTo(to, StateFrame(state))
+    dataOutputPort.sendTo(to, StateFrame(state, loopCounter, loopStartId))
     flush()
   }
 
@@ -62,7 +62,11 @@ class NetworkOutputBuffer(
       // Columnar wire (flagged): send the batch as an Arrow IPC ColumnarFrame.
       val payload =
         if (NetworkOutputBuffer.columnarWire)
-          ColumnarFrame(ArrowUtils.serializeTuples(batch.head.getSchema, batch), batch.length, batch.head.getSchema)
+          ColumnarFrame(
+            ArrowUtils.serializeTuples(batch.head.getSchema, batch),
+            batch.length,
+            batch.head.getSchema
+          )
         else DataFrame(batch)
       dataOutputPort.sendTo(to, payload)
       buffer = new ArrayBuffer[Tuple]()

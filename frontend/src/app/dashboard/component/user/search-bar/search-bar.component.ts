@@ -65,11 +65,9 @@ export class SearchBarComponent {
     owners: [],
     ids: [],
     operators: [],
-    projectIds: [],
   };
 
   private searchCache = new Map<string, string[]>();
-  private queryOrder: string[] = [];
 
   constructor(
     private router: Router,
@@ -119,12 +117,13 @@ export class SearchBarComponent {
     }
   }
 
+  // A Map iterates in insertion order, and addToCache is only reached on a cache
+  // miss, so the oldest key is always the first one.
   private addToCache(query: string, results: string[]): void {
-    if (this.queryOrder.length >= 20) {
-      const oldestQuery = this.queryOrder.shift();
+    if (this.searchCache.size >= 20) {
+      const oldestQuery = this.searchCache.keys().next().value;
       this.searchCache.delete(oldestQuery!);
     }
-    this.queryOrder.push(query);
     this.searchCache.set(query, results);
   }
 
@@ -143,8 +142,6 @@ export class SearchBarComponent {
   convertToName(resultItem: SearchResultItem): string {
     if (resultItem.workflow) {
       return new DashboardEntry(resultItem.workflow).name;
-    } else if (resultItem.project) {
-      return new DashboardEntry(resultItem.project).name;
     } else if (resultItem.file) {
       return new DashboardEntry(resultItem.file).name;
     } else if (resultItem.dataset) {

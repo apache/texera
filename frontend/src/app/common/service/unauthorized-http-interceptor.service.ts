@@ -22,7 +22,7 @@ import { Injectable, Injector } from "@angular/core";
 import { Router } from "@angular/router";
 import { Observable, throwError } from "rxjs";
 import { catchError } from "rxjs/operators";
-import { ABOUT } from "../../app-routing.constant";
+import { LOGIN } from "../../app-routing.constant";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 
@@ -31,7 +31,10 @@ import { UserService } from "./user/user.service";
 // gets piggy-backed on login/register/refresh attempts even when the user is
 // trying to *acquire* a session. Treating those 401s as session-invalidation
 // would kick out an already-authenticated user who fat-fingers a re-login.
-const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|refresh|google\/login)(?:\?|$)/;
+// `auth/email` belongs here for the same reason: it is called from a modal that stays open on a
+// refusal so the user can correct the address, and a session-invalidation logout would tear that
+// modal down instead of showing them why.
+const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|refresh|email|google\/login)(?:\?|$)/;
 
 /**
  * Globally handles 401 responses that come back for *authenticated* requests:
@@ -66,7 +69,7 @@ export class UnauthorizedHttpInterceptor implements HttpInterceptor {
             userService.logout();
             this.notificationService.error("Your session has expired. Please log in again.");
             const currentUrl = this.router.url;
-            this.router.navigate([ABOUT], {
+            this.router.navigate([LOGIN], {
               queryParams: { returnUrl: currentUrl === "/" ? null : currentUrl },
             });
           }

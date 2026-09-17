@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.core.storage.model.{ArrowVectorizedSink, BufferedItemWriter}
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, LargeBinary}
 import org.apache.texera.amber.util.{ArrowUtils, IcebergUtil}
@@ -49,7 +50,8 @@ import scala.collection.mutable.ArrayBuffer
   * **Thread Safety**: This writer is **NOT thread-safe**, so only one thread should call this writer.
   *
   * @param writerIdentifier a unique identifier used to prefix the created files.
-  * @param catalog the Iceberg catalog to manage table metadata.
+  * @param warehouse the warehouse whose catalog manages the table metadata; `None` uses the
+  *                  configured default.
   * @param tableNamespace the namespace of the Iceberg table.
   * @param tableName the name of the Iceberg table.
   * @param tableSchema the schema of the Iceberg table.
@@ -58,13 +60,17 @@ import scala.collection.mutable.ArrayBuffer
   */
 private[storage] class IcebergTableWriter[T](
     val writerIdentifier: String,
-    val catalog: Catalog,
+    val warehouse: Option[String],
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record
 ) extends BufferedItemWriter[T]
     with ArrowVectorizedSink {
+
+  // Resolved per use (#7290): the catalog cache is bounded and closes evicted entries,
+  // so the writer must not pin one across its lifetime.
+  private def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   // Buffer to hold items before flushing to the table
   private val buffer = new ArrayBuffer[T]()
@@ -74,12 +80,6 @@ private[storage] class IcebergTableWriter[T](
   private var recordId = 0
 
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
-
-  // Load the Iceberg table
-  private val table: Table =
-    IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .get
 
   /**
     * Open the writer and clear the buffer.
@@ -115,7 +115,13 @@ private[storage] class IcebergTableWriter[T](
     */
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
-      writeRecordsToNewFile(buffer.iterator.map(item => serde(tableSchema, item)))
+      // Resolve the table per flush (#7290): an eagerly-held Table would pin REST
+      // operations backed by a catalog the bounded cache may close, and resolving
+      // here also keeps this warehouse's cache entry live for the whole execution.
+      val table: Table = IcebergUtil
+        .loadTableMetadata(catalog, tableNamespace, tableName)
+        .get
+      writeRecordsToNewFile(table, buffer.iterator.map(item => serde(tableSchema, item)))
       buffer.clear()
     }
   }
@@ -123,7 +129,8 @@ private[storage] class IcebergTableWriter[T](
   // Write a batch of Iceberg Records to a new, uniquely named data file and
   // commit it. Iceberg's DataWriter produces the file metrics and DataFile, so
   // the callers (row buffer flush and the Arrow batch path) get a valid table.
-  private def writeRecordsToNewFile(records: Iterator[Record]): Unit = {
+  // The table is resolved per call (#7290), so callers pass in the live one.
+  private def writeRecordsToNewFile(table: Table, records: Iterator[Record]): Unit = {
     val location = table.location().stripSuffix("/")
     val filepathString = s"$location/${writerIdentifier}_$filenameIdx"
     filenameIdx += 1
@@ -153,8 +160,12 @@ private[storage] class IcebergTableWriter[T](
       while (reader.loadNextBatch()) {
         val n = root.getRowCount
         if (n > 0) {
+          // Resolve the table per batch (#7290), same as the row flush path.
+          val table: Table = IcebergUtil
+            .loadTableMetadata(catalog, tableNamespace, tableName)
+            .get
           val view = new IcebergTableWriter.ArrowRecordView(root, struct)
-          writeRecordsToNewFile((0 until n).iterator.map { i => view.setRow(i); view })
+          writeRecordsToNewFile(table, (0 until n).iterator.map { i => view.setRow(i); view })
         }
       }
     } finally reader.close()
@@ -203,7 +214,8 @@ object IcebergTableWriter {
     override def get[U](pos: Int, javaClass: Class[U]): U = javaClass.cast(icebergValue(pos))
     override def struct(): StructType = structType
 
-    private def unsupported = throw new UnsupportedOperationException("ArrowRecordView is read-only")
+    private def unsupported =
+      throw new UnsupportedOperationException("ArrowRecordView is read-only")
     override def set[U](pos: Int, value: U): Unit = unsupported
     override def getField(name: String): AnyRef = unsupported
     override def setField(name: String, value: AnyRef): Unit = unsupported

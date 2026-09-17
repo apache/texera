@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.AttributeTypeExcept
 import org.apache.texera.amber.core.tuple._
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
+import org.apache.arrow.vector.types.TimeUnit
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 import org.apache.arrow.vector.{
@@ -43,6 +43,9 @@ import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
+import java.sql.Timestamp
+import java.time.temporal.ChronoUnit
+import java.time.{Instant, LocalDateTime, ZoneId, ZoneOffset}
 import java.util
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -103,7 +106,9 @@ object ArrowUtils extends LazyLogging {
     while (i < n) {
       if (keep(i)) {
         var c = 0
-        while (c < srcVecs.size) { destVecs.get(c).copyFromSafe(i, destIdx, srcVecs.get(c)); c += 1 }
+        while (c < srcVecs.size) {
+          destVecs.get(c).copyFromSafe(i, destIdx, srcVecs.get(c)); c += 1
+        }
         destIdx += 1
       }
       i += 1
@@ -188,7 +193,12 @@ object ArrowUtils extends LazyLogging {
               // Use the attribute type from the schema (which includes metadata)
               // instead of deriving it from the Arrow type
               val attributeType = schema.getAttributes(index).getType
-              AttributeTypeUtils.parseField(value, attributeType)
+              // A timestamp is the one type whose field says more than the
+              // schema does, so it is the only one that reads the field.
+              attributeType match {
+                case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
+                case _                       => AttributeTypeUtils.parseField(value, attributeType)
+              }
             } catch {
               case e: Exception =>
                 logger.warn("Caught error during parsing Arrow value back to Texera value", e)
@@ -234,6 +244,54 @@ object ArrowUtils extends LazyLogging {
     }
     Tuple.builder(projectedSchema).addSequentially(values).build()
   }
+
+  /** The wall clock a timestamp column holds, read the way its own field states.
+    *
+    * A Texera TIMESTAMP carries no zone, so the wall clock is the whole of what
+    * crosses over, and the field says how to arrive at one: the zone its numbers
+    * are counted in, and the unit they are counted in. A zoned vector hands back
+    * that number bare, and letting `new Timestamp(number)` make the wall clock
+    * would take it for milliseconds in the JVM's zone: one file would then say
+    * different things on servers in different places, with nothing in the file to
+    * account for the difference. A zoneless vector hands back a LocalDateTime
+    * already, which is the wall clock itself.
+    */
+  private def wallClockOf(value: AnyRef, arrowType: ArrowType): Timestamp =
+    (value, arrowType) match {
+      case (null, _)               => null
+      case (ldt: LocalDateTime, _) => Timestamp.valueOf(ldt)
+      case (number: java.lang.Long, field: ArrowType.Timestamp) =>
+        Timestamp.valueOf(
+          LocalDateTime.ofInstant(instantOf(number, field.getUnit), zoneOf(field))
+        )
+      case (other, _) => AttributeTypeUtils.parseTimestamp(other)
+    }
+
+  /** The zone a timestamp field counts its numbers in. An unlabelled field counts
+    * from the epoch with no zone in the picture, which is what UTC arithmetic is.
+    */
+  private def zoneOf(field: ArrowType.Timestamp): ZoneId =
+    Option(field.getTimezone).map(ZoneId.of).getOrElse(ZoneOffset.UTC)
+
+  /** The instant a zoned vector's bare number stands for. Arrow leaves those
+    * unscaled, so the field's unit is what says how far from the epoch it reaches.
+    */
+  private def instantOf(number: Long, unit: TimeUnit): Instant =
+    unit match {
+      case TimeUnit.SECOND      => Instant.ofEpochSecond(number)
+      case TimeUnit.MILLISECOND => Instant.ofEpochMilli(number)
+      case TimeUnit.MICROSECOND => Instant.EPOCH.plus(number, ChronoUnit.MICROS)
+      case TimeUnit.NANOSECOND  => Instant.EPOCH.plusNanos(number)
+    }
+
+  /** The number a field of this unit records an instant as, inverting [[instantOf]]. */
+  private def numberOf(instant: Instant, unit: TimeUnit): Long =
+    unit match {
+      case TimeUnit.SECOND      => instant.getEpochSecond
+      case TimeUnit.MILLISECOND => instant.toEpochMilli
+      case TimeUnit.MICROSECOND => ChronoUnit.MICROS.between(Instant.EPOCH, instant)
+      case TimeUnit.NANOSECOND  => ChronoUnit.NANOS.between(Instant.EPOCH, instant)
+    }
 
   /**
     * Converts an Arrow Schema into Texera Schema.
@@ -359,7 +417,13 @@ object ArrowUtils extends LazyLogging {
             .asInstanceOf[Float8Vector]
             .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
 
-        case _: ArrowType.Timestamp =>
+        // The wall clock written as the field's own zone and unit, so the number
+        // and the label beside it agree. Going through the value's own epoch
+        // would have read the wall clock in the JVM's zone instead, putting a
+        // machine's setting into the file: the same table written in two places
+        // would hold two different instants under one label. Inverts
+        // [[wallClockOf]].
+        case timestamp: ArrowType.Timestamp =>
           vector
             .asInstanceOf[TimeStampVector]
             .setSafe(
@@ -367,9 +431,15 @@ object ArrowUtils extends LazyLogging {
               !isNull,
               if (isNull) 0L
               else
-                AttributeTypeUtils
-                  .parseField(value, AttributeType.LONG)
-                  .asInstanceOf[Long]
+                numberOf(
+                  AttributeTypeUtils
+                    .parseField(value, AttributeType.TIMESTAMP)
+                    .asInstanceOf[Timestamp]
+                    .toLocalDateTime
+                    .atZone(zoneOf(timestamp))
+                    .toInstant,
+                  timestamp.getUnit
+                )
             )
 
         case _: ArrowType.Utf8 =>
@@ -445,7 +515,7 @@ object ArrowUtils extends LazyLogging {
         ArrowType.Bool.INSTANCE
 
       case AttributeType.TIMESTAMP =>
-        new ArrowType.Timestamp(MILLISECOND, "UTC")
+        new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
 
       case AttributeType.BINARY =>
         new ArrowType.Binary

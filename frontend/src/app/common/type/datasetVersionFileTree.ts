@@ -31,19 +31,20 @@ export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
 }
 
 /**
- * Returns the relative path of a DatasetFileNode by stripping the first three segments.
+ * Returns the relative path of a DatasetFileNode by stripping the first four segments
+ * (dataset/ownerEmail/datasetName/versionName).
  * @param node The DatasetFileNode whose relative path is needed.
- * @returns The relative path (without the first three segments and without a leading slash).
+ * @returns The relative path (without the first four segments and without a leading slash).
  */
 export function getRelativePathFromDatasetFileNode(node: DatasetFileNode): string {
   const fullPath = getFullPathFromDatasetFileNode(node); // Get the full path
   const pathSegments = fullPath.split("/").filter(segment => segment.length > 0); // Split and remove empty segments
 
-  if (pathSegments.length <= 3) {
-    return ""; // If there are 3 or fewer segments, return an empty string (no relative path exists)
+  if (pathSegments.length <= 4) {
+    return ""; // If there are 4 or fewer segments, return an empty string (no relative path exists)
   }
 
-  return pathSegments.slice(3).join("/"); // Join remaining segments as the relative path
+  return pathSegments.slice(4).join("/"); // Join remaining segments as the relative path
 }
 
 export function getPathsUnderOrEqualDatasetFileNode(node: DatasetFileNode): string[] {

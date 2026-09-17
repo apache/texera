@@ -114,7 +114,9 @@ class HashJoinProbeOpExec[K](
         val matched = buildTableHashMap.get(key).exists(_._1.nonEmpty)
         if (matched || isOuter) {
           // Reuse the exact row-path join logic (also marks the build side joined).
-          processTuple(ArrowUtils.getTexeraTuple(i, root, fullSchema), 1).foreach(t => out += ((t, None)))
+          processTuple(ArrowUtils.getTexeraTuple(i, root, fullSchema), 1).foreach(t =>
+            out += ((t, None))
+          )
         }
         i += 1
       }

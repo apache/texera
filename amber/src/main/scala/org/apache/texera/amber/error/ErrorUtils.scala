@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
-import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.util.{StackTraceUtils, VirtualIdentityUtils}
 
 import java.time.Instant
 import scala.util.control.ControlThrowable
@@ -90,19 +90,8 @@ object ErrorUtils {
     }
   }
 
-  def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
-    val header = if (topLevel) {
-      "Stack trace for developers: \n\n"
-    } else {
-      "\n\nCaused by:\n"
-    }
-    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
-    if (err.getCause != null) {
-      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
-    } else {
-      message
-    }
-  }
+  def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String =
+    StackTraceUtils.getStackTraceWithAllCauses(err, topLevel)
 
   def getOperatorFromActorIdOpt(
       actorIdOpt: Option[ActorVirtualIdentity]
