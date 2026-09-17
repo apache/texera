@@ -1915,13 +1915,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           if (this.destroyed) {
             return;
           }
-          // The response reflects the snapshot that was sent. A rename made since must not be undone
-          // by it (its own save is already queued behind this one); what this feedback is for is the
-          // server-owned part, the timestamp above all, and the normalised name when nothing changed.
-          const current = this.workflowActionService.getWorkflowMetadata();
-          this.workflowActionService.setWorkflowMetadata(
-            current.name !== preserved.name ? { ...updatedWorkflow, name: current.name } : updatedWorkflow
-          );
+          // Fed back as it arrives: WorkflowPersistService already relays every response with the
+          // page's current name and description, so an edit made while this save was out is not
+          // undone here. What is left to apply is the server-owned part, the timestamp above all.
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
         },
         // A save that fails silently is the worst thing this page can do: the author walks
         // away believing the form they just built is stored.
