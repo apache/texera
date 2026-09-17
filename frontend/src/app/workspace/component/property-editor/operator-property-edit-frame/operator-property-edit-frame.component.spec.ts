@@ -50,6 +50,22 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+<<<<<<< HEAD
+=======
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
+import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
+import { of, Subject, throwError } from "rxjs";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import * as Y from "yjs";
+>>>>>>> 2db7db0c1 (fix(frontend): suppress newline on Enter in title editors (#8055))
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -291,4 +307,2813 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component.operatorVersion).toEqual(mockScanPredicate.operatorVersion);
   });
+<<<<<<< HEAD
+=======
+
+  describe("operator description truncation", () => {
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      component = fixture.componentInstance;
+    });
+
+    it("should render .operator-description with tooltip when description is set", () => {
+      component.operatorDescription = "A long description that should be truncated after three lines.";
+      component.editingTitle = false;
+      fixture.detectChanges();
+
+      const descEl = fixture.debugElement.query(By.css(".operator-description"));
+      expect(descEl).toBeTruthy();
+      expect(descEl.attributes["nz-tooltip"]).toBeDefined();
+    });
+
+    it("should not render .operator-description when description is not set", () => {
+      component.operatorDescription = undefined;
+      component.editingTitle = false;
+      fixture.detectChanges();
+
+      const descEl = fixture.debugElement.query(By.css(".operator-description"));
+      expect(descEl).toBeNull();
+    });
+  });
+
+  // ── HuggingFace task-aware visibility tests ──
+
+  it("should return null huggingFaceTaskPreview for non-HF operators", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  it("should return a task preview for HuggingFace operator with a known task", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("text");
+    expect(preview!.title).toBe("Text generation preview");
+  });
+
+  it("should return a fallback preview for HuggingFace operator with an unknown task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "some-unknown-task", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("text");
+    expect(preview!.title).toBe("Some Unknown Task");
+  });
+
+  it("should return image kind preview for image-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("image");
+  });
+
+  it("should return audio kind preview for text-to-speech task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-to-speech", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("audio");
+  });
+
+  it("should return video kind preview for text-to-video task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-to-video", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("video");
+  });
+
+  it("should return null preview when HuggingFace task is empty", () => {
+    const hfPredicate = { ...cloneDeep(mockHuggingFacePredicate), operatorProperties: { task: "", modelId: "" } };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  // ── HuggingFace field visibility and validator tests ──
+
+  function getHfField(key: string): FormlyFieldConfig | undefined {
+    return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+  }
+
+  let currentTask: string = "";
+
+  let hfOperatorCounter = 0;
+
+  function initHfOperator(task: string): void {
+    currentTask = task;
+    hfOperatorCounter++;
+    const pred = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorID: `hf-test-${hfOperatorCounter}`,
+      operatorProperties: { task, modelId: "org/model" },
+    };
+    workflowActionService.addOperator(pred, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, pred.operatorID, true),
+    });
+    fixture.detectChanges();
+  }
+
+  function evalHide(field: FormlyFieldConfig | undefined): boolean {
+    if (!field || !field.expressions) return false;
+    const hideFn = (field.expressions as Record<string, Function>)["hide"];
+    if (!hideFn) return !!field.hide;
+    // Provide model context so getSelectedTask can find the task
+    const fieldWithModel = { ...field, model: { task: currentTask } } as FormlyFieldConfig;
+    return hideFn(fieldWithModel);
+  }
+
+  it("should hide imageInput for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should show imageInput for image-classification task", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should hide audioInput for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should show audioInput for automatic-speech-recognition task", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("audioInput"))).toBe(false);
+  });
+
+  it("should hide promptColumn for image-only tasks", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for audio-only tasks", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should show promptColumn for text-generation task", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show systemPrompt only for text-generation", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(false);
+
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
+  });
+
+  it("should show contextColumn only for question-answering", () => {
+    initHfOperator("question-answering");
+    expect(evalHide(getHfField("contextColumn"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+  });
+
+  it("should show candidateLabels only for classification tasks", () => {
+    initHfOperator("zero-shot-classification");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should pass when not a prompt-required task", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "image-classification", promptColumn: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should fail when prompt-required task has no column", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", promptColumn: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should pass when not an image task", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", imageInput: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should pass when not an audio task", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    expect(validator).toBeDefined();
+    const mockField = { ...field, model: { task: "text-generation", audioInput: "" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── Additional field visibility tests ──
+
+  it("should show sentencesColumn only for sentence-similarity and text-ranking", () => {
+    initHfOperator("sentence-similarity");
+    expect(evalHide(getHfField("sentencesColumn"))).toBe(false);
+
+    initHfOperator("text-ranking");
+    expect(evalHide(getHfField("sentencesColumn"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("sentencesColumn"))).toBe(true);
+  });
+
+  it("should show inputImageColumn for image tasks", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(true);
+  });
+
+  it("should show inputAudioColumn for audio tasks", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("inputAudioColumn"))).toBe(false);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("inputAudioColumn"))).toBe(true);
+  });
+
+  it("should hide maxNewTokens and temperature for non-text-generation tasks", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("maxNewTokens"))).toBe(true);
+    expect(evalHide(getHfField("temperature"))).toBe(true);
+
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("maxNewTokens"))).toBe(false);
+    expect(evalHide(getHfField("temperature"))).toBe(false);
+  });
+
+  it("should show candidateLabels for zero-shot-image-classification", () => {
+    initHfOperator("zero-shot-image-classification");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(false);
+  });
+
+  // ── Additional validator edge-case tests ──
+
+  it("requiredPromptColumn validator should pass when prompt-required task has a column", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    const mockField = { ...field, model: { task: "text-generation", promptColumn: "text_col" } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredImageInput validator should fail when image task has no image and no column", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should pass when image task has inputImageColumn set", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "", inputImageColumn: "img_col" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredImageInput validator should pass when image task has image uploaded", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "/tmp/img.png", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should fail when audio task has no audio and no column", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "", inputAudioColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredAudioInput validator should pass when audio task has inputAudioColumn set", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "", inputAudioColumn: "audio_col" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should pass when audio task has audio uploaded", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "/tmp/clip.wav", inputAudioColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── HuggingFace task preview additional tests ──
+
+  it("should return image kind preview for visual-question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "visual-question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("image");
+  });
+
+  it("should return text kind preview for question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("text");
+  });
+
+  it("should hide the task field for HuggingFace operators", () => {
+    initHfOperator("text-generation");
+    const taskField = getHfField("task");
+    expect(taskField?.hide).toBe(true);
+  });
+
+  // ── Field type assignments ──
+
+  it("should set modelId field type to 'huggingface' for HF operators", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("modelId");
+    expect(field?.type).toBe("huggingface");
+  });
+
+  it("should set imageInput field type to 'huggingface-image-upload'", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    expect(field?.type).toBe("huggingface-image-upload");
+  });
+
+  it("should set audioInput field type to 'huggingface-audio-upload'", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    expect(field?.type).toBe("huggingface-audio-upload");
+  });
+
+  // ── Visibility when task is undefined ──
+
+  it("should hide imageInput when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide audioInput when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide inputImageColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("inputImageColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide inputAudioColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("inputAudioColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  // ── Additional image task visibility ──
+
+  it("should show imageInput for image-to-video task", () => {
+    initHfOperator("image-to-video");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for image-to-image task", () => {
+    initHfOperator("image-to-image");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for document-question-answering task", () => {
+    initHfOperator("document-question-answering");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show imageInput for image-text-to-text task", () => {
+    initHfOperator("image-text-to-text");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  // ── Audio task visibility ──
+
+  it("should show audioInput for audio-classification task", () => {
+    initHfOperator("audio-classification");
+    expect(evalHide(getHfField("audioInput"))).toBe(false);
+  });
+
+  it("should show inputAudioColumn for audio-classification task", () => {
+    initHfOperator("audio-classification");
+    expect(evalHide(getHfField("inputAudioColumn"))).toBe(false);
+  });
+
+  // ── promptColumn visibility for mixed tasks ──
+
+  it("should show promptColumn for visual-question-answering (image + prompt)", () => {
+    initHfOperator("visual-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for document-question-answering (image + prompt)", () => {
+    initHfOperator("document-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for zero-shot-classification", () => {
+    initHfOperator("zero-shot-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for summarization", () => {
+    initHfOperator("summarization");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for translation", () => {
+    initHfOperator("translation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  // ── Validator with formControl value ──
+
+  it("requiredImageInput validator should pass when image task has formControl value", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "", inputImageColumn: "" },
+      formControl: { value: "data:image/png;base64,abc" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredAudioInput validator should pass when audio task has formControl value", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "", inputAudioColumn: "" },
+      formControl: { value: "/tmp/clip.wav" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  it("requiredPromptColumn validator should pass when formControl has value", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    const mockField = {
+      ...field,
+      model: { task: "text-generation", promptColumn: "" },
+      formControl: { value: "text_col" },
+    } as unknown as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── Additional task preview tests ──
+
+  it("should return audio kind preview for automatic-speech-recognition task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "automatic-speech-recognition", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("audio");
+  });
+
+  it("should return image kind preview for image-to-image task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-image", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.kind).toBe("image");
+  });
+
+  it("should return null huggingFaceTaskPreview when operator is deleted", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    workflowActionService.deleteOperator(mockHuggingFacePredicate.operatorID);
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  // ── formatTaskTitle via fallback preview ──
+
+  it("should title-case multi-segment unknown task in fallback preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "my-custom-pipeline", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview;
+    expect(preview).toBeTruthy();
+    expect(preview!.title).toBe("My Custom Pipeline");
+  });
+
+  it("should title-case single-word unknown task in fallback preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "embeddings", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.title).toBe("Embeddings");
+  });
+
+  // ── Task preview content validation ──
+
+  it("should include assetSrc and pills in image-classification preview", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.assetSrc).toBe("assets/sample-image.png");
+    expect(preview.pills).toEqual(["superhero", "cityscape", "action"]);
+    expect(preview.inputLabel).toBe("Image input");
+    expect(preview.outputLabel).toBe("Predicted labels");
+  });
+
+  it("should include outputBody in text-generation preview", () => {
+    workflowActionService.addOperator(mockHuggingFacePredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockHuggingFacePredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.outputBody).toBeDefined();
+    expect(preview.body).toBeDefined();
+    expect(preview.inputLabel).toBe("Prompt");
+    expect(preview.outputLabel).toBe("Generated text");
+  });
+
+  it("should return video kind preview for image-to-video task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-video", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("video");
+    expect(preview.assetSrc).toBe("assets/sample-video.mp4");
+  });
+
+  it("should return text kind preview for zero-shot-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "zero-shot-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["business", "operations", "support"]);
+  });
+
+  it("should return text kind preview for fill-mask task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "fill-mask", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["city", "day", "crowd"]);
+  });
+
+  it("should return image kind preview for object-detection task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "object-detection", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("image");
+    expect(preview.pills).toEqual(["person", "building", "sky"]);
+  });
+
+  it("should return image kind preview for text-to-image task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-to-image", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return text kind preview for text-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("text");
+    expect(preview.pills).toEqual(["positive", "announcement"]);
+  });
+
+  it("should return text kind preview for token-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "token-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for table-question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "table-question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for feature-extraction task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "feature-extraction", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return image kind preview for image-segmentation task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-segmentation", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for image-to-text task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-to-text", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const preview = component.huggingFaceTaskPreview!;
+    expect(preview.kind).toBe("image");
+    expect(preview.outputBody).toBeDefined();
+  });
+
+  it("should return image kind preview for document-question-answering task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "document-question-answering", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for zero-shot-image-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "zero-shot-image-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return image kind preview for image-text-to-text task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "image-text-to-text", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("image");
+  });
+
+  it("should return text kind preview for sentence-similarity task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "sentence-similarity", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for text-ranking task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "text-ranking", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for translation task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "translation", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return text kind preview for summarization task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "summarization", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("text");
+  });
+
+  it("should return audio kind preview for audio-classification task", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "audio-classification", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview!.kind).toBe("audio");
+  });
+
+  // ── Validator message strings ──
+
+  it("requiredImageInput validator should return correct message", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    expect(validator!.message()).toBe("Upload an image or select an Input Image Column for this task.");
+  });
+
+  it("requiredAudioInput validator should return correct message", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    expect(validator!.message()).toBe("Upload audio or select an Input Audio Column for this task.");
+  });
+
+  it("requiredPromptColumn validator should return correct message", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    expect(validator!.message()).toBe("Select a prompt column for this task.");
+  });
+
+  // ── Additional promptColumn visibility for remaining tasks ──
+
+  it("should show promptColumn for token-classification", () => {
+    initHfOperator("token-classification");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for table-question-answering", () => {
+    initHfOperator("table-question-answering");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for feature-extraction", () => {
+    initHfOperator("feature-extraction");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for fill-mask", () => {
+    initHfOperator("fill-mask");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for sentence-similarity", () => {
+    initHfOperator("sentence-similarity");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for text-ranking", () => {
+    initHfOperator("text-ranking");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should show promptColumn for image-text-to-text", () => {
+    initHfOperator("image-text-to-text");
+    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+  });
+
+  it("should hide promptColumn for object-detection (image-only)", () => {
+    initHfOperator("object-detection");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for image-segmentation (image-only)", () => {
+    initHfOperator("image-segmentation");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  it("should hide promptColumn for image-to-text (image-only)", () => {
+    initHfOperator("image-to-text");
+    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+  });
+
+  // ── Field visibility for media-generation tasks ──
+
+  it("should hide imageInput for text-to-image task", () => {
+    initHfOperator("text-to-image");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should hide imageInput for text-to-speech task", () => {
+    initHfOperator("text-to-speech");
+    expect(evalHide(getHfField("imageInput"))).toBe(true);
+  });
+
+  it("should hide audioInput for text-to-image task", () => {
+    initHfOperator("text-to-image");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should hide audioInput for text-to-speech task", () => {
+    initHfOperator("text-to-speech");
+    expect(evalHide(getHfField("audioInput"))).toBe(true);
+  });
+
+  it("should show imageInput for zero-shot-image-classification task", () => {
+    initHfOperator("zero-shot-image-classification");
+    expect(evalHide(getHfField("imageInput"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for zero-shot-image-classification", () => {
+    initHfOperator("zero-shot-image-classification");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for image-to-image", () => {
+    initHfOperator("image-to-image");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  it("should show inputImageColumn for image-to-video", () => {
+    initHfOperator("image-to-video");
+    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+  });
+
+  // ── Validator edge cases: zero-shot-image-classification ──
+
+  it("requiredImageInput validator should fail for zero-shot-image-classification with no input", () => {
+    initHfOperator("zero-shot-image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "zero-shot-image-classification", imageInput: "", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should pass for zero-shot-image-classification with column", () => {
+    initHfOperator("zero-shot-image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "zero-shot-image-classification", imageInput: "", inputImageColumn: "img_col" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(true);
+  });
+
+  // ── Validator edge cases: whitespace-only values ──
+
+  it("requiredPromptColumn validator should fail when value is whitespace-only", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const validator = field?.validators?.["requiredPromptColumn"];
+    const mockField = { ...field, model: { task: "text-generation", promptColumn: "   " } } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredImageInput validator should fail when imageInput is whitespace-only", () => {
+    initHfOperator("image-classification");
+    const field = getHfField("imageInput");
+    const validator = field?.validators?.["requiredImageInput"];
+    const mockField = {
+      ...field,
+      model: { task: "image-classification", imageInput: "   ", inputImageColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  it("requiredAudioInput validator should fail when audioInput is whitespace-only", () => {
+    initHfOperator("automatic-speech-recognition");
+    const field = getHfField("audioInput");
+    const validator = field?.validators?.["requiredAudioInput"];
+    const mockField = {
+      ...field,
+      model: { task: "automatic-speech-recognition", audioInput: "   ", inputAudioColumn: "" },
+    } as FormlyFieldConfig;
+    expect(validator!.expression(null as any, mockField)).toBe(false);
+  });
+
+  // ── getSelectedTask fallback: form.get("task") ──
+
+  it("should use form.get task value for hide expression when model.task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("imageInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    // Simulate: model has no task but form has it
+    const mockField = {
+      model: {},
+      form: { get: (key: string) => (key === "task" ? { value: "image-classification" } : null) },
+    } as unknown as FormlyFieldConfig;
+    expect(hideFn(mockField)).toBe(false); // image-classification is an image task
+  });
+
+  it("should use formControl.parent.get task value when model and form are empty", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("audioInput");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    const mockField = {
+      model: {},
+      formControl: {
+        parent: { get: (key: string) => (key === "task" ? { value: "automatic-speech-recognition" } : null) },
+      },
+    } as unknown as FormlyFieldConfig;
+    expect(hideFn(mockField)).toBe(false); // ASR is an audio task
+  });
+
+  // ── Null / undefined preview edge cases ──
+
+  it("should return null preview when task is whitespace-only", () => {
+    const hfPredicate = {
+      ...cloneDeep(mockHuggingFacePredicate),
+      operatorProperties: { task: "   ", modelId: "" },
+    };
+    workflowActionService.addOperator(hfPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, hfPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    expect(component.huggingFaceTaskPreview).toBeNull();
+  });
+
+  // ── systemPrompt/maxNewTokens/temperature visibility for more tasks ──
+
+  it("should hide systemPrompt for automatic-speech-recognition", () => {
+    initHfOperator("automatic-speech-recognition");
+    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
+    expect(evalHide(getHfField("maxNewTokens"))).toBe(true);
+    expect(evalHide(getHfField("temperature"))).toBe(true);
+  });
+
+  it("should hide contextColumn for image-classification", () => {
+    initHfOperator("image-classification");
+    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+  });
+
+  it("should hide candidateLabels for text-generation", () => {
+    initHfOperator("text-generation");
+    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+  });
+
+  it("should hide sentencesColumn for question-answering", () => {
+    initHfOperator("question-answering");
+    expect(evalHide(getHfField("sentencesColumn"))).toBe(true);
+  });
+
+  // ── Visibility when task is undefined for remaining fields ──
+
+  it("should hide promptColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("promptColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    // promptColumn hides when task is in imageOnlyTasks or audioInputTasks;
+    // with undefined task, those conditions are false, so it should NOT hide
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(false);
+  });
+
+  it("should hide systemPrompt when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("systemPrompt");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide contextColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("contextColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide candidateLabels when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("candidateLabels");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide sentencesColumn when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("sentencesColumn");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide maxNewTokens when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("maxNewTokens");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  it("should hide temperature when task is undefined", () => {
+    initHfOperator("text-generation");
+    const field = getHfField("temperature");
+    const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
+    expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // attributeTypeRules validator (checkAttributeType) — the root-field validator
+  // added by setFormlyFormBinding when a schema declares attributeTypeRules.
+  // getOperatorInputAttributeType is stubbed on the (root-provided) compiling service.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("attributeTypeRules validator (checkAttributeType)", () => {
+    let compiling: WorkflowCompilingService;
+
+    beforeEach(() => {
+      compiling = TestBed.inject(WorkflowCompilingService);
+      component.currentOperatorId = "attr-rules-op";
+    });
+
+    // Binds a crafted schema and returns the root field's checkAttributeType validator.
+    function bindSchema(schema: CustomJSONSchema7): any {
+      component.setFormlyFormBinding(schema);
+      return (component.formlyFields?.[0] as any)?.validators?.checkAttributeType;
+    }
+
+    function rootField(): FormlyFieldConfig {
+      return component.formlyFields![0];
+    }
+
+    it("enum rule fails when the input attribute type is not in the enum", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain(
+        "is string, but it's expected to be integer"
+      );
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colA");
+    });
+
+    it("enum rule passes when the input attribute type matches the enum", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("integer");
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("passes without checking anything when no operator is selected", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+      component.currentOperatorId = undefined;
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a rule that names a property the schema does not declare", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        // "missing" has a rule but no matching entry under `properties`.
+        attributeTypeRules: { missing: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a property whose schema declares no autofill port", () => {
+      // findAttributeType bails at `isDefined(portIndex)`, so the rule never runs and
+      // the compiling service is never asked for a type.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string" } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a const rule that carries no $data reference", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { const: {} } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule passes when both attributes resolve to the same type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, rootField())).toBe(true);
+    });
+
+    it("enum rule is skipped when the attribute type is undefined (attribute not selected)", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue(undefined);
+      expect(validator.expression({ value: { attr: "" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule fails when the sibling attribute resolves to a different type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "string" : "integer"
+      );
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("expected to be the same type as 'colB'");
+    });
+
+    it("const $data rule is skipped when the sibling attribute type is not yet resolved", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "string" : undefined
+      );
+      expect(validator.expression({ value: { attr: "colA", other: "" } } as any, rootField())).toBe(true);
+    });
+
+    it("allOf if/then rule fails when the if-condition holds but the then-enum is violated", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          mode: { type: "string" },
+        },
+        attributeTypeRules: {
+          attr: { allOf: [{ if: { mode: { valEnum: ["strict"] } }, then: { enum: ["integer"] } }] },
+        },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA", mode: "strict" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("given that 'mode' is strict");
+    });
+
+    it("allOf if/then rule passes when the if-condition is not satisfied", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          mode: { type: "string" },
+        },
+        attributeTypeRules: {
+          attr: { allOf: [{ if: { mode: { valEnum: ["strict"] } }, then: { enum: ["integer"] } }] },
+        },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      expect(validator.expression({ value: { attr: "colA", mode: "loose" } } as any, rootField())).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-level validators / custom field-type mapping in setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("field-level validators and type mapping", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    it("adds an inEnum validator that rejects values no longer present in the schema enum", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { color: { type: "string", enum: ["red", "green"] } },
+      });
+      const validator = getField("color")?.validators?.["inEnum"];
+      expect(validator).toBeDefined();
+      expect(validator!.expression({ value: "blue" } as any)).toBe(false);
+      expect(validator!.expression({ value: "red" } as any)).toBe(true);
+      expect(validator!.message(null, { formControl: { value: "blue" } } as any)).toBe(
+        '"blue" is no longer a valid option'
+      );
+    });
+
+    it("maps datasetVersionPath to the datasetversionselector field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { datasetVersionPath: { type: "string" } },
+      });
+      expect(getField("datasetVersionPath")?.type).toBe("datasetversionselector");
+    });
+
+    it("maps uiParameters to the ui-udf-parameters field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { uiParameters: { type: "array" } },
+      });
+      expect(getField("uiParameters")?.type).toBe("ui-udf-parameters");
+    });
+
+    it("maps a field described as 'Input your code here' to the codearea field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { code: { type: "string", description: "Input your code here" } },
+      });
+      expect(getField("code")?.type).toBe("codearea");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Operator-type-specific field behavior (FileScanOp hide, Projection reorder)
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("operator-type-specific field behavior", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    it("hides FileScanOp outputFileName unless extract is on or the type is a string/binary type", () => {
+      component.currentOperatorSchema = { operatorType: "FileScanOp" } as any;
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { outputFileName: { type: "string" } },
+      });
+      const hide = (getField("outputFileName")?.expressions as Record<string, Function>)["hide"];
+      expect(hide({ model: {} } as FormlyFieldConfig)).toBe(true);
+      expect(hide({ model: { extract: true } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "single string" } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "binary" } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "large binary" } } as FormlyFieldConfig)).toBe(false);
+    });
+
+    it("maps Projection attributes to repeat-section-dnd and proxies reorder() to onFormChanges", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+      component.formData = { attributes: ["colA"] };
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attributes: { type: "array", items: { type: "string" } } },
+      });
+      const field = getField("attributes");
+      expect(field?.type).toBe("repeat-section-dnd");
+      const spy = vi.spyOn(component, "onFormChanges").mockImplementation(() => {});
+      (field?.props as any).reorder();
+      expect(spy).toHaveBeenCalledWith({ attributes: ["colA"] });
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // checkOperatorProperty — the guard used by the debounced form-change stream
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("checkOperatorProperty", () => {
+    it("returns false when no operator is being displayed", () => {
+      component.currentOperatorId = undefined;
+      expect(component.checkOperatorProperty({})).toBe(false);
+    });
+
+    it("returns true only when the form data differs from the stored operator properties", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // mockScanPredicate.operatorProperties is {}
+      expect(component.checkOperatorProperty({})).toBe(false);
+      expect(component.checkOperatorProperty({ tableName: "twitter" })).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // typeInferenceOnLambdaFunction — writes inferred attribute types back into
+  // the form data for PythonLambdaFunction operators.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("typeInferenceOnLambdaFunction", () => {
+    it("does nothing for non-lambda operators", () => {
+      component.currentOperatorId = "ScanSource-op";
+      const formData = { lambdaAttributeUnits: [{ attributeName: "colA", attributeType: "keep" }] };
+      component.typeInferenceOnLambdaFunction(formData);
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("keep");
+    });
+
+    it("infers attribute types from the input schema and clears empty 'Add New Column' units", () => {
+      const compiling = TestBed.inject(WorkflowCompilingService);
+      vi.spyOn(compiling, "getOperatorInputSchemaMap").mockReturnValue({
+        "0": [{ attributeName: "colA", attributeType: "integer" }],
+      } as any);
+      component.currentOperatorId = "PythonLambdaFunction-op";
+      const formData = {
+        lambdaAttributeUnits: [
+          { attributeName: "Add New Column", newAttributeName: "", attributeType: "stale" },
+          { attributeName: "colA", attributeType: "stale" },
+        ],
+      };
+      component.typeInferenceOnLambdaFunction(formData);
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("");
+      expect(formData.lambdaAttributeUnits[1].attributeType).toBe("integer");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setInteractivity — enable/disable the whole formly form group
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("setInteractivity", () => {
+    it("disables and re-enables every control in the form group", () => {
+      const group = new FormGroup({ a: new FormControl("x") });
+      component.formlyFormGroup = group;
+
+      component.setInteractivity(false);
+      expect(component.interactive).toBe(false);
+      expect(group.disabled).toBe(true);
+      expect(group.get("a")!.disabled).toBe(true);
+
+      component.setInteractivity(true);
+      expect(component.interactive).toBe(true);
+      expect(group.enabled).toBe(true);
+      expect(group.get("a")!.enabled).toBe(true);
+    });
+
+    it("only updates the interactive flag when there is no form group", () => {
+      component.formlyFormGroup = undefined;
+      expect(() => component.setInteractivity(true)).not.toThrow();
+      expect(component.interactive).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF environment schema patching
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment schema patching", () => {
+    it("injects the environment list into the envName enum without mutating the original schema", () => {
+      const schema = { type: "object", properties: { envName: { type: "string" } } } as CustomJSONSchema7;
+      const patched = (component as any).patchPythonUdfEnvironmentSchema(schema, ["env-a", "env-b"]);
+      expect((patched.properties.envName as CustomJSONSchema7).enum).toEqual(["env-a", "env-b"]);
+      expect((schema.properties!.envName as CustomJSONSchema7).enum).toBeUndefined();
+    });
+
+    it("hides envName and makes it optional when the default environment is checked", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { envName: { type: "string" }, defaultEnv: { type: "boolean" } },
+      });
+      (component as any).hideEnvNameWhenDefaultEnvChecked();
+      const envField = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+      expect((envField?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+      expect((envField?.expressions as any)["props.required"]).toBe("!field.parent.model.defaultEnv");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // registerOperatorPropertyChangeHandler — program-driven property changes
+  // refresh formData, guarded by listeningToChange to avoid an echo loop.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("registerOperatorPropertyChangeHandler loop guard", () => {
+    it("refreshes formData on graph property changes only while listeningToChange is true", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges(); // runs ngOnInit, which registers the handler
+
+      // loop guard active: a change echoed while listeningToChange is false must not touch formData
+      component.listeningToChange = false;
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { marker: "blocked" });
+      expect(component.formData?.marker).toBeUndefined();
+
+      // normal program-driven change: formData is refreshed from the graph
+      component.listeningToChange = true;
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { marker: "allowed" });
+      expect(component.formData.marker).toBe("allowed");
+    });
+  });
+  describe("real template rendering", () => {
+    let realFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let realComponent: OperatorPropertyEditFrameComponent;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      realComponent = realFixture.componentInstance;
+    });
+
+    it("should render the title section when editingTitle is false and formTitle is set", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = "My Operator";
+      realFixture.detectChanges();
+      const titleEl = realFixture.debugElement.query(By.css("#formly-title"));
+      expect(titleEl).toBeTruthy();
+      const h3 = realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(h3).toBeTruthy();
+      expect((h3.nativeElement as HTMLElement).textContent?.trim()).toBe("My Operator");
+    });
+
+    it("should not render the h3 title when formTitle is undefined", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = undefined;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"))).toBeNull();
+    });
+
+    it("should disable the edit button when interactive is false", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = false;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the edit button when interactive is true", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = true;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should hide the title section when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("#formly-title"))).toBeNull();
+    });
+
+    it("should hide the customName div when editingTitle is false", () => {
+      realComponent.editingTitle = false;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(true);
+    });
+
+    it("should show the customName div when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(false);
+    });
+
+    it("should show the PythonLambdaFunction icon when currentOperatorId includes PythonLambdaFunction", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "PythonLambdaFunction-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeTruthy();
+    });
+
+    it("should not show the PythonLambdaFunction icon for other operator types", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "ScanSource-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeNull();
+    });
+
+    it("should not render the form section when formlyFields is undefined", () => {
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".property-editor-form"))).toBeNull();
+    });
+
+    it("should render the operator version span", () => {
+      realComponent.operatorVersion = "v1.2.3";
+      realFixture.detectChanges();
+      const versionEl = realFixture.debugElement.query(By.css(".operator-version span"));
+      expect(versionEl).toBeTruthy();
+      expect((versionEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Operator Version: v1.2.3");
+    });
+
+    // ── HF task preview template nodes ──
+    // formlyFields=[] and formlyFormGroup=new FormGroup({}) satisfy the outer
+    // *ngIf without triggering Formly rendering; the getter is mocked directly.
+
+    function setupPreview(preview: object): void {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(preview as any);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+    }
+
+    it("should not render the HF preview card when huggingFaceTaskPreview is null", () => {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(null);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeNull();
+    });
+
+    it("should render a video element for kind='video'", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css("video.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should bind [src] and [muted] on the video element", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      const video = realFixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
+      expect(video.muted).toBe(true);
+    });
+
+    it("should render an img element for kind='image'", () => {
+      setupPreview({ kind: "image", title: "Image preview", assetSrc: "assets/sample.png" });
+      expect(realFixture.debugElement.query(By.css("img.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should render an audio element for kind='audio'", () => {
+      setupPreview({ kind: "audio", title: "Audio preview", assetSrc: "assets/sample.mp3" });
+      expect(realFixture.debugElement.query(By.css("audio.hf-task-preview-audio"))).toBeTruthy();
+    });
+
+    it("should render the text surface for kind='text'", () => {
+      setupPreview({ kind: "text", title: "Text preview", body: "Some body" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-surface"))).toBeTruthy();
+      const titleEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-title"));
+      expect((titleEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Text preview");
+      const bodyEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-body"));
+      expect((bodyEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Some body");
+    });
+
+    it("should render outputBody in the text surface when present", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in the text surface when absent", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeNull();
+    });
+
+    it("should render the flow section when inputLabel and outputLabel are set", () => {
+      setupPreview({ kind: "image", title: "T", inputLabel: "Input", outputLabel: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-arrow"))).toBeTruthy();
+      const chips = realFixture.debugElement.queryAll(By.css(".hf-task-preview-chip"));
+      expect(chips.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should not render the flow section when inputLabel and outputLabel are absent", () => {
+      setupPreview({ kind: "image", title: "T" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeNull();
+    });
+
+    it("should render the description for non-text kinds with body", () => {
+      setupPreview({ kind: "image", title: "T", body: "Some description" });
+      const desc = realFixture.debugElement.query(By.css(".hf-task-preview-description"));
+      expect(desc).toBeTruthy();
+      expect((desc.nativeElement as HTMLElement).textContent?.trim()).toBe("Some description");
+    });
+
+    it("should not render the description for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-description"))).toBeNull();
+    });
+
+    it("should render outputBody in meta for non-text kinds", () => {
+      setupPreview({ kind: "image", title: "T", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in meta for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeNull();
+    });
+
+    it("should render pills when pills array is non-empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: ["NLP", "Classification"] });
+      const pillsContainer = realFixture.debugElement.query(By.css(".hf-task-preview-pills"));
+      expect(pillsContainer).toBeTruthy();
+      const pills = realFixture.debugElement.queryAll(By.css(".hf-task-preview-pill"));
+      expect(pills.length).toBe(2);
+      expect((pills[0].nativeElement as HTMLElement).textContent?.trim()).toBe("NLP");
+    });
+
+    it("should not render pills when pills array is empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: [] });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
+    });
+  });
+
+  describe("onFormChanges null handling", () => {
+    it("should strip null values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: null });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+
+    it("should keep null values for required fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: null, optionalField: "value" });
+
+      expect(emittedEvent).toEqual({ tableName: null, optionalField: "value" });
+    });
+
+    it("should keep non-null values regardless of required status", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: "set" });
+
+      expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
+    });
+
+    it("should strip undefined values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: undefined });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+  });
+
+  describe("modify-operator-logic gating", () => {
+    it("allowModifyOperatorLogic re-enables editing", () => {
+      fixture.detectChanges();
+      component.setInteractivity(false);
+
+      component.allowModifyOperatorLogic();
+
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic pushes the change and locks the form again", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID);
+      expect(component.interactive).toBe(false);
+    });
+
+    it("confirmModifyOperatorLogic reports a failure and leaves the form editable", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {
+        throw new Error("cannot modify while running");
+      });
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(errorSpy).toHaveBeenCalledWith("cannot modify while running");
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic does nothing when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic");
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription handlers", () => {
+    it("retitles the form only when the renamed operator is the current one", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      component.formTitle = "original";
+      // getTexeraGraph() narrows to WorkflowGraphReadonly; the instance really is a
+      // WorkflowGraph, whose display-name subject is only pushed by the shared-model
+      // handler, so drive it directly to exercise the subscriber.
+      const graph = workflowActionService.getTexeraGraph() as unknown as WorkflowGraph;
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: "some-other-operator",
+        newDisplayName: "ignored",
+      });
+      expect(component.formTitle).toBe("original");
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        newDisplayName: "renamed",
+      });
+      expect(component.formTitle).toBe("renamed");
+    });
+
+    it("mirrors the workflow-modification flag onto the form's interactivity", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+
+      workflowActionService.disableWorkflowModification();
+      expect(component.interactive).toBe(false);
+
+      workflowActionService.enableWorkflowModification();
+      expect(component.interactive).toBe(true);
+    });
+
+    it("ignores the workflow-modification flag while no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.setInteractivity(true);
+
+      workflowActionService.disableWorkflowModification();
+
+      expect(component.interactive).toBe(true);
+      workflowActionService.enableWorkflowModification();
+    });
+
+    it("re-renders only when the current operator's dynamic schema changes", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm").mockImplementation(() => {});
+      // setDynamicSchema is a no-op when the schema is unchanged, so vary it to force an emit.
+      const bumped = (schema: typeof mockScanSourceSchema) => ({ ...schema, operatorVersion: "bumped" });
+
+      dynamicSchemaService.setDynamicSchema(mockResultPredicate.operatorID, bumped(mockViewResultsSchema));
+      expect(rerenderSpy).not.toHaveBeenCalled();
+
+      dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, bumped(mockScanSourceSchema));
+      expect(rerenderSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("rerenderEditorForm", () => {
+    it("is a no-op when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.formTitle = "untouched";
+
+      component.rerenderEditorForm();
+
+      expect(component.formTitle).toBe("untouched");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF virtual-environment loading (rerenderEditorForm)
+  //
+  // The branch only runs for a Python UDF operator and the mock metadata has
+  // none, so the dynamic schema is stubbed rather than adding a fixture operator
+  // type. Both collaborators emit synchronously, so nothing here waits on a
+  // timer or reaches a backend.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment loading", () => {
+    const udfSchema = () =>
+      ({
+        operatorType: "PythonUDFV2",
+        additionalMetadata: {
+          userFriendlyName: "Python UDF",
+          operatorDescription: "runs python",
+          operatorGroupName: "Python",
+          inputPorts: [],
+          outputPorts: [{}],
+        },
+        jsonSchema: {
+          type: "object",
+          properties: {
+            code: { type: "string" },
+            envName: { type: "string" },
+            defaultEnv: { type: "boolean" },
+          },
+        },
+        operatorVersion: "udf-1",
+      }) as any;
+
+    /** Points the frame at a Python UDF operator and returns the stubbed collaborators. */
+    function selectUdfOperator(opts: { unit?: unknown; pves?: unknown; predicate?: typeof mockScanPredicate } = {}): {
+      fetchPVEs: ReturnType<typeof vi.fn>;
+      notificationError: ReturnType<typeof vi.fn>;
+    } {
+      const predicate = opts.predicate ?? mockScanPredicate;
+      vi.spyOn(TestBed.inject(DynamicSchemaService), "getDynamicSchema").mockReturnValue(udfSchema());
+      // `undefined` means "not specified", so an explicit `null` still reaches the component.
+      const unit = opts.unit === undefined ? { computingUnit: { cuid: 7 } } : opts.unit;
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(of(unit) as any);
+      const fetchPVEs = vi
+        .spyOn(TestBed.inject(WorkflowPveService), "fetchPVEs")
+        .mockReturnValue((opts.pves ?? of([{ pveName: "env-a" }, { pveName: "env-b" }])) as any);
+      const notificationError = vi
+        .spyOn(TestBed.inject(NotificationService), "error")
+        .mockImplementation(() => undefined as any);
+
+      workflowActionService.addOperator(predicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      return { fetchPVEs: fetchPVEs as any, notificationError: notificationError as any };
+    }
+
+    const envField = () => component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+
+    it("seeds defaultEnv when the operator's properties do not carry it", () => {
+      selectUdfOperator();
+      expect(component.formData.defaultEnv).toBe(true);
+    });
+
+    it("leaves an explicit defaultEnv alone", () => {
+      selectUdfOperator({
+        predicate: {
+          ...mockScanPredicate,
+          operatorID: "udf-explicit-default",
+          operatorProperties: { defaultEnv: false },
+        },
+      });
+      expect(component.formData.defaultEnv).toBe(false);
+    });
+
+    it("fetches the selected unit's environments and binds them as envName options", () => {
+      const { fetchPVEs } = selectUdfOperator();
+
+      expect(fetchPVEs).toHaveBeenCalledWith(7);
+      expect((envField()?.props as any).options).toEqual([
+        { value: "env-a", label: "env-a" },
+        { value: "env-b", label: "env-b" },
+      ]);
+      // hideEnvNameWhenDefaultEnvChecked also ran on the success path.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("skips the fetch when the emitted unit carries no cuid", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: { computingUnit: {} } });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      // The other arm supplies an empty list, so the field binds with no options.
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("skips the fetch when no computing unit is selected", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: null });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("reports an Error failure and still binds the form with no environments", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => new Error("pve down")) });
+
+      expect(notificationError).toHaveBeenCalledWith("Could not load Python virtual environments: pve down");
+      expect((envField()?.props as any).options).toEqual([]);
+      // The fallback binding runs hideEnvNameWhenDefaultEnvChecked too.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("stringifies a non-Error failure", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => "plain string failure") });
+
+      expect(notificationError).toHaveBeenCalledWith(
+        "Could not load Python virtual environments: plain string failure"
+      );
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("patches nothing when the schema's properties are absent or not an object", () => {
+      // Both take the guard's false side, so the clone comes back unchanged
+      // instead of dereferencing a missing envName property.
+      const noProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object" }, ["env-a"]);
+      expect(noProps).toEqual({ type: "object" });
+
+      const booleanProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object", properties: true }, [
+        "env-a",
+      ]);
+      expect(booleanProps).toEqual({ type: "object", properties: true });
+    });
+
+    it("hideEnvNameWhenDefaultEnvChecked is a no-op when the form has no envName field", () => {
+      component.setFormlyFormBinding({ type: "object", properties: { code: { type: "string" } } });
+
+      expect(() => (component as any).hideEnvNameWhenDefaultEnvChecked()).not.toThrow();
+
+      expect(component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName")).toBeUndefined();
+      // No other field picked up the defaultEnv hide rule either.
+      const codeExpressions = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "code")?.expressions as any;
+      expect(codeExpressions?.hide).toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Early-return guards
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("early-return guards", () => {
+    /**
+     * Feeds a statistics update in through the route production uses: the websocket
+     * event stream, which WorkflowStatusService relays on to its subscribers.
+     * websocketEvent() hands back the subject itself, so no private field is touched.
+     */
+    function emitOperatorStatistics(statistics: Record<string, unknown>): void {
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next({
+        type: "OperatorStatisticsUpdateEvent",
+        operatorStatistics: statistics,
+      } as unknown as TexeraWebsocketEvent);
+    }
+
+    it("ngOnChanges stops before re-rendering when the new operator id is unset", () => {
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm");
+
+      component.ngOnChanges({ currentOperatorId: new SimpleChange("op-1", undefined, false) });
+
+      expect(component.currentOperatorId).toBeUndefined();
+      expect(rerenderSpy).not.toHaveBeenCalled();
+    });
+
+    // Wire-shaped payload: the service splits it into the state and statistics concepts.
+    const runningStatus = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+
+    it("the state-update subscription records the state for the selected operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the subscription
+
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: runningStatus });
+
+      expect(component.currentOperatorState).toBe(OperatorState.Running);
+    });
+
+    it("the state-update subscription ignores updates while no operator is selected", () => {
+      fixture.detectChanges(); // ngOnInit registers the subscription
+      component.currentOperatorId = undefined;
+
+      emitOperatorStatistics({ "op-1": runningStatus });
+
+      expect(component.currentOperatorState).toBeUndefined();
+    });
+
+    it("the ui-parameter subscription ignores events addressed to a different operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      const before = cloneDeep(component.formData);
+
+      (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+        operatorId: "some-other-operator",
+        parameters: [{ attribute: { attributeName: "a", attributeType: "string" }, value: "1" }],
+      });
+
+      expect(component.formData).toEqual(before);
+    });
+
+    it("isHuggingFaceOperator is false when nothing is selected", () => {
+      component.currentOperatorId = undefined;
+      expect((component as any).isHuggingFaceOperator()).toBe(false);
+    });
+
+    it("checkOperatorProperty is false when the operator is no longer in the graph", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // Simulate the operator being deleted during the form's debounce window.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue(undefined as any);
+
+      expect(component.checkOperatorProperty({ tableName: "x" })).toBe(false);
+    });
+
+    it("typeInferenceOnLambdaFunction returns early without an input schema map", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue(undefined);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      // Untouched: the method bailed before reaching the mapping loop.
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("typeInferenceOnLambdaFunction returns early when the first port has no schema", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue({
+        0: undefined,
+      } as any);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("no property is written when the operator is deselected mid-debounce", fakeAsync(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the handler
+      const setProperty = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+      // checkOperatorProperty gates the stream after the debounce, so clearing the
+      // selection in the debounce window drops the event before any write happens.
+      component.sourceFormChangeEventStream.next({ tableName: "x" });
+      component.currentOperatorId = undefined;
+      tick(FORM_DEBOUNCE_TIME_MS);
+
+      expect(setProperty).not.toHaveBeenCalled();
+      discardPeriodicTasks();
+    }));
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-mapping rules applied inside setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Formly field-mapping rules", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function expressionsOf(key: string): Record<string, Function> {
+      return getField(key)?.expressions as Record<string, Function>;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("locks the dummyOperator field down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyOperator: { type: "string" } },
+      });
+
+      const expressions = expressionsOf("dummyOperator");
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+    });
+
+    it("locks the dummyProperty and dummyValue fields down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyProperty: { type: "string" }, dummyValue: { type: "string" } },
+      });
+
+      ["dummyProperty", "dummyValue"].forEach(key => {
+        const expressions = expressionsOf(key);
+        expect(expressions["templateOptions.readonly"]()).toBe(true);
+        expect(expressions["templateOptions.disabled"]()).toBe(true);
+      });
+    });
+
+    it("hides dummyPropertyList for a non-Dummy operator and pins add/remove off", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      const field = getField("dummyPropertyList");
+      expect(field?.hide).toBe(true);
+      const expressions = field?.expressions as Record<string, Function>;
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+      expect(expressions["templateOptions.canRemove"]()).toBe(false);
+      expect(expressions["templateOptions.canAdd"]()).toBe(false);
+    });
+
+    it("keeps dummyPropertyList visible for the Dummy operator itself", () => {
+      component.currentOperatorSchema = { operatorType: "Dummy" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      expect(getField("dummyPropertyList")?.hide).toBe(false);
+    });
+
+    it("hides a field through the schema's hideTarget/hideType pair", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "string" },
+          target: {
+            type: "string",
+            hideTarget: "trigger",
+            hideType: "equals",
+            hideExpectedValue: "off",
+          } as CustomJSONSchema7,
+        },
+      });
+
+      const hide = expressionsOf("target")["hide"];
+      expect(hide({ parent: { model: { trigger: "off" } } } as any)).toBe(true);
+      expect(hide({ parent: { model: { trigger: "on" } } } as any)).toBe(false);
+    });
+
+    it("substitutes the field type for fileName and huggingFaceModel", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { fileName: { type: "string" }, huggingFaceModel: { type: "string" } },
+      });
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("huggingFaceModel")?.type).toBe("huggingface");
+    });
+
+    it("attaches the diff style to an overridden field and nothing to the others", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-diff": new Map<String, String>([["colour", "border: 1px solid red"]]),
+      };
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string" }, other: { type: "string" } },
+      });
+
+      expect(expressionsOf("colour")["templateOptions.attributes"]()).toEqual({
+        style: "border: 1px solid red",
+      });
+      expect(expressionsOf("other")["templateOptions.attributes"]()).toEqual({});
+    });
+
+    it("writes the operatorVersion boundary style onto the rendered marker", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-version-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-version-diff": new Map<String, String>([["operatorVersion", "border: 2px dashed blue"]]),
+      };
+
+      // The binding indexes getElementsByClassName("operator-version")[0] directly,
+      // so the element has to be in the document before it runs.
+      const marker = document.createElement("div");
+      marker.className = "operator-version";
+      document.body.appendChild(marker);
+      try {
+        component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+
+        expect(marker.getAttribute("style")).toBe("border: 2px dashed blue");
+      } finally {
+        marker.remove();
+      }
+    });
+
+    it("marks a field the schema requires conditionally, as Aggregate does its attribute", () => {
+      component.currentOperatorSchema = {
+        operatorType: "Aggregate",
+        jsonSchema: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      const required = expressionsOf("attribute")["props.required"];
+      expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
+      expect(required({ parent: { model: { aggFunction: "count" } } } as any)).toBe(false);
+    });
+
+    it("leaves the rule off for a schema that states no condition", () => {
+      component.currentOperatorSchema = { operatorType: "Projection", jsonSchema: {} } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      expect(expressionsOf("attribute")?.["props.required"]).toBeUndefined();
+    });
+
+    it("wires the preset wrapper only while user presets are enabled", () => {
+      const setupFieldConfig = vi.spyOn(PresetWrapperComponent, "setupFieldConfig").mockImplementation(() => {});
+      const guiConfig = TestBed.inject(GuiConfigService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const schema = {
+        type: "object" as const,
+        properties: { a: { type: "string", "enable-presets": true } as CustomJSONSchema7 },
+      };
+
+      guiConfig.env.userPresetEnabled = false;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).not.toHaveBeenCalled();
+
+      guiConfig.env.userPresetEnabled = true;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ key: "a" }),
+        "operator",
+        mockScanPredicate.operatorType,
+        mockScanPredicate.operatorID
+      );
+    });
+
+    it("keeps the validator the schema contributes", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string", enum: ["red"] } },
+      });
+
+      expect(Object.keys(getField("colour")?.validators ?? {})).toContain("inEnum");
+    });
+
+    it("disables the form on init when the frame is not interactive", () => {
+      component.interactive = false;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(true);
+    });
+
+    it("leaves the form enabled when the frame is interactive", () => {
+      component.interactive = true;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(false);
+    });
+
+    it("skips a boolean schema property when wiring dependencies", () => {
+      // `properties: { flag: true }` is legal JSON schema; the binding must skip it
+      // rather than read toggleHidden off a boolean.
+      expect(() =>
+        component.setFormlyFormBinding({
+          type: "object",
+          properties: { flag: true, a: { type: "string" } },
+        } as CustomJSONSchema7)
+      ).not.toThrow();
+    });
+
+    it("installs the hide expression a toggleHidden property declares", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "boolean", toggleHidden: ["target"] } as CustomJSONSchema7,
+          target: { type: "string" },
+        },
+      });
+
+      expect(getField("target")?.expressions?.["hide"]).toBe("!field.parent.model.trigger");
+    });
+
+    it("resolves a dependOn property against the operator's input schema", () => {
+      const compilingService = TestBed.inject(WorkflowCompilingService);
+      // The timestamp attribute is what distinguishes a forwarded schema map from an
+      // empty one: only its name reaches the generated description expression.
+      const getOperatorInputSchemaMap = vi.spyOn(compilingService, "getOperatorInputSchemaMap").mockReturnValue({
+        "0_false": [
+          { attributeName: "colA", attributeType: "string" },
+          { attributeName: "eventTime", attributeType: "timestamp" },
+        ],
+      } as any);
+      component.currentOperatorId = "operator-dependency";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          parent: { type: "string" },
+          child: { type: "string", dependOn: "parent" } as CustomJSONSchema7,
+        },
+      });
+
+      expect(getOperatorInputSchemaMap).toHaveBeenCalledWith("operator-dependency");
+      expect(getField("child")?.expressions?.["templateOptions.description"]).toBe(
+        "[\"eventTime\"].includes(model.parent)? 'Input a datetime string' : 'Input a positive number'"
+      );
+    });
+  });
+
+  describe("choosing which properties the Form View exposes", () => {
+    it("wires each top-level tick box to the exposure service", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      const setExposed = vi.spyOn(formBindingService, "setExposed");
+      component.exposeChoosing = true;
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+
+      const field = component.formlyFields?.[0]?.fieldGroup?.find(f => f.props?.["toggleExposed"] !== undefined);
+      (field!.props as any).toggleExposed(true);
+
+      expect(setExposed).toHaveBeenCalledWith(mockScanPredicate.operatorID, field!.key, true);
+    });
+
+    // The tick box belongs to top-level properties only; a nested field must not get one,
+    // not even one whose key collides with a top-level property name.
+    it("never puts a tick box on a nested field, including one whose name collides with a root property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-nested";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          tableName: { type: "string" },
+          group: {
+            type: "object",
+            properties: { tableName: { type: "string" }, value: { type: "string" } },
+          },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const decoratedTop = topLevel
+        .filter(f => f.props?.["toggleExposed"] !== undefined)
+        .map(f => f.key)
+        .sort();
+      expect(decoratedTop).toEqual(["group", "tableName"]);
+
+      // the nested tableName (same name as a root property) is not decorated
+      const nested = topLevel.find(f => f.key === "group")?.fieldGroup ?? [];
+      const nestedTableName = nested.find(f => f.key === "tableName");
+      expect(nestedTableName).toBeDefined();
+      expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
+    });
+
+    // Writing code is not "filling in a value", so a code-editor property is never offered for
+    // exposure; an ordinary property beside it still is.
+    it("does not offer exposure on a code-editor property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-code";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          code: { type: "string", description: "input your code here" },
+          limit: { type: "number" },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const codeField = topLevel.find(f => f.key === "code");
+      expect(codeField?.type).toBe("codearea");
+      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
+      // an ordinary property is still offered
+      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
+      expect(decorated).toEqual(["limit"]);
+    });
+  });
+
+  /**
+   * The spec's default TestBed swaps the template for a stub, so the collaborative title editor —
+   * the Quill instance the component mounts on `#customName` and the keyboard bindings it configures
+   * — is never built by anything above. This block renders the real template and drives that editor.
+   * It comes last in the file deliberately: Quill 2 has no `destroy()`, so each instance leaves a
+   * MutationObserver and document listeners behind for `fixture.destroy()` to detach, and it must not
+   * be combined with `fakeAsync` (zone.js patches MutationObserver).
+   */
+  describe("quill title editing", () => {
+    let quillFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let quillComponent: OperatorPropertyEditFrameComponent;
+    let texeraGraph: WorkflowGraph;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      quillFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      quillComponent = quillFixture.componentInstance;
+      // Downcast to the concrete graph: `getSharedOperatorType` is not on the readonly view.
+      texeraGraph = TestBed.inject(WorkflowActionService).getTexeraGraph() as WorkflowGraph;
+      quillFixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      quillFixture.destroy();
+    });
+
+    /** Opens the editor the only way a user can — the title section's edit button. */
+    function openEditorFromButton(): Y.Text {
+      const sharedOperator = new Y.Doc().getMap("operator");
+      quillComponent.currentOperatorId = mockScanPredicate.operatorID;
+      // `interactive` defaults to false, which renders the edit button disabled — a disabled button
+      // swallows the click silently and the editor would never mount.
+      quillComponent.interactive = true;
+      vi.spyOn(texeraGraph, "getSharedOperatorType").mockReturnValue(sharedOperator as any);
+      quillFixture.detectChanges();
+
+      quillFixture.debugElement.query(By.css("#formly-title button")).nativeElement.click();
+      quillFixture.detectChanges();
+
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
+      // The map genuinely lacked the key, so this Y.Text can only have come from the connect call.
+      const sharedTitle = sharedOperator.get("customDisplayName");
+      expect(sharedTitle).toBeInstanceOf(Y.Text);
+      return sharedTitle as Y.Text;
+    }
+
+    /**
+     * An operator display name is a single-line value, so the editor binds Enter to "commit and
+     * close" instead of letting Quill insert a newline. Everything typed here goes straight into the
+     * shared Y.Text, so a stray "\n" is published to every co-editor, persisted with the workflow,
+     * and read back on each later open. Quill 2 buckets keyboard bindings by `event.key` and runs its
+     * built-in `handleEnter` ahead of anything registered under the legacy `13` keycode, which is how
+     * the suppression stopped working when the frontend moved to Quill 2 (#8053). The template's
+     * `(keyup.enter)` closes the editor either way — a keydown-only press is what separates a working
+     * binding from a broken one, in both the text left behind and `editingTitle`.
+     */
+    const ENTER: KeyboardEventInit = { key: "Enter", keyCode: 13, which: 13 };
+
+    /**
+     * Quill's keydown listener returns early unless the editor `hasFocus()` and reports a selection,
+     * so both have to be real here — without them no binding runs at all and every assertion below
+     * would pass vacuously. `keyCode` / `which` mirror what a browser sends: Quill matches a binding
+     * on either, and jsdom's default of 0 would make a `13`-keyed binding unreachable rather than
+     * merely out-prioritised, hiding the very defect these tests pin.
+     */
+    function pressKey(caret: number, init: KeyboardEventInit): KeyboardEvent {
+      quillComponent.quill.root.focus();
+      quillComponent.quill.setSelection(caret, 0);
+      const keyPress = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+      quillComponent.quill.root.dispatchEvent(keyPress);
+      quillFixture.detectChanges();
+      return keyPress;
+    }
+
+    it("should show a remote rename in the mounted editor", () => {
+      const sharedTitle = openEditorFromButton();
+
+      sharedTitle.insert(0, "renamed remotely");
+
+      // Without this the keyboard tests below could pass against an editor wired to nothing.
+      expect((document.getElementById("customName") as HTMLElement).textContent).toContain("renamed remotely");
+    });
+
+    it("should commit the rename on Enter without appending a newline to the shared name", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      // `editingTitle` is what proves the editor's own binding ran: no keyup was dispatched, so the
+      // template's fallback cannot be the thing that closed the editor.
+      expect(quillComponent.editingTitle).toBe(false);
+      expect(quillComponent.quillBinding).toBeUndefined();
+    });
+
+    it("should not split the shared name when Enter is pressed mid-word", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(3, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave an untouched name empty when Enter commits it", () => {
+      const sharedTitle = openEditorFromButton();
+
+      pressKey(0, ENTER);
+
+      // The empty document is the case Quill's own handler turns into a lone "\n" — a display name
+      // that reads as blank but is no longer equal to the empty string it started as.
+      expect(sharedTitle.toString()).toBe("");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should commit on Shift+Enter without appending a newline either", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, { ...ENTER, shiftKey: true });
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave ordinary typing alone", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      const keyPress = pressKey(sharedTitle.length, { key: "a", keyCode: 65, which: 65 });
+
+      // Suppressing Enter must not become suppressing the keyboard: an ordinary character is left
+      // for the browser to insert, and the editor stays open so the rename can continue.
+      expect(keyPress.defaultPrevented).toBe(false);
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
+    });
+  });
+>>>>>>> 2db7db0c1 (fix(frontend): suppress newline on Enter in title editors (#8055))
 });
