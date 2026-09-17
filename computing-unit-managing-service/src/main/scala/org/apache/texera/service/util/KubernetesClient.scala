@@ -126,7 +126,9 @@ class KubernetesClient(
       memoryLimit: String,
       gpuLimit: String,
       envVars: Map[String, Any],
-      shmSize: Option[String] = None
+      shmSize: Option[String] = None,
+      /** A curated image to run instead of the deployment's own. */
+      curatedImage: Option[String] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
@@ -192,13 +194,30 @@ class KubernetesClient(
     val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
-      .withImage(KubernetesConfig.computeUnitImageName)
+      .withImage(curatedImage.getOrElse(KubernetesConfig.computeUnitImageName))
       .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()
       .withEnv(envList)
       .withResources(resourceBuilder.build())
+
+    // A curated image was supplied by an administrator and reviewed by nobody, so a unit
+    // started from one is pinned to a non-root user with no way to regain privilege.
+    //
+    // Curated images only. The deployment's own image is its operator's choice, and one
+    // that has replaced it with an image needing root would break on upgrade.
+    if (curatedImage.isDefined && KubernetesConfig.computingUnitRunAsNonRoot) {
+      containerBuilder
+        .withNewSecurityContext()
+        .withRunAsNonRoot(true)
+        .withRunAsUser(KubernetesConfig.computingUnitRunAsUser)
+        .withAllowPrivilegeEscalation(false)
+        .withNewCapabilities()
+        .withDrop("ALL")
+        .endCapabilities()
+        .endSecurityContext()
+    }
 
     // The FUSE mount is performed by the per-node texera-mounter (privileged), not here,
     // so this pod stays UNPRIVILEGED. It only *receives* the mount via HostToContainer

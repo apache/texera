@@ -153,6 +153,12 @@ describe("PowerButtonComponent", () => {
       ],
     }).compileComponents();
 
+    // Selecting a unit now remembers it per workflow in localStorage, which survives
+    // between tests and would let one spec's selection steer another's auto-select.
+    Object.keys(localStorage)
+      .filter(key => key.startsWith("computing-unit-of-workflow-"))
+      .forEach(key => localStorage.removeItem(key));
+
     fixture = TestBed.createComponent(ComputingUnitSelectionComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -1357,6 +1363,191 @@ describe("PowerButtonComponent", () => {
 
       expect(selectSpy).not.toHaveBeenCalled();
     });
+
+    it("drops a latest-execution answer that arrives after the workflow changed underneath it", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const late$ = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
+        wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      emit(101); // decides at once from its own latest execution
+      late$.next({ cuId: 55 } as unknown as WorkflowExecutionsEntry);
+
+      expect(selectSpy).toHaveBeenCalledWith(101, 9);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    it("drops the running-unit fallback when the failed lookup was for a workflow no longer shown", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const late$ = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
+        wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      comp.allComputingUnits = [makeComputingUnit({ cuid: 2, status: "Running" })];
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      emit(101);
+      late$.error(new Error("no execution"));
+
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 2);
+      expect(selectSpy).toHaveBeenCalledTimes(1); // 101's own decision only
+    });
+
+    it("prefers the remembered unit for this workflow over the latest execution", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const latestSpy = vi
+        .spyOn(execService, "retrieveLatestWorkflowExecution")
+        .mockReturnValue(of({ cuId: 55 } as unknown as WorkflowExecutionsEntry));
+      const { comp, emit } = bootWithMetaStream();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(
+        of([makeComputingUnit({ cuid: 77, status: "Running" })])
+      );
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 77);
+      expect(latestSpy).not.toHaveBeenCalled();
+    });
+
+    // A remembered unit that has since been terminated must not be chased: the status service
+    // would wait for it to appear forever and the fallbacks would never run.
+    it("forgets a remembered unit that no longer exists and uses the latest execution", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(
+        of([makeComputingUnit({ cuid: 55, status: "Running" })])
+      );
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBeNull();
+    });
+
+    it("still falls back when forgetting the stale unit throws", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(
+        of([makeComputingUnit({ cuid: 55, status: "Running" })])
+      );
+      // Only the component's one removeItem call throws; the storage keeps working for the
+      // afterEach clean-up and the tests that follow.
+      const removeSpy = vi.spyOn(Storage.prototype, "removeItem").mockImplementationOnce(() => {
+        throw new Error("storage unavailable");
+      });
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      expect(() => emit(100)).not.toThrow();
+
+      expect(removeSpy).toHaveBeenCalledWith("computing-unit-of-workflow-100");
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+      removeSpy.mockRestore();
+    });
+
+    // Deciding on an empty list would throw the choice away before the list has loaded, so the
+    // decision waits for the first non-empty list.
+    it("waits for the unit list before honouring a remembered unit", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      const latestSpy = vi.spyOn(execService, "retrieveLatestWorkflowExecution");
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      units$.next([]);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+      expect(latestSpy).not.toHaveBeenCalled();
+
+      units$.next([makeComputingUnit({ cuid: 77, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 77);
+    });
+
+    it("drops a pending remembered decision once the workflow has changed underneath it", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      // Workflow 101 has nothing remembered, so it decides at once from its latest execution.
+      emit(101);
+      units$.next([makeComputingUnit({ cuid: 77, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(101, 55);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 77);
+    });
+
+    it("does not carry a remembered unit across workflows", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      comp.allComputingUnits = [makeComputingUnit({ cuid: 77, status: "Running" })];
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(101);
+
+      expect(selectSpy).toHaveBeenCalledWith(101, 55);
+    });
+
+    // Number() is lenient enough to turn several kinds of junk into a "valid" cuid.
+    ["0", "-3", "1.5", "", "  "].forEach(stored => {
+      it(`ignores a remembered value of ${JSON.stringify(stored)}`, () => {
+        localStorage.setItem("computing-unit-of-workflow-100", stored);
+        const execService = TestBed.inject(WorkflowExecutionsService);
+        vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+          of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+        );
+        const { comp, emit } = bootWithMetaStream();
+        const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+        emit(100);
+
+        expect(selectSpy).toHaveBeenCalledWith(100, 55);
+      });
+    });
+
+    it("ignores a corrupt remembered value", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "not-a-number");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
   });
 
   describe("selectComputingUnit guards", () => {
@@ -2198,6 +2389,52 @@ describe("PowerButtonComponent", () => {
       pveModal!.triggerEventHandler("nzOnCancel", undefined);
 
       expect(component.pveModalVisible).toBe(false);
+    });
+  });
+
+  describe("remembering the selected unit per workflow", () => {
+    const unit77 = { computingUnit: { cuid: 77 } } as unknown as DashboardWorkflowComputingUnit;
+
+    it("writes the user's own pick so the other view of the same workflow restores it", () => {
+      component.workflowId = 100;
+      const select = vi.spyOn(component, "selectComputingUnit");
+
+      component.onPickComputingUnit(unit77);
+
+      expect(select).toHaveBeenCalledWith(100, 77);
+      expect(component.selectedComputingUnit).toBe(unit77);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBe("77");
+    });
+
+    it("does not remember a unit selected on load, which is derived rather than chosen", () => {
+      // The remembered unit, the last execution's or a running one are picked FOR the user; storing
+      // them would let a derived unit outrank a fresher last execution on the next load.
+      component.selectComputingUnit(100, 77);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBeNull();
+    });
+
+    it("does not record a pick the component refused to make", () => {
+      component.workflowId = DEFAULT_WORKFLOW.wid;
+      component.onPickComputingUnit(unit77);
+      expect(localStorage.getItem(`computing-unit-of-workflow-${DEFAULT_WORKFLOW.wid}`)).toBeNull();
+      component.workflowId = 100;
+      component.onPickComputingUnit({ computingUnit: {} } as unknown as DashboardWorkflowComputingUnit);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBeNull();
+    });
+
+    it("skips remembering when there is no workflow to remember it for", () => {
+      const setItem = vi.spyOn(Storage.prototype, "setItem");
+      (component as any).rememberComputingUnit(undefined, 5);
+      expect(setItem).not.toHaveBeenCalled();
+      setItem.mockRestore();
+    });
+
+    it("recalls nothing when storage cannot be read", () => {
+      const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("storage blocked");
+      });
+      expect((component as any).recallComputingUnit(100)).toBeUndefined();
+      getItem.mockRestore();
     });
   });
 });
