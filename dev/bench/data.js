@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789564201017,
+  "lastUpdate": 1789649524725,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14237,6 +14237,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 462.9035363627748,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "carloea2",
+            "username": "carloea2",
+            "email": "carloea2@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "471e53cfc1d5f96748a7ec6b7563561239229e5e",
+          "message": "fix(pyamber): preserve channel marker ports (#8432)\n\n### What changes were proposed in this PR?\n\nBind channel markers to the input port resolved by their control\nhandler. Lifecycle callbacks use that port instead of the last data\ntuple's port. Reject invalid markers before entering the executor.\n\n### Any related issues, documentation, discussions?\n\nRelated to #8319.\n\n### How was this PR tested?\n\nFrom amber, on Python 3.12:\n\n```text\npython -m pytest --tb=short -q src/test/python/core/architecture/handlers/control/test_channel_marker_handlers.py src/test/python/core/runnables/test_data_processor.py src/test/python/core/runnables/test_main_loop.py\n66 passed\npython -m ruff check src/main/python src/test/python\nAll checks passed\npython -m ruff format --check src/main/python src/test/python\n215 files already formatted\n```\n\nThe new handler-to-processor cases cover an empty port 1 finishing after\na tuple on port 0, and port 1 starting before any tuple. Both fail when\nmarker routing is reverted to the current data port. Invalid-marker\ntests failed before adding the type guard.\n\nThe full run, `python -m pytest --tb=no -q`, finished with 1320 passed,\n1 xfailed, and 1 failed. The failure is the unchanged\n`test_rest_catalog_round_trip` integration test, which targets a\nLakekeeper service at localhost:8181. The full suite is not green.\nExcluding integration tests, `python -m pytest --tb=no -q -m \"not\nintegration\"` passes: 1320 passed, 1 deselected, 1 xfailed.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: OpenAI Codex\n\nCo-authored-by: Meng Wang <mengw15@uci.edu>",
+          "timestamp": "2026-09-17T05:46:12Z",
+          "url": "https://github.com/apache/texera/commit/471e53cfc1d5f96748a7ec6b7563561239229e5e"
+        },
+        "date": 1789649524179,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 852.5648154941038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1571.4187664489339,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1710.543200727961,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1086.429903185211,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1591.277524023399,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1716.4275660989542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1180.641385888618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1636.8484986111864,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1706.2851249615087,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 986.9095731934966,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1324.4153014056303,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1371.950983146582,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1000.6916840961974,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1314.8133897859752,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1372.29123917062,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 992.017138389656,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1307.8351748925338,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1331.686433587014,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 624.3012831744361,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 751.5021708318184,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 762.492154166801,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 623.7460902519101,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 747.4973946909877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 752.6071644668115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 586.0946600811488,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 696.6328816168907,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 708.8104926489683,
             "unit": "tuples/sec"
           }
         ]
