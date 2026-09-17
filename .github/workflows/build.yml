@@ -385,7 +385,7 @@ jobs:
     # slow macOS runner without masking a real hang.
     timeout-minutes: 25
     strategy:
-      # macOS provisions postgres / minio / lakekeeper natively because
+      # macOS provisions postgres / rustfs / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
       # containers are Linux-only). Each docker-dependent step below
       # branches on $RUNNER_OS inside its `run:` script: Linux keeps
@@ -508,30 +508,34 @@ jobs:
         run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Start MinIO
-        # Linux uses the pinned docker image; macOS uses brew's native
-        # arm64 binary, backgrounded via nohup and logged to /tmp/minio.log
-        # for post-mortem if the curl health check below fails. The brew
-        # version drifts from the Linux pin, but the tests only touch
-        # S3-protocol surface that has been stable across releases.
+      - name: Start RustFS
+        # Linux uses the pinned docker image; macOS downloads the
+        # same-version aarch64 zip that upstream publishes alongside it,
+        # backgrounded via nohup and logged to /tmp/rustfs.log for
+        # post-mortem if the curl health check below fails.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            docker run -d --name minio --network host \
-              -e MINIO_ROOT_USER=texera_minio \
-              -e MINIO_ROOT_PASSWORD=password \
-              minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+            docker run -d --name rustfs --network host \
+              -e RUSTFS_ACCESS_KEY=texera_rustfs \
+              -e RUSTFS_SECRET_KEY=password \
+              -e RUSTFS_REGION=us-west-2 \
+              rustfs/rustfs:1.0.0-rc.6
           else
-            brew install minio/stable/minio
-            mkdir -p /tmp/minio-data
-            MINIO_ROOT_USER=texera_minio MINIO_ROOT_PASSWORD=password \
-              nohup minio server /tmp/minio-data > /tmp/minio.log 2>&1 &
+            curl -sSfL -o /tmp/rustfs.zip \
+              https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0-rc.6.zip
+            unzip -q -o /tmp/rustfs.zip -d /tmp/rustfs-bin
+            chmod +x /tmp/rustfs-bin/rustfs
+            mkdir -p /tmp/rustfs-data
+            RUSTFS_ACCESS_KEY=texera_rustfs RUSTFS_SECRET_KEY=password \
+              RUSTFS_REGION=us-west-2 RUSTFS_ADDRESS=:9000 \
+              nohup /tmp/rustfs-bin/rustfs /tmp/rustfs-data > /tmp/rustfs.log 2>&1 &
           fi
           for i in $(seq 1 15); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            echo "Waiting for MinIO... (attempt $i)"
+            curl -sf http://localhost:9000/health && break
+            echo "Waiting for RustFS... (attempt $i)"
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live
+          curl -sf http://localhost:9000/health
       - name: Start Lakekeeper
         # Linux uses the v0.11.0 docker image; macOS downloads the
         # same-version aarch64-apple-darwin tarball that upstream
@@ -608,18 +612,14 @@ jobs:
           LAKEKEEPER_BASE=${REST_URI%/catalog}
           LAKEKEEPER_BASE=${LAKEKEEPER_BASE%/}
 
-          # bucket creation runs through `mc`; on Linux we keep the
-          # minio/mc image, on macOS we use the brew-installed native CLI
-          # since docker is unavailable.
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            docker run --rm --network host --entrypoint sh minio/mc -c \
-              "mc alias set minio $S3_ENDPOINT $S3_USERNAME $S3_PASSWORD && \
-               mc mb --ignore-existing minio/$S3_BUCKET"
-          else
-            brew install minio-mc
-            mc alias set minio "$S3_ENDPOINT" "$S3_USERNAME" "$S3_PASSWORD"
-            mc mb --ignore-existing "minio/$S3_BUCKET"
-          fi
+          # Bucket creation goes through the AWS CLI, which is preinstalled on
+          # both the Linux and macOS runner images -- so unlike the rest of this
+          # job it needs no $RUNNER_OS branch. CreateBucket on an existing bucket
+          # is a no-op on RustFS, which keeps re-runs idempotent.
+          AWS_ACCESS_KEY_ID="$S3_USERNAME" \
+          AWS_SECRET_ACCESS_KEY="$S3_PASSWORD" \
+          AWS_DEFAULT_REGION="$S3_REGION" \
+            aws s3api create-bucket --bucket "$S3_BUCKET" --endpoint-url "$S3_ENDPOINT"
           curl -sf -X POST -H 'Content-Type: application/json' \
             -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
             "$LAKEKEEPER_BASE/management/v1/project" || true
@@ -1004,23 +1004,24 @@ jobs:
         run: |
           mkdir -p /tmp/dists
           unzip -q ${{ matrix.service }}/target/universal/${{ matrix.service }}-*.zip -d /tmp/dists/
-      - name: Start MinIO
+      - name: Start RustFS
         # file-service's boot creates its S3 bucket via S3StorageClient; only
         # that service needs an object store, so the rest of the matrix skips this.
         if: ${{ matrix.object_store && steps.module_check.outputs.present == 'true' }}
         run: |
-          docker run -d --name minio --network host \
-            -e MINIO_ROOT_USER=texera_minio \
-            -e MINIO_ROOT_PASSWORD=password \
-            minio/minio:RELEASE.2025-02-28T09-55-16Z server /data
+          docker run -d --name rustfs --network host \
+            -e RUSTFS_ACCESS_KEY=texera_rustfs \
+            -e RUSTFS_SECRET_KEY=password \
+            -e RUSTFS_REGION=us-west-2 \
+            rustfs/rustfs:1.0.0-rc.6
           for i in $(seq 1 15); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            echo "Waiting for MinIO... (attempt $i)"; sleep 1
+            curl -sf http://localhost:9000/health && break
+            echo "Waiting for RustFS... (attempt $i)"; sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live
+          curl -sf http://localhost:9000/health
       - name: Start LakeFS
         # lakeFS keeps its metadata in the texera_lakefs postgres DB (created
-        # above) and uses MinIO as its S3 blockstore. file-service's boot calls
+        # above) and uses RustFS as its S3 blockstore. file-service's boot calls
         # LakeFSStorageClient.healthCheck(), so this must be up for it to reach a
         # listening state. Config mirrors bin/single-node (compose + .env),
         # adapted to CI creds (postgres/postgres @ localhost).
@@ -1032,7 +1033,7 @@ jobs:
             -e LAKEFS_BLOCKSTORE_TYPE=s3 \
             -e LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true \
             -e LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://localhost:9000 \
-            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio \
+            -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_rustfs \
             -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password \
             -e LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs \
             --entrypoint /bin/sh \

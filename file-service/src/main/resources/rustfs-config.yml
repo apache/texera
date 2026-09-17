@@ -18,15 +18,20 @@
 version: '3.8'
 
 services:
-  minio:
-    image: minio/minio:latest
-    container_name: minio
+  rustfs:
+    image: rustfs/rustfs:1.0.0-rc.6
+    container_name: rustfs
     ports:
-      - "9500:9000"   # MinIO API
-      - "9501:9001"   # MinIO Console UI
+      - "9500:9000"   # S3 API
+      - "9501:9001"   # Console UI
     environment:
-      - MINIO_ROOT_USER=texera_minio
-      - MINIO_ROOT_PASSWORD=password
+      - RUSTFS_ACCESS_KEY=texera_rustfs
+      - RUSTFS_SECRET_KEY=password
+      - RUSTFS_REGION=us-west-2
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
     volumes:
-      - /Users/baijiadong/Desktop/chenlab/texera/core/file-service/src/main/user-resources/minio:/data
-    command: server --console-address ":9001" /data
+      - rustfs_data:/data
+
+volumes:
+  rustfs_data:
