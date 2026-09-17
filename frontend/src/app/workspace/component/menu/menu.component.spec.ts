@@ -45,7 +45,7 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import { saveAs } from "file-saver";
+import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
@@ -56,8 +56,6 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
-
-vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -112,11 +110,122 @@ describe("MenuComponent", () => {
     fixture = TestBed.createComponent(MenuComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    vi.mocked(saveAs).mockClear();
   });
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  it("does not open the Form View for a workflow that has not been saved yet", () => {
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: undefined } as any);
+    const href = window.location.href;
+
+    component.onClickOpenFormView();
+
+    expect(window.location.href).toBe(href);
+  });
+
+  it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {
+    // After "new workflow" the canvas holds the default workflow (wid 0); the switch's save creates
+    // it, and the page to open is the created one, not /workflow/0/form.
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 0 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 42, name: "created" } as any));
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(navigate).toHaveBeenCalledWith(42);
+  });
+
+  it("saves, then hands over to the Form View only once the save has completed", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const saved = { wid: 7, name: "saved" } as any;
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved));
+    const metadataSpy = vi
+      .spyOn(component["workflowActionService"], "setWorkflowMetadata")
+      .mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    // The navigation unloads the document and aborts anything still in flight, so it must wait for
+    // the save's completion rather than be fired right after the request.
+    expect(persistSpy).toHaveBeenCalled();
+    expect(metadataSpy).toHaveBeenCalledWith(saved);
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("stays on the canvas and reports the error when the save before the switch fails", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(throwError(() => new Error("nope")));
+    const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    // Leaving would take the user away from changes that were never stored.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith("Could not save. Your latest changes are not stored yet.");
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("saves once more when an edit lands while the switch's save is out, then hands over", () => {
+    // The page stays editable until the full-page load; an edit made after the click is not in the
+    // save's snapshot and its own autosave (debounced) would be aborted by the load. workflowChanged
+    // marks it, and the hand-over saves again before leaving.
+    const edits = new Subject<unknown>();
+    vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+    component.ngOnInit();
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const first$ = new Subject<any>();
+    const second$ = new Subject<any>();
+    const persistSpy = vi
+      .spyOn(workflowPersistService, "persistWorkflow")
+      .mockReturnValueOnce(first$)
+      .mockReturnValueOnce(second$);
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    edits.next(undefined); // an edit while the first save is out
+    first$.complete();
+
+    expect(persistSpy).toHaveBeenCalledTimes(2); // saved once more
+    expect(navigate).not.toHaveBeenCalled();
+    second$.complete();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("ignores a second click while the hand-over is already in progress", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(new Subject<any>());
+    vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    component.onClickOpenFormView();
+
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes a reader straight over without a save, which they could not make", () => {
+    // Every save of a reader's is a 403 that would keep them on the canvas with an error.
+    component.writeAccess = false;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow");
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(persistSpy).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(7);
   });
 
   describe("getRunButtonBehavior", () => {
@@ -525,6 +634,9 @@ describe("MenuComponent", () => {
 
   describe("onClickExportWorkflow (save)", () => {
     it("serializes the workflow content as JSON and downloads it under the workflow name", () => {
+      // Stubbed on the injected wrapper rather than by module-mocking file-saver: that CommonJS
+      // mock is order-sensitive under the unit-test builder and was failing on the Windows leg.
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
       const fakeContent = {
         operators: [{ operatorID: "op1" }],
         links: [],
@@ -537,10 +649,48 @@ describe("MenuComponent", () => {
       component.onClickExportWorkflow();
 
       expect(saveAs).toHaveBeenCalledTimes(1);
-      const [blobArg, fileNameArg] = vi.mocked(saveAs).mock.calls[0] as [Blob, string];
+      const [blobArg, fileNameArg] = saveAs.mock.calls[0] as [Blob, string];
       expect(fileNameArg).toBe("my-workflow.json");
       expect(blobArg).toBeInstanceOf(Blob);
       expect(blobArg.type).toBe("text/plain;charset=utf-8");
+    });
+
+    // Blob.text() is missing in jsdom, but FileReader.readAsText works.
+    const readBlob = (blob: Blob) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(blob);
+      });
+
+    it("carries the workflow's default view next to the content, as the dashboard download does", async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue({
+        operators: [],
+        links: [],
+      } as unknown as WorkflowContent);
+      vi.spyOn(workflowActionService, "getWorkflowMetadata").mockReturnValue({ wid: 7, defaultView: "FORM" } as any);
+
+      component.onClickExportWorkflow();
+
+      const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
+      expect(parsed.defaultView).toBe("FORM");
+      expect(parsed.operators).toEqual([]);
+    });
+
+    it("leaves the key out when the workflow has no default view", async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue({
+        operators: [],
+        links: [],
+      } as unknown as WorkflowContent);
+      vi.spyOn(workflowActionService, "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+
+      component.onClickExportWorkflow();
+
+      const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
+      expect("defaultView" in parsed).toBe(false);
     });
   });
 
@@ -1166,6 +1316,38 @@ describe("MenuComponent", () => {
     afterEach(() => {
       fixture.destroy();
       vi.restoreAllMocks();
+    });
+
+    describe("view switch", () => {
+      const flag = (formViewEnabled: boolean) =>
+        (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ formViewEnabled });
+
+      it("shows Canvas pressed and hands Form View to onClickOpenFormView, only with the flag on", () => {
+        flag(false);
+        fixture.detectChanges();
+        expect(q(".view-switch")).toBeNull();
+
+        flag(true);
+        fixture.detectChanges();
+        const open = vi.spyOn(component, "onClickOpenFormView").mockImplementation(() => {});
+        const buttons = fixture.debugElement.queryAll(By.css(".view-switch button"));
+        expect(buttons.map(b => (b.nativeElement.textContent ?? "").trim())).toEqual(["Canvas", "Form View"]);
+        // The current view is the pressed segment: announced as such, and a live button on purpose.
+        expect(buttons[0].nativeElement.getAttribute("aria-pressed")).toBe("true");
+        expect(buttons[0].nativeElement.classList.contains("on")).toBe(true);
+        expect(buttons[1].nativeElement.getAttribute("aria-pressed")).toBe("false");
+        buttons[1].triggerEventHandler("click", null);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+
+      it("hides the switch while an older version is displayed", () => {
+        flag(true);
+        component.displayParticularWorkflowVersion = true;
+        fixture.detectChanges();
+
+        // A past version has no form to switch to.
+        expect(q(".view-switch")).toBeNull();
+      });
     });
 
     describe("version display bar", () => {

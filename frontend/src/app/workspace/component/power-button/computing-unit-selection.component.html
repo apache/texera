@@ -113,7 +113,7 @@
           'unit-connecting': unit.status === 'Pending',
         }"
         [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
-        (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
+        (click)="onPickComputingUnit(unit)">
         <div class="computing-unit-row">
           <texera-user-avatar
             [avatar]="unit.ownerAvatar"

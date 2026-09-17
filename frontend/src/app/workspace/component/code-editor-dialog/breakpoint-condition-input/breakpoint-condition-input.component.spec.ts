@@ -178,6 +178,37 @@ describe("BreakpointConditionInputComponent", () => {
     });
   });
 
+  describe("the condition textarea", () => {
+    const textarea = (): HTMLTextAreaElement => fixture.nativeElement.querySelector("textarea.condition-textarea");
+
+    it("carries the current condition into the textarea", async () => {
+      component.condition = "x > 1";
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(textarea().value).toBe("x > 1");
+    });
+
+    it("saves what the user types, not what the class was holding", async () => {
+      // Every other test in this file writes `condition` from the class side, so the *inbound*
+      // half of the two-way binding is all that is pinned: downgrade the template to a one-way
+      // [ngModel] and the whole suite stays green while the popup silently discards every
+      // keystroke. Drive a real input event and then let the save path read it back.
+      component.condition = "stale";
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      textarea().value = " y != 2 ";
+      textarea().dispatchEvent(new Event("input"));
+
+      expect(component.condition).toBe(" y != 2 ");
+
+      component.handleEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(mockUdfDebugService.doUpdateBreakpointCondition).toHaveBeenCalledWith("test-operator", 1, "y != 2");
+    });
+  });
+
   describe("visibility", () => {
     it("is visible only while a line is targeted", () => {
       // The template keys its *ngIf on this, so an inverted getter leaves the popup stuck open.

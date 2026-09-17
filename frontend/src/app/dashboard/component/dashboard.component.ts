@@ -39,6 +39,7 @@ import {
   USER_DISCUSSION,
   USER_PYTHON_VENV,
   USER_QUOTA,
+  USER_WAREHOUSE,
   USER_WORKFLOW,
   USER_FEEDBACK,
   LOGIN,
@@ -103,6 +104,7 @@ export class DashboardComponent implements OnInit {
     home_enabled: false,
     workflow_enabled: false,
     dataset_enabled: false,
+    model_enabled: false,
     your_work_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
@@ -119,6 +121,7 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_MODEL = USER_MODEL;
   protected readonly MODEL_ICON = MODEL_ICON;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
+  protected readonly USER_WAREHOUSE = USER_WAREHOUSE;
   protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
   protected readonly USER_DISCUSSION = USER_DISCUSSION;

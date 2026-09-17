@@ -199,6 +199,20 @@ describe("WorkflowGraph", () => {
     expect(operator.operatorProperties).toEqual(testProperty);
   });
 
+  // The property panel clears a field by sending the properties without it, so a
+  // key left out has to be dropped here. Retaining it leaves the operator running
+  // on a value the user removed and the panel no longer shows.
+  it("should drop a property the new object leaves out", () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "testTable", limit: 5 });
+
+    workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "testTable" });
+
+    expect(workflowGraph.getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual({
+      tableName: "testTable",
+    });
+  });
+
   it("should throw an error when trying to set the property of an nonexist operator", () => {
     expect(() => {
       const testProperty = { tableName: "testTable" };

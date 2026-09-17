@@ -102,6 +102,15 @@ describe("rawMetricForView", () => {
     const idle = makeMetrics({ inputRows: 0, outputRows: 0 });
     expect(rawMetricForView(idle, HeatmapView.IoImbalance)).toBeUndefined();
   });
+
+  it("reports no raw metric for a view it does not know", () => {
+    // The view is persisted (localStorage), so an unknown value can survive a release.
+    // It has to read as not-measurable rather than as 0: 0 is a real cost that would
+    // paint the operator coldest and anchor the scale minimum, which is exactly the
+    // confusion the undefined/zero split above exists to prevent.
+    const m = makeMetrics({ dataProcessingTimeNs: 5_000_000, inputRows: 10, outputRows: 4 });
+    expect(rawMetricForView(m, "bogus" as HeatmapView)).toBeUndefined();
+  });
 });
 
 describe("normalizeScores", () => {
@@ -176,6 +185,16 @@ describe("formatMetricForView", () => {
   it("renders a not-measurable (undefined) value as — so it is distinct from a genuine zero", () => {
     expect(formatMetricForView(undefined, HeatmapView.TimePerRow)).toBe("—");
     expect(formatMetricForView(undefined, HeatmapView.IoImbalance)).toBe("—");
+  });
+
+  it("stringifies a value for a view it does not know, rather than blanking it", () => {
+    // No caller can reach this arm: both of them (workflow-editor and heatmap-legend) derive
+    // the value from rawMetricForView for the same view, and that returns undefined for
+    // exactly the views that land here — so an unknown view blanks out at the guard above
+    // instead. The arm is pinned for its own sake, as the total-function fallback it is: the
+    // em dash is reserved for not-measurable, so it must not borrow it. A non-integer is
+    // deliberate — with 42 the plain stringification is indistinguishable from rounding it.
+    expect(formatMetricForView(42.5, "bogus" as HeatmapView)).toBe("42.5");
   });
 });
 

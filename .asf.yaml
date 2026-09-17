@@ -69,19 +69,35 @@ github:
     rebase: false
 
   rulesets:
-    - name: Merge Queue
+    # Rule-for-rule identical to "Merge Queue" below; split out so the bypass
+    # here stays off main. The bypass exempts actions performed as the GitHub
+    # Actions app — i.e. any workflow's GITHUB_TOKEN, which is what
+    # direct-backport-push.yml's fast path pushes with (#8377). It cannot be
+    # scoped to a single workflow. People and PATs still face every rule.
+    #
+    # Listed BEFORE "Merge Queue" deliberately: asfyaml applies rulesets in
+    # file order, so this one is created before that one stops covering the
+    # release branches. If GitHub rejects this ruleset, the apply aborts with
+    # the old protections fully intact; the failure order never leaves the
+    # release branches uncovered.
+    - name: "Merge Queue (release)"
       target: branch
       enforcement: active
       conditions:
         ref_name:
           exclude: []
           include:
-            - "~DEFAULT_BRANCH"
             # Merge queue rules do NOT support wildcard ref patterns, so
             # release branches must be listed explicitly (not release/*).
             # Add each release line here as it is cut.
             - "refs/heads/release/v1.1"
             - "refs/heads/release/v1.2"
+            - "refs/heads/release/v1.3"
+      bypass_actors:
+        # The GitHub Actions app.
+        - actor_id: 15368
+          actor_type: Integration
+          bypass_mode: always
       rules:
         - type: deletion
         - type: non_fast_forward
@@ -111,6 +127,78 @@ github:
               - context: Required Checks
               - context: Check License Headers
               - context: Validate PR title
+
+    - name: Merge Queue
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            # Release branches carry these same rules in "Merge Queue
+            # (release)" above — a separate ruleset because its Actions
+            # bypass must not extend to main.
+            - "~DEFAULT_BRANCH"
+      rules:
+        - type: deletion
+        - type: non_fast_forward
+        - type: merge_queue
+          parameters:
+            merge_method: SQUASH
+            max_entries_to_build: 2
+            min_entries_to_merge: 2
+            max_entries_to_merge: 5
+            min_entries_to_merge_wait_minutes: 3
+            grouping_strategy: HEADGREEN
+            check_response_timeout_minutes: 45
+        - type: pull_request
+          parameters:
+            allowed_merge_methods:
+              - squash
+            dismiss_stale_reviews_on_push: false
+            require_code_owner_review: false
+            require_last_push_approval: false
+            required_approving_review_count: 1
+            required_review_thread_resolution: true
+        - type: required_linear_history
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: Required Checks
+              - context: Check License Headers
+              - context: Validate PR title
+              # `Backport Approvals` deliberately does NOT belong here — it
+              # lives in its own default-branch-only ruleset below. Adding it
+              # to this list strands every open PR into a release branch, since
+              # the workflow producing it exists only on the default branch.
+
+    # Kept out of the Merge Queue ruleset above, which also covers the release
+    # branches: `backport-approval-check.yml` only exists on the default branch,
+    # and a `pull_request` run takes its workflows from the merge ref — so for a
+    # PR into release/vX.Y the check has no producer, the context never appears,
+    # and the PR waits on it forever. It has nothing to say there either: a PR
+    # already targeting a release branch is itself a backport and reports
+    # success. Scoping it to the default branch is what makes it enforceable
+    # without stranding every open backport PR.
+    - name: "Backport Approvals"
+      target: branch
+      enforcement: active
+      conditions:
+        ref_name:
+          exclude: []
+          include:
+            - "~DEFAULT_BRANCH"
+      rules:
+        # Every release/* label must be approved by that branch's release
+        # manager before the merge, so a merged PR's labels are exactly the
+        # branches it was backported to
+        # (.github/workflows/backport-approval-check.yml).
+        - type: required_status_checks
+          parameters:
+            strict_required_status_checks_policy: false
+            required_status_checks:
+              - context: Backport Approvals
 
     - name: "Default Branch Protection"
       type: branch

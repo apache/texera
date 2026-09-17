@@ -59,7 +59,7 @@ export class SearchService {
    * @param params - Additional search filter parameters.
    * @param start - The starting index for paginated results.
    * @param count - The number of results to retrieve.
-   * @param type - The type of resource to search for ("workflow", "dataset", "file", or null (all resource type)).
+   * @param type - The type of resource to search for ("workflow", "dataset", "file", "model", or null (all resource type)).
    * @param orderBy - Specifies the sorting method.
    * @param isLogin - Indicates if the user is logged in.
    *    - `isLogin = true`: Use the authenticated search endpoint, retrieving both user-accessible and public resources based on `includePublic`.
@@ -73,7 +73,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "file" | "dataset" | null,
+    type: "workflow" | "file" | "dataset" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean = false
@@ -106,7 +106,9 @@ export class SearchService {
           // and the search bar are unaffected. Not corrected here: that belongs in the
           // `LoadMoreFunction` contract shared by all five callers of `SearchResultsComponent.reset`,
           // and removing the backend half (#7461) ends the only condition that produces such rows.
-          results: result.results.filter(item => item.workflow != null || item.file != null || item.dataset != null),
+          results: result.results.filter(
+            item => item.workflow != null || item.file != null || item.dataset != null || item.model != null
+          ),
         }))
       );
   }
@@ -132,7 +134,7 @@ export class SearchService {
    * @param params        Additional search filter parameters.
    * @param start         The starting index for paginated results.
    * @param count         The number of results to retrieve.
-   * @param type          The type of resource to search for ("workflow", "dataset", "file", or null (all resource type)).
+   * @param type          The type of resource to search for ("workflow", "dataset", "file", "model", or null (all resource type)).
    * @param orderBy       Specifies the sorting method.
    * @param isLogin       Indicates if the user is logged in.
    * @param includePublic Specifies whether to include public resources in the search results.
@@ -147,16 +149,21 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "dataset" | "file" | null,
+    type: "workflow" | "dataset" | "file" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
   ): Observable<SearchResultBatch> {
     return this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic).pipe(
       switchMap(results => {
-        const hasMismatch = type === "dataset" ? results.hasMismatch ?? false : undefined;
-        const filteredResults =
-          type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
+        // A dataset or model whose repository is gone comes back with no payload; the backend flags
+        // that as a mismatch and the row is dropped here.
+        const mismatchable = type === "dataset" || type === "model";
+        const payloadOf = (i: SearchResultItem) => (type === "dataset" ? i.dataset : i.model);
+        const hasMismatch = mismatchable ? results.hasMismatch ?? false : undefined;
+        const filteredResults = mismatchable
+          ? results.results.filter(i => i !== null && payloadOf(i) != null)
+          : results.results;
 
         return this.extendSearchResultsWithHubActivityInfo(filteredResults, isLogin).pipe(
           map(entries => ({
@@ -194,6 +201,7 @@ export class SearchService {
     items.forEach(i => {
       if (i.workflow) userIds.add(i.workflow.ownerId);
       else if (i.dataset?.dataset?.ownerUid != null) userIds.add(i.dataset.dataset.ownerUid);
+      else if (i.model?.model?.ownerUid != null) userIds.add(i.model.model.ownerUid);
     });
     const userInfo$ = userIds.size ? this.getUserInfo(Array.from(userIds)) : of({} as Record<number, UserInfo>);
 
@@ -206,6 +214,9 @@ export class SearchService {
       } else if (i.dataset?.dataset?.did != null) {
         entityTypes.push(EntityType.Dataset);
         entityIds.push(i.dataset.dataset.did);
+      } else if (i.model?.model?.mid != null) {
+        entityTypes.push(EntityType.Model);
+        entityIds.push(i.model.model.mid);
       }
     });
 
@@ -238,11 +249,14 @@ export class SearchService {
         access.forEach(r => (accessMap[`${r.entityType}:${r.entityId}`] = r.userIds));
 
         return items.map(i => {
-          const entry = i.workflow ? new DashboardEntry(i.workflow) : new DashboardEntry(i.dataset!);
+          const payload = i.workflow ?? i.dataset ?? i.model;
+          if (!payload) {
+            throw new Error(`Search result carries no payload for resource type ${i.resourceType}.`);
+          }
+          const entry = new DashboardEntry(payload);
 
           const key = `${entry.type}:${entry.id}`;
-          const ownerId = i.workflow ? i.workflow.ownerId : i.dataset!.dataset!.ownerUid!;
-          const ui = (userMap as any)[ownerId];
+          const ui = entry.ownerId != null ? (userMap as any)[entry.ownerId] : undefined;
           if (ui) {
             entry.setOwnerName(ui.userName);
             entry.setOwnerAvatar(ui.avatar ?? "");

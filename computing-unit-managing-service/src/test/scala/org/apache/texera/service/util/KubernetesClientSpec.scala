@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.api.model.metrics.v1beta1.{
   PodMetricsListBuilder
 }
 import io.fabric8.kubernetes.api.model.{
+  Container,
   ContainerBuilder,
   Pod,
   PodBuilder,
@@ -65,6 +66,13 @@ import scala.jdk.CollectionConverters._
 class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
+
+  // getVolumes/getVolumeMounts are null rather than empty when nothing was added.
+  private def volumeNames(pod: Pod): List[String] =
+    Option(pod.getSpec.getVolumes).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
+
+  private def mountNames(container: Container): List[String] =
+    Option(container.getVolumeMounts).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
 
   // A fabric8 client stubbed just enough to answer the namespace-wide pod-list and pod-metrics
   // calls the wrappers make. RETURNS_DEEP_STUBS can't be used: fabric8's fluent API returns type
@@ -278,6 +286,53 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     // Env values arrive as Any and reach the container as strings.
     container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap shouldBe
       Map("UID" -> "9", "MODE" -> "batch")
+
+    // The PodSecurity-safe default: no hostPath, so a cluster enforcing `baseline` or
+    // `restricted` on the pool namespace still admits the pod.
+    volumeNames(built) should not contain "texera-mounts"
+    mountNames(container) should not contain "texera-mounts"
+  }
+
+  it should "wire the mount contract into the pod only when mounting is enabled" in {
+    val name = KubernetesClient.generatePodName(5)
+    val (client, _) = clientWithNamedPod(name, null)
+    val namespaceable = mock(classOf[NamespaceableResource[Pod]])
+    val resource = mock(classOf[Resource[Pod]])
+    val captor = ArgumentCaptor.forClass(classOf[Pod])
+    when(client.resource(any(classOf[Pod]))).thenReturn(namespaceable)
+    when(namespaceable.inNamespace(namespace)).thenReturn(resource)
+    when(resource.create()).thenReturn(null)
+
+    new KubernetesClient(client, mountingEnabled = true)
+      .createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
+
+    verify(client).resource(captor.capture())
+    val built = captor.getValue
+    val container = built.getSpec.getContainers.asScala.head
+
+    // The host directory is scoped to this CU, so one unit can never see another's mounts.
+    val volume = built.getSpec.getVolumes.asScala.find(_.getName == "texera-mounts")
+    volume shouldBe defined
+    volume.get.getHostPath.getPath shouldBe s"${KubernetesConfig.mounterHostRoot}/5"
+    // DirectoryOrCreate: the mounter mounts into a path the kubelet has already created.
+    volume.get.getHostPath.getType shouldBe "DirectoryOrCreate"
+
+    // HostToContainer, not Bidirectional: the pod receives the mount the privileged mounter
+    // makes and must not be able to propagate one back out to the node.
+    val mount = container.getVolumeMounts.asScala.find(_.getName == "texera-mounts")
+    mount shouldBe defined
+    mount.get.getMountPath shouldBe "/mnt/texera-mounts"
+    mount.get.getMountPropagation shouldBe "HostToContainer"
+
+    // The pod is told which CU it is and where its mounts appear -- and deliberately not
+    // how to reach the mounter.
+    val env = container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap
+    env should contain("TEXERA_CU_ID" -> "5")
+    env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> "/mnt/texera-mounts")
+
+    // Still unprivileged: the whole point of mounting out of pod.
+    val privileged = Option(container.getSecurityContext).flatMap(c => Option(c.getPrivileged))
+    privileged.contains(true) shouldBe false
   }
 
   it should "mount a shared-memory volume only when a size is asked for" in {
