@@ -14,20 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Auto-close stale pull requests after a total of 37 days of inactivity
-# (30 days to mark stale, +7 days to close). Issues are not touched.
+# Auto-close inactive PRs: ready PRs at 10 days (7 warn + 3 close),
+# draft PRs at 30 days (25 warn + 5 close). Issues are not touched.
 #
 # Escape hatches (any one keeps a PR alive):
 #   - Add the `pinned` label
 #   - Attach a milestone
-#   - Keep the PR in draft state
 #   - Push a commit, comment, or address review feedback
 
 name: Close stale pull requests
 
 on:
   schedule:
-    - cron: '0 1 * * 1'   # weekly, Monday 01:00 UTC
+    - cron: '0 1 * * *'   # daily, 01:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -38,15 +37,14 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v10
+      # Ready PRs: warn at 7 days, close at 10. Drafts skipped here.
+      - name: Close inactive ready PRs
+        uses: actions/stale@v10
         with:
-          # Issues: disabled entirely.
           days-before-issue-stale: -1
           days-before-issue-close: -1
-
-          # PRs: 30 days inactive -> stale, +7 days -> close.
-          days-before-pr-stale: 30
-          days-before-pr-close: 7
+          days-before-pr-stale: 7
+          days-before-pr-close: 3
           stale-pr-label: 'stale'
           exempt-pr-labels: 'pinned'
           exempt-all-pr-milestones: true
@@ -55,7 +53,7 @@ jobs:
 
           stale-pr-message: |
             This pull request has been automatically marked as **stale** because it has
-            not had any activity for 30 days. It will be closed in **7 days** if no
+            not had any activity for 7 days. It will be closed in **3 days** if no
             further activity occurs.
 
             If this PR is still relevant, please:
@@ -66,9 +64,43 @@ jobs:
             To exempt this PR from auto-close, a maintainer can add the `pinned` label.
             Thank you for your contribution to Apache Texera (incubating)!
           close-pr-message: |
-            This pull request has been automatically closed due to 37 days of inactivity.
+            This pull request has been automatically closed due to 10 days of inactivity.
             If you would like to continue this work, please re-open the PR or open a new
             one referencing this. Thank you for your contribution.
+
+          ascending: true            # process oldest first under the per-run cap
+          operations-per-run: 100
+
+      # Draft PRs: warn at 25 days, close at 30. Separate label from pass 1.
+      - name: Close inactive draft PRs
+        uses: actions/stale@v10
+        with:
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          days-before-pr-stale: 25
+          days-before-pr-close: 5
+          stale-pr-label: 'stale-draft'
+          exempt-pr-labels: 'pinned'
+          exempt-all-pr-milestones: true
+          exempt-draft-pr: false
+          remove-stale-when-updated: true
+
+          stale-pr-message: |
+            This draft pull request has been automatically marked as **stale** because it
+            has not had any activity for 25 days. It will be closed in **5 days** if no
+            further activity occurs.
+
+            If this draft is still relevant, please:
+            - Push new commits or rebase onto the latest `main`, or
+            - Comment with a status update, or
+            - Mark it ready for review.
+
+            To exempt this PR from auto-close, a maintainer can add the `pinned` label.
+            Thank you for your contribution to Apache Texera (incubating)!
+          close-pr-message: |
+            This draft pull request has been automatically closed due to 30 days of
+            inactivity. If you would like to continue this work, please re-open the PR
+            or open a new one referencing this. Thank you for your contribution.
 
           ascending: true            # process oldest first under the per-run cap
           operations-per-run: 100
