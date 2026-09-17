@@ -200,8 +200,8 @@ describe("ModelService", () => {
     const presign = http.expectOne(
       `${API}/model/presign-download?filePath=${encodeURIComponent("/model/a/m/v1/model.pt")}`
     );
-    presign.flush({ presignedUrl: "http://minio/model.pt" });
-    http.expectOne("http://minio/model.pt").flush(blob);
+    presign.flush({ presignedUrl: "http://rustfs/model.pt" });
+    http.expectOne("http://rustfs/model.pt").flush(blob);
 
     expect(await pending).toEqual(blob);
   });
@@ -210,8 +210,8 @@ describe("ModelService", () => {
     service.retrieveModelVersionSingleFile("/model/a/m/v1/model.pt", false).subscribe();
     http
       .expectOne(`${API}/model/public-presign-download?filePath=${encodeURIComponent("/model/a/m/v1/model.pt")}`)
-      .flush({ presignedUrl: "http://minio/model.pt" });
-    http.expectOne("http://minio/model.pt").flush(new Blob());
+      .flush({ presignedUrl: "http://rustfs/model.pt" });
+    http.expectOne("http://rustfs/model.pt").flush(new Blob());
   });
 
   it("reads the presigned cover url, which is null for a model without one", async () => {

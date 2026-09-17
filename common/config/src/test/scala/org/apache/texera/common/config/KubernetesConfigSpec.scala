@@ -49,7 +49,8 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
       KubernetesConfig.computeUnitPoolNamespace shouldBe "texera-workflow-computing-unit-pool"
     )
     ifUnset("KUBERNETES_IMAGE_NAME")(
-      KubernetesConfig.computeUnitImageName shouldBe "bobbai/texera-workflow-computing-unit:dev"
+      KubernetesConfig.computeUnitImageName shouldBe
+        "ghcr.io/apache/texera-workflow-execution-coordinator:latest"
     )
     ifUnset("KUBERNETES_IMAGE_PULL_POLICY")(
       KubernetesConfig.computingUnitImagePullPolicy shouldBe "Always"
@@ -86,6 +87,8 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     )
     // Empty by default: only a real deployment knows its own origin.
     ifUnset("KUBERNETES_JUPYTER_TEXERA_ORIGIN")(KubernetesConfig.jupyterTexeraOrigin shouldBe "")
+    // A prefix, not a full path: the provisioner appends the uid.
+    ifUnset("KUBERNETES_JUPYTER_BASE_URL")(KubernetesConfig.jupyterBaseUrl shouldBe "/jupyter")
     ifUnset("KUBERNETES_JUPYTER_CPU_LIMIT")(KubernetesConfig.jupyterCpuLimit shouldBe "1")
     ifUnset("KUBERNETES_JUPYTER_MEMORY_LIMIT")(
       KubernetesConfig.jupyterMemoryLimit shouldBe "2Gi"
@@ -94,6 +97,15 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     // publishes Jupyter overrides it.
     ifUnset("KUBERNETES_JUPYTER_PUBLIC_URL_TEMPLATE")(
       KubernetesConfig.jupyterPublicUrlTemplate shouldBe ""
+    )
+  }
+
+  "KubernetesConfig mounter settings" should "resolve to their kubernetes.conf defaults" in {
+    // Off by default: the mount gives each CU pod a hostPath volume, which the `baseline`
+    // and `restricted` Pod Security Standards forbid, so a deployment opts in.
+    ifUnset("KUBERNETES_MOUNTER_ENABLED")(KubernetesConfig.mounterEnabled shouldBe false)
+    ifUnset("KUBERNETES_MOUNTER_HOST_ROOT")(
+      KubernetesConfig.mounterHostRoot shouldBe "/var/lib/texera-mounts"
     )
   }
 

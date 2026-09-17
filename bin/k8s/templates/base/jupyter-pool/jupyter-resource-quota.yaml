@@ -14,19 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-version: '3.8'
-
-services:
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    ports:
-      - "9500:9000"   # MinIO API
-      - "9501:9001"   # MinIO Console UI
-    environment:
-      - MINIO_ROOT_USER=texera_minio
-      - MINIO_ROOT_PASSWORD=password
-    volumes:
-      - /Users/baijiadong/Desktop/chenlab/texera/core/file-service/src/main/user-resources/minio:/data
-    command: server --console-address ":9001" /data
+{{- if and .Values.notebookMigrationService.enabled .Values.jupyterPool.createNamespaces .Values.jupyterPool.maxRequestedResources }}
+# Ceiling for the pool as a whole. Pods are created on demand, one per user, so without this
+# a busy deployment has no upper bound on what the tool can consume.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .Values.jupyterPool.name }}-resource-quota
+  namespace: {{ .Values.jupyterPool.namespace }}
+spec:
+  hard:
+    requests.cpu: "{{ .Values.jupyterPool.maxRequestedResources.cpu }}"
+    requests.memory: {{ .Values.jupyterPool.maxRequestedResources.memory }}
+{{- end }}

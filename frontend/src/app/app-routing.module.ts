@@ -23,8 +23,10 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
+import { UserWarehouseComponent } from "./dashboard/component/user/user-warehouse/user-warehouse.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
+import { WorkflowFormComponent } from "./workspace/component/workflow-form/workflow-form.component";
 import { AboutComponent } from "./hub/component/about/about.component";
 import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
@@ -135,6 +137,13 @@ routes.push({
           component: UserWorkflowComponent,
         },
         {
+          // Must precede "workflow/:id" so the trailing "form" segment is not swallowed by
+          // the canvas route. The page guards itself (the feature flag off, or a workflow
+          // that does not open in the form, hands back to the canvas).
+          path: "workflow/:id/form",
+          component: WorkflowFormComponent,
+        },
+        {
           path: "workflow/:id",
           component: WorkspaceComponent,
         },
@@ -161,6 +170,10 @@ routes.push({
         {
           path: "compute",
           component: UserComputingUnitComponent,
+        },
+        {
+          path: "warehouse",
+          component: UserWarehouseComponent,
         },
         {
           path: "python-venv",
