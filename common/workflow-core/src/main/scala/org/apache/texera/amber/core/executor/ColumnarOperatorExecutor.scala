@@ -34,7 +34,8 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 sealed trait ColumnarResult
 object ColumnarResult {
   final case class Emit(root: VectorSchemaRoot) extends ColumnarResult
-  final case class EmitRows(rows: Iterator[(TupleLike, Option[PortIdentity])]) extends ColumnarResult
+  final case class EmitRows(rows: Iterator[(TupleLike, Option[PortIdentity])])
+      extends ColumnarResult
   case object Consumed extends ColumnarResult
   case object Unsupported extends ColumnarResult
 }

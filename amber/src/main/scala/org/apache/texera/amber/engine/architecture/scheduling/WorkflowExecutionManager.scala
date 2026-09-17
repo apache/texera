@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
+import org.apache.texera.amber.engine.architecture.scheduling.config.InputPortConfig
 import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
   PekkoActorService
@@ -55,11 +56,55 @@ class WorkflowExecutionManager(
   }
 
   /**
+    * Loop bookkeeping addresses shipped to every worker at setup; semantics are
+    * documented on `InitializeExecutorRequest.loopStartPortUris` (controlcommands.proto).
+    * The value is the BASE URI of the materialized port the Loop Start's
+    * input port READS FROM -- the upstream operator's output-port
+    * materialization (`cfg.storagePairs.head._1` below), not a port of the
+    * Loop Start itself. The Python worker derives the state URI (loop-back
+    * write) and the result URI (the loop's input table, read at consume time)
+    * from it.
+    *
+    * Derived from the final (resource-allocated) schedule, so the URIs are
+    * exactly the ones `AssignPort` later ships to the Loop Start's input
+    * readers. Kept a `def`: `schedule` is a `var` that is only populated after
+    * `StartWorkflow`, and the first use is inside `coordinateRegionExecutors`.
+    */
+  private def loopStartPortUris: Map[String, String] =
+    schedule.levelSets.values.flatten.flatMap { region =>
+      region.getOperators.filter(_.isLoopStart).map { op =>
+        require(
+          op.inputPorts.size == 1,
+          s"Loop Start ${op.id} must have exactly one input port, got ${op.inputPorts.size}"
+        )
+        val gpid = GlobalPortIdentity(op.id, op.inputPorts.keys.head, input = true)
+        val cfg = region.resourceConfig.flatMap(_.portConfigs.get(gpid)) match {
+          case Some(c: InputPortConfig) => c
+          case other =>
+            throw new IllegalStateException(
+              s"Loop Start input port $gpid has no InputPortConfig (got $other) -- " +
+                s"loop operators require a fully-materialized schedule"
+            )
+        }
+        require(
+          cfg.storagePairs.size == 1,
+          s"Loop Start input port $gpid expected exactly one reader URI, " +
+            s"got ${cfg.storagePairs.size}"
+        )
+        op.id.logicalOpId.id -> cfg.storagePairs.head._1.toString
+      }
+    }.toMap
+
+  /**
     * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionManager`, after which each
     * of the `RegionExecutionManager`s will launch the corresponding next phase of whenever needed until it is
     * in `Completed` status (phase).
     *
     * After the syncs, if there are no running region(s), it will start new regions (if available).
+    *
+    * Callers handling a worker-initiated request must not call this directly; they send themselves a
+    * `CoordinatorInitiateAdvanceRegionExecutions` (see `PortCompletedHandler`) so the resulting
+    * `EndWorker` cannot overtake the reply that request still owes.
     */
   def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] = {
     val unfinishedRegionManagers =
@@ -92,6 +137,7 @@ class WorkflowExecutionManager(
     }
 
     executedRegions.append(nextRegions)
+    val loopUris = loopStartPortUris
     Future
       .collect(
         nextRegions
@@ -109,7 +155,8 @@ class WorkflowExecutionManager(
               asyncRPCClient,
               coordinatorConfig,
               actorService,
-              actorRefService
+              actorRefService,
+              loopStartPortUris = loopUris
             )
             regionExecutionManagers(region.id)
           })

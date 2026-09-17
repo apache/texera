@@ -131,8 +131,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         ArrowUtils.deserializeRootFold(bytes, allocator) { root =>
           writeArrowRoot(root, from, "Data")
         }
-      case StateFrame(state) =>
-        writeArrowStream(mutable.Queue(state.toTuple()), from, "State")
+      case StateFrame(state, loopCounter, loopStartId) =>
+        // The Arrow wire format for states IS the State row (content +
+        // loop_counter + loop_start_id), so the envelope rides its own
+        // columns to the Python worker -- see network_receiver.py.
+        writeArrowStream(mutable.Queue(state.toTuple(loopCounter, loopStartId)), from, "State")
     }
   }
 

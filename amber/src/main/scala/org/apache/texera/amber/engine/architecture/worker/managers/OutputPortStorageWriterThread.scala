@@ -57,7 +57,7 @@ class OutputPortStorageWriterThread(
       var internalStop = false
       while (!internalStop) {
         queue.take() match {
-          case Left(RowWriteItem(tuple)) => bufferedItemWriter.putOne(tuple)
+          case Left(RowWriteItem(tuple))        => bufferedItemWriter.putOne(tuple)
           case Left(ArrowBatchWriteItem(bytes)) =>
             // Decode the Arrow batch here (off the DP thread) into rows.
             ArrowUtils.deserializeTuples(bytes).foreach(bufferedItemWriter.putOne)

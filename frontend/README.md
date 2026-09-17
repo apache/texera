@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 # Texera Angular UI
 
 The web UI for [Apache Texera](https://github.com/apache/texera). An Angular single-page app that talks to the JVM backend services (`amber`, `access-control-service`, `file-service`, …) and to the agent service.
@@ -39,7 +58,7 @@ The full testing reference (Vitest stack, recipes, anti-patterns, coverage troub
 | Path                                           | What lives here                                                                                             |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `src/app/workspace/`                           | Workflow editor — operator graph, property panel, result panel, code editor.                                |
-| `src/app/dashboard/`                           | User dashboard — workflows, datasets, projects, computing units, admin.                                     |
+| `src/app/dashboard/`                           | User dashboard — workflows, datasets, computing units, admin.                                               |
 | `src/app/hub/`                                 | Public hub — discover and share workflows.                                                                  |
 | `src/app/common/`                              | Cross-cutting services, types, formly extensions, and shared test helpers (`common/testing/test-utils.ts`). |
 | `src/app/workspace/service/operator-metadata/` | Operator metadata service + the `Stub…Service` test doubles other specs reuse.                              |

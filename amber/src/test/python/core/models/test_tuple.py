@@ -17,6 +17,7 @@
 
 import datetime
 import pandas
+import pickle
 import pyarrow
 import pytest
 import numpy as np
@@ -657,3 +658,179 @@ class TestTuple:
         assert len(tuples) == 1
         tuple_ = tuples[0]
         assert tuple_["large_binary_field"] is None
+
+    def test_binary_field_round_trips_through_arrow(self):
+        # cast_to_schema pickles a non-bytes BINARY field behind a
+        # "pickle    " sentinel; the arrow field accessor must recognise
+        # that sentinel and hand the original object back. The two halves
+        # are asserted together so the sentinel layout cannot drift.
+        original = Tuple({"scores": [85, 94, 100]})
+        original.finalize(Schema(raw_schema={"scores": "BINARY"}))
+        pickled = original["scores"]
+        assert pickled[:10] == b"pickle    "
+
+        arrow_schema = pyarrow.schema(
+            [
+                pyarrow.field("scores", pyarrow.binary()),
+                pyarrow.field("raw", pyarrow.binary()),
+                pyarrow.field("empty", pyarrow.binary()),
+            ]
+        )
+        arrow_table = pyarrow.Table.from_pydict(
+            {"scores": [pickled], "raw": [b"plain bytes"], "empty": [None]},
+            schema=arrow_schema,
+        )
+
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in ArrowTableTupleProvider(arrow_table)
+        ]
+
+        assert len(tuples) == 1
+        assert tuples[0]["scores"] == [85, 94, 100]
+        # Bytes that were never pickled must survive untouched, and a null
+        # binary must not be fed to pickle.loads.
+        assert tuples[0]["raw"] == b"plain bytes"
+        assert tuples[0]["empty"] is None
+
+    def test_binary_field_starting_with_pickle_bytes_is_unpickled(self):
+        # Sanity check on the sentinel itself: only the payload after the
+        # 10-byte header is unpickled.
+        payload = pickle.dumps({"k": "v"})
+        arrow_table = pyarrow.Table.from_pydict(
+            {"blob": [b"pickle    " + payload]},
+            schema=pyarrow.schema([pyarrow.field("blob", pyarrow.binary())]),
+        )
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in ArrowTableTupleProvider(arrow_table)
+        ]
+        assert tuples[0]["blob"] == {"k": "v"}
+
+    def test_get_serialized_field_converts_large_binary_to_uri(self):
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(
+            raw_schema={"blob": "LARGE_BINARY", "name": "STRING", "size": "INTEGER"}
+        )
+        blob = largebinary("s3://test-bucket/path/to/object")
+        tuple_ = Tuple({"blob": blob, "name": "obj", "size": 3}, schema=schema)
+
+        # Only the LARGE_BINARY field is flattened to its URI; the arrow
+        # writer stores that string, not the handle object.
+        assert tuple_.get_serialized_field("blob") == "s3://test-bucket/path/to/object"
+        assert isinstance(tuple_.get_serialized_field("blob"), str)
+        assert tuple_.get_serialized_field("name") == "obj"
+        assert tuple_.get_serialized_field("size") == 3
+        # The tuple itself keeps the handle.
+        assert tuple_["blob"] is blob
+
+    def test_get_serialized_field_without_schema_returns_value_as_is(self):
+        from core.models.type.large_binary import largebinary
+
+        blob = largebinary("s3://test-bucket/path/to/object")
+        tuple_ = Tuple({"blob": blob})
+
+        # With no schema there is no LARGE_BINARY declaration to act on.
+        assert tuple_.get_serialized_field("blob") is blob
+
+    def test_cast_to_schema_skips_fields_absent_from_the_schema(self):
+        # A field the schema does not declare makes get_attr_type raise.
+        # That failure must be contained to the offending field: the cast
+        # loop logs it and keeps going, so later fields are still coerced
+        # (validate_schema is what ultimately rejects the stray field).
+        messages = []
+        handler_id = logger.add(messages.append, level="WARNING")
+        try:
+            tuple_ = Tuple({"stray": 7.0, "weight": 119.0})
+            tuple_.cast_to_schema(Schema(raw_schema={"weight": "INTEGER"}))
+        finally:
+            logger.remove(handler_id)
+
+        assert tuple_["stray"] == 7.0
+        assert type(tuple_["stray"]) is float
+        assert tuple_["weight"] == 119
+        assert type(tuple_["weight"]) is int
+        assert any("stray" in str(message) for message in messages)
+
+    def test_validate_schema_rejects_a_single_missing_field(self):
+        tuple_ = Tuple({"x": 1})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER", "y": "STRING"}))
+
+        message = str(exc_info.value)
+        assert "'y' is expected but missing" in message
+        assert "fields" not in message
+
+    def test_validate_schema_rejects_several_missing_fields(self):
+        tuple_ = Tuple({"x": 1})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(
+                Schema(raw_schema={"x": "INTEGER", "y": "STRING", "z": "STRING"})
+            )
+
+        message = str(exc_info.value)
+        assert "are expected but missing" in message
+        assert "'y'" in message and "'z'" in message
+
+    def test_validate_schema_rejects_a_single_unexpected_field(self):
+        tuple_ = Tuple({"x": 1, "extra": "e"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        message = str(exc_info.value)
+        assert "an unexpected field: 'extra'" in message
+
+    def test_validate_schema_rejects_several_unexpected_fields(self):
+        tuple_ = Tuple({"x": 1, "extra": "e", "another": "a"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        message = str(exc_info.value)
+        assert "unexpected fields" in message
+        assert "'extra'" in message and "'another'" in message
+
+    def test_validate_schema_reports_missing_fields_before_unexpected_ones(self):
+        # Both problems at once: the missing-field error wins, because a
+        # renamed field is far more often a missing field than a stray one.
+        tuple_ = Tuple({"extra": "e"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        assert "expected but missing" in str(exc_info.value)
+
+    def test_tuple_iter_yields_field_values_in_order(self, target_tuple):
+        assert list(target_tuple) == [1, "a"]
+        assert tuple(target_tuple) == target_tuple.get_fields()
+
+    def test_tuple_iter_resolves_lazy_accessors(self):
+        def field_accessor(field_name):
+            return chr(96 + int(field_name))
+
+        tuple_ = Tuple({"1": field_accessor, "3": field_accessor})
+
+        assert list(tuple_) == ["a", "c"]
+
+    def test_tuple_contains_matches_field_names_not_values(self, target_tuple):
+        assert "x" in target_tuple
+        assert "y" in target_tuple
+        assert "z" not in target_tuple
+        # membership is by field name; a field *value* is not "in" the tuple
+        assert 1 not in target_tuple
+        assert "a" not in target_tuple
+
+    def test_hash_treats_none_fields_as_zero(self):
+        # Mirrors java.util.Objects.hash: a null field contributes 0 to the
+        # rolling 31-based accumulator. Expected values are computed from
+        # that rule (1*31+0 = 31; 31*31+0 = 961).
+        schema = Schema(raw_schema={"a": "INTEGER", "b": "STRING"})
+
+        assert hash(Tuple({"a": None, "b": None}, schema)) == 961
+        # Only the null field short-circuits; the other is hashed normally
+        # (java_hash_bytes("a") == 97, so 31*31 + 97 == 1058).
+        assert hash(Tuple({"a": None, "b": "a"}, schema)) == 1058

@@ -33,6 +33,7 @@ import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { contributorFieldGroup } from "../user-dataset-contributor-editor/contributor-form-fields";
 
 @UntilDestroy()
 @Component({
@@ -113,6 +114,16 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             defaultValue: "",
             templateOptions: {
               label: "Description",
+            },
+          },
+          {
+            key: "contributors",
+            type: "array",
+            templateOptions: {
+              label: "Add a New Contributor",
+            },
+            fieldArray: {
+              fieldGroup: contributorFieldGroup(),
             },
           },
         ];
@@ -196,7 +207,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         coverImage: undefined,
       };
       this.datasetService
-        .createDataset(ds)
+        .createDataset(ds, this.form.get("contributors")?.value)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {

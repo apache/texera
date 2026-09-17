@@ -68,10 +68,11 @@ class JSONLScanSourceOpExec private[json] (
     val (it1, it2) = lines.duplicate
     val count: Int = it1.map(_ => 1).sum
 
-    val startOffset: Int = offsetValue + count / workerCount * idx
+    // Bounds into `it2`, which already begins at `offsetValue`. Adding the offset
+    // back in would count from the start of the FILE and skip those rows twice.
+    val startOffset: Int = count / workerCount * idx
     val endOffset: Int =
-      offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
-                     else count)
+      if (idx != workerCount - 1) count / workerCount * (idx + 1) else count
 
     rows = it2.iterator.slice(startOffset, endOffset)
   }

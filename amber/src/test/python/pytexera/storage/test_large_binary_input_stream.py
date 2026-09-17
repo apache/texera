@@ -223,3 +223,20 @@ class TestLargeBinaryInputStream:
             with pytest.raises(ValueError, match="I/O operation on closed stream"):
                 stream.read()
             # Stream is already closed, no need to close again
+
+    def test_close_is_idempotent(self, large_binary):
+        """Test that a second close() does not re-close the S3 body.
+
+        IOBase's finalizer calls close() again during garbage collection, so
+        the early-return guard is what keeps the botocore stream from being
+        closed twice.
+        """
+        stream = LargeBinaryInputStream(large_binary)
+        underlying = MagicMock()
+        stream._underlying = underlying
+
+        stream.close()
+        stream.close()
+
+        assert underlying.close.call_count == 1
+        assert stream.closed

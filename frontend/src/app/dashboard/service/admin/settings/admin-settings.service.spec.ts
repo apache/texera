@@ -17,76 +17,104 @@
  * under the License.
  */
 
+import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { AdminSettingsService } from "./admin-settings.service";
-import { TestBed } from "@angular/core/testing";
 
 describe("AdminSettingsService", () => {
-  let httpMock: HttpTestingController;
   let service: AdminSettingsService;
+  let httpTestingController: HttpTestingController;
 
-  const BASE_URL = "/api/admin/settings";
-  const EXAMPLE_SETTING = "multipart_upload_chunk_size_mib";
-  const EXAMPLE_SETTING_VALUE = "4";
+  const PUBLIC_URL = "/api/config/settings/public";
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [AdminSettingsService],
     });
-    httpMock = TestBed.inject(HttpTestingController);
+
+    httpTestingController = TestBed.inject(HttpTestingController);
     service = TestBed.inject(AdminSettingsService);
   });
 
   afterEach(() => {
-    httpMock.verify();
+    httpTestingController.verify();
   });
 
-  it("an empty getSetting body should map to null", () => {
-    let result: string | null | undefined;
-    service.getSetting(EXAMPLE_SETTING).subscribe(res => {
-      result = res;
-    });
+  it("shares one public-settings request across per-key subscribers", () => {
+    let logo: string | null | undefined;
+    let hubEnabled: string | null | undefined;
 
-    const req = httpMock.expectOne(`${BASE_URL}/${EXAMPLE_SETTING}`);
+    service.getPublicSetting("logo").subscribe(value => (logo = value));
+    service.getPublicSetting("hub_enabled").subscribe(value => (hubEnabled = value));
 
-    req.flush(null);
+    const req = httpTestingController.expectOne(PUBLIC_URL);
+    req.flush({ logo: "custom.png", hub_enabled: "true" });
 
-    expect(req.request.method).toBe("GET");
-    expect(result).toBeNull();
+    expect(logo).toEqual("custom.png");
+    expect(hubEnabled).toEqual("true");
   });
 
-  it("a getSetting body should map to its value", () => {
-    let result: string | undefined;
-    service.getSetting(EXAMPLE_SETTING).subscribe(res => {
-      result = res;
-    });
+  it("emits null for a key absent from the public payload", () => {
+    let value: string | null | undefined;
+    service.getPublicSetting("no-such-key").subscribe(v => (value = v));
 
-    const req = httpMock.expectOne(`${BASE_URL}/${EXAMPLE_SETTING}`);
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "custom.png" });
 
-    req.flush({ key: EXAMPLE_SETTING, value: EXAMPLE_SETTING_VALUE });
-    expect(req.request.method).toBe("GET");
-    expect(result).toBe(EXAMPLE_SETTING_VALUE);
+    expect(value).toBeNull();
   });
 
-  it("updateSetting issues a PUT request with value and credentials", () => {
-    service.updateSetting(EXAMPLE_SETTING, EXAMPLE_SETTING_VALUE).subscribe();
+  it("drops the cached observable on error so the next read retries", () => {
+    let firstError = false;
+    service.getPublicSetting("logo").subscribe({ error: () => (firstError = true) });
+    httpTestingController.expectOne(PUBLIC_URL).flush("boom", { status: 500, statusText: "Server Error" });
+    expect(firstError).toBeTruthy();
 
-    const req = httpMock.expectOne(`${BASE_URL}/${EXAMPLE_SETTING}`);
-
-    req.flush(null);
-    expect(req.request.method).toBe("PUT");
-    expect(req.request.body).toEqual({ value: EXAMPLE_SETTING_VALUE });
-    expect(req.request.withCredentials).toBe(true);
+    let logo: string | null | undefined;
+    service.getPublicSetting("logo").subscribe(value => (logo = value));
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "recovered.png" });
+    expect(logo).toEqual("recovered.png");
   });
 
-  it("resetSetting issues a POST request with an empty body", () => {
-    service.resetSetting(EXAMPLE_SETTING).subscribe();
+  it("invalidates the public-settings cache after a save", () => {
+    service.getPublicSetting("logo").subscribe();
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "old.png" });
 
-    const req = httpMock.expectOne(`${BASE_URL}/reset/${EXAMPLE_SETTING}`);
+    service.updateSetting("logo", "new.png").subscribe();
+    const put = httpTestingController.expectOne("/api/config/settings/logo");
+    expect(put.request.method).toEqual("PUT");
+    expect(put.request.body).toEqual({ value: "new.png" });
+    expect(put.request.withCredentials).toBe(true);
+    put.flush(null);
 
-    req.flush(null);
-    expect(req.request.method).toBe("POST");
-    expect(req.request.body).toEqual({});
+    let logo: string | null | undefined;
+    service.getPublicSetting("logo").subscribe(value => (logo = value));
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "new.png" });
+    expect(logo).toEqual("new.png");
+  });
+
+  it("invalidates the public-settings cache after a reset", () => {
+    service.getPublicSetting("logo").subscribe();
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "old.png" });
+
+    service.resetSetting("logo").subscribe();
+    const post = httpTestingController.expectOne("/api/config/settings/reset/logo");
+    expect(post.request.method).toEqual("POST");
+    expect(post.request.body).toEqual({});
+    post.flush(null);
+
+    service.getPublicSetting("logo").subscribe();
+    httpTestingController.expectOne(PUBLIC_URL).flush({ logo: "default.png" });
+  });
+
+  it("reads every stored setting through the bulk management endpoint", () => {
+    let settings: Record<string, string> | undefined;
+    service.getAllSettings().subscribe(value => (settings = value));
+
+    const req = httpTestingController.expectOne("/api/config/settings");
+    expect(req.request.method).toEqual("GET");
+    req.flush({ logo: "a.png", csv_parser_max_columns: "4096" });
+
+    expect(settings).toEqual({ logo: "a.png", csv_parser_max_columns: "4096" });
   });
 });

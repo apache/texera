@@ -234,7 +234,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    */
   private registerQuillBinding() {
     // Operator name editor
-    const element = document.getElementById("customName") as Element;
+    const element = document.getElementById("customName") as HTMLElement;
     this.quill = new Quill(element, {
       modules: {
         cursors: true,

@@ -44,7 +44,7 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnBernoulliNaiveBayesOpDesc.getOutputSchemas" should
@@ -63,6 +63,24 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("from sklearn.naive_bayes import BernoulliNB")
     code should include("make_pipeline")
     code should include("Bernoulli Naive Bayes")
+  }
+
+  // The same table statement serves both ports, so training and scoring skip a
+  // row with a missing value alike.
+  it should "drop rows with missing values before fitting and before scoring" in {
+    val d = new SklearnBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    d.generatePythonCode() should include("table.dropna()")
+  }
+
+  // Dropping a row changes the data the model was asked to learn from, so the count
+  // is reported next to the metrics rather than left for the user to notice.
+  it should "say how many rows it dropped" in {
+    val d = new SklearnBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("rows_read = len(table)")
+    code should include("\"Skipped\"")
   }
 
   "SklearnBernoulliNaiveBayesOpDesc" should

@@ -27,8 +27,12 @@ public enum SklearnAdvancedKNNParameters implements ParamClass {
     weights("weights", "str"),
     algorithm("algorithm", "str"),
     leaf_size("leaf_size", "int"),
-    metric("metric", "int"),
-    metric_params("metric_params", "str");
+    // A metric is named, not measured: "minkowski" and the rest of the accepted
+    // set are words, so int() rejects every value scikit-learn would take.
+    metric("metric", "str"),
+    // The only one that is not a scalar. scikit-learn wants a mapping of extra
+    // keyword arguments for the metric, so the user's text is read as JSON.
+    metric_params("metric_params", "json.loads");
 
     private final String name;
     private final String type;

@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 from contextlib import contextmanager
-from loguru import logger
 from threading import Event
 from typing import Iterator, Optional
 
@@ -26,7 +24,6 @@ from core.models import State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
-from core.util.console_message.error_message import create_error_console_message
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable import Runnable
 
@@ -117,12 +114,7 @@ class DataProcessor(Runnable, Stoppable):
             ):
                 yield executor, port_id
         except Exception as err:
-            logger.exception(err)
-            exc_info = sys.exc_info()
-            self._context.exception_manager.set_exception_info(exc_info)
-            self._context.console_message_manager.put_message(
-                create_error_console_message(self._context.worker_id, exc_info)
-            )
+            self._context.report_exception(err)
         finally:
             self._switch_context()
 

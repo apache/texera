@@ -47,4 +47,15 @@ end_tree="$(git rev-parse "${end_sha}^{tree}")"
 squash_sha="$(git commit-tree -p "${start_sha}" -m "ci: squashed backport of ${commit_range}" "${end_tree}")"
 
 git checkout -B "${workspace_branch}" "origin/${target_branch}"
-git cherry-pick -x "${squash_sha}"
+# Rename-detection knobs (kept identical in create-backport-branch.sh so the
+# preflight and the branch it later builds agree): a package/directory rename
+# between main and the release branch would otherwise produce spurious
+# conflicts. Raise the rename limits so Git does not silently skip inexact
+# rename detection when many paths moved; enable directory-rename detection so
+# files this backport *adds* under an old package path follow the rename; and
+# lower the similarity threshold since a rename that also rewrites package/
+# import lines can drop a small file below the 50% default.
+git -c merge.renameLimit=999999 \
+    -c diff.renameLimit=999999 \
+    -c merge.directoryRenames=true \
+    cherry-pick -Xrename-threshold=40% -x "${squash_sha}"

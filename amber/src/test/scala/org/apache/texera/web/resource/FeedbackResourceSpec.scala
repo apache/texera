@@ -50,7 +50,6 @@ class FeedbackResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    user.setPassword("password")
     user.setRole(UserRoleEnum.REGULAR)
     user
   }
@@ -66,7 +65,7 @@ class FeedbackResourceSpec
     otherSessionUser = new SessionUser(otherUser)
   }
 
-  override protected def afterAll(): Unit = shutdownDB()
+  override protected def afterAll(): Unit = closeConnectionPool()
 
   private def clearFeedback(): Unit = {
     getDSLContext.deleteFrom(FEEDBACK).execute()

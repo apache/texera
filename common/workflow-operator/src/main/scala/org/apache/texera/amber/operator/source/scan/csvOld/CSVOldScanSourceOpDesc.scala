@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.source.scan.csvOld
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
@@ -36,9 +36,11 @@ import java.net.URI
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
+  // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonPropertyDescription("single character separating the fields on each line")
+  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")

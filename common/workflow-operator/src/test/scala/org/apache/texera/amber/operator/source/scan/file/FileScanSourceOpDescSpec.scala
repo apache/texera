@@ -94,6 +94,27 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.close()
   }
 
+  it should "read the lines after a 5-line offset when no limit is set" in {
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    fileScanSourceOpDesc.fileScanOffset = Option(5)
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
+
+    assert(processedTuple.next().getField("line").equals("line6"))
+    assert(processedTuple.next().getField("line").equals("line7"))
+    assert(processedTuple.next().getField("line").equals("line8"))
+    assert(processedTuple.next().getField("line").equals("line9"))
+    assert(processedTuple.next().getField("line").equals("line10"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    FileScanSourceOpExec.close()
+  }
+
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     fileScanSourceOpDesc.setResolvedFileName(
       FileResolver.resolve(TestOperators.TestCRLFTextFilePath)

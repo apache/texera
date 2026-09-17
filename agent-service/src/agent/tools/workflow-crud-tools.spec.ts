@@ -186,6 +186,128 @@ describe("createModifyOperatorTool", () => {
     expect(links[0].source.operatorID).toBe("op1");
     expect(links[0].target.operatorID).toBe("op2");
   });
+
+  test("applies properties that pass metadata validation", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+
+    // Same validating context as the failure case above, but with values the
+    // schema accepts, so the tool falls through the validation guard.
+    const result = await runTool(createModifyOperatorTool(state, context), {
+      operatorId: "op1",
+      properties: { title: "kept", count: 7 },
+      summary: "valid",
+    });
+
+    expect(result).toBe("Operator op1 modified");
+    const op = state.getOperator("op1")!;
+    expect(op.operatorProperties.title).toBe("kept");
+    expect(op.operatorProperties.count).toBe(7);
+    expect(op.customDisplayName).toBe("valid");
+  });
+
+  test("returns an error when an input port index is not a number", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op0", 0, 1));
+    state.addOperator(makeOperator("op1"));
+    state.addLink({
+      linkID: "l0",
+      source: { operatorID: "op0", portID: "output-0" },
+      target: { operatorID: "op1", portID: "input-0" },
+    });
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      inputOperatorIds: { foo: ["op0"] },
+      summary: "bad port",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain("non-negative integer");
+    // Existing incoming links are dropped before the port indices are validated,
+    // so the failed modify leaves the operator disconnected.
+    expect(state.getAllLinks()).toHaveLength(0);
+  });
+
+  test("returns an error when an input port index is negative", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      inputOperatorIds: { "-1": ["op1"] },
+      summary: "bad port",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain("non-negative integer");
+    expect(state.getAllLinks()).toHaveLength(0);
+  });
+
+  test("returns an error when an input port index is out of range", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op0", 0, 1));
+    state.addOperator(makeOperator("op1", 1, 1));
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      inputOperatorIds: { "3": ["op0"] },
+      summary: "bad port",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain("Input port index 3 out of range");
+    expect(result).toContain("has 1 input port(s)");
+    expect(state.getAllLinks()).toHaveLength(0);
+  });
+
+  test("returns an error when a referenced source operator does not exist", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      inputOperatorIds: { "0": ["ghost"] },
+      summary: "bad source",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain('Source operator "ghost" not found');
+    expect(state.getAllLinks()).toHaveLength(0);
+  });
+
+  test("wraps an unexpected state failure with the operator id", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+    // Force the state layer to blow up so the tool's catch block is exercised.
+    state.updateOperatorProperties = () => {
+      throw new Error("state exploded");
+    };
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      properties: { title: "x" },
+      summary: "boom",
+    });
+
+    expect(result).toBe("[ERROR] Error on operator op1: state exploded");
+  });
+
+  test("falls back to the stringified value when a thrown error has no message", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+    state.updateOperatorProperties = () => {
+      throw "plain string failure";
+    };
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      properties: { title: "x" },
+      summary: "boom",
+    });
+
+    expect(result).toBe("[ERROR] Error on operator op1: plain string failure");
+  });
 });
 
 describe("createAddOperatorTool", () => {
@@ -362,5 +484,24 @@ describe("createAddOperatorTool", () => {
     expect(links).toHaveLength(1);
     expect(links[0].source.operatorID).toBe("op1");
     expect(links[0].target.operatorID).toBe("op2");
+  });
+
+  test("reports an unexpected state failure without adding the operator", async () => {
+    const state = new WorkflowState();
+    // Force the state layer to blow up so the tool's catch block is exercised.
+    state.addOperator = () => {
+      throw new Error("insert failed");
+    };
+
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, context), {
+      operatorId: "op1",
+      operatorType: "TestOp",
+      properties: {},
+      summary: "boom",
+    });
+
+    // Unlike modifyOperator, addOperator reports the raw message with no id prefix.
+    expect(result).toBe("[ERROR] insert failed");
+    expect(state.getAllOperators()).toHaveLength(0);
   });
 });

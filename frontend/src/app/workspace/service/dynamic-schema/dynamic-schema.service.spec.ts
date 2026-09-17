@@ -32,6 +32,7 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -141,4 +142,172 @@ describe("DynamicSchemaService", () => {
       m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
     })
   );
+});
+
+describe("DynamicSchemaService.mutateProperty", () => {
+  const matchByName = (name: string) => (propertyName: string, _: CustomJSONSchema7) => propertyName === name;
+  const markMutated = (_: string, propertyValue: CustomJSONSchema7): CustomJSONSchema7 => ({
+    ...propertyValue,
+    description: "mutated",
+  });
+
+  it("should replace a matched top-level property without mutating the original schema", () => {
+    const original = {
+      type: "object",
+      properties: {
+        target: { type: "string", description: "original" },
+        other: { type: "number" },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    // the returned schema has the matched property mutated
+    expect((result.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+    // the non-matching property is left untouched
+    expect(result.properties!.other).toEqual({ type: "number" });
+    // the original schema object is deep cloned and stays unchanged
+    expect((original.properties!.target as CustomJSONSchema7).description).toEqual("original");
+    expect(result).not.toBe(original);
+  });
+
+  it("should recurse into nested object properties to find the matched property", () => {
+    const original = {
+      type: "object",
+      properties: {
+        nested: {
+          type: "object",
+          properties: {
+            deepTarget: { type: "string", description: "original" },
+          },
+        },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("deepTarget"), markMutated);
+
+    const nested = result.properties!.nested as CustomJSONSchema7;
+    expect((nested.properties!.deepTarget as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should recurse into definitions to find the matched property", () => {
+    const original = {
+      type: "object",
+      definitions: {
+        target: { type: "string", description: "original" },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    expect((result.definitions!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should recurse into array items and single-schema items to find the matched property", () => {
+    const original = {
+      type: "object",
+      properties: {
+        listTuple: {
+          type: "array",
+          items: [
+            {
+              type: "object",
+              properties: {
+                target: { type: "string", description: "original" },
+              },
+            },
+          ],
+        },
+        listSchema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              target: { type: "string", description: "original" },
+            },
+          },
+        },
+      },
+    } as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    const listTuple = result.properties!.listTuple as CustomJSONSchema7;
+    const firstItem = (listTuple.items as CustomJSONSchema7[])[0];
+    expect((firstItem.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+
+    const listSchema = result.properties!.listSchema as CustomJSONSchema7;
+    const itemSchema = listSchema.items as CustomJSONSchema7;
+    expect((itemSchema.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  /**
+   * JSON Schema lets a subschema be the bare boolean `true`/`false` instead of an object, and
+   * mutateProperty has to step over those: they carry no property name to match and no children to
+   * walk. Both guards were reached only on their object side, so neither skip was pinned.
+   */
+  it("should step over a boolean subschema without matching or mutating it", () => {
+    const original = {
+      type: "object",
+      properties: {
+        anything: true,
+        target: { type: "string", description: "original" },
+      },
+    } as unknown as CustomJSONSchema7;
+    const matchSpy = vi.fn((propertyName: string, _: CustomJSONSchema7) => propertyName !== "unreachable");
+
+    const result = DynamicSchemaService.mutateProperty(original, matchSpy, markMutated);
+
+    // the boolean survives as a boolean rather than being handed to the mutation function
+    expect(result.properties!.anything).toBe(true);
+    expect(matchSpy.mock.calls.map(([propertyName]) => propertyName)).toEqual(["target"]);
+    // the walk continues past it, so the object sibling is still mutated
+    expect((result.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should step over a boolean entry in a tuple items array", () => {
+    const original = {
+      type: "object",
+      properties: {
+        listTuple: {
+          type: "array",
+          items: [
+            false,
+            {
+              type: "object",
+              properties: {
+                target: { type: "string", description: "original" },
+              },
+            },
+          ],
+        },
+      },
+    } as unknown as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    const items = (result.properties!.listTuple as CustomJSONSchema7).items as unknown[];
+    // the boolean entry is left exactly as it was ...
+    expect(items[0]).toBe(false);
+    // ... and its object sibling further along the array is still reached
+    expect(((items[1] as CustomJSONSchema7).properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should not invoke the mutation function when nothing matches", () => {
+    const original = {
+      type: "object",
+      properties: {
+        a: { type: "string" },
+        b: { type: "number" },
+      },
+    } as CustomJSONSchema7;
+    const mutationSpy = vi.fn((_: string, value: CustomJSONSchema7) => value);
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("missing"), mutationSpy);
+
+    expect(mutationSpy).not.toHaveBeenCalled();
+    // with no match the clone is structurally equal to the original
+    expect(result).toEqual(original);
+    expect(result).not.toBe(original);
+  });
 });

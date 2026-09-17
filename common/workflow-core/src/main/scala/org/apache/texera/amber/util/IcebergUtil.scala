@@ -22,6 +22,7 @@ package org.apache.texera.amber.util
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.util.Shell
 import org.apache.iceberg.catalog.{Catalog, SupportsNamespaces, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.data.{GenericRecord, Record}
@@ -59,9 +60,36 @@ object IcebergUtil {
   private val LARGE_BINARY_FIELD_SUFFIX = "__texera_large_binary_ptr"
 
   /**
+    * Creates the Hadoop `Configuration` used by catalogs that access the local file
+    * system through `HadoopFileIO`.
+    *
+    * On Windows hosts without a native Hadoop installation (winutils.exe), Hadoop's
+    * default local file system fails on every write because it shells out to winutils
+    * for chmod. In that case, swap in [[WinutilsFreeLocalFileSystem]], which skips
+    * permission operations, so local development works without installing winutils.
+    * On all other hosts the default configuration is returned unchanged.
+    *
+    * @param useWinutilsFreeLocalFs whether to swap in the winutils-free file system;
+    *                               defaults to the host's actual winutils availability
+    *                               and is only overridden in tests.
+    */
+  private[util] def newLocalHadoopConf(
+      useWinutilsFreeLocalFs: Boolean = Shell.WINDOWS && !Shell.hasWinutilsPath()
+  ): Configuration = {
+    val conf = new Configuration()
+    if (useWinutilsFreeLocalFs) {
+      conf.set("fs.file.impl", classOf[WinutilsFreeLocalFileSystem].getName)
+      // The FileSystem cache is keyed by scheme (not by impl class), so a plain
+      // LocalFileSystem cached earlier by other code would bypass this override.
+      conf.setBoolean("fs.file.impl.disable.cache", true)
+    }
+    conf
+  }
+
+  /**
     * Creates and initializes a HadoopCatalog with the given parameters.
-    * - Uses an empty Hadoop `Configuration`, meaning the local file system (or `file:/`) will be used by default
-    * instead of HDFS.
+    * - Uses the Hadoop `Configuration` from [[newLocalHadoopConf]], meaning the local
+    * file system (or `file:/`) will be used by default instead of HDFS.
     * - The `warehouse` parameter specifies the root directory for storing table data.
     * - Sets the file I/O implementation to `HadoopFileIO`.
     *
@@ -74,7 +102,7 @@ object IcebergUtil {
       warehouse: Path
   ): HadoopCatalog = {
     val catalog = new HadoopCatalog()
-    catalog.setConf(new Configuration) // Empty configuration, defaults to `file:/`
+    catalog.setConf(newLocalHadoopConf()) // Defaults to `file:/`, no HDFS
     catalog.initialize(
       catalogName,
       Map(
@@ -128,6 +156,8 @@ object IcebergUtil {
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
     val catalog = new JdbcCatalog()
+    // Must be set before initialize() so HadoopFileIO picks up this configuration.
+    catalog.setConf(newLocalHadoopConf())
     catalog.initialize(
       catalogName,
       Map(

@@ -26,7 +26,6 @@ import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.coordinator._
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
@@ -36,8 +35,12 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.amber.operator.filter.{ComparisonType, FilterPredicate, SpecializedFilterOpDesc}
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.BeforeAndAfterAll
 
@@ -71,7 +74,9 @@ class ColumnarReproSpec
     val rows = res.values.headOption.getOrElse(Nil)
     println(s"REPRO[$tag] $name: ${rows.size} rows")
     rows.take(3).foreach { t =>
-      println(s"REPRO[$tag]   Region=${t.getField[Any]("Region")} UnitsSold=${t.getField[Any]("Units Sold")}")
+      println(
+        s"REPRO[$tag]   Region=${t.getField[Any]("Region")} UnitsSold=${t.getField[Any]("Units Sold")}"
+      )
     }
   }
 
@@ -83,7 +88,9 @@ class ColumnarReproSpec
       val f = filt("Units Sold", "5000")
       val wf = buildWorkflow(
         List(scan, f),
-        List(LogicalLink(scan.operatorIdentifier, PortIdentity(), f.operatorIdentifier, PortIdentity())),
+        List(
+          LogicalLink(scan.operatorIdentifier, PortIdentity(), f.operatorIdentifier, PortIdentity())
+        ),
         ctx
       )
       report("scan->filter", runWorkflowAndReadTerminalResults(system, wf, Duration.fromMinutes(5)))
@@ -100,12 +107,20 @@ class ColumnarReproSpec
       val wf = buildWorkflow(
         List(scan, f1, f2),
         List(
-          LogicalLink(scan.operatorIdentifier, PortIdentity(), f1.operatorIdentifier, PortIdentity()),
+          LogicalLink(
+            scan.operatorIdentifier,
+            PortIdentity(),
+            f1.operatorIdentifier,
+            PortIdentity()
+          ),
           LogicalLink(f1.operatorIdentifier, PortIdentity(), f2.operatorIdentifier, PortIdentity())
         ),
         ctx
       )
-      report("scan->filter->filter", runWorkflowAndReadTerminalResults(system, wf, Duration.fromMinutes(5)))
+      report(
+        "scan->filter->filter",
+        runWorkflowAndReadTerminalResults(system, wf, Duration.fromMinutes(5))
+      )
     } finally cleanupWorkflowExecutionData(id)
   }
 }

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.filter
 
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{Float8Vector, IntVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{Float8Vector, IntVector}
 import org.apache.texera.amber.core.executor.{ColumnarOperatorExecutor, ColumnarResult}
 import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.tuple.{
@@ -76,22 +76,29 @@ class SpecializedFilterOpExec(descString: String)
         if (cmp == null) return null
         tpe match {
           case AttributeType.INTEGER | AttributeType.DOUBLE =>
-            val c = try p.value.toDouble catch { case _: NumberFormatException => return null }
+            val c =
+              try p.value.toDouble
+              catch { case _: NumberFormatException => return null }
             (t: Tuple) => {
               val f = t.getField[Any](attr)
-              if (f == null) false else cmp(java.lang.Double.compare(f.asInstanceOf[Number].doubleValue(), c))
+              if (f == null) false
+              else cmp(java.lang.Double.compare(f.asInstanceOf[Number].doubleValue(), c))
             }
           case AttributeType.LONG =>
-            val c = try java.lang.Long.valueOf(p.value.trim) catch { case _: NumberFormatException => return null }
+            val c =
+              try java.lang.Long.valueOf(p.value.trim)
+              catch { case _: NumberFormatException => return null }
             (t: Tuple) => {
               val f = t.getField[Any](attr)
-              if (f == null) false else cmp(java.lang.Long.compare(f.asInstanceOf[Number].longValue(), c))
+              if (f == null) false
+              else cmp(java.lang.Long.compare(f.asInstanceOf[Number].longValue(), c))
             }
           case AttributeType.TIMESTAMP =>
             val c = AttributeTypeUtils.parseTimestamp(p.value.trim).getTime
             (t: Tuple) => {
               val f = t.getField[Any](attr)
-              if (f == null) false else cmp(java.lang.Long.compare(f.asInstanceOf[Timestamp].getTime, c))
+              if (f == null) false
+              else cmp(java.lang.Long.compare(f.asInstanceOf[Timestamp].getTime, c))
             }
           case AttributeType.BOOLEAN =>
             val c = p.value.trim.toLowerCase
@@ -103,7 +110,8 @@ class SpecializedFilterOpExec(descString: String)
             // Mirror FilterPredicate.evaluateFilterString: numeric compare when
             // both field and value parse as double, else lexicographic.
             val valNum: java.lang.Double =
-              try java.lang.Double.valueOf(p.value) catch { case _: NumberFormatException => null }
+              try java.lang.Double.valueOf(p.value)
+              catch { case _: NumberFormatException => null }
             (t: Tuple) => {
               val f = t.getField[Any](attr)
               if (f == null) false
@@ -111,7 +119,9 @@ class SpecializedFilterOpExec(descString: String)
                 val s = f.toString
                 if (valNum == null) cmp(s.compareTo(p.value))
                 else {
-                  val fd = try java.lang.Double.valueOf(s.trim) catch { case _: NumberFormatException => null }
+                  val fd =
+                    try java.lang.Double.valueOf(s.trim)
+                    catch { case _: NumberFormatException => null }
                   if (fd == null) cmp(s.compareTo(p.value))
                   else cmp(java.lang.Double.compare(fd, valNum))
                 }
@@ -126,7 +136,9 @@ class SpecializedFilterOpExec(descString: String)
     compileAttempted = true
     val schema = sample.getSchema
     val fns = desc.predicates.map { p =>
-      val tpe = try schema.getAttribute(p.attribute).getType catch { case _: Throwable => null }
+      val tpe =
+        try schema.getAttribute(p.attribute).getType
+        catch { case _: Throwable => null }
       if (tpe == null) null else compileOne(p, tpe)
     }
     if (fns.nonEmpty && fns.forall(_ != null)) compiled = fns.toArray
@@ -174,9 +186,12 @@ class SpecializedFilterOpExec(descString: String)
   private def isNumericSimd(sample: Tuple): Boolean = {
     val p = desc.predicates.head
     if (cmpOf(p.condition) == null) return false
-    val tpe = try sample.getSchema.getAttribute(p.attribute).getType catch { case _: Throwable => return false }
+    val tpe =
+      try sample.getSchema.getAttribute(p.attribute).getType
+      catch { case _: Throwable => return false }
     (tpe == AttributeType.INTEGER || tpe == AttributeType.DOUBLE) &&
-    (try { p.value.toDouble; true } catch { case _: NumberFormatException => false })
+    (try { p.value.toDouble; true }
+    catch { case _: NumberFormatException => false })
   }
 
   // ---- Native-Arrow path (M2): consume the Arrow batch directly, no tuple decode.
@@ -206,7 +221,9 @@ class SpecializedFilterOpExec(descString: String)
         root.getVector(fieldIdx) match {
           case v: Float8Vector =>
             var i = 0
-            while (i < n) { mask(i) = !v.isNull(i) && cmp(java.lang.Double.compare(v.get(i), c)); i += 1 }
+            while (i < n) {
+              mask(i) = !v.isNull(i) && cmp(java.lang.Double.compare(v.get(i), c)); i += 1
+            }
             ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
           case v: IntVector =>
             var i = 0

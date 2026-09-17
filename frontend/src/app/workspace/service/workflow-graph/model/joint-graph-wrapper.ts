@@ -26,6 +26,7 @@ import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
+import { HeatmapView } from "../../heatmap/heatmap-scoring";
 import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
@@ -107,6 +108,11 @@ export class JointGraphWrapper {
   // survives the region elements being recreated on every execution update, and so the editor can
   // reapply it to the shared model (covering both the main canvas and the mini-map).
   private regionsDisplayedStream = new BehaviorSubject<boolean>(false);
+
+  // The active performance heat-map view, or null when the overlay is off (Layers > Performance).
+  // Kept here so the editor can (re)apply operator colors on the shared model, covering both the
+  // main canvas and the mini-map.
+  private heatmapViewStream = new BehaviorSubject<HeatmapView | null>(null);
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
@@ -227,6 +233,21 @@ export class JointGraphWrapper {
 
   public getRegionsDisplayedStream(): Observable<boolean> {
     return this.regionsDisplayedStream.asObservable();
+  }
+
+  /**
+   * Sets the active performance heat-map view, or null to turn the overlay off.
+   */
+  public setHeatmapView(view: HeatmapView | null): void {
+    this.heatmapViewStream.next(view);
+  }
+
+  public getHeatmapView(): HeatmapView | null {
+    return this.heatmapViewStream.value;
+  }
+
+  public getHeatmapViewStream(): Observable<HeatmapView | null> {
+    return this.heatmapViewStream.asObservable();
   }
 
   /**

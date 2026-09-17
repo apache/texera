@@ -99,7 +99,7 @@ class DPThread(
           // so create() can append a suffix without the execution id. Once per thread,
           // assuming a thread serves one execution.
           LargeBinaryManager.setCurrentBaseUri(largeBinaryBaseUri)
-          logger.info("DP thread started")
+          logger.debug("DP thread started")
           startFuture.complete(())
           dp.statisticsManager.initializeWorkerStartTime(System.nanoTime())
           try {
@@ -107,7 +107,7 @@ class DPThread(
           } catch safely {
             case _: InterruptedException =>
               // dp thread will stop here
-              logger.info("DP Thread exits")
+              logger.debug("DP Thread exits")
             case err: Throwable =>
               logger.error("DP Thread exists unexpectedly", err)
               dp.outputHandler(Left(MainThreadDelegateMessage((worker) => {
