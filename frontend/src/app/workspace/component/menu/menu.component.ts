@@ -423,8 +423,19 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // Per-user warehouses enabled but none to write to (#7817): mirror the
     // Connect state above — name the fixing action, and runWorkflow() routes
-    // the click into the create-warehouse modal.
-    if (this.computingUnitSelectionComponent?.warehouseRequiredButMissing) {
+    // the click into the create-warehouse modal. Only in the states whose
+    // button would start a run: mid-execution the button is Pause/Resume/Kill,
+    // and losing the last warehouse must not take that control away.
+    if (
+      this.computingUnitSelectionComponent?.warehouseRequiredButMissing &&
+      [
+        ExecutionState.Uninitialized,
+        ExecutionState.Completed,
+        ExecutionState.Terminated,
+        ExecutionState.Killed,
+        ExecutionState.Failed,
+      ].includes(this.executionState)
+    ) {
       return {
         text: "Create Warehouse",
         icon: "plus-circle",

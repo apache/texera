@@ -412,6 +412,23 @@ describe("MenuComponent", () => {
       expect(runSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps Pause in control of a running execution even when the warehouse disappears", () => {
+      // Deleting the last warehouse mid-run flips warehouseRequiredButMissing;
+      // the primary button must stay Pause/Kill, not become "Create Warehouse".
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Running;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Pause");
+    });
+
     it("offers to create a warehouse when one is required but missing", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
