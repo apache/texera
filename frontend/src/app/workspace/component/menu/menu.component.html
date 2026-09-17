@@ -75,6 +75,30 @@
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 
+      <!-- One workflow, two ways of working on it: the Canvas and the Form View. The
+           same control sits in the same place on both, so switching never means hunting
+           for a different affordance; the pressed segment is the view you are looking at.
+           Every workflow offers both views, so this shows wherever the feature flag is on. -->
+      <div
+        class="view-switch"
+        *ngIf="this.config.env.formViewEnabled && !displayParticularWorkflowVersion">
+        <!-- The pressed segment stays a live button with no handler, deliberately: clicking the view
+             you are already on is a no-op, and a real button keeps the segment focusable and announced
+             with its pressed state. The Form View page mirrors this exactly, roles swapped. -->
+        <button
+          type="button"
+          class="on"
+          aria-pressed="true">
+          Canvas
+        </button>
+        <button
+          type="button"
+          aria-pressed="false"
+          (click)="onClickOpenFormView()">
+          Form View
+        </button>
+      </div>
+
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
         <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
@@ -121,18 +145,6 @@
             nz-icon
             nzType="delete"></i>
         </button>
-        <nz-upload
-          [nzDisabled]="!isWorkflowModifiable"
-          [nzBeforeUpload]="onClickImportWorkflow">
-          <button
-            nz-button
-            [disabled]="!isWorkflowModifiable"
-            title="import workflow">
-            <i
-              nz-icon
-              nzType="upload"></i>
-          </button>
-        </nz-upload>
         <button
           (click)="onClickExportWorkflow()"
           nz-button
@@ -148,6 +160,16 @@
           <i
             nz-icon
             nzType="info-circle"></i>
+        </button>
+        <button
+          *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
+          nz-button
+          (click)="onClickExpandJupyterNotebookPanel()"
+          title="expand Jupyter notebook">
+          <img
+            class="jupyter-notebook-icon"
+            src="assets/notebook_migration_tool/jupyter-logo.svg"
+            alt="Jupyter" />
         </button>
       </nz-space-compact>
       <ng-template #utilities>
@@ -196,6 +218,39 @@
                   (ngModelChange)="toggleStatus()"
                   >Status</label
                 >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showHeatmap"
+                  (ngModelChange)="toggleHeatmap()"
+                  >Performance</label
+                >
+              </li>
+              <li
+                nz-menu-item
+                *ngIf="showHeatmap"
+                class="heatmap-view-options">
+                <nz-radio-group
+                  [(ngModel)]="heatmapView"
+                  (ngModelChange)="setHeatmapView($event)"
+                  (click)="$event.stopPropagation()">
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.Runtime"
+                    >Runtime</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.TimePerRow"
+                    >Time / row</label
+                  >
+                  <label
+                    nz-radio
+                    [nzValue]="HeatmapView.IoImbalance"
+                    >I/O imbalance</label
+                  >
+                </nz-radio-group>
               </li>
             </ul>
           </nz-dropdown-menu>

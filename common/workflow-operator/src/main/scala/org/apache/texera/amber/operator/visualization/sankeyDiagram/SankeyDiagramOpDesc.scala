@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.sankeyDiagram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -32,6 +32,17 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
+// The value column is summed per source/target pair and becomes the width of
+// the link, so it has to be a number: strings concatenate instead of adding and
+// plotly accepts the result without complaint. Source and target are node
+// labels and take any type.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "Value Attribute": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Source Attribute", required = true)

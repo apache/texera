@@ -69,21 +69,32 @@ class VectorizedFilterCorrectnessSpec extends AnyFlatSpec {
   "Vectorized filter" should "match the row path on DOUBLE (with nulls)" in {
     val s = col("v", AttributeType.DOUBLE)
     val rng = new Random(1)
-    val rows = build(s, "v", (0 until 4000).map(i => if (i % 17 == 0) null else Double.box((rng.nextInt(100) - 10).toDouble)))
+    val rows = build(
+      s,
+      "v",
+      (0 until 4000).map(i =>
+        if (i % 17 == 0) null else Double.box((rng.nextInt(100) - 10).toDouble)
+      )
+    )
     checkAllOps(s, rows, "v", "25")
   }
 
   "Vectorized filter" should "match the row path on INTEGER (with nulls)" in {
     val s = col("v", AttributeType.INTEGER)
     val rng = new Random(2)
-    val rows = build(s, "v", (0 until 4000).map(i => if (i % 13 == 0) null else Int.box(rng.nextInt(60))))
+    val rows =
+      build(s, "v", (0 until 4000).map(i => if (i % 13 == 0) null else Int.box(rng.nextInt(60))))
     checkAllOps(s, rows, "v", "30")
   }
 
   "Vectorized filter" should "match the row path on LONG (with nulls)" in {
     val s = col("v", AttributeType.LONG)
     val rng = new Random(3)
-    val rows = build(s, "v", (0 until 4000).map(i => if (i % 11 == 0) null else Long.box(rng.nextInt(1000).toLong)))
+    val rows = build(
+      s,
+      "v",
+      (0 until 4000).map(i => if (i % 11 == 0) null else Long.box(rng.nextInt(1000).toLong))
+    )
     checkAllOps(s, rows, "v", "500")
   }
 
@@ -91,57 +102,93 @@ class VectorizedFilterCorrectnessSpec extends AnyFlatSpec {
     val s = col("v", AttributeType.STRING)
     val rng = new Random(4)
     // mix of numeric-looking and non-numeric strings
-    val rows = build(s, "v", (0 until 4000).map { i =>
-      if (i % 19 == 0) null
-      else if (i % 3 == 0) s"item-${rng.nextInt(50)}"
-      else rng.nextInt(50).toString
-    })
+    val rows = build(
+      s,
+      "v",
+      (0 until 4000).map { i =>
+        if (i % 19 == 0) null
+        else if (i % 3 == 0) s"item-${rng.nextInt(50)}"
+        else rng.nextInt(50).toString
+      }
+    )
     checkAllOps(s, rows, "v", "25")
   }
 
   "Vectorized filter" should "match the row path on STRING, non-numeric value (lexicographic)" in {
     val s = col("v", AttributeType.STRING)
     val rng = new Random(5)
-    val rows = build(s, "v", (0 until 3000).map(i => if (i % 23 == 0) null else s"${('A' + rng.nextInt(26)).toChar}${rng.nextInt(10)}"))
+    val rows = build(
+      s,
+      "v",
+      (0 until 3000).map(i =>
+        if (i % 23 == 0) null else s"${('A' + rng.nextInt(26)).toChar}${rng.nextInt(10)}"
+      )
+    )
     checkAllOps(s, rows, "v", "M5")
   }
 
   "Vectorized filter" should "match the row path on BOOLEAN (with nulls)" in {
     val s = col("v", AttributeType.BOOLEAN)
     val rng = new Random(6)
-    val rows = build(s, "v", (0 until 2000).map(i => if (i % 7 == 0) null else Boolean.box(rng.nextBoolean())))
+    val rows = build(
+      s,
+      "v",
+      (0 until 2000).map(i => if (i % 7 == 0) null else Boolean.box(rng.nextBoolean()))
+    )
     Seq(ComparisonType.EQUAL_TO, ComparisonType.NOT_EQUAL_TO).foreach { op =>
       val exec = execFor(("v", op, "true"))
-      assert(exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows.filter(exec.filterFunc).toList)
+      assert(
+        exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows
+          .filter(exec.filterFunc)
+          .toList
+      )
     }
   }
 
   "Vectorized filter" should "match the row path on TIMESTAMP (with nulls)" in {
     val s = col("v", AttributeType.TIMESTAMP)
     val base = 1_600_000_000_000L
-    val rows = build(s, "v", (0 until 2000).map(i => if (i % 9 == 0) null else new Timestamp(base + i.toLong * 86_400_000L)))
+    val rows = build(
+      s,
+      "v",
+      (0 until 2000).map(i =>
+        if (i % 9 == 0) null else new Timestamp(base + i.toLong * 86_400_000L)
+      )
+    )
     checkAllOps(s, rows, "v", "2020-10-01 00:00:00")
   }
 
   "Vectorized filter" should "match the row path for IS NULL / IS NOT NULL" in {
     val s = col("v", AttributeType.DOUBLE)
-    val rows = build(s, "v", (0 until 2000).map(i => if (i % 5 == 0) null else Double.box(i.toDouble)))
+    val rows =
+      build(s, "v", (0 until 2000).map(i => if (i % 5 == 0) null else Double.box(i.toDouble)))
     Seq(ComparisonType.IS_NULL, ComparisonType.IS_NOT_NULL).foreach { op =>
       val exec = execFor(("v", op, ""))
-      assert(exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows.filter(exec.filterFunc).toList)
+      assert(
+        exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows
+          .filter(exec.filterFunc)
+          .toList
+      )
     }
   }
 
   "Vectorized filter" should "match the row path for multi-predicate OR" in {
-    val s = Schema().add(new Attribute("a", AttributeType.DOUBLE)).add(new Attribute("b", AttributeType.INTEGER))
+    val s = Schema()
+      .add(new Attribute("a", AttributeType.DOUBLE))
+      .add(new Attribute("b", AttributeType.INTEGER))
     val rng = new Random(8)
     val rows = (0 until 3000).map { i =>
       val a: Any = if (i % 15 == 0) null else Double.box((rng.nextInt(100)).toDouble)
       val b: Any = if (i % 21 == 0) null else Int.box(rng.nextInt(100))
       Tuple.builder(s).add(s.getAttribute("a"), a).add(s.getAttribute("b"), b).build()
     }.toArray
-    val exec = execFor(("a", ComparisonType.GREATER_THAN, "80"), ("b", ComparisonType.LESS_THAN, "10"))
-    assert(exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows.filter(exec.filterFunc).toList)
+    val exec =
+      execFor(("a", ComparisonType.GREATER_THAN, "80"), ("b", ComparisonType.LESS_THAN, "10"))
+    assert(
+      exec.processBatchMultiPort(rows, 0).get.map(_._1).toList == rows
+        .filter(exec.filterFunc)
+        .toList
+    )
   }
 
   "Vectorized filter" should "fall back (None) when a numeric value cannot be parsed" in {
@@ -173,7 +220,9 @@ class VectorizedFilterCorrectnessSpec extends AnyFlatSpec {
             case other                  => fail(s"expected Emit, got $other")
           }
           val survivors =
-            (0 until resultRoot.getRowCount).map(i => ArrowUtils.getTexeraTuple(i, resultRoot)).toList
+            (0 until resultRoot.getRowCount)
+              .map(i => ArrowUtils.getTexeraTuple(i, resultRoot))
+              .toList
           resultRoot.close()
           exec.close()
           val rowSurvivors = rows.filter(exec.filterFunc).toList

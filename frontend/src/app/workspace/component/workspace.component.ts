@@ -63,6 +63,7 @@ import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component"
 import { LeftPanelComponent } from "./left-panel/left-panel.component";
 import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel/jupyter-notebook-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -85,10 +86,10 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     NgIf,
     AgentPanelComponent,
     PropertyEditorComponent,
+    JupyterNotebookPanelComponent,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
@@ -134,19 +135,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    /**
-     * On initialization of the workspace, there are two possibilities regarding which component has
-     * routed to this component:
-     *
-     * 1. Routed to this component from within UserProjectSection component
-     *    - track the pid identifying that project
-     *    - upon persisting of a workflow, must also ensure it is also added to the project
-     *
-     * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project, parseInt will return NaN.
-     *    - NaN || undefined will result in undefined.
-     */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -257,9 +245,17 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
+          // An AI-generated workflow arrives with autolayout=1. Render synchronously
+          // (asyncRendering = false) so the operators exist before the one-shot layout runs.
+          const shouldAutoLayout = this.route.snapshot.queryParams.autolayout === "1";
+          this.workflowActionService.reloadWorkflow(workflow, shouldAutoLayout ? false : undefined);
           this.workflowActionService.enableWorkflowModification();
+          // Register before autoLayoutWorkflow(): workflowChanged() streams are hot, so subscribing
+          // afterward would drop the layout's position events and the tidied layout would never save.
+          this.registerAutoPersistWorkflow();
+          if (shouldAutoLayout) {
+            this.workflowActionService.autoLayoutWorkflow();
+          }
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -282,7 +278,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.setLoadingState(false);
-          this.registerAutoPersistWorkflow();
           this.triggerCenter();
         },
         () => {
@@ -318,6 +313,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.registerAutoPersistWorkflow();
       });
   }
+
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -331,6 +327,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
+
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -340,6 +337,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
+
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }

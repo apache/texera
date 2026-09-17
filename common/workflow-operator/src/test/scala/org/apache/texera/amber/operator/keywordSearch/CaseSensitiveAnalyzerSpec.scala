@@ -76,11 +76,11 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // Whitespace tokenization — the underlying tokenizer is
-  // WhitespaceTokenizer; pin its splitting behavior.
+  // Word-boundary tokenization — the underlying tokenizer is
+  // StandardTokenizer (Unicode UAX#29); pin its splitting behavior.
   // ---------------------------------------------------------------------------
 
-  "CaseSensitiveAnalyzer (whitespace tokenizer)" should
+  "CaseSensitiveAnalyzer (standard tokenizer)" should
     "split on a single space" in {
     assert(tokensOf("body", "a b c") == List("a", "b", "c"))
   }
@@ -94,16 +94,18 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // Punctuation — WhitespaceTokenizer keeps punctuation attached to
-  // adjacent characters (it only splits on whitespace).
+  // Punctuation — StandardTokenizer splits on Unicode word boundaries, so
+  // punctuation is a boundary and is stripped rather than kept attached.
+  // This is the whole point of the fix: case-sensitive matching must not
+  // change punctuation handling relative to the default StandardAnalyzer.
   // ---------------------------------------------------------------------------
 
   it should
-    "leave punctuation attached to tokens (WhitespaceTokenizer only splits on whitespace)" in {
-    // `"abc,def"` has no whitespace inside, so it stays one token.
-    assert(tokensOf("body", "abc,def") == List("abc,def"))
-    // Sentence-final punctuation also stays attached.
-    assert(tokensOf("body", "Hello, world!") == List("Hello,", "world!"))
+    "split on punctuation and strip it (StandardTokenizer word boundaries)" in {
+    // `,` is a word boundary, so `"abc,def"` splits into two tokens.
+    assert(tokensOf("body", "abc,def") == List("abc", "def"))
+    // Sentence punctuation is a boundary and is dropped, not kept attached.
+    assert(tokensOf("body", "Hello, world!") == List("Hello", "world"))
   }
 
   // ---------------------------------------------------------------------------

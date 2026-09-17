@@ -19,11 +19,7 @@
 
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
-import {
-  AGGREGATE_COUNT,
-  isAggregateAttributeRequired,
-  OperatorPropertyEditFrameComponent,
-} from "./operator-property-edit-frame.component";
+import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
@@ -49,6 +45,7 @@ import {
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
@@ -57,17 +54,59 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
+import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
+import { of, Subject, throwError } from "rxjs";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 
 const { marbles } = configure({ run: false });
 
-describe("Aggregate attribute requirement", () => {
-  it("makes the attribute optional for count and required for every other function", () => {
-    // count -> optional (empty attribute means COUNT(*))
-    expect(isAggregateAttributeRequired(AGGREGATE_COUNT)).toBe(false);
-    // every other aggregate function -> attribute required
-    ["sum", "average", "min", "max", "concat"].forEach(fn => {
-      expect(isAggregateAttributeRequired(fn)).toBe(true);
+describe("conditionalRequiredRules", () => {
+  it("reads a `then` rule, as Sklearn states it for the text column", () => {
+    const rules = conditionalRequiredRules({
+      allOf: [{ if: { properties: { countVectorizer: { const: true } } }, then: { required: ["text"] } }],
     });
+    expect(rules.get("text")).toEqual({ sibling: "countVectorizer", value: true, requiredOnMatch: true });
+  });
+
+  it("reads an `else` rule nested in a definition, as Aggregate states it", () => {
+    const rules = conditionalRequiredRules({
+      definitions: {
+        AggregationOperation: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      },
+    });
+    // count -> optional (an empty attribute means COUNT(*)); every other function -> required
+    expect(rules.get("attribute")).toEqual({ sibling: "aggFunction", value: "count", requiredOnMatch: false });
+  });
+
+  it("ignores an attributeTypeRules block, which names its sibling without `properties`", () => {
+    const rules = conditionalRequiredRules({
+      attributeTypeRules: {
+        attribute: { allOf: [{ if: { aggFunction: { valEnum: ["sum"] } }, then: { enum: ["integer"] } }] },
+      },
+    });
+    expect(rules.size).toBe(0);
+  });
+
+  it("returns nothing for a schema that states no condition", () => {
+    expect(conditionalRequiredRules({ properties: { a: { type: "string" } } }).size).toBe(0);
+    expect(conditionalRequiredRules(undefined).size).toBe(0);
   });
 });
 
@@ -122,6 +161,82 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
+
+  it("broadcasts currentlyEditing and syncs the operator version by default when an operator opens", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const spy = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    expect(spy).toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, expect.anything());
+  });
+
+  it("writes nothing at all when actsAsEditor is false (read-only inspect)", fakeAsync(() => {
+    // The Form View mounts this frame with actsAsEditor=false so that a reader inspecting a
+    // step is not announced as editing the graph and, more importantly, so that merely OPENING the
+    // step writes nothing: rerenderEditorForm runs ajv with useDefaults, which fills in any new
+    // schema defaults and then emits a form change, and that change is a property write like any
+    // other. Ticking past the debounce is what makes this test see that path at all.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    const awareness = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    component.onFormChanges({ tableName: "someone_else_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(awareness).not.toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).not.toHaveBeenCalled();
+    expect(propertySpy).not.toHaveBeenCalled();
+    // The stored properties are the ones the author left, untouched by the visit.
+    expect(workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+      mockScanPredicate.operatorProperties
+    );
+    discardPeriodicTasks();
+  }));
+
+  it("stays non-interactive when writes are not allowed, even after modification is re-enabled", () => {
+    // A finished run re-enables workflow modification for the canvas's sake, and the runtime unlock
+    // button calls setInteractivity(true) directly. Neither may turn a viewer mount editable.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    component.setInteractivity(true);
+    expect(component.interactive).toBe(false);
+
+    component.allowModifyOperatorLogic();
+    expect(component.interactive).toBe(false);
+    expect(component.formlyFormGroup?.disabled).toBe(true);
+  });
+
+  it("writes the same form change when writes are allowed (the gate is what stops it)", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.onFormChanges({ tableName: "the_author_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(propertySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { tableName: "the_author_typed_this" });
+    discardPeriodicTasks();
+  }));
 
   /**
    * test if the property editor correctly receives the operator highlight stream,
@@ -203,6 +318,67 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     expect(operator.operatorProperties).toEqual(formChangeValue);
     expect(emitEventCounter).toEqual(1);
+  }));
+
+  it("keeps code-inferred UI parameters in the form model and subsequent form edits", fakeAsync(() => {
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    const syncService = TestBed.inject(UiUdfParametersSyncService);
+    (syncService as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+
+    component.onFormChanges({ ...component.formData, tableName: "after" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "after",
+      uiParameters: inferredParameters,
+    });
+    discardPeriodicTasks();
+  }));
+
+  it("shows code-inferred UI parameters read-only without writing them to the workflow", fakeAsync(() => {
+    // The inferred parameters are worth showing to a reader -- they are what the step's script now
+    // declares -- but a viewer mount must not persist them, so the model updates and the graph
+    // does not.
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "before",
+      uiParameters: [],
+    });
+    discardPeriodicTasks();
   }));
 
   it.skip(
@@ -1590,6 +1766,71 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
     });
 
+    it("passes without checking anything when no operator is selected", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+      component.currentOperatorId = undefined;
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a rule that names a property the schema does not declare", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        // "missing" has a rule but no matching entry under `properties`.
+        attributeTypeRules: { missing: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a property whose schema declares no autofill port", () => {
+      // findAttributeType bails at `isDefined(portIndex)`, so the rule never runs and
+      // the compiling service is never asked for a type.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string" } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a const rule that carries no $data reference", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { const: {} } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule passes when both attributes resolve to the same type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, rootField())).toBe(true);
+    });
+
     it("enum rule is skipped when the attribute type is undefined (attribute not selected)", () => {
       const validator = bindSchema({
         type: "object",
@@ -1693,6 +1934,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
         properties: { datasetVersionPath: { type: "string" } },
       });
       expect(getField("datasetVersionPath")?.type).toBe("datasetversionselector");
+    });
+
+    it("maps uiParameters to the ui-udf-parameters field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { uiParameters: { type: "array" } },
+      });
+      expect(getField("uiParameters")?.type).toBe("ui-udf-parameters");
     });
 
     it("maps a field described as 'Input your code here' to the codearea field type", () => {
@@ -1859,6 +2108,1026 @@ describe("OperatorPropertyEditFrameComponent", () => {
       component.listeningToChange = true;
       workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { marker: "allowed" });
       expect(component.formData.marker).toBe("allowed");
+    });
+  });
+  describe("real template rendering", () => {
+    let realFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let realComponent: OperatorPropertyEditFrameComponent;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      realComponent = realFixture.componentInstance;
+    });
+
+    it("should render the title section when editingTitle is false and formTitle is set", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = "My Operator";
+      realFixture.detectChanges();
+      const titleEl = realFixture.debugElement.query(By.css("#formly-title"));
+      expect(titleEl).toBeTruthy();
+      const h3 = realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(h3).toBeTruthy();
+      expect((h3.nativeElement as HTMLElement).textContent?.trim()).toBe("My Operator");
+    });
+
+    it("should not render the h3 title when formTitle is undefined", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = undefined;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"))).toBeNull();
+    });
+
+    it("should disable the edit button when interactive is false", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = false;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the edit button when interactive is true", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = true;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should hide the title section when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("#formly-title"))).toBeNull();
+    });
+
+    it("should hide the customName div when editingTitle is false", () => {
+      realComponent.editingTitle = false;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(true);
+    });
+
+    it("should show the customName div when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(false);
+    });
+
+    it("should show the PythonLambdaFunction icon when currentOperatorId includes PythonLambdaFunction", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "PythonLambdaFunction-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeTruthy();
+    });
+
+    it("should not show the PythonLambdaFunction icon for other operator types", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "ScanSource-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeNull();
+    });
+
+    it("should not render the form section when formlyFields is undefined", () => {
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".property-editor-form"))).toBeNull();
+    });
+
+    it("should render the operator version span", () => {
+      realComponent.operatorVersion = "v1.2.3";
+      realFixture.detectChanges();
+      const versionEl = realFixture.debugElement.query(By.css(".operator-version span"));
+      expect(versionEl).toBeTruthy();
+      expect((versionEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Operator Version: v1.2.3");
+    });
+
+    // ── HF task preview template nodes ──
+    // formlyFields=[] and formlyFormGroup=new FormGroup({}) satisfy the outer
+    // *ngIf without triggering Formly rendering; the getter is mocked directly.
+
+    function setupPreview(preview: object): void {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(preview as any);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+    }
+
+    it("should not render the HF preview card when huggingFaceTaskPreview is null", () => {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(null);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeNull();
+    });
+
+    it("should render a video element for kind='video'", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css("video.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should bind [src] and [muted] on the video element", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      const video = realFixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
+      expect(video.muted).toBe(true);
+    });
+
+    it("should render an img element for kind='image'", () => {
+      setupPreview({ kind: "image", title: "Image preview", assetSrc: "assets/sample.png" });
+      expect(realFixture.debugElement.query(By.css("img.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should render an audio element for kind='audio'", () => {
+      setupPreview({ kind: "audio", title: "Audio preview", assetSrc: "assets/sample.mp3" });
+      expect(realFixture.debugElement.query(By.css("audio.hf-task-preview-audio"))).toBeTruthy();
+    });
+
+    it("should render the text surface for kind='text'", () => {
+      setupPreview({ kind: "text", title: "Text preview", body: "Some body" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-surface"))).toBeTruthy();
+      const titleEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-title"));
+      expect((titleEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Text preview");
+      const bodyEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-body"));
+      expect((bodyEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Some body");
+    });
+
+    it("should render outputBody in the text surface when present", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in the text surface when absent", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeNull();
+    });
+
+    it("should render the flow section when inputLabel and outputLabel are set", () => {
+      setupPreview({ kind: "image", title: "T", inputLabel: "Input", outputLabel: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-arrow"))).toBeTruthy();
+      const chips = realFixture.debugElement.queryAll(By.css(".hf-task-preview-chip"));
+      expect(chips.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should not render the flow section when inputLabel and outputLabel are absent", () => {
+      setupPreview({ kind: "image", title: "T" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeNull();
+    });
+
+    it("should render the description for non-text kinds with body", () => {
+      setupPreview({ kind: "image", title: "T", body: "Some description" });
+      const desc = realFixture.debugElement.query(By.css(".hf-task-preview-description"));
+      expect(desc).toBeTruthy();
+      expect((desc.nativeElement as HTMLElement).textContent?.trim()).toBe("Some description");
+    });
+
+    it("should not render the description for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-description"))).toBeNull();
+    });
+
+    it("should render outputBody in meta for non-text kinds", () => {
+      setupPreview({ kind: "image", title: "T", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in meta for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeNull();
+    });
+
+    it("should render pills when pills array is non-empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: ["NLP", "Classification"] });
+      const pillsContainer = realFixture.debugElement.query(By.css(".hf-task-preview-pills"));
+      expect(pillsContainer).toBeTruthy();
+      const pills = realFixture.debugElement.queryAll(By.css(".hf-task-preview-pill"));
+      expect(pills.length).toBe(2);
+      expect((pills[0].nativeElement as HTMLElement).textContent?.trim()).toBe("NLP");
+    });
+
+    it("should not render pills when pills array is empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: [] });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
+    });
+  });
+
+  describe("onFormChanges null handling", () => {
+    it("should strip null values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: null });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+
+    it("should keep null values for required fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: null, optionalField: "value" });
+
+      expect(emittedEvent).toEqual({ tableName: null, optionalField: "value" });
+    });
+
+    it("should keep non-null values regardless of required status", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: "set" });
+
+      expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
+    });
+
+    it("should strip undefined values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: undefined });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+  });
+
+  describe("modify-operator-logic gating", () => {
+    it("allowModifyOperatorLogic re-enables editing", () => {
+      fixture.detectChanges();
+      component.setInteractivity(false);
+
+      component.allowModifyOperatorLogic();
+
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic pushes the change and locks the form again", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID);
+      expect(component.interactive).toBe(false);
+    });
+
+    it("confirmModifyOperatorLogic reports a failure and leaves the form editable", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {
+        throw new Error("cannot modify while running");
+      });
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(errorSpy).toHaveBeenCalledWith("cannot modify while running");
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic does nothing when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic");
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription handlers", () => {
+    it("retitles the form only when the renamed operator is the current one", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      component.formTitle = "original";
+      // getTexeraGraph() narrows to WorkflowGraphReadonly; the instance really is a
+      // WorkflowGraph, whose display-name subject is only pushed by the shared-model
+      // handler, so drive it directly to exercise the subscriber.
+      const graph = workflowActionService.getTexeraGraph() as unknown as WorkflowGraph;
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: "some-other-operator",
+        newDisplayName: "ignored",
+      });
+      expect(component.formTitle).toBe("original");
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        newDisplayName: "renamed",
+      });
+      expect(component.formTitle).toBe("renamed");
+    });
+
+    it("mirrors the workflow-modification flag onto the form's interactivity", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+
+      workflowActionService.disableWorkflowModification();
+      expect(component.interactive).toBe(false);
+
+      workflowActionService.enableWorkflowModification();
+      expect(component.interactive).toBe(true);
+    });
+
+    it("ignores the workflow-modification flag while no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.setInteractivity(true);
+
+      workflowActionService.disableWorkflowModification();
+
+      expect(component.interactive).toBe(true);
+      workflowActionService.enableWorkflowModification();
+    });
+
+    it("re-renders only when the current operator's dynamic schema changes", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm").mockImplementation(() => {});
+      // setDynamicSchema is a no-op when the schema is unchanged, so vary it to force an emit.
+      const bumped = (schema: typeof mockScanSourceSchema) => ({ ...schema, operatorVersion: "bumped" });
+
+      dynamicSchemaService.setDynamicSchema(mockResultPredicate.operatorID, bumped(mockViewResultsSchema));
+      expect(rerenderSpy).not.toHaveBeenCalled();
+
+      dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, bumped(mockScanSourceSchema));
+      expect(rerenderSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("rerenderEditorForm", () => {
+    it("is a no-op when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.formTitle = "untouched";
+
+      component.rerenderEditorForm();
+
+      expect(component.formTitle).toBe("untouched");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF virtual-environment loading (rerenderEditorForm)
+  //
+  // The branch only runs for a Python UDF operator and the mock metadata has
+  // none, so the dynamic schema is stubbed rather than adding a fixture operator
+  // type. Both collaborators emit synchronously, so nothing here waits on a
+  // timer or reaches a backend.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment loading", () => {
+    const udfSchema = () =>
+      ({
+        operatorType: "PythonUDFV2",
+        additionalMetadata: {
+          userFriendlyName: "Python UDF",
+          operatorDescription: "runs python",
+          operatorGroupName: "Python",
+          inputPorts: [],
+          outputPorts: [{}],
+        },
+        jsonSchema: {
+          type: "object",
+          properties: {
+            code: { type: "string" },
+            envName: { type: "string" },
+            defaultEnv: { type: "boolean" },
+          },
+        },
+        operatorVersion: "udf-1",
+      }) as any;
+
+    /** Points the frame at a Python UDF operator and returns the stubbed collaborators. */
+    function selectUdfOperator(opts: { unit?: unknown; pves?: unknown; predicate?: typeof mockScanPredicate } = {}): {
+      fetchPVEs: ReturnType<typeof vi.fn>;
+      notificationError: ReturnType<typeof vi.fn>;
+    } {
+      const predicate = opts.predicate ?? mockScanPredicate;
+      vi.spyOn(TestBed.inject(DynamicSchemaService), "getDynamicSchema").mockReturnValue(udfSchema());
+      // `undefined` means "not specified", so an explicit `null` still reaches the component.
+      const unit = opts.unit === undefined ? { computingUnit: { cuid: 7 } } : opts.unit;
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(of(unit) as any);
+      const fetchPVEs = vi
+        .spyOn(TestBed.inject(WorkflowPveService), "fetchPVEs")
+        .mockReturnValue((opts.pves ?? of([{ pveName: "env-a" }, { pveName: "env-b" }])) as any);
+      const notificationError = vi
+        .spyOn(TestBed.inject(NotificationService), "error")
+        .mockImplementation(() => undefined as any);
+
+      workflowActionService.addOperator(predicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      return { fetchPVEs: fetchPVEs as any, notificationError: notificationError as any };
+    }
+
+    const envField = () => component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+
+    it("seeds defaultEnv when the operator's properties do not carry it", () => {
+      selectUdfOperator();
+      expect(component.formData.defaultEnv).toBe(true);
+    });
+
+    it("leaves an explicit defaultEnv alone", () => {
+      selectUdfOperator({
+        predicate: {
+          ...mockScanPredicate,
+          operatorID: "udf-explicit-default",
+          operatorProperties: { defaultEnv: false },
+        },
+      });
+      expect(component.formData.defaultEnv).toBe(false);
+    });
+
+    it("fetches the selected unit's environments and binds them as envName options", () => {
+      const { fetchPVEs } = selectUdfOperator();
+
+      expect(fetchPVEs).toHaveBeenCalledWith(7);
+      expect((envField()?.props as any).options).toEqual([
+        { value: "env-a", label: "env-a" },
+        { value: "env-b", label: "env-b" },
+      ]);
+      // hideEnvNameWhenDefaultEnvChecked also ran on the success path.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("skips the fetch when the emitted unit carries no cuid", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: { computingUnit: {} } });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      // The other arm supplies an empty list, so the field binds with no options.
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("skips the fetch when no computing unit is selected", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: null });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("reports an Error failure and still binds the form with no environments", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => new Error("pve down")) });
+
+      expect(notificationError).toHaveBeenCalledWith("Could not load Python virtual environments: pve down");
+      expect((envField()?.props as any).options).toEqual([]);
+      // The fallback binding runs hideEnvNameWhenDefaultEnvChecked too.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("stringifies a non-Error failure", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => "plain string failure") });
+
+      expect(notificationError).toHaveBeenCalledWith(
+        "Could not load Python virtual environments: plain string failure"
+      );
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("patches nothing when the schema's properties are absent or not an object", () => {
+      // Both take the guard's false side, so the clone comes back unchanged
+      // instead of dereferencing a missing envName property.
+      const noProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object" }, ["env-a"]);
+      expect(noProps).toEqual({ type: "object" });
+
+      const booleanProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object", properties: true }, [
+        "env-a",
+      ]);
+      expect(booleanProps).toEqual({ type: "object", properties: true });
+    });
+
+    it("hideEnvNameWhenDefaultEnvChecked is a no-op when the form has no envName field", () => {
+      component.setFormlyFormBinding({ type: "object", properties: { code: { type: "string" } } });
+
+      expect(() => (component as any).hideEnvNameWhenDefaultEnvChecked()).not.toThrow();
+
+      expect(component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName")).toBeUndefined();
+      // No other field picked up the defaultEnv hide rule either.
+      const codeExpressions = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "code")?.expressions as any;
+      expect(codeExpressions?.hide).toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Early-return guards
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("early-return guards", () => {
+    /**
+     * Feeds a statistics update in through the route production uses: the websocket
+     * event stream, which WorkflowStatusService relays on to its subscribers.
+     * websocketEvent() hands back the subject itself, so no private field is touched.
+     */
+    function emitOperatorStatistics(statistics: Record<string, unknown>): void {
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next({
+        type: "OperatorStatisticsUpdateEvent",
+        operatorStatistics: statistics,
+      } as unknown as TexeraWebsocketEvent);
+    }
+
+    it("ngOnChanges stops before re-rendering when the new operator id is unset", () => {
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm");
+
+      component.ngOnChanges({ currentOperatorId: new SimpleChange("op-1", undefined, false) });
+
+      expect(component.currentOperatorId).toBeUndefined();
+      expect(rerenderSpy).not.toHaveBeenCalled();
+    });
+
+    // Wire-shaped payload: the service splits it into the state and statistics concepts.
+    const runningStatus = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+
+    it("the state-update subscription records the state for the selected operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the subscription
+
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: runningStatus });
+
+      expect(component.currentOperatorState).toBe(OperatorState.Running);
+    });
+
+    it("the state-update subscription ignores updates while no operator is selected", () => {
+      fixture.detectChanges(); // ngOnInit registers the subscription
+      component.currentOperatorId = undefined;
+
+      emitOperatorStatistics({ "op-1": runningStatus });
+
+      expect(component.currentOperatorState).toBeUndefined();
+    });
+
+    it("the ui-parameter subscription ignores events addressed to a different operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      const before = cloneDeep(component.formData);
+
+      (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+        operatorId: "some-other-operator",
+        parameters: [{ attribute: { attributeName: "a", attributeType: "string" }, value: "1" }],
+      });
+
+      expect(component.formData).toEqual(before);
+    });
+
+    it("isHuggingFaceOperator is false when nothing is selected", () => {
+      component.currentOperatorId = undefined;
+      expect((component as any).isHuggingFaceOperator()).toBe(false);
+    });
+
+    it("checkOperatorProperty is false when the operator is no longer in the graph", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // Simulate the operator being deleted during the form's debounce window.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue(undefined as any);
+
+      expect(component.checkOperatorProperty({ tableName: "x" })).toBe(false);
+    });
+
+    it("typeInferenceOnLambdaFunction returns early without an input schema map", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue(undefined);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      // Untouched: the method bailed before reaching the mapping loop.
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("typeInferenceOnLambdaFunction returns early when the first port has no schema", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue({
+        0: undefined,
+      } as any);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("no property is written when the operator is deselected mid-debounce", fakeAsync(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the handler
+      const setProperty = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+      // checkOperatorProperty gates the stream after the debounce, so clearing the
+      // selection in the debounce window drops the event before any write happens.
+      component.sourceFormChangeEventStream.next({ tableName: "x" });
+      component.currentOperatorId = undefined;
+      tick(FORM_DEBOUNCE_TIME_MS);
+
+      expect(setProperty).not.toHaveBeenCalled();
+      discardPeriodicTasks();
+    }));
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-mapping rules applied inside setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Formly field-mapping rules", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function expressionsOf(key: string): Record<string, Function> {
+      return getField(key)?.expressions as Record<string, Function>;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("locks the dummyOperator field down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyOperator: { type: "string" } },
+      });
+
+      const expressions = expressionsOf("dummyOperator");
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+    });
+
+    it("locks the dummyProperty and dummyValue fields down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyProperty: { type: "string" }, dummyValue: { type: "string" } },
+      });
+
+      ["dummyProperty", "dummyValue"].forEach(key => {
+        const expressions = expressionsOf(key);
+        expect(expressions["templateOptions.readonly"]()).toBe(true);
+        expect(expressions["templateOptions.disabled"]()).toBe(true);
+      });
+    });
+
+    it("hides dummyPropertyList for a non-Dummy operator and pins add/remove off", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      const field = getField("dummyPropertyList");
+      expect(field?.hide).toBe(true);
+      const expressions = field?.expressions as Record<string, Function>;
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+      expect(expressions["templateOptions.canRemove"]()).toBe(false);
+      expect(expressions["templateOptions.canAdd"]()).toBe(false);
+    });
+
+    it("keeps dummyPropertyList visible for the Dummy operator itself", () => {
+      component.currentOperatorSchema = { operatorType: "Dummy" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      expect(getField("dummyPropertyList")?.hide).toBe(false);
+    });
+
+    it("hides a field through the schema's hideTarget/hideType pair", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "string" },
+          target: {
+            type: "string",
+            hideTarget: "trigger",
+            hideType: "equals",
+            hideExpectedValue: "off",
+          } as CustomJSONSchema7,
+        },
+      });
+
+      const hide = expressionsOf("target")["hide"];
+      expect(hide({ parent: { model: { trigger: "off" } } } as any)).toBe(true);
+      expect(hide({ parent: { model: { trigger: "on" } } } as any)).toBe(false);
+    });
+
+    it("substitutes the field type for fileName and huggingFaceModel", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { fileName: { type: "string" }, huggingFaceModel: { type: "string" } },
+      });
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("huggingFaceModel")?.type).toBe("huggingface");
+    });
+
+    it("attaches the diff style to an overridden field and nothing to the others", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-diff": new Map<String, String>([["colour", "border: 1px solid red"]]),
+      };
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string" }, other: { type: "string" } },
+      });
+
+      expect(expressionsOf("colour")["templateOptions.attributes"]()).toEqual({
+        style: "border: 1px solid red",
+      });
+      expect(expressionsOf("other")["templateOptions.attributes"]()).toEqual({});
+    });
+
+    it("writes the operatorVersion boundary style onto the rendered marker", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-version-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-version-diff": new Map<String, String>([["operatorVersion", "border: 2px dashed blue"]]),
+      };
+
+      // The binding indexes getElementsByClassName("operator-version")[0] directly,
+      // so the element has to be in the document before it runs.
+      const marker = document.createElement("div");
+      marker.className = "operator-version";
+      document.body.appendChild(marker);
+      try {
+        component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+
+        expect(marker.getAttribute("style")).toBe("border: 2px dashed blue");
+      } finally {
+        marker.remove();
+      }
+    });
+
+    it("marks a field the schema requires conditionally, as Aggregate does its attribute", () => {
+      component.currentOperatorSchema = {
+        operatorType: "Aggregate",
+        jsonSchema: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      const required = expressionsOf("attribute")["props.required"];
+      expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
+      expect(required({ parent: { model: { aggFunction: "count" } } } as any)).toBe(false);
+    });
+
+    it("leaves the rule off for a schema that states no condition", () => {
+      component.currentOperatorSchema = { operatorType: "Projection", jsonSchema: {} } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      expect(expressionsOf("attribute")?.["props.required"]).toBeUndefined();
+    });
+
+    it("wires the preset wrapper only while user presets are enabled", () => {
+      const setupFieldConfig = vi.spyOn(PresetWrapperComponent, "setupFieldConfig").mockImplementation(() => {});
+      const guiConfig = TestBed.inject(GuiConfigService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const schema = {
+        type: "object" as const,
+        properties: { a: { type: "string", "enable-presets": true } as CustomJSONSchema7 },
+      };
+
+      guiConfig.env.userPresetEnabled = false;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).not.toHaveBeenCalled();
+
+      guiConfig.env.userPresetEnabled = true;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ key: "a" }),
+        "operator",
+        mockScanPredicate.operatorType,
+        mockScanPredicate.operatorID
+      );
+    });
+
+    it("keeps the validator the schema contributes", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string", enum: ["red"] } },
+      });
+
+      expect(Object.keys(getField("colour")?.validators ?? {})).toContain("inEnum");
+    });
+
+    it("disables the form on init when the frame is not interactive", () => {
+      component.interactive = false;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(true);
+    });
+
+    it("leaves the form enabled when the frame is interactive", () => {
+      component.interactive = true;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(false);
+    });
+
+    it("skips a boolean schema property when wiring dependencies", () => {
+      // `properties: { flag: true }` is legal JSON schema; the binding must skip it
+      // rather than read toggleHidden off a boolean.
+      expect(() =>
+        component.setFormlyFormBinding({
+          type: "object",
+          properties: { flag: true, a: { type: "string" } },
+        } as CustomJSONSchema7)
+      ).not.toThrow();
+    });
+
+    it("installs the hide expression a toggleHidden property declares", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "boolean", toggleHidden: ["target"] } as CustomJSONSchema7,
+          target: { type: "string" },
+        },
+      });
+
+      expect(getField("target")?.expressions?.["hide"]).toBe("!field.parent.model.trigger");
+    });
+
+    it("resolves a dependOn property against the operator's input schema", () => {
+      const compilingService = TestBed.inject(WorkflowCompilingService);
+      // The timestamp attribute is what distinguishes a forwarded schema map from an
+      // empty one: only its name reaches the generated description expression.
+      const getOperatorInputSchemaMap = vi.spyOn(compilingService, "getOperatorInputSchemaMap").mockReturnValue({
+        "0_false": [
+          { attributeName: "colA", attributeType: "string" },
+          { attributeName: "eventTime", attributeType: "timestamp" },
+        ],
+      } as any);
+      component.currentOperatorId = "operator-dependency";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          parent: { type: "string" },
+          child: { type: "string", dependOn: "parent" } as CustomJSONSchema7,
+        },
+      });
+
+      expect(getOperatorInputSchemaMap).toHaveBeenCalledWith("operator-dependency");
+      expect(getField("child")?.expressions?.["templateOptions.description"]).toBe(
+        "[\"eventTime\"].includes(model.parent)? 'Input a datetime string' : 'Input a positive number'"
+      );
+    });
+  });
+
+  describe("choosing which properties the Form View exposes", () => {
+    it("wires each top-level tick box to the exposure service", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      const setExposed = vi.spyOn(formBindingService, "setExposed");
+      component.exposeChoosing = true;
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+
+      const field = component.formlyFields?.[0]?.fieldGroup?.find(f => f.props?.["toggleExposed"] !== undefined);
+      (field!.props as any).toggleExposed(true);
+
+      expect(setExposed).toHaveBeenCalledWith(mockScanPredicate.operatorID, field!.key, true);
+    });
+
+    // The tick box belongs to top-level properties only; a nested field must not get one,
+    // not even one whose key collides with a top-level property name.
+    it("never puts a tick box on a nested field, including one whose name collides with a root property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-nested";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          tableName: { type: "string" },
+          group: {
+            type: "object",
+            properties: { tableName: { type: "string" }, value: { type: "string" } },
+          },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const decoratedTop = topLevel
+        .filter(f => f.props?.["toggleExposed"] !== undefined)
+        .map(f => f.key)
+        .sort();
+      expect(decoratedTop).toEqual(["group", "tableName"]);
+
+      // the nested tableName (same name as a root property) is not decorated
+      const nested = topLevel.find(f => f.key === "group")?.fieldGroup ?? [];
+      const nestedTableName = nested.find(f => f.key === "tableName");
+      expect(nestedTableName).toBeDefined();
+      expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
+    });
+
+    // Writing code is not "filling in a value", so a code-editor property is never offered for
+    // exposure; an ordinary property beside it still is.
+    it("does not offer exposure on a code-editor property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-code";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          code: { type: "string", description: "input your code here" },
+          limit: { type: "number" },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const codeField = topLevel.find(f => f.key === "code");
+      expect(codeField?.type).toBe("codearea");
+      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
+      // an ordinary property is still offered
+      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
+      expect(decorated).toEqual(["limit"]);
     });
   });
 });

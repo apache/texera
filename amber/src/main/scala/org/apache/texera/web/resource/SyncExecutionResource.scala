@@ -48,8 +48,11 @@ import io.reactivex.rxjava3.core.Observable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
-import org.apache.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
-import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
+import org.apache.texera.common.compiler.model.LogicalPlanPojo
+import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
+import org.apache.texera.web.service.{WarehouseReadGuard, WarehouseUnavailableException}
+import org.apache.texera.common.compiler.model.LogicalLink
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -165,7 +168,8 @@ class SyncExecutionResource extends LazyLogging {
             WorkflowSettings(dataTransferBatchSize = ApplicationConfig.defaultDataTransferBatchSize)
           ),
         emailNotificationEnabled = false,
-        computingUnitId = computingUnitId
+        computingUnitId = computingUnitId,
+        warehouseId = None
       )
 
       workflowService.initExecutionService(
@@ -533,6 +537,8 @@ class SyncExecutionResource extends LazyLogging {
 
       storageUriOption match {
         case Some(storageUri) =>
+          // Refuse to read a per-user-warehouse result while the feature is off (#6930).
+          WarehouseReadGuard.assertReadable(storageUri)
           val document = DocumentFactory
             .openDocument(storageUri)
             ._1
@@ -692,6 +698,9 @@ class SyncExecutionResource extends LazyLogging {
           ("table", None, None, None, None)
       }
     } catch {
+      // A kill-switch refusal must reach the caller instead of degrading into an
+      // empty result (#6930); every other failure keeps the existing behavior.
+      case e: WarehouseUnavailableException => throw e
       case e: Exception =>
         logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
         ("table", None, None, None, None)
@@ -767,6 +776,8 @@ class SyncExecutionResource extends LazyLogging {
       val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
 
       uriOption.flatMap { uri =>
+        // Refuse to read per-user-warehouse console messages while the feature is off (#6930).
+        WarehouseReadGuard.assertReadable(uri)
         val document = DocumentFactory
           .openDocument(uri)
           ._1
@@ -791,7 +802,10 @@ class SyncExecutionResource extends LazyLogging {
         if (messages.nonEmpty) Some(messages) else None
       }
     } catch {
-      case _: Exception => None
+      // A kill-switch refusal must reach the caller instead of degrading into an
+      // empty result (#6930); every other failure keeps the existing behavior.
+      case e: WarehouseUnavailableException => throw e
+      case _: Exception                     => None
     }
   }
 
@@ -895,7 +909,7 @@ class SyncExecutionResource extends LazyLogging {
     try {
       val tempContext = new WorkflowContext(WorkflowIdentity(workflowId))
       val compiler = new WorkflowCompiler(tempContext)
-      compiler.compile(logicalPlan)
+      compiler.compile(logicalPlan, CompilationErrorHandling.Strict)
       Map.empty
     } catch {
       case e: Exception =>

@@ -34,11 +34,12 @@ import { NzAvatarComponent } from "ng-zorro-antd/avatar";
 
 /**
  * UserAvatarComponent is used to show the avatar of a user
- * The avatar of a Google user will be its Google profile picture
- * The avatar of a normal user will be a default one with the initial
+ * A user provisioned through an identity provider shows that provider's profile picture,
+ * fetched from the complete URL stored on the user record
+ * A user without one shows a default avatar with their initials
  */
 export class UserAvatarComponent implements OnChanges {
-  @Input() googleAvatar?: string;
+  @Input() avatar?: string;
   @Input() userName?: string;
   @Input() userColor?: string;
   @Input() isOwner: Boolean = false;
@@ -47,8 +48,8 @@ export class UserAvatarComponent implements OnChanges {
   constructor(private userService: UserService) {}
 
   ngOnChanges(): void {
-    if (this.googleAvatar) {
-      this.avatarUrl$ = this.userService.getAvatar(this.googleAvatar);
+    if (this.avatar) {
+      this.avatarUrl$ = this.userService.getAvatar(this.avatar);
     } else {
       this.avatarUrl$ = of(undefined);
     }

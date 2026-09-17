@@ -45,6 +45,7 @@ service CoordinatorService {
   rpc JumpToOperatorRegion(JumpToOperatorRegionRequest) returns (EmptyReturn);
   rpc LinkWorkers(LinkWorkersRequest) returns (EmptyReturn);
   rpc CoordinatorInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
+  rpc CoordinatorInitiateAdvanceRegionExecutions(EmptyRequest) returns (EmptyReturn);
   rpc RetryWorkflow(RetryWorkflowRequest) returns (EmptyReturn);
   rpc ReconfigureWorkflow(WorkflowReconfigureRequest) returns (EmptyReturn);
 }

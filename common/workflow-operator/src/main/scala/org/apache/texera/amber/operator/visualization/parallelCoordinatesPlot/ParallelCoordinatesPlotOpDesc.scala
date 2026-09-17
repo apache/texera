@@ -35,12 +35,17 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBui
 
 import javax.validation.constraints.{NotNull, Size}
 
-// type constraint: value can only be numeric
+// type constraint: value can only be numeric. The colour column too -- plotly maps it
+// onto a continuous colorscale, so a string or timestamp raises instead of rendering,
+// while a boolean renders as its 0/1 equivalent.
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "dimensions": {
       "enum": ["integer", "long", "double"]
+    },
+    "color": {
+      "enum": ["integer", "long", "double", "boolean"]
     }
   }
 }

@@ -43,6 +43,7 @@ import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { replaceOneImmutable } from "../../../../common/util/array-utils";
 import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzTagComponent } from "ng-zorro-antd/tag";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
@@ -62,6 +63,7 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
   styleUrls: ["./admin-user.component.scss"],
   imports: [
     NzCardComponent,
+    NzTagComponent,
     NzTableComponent,
     NzTheadComponent,
     NzTrDirective,

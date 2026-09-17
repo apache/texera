@@ -40,9 +40,13 @@ import org.apache.texera.amber.operator.aggregate.{
   AggregationFunction,
   AggregationOperation
 }
-import org.apache.texera.amber.operator.filter.{ComparisonType, FilterPredicate, SpecializedFilterOpDesc}
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -81,7 +85,8 @@ class ColumnarShuffleCorrectnessSpec
     op.predicates = List(new FilterPredicate(attr, ComparisonType.GREATER_THAN, v)); op
   }
   private def agg(fn: AggregationFunction, attr: String, res: String): AggregationOperation = {
-    val a = new AggregationOperation(); a.aggFunction = fn; a.attribute = attr; a.resultAttribute = res; a
+    val a = new AggregationOperation(); a.aggFunction = fn; a.attribute = attr;
+    a.resultAttribute = res; a
   }
   private def aggByRegion(): AggregateOpDesc = {
     val op = new AggregateOpDesc()
@@ -100,7 +105,8 @@ class ColumnarShuffleCorrectnessSpec
     val lines = rows
       .map(t =>
         s"${t.getField[Any]("Region")} cnt=${t.getField[Any]("cnt")} sum=${t.getField[Any]("sum_units")} " +
-          s"min=${t.getField[Any]("min_units")} max=${t.getField[Any]("max_units")} avg=${t.getField[Any]("avg_units")}"
+          s"min=${t.getField[Any]("min_units")} max=${t.getField[Any]("max_units")} avg=${t
+            .getField[Any]("avg_units")}"
       )
       .sorted
     println(s"SHUFFLE[$tag workers=$workers] groups=${rows.size}")
@@ -117,8 +123,18 @@ class ColumnarShuffleCorrectnessSpec
       val wf = buildWorkflow(
         List(scan, f, aggOp),
         List(
-          LogicalLink(scan.operatorIdentifier, PortIdentity(), f.operatorIdentifier, PortIdentity()),
-          LogicalLink(f.operatorIdentifier, PortIdentity(), aggOp.operatorIdentifier, PortIdentity())
+          LogicalLink(
+            scan.operatorIdentifier,
+            PortIdentity(),
+            f.operatorIdentifier,
+            PortIdentity()
+          ),
+          LogicalLink(
+            f.operatorIdentifier,
+            PortIdentity(),
+            aggOp.operatorIdentifier,
+            PortIdentity()
+          )
         ),
         ctx
       )
@@ -128,7 +144,8 @@ class ColumnarShuffleCorrectnessSpec
 
   private def projectRegionUnits(): ProjectionOpDesc = {
     val op = new ProjectionOpDesc()
-    op.attributes = List(new AttributeUnit("Region", "Region"), new AttributeUnit("Units Sold", "units"))
+    op.attributes =
+      List(new AttributeUnit("Region", "Region"), new AttributeUnit("Units Sold", "units"))
     op
   }
   private def countSumByRegionOn(unitsCol: String): AggregateOpDesc = {
@@ -142,7 +159,11 @@ class ColumnarShuffleCorrectnessSpec
   private def reportCntSum(res: Map[OperatorIdentity, List[Tuple]]): Unit = {
     val rows = res.values.headOption.getOrElse(Nil)
     val lines =
-      rows.map(t => s"${t.getField[Any]("Region")} cnt=${t.getField[Any]("cnt")} sum=${t.getField[Any]("sum_units")}").sorted
+      rows
+        .map(t =>
+          s"${t.getField[Any]("Region")} cnt=${t.getField[Any]("cnt")} sum=${t.getField[Any]("sum_units")}"
+        )
+        .sorted
     println(s"PROJ[$tag workers=$workers] groups=${rows.size}")
     lines.foreach(l => println(s"PROJ[$tag]   $l"))
   }
@@ -160,9 +181,24 @@ class ColumnarShuffleCorrectnessSpec
       val wf = buildWorkflow(
         List(scan, proj, f, aggOp),
         List(
-          LogicalLink(scan.operatorIdentifier, PortIdentity(), proj.operatorIdentifier, PortIdentity()),
-          LogicalLink(proj.operatorIdentifier, PortIdentity(), f.operatorIdentifier, PortIdentity()),
-          LogicalLink(f.operatorIdentifier, PortIdentity(), aggOp.operatorIdentifier, PortIdentity())
+          LogicalLink(
+            scan.operatorIdentifier,
+            PortIdentity(),
+            proj.operatorIdentifier,
+            PortIdentity()
+          ),
+          LogicalLink(
+            proj.operatorIdentifier,
+            PortIdentity(),
+            f.operatorIdentifier,
+            PortIdentity()
+          ),
+          LogicalLink(
+            f.operatorIdentifier,
+            PortIdentity(),
+            aggOp.operatorIdentifier,
+            PortIdentity()
+          )
         ),
         ctx
       )

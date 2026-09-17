@@ -35,7 +35,10 @@ object EnvironmentalVariable {
   /**
     * FileService related endpoint
     */
-  val ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT = "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT"
+  val ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT =
+    "FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT"
+  val ENV_FILE_SERVICE_GET_MODEL_PRESIGNED_URL_ENDPOINT =
+    "FILE_SERVICE_GET_MODEL_PRESIGNED_URL_ENDPOINT"
   val ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT =
     "FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT"
 
@@ -44,6 +47,21 @@ object EnvironmentalVariable {
     */
   val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
   val ENV_AUTH_JWT_SECRET = "AUTH_JWT_SECRET"
+
+  /**
+    * Dataset-mount vars injected into the CU pod. The mount is performed by the per-node
+    * mounter and reaches the pod through mount propagation, so the pod only needs to know
+    * which computing unit it is and where the propagated mount appears.
+    *
+    * The mounter's own address is deliberately NOT among these. Only an authenticated
+    * platform caller may request a mount (see authenticate_caller in bin/mounter/mounter.py)
+    * and a pod running untrusted user code holds no token for that audience, so the address
+    * would serve no purpose here other than to probe the node's privileged mounter. A pod
+    * that wants a mount asks the platform, which authorizes the (user, cuid) pair before
+    * forwarding -- the cuid below is a claim to be checked, not a credential.
+    */
+  val ENV_CU_ID = "TEXERA_CU_ID"
+  val ENV_MOUNT_IN_POD_ROOT = "TEXERA_MOUNT_IN_POD_ROOT"
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"
@@ -122,6 +140,10 @@ object EnvironmentalVariable {
   val ENV_USER_SYS_GOOGLE_CLIENT_ID = "USER_SYS_GOOGLE_CLIENT_ID"
   val ENV_USER_SYS_GOOGLE_SMTP_GMAIL = "USER_SYS_GOOGLE_SMTP_GMAIL"
   val ENV_USER_SYS_GOOGLE_SMTP_PASSWORD = "USER_SYS_GOOGLE_SMTP_PASSWORD"
+  val ENV_USER_SYS_ORCID_CLIENT_ID = "USER_SYS_ORCID_CLIENT_ID"
+  val ENV_USER_SYS_ORCID_CLIENT_SECRET = "USER_SYS_ORCID_CLIENT_SECRET"
+  val ENV_USER_SYS_ORCID_BASE_URL = "USER_SYS_ORCID_BASE_URL"
+  val ENV_USER_SYS_ORCID_REDIRECT_URI = "USER_SYS_ORCID_REDIRECT_URI"
   val ENV_USER_SYS_VERSION_TIME_LIMIT_IN_MINUTES = "USER_SYS_VERSION_TIME_LIMIT_IN_MINUTES"
 
   // Result Cleanup
