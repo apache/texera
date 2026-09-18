@@ -74,13 +74,9 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
       List(OutputPort(blocking = true))
     )
 
-  // JVM op runs an incremental stable merge sort with NULLS-LAST regardless of
-  // direction. pandas' sort_values(kind="mergesort") is stable, and
-  // na_position="last" is direction-independent — matches the JVM null policy
-  // exactly. Known divergence: floating-point NaN. JVM uses Double.compare,
-  // which orders NaN > +Inf (so NaN sorts last in ASC, first in DESC). pandas
-  // treats NaN as a missing value and always places it at na_position, so DESC
-  // ordering of a Double column with NaNs will differ.
+  // The engine runs an incremental stable merge sort with nulls last whichever
+  // way a key points. pandas' mergesort is stable too, so the ordering below is
+  // the same one.
   //
   // A string column parts more narrowly: the engine reads UTF-16 code units and
   // pandas reads code points, which agree below U+FFFF and can differ above it.
@@ -93,6 +89,29 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
     val ascending = criteria
       .map(c => if (c.sortPreference == SortPreference.ASC) "True" else "False")
       .mkString("[", ", ", "]")
-    s"""out1df = in1df.sort_values(by=$cols, ascending=$ascending, kind="mergesort", na_position="last").reset_index(drop=True)"""
+    // Sort each key in three tiers, because the engine treats a null and a NaN
+    // differently: a null goes last whichever way the key points, while a NaN
+    // compares above every number, so it goes last ascending and first
+    // descending. A column read into a numpy dtype has one slot for both, and
+    // there both land in the null tier, which is where they were before.
+    s"""_texera_sorted = in1df.copy()
+       |_texera_by = []
+       |_texera_asc = []
+       |_texera_helpers = []
+       |for _texera_col, _texera_a in zip($cols, $ascending):
+       |    _texera_null = "_texera_null_" + _texera_col
+       |    _texera_nan = "_texera_nan_" + _texera_col
+       |    _texera_sorted[_texera_null] = _texera_sorted[_texera_col].isna()
+       |    _texera_sorted[_texera_nan] = (
+       |        _texera_sorted[_texera_col] != _texera_sorted[_texera_col]
+       |    ).fillna(False)
+       |    _texera_helpers += [_texera_null, _texera_nan]
+       |    _texera_by += [_texera_null, _texera_nan, _texera_col]
+       |    _texera_asc += [True, _texera_a, _texera_a]
+       |out1df = (
+       |    _texera_sorted.sort_values(by=_texera_by, ascending=_texera_asc, kind="mergesort")
+       |    .drop(columns=_texera_helpers)
+       |    .reset_index(drop=True)
+       |)""".stripMargin
   }
 }
