@@ -436,6 +436,18 @@ export class TexeraAgent {
     this.setupWorkflowChangeHandlers();
   }
 
+  /**
+   * Point the delegate at the warehouse the workspace has selected now. The rest
+   * of the config is fixed at creation; this one travels per prompt because the
+   * user can pick (or first load) a warehouse after the agent exists (#7751).
+   */
+  setDelegateWarehouse(warehouseId: number | undefined): void {
+    if (!this.delegateConfig || this.delegateConfig.warehouseId === warehouseId) {
+      return;
+    }
+    this.delegateConfig = { ...this.delegateConfig, warehouseId };
+  }
+
   getDelegateConfig():
     | {
         userToken: string;

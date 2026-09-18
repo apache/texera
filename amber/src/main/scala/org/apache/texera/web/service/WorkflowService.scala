@@ -230,21 +230,24 @@ class WorkflowService(
       sessionUri: URI
   ): Unit = {
 
-    if (executionService.hasValue) {
-      executionService.getValue.unsubscribeAll()
-    }
-
     val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
 
+    // Validate before touching the execution already in flight: a request that is
+    // going to be refused must not take the running one's subscriptions with it.
     // uid is NOT NULL in the DB; fail early here rather than letting the insert fail downstream.
     val uid = uidOpt.getOrElse(
       throw new IllegalArgumentException(
         "Cannot start execution: a user id (uid) is required but none was provided."
       )
     )
+    val warehouseName = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
+
+    if (executionService.hasValue) {
+      executionService.getValue.unsubscribeAll()
+    }
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
+    workflowContext.warehouse = warehouseName
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run

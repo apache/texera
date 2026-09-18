@@ -660,6 +660,20 @@ describe("AgentService", () => {
         expect(notification.error).toHaveBeenCalledWith("WebSocket connection not available");
       });
 
+      it("carries the warehouse picked right now, not the one fixed at agent creation", () => {
+        // An agent created before the picker loaded would otherwise carry no
+        // warehouse for its whole life and every run would be refused (#7751).
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        ws.readyState = FakeWebSocket.OPEN;
+        selectedWarehouseId = 42;
+
+        service.sendMessage("agent-1", "run it");
+
+        expect(JSON.parse(ws.send.mock.calls[0][0]).warehouseId).toBe(42);
+      });
+
       it("sends a WsClientPromptCommand carrying the message source over an open socket", () => {
         seedAgent("agent-1");
         service.activateAgent("agent-1");

@@ -496,6 +496,13 @@ export function buildApp() {
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
 
+            // The prompt carries the workspace's current warehouse pick, so a run
+            // uses what the user has selected now rather than whatever was
+            // selected when the agent was created (#7751).
+            if (typeof msg.warehouseId === "number") {
+              agent.setDelegateWarehouse(msg.warehouseId);
+            }
+
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));
             });

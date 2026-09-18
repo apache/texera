@@ -1074,6 +1074,23 @@ describe("delegate mode", () => {
     }
   });
 
+  test("setDelegateWarehouse points an existing delegate at the current pick", async () => {
+    // An agent created before the picker loaded carries no warehouse; every run
+    // would be refused, and nothing in the agent panel could fix it (#7751).
+    const agent = makeAgentWith(textModel("x"));
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).delegateConfig).toBeUndefined();
+
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBe(42);
+
+    agent.setDelegateWarehouse(undefined);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+  });
+
   test("buildExecutionConfig projects the delegate config and live settings", async () => {
     const agent = makeAgentWith(textModel("x"));
     expect((agent as any).buildExecutionConfig()).toBeUndefined();

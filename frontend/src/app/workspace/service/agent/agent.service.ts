@@ -877,11 +877,18 @@ export class AgentService {
       return;
     }
 
-    const wsMessage = {
+    const wsMessage: { type: string; content: string; messageSource: string; warehouseId?: number } = {
       type: "WsClientPromptCommand",
       content: message,
       messageSource,
     };
+    // Sent per message, not fixed at agent creation: an agent created before the
+    // warehouse picker loaded would otherwise never carry one, and every run it
+    // attempted would be refused (#7751).
+    const selectedWarehouseId = this.warehouseService.getSelectedWarehouseIdValue();
+    if (selectedWarehouseId !== undefined) {
+      wsMessage.warehouseId = selectedWarehouseId;
+    }
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
