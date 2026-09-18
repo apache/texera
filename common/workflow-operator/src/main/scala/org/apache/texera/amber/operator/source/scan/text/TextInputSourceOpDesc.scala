@@ -94,7 +94,7 @@ class TextInputSourceOpDesc
         case FileAttributeType.INTEGER   => "int(l)"
         case FileAttributeType.LONG      => "int(l)"
         case FileAttributeType.DOUBLE    => "float(l)"
-        case FileAttributeType.BOOLEAN   => """l.lower() == "true""""
+        case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
         case FileAttributeType.TIMESTAMP => "pd.Timestamp(l)"
         case _                           => "l"
       }
@@ -110,4 +110,8 @@ class TextInputSourceOpDesc
 
     buf.mkString("\n")
   }
+
+  override def standaloneHelpers(): Seq[String] =
+    if (attributeType == FileAttributeType.BOOLEAN) Seq(TextSourceOpDesc.BooleanParser)
+    else Seq.empty
 }

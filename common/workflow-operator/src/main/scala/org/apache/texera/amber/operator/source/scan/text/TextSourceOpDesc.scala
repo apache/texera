@@ -89,3 +89,27 @@ trait TextSourceOpDesc {
   )
   var fileScanOffset: Option[Int] = None
 }
+
+object TextSourceOpDesc {
+
+  /**
+    * The line-to-boolean rule the engine uses, as Python.
+    *
+    * `parseField` reads "true" and "false" in any case, then falls back to an
+    * integer and calls only 1 true. Anything else ends the run. Comparing the
+    * lowercased line to "true" read 1 as false and let text the engine refuses
+    * through as a row of false.
+    */
+  val BooleanParser: String =
+    """def _texera_parse_bool(line):
+      |    text = line.strip()
+      |    lowered = text.lower()
+      |    if lowered == "true":
+      |        return True
+      |    if lowered == "false":
+      |        return False
+      |    return int(text) == 1""".stripMargin
+
+  /** The call the per-line cast makes, over the loop variable the readers share. */
+  val BooleanParserCall: String = "_texera_parse_bool(l)"
+}

@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.source.scan.csvOld
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -27,6 +29,9 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -94,5 +99,63 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.fileEncoding shouldBe FileDecodingMethod.UTF_16
     r.limit shouldBe Some(10)
     r.offset shouldBe Some(5)
+  }
+
+  // scala-csv hands back the text of every field and nothing else: a blank cell is
+  // "", not a null, and "NA" is the country code it says it is. pandas reads both
+  // as missing by default, so the export read a column of codes as a column of
+  // nulls and turned the blank into NaN.
+  "CSVOldScanSourceOpDesc.generateStandaloneCode" should
+    "read a literal NA as text and a blank as an empty string, as its reader does" in {
+    val d = describing(writeCsv("code,note\nNA,x\n,y\n"))
+
+    rowsFromEngine(d) shouldBe List(List("NA", "x"), List("", "y"))
+
+    val code = d.generateStandaloneCode()
+    code should include("keep_default_na=False")
+    // No na_values: where the other CSV readers null a blank, this one keeps it.
+    code should not include "na_values"
+  }
+
+  // The same reason keeps a large integer exact here: a blank types the column
+  // STRING, and with no missing value named, pandas reads every cell as the text
+  // it is. Nothing widens through a float, so 9007199254740993 stays itself.
+  it should "keep a nullable large integer exact, as text" in {
+    val d = describing(writeCsv("id,big\n1,9007199254740993\n2,\n3,9007199254740995\n"))
+
+    d.sourceSchema().getAttribute("big").getType shouldBe AttributeType.STRING
+    rowsFromEngine(d).map(_(1)) shouldBe List("9007199254740993", "", "9007199254740995")
+  }
+
+  // sourceSchema names a blank header column-N; pandas names it "Unnamed: N", and a
+  // downstream operator asks for the name the schema gave.
+  it should "give the frame the names the schema gives it" in {
+    val d = describing(writeCsv("id,name,,age\n1,Alice,x,30\n"))
+    d.generateStandaloneCode() should include(
+      """out1df.columns = ["id", "name", "column-3", "age"]"""
+    )
+  }
+
+  private def writeCsv(content: String): String = {
+    val file = Files.createTempFile("csv-old-", ".csv")
+    file.toFile.deleteOnExit()
+    Files.write(file, content.getBytes(StandardCharsets.UTF_8))
+    file.toString
+  }
+
+  private def describing(path: String): CSVOldScanSourceOpDesc = {
+    val d = new CSVOldScanSourceOpDesc
+    d.fileName = Some(path)
+    d.customDelimiter = Some(",")
+    d.hasHeader = true
+    d.setResolvedFileName(FileResolver.resolve(path))
+    d
+  }
+
+  private def rowsFromEngine(d: CSVOldScanSourceOpDesc): List[List[Any]] = {
+    val exec = new CSVOldScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    try exec.produceTuple().map(_.getFields.toList).toList
+    finally exec.close()
   }
 }

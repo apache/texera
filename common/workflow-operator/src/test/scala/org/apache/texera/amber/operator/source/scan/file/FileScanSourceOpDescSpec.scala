@@ -20,15 +20,24 @@
 package org.apache.texera.amber.operator.source.scan.file
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, TestOperators}
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
+import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import java.util.concurrent.TimeUnit
+import java.util.zip.{ZipEntry, ZipOutputStream}
+import scala.io.Source
+import scala.util.Try
 
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -238,6 +247,15 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  it should "parse a boolean line through the shared helper, and declare it" in {
+    fileScanSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
+    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("_texera_parse_bool(l)"))
+    assert(fileScanSourceOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
+
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    assert(fileScanSourceOpDesc.standaloneHelpers().isEmpty)
+  }
+
   "FileScanSourceOpDesc.getPhysicalOp" should
     "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
     val physical =
@@ -271,4 +289,156 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(schema.getAttribute("line").getType == AttributeType.STRING)
   }
 
+  // With extract on the engine reads the files INSIDE the archive. The export
+  // used to open the archive itself and hand back whatever bytes the compression
+  // left readable, behind a warning comment.
+  "FileScanSourceOpDesc.generateStandaloneCode" should
+    "read the same entries out of an archive as the engine does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("file-scan-archive-")
+    dir.toFile.deleteOnExit()
+    val archive = writeArchive(
+      dir,
+      "a.txt" -> "line1\nline2\n",
+      "b.txt" -> "line3\n",
+      // macOS puts these beside the real entries; the engine skips them by name.
+      "__MACOSX/a.txt" -> "junk\n"
+    )
+
+    val desc = extractingDesc(archive, """"attributeType":"string"""")
+    assert(linesFromEngine(desc) == Seq("line1", "line2", "line3"))
+    assert(
+      runStandalone(python, dir, desc, """print(list(out1df["line"]))""")._2.trim
+        .endsWith("""['line1', 'line2', 'line3']""")
+    )
+  }
+
+  it should "take an archive entry's own name for the filename column" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("file-scan-archive-named-")
+    dir.toFile.deleteOnExit()
+    val archive = writeArchive(dir, "a.txt" -> "first", "b.txt" -> "second")
+
+    val desc = extractingDesc(
+      archive,
+      """"attributeType":"single string"""",
+      """"outputFileName":true"""
+    )
+    val engine =
+      tuplesFromEngine(desc).map(t => (t.getField[String]("filename"), t.getField[String]("line")))
+    assert(engine == Seq(("a.txt", "first"), ("b.txt", "second")))
+
+    val out = runStandalone(
+      python,
+      dir,
+      desc,
+      """print(list(out1df.itertuples(index=False, name=None)))"""
+    )._2
+    assert(out.trim.endsWith("""[('a.txt', 'first'), ('b.txt', 'second')]"""))
+  }
+
+  /** A zip at `dir/archive.zip` holding the given entries. */
+  private def writeArchive(dir: Path, entries: (String, String)*): Path = {
+    val archive = dir.resolve("archive.zip")
+    val out = new ZipOutputStream(Files.newOutputStream(archive))
+    try entries.foreach {
+      case (name, content) =>
+        out.putNextEntry(new ZipEntry(name))
+        out.write(content.getBytes(StandardCharsets.UTF_8))
+        out.closeEntry()
+    } finally out.close()
+    archive
+  }
+
+  /** `extract` and `outputFileName` are vals, so the flags are deserialized in. */
+  private def extractingDesc(archive: Path, fields: String*): FileScanSourceOpDesc = {
+    val desc = objectMapper.readValue(
+      (Seq(""""operatorType":"FileScan"""", """"extract":true""") ++ fields)
+        .mkString("{", ",", "}"),
+      classOf[FileScanSourceOpDesc]
+    )
+    desc.setResolvedFileName(FileResolver.resolve(archive.toString))
+    desc
+  }
+
+  private def tuplesFromEngine(desc: FileScanSourceOpDesc): Seq[Tuple] = {
+    val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    try exec
+      .produceTuple()
+      .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(desc.sourceSchema()))
+      .toSeq
+    finally exec.close()
+  }
+
+  private def linesFromEngine(desc: FileScanSourceOpDesc): Seq[String] =
+    tuplesFromEngine(desc).map(_.getField[String]("line"))
+
+  /**
+    * The operator's exported body, run from `dir`, with the placeholder bound as
+    * the translator binds it and the imports it declared written out.
+    */
+  private def runStandalone(
+      python: String,
+      dir: Path,
+      desc: FileScanSourceOpDesc,
+      tail: String
+  ): (Int, String) = {
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${desc.standaloneImports().mkString("\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${desc.standaloneSourceName().get}"
+         |${desc.generateStandaloneCode()}
+         |$tail
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n")(assert(process.exitValue() == 0))
+    (process.exitValue(), out)
+  }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }

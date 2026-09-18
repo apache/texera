@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
+import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -212,7 +213,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       FileAttributeType.INTEGER -> "int(l.rstrip())",
       FileAttributeType.LONG -> "int(l.rstrip())",
       FileAttributeType.DOUBLE -> "float(l.rstrip())",
-      FileAttributeType.BOOLEAN -> """l.rstrip().lower() == "true"""",
+      FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
       FileAttributeType.TIMESTAMP -> "pd.Timestamp(l.rstrip())",
       FileAttributeType.STRING -> """l.rstrip("\n")"""
     )
@@ -225,6 +226,12 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
             .contains(s"        _rows.extend($cast for l in _f)")
         )
     }
+    // The boolean cast is the one that calls out of the body, so the script has
+    // to carry the definition.
+    fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    assert(fileScanOpDesc.standaloneHelpers().isEmpty)
   }
 
   it should "slice the raw lines before converting them when a limit or offset is set" in {
@@ -255,12 +262,42 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
-  it should "warn that archive extraction is unsupported when extract is on" in {
-    // `extract` is a val, so it can only be set through deserialization.
+  // With extract on, FileScanUtils opens the file as a zip and emits a tuple per
+  // entry. Reading the archive itself as text was the export's answer before, and
+  // it produced whichever bytes the compression happened to leave readable.
+  it should "read the entries inside the archive when extract is on" in {
+    // `extract` and `outputFileName` are vals, so they are set by deserialization.
     val desc = objectMapper.readValue(
       """{"operatorType":"FileScanOp","extract":true}""",
       classOf[FileScanOpDesc]
     )
-    assert(desc.generateStandaloneCode().startsWith("# WARNING: extract=true is not supported"))
+    val code = desc.generateStandaloneCode()
+
+    assert(code.contains("    with zipfile.ZipFile(_fn) as _z:"))
+    assert(code.contains("        for _name in _z.namelist():"))
+    assert(code.contains("""            if _name.startswith("__MACOSX"):"""))
+    assert(code.contains("            with _z.open(_name) as _f:"))
+    // A zip entry opens binary whatever the column holds, so a text line is
+    // decoded rather than read through a text-mode handle.
+    assert(
+      code.contains(
+        """                _rows.extend(l.rstrip("\n") for l in io.TextIOWrapper(_f, encoding="utf-8"))"""
+      )
+    )
+    assert(desc.standaloneImports() == Seq("import io", "import zipfile"))
+    assert(!code.contains("WARNING"))
+  }
+
+  it should "name the entry, not the archive, in the filename column" in {
+    val desc = objectMapper.readValue(
+      """{"operatorType":"FileScanOp","extract":true,"outputFileName":true,
+        |"attributeType":"single string"}""".stripMargin,
+      classOf[FileScanOpDesc]
+    )
+    val code = desc.generateStandaloneCode()
+
+    assert(code.contains("""                _rows.append((_name, _f.read().decode("utf-8")))"""))
+    assert(code.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+    assert(desc.standaloneImports() == Seq("import zipfile"))
   }
 }

@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -79,8 +80,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
       )
   }
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
   override def generateStandaloneCode(): String = {
-    val basename = sourceBasename(fileName.getOrElse(""))
     // First character, empty means comma — the same resolution the reader below does —
     // and escaped, so every value the field accepts survives being spliced into Python.
     // See CSVScanSourceOpDesc for what handing pandas the raw value did.
@@ -89,10 +91,19 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     val headerArg = if (hasHeader) "0" else "None"
 
     val args = scala.collection.mutable.ArrayBuffer[String]()
-    args += s"""filepath_or_buffer=${pyStringLiteral(basename)}"""
+    args += s"filepath_or_buffer=$SourceFilePlaceholder"
     args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding=${pyStringLiteral(encoding)}"""
     args += s"header=$headerArg"
+
+    // This reader has NO missing value at all: scala-csv hands an omitted field
+    // back as the empty string, and every other text stands for itself, so a
+    // blank cell is "" and even widens its column to STRING. pandas instead
+    // reads a list of words as missing by default, "NA" and "null" among them,
+    // and reads a blank as NaN. Dropping the default list settles both, and no
+    // na_values is named — where the other CSV readers null a blank, this one
+    // keeps it. See CSVScanSourceOpDesc.
+    args += "keep_default_na=False"
 
     // Name the columns this operator inferred as timestamps, so pandas parses
     // the same ones instead of leaving them as text. See CSVScanSourceOpDesc.
@@ -104,6 +115,20 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
       )
     if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
+    // Read a LONG column as the nullable integer, so a hole does not widen it
+    // through a float and round the values it carries. See CSVScanSourceOpDesc.
+    val longColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.LONG)
+          .map {
+            case (a, i) =>
+              val key = if (hasHeader) pyStringLiteral(a.getName) else i.toString
+              s"""$key: "Int64""""
+          }
+      )
+    if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
+
     offset.foreach { o =>
       if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
       else args += s"skiprows=$o"
@@ -112,8 +137,20 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
 
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 
-    if (hasHeader) readCall
+    // The schema's own names, which every downstream operator was configured
+    // against: sourceSchema below rewrites a blank header to `column-N`, where
+    // pandas writes `Unnamed: 1`. Taken by position, so a header the user really
+    // did spell `Unnamed: 1` survives too. See CSVScanSourceOpDesc.
+    val schemaNames: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq
+        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+
+    if (schemaNames.nonEmpty)
+      s"""$readCall
+         |out1df.columns = [${schemaNames.mkString(", ")}]""".stripMargin
+    else if (hasHeader) readCall
     else
+      // Unresolved file: fall back to Texera's headerless naming.
       s"""$readCall
          |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
   }

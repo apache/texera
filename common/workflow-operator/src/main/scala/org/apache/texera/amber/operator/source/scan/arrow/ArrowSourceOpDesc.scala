@@ -22,10 +22,11 @@ package org.apache.texera.amber.operator.source.scan.arrow
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -37,16 +38,17 @@ import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 import java.io.IOException
 import java.net.URI
 import java.nio.file.{Files, StandardOpenOption}
-import scala.util.Using
+import scala.util.{Try, Using}
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
 class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   fileTypeName = Option("Arrow")
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
   override def generateStandaloneCode(): String = {
-    val basename = sourceBasename(fileName.getOrElse(""))
-    val read = s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
+    val read = s"""out1df = pd.read_feather($SourceFilePlaceholder)"""
     // A timestamp column needs nothing here. The file names UTC and holds the
     // wall clock as UTC, so pd.read_feather and the executor read the same
     // reading off it — no zone of the reader's own enters either side. The other
@@ -61,7 +63,27 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case (None, Some(l))    => Some(s":$l")
       case _                  => None
     }
-    (read +: window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)").toSeq)
+
+    // A LONG column holding a null comes back through a float, which rounds every
+    // value past 2^53: the file's 9007199254740993 reads as ...992, where the
+    // executor hands the exact value on. Re-reading just those columns as the
+    // nullable integer leaves every other column's type as it was.
+    // inferSchema, not sourceSchema: this operator reads its types out of the
+    // file and leaves the base's sourceSchema returning null. A file that cannot
+    // be read leaves the re-read off rather than failing the export.
+    val longColumns: Seq[String] =
+      Try(inferSchema()).toOption.toSeq.flatMap(
+        _.getAttributes
+          .filter(_.getType == AttributeType.LONG)
+          .map(a => pyStringLiteral(a.getName))
+      )
+    val exactLongs = longColumns.map { name =>
+      s"out1df[$name] = pd.read_feather($SourceFilePlaceholder, columns=[$name], " +
+        s"""dtype_backend="numpy_nullable")[$name]"""
+    }
+
+    // The re-read is of the whole file, so it happens before the window is taken.
+    ((read +: exactLongs) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
       .mkString("\n")
   }
 

@@ -97,14 +97,9 @@ class FileScanOpDesc
     val enc = fileEncoding.toString.replace("_", "-").toLowerCase
     val buf = scala.collection.mutable.ArrayBuffer[String]()
 
-    if (extract)
-      buf += "# WARNING: extract=true is not supported in standalone mode; files are read as-is, not unpacked from archives."
-
     val isBinary =
       attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
-    val openArgs =
-      if (isBinary) """"rb""""
-      else s""""r", encoding=${pyStringLiteral(enc)}"""
+    val encLit = pyStringLiteral(enc)
 
     // The executor takes the row's first String field, not its first column, so a row that
     // carries an id ahead of the path still finds the path. Reading column 0 opened the id.
@@ -118,7 +113,33 @@ class FileScanOpDesc
     buf += ""
     buf += "_rows = []"
     buf += "for _fn in (_texera_file_name(r) for r in in1df.itertuples(index=False)):"
-    buf += s"    with open(_fn, $openArgs) as _f:"
+
+    // With extract on the engine reads the files INSIDE the archive, one tuple
+    // per entry, and skips the entries macOS adds. `zipfile` is the reader that
+    // matches: the platform casts what it opened to a ZipArchiveInputStream, so
+    // an archive that is not a zip fails on both sides. A directory entry is
+    // read, not skipped, there and here alike — it yields nothing.
+    val (indent, nameExpr, readWhole, lines) =
+      if (extract) {
+        buf += "    with zipfile.ZipFile(_fn) as _z:"
+        buf += "        for _name in _z.namelist():"
+        buf += """            if _name.startswith("__MACOSX"):"""
+        buf += "                continue"
+        buf += "            with _z.open(_name) as _f:"
+        // A zip entry only opens binary, so text is decoded here rather than by
+        // the reader. TextIOWrapper, not splitlines: it ends a line where
+        // `open(..., "r")` does, which is what the non-extract branch reads with.
+        (
+          " " * 16,
+          "_name",
+          if (isBinary) "_f.read()" else s"_f.read().decode($encLit)",
+          s"io.TextIOWrapper(_f, encoding=$encLit)"
+        )
+      } else {
+        val openArgs = if (isBinary) """"rb"""" else s""""r", encoding=$encLit"""
+        buf += s"    with open(_fn, $openArgs) as _f:"
+        (" " * 8, "_fn", "_f.read()", "_f")
+      }
 
     // Match the platform (FileScanUtils.createTuplesFromFile): its line-by-line
     // branch ignores outputFileName and emits only the value, so the filename
@@ -126,29 +147,32 @@ class FileScanOpDesc
     val emitFilename = outputFileName && attributeType.isSingle
 
     if (attributeType.isSingle) {
-      if (emitFilename) buf += "        _rows.append((_fn, _f.read()))"
-      else buf += "        _rows.append(_f.read())"
+      if (emitFilename) buf += s"${indent}_rows.append(($nameExpr, $readWhole))"
+      else buf += s"${indent}_rows.append($readWhole)"
     } else {
       val castExpr = attributeType match {
         case FileAttributeType.INTEGER   => "int(l.rstrip())"
         case FileAttributeType.LONG      => "int(l.rstrip())"
         case FileAttributeType.DOUBLE    => "float(l.rstrip())"
-        case FileAttributeType.BOOLEAN   => """l.rstrip().lower() == "true""""
+        case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
         case FileAttributeType.TIMESTAMP => "pd.Timestamp(l.rstrip())"
         case _                           => """l.rstrip("\n")"""
       }
       // The slice applies to the raw lines, as the engine drops and takes
       // before parsing: a line outside the window is never converted, so an
       // unparseable one there costs nothing. Taking after dropping also keeps
-      // a large limit from overflowing the end index.
+      // a large limit from overflowing the end index. The window is per entry,
+      // as the engine's is: it drops and takes inside the flatMap over entries.
       val linesExpr =
-        if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) "_f"
+        if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) lines
         else {
           val dropped =
-            fileScanOffset.filter(_ > 0).fold("_f.readlines()")(o => s"_f.readlines()[$o:]")
+            fileScanOffset
+              .filter(_ > 0)
+              .fold(s"$lines.readlines()")(o => s"$lines.readlines()[$o:]")
           fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
         }
-      buf += s"        _rows.extend($castExpr for l in $linesExpr)"
+      buf += s"${indent}_rows.extend($castExpr for l in $linesExpr)"
     }
 
     val colLit = pyStringLiteral(col)
@@ -160,4 +184,13 @@ class FileScanOpDesc
 
     buf.mkString("\n")
   }
+
+  override def standaloneHelpers(): Seq[String] =
+    if (attributeType == FileAttributeType.BOOLEAN) Seq(TextSourceOpDesc.BooleanParser)
+    else Seq.empty
+
+  override def standaloneImports(): Seq[String] =
+    if (!extract) Seq.empty
+    else if (attributeType.isSingle) Seq("import zipfile")
+    else Seq("import io", "import zipfile")
 }

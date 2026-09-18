@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
@@ -46,8 +47,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
 
   fileTypeName = Option("JSONL")
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
   override def generateStandaloneCode(): String = {
-    val basename = sourceBasename(fileName.getOrElse(""))
     val enc = fileEncoding.toString.replace("_", "-").toLowerCase
 
     // The executor drops and takes on the RAW lines, before any of them is
@@ -55,18 +57,29 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // unparseable one there costs nothing. Reading the whole file first and
     // slicing the frame would end the export on a line the workflow skipped.
     val windowed = offset.exists(_ > 0) || limit.isDefined
-    val source =
-      if (!windowed) pyStringLiteral(basename)
-      else {
-        val dropped = offset.filter(_ > 0).fold("_lines")(o => s"_lines[$o:]")
-        val taken = limit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
-        s"""io.StringIO("".join($taken))"""
-      }
+
+    // read_json parses a JSON number into a float before any dtype it is handed
+    // can apply, so a LONG past 2^53 is already rounded by the time the column
+    // exists: 9007199254740993 arrives as ...992, a value the file never held.
+    // Reading the lines a second time with Python's own parser, which keeps an
+    // integer exact, is the only way to put the column back.
+    val longColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.filter(_.getType == AttributeType.LONG).map(_.getName)
+      )
+
+    // The lines are read into the script whenever something below needs them,
+    // and read_json is then fed from those rather than from the file, so the
+    // file is opened once either way.
+    val readsLines = windowed || longColumns.nonEmpty
+    val dropped = offset.filter(_ > 0).fold("_lines")(o => s"_lines[$o:]")
+    val taken = limit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
 
     val readArgs = scala.collection.mutable.ArrayBuffer[String]()
-    readArgs += source
+    readArgs += (if (readsLines) s"""io.StringIO("".join($taken))""" else SourceFilePlaceholder)
     readArgs += "lines=True"
-    if (!windowed) readArgs += s"""encoding=${pyStringLiteral(enc)}"""
+    // Text already decoded by the open above carries no encoding of its own.
+    if (!readsLines) readArgs += s"""encoding=${pyStringLiteral(enc)}"""
 
     // JSON has no timestamp of its own, so both readers infer from the text and
     // do not infer alike: the schema below tries TIMESTAMP and parses what it
@@ -90,17 +103,45 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       else readExpr
 
     val lines = scala.collection.mutable.ArrayBuffer[String]()
-    if (windowed) {
-      lines += "import io"
-      lines += s"""with open(${pyStringLiteral(basename)}, "r", encoding=${pyStringLiteral(
+    if (readsLines) {
+      lines += s"""with open($SourceFilePlaceholder, "r", encoding=${pyStringLiteral(
         enc
       )}) as _f:"""
       lines += "    _lines = _f.readlines()"
     }
     lines += s"out1df = $baseExpr"
 
+    if (longColumns.nonEmpty) {
+      lines += s"_records = [json.loads(_l) for _l in $taken]"
+      longColumns.foreach { name =>
+        val nameLit = pyStringLiteral(name)
+        // Flattening joins a nested key to its parent with a dot, so the schema's
+        // name is a path into the record rather than a key of it. Without
+        // flattening it is a key, and a key is free to hold a dot of its own.
+        val valueExpr =
+          if (flatten) s"_texera_json_value(_r, $nameLit)" else s"_r.get($nameLit)"
+        lines += s"""out1df[$nameLit] = pd.array([$valueExpr for _r in _records], dtype="Int64")"""
+      }
+    }
+
     lines.mkString("\n")
   }
+
+  override def standaloneHelpers(): Seq[String] =
+    if (flatten && longColumnCount > 0) Seq(JSONLScanSourceOpDesc.JsonValueAtPath) else Seq.empty
+
+  override def standaloneImports(): Seq[String] = {
+    val windowed = offset.exists(_ > 0) || limit.isDefined
+    val longs = longColumnCount
+    (if (windowed || longs > 0) Seq("import io") else Seq.empty) ++
+      (if (longs > 0) Seq("import json") else Seq.empty)
+  }
+
+  /** How many columns the schema types LONG, or none when it cannot be read. */
+  private def longColumnCount: Int =
+    Try(sourceSchema()).toOption
+      .map(_.getAttributes.count(_.getType == AttributeType.LONG))
+      .getOrElse(0)
 
   @throws[IOException]
   override def getPhysicalOp(
@@ -182,4 +223,23 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     })
 
   }
+}
+
+object JSONLScanSourceOpDesc {
+
+  /**
+    * A flattened column's name read back out of the record it came from.
+    *
+    * Only the columns an exact re-read has to rebuild need this, and only when
+    * flattening is on: the name is then a dotted path rather than a key. A path
+    * the record does not hold reads as nothing, which is what the flattened
+    * frame carries there.
+    */
+  val JsonValueAtPath: String =
+    """def _texera_json_value(record, path):
+      |    for part in path.split("."):
+      |        if not isinstance(record, dict) or part not in record:
+      |            return None
+      |        record = record[part]
+      |    return record""".stripMargin
 }

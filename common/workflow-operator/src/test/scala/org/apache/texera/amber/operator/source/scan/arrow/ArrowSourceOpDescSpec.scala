@@ -162,4 +162,35 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[RuntimeException](d.inferSchema())
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
+
+  // pd.read_feather carries a null in a float, which rounds every value past 2^53:
+  // the file's 9007199254740993 reads back as ...992, where the executor hands the
+  // exact value on. The file states its own types, so only the hole causes this.
+  "ArrowSourceOpDesc.generateStandaloneCode" should "keep a nullable long exact" in {
+    val schema = Schema(List(new Attribute("big", AttributeType.LONG)))
+    val file = writeArrowFile(
+      schema,
+      Seq(Array[Any](9007199254740993L), Array[Any](null), Array[Any](9007199254740995L))
+    )
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+
+    val exec = new ArrowSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val fromEngine =
+      try exec.produceTuple().map(_.getFields.head).toList
+      finally exec.close()
+    fromEngine shouldBe List(9007199254740993L, null, 9007199254740995L)
+
+    d.generateStandaloneCode() should include(
+      """out1df["big"] = pd.read_feather(sourceFile, columns=["big"], dtype_backend="numpy_nullable")["big"]"""
+    )
+  }
+
+  // The base's sourceSchema returns null here: this operator reads its types out of
+  // the file. Asking for them without a file must leave the export alone, not throw.
+  it should "emit a plain read when the file cannot be inspected" in {
+    val d = new ArrowSourceOpDesc
+    d.generateStandaloneCode() shouldBe """out1df = pd.read_feather(sourceFile)"""
+  }
 }

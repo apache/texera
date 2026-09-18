@@ -21,8 +21,10 @@ package org.apache.texera.amber.operator.source.scan.json
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.tuple.{AttributeType, SchemaEnforceable}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -116,10 +118,19 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     op.fileName = Some(data.toString)
     op.offset = Some(1)
 
+    // The body names its file by placeholder and the translator puts a name
+    // there. Standing in for the translator is all this test needs, and the
+    // process runs from the file's own directory, so the bare name resolves.
+    val bindSourceFile =
+      s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}""""
+
     val script = dir.resolve("run.py")
     Files.write(
       script,
       s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |$bindSourceFile
          |${op.generateStandaloneCode()}
          |print(list(out1df["id"]))
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
@@ -134,6 +145,67 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out\n") {
       process.exitValue() shouldBe 0
       out.trim should endWith("[1, 2]")
+    }
+  }
+
+  // read_json parses a JSON number into a float before any dtype it is handed can
+  // apply, so a long past 2^53 arrives already rounded: 9007199254740993 came back
+  // as ...992, a value the file never held and the executor never produced. The
+  // hole is what forces the widening, so the column needs one to show it.
+  it should "keep a nullable long exact, as the executor does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-long-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    Files.write(
+      data,
+      ("""{"id":1,"big":9007199254740993}""" + "\n" +
+        """{"id":2}""" + "\n" +
+        """{"id":3,"big":9007199254740995}""" + "\n").getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.sourceSchema().getAttribute("big").getType shouldBe AttributeType.LONG
+
+    val exec = new JSONLScanSourceOpExec(objectMapper.writeValueAsString(op))
+    exec.open()
+    val fromEngine =
+      try exec
+        .produceTuple()
+        .map(
+          _.asInstanceOf[SchemaEnforceable].enforceSchema(op.sourceSchema()).getField[Any]("big")
+        )
+        .toList
+      finally exec.close()
+    fromEngine shouldBe List(9007199254740993L, null, 9007199254740995L)
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}"
+         |${op.generateStandaloneCode()}
+         |print([None if pd.isna(v) else int(v) for v in out1df["big"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      out.trim should endWith("[9007199254740993, None, 9007199254740995]")
     }
   }
 

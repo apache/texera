@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -151,12 +152,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
   }
 
-  override def generateStandaloneCode(): String = {
-    // Strip to just the basename. The standalone script assumes the CSV
-    // lives in the same directory as the script (Texera's resolved URIs
-    // can't be used directly outside the system).
-    val basename = sourceBasename(fileName.getOrElse(""))
+  override def standaloneSourcePath(): Option[String] = fileName
 
+  override def generateStandaloneCode(): String = {
     // Resolve the delimiter the same way the parser above does — first character, empty
     // means comma — and escape it. Every value the field accepts has to survive this:
     // pandas reads a separator longer than one character as a REGULAR EXPRESSION, and a
@@ -167,7 +165,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     val headerArg = if (hasHeader) "0" else "None"
 
     val args = scala.collection.mutable.ArrayBuffer[String]()
-    args += s"""filepath_or_buffer=${pyStringLiteral(basename)}"""
+    args += s"filepath_or_buffer=$SourceFilePlaceholder"
     args += s"sep=${pyStringLiteral(sep)}"
     args += s"""encoding=${pyStringLiteral(encoding)}"""
     args += s"header=$headerArg"
@@ -194,6 +192,23 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
           .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
       )
     if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
+
+    // A LONG column holding a null has to be asked for by name, or pandas widens
+    // it through a float to carry the hole: 9007199254740993 comes back as
+    // ...992, a value the file never held and the executor never produced.
+    // Int64 is the nullable integer, so the hole costs the column nothing.
+    // INTEGER needs none of this — every int32 is exact in a float64.
+    val longColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex
+          .filter(_._1.getType == AttributeType.LONG)
+          .map {
+            case (a, i) =>
+              val key = if (hasHeader) pyStringLiteral(a.getName) else i.toString
+              s"""$key: "Int64""""
+          }
+      )
+    if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
 
     offset.foreach { o =>
       // With a header, skip offset rows after row 0; without, skip offset rows from the start.
