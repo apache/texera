@@ -677,13 +677,6 @@ object ImageVisualizerVisualizationHandler extends TransformHandler {
   }
 }
 
-/** If operator: routes the data port (port 1) to the True (port 1) or False
-  * (port 0) output. We feed an EMPTY Condition port (port 0) so IfOpExec
-  * forwards no condition rows; with no State message it keeps its default
-  * active output (True), matching the standalone's default-True branch — so
-  * the True output gets all data rows and the False output is empty on both
-  * paths.
-  */
 /** Aggregate fixture exercising every aggregation function in one op, including
   * COUNT(*) with its empty attribute. Auto-config cannot build it: `attribute` is
   * optional, required only for the functions other than count, so the generator
@@ -749,6 +742,18 @@ object AggregateTransformHandler extends TransformHandler {
   }
 }
 
+/** If routes the data port (port 1) to the True (port 1) or False (port 0)
+  * output, and which one is active is decided by a State message on the
+  * Condition port. The harness writes rows per port and has no State channel,
+  * so only the engine's default route is reachable here, and that default is
+  * True: the Condition port is fed empty, the True output takes every data row,
+  * and the False output is empty on both paths.
+  *
+  * What this fixture cannot reach is covered where it can be. The engine's
+  * False route is in IfOpExecSpec, and the exported block's own False branch in
+  * IfOpDescSpec, which sets the global the block reads and asserts the rows
+  * leave by the False output alone.
+  */
 object IfTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[IfOpDesc]
 
