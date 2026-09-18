@@ -19,11 +19,17 @@
 
 package org.apache.texera.amber.operator.limit
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class LimitOpExec(descString: String) extends OperatorExecutor {
+class LimitOpExec(descString: String) extends OperatorExecutor with ColumnarOperatorExecutor {
   private val desc: LimitOpDesc = objectMapper.readValue(descString, classOf[LimitOpDesc])
   var count: Int = _
 
@@ -38,5 +44,24 @@ class LimitOpExec(descString: String) extends OperatorExecutor {
     } else {
       Iterator()
     }
+  }
+
+  // Columnar: drop batches past the limit; else emit the first (limit-count) rows.
+  @transient private var columnarAllocator: RootAllocator = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+    if (count >= desc.limit) return ColumnarResult.Consumed
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val n = root.getRowCount
+      val take = math.min(n, desc.limit - count)
+      count += take
+      val mask = Array.tabulate(n)(_ < take)
+      ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
+    }
+  }
+
+  override def close(): Unit = {
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
   }
 }

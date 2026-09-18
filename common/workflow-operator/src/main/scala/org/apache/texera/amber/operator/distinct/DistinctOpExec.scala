@@ -19,8 +19,14 @@
 
 package org.apache.texera.amber.operator.distinct
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable
 
@@ -28,7 +34,7 @@ import scala.collection.mutable
   * An executor for the distinct operation that filters out duplicate tuples.
   * It uses a `LinkedHashSet` to preserve the input order while removing duplicates.
   */
-class DistinctOpExec extends OperatorExecutor {
+class DistinctOpExec extends OperatorExecutor with ColumnarOperatorExecutor {
   private var seenTuples: mutable.LinkedHashSet[Tuple] = _
 
   override def open(): Unit = {
@@ -37,6 +43,7 @@ class DistinctOpExec extends OperatorExecutor {
 
   override def close(): Unit = {
     seenTuples.clear()
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
@@ -46,6 +53,19 @@ class DistinctOpExec extends OperatorExecutor {
 
   override def onFinish(port: Int): Iterator[TupleLike] = {
     seenTuples.iterator
+  }
+
+  // Columnar: decode the batch (schema once) into the dedup set; emit at onFinish.
+  @transient private var columnarAllocator: RootAllocator = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val n = root.getRowCount
+      var i = 0
+      while (i < n) { seenTuples.add(ArrowUtils.getTexeraTuple(i, root)); i += 1 }
+      ColumnarResult.Consumed
+    }
   }
 
 }
