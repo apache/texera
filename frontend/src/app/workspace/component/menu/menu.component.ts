@@ -344,7 +344,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The workflow id only arrives with the workflow: the canvas resets to `DEFAULT_WORKFLOW` (wid 0)
+   * on every load, so until the fetch lands there is nothing to share. Opening the dialog in that
+   * window asked the backend about workflow 0 and came back without a Private/Public choice, which
+   * is the gesture issue #8599 reports. The button is disabled for the same window.
+   */
   public async onClickOpenShareAccess(): Promise<void> {
+    if (!this.workflowId) {
+      return;
+    }
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {

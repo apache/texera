@@ -145,10 +145,15 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: isPublic => (this.isPublic = isPublic),
-        error: () =>
+        error: () => {
+          // `ngOnInit` is re-entered as a refresh after an access change, so a value from the
+          // previous read may still be here. Drop it: keeping it would leave the buttons on
+          // screen, showing a state nothing has confirmed, while the toast says they are gone.
+          this.isPublic = null;
           this.notificationService.error(
             `Could not read whether this ${this.type} is public, so that choice is not shown.`
-          ),
+          );
+        },
       });
   }
 
