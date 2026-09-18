@@ -112,4 +112,40 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       lines.get(2) should include("\"id\":3")
     }
   }
+
+  // pandas has no plain boolean column that carries a null, so read_json reads
+  // one with a hole as float64 and the operator is handed 1.0 and 0.0 where the
+  // run had true and false. The prologue takes the column back to the nullable
+  // boolean dtype, which carries the two values and the hole.
+  it should "hand a boolean column with a hole to the script as booleans" taggedAs NeedsPython in {
+    val holed = new Schema(
+      new Attribute("id", AttributeType.INTEGER),
+      new Attribute("flag", AttributeType.BOOLEAN)
+    )
+    def row(id: Int, flag: java.lang.Boolean): Tuple = {
+      val b = Tuple.builder(holed)
+      b.add(holed.getAttribute("id"), Int.box(id))
+      b.add(holed.getAttribute("flag"), flag)
+      b.build()
+    }
+
+    val dir = Files.createTempDirectory("harness-spec-boolean-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(input, Iterator(row(1, true), row(2, null), row(3, false)), holed)
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+
+    val result = StandaloneRunner.run(
+      opDesc = new DistinctOpDesc,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work
+    )
+
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 3
+    lines.get(0) should include("\"flag\":true")
+    lines.get(1) should include("\"flag\":null")
+    lines.get(2) should include("\"flag\":false")
+  }
 }

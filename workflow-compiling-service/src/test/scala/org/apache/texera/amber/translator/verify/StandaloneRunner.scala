@@ -306,6 +306,18 @@ object StandaloneRunner extends LazyLogging {
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
           sb.append(s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].astype('float64')\n")
         }
+        // A boolean column the fixture punched a hole in comes back as float64,
+        // so the operator is handed 1.0 and 0.0 where the run had true and
+        // false. The nullable dtype carries both the values and the hole. One
+        // without a hole already arrives as bool and is left alone, the way an
+        // exact integer is: the nullable dtype would be one the run never had.
+        booleanColumns(path).foreach { col =>
+          sb.append(
+            s"if ${py(col)} in in${n}df.columns and not pd.api.types.is_bool_dtype(" +
+              s"in${n}df[${py(col)}]):\n"
+          )
+          sb.append(s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].astype('boolean')\n")
+        }
         // Only where the reader lost the value: a column with no holes already
         // came back exact, and replacing it would hand the operator a nullable
         // dtype the run never had.
@@ -422,6 +434,12 @@ object StandaloneRunner extends LazyLogging {
 
   private def stringColumns(input: Path): Seq[String] =
     columnsOfType(input, AttributeType.STRING)
+
+  /** BOOLEAN-typed column names. A hole makes read_json read the whole column
+    * as float64, so the run's true and false reach the operator as 1.0 and 0.0.
+    */
+  private def booleanColumns(input: Path): Seq[String] =
+    columnsOfType(input, AttributeType.BOOLEAN)
 
   private def columnsOfType(input: Path, attributeType: AttributeType): Seq[String] =
     scala.util
