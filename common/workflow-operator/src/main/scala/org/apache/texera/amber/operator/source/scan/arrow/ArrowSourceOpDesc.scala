@@ -46,7 +46,10 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   override def generateStandaloneCode(): String = {
     val basename = sourceBasename(fileName.getOrElse(""))
-    val read = s"""out1df = pd.read_feather(${pyStringLiteral(basename)})"""
+    // Arrow says of every value whether it is there, and a numpy column has
+    // nowhere to put that: a missing double and a stored NaN both land on NaN.
+    val read =
+      s"""out1df = pd.read_feather(${pyStringLiteral(basename)}, dtype_backend="numpy_nullable")"""
     // A timestamp column needs nothing here. The file names UTC and holds the
     // wall clock as UTC, so pd.read_feather and the executor read the same
     // reading off it — no zone of the reader's own enters either side. The other
