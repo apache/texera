@@ -62,9 +62,9 @@ class JSONLScanSourceOpExec private[json] (
     reader = new BufferedReader(
       new InputStreamReader(stream, desc.fileEncoding.getCharset)
     )
-    val offsetValue = desc.offset.getOrElse(0)
+    val offsetValue = desc.windowOffset
     var lines = reader.lines().iterator().asScala.drop(offsetValue)
-    if (desc.limit.isDefined) lines = lines.take(desc.limit.get)
+    if (desc.windowLimit.isDefined) lines = lines.take(desc.windowLimit.get)
     val (it1, it2) = lines.duplicate
     val count: Int = it1.map(_ => 1).sum
 

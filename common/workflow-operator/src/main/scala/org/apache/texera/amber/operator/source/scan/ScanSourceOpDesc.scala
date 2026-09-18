@@ -70,6 +70,16 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaInject(json = """{"minimum": 0}""")
   var offset: Option[Int] = None
 
+  // The bound above only reaches the property editor. A plan posted to the API, or
+  // an imported workflow file, is deserialized without it, so every reader takes
+  // the window through these two: a negative that arrived that way then means the
+  // same empty or whole window on all of them.
+  @JsonIgnore
+  def windowOffset: Int = offset.getOrElse(0).max(0)
+
+  @JsonIgnore
+  def windowLimit: Option[Int] = limit.map(_.max(0))
+
   override def sourceSchema(): Schema = null
 
   override def operatorInfo: OperatorInfo = {
