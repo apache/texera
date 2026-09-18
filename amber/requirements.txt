@@ -25,6 +25,7 @@ overrides==7.7.0
 typing_extensions==4.14.1
 bidict==0.22.0
 cached_property==2.0.1
+cloudpickle==3.1.2
 psutil==7.2.2
 tzlocal==2.1
 # Not imported directly: s3fs (with aiobotocore) backs pyiceberg's
