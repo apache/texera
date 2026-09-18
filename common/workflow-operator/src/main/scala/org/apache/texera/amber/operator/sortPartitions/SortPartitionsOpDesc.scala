@@ -95,6 +95,10 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
   //
   // NaN is where the two part. The engine orders it after positive infinity;
   // pandas treats it as missing and puts it where the nulls go, which is first.
+  //
+  // A string column parts once more, and more narrowly: the engine reads UTF-16
+  // code units and pandas reads code points, which agree across the basic plane
+  // and differ only where a character above U+FFFF meets one in U+E000..U+FFFF.
   override def generateStandaloneCode(): String = {
     val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
     s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
