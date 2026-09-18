@@ -22,6 +22,10 @@ texera:
   imageTag: 1.4.0-incubating-SNAPSHOT
 
 global:
+  # If using VMs for texera specific microservices, change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-runtime-rs"
+  # Note: kata containers must be installed to use kata-qemu-runtime-rs
+  # Note: This does not change the runtime of dependencies or Compute Units.
+  texeraMicroServiceRuntimeClass: ""
   # Required by the Bitnami postgresql sub-chart to allow custom images
   security:
     allowInsecureImages: true
@@ -516,6 +520,14 @@ texeraEnvVars:
   - name: AUTH_JWT_SECRET
     # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
     value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
+  - name: KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_CPU
+    # If using VMs for CUs change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-runtime-rs"
+    # Note: kata containers must be installed to use kata-qemu-runtime-rs
+    value: ""
+  - name: KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_GPU
+    # If using VMs for CUs change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-nvidia-gpu-runtime-rs"
+    # Note: kata containers must be installed to use kata-qemu-nvidia-gpu-runtime-r
+    value: ""
 
 yWebsocketServer:
   name: y-websocket-server
