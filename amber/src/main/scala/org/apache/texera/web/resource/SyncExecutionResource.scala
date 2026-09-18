@@ -73,7 +73,12 @@ case class SyncExecutionRequest(
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
     maxOperatorResultCharLimit: Int,
-    maxOperatorResultCellCharLimit: Int
+    maxOperatorResultCellCharLimit: Int,
+    // The user_warehouse this run writes into. Carried from the caller the same way
+    // computingUnitId is: the agent forwards what the user picked in the UI. Required
+    // while per-user warehouses are enabled; absent keeps the shared default when the
+    // feature is off (#7751).
+    warehouseId: Option[Int] = None
 )
 
 case class ConsoleMessageInfo(
@@ -169,7 +174,7 @@ class SyncExecutionResource extends LazyLogging {
           ),
         emailNotificationEnabled = false,
         computingUnitId = computingUnitId,
-        warehouseId = None
+        warehouseId = request.warehouseId
       )
 
       workflowService.initExecutionService(
