@@ -122,6 +122,35 @@ object StandaloneHelpers {
       |    return max(-2147483648, min(2147483647, int(value)))
       |
       |
+      |def _texera_text_to_timestamp(s):
+      |    # Read cell by cell, the way the engine reads a column: DateParserUtils
+      |    # is handed one field at a time, so a row states its own format and the
+      |    # rest of the column has no say in it.
+      |    #
+      |    # Held at microsecond resolution and not the nanoseconds pandas parses
+      |    # into by default, which reach 1677 to 2262: the engine holds a
+      |    # java.sql.Timestamp, where the year 2500 is an ordinary moment and
+      |    # emptying it would answer for a row the run itself had no trouble with.
+      |    #
+      |    # Still coerced, which the strict cast is not: the engine accepts a set
+      |    # of formats no single pandas call states, so text neither can read is
+      |    # answered with an empty cell rather than by ending the run.
+      |    from dateutil.parser import parse as _parse_date
+      |
+      |    if pd.api.types.is_datetime64_any_dtype(s):
+      |        return s.astype("datetime64[us]")
+      |
+      |    def _one(x):
+      |        if pd.isna(x):
+      |            return None
+      |        try:
+      |            return _parse_date(str(x).strip())
+      |        except (ValueError, OverflowError):
+      |            return None
+      |
+      |    return s.map(_one).astype("datetime64[us]")
+      |
+      |
       |def _texera_epoch_millis_to_timestamp(s):
       |    # `new Timestamp(long)` reads MILLISECONDS where pd.to_datetime defaults
       |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
