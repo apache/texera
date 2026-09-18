@@ -75,9 +75,8 @@
         [avatar]="selected.ownerAvatar || ''"
         userColor="grey"
         [userName]="selected.ownerName || ''"
-        [style.transform]="'scale(0.65)'"
-        [style.opacity]="0.7"
-        [style.padding-right.px]="2">
+        class="picker-avatar"
+        [style.opacity]="0.7">
       </texera-user-avatar>
       <i
         nz-icon
@@ -151,32 +150,33 @@
     [nzDropdownMenu]="menu"
     [nzPlacement]="'bottomRight'"
     (nzVisibleChange)="onDropdownVisibilityChange($event)"
-    class="computing-units-dropdown-button">
+    class="computing-units-dropdown-button"
+    nz-tooltip
+    [nzTooltipTitle]="computingUnitButtonTooltip">
     <div class="button-content">
       <texera-user-avatar
         *ngIf="selectedComputingUnit"
         [avatar]="selectedComputingUnit ? selectedComputingUnit.ownerAvatar : ''"
         userColor="grey"
         [userName]="selectedComputingUnit ? selectedComputingUnit.ownerName : ''"
-        [style.transform]="'scale(0.65)'"
-        [style.opacity]="0.7"
-        [style.padding-right.px]="2">
+        class="picker-avatar"
+        [style.opacity]="0.7">
       </texera-user-avatar>
+      <i
+        nz-icon
+        nzType="deployment-unit"></i>
       <nz-badge
         [nzStatus]="computeStatus()"
-        [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
         [nzText]="''"></nz-badge>
       <span
         *ngIf="selectedComputingUnit"
-        nz-tooltip
-        class="unit-name-text"
-        [nzTooltipTitle]="selectedComputingUnit.computingUnit.name">
+        class="unit-name-text">
         {{selectedComputingUnit.computingUnit.name}}
       </span>
       <span
         *ngIf="!selectedComputingUnit"
         class="connect-text"
-        >Connect</span
+        >Computing Unit</span
       >
       <i
         nz-icon

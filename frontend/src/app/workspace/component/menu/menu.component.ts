@@ -411,10 +411,11 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // no computing unit, show "Connect" button
+    // No computing unit: name the thing that is missing, the way the warehouse
+    // gate below does, and let the click open the create dialog.
     if (this.computingUnitStatus === ComputingUnitState.NoComputingUnit) {
       return {
-        text: "Connect",
+        text: "Computing Unit",
         icon: "plus-circle",
         disable: false,
         onClick: () => this.runWorkflow(),

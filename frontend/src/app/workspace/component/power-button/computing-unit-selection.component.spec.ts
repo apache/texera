@@ -1579,9 +1579,37 @@ describe("PowerButtonComponent", () => {
   });
 
   describe("status helpers", () => {
+    it("the trigger's tooltip names the picker and the unit, in the warehouse trigger's shape", () => {
+      // Asserted through the rendered directive, not just the getter: the
+      // user-visible contract is one tooltip on the trigger, so a removed
+      // binding or a tooltip reintroduced on the name or badge must fail here.
+      component.selectedComputingUnit = makeComputingUnit({
+        name: "a-very-long-unit-name-that-truncates",
+        status: "Running",
+      });
+      fixture.detectChanges();
+
+      const trigger = fixture.debugElement.query(By.css(".computing-units-dropdown-button"));
+      const tooltip = trigger.injector.get(NzTooltipDirective) as NzTooltipDirective;
+      expect(tooltip.title).toBe("Computing Unit: a-very-long-unit-name-that-truncates");
+      expect(fixture.debugElement.query(By.css(".unit-name-text[nz-tooltip]"))).toBeNull();
+      expect(fixture.debugElement.query(By.css(".computing-units-dropdown-button nz-badge[nz-tooltip]"))).toBeNull();
+
+      // The status is not in it: the badge shows that here, in words in the rows.
+      component.selectedComputingUnit = makeComputingUnit({ name: "cu", status: "Pending" });
+      fixture.detectChanges();
+      expect(tooltip.title).toBe("Computing Unit: cu");
+
+      component.selectedComputingUnit = null;
+      fixture.detectChanges();
+      expect(tooltip.title).toBe("Computing Unit");
+    });
+
     it("computeStatus maps selection + status onto badge states", () => {
       component.selectedComputingUnit = null;
-      expect(component.computeStatus()).toBe("processing");
+      // Not "processing": nothing is being processed when nothing is selected,
+      // and ant renders that as a pulsing blue dot claiming work (#8587).
+      expect(component.computeStatus()).toBe("default");
       component.selectedComputingUnit = makeComputingUnit({ status: "Running" });
       expect(component.computeStatus()).toBe("success");
       component.selectedComputingUnit = makeComputingUnit({ status: "Pending" });
@@ -1944,13 +1972,13 @@ describe("PowerButtonComponent", () => {
       expect(host.querySelector(".connect-text")).toBeNull();
     });
 
-    it("renders the 'Connect' label on the trigger when no unit is selected", () => {
+    it("names the missing resource on the trigger when no unit is selected", () => {
       component.selectedComputingUnit = null;
       component.allComputingUnits = [];
       fixture.detectChanges();
 
       const host = fixture.nativeElement as HTMLElement;
-      expect(host.querySelector(".connect-text")?.textContent).toContain("Connect");
+      expect(host.querySelector(".connect-text")?.textContent).toContain("Computing Unit");
       expect(host.querySelector(".unit-name-text")).toBeNull();
     });
   });

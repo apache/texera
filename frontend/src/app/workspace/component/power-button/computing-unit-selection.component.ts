@@ -602,9 +602,21 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
   }
 
+  /**
+   * `Computing Unit: <name>`, the shape the warehouse trigger uses: which picker
+   * this is, plus the name it ellipsises. The status stays where it already
+   * lives — the badge's colour here, its words in the dropdown rows.
+   */
+  get computingUnitButtonTooltip(): string {
+    const selected = this.selectedComputingUnit;
+    return selected ? `Computing Unit: ${selected.computingUnit.name}` : "Computing Unit";
+  }
+
   computeStatus(): string {
     if (!this.selectedComputingUnit) {
-      return "processing";
+      // Nothing is being processed when nothing is selected; "processing" would
+      // render a pulsing blue dot claiming work that is not happening.
+      return "default";
     }
 
     const status = this.selectedComputingUnit.status;

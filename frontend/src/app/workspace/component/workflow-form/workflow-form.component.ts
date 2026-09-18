@@ -1526,8 +1526,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** No unit chosen yet: the button shows a disabled "Connect" hint and the unit is picked in the
-   *  embedded selector -- unlike the canvas, where the Connect button is itself the click target. */
+  /** No unit chosen yet: the button names what is missing and stays disabled, because the unit is
+   *  picked in the embedded selector -- unlike the canvas, where that button is itself the click
+   *  target for creating one. */
   public get hasNoComputingUnit(): boolean {
     return this.computingUnitStatus === ComputingUnitState.NoComputingUnit;
   }
@@ -1564,7 +1565,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       return { label: "Empty", icon: "info-circle", disabled: true };
     }
     if (this.hasNoComputingUnit) {
-      return { label: "Connect", icon: "plus-circle", disabled: true };
+      return { label: "Computing Unit", icon: "plus-circle", disabled: true };
     }
     // A unit is chosen and connected, but shared to this reader read-only: the canvas gates
     // execution on write access to the unit, so the form disables Run rather than sending a request

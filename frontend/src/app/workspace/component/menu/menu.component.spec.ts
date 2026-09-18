@@ -57,6 +57,8 @@ import { MockGuiConfigService } from "../../../common/service/gui-config.service
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -229,6 +231,49 @@ describe("MenuComponent", () => {
     expect(navigate).toHaveBeenCalledWith(7);
   });
 
+  describe("run button enablement (#8587)", () => {
+    const runButton = () => fixture.nativeElement.querySelector("#run-button") as HTMLButtonElement;
+
+    const render = () => {
+      component.applyRunButtonBehavior(component.getRunButtonBehavior());
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+    });
+
+    it("leaves the no-unit button clickable, since that is the state it exists to fix", () => {
+      // The privilege check asks a unit that does not exist; with no unit
+      // selected it used to be permanently true, so the button offered to
+      // connect and refused every click, leaving runWorkflow's create-unit
+      // branch unreachable.
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.selectedComputingUnit = null;
+
+      render();
+
+      expect(runButton().textContent?.trim()).toBe("Computing Unit");
+      expect(runButton().disabled).toBe(false);
+    });
+
+    it("still refuses to run on a unit the user may only read", () => {
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.selectedComputingUnit = {
+        computingUnit: { cuid: 1, name: "theirs" },
+        status: "Running",
+        accessPrivilege: Privilege.READ,
+      } as unknown as DashboardWorkflowComputingUnit;
+
+      render();
+
+      expect(runButton().disabled).toBe(true);
+    });
+  });
+
   describe("getRunButtonBehavior", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
@@ -252,14 +297,14 @@ describe("MenuComponent", () => {
       expect(behavior.disable).toBe(true);
     });
 
-    it("returns 'Connect' when no computing unit is attached", () => {
+    it("returns 'Computing Unit' when no computing unit is attached", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
 
       const behavior = component.getRunButtonBehavior();
 
-      expect(behavior.text).toBe("Connect");
+      expect(behavior.text).toBe("Computing Unit");
       expect(behavior.icon).toBe("plus-circle");
       expect(behavior.disable).toBe(false);
     });
@@ -441,8 +486,8 @@ describe("MenuComponent", () => {
 
       const behavior = component.getRunButtonBehavior();
 
-      // Same word the picker's own empty state shows, as CU repeats "Connect";
-      // it also has to fit the run button's fixed width.
+      // Same word the picker's own empty state shows, as the computing-unit
+      // flow repeats its own; it also has to fit the run button's fixed width.
       expect(behavior.text).toBe("Warehouse");
       expect(behavior.icon).toBe("plus-circle");
       expect(behavior.disable).toBe(false);

@@ -36,10 +36,13 @@
   &.metrics-visible {
     min-width: 290px;
     max-width: none;
-    gap: 10px;
 
-    .computing-units-dropdown-button {
+    // Only the metrics block is pushed away; a gap on the container, or an auto
+    // margin on the computing-unit button, also widened the space between the
+    // two pickers whenever a unit happened to be running.
+    .metrics-container {
       margin-left: auto;
+      margin-right: 10px;
     }
   }
 }
@@ -205,10 +208,13 @@
 .warehouse-dropdown-button {
   display: inline-flex;
   align-items: center;
-  min-width: 220px;
-  max-width: 280px;
-  // The gap between this picker and the computing-unit one that follows it;
-  // the computing-unit trigger has none because nothing follows it.
+  // One width for both pickers. Sized to content between a min and a max they
+  // came out different — this one short ("Warehouse"), the computing-unit one
+  // long — which reads as a mistake when they sit side by side. A name too long
+  // for it is ellipsised and read from the tooltip, which carries it in full.
+  width: 200px;
+  // The gap to the computing-unit picker that follows it; that one has none
+  // because nothing follows it.
   margin-right: 4px;
   padding: 0 8px;
   overflow: hidden;
@@ -233,11 +239,24 @@
 .computing-units-dropdown-button {
   display: inline-flex;
   align-items: center;
-  min-width: 220px;
-  max-width: 280px;
+  width: 200px;
   padding: 0 8px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+// The avatar is 32px by default, and scaling it with a transform shrank only
+// what is drawn, not the box: a 32px child inflated a 32px-tall button. Sized
+// for real, it draws the same and leaves the button its height.
+.picker-avatar {
+  margin-right: 4px;
+
+  ::ng-deep .ant-avatar {
+    width: 21px;
+    height: 21px;
+    font-size: 12px;
+    line-height: 21px;
+  }
 }
 
 .button-content {
