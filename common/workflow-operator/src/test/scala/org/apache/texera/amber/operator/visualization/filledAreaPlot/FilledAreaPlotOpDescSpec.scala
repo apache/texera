@@ -396,4 +396,82 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     val thenRequired = rule.get("then").get("required").elements().asScala.map(_.asText()).toList
     thenRequired should contain("lineGroup")
   }
+
+  // The tolerance is five percent of the groups, and the operator multiplies
+  // before it divides. At 150 groups that is 7, where dividing first gives 5, so
+  // the script would have refused three tables the operator draws. Run at the
+  // boundary rather than asserted: 7 disjoint groups are within the tolerance
+  // and 8 are past it.
+  "FilledAreaPlotOpDesc.generateStandaloneCode" should
+    "refuse the same tables the operator refuses" in {
+    val python = resolvePythonExecutable().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandasAndPlotly(python)) {
+      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
+    }
+
+    opDesc.x = "x"
+    opDesc.y = "y"
+    opDesc.lineGroup = "grp"
+    val moduleFile = Files.createTempFile("filled_area_standalone_", ".py")
+    val driverFile = Files.createTempFile("filled_area_boundary_", ".py")
+    try {
+      Files.write(moduleFile, opDesc.generateStandaloneCode().getBytes(StandardCharsets.UTF_8))
+      Files.write(driverFile, boundaryDriverScript.getBytes(StandardCharsets.UTF_8))
+
+      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
+        .redirectErrorStream(true)
+        .start()
+      if (!process.waitFor(120, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        fail("Boundary driver timed out after 120s")
+      }
+      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      withClue(s"Driver output:\n$output\n") {
+        process.exitValue() shouldBe 0
+        val verdicts = "CASE (\\S+) (\\S+)".r
+          .findAllMatchIn(output)
+          .map(m => m.group(1) -> m.group(2))
+          .toMap
+        verdicts shouldBe Map("7" -> "CHART", "8" -> "FALLBACK")
+      }
+    } finally {
+      Try(Files.deleteIfExists(moduleFile))
+      Try(Files.deleteIfExists(driverFile))
+      ()
+    }
+  }
+
+  // Runs the exported block over 150 line groups, as many of them disjoint from
+  // the first as the case names, and reports the page it wrote.
+  private val boundaryDriverScript: String =
+    """import pathlib
+      |import sys
+      |import tempfile
+      |
+      |import pandas as pd
+      |import plotly.express as px
+      |
+      |source = pathlib.Path(sys.argv[1]).read_text()
+      |
+      |for disjoint in (7, 8):
+      |    rows = []
+      |    for index in range(150):
+      |        value = "z%03d" % index if 1 <= index <= disjoint else "a"
+      |        rows.append({"x": value, "y": 1.0, "grp": "g%03d" % index})
+      |        rows.append({"x": value, "y": 2.0, "grp": "g%03d" % index})
+      |    directory = tempfile.mkdtemp()
+      |    scope = {
+      |        "in1df": pd.DataFrame(rows),
+      |        "outputHtml": directory + "/chart.html",
+      |        "outputJson": directory + "/chart.json",
+      |        "pd": pd,
+      |        "px": px,
+      |    }
+      |    exec(compile(source, "standalone", "exec"), scope)
+      |    page = pathlib.Path(scope["outputHtml"]).read_text()
+      |    verdict = "FALLBACK" if "not shared across all line groups" in page else "CHART"
+      |    print("CASE %d %s" % (disjoint, verdict))
+      |""".stripMargin
 }

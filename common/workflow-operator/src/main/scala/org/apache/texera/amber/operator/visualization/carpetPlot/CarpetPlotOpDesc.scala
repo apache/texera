@@ -142,28 +142,45 @@ class CarpetPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
     val aLit = pyStringLiteral(a)
     val bLit = pyStringLiteral(b)
     val yLit = pyStringLiteral(y)
-    // Both empty cases write the page the operator yields rather than printing:
-    // a reason the reader can see is the whole output of a chart that cannot be
-    // drawn, and a run that writes nothing at all looks like a crash.
-    s"""table = in1df.dropna(subset=[$aLit, $bLit, $yLit]).copy()
+    // Every case the operator answers with a page writes that page here rather
+    // than printing or raising: a reason the reader can see is the whole output
+    // of a chart that cannot be drawn, and a run that writes nothing at all
+    // looks like a crash. A column that is not there and a value that is not a
+    // number are checked in the operator's own order, before the drop that
+    // would otherwise raise on the missing name.
+    s"""def _write_page(html):
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(html)
+       |
+       |missing = [column for column in [$aLit, $bLit, $yLit] if column not in in1df.columns]
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write("<h3>Input table is empty</h3>")
-       |elif table.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write("<h3>No valid rows after removing nulls</h3>")
+       |    _write_page("<h3>Input table is empty</h3>")
+       |elif missing:
+       |    _write_page(f"<h3>Column '{missing[0]}' not found</h3>")
        |else:
-       |    table[$aLit] = table[$aLit].astype(float)
-       |    table[$bLit] = table[$bLit].astype(float)
-       |    table[$yLit] = table[$yLit].astype(float)
-       |    fig = go.Figure(go.Carpet(
-       |        a=table[$aLit],
-       |        b=table[$bLit],
-       |        y=table[$yLit]
-       |    ))
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Carpet plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |    table = in1df.dropna(subset=[$aLit, $bLit, $yLit]).copy()
+       |    if table.empty:
+       |        _write_page("<h3>No valid rows after removing nulls</h3>")
+       |    else:
+       |        try:
+       |            table[$aLit] = table[$aLit].astype(float)
+       |            table[$bLit] = table[$bLit].astype(float)
+       |            table[$yLit] = table[$yLit].astype(float)
+       |        except Exception as e:
+       |            _write_page(f"<h3>Error converting input columns to numeric values: {str(e)}</h3>")
+       |        else:
+       |            try:
+       |                fig = go.Figure(go.Carpet(
+       |                    a=table[$aLit],
+       |                    b=table[$bLit],
+       |                    y=table[$yLit]
+       |                ))
+       |            except Exception as e:
+       |                _write_page(f"<h3>Error generating carpet plot: {str(e)}</h3>")
+       |            else:
+       |                fig.write_json(outputJson)
+       |                fig.write_html(outputHtml)
+       |                print("Carpet plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
   }
 
 }

@@ -224,17 +224,19 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
        |elif $lineGroupLit != "":
        |    grouped = in1df.groupby($lineGroupLit)
        |    x_values = None
-       |    tolerance = (len(grouped) // 100) * 5
+       |    tolerance = (len(grouped) * 5) // 100
        |    count = 0
        |    for _, group in grouped:
-       |        if x_values == None:
-       |            x_values = set(group[$xLit].unique())
-       |        elif set(group[$xLit].unique()).intersection(x_values):
-       |            x_values = x_values.union(set(group[$xLit].unique()))
-       |        elif not set(group[$xLit].unique()).intersection(x_values):
+       |        group_x_values = set(group[$xLit].unique())
+       |        if x_values is None:
+       |            x_values = group_x_values
+       |        elif group_x_values.intersection(x_values):
+       |            x_values = x_values.union(group_x_values)
+       |        else:
        |            count += 1
        |            if count > tolerance:
        |                error = "X attributes not shared across groups"
+       |                break
        |
        |if error == "":
        |    fig = px.area(in1df, x=$xLit, y=$yLit$colorArg$facetColumnArg$lineGroupArg$patternParam)
