@@ -562,6 +562,18 @@ object TransformVerificationRunner {
     classOf[NestedTableOpDesc]
   )
 
+  /** Visualization operators that draw a figure per input row.
+    *
+    * Both paths put the whole set on the page they render, but the exported
+    * script writes only the first of them to its `output.json`, so comparing
+    * that file would leave every figure after the first unread. The page is
+    * the side that holds them all, and it is what the comparison is handed.
+    */
+  val multiFigureOps: Set[Class[_]] = Set(
+    classOf[BulletChartOpDesc],
+    classOf[GaugeChartOpDesc]
+  )
+
   /** Triaged, explicitly-not-run operators: class → honest reason, shown in
     * the test report and coverage table.
     */
@@ -1041,7 +1053,8 @@ object TransformVerificationRunner {
     // then no Plotly payload to compare on either path, so compare what the user
     // actually sees — the HTML.
     if (visualizationJsonOps.contains(opClass) && hasPlotlyFigure(actual)) {
-      val expected = testRoot.resolve("output.json")
+      val expected =
+        testRoot.resolve(if (multiFigureOps.contains(opClass)) "output.html" else "output.json")
       if (!Files.exists(expected)) {
         throw new AssertionError(s"standalone visualization path did not produce $expected")
       }
