@@ -33,6 +33,7 @@ import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
+import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -57,9 +58,10 @@ import scala.sys.process.{Process, ProcessLogger}
   *
   * Every other verify spec runs a single operator's fragment with the harness
   * binding its placeholders, so a fault that appears only once fragments share
-  * one script and one directory has nowhere to show. Three of them are pinned
-  * here: a column named after a placeholder, two charts writing one file, and a
-  * branch that ends the process the other branches still need.
+  * one script and one directory has nowhere to show. Four of them are pinned
+  * here: a column named after a placeholder, two charts writing one file, a
+  * branch that ends the process the other branches still need, and a branch
+  * handed the wrong one of its upstream's two output ports.
   *
   * Tagged @IntegrationTest with the rest of the specs that fork Python.
   */
@@ -73,11 +75,11 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
   private val python =
     sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3.12")
 
-  private def csvSource(id: String): CSVScanSourceOpDesc = {
+  private def csvSource(id: String, file: String = CsvName): CSVScanSourceOpDesc = {
     val op = new CSVScanSourceOpDesc
     // The generated read strips this to its basename, and run() below gives the
     // script the temp directory as its cwd, so the plain name resolves.
-    op.fileName = Some(CsvName)
+    op.fileName = Some(file)
     op.setOperatorId(id)
     op
   }
@@ -85,20 +87,37 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(0), to.operatorIdentifier, PortIdentity(0))
 
-  /** Translates the plan, writes it next to the CSV it reads, and runs it.
+  private def link(from: LogicalOp, fromPort: Int, to: LogicalOp): LogicalLink =
+    LogicalLink(
+      from.operatorIdentifier,
+      PortIdentity(fromPort),
+      to.operatorIdentifier,
+      PortIdentity(0)
+    )
+
+  private def run(csv: String, ops: List[LogicalOp], links: List[LogicalLink]): (Path, String) =
+    run(Map(CsvName -> csv), ops, links)
+
+  /** Translates the plan, writes it next to the CSVs it reads, and runs it.
     * Returns the directory it ran in, which holds whatever files it wrote, and
     * what it printed.
     */
-  private def run(csv: String, ops: List[LogicalOp], links: List[LogicalLink]): (Path, String) = {
+  private def run(
+      csvs: Map[String, String],
+      ops: List[LogicalOp],
+      links: List[LogicalLink]
+  ): (Path, String) = {
     val dir = Files.createTempDirectory("translated-plan-")
-    val csvPath = dir.resolve(CsvName)
-    Files.write(csvPath, csv.getBytes(StandardCharsets.UTF_8))
+    csvs.foreach {
+      case (name, content) =>
+        Files.write(dir.resolve(name), content.getBytes(StandardCharsets.UTF_8))
+    }
 
     // The service compiles before translating, so a column's declared type
     // reaches the operator that needs it. The compiler reads the source from
     // here, so it takes the full path; the generated read strips it back.
     ops.foreach {
-      case scan: CSVScanSourceOpDesc => scan.fileName = Some(csvPath.toString)
+      case scan: CSVScanSourceOpDesc => scan.fileName = scan.fileName.map(dir.resolve(_).toString)
       case _                         => ()
     }
     val schemas = new WorkflowCompiler(new WorkflowContext(workflowId = WorkflowIdentity(0)))
@@ -124,10 +143,22 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
     (dir, stdout)
   }
 
-  // The files the plan wrote, script and input aside.
+  /** The frame the plan printed under one operator's heading, up to the next
+    * heading, so a plan that prints two of them can be read a branch at a time.
+    */
+  private def printed(stdout: String, operator: String): String = {
+    val heading = s"[$operator]"
+    val start = stdout.indexOf(heading)
+    withClue(s"no [$operator] section in:\n$stdout") { start should be >= 0 }
+    val section = stdout.substring(start + heading.length)
+    val next = section.indexOf("\n[")
+    if (next < 0) section else section.take(next)
+  }
+
+  // The files the plan wrote, script and inputs aside.
   private def written(dir: Path): Seq[String] =
     Option(dir.toFile.list()).toSeq.flatten
-      .filterNot(name => name == CsvName || name == "script.py")
+      .filterNot(name => name.endsWith(".csv") || name == "script.py")
       .sorted
 
   /** Four hops, so every variable the translator assigns is read by the next
@@ -216,16 +247,60 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
     * the translator writes in its place is only exercised by a real plan.
     */
   it should "hand a variadic port the frames its upstreams produced" in {
-    val sources = List("left", "right").map(csvSource)
+    val left = csvSource("left", "left.csv")
+    val right = csvSource("right", "right.csv")
     val union = new UnionOpDesc
     union.setOperatorId("union")
     val (_, stdout) = run(
-      "label,amount\nant,3\nbee,1\n",
-      sources :+ union,
-      sources.map(source => link(source, union))
+      // A row only one of them reads, so a list that names one upstream twice
+      // and drops the other loses a row rather than repeating one.
+      Map("left.csv" -> "label,amount\nant,3\n", "right.csv" -> "label,amount\nbee,1\n"),
+      List(left, right, union),
+      List(link(left, union), link(right, union))
     )
-    // Both upstreams read the same file, so each row arrives twice.
-    stdout.sliding("ant".length).count(_ == "ant") shouldBe 2
+    // Read the union's own frame: an upstream the list dropped is a leaf of the
+    // plan, and printing that leaf would put its rows in stdout anyway.
+    val united = printed(stdout, "Union")
+    united should include("ant")
+    united should include("bee")
+  }
+
+  /** Every other plan here reads its upstream's port 0, so a translator that
+    * handed each downstream the first frame its upstream produced would pass
+    * all of them. A split sends different rows to each of its two ports, and
+    * each branch prints on its own, so a branch reading the other port's frame
+    * is the rows it shows.
+    */
+  it should "give each branch of a split the port its link named" in {
+    val source = csvSource("source")
+    val split = new SplitOpDesc
+    split.setOperatorId("split")
+    split.k = 50
+    split.random = false
+    split.seed = 1
+    val distinct = new DistinctOpDesc
+    distinct.setOperatorId("distinct")
+    val limit = new LimitOpDesc
+    limit.setOperatorId("limit")
+    limit.limit = 10
+
+    val (_, stdout) = run(
+      "label,amount\nant,1\nbee,2\ncat,3\ndog,4\neel,5\nfox,6\n",
+      List(source, split, distinct, limit),
+      List(link(source, split), link(split, 0, distinct), link(split, 1, limit))
+    )
+    // Seeded at 1, the draw that decides each row is 85, 88, 47, 13, 54, 4, so
+    // the three rows under 50 leave by port 0 and the other three by port 1.
+    val upper = printed(stdout, "Distinct")
+    val lower = printed(stdout, "Limit")
+    Seq("cat", "dog", "fox").foreach { row =>
+      upper should include(row)
+      lower should not include row
+    }
+    Seq("ant", "bee", "eel").foreach { row =>
+      lower should include(row)
+      upper should not include row
+    }
   }
 
   /** The substitution rewrites the variable a fragment reads with, not the
