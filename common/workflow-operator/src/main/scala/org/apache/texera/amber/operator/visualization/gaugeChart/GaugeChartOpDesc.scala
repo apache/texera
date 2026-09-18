@@ -245,7 +245,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |            })
        |
        |        html_chunks = []
-       |        first_fig = None
+       |        figs = []
        |        for _, row in table.iterrows():
        |            try:
        |                actual = float(row[gauge_value])
@@ -280,16 +280,21 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |                    title={"text": gauge_value}
        |                ))
        |                fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
-       |                if first_fig is None:
-       |                    first_fig = fig
+       |                figs.append(fig)
        |                html_chunks.append(pio.to_html(fig, include_plotlyjs='cdn', auto_play=False))
        |            except Exception as e:
        |                html_chunks.append(render_error(f"Error generating chart: {str(e)}"))
        |
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write("<div>" + "".join(html_chunks) + "</div>")
-       |        if first_fig is not None:
-       |            first_fig.write_json(outputJson)
+       |        # One chart per row, so the file holds the whole sequence. A single
+       |        # figure still writes as a lone object, which is what every
+       |        # one-chart operator writes.
+       |        if len(figs) == 1:
+       |            figs[0].write_json(outputJson)
+       |        elif figs:
+       |            with open(outputJson, "w", encoding="utf-8") as output:
+       |                output.write("[" + ",".join(f.to_json() for f in figs) + "]")
        |        print("Gauge chart saved to " + outputHtml)""".stripMargin
   }
 }

@@ -318,7 +318,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |                        "color": step_colors[index]
        |                    })
        |                html_chunks = []
-       |                first_fig = None
+       |                figs = []
        |                for _, row in table.head(10).iterrows():
        |                    try:
        |                        actual = float(row[value_col])
@@ -346,16 +346,23 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |                            title={"text": value_col}
        |                        ))
        |                        fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
-       |                        if first_fig is None:
-       |                            first_fig = fig
+       |                        figs.append(fig)
        |                        html_chunk = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |                        if step_errors:
        |                            html_chunk += "<br><b>Step Errors:</b><ul>" + "".join([f"<li>{msg}</li>" for msg in step_errors]) + "</ul>"
        |                        html_chunks.append(html_chunk)
        |                    except Exception as e:
        |                        html_chunks.append(render_error(f"Error generating bullet chart: {str(e)}"))
-       |                if first_fig is not None:
-       |                    first_fig.write_json(outputJson)
+       |                # One chart per row, so the file holds the whole sequence.
+       |                # A single figure still writes as a lone object, which is
+       |                # what every one-chart operator writes.
+       |                if len(figs) == 1:
+       |                    figs[0].write_json(outputJson)
+       |                elif figs:
+       |                    with open(outputJson, "w", encoding="utf-8") as output:
+       |                        output.write(
+       |                            "[" + ",".join(f.to_json() for f in figs) + "]"
+       |                        )
        |                with open(outputHtml, "w", encoding="utf-8") as output:
        |                    output.write("<div>" + "".join(html_chunks) + "</div>")
        |    except Exception as e:
