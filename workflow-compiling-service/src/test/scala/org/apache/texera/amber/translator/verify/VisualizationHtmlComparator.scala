@@ -23,6 +23,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 object VisualizationHtmlComparator {
@@ -62,11 +63,20 @@ object VisualizationHtmlComparator {
   private def within(uuid: Regex): Regex.Match => String =
     region => Regex.quoteReplacement(uuid.replaceAllIn(region.matched, "T_uuid"))
 
+  /** Every chart the runtime path drew, against every chart the standalone one
+    * wrote.
+    *
+    * A visualization operator emits a row per chart, and the exported script
+    * writes one page, so the sides are compared as sequences rather than by
+    * reading a row off each: a run whose second chart the other path never drew
+    * is a disagreement, and looking only at the first row would call it a match.
+    */
   def assertEqual(actualVisualizationJsonl: Path, expectedHtmlFile: Path): Unit = {
     val actual = readActualHtml(actualVisualizationJsonl)
-    val expected = new String(Files.readAllBytes(expectedHtmlFile), StandardCharsets.UTF_8)
+    val expected =
+      Seq(new String(Files.readAllBytes(expectedHtmlFile), StandardCharsets.UTF_8))
 
-    if (normalize(actual) != normalize(expected)) {
+    if (actual.map(normalize) != expected.map(normalize)) {
       throw new VisualizationHtmlMismatchException(
         actual = actualVisualizationJsonl,
         expected = expectedHtmlFile,
@@ -76,34 +86,33 @@ object VisualizationHtmlComparator {
     }
   }
 
-  private def readActualHtml(path: Path): String = {
-    val line = Files
-      .readAllLines(path, StandardCharsets.UTF_8)
-      .stream()
-      .filter(_.trim.nonEmpty)
-      .findFirst()
-      .orElseThrow(() => new AssertionError(s"$path is empty"))
+  private def readActualHtml(path: Path): Seq[String] = {
+    val lines =
+      Files.readAllLines(path, StandardCharsets.UTF_8).asScala.filter(_.trim.nonEmpty).toSeq
+    if (lines.isEmpty) throw new AssertionError(s"$path is empty")
 
-    val node = objectMapper.readTree(line)
-    val htmlNode = node.get("html-content")
-    if (htmlNode == null || htmlNode.isNull) {
-      throw new AssertionError(s"$path has no html-content field")
+    lines.zipWithIndex.map {
+      case (line, row) =>
+        val htmlNode = objectMapper.readTree(line).get("html-content")
+        if (htmlNode == null || htmlNode.isNull) {
+          throw new AssertionError(s"$path row ${row + 1} has no html-content field")
+        }
+        htmlNode.asText()
     }
-    htmlNode.asText()
   }
 }
 
 final class VisualizationHtmlMismatchException(
     val actual: Path,
     val expected: Path,
-    val actualHtml: String,
-    val expectedHtml: String
+    val actualHtml: Seq[String],
+    val expectedHtml: Seq[String]
 ) extends RuntimeException(
       s"""Visualization HTML mismatch:
-         |  actual:   $actual
-         |  expected: $expected
+         |  actual:   $actual (${actualHtml.size} drawn)
+         |  expected: $expected (${expectedHtml.size} drawn)
          |--- actual html ---
-         |$actualHtml
+         |${actualHtml.mkString("\n--- and ---\n")}
          |--- expected html ---
-         |$expectedHtml""".stripMargin
+         |${expectedHtml.mkString("\n--- and ---\n")}""".stripMargin
     )

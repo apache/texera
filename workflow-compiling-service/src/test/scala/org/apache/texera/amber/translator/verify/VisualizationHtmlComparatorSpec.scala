@@ -32,12 +32,15 @@ class VisualizationHtmlComparatorSpec extends AnyFlatSpec with Matchers {
 
   private val dir: Path = Files.createTempDirectory("visualization-html-comparator-spec-")
 
-  /** The runtime path's side: the markup as one `html-content` field of a JSONL row. */
-  private def writeActual(name: String, html: String): Path = {
-    val node = objectMapper.createObjectNode()
-    node.put("html-content", html)
+  /** The runtime path's side: a JSONL row per chart, each in `html-content`. */
+  private def writeActual(name: String, html: String*): Path = {
     val p = dir.resolve(name)
-    Files.write(p, objectMapper.writeValueAsBytes(node))
+    val rows = html.map { page =>
+      val node = objectMapper.createObjectNode()
+      node.put("html-content", page)
+      objectMapper.writeValueAsString(node)
+    }
+    Files.write(p, rows.mkString("\n").getBytes(StandardCharsets.UTF_8))
     p
   }
 
@@ -79,6 +82,22 @@ class VisualizationHtmlComparatorSpec extends AnyFlatSpec with Matchers {
         a[VisualizationHtmlMismatchException] should be thrownBy VisualizationHtmlComparator
           .assertEqual(actual, expected)
       }
+  }
+
+  // The runtime path draws a chart per row it emits, and the exported script
+  // writes one page. A run that drew a second chart the other path never drew is
+  // a disagreement, and it is the one a comparison that reads the first row and
+  // stops would call a match.
+  it should "reject a run that drew a chart the other path did not" in {
+    val actual = writeActual("extra-actual.jsonl", page, page.replace("chart", "second chart"))
+    val expected = writeExpected("extra-expected.html", page)
+    val thrown = the[VisualizationHtmlMismatchException] thrownBy VisualizationHtmlComparator
+      .assertEqual(actual, expected)
+    thrown.actualHtml should have length 2
+    thrown.expectedHtml should have length 1
+    // The rows are named in the message, so the one nobody compared is readable
+    // from the failure rather than only from the file.
+    thrown.getMessage should include("second chart")
   }
 
   it should "still reject markup that differs in more than its line endings" in {
