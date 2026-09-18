@@ -50,8 +50,7 @@ import scala.sys.process._
   *
   * One PhysicalOp with one output port is all it drives, which is all a
   * `PythonOperatorDescriptor` emits: the UDF traits yield a TupleLike without
-  * naming a port. TIMESTAMP and the binaries are out until both [[TupleIO]] and
-  * the driver carry a codec for them.
+  * naming a port.
   */
 object PyOpExecHarness extends LazyLogging {
 

@@ -82,6 +82,7 @@ try:
         UDFSourceOperator,
         UDFTableOperator,
         Union as PyUnion,  # noqa: F401
+        largebinary,
         logger as pytexera_logger,  # noqa: F401
         overrides,  # noqa: F401
     )
@@ -189,13 +190,19 @@ def _coerce_field(raw: Any, attr_type: AttributeType) -> Any:
         return bool(raw)
     if attr_type == AttributeType.BINARY:
         return base64.b64decode(raw)
+    if attr_type == AttributeType.LARGE_BINARY:
+        # The bytes live in S3; the field is the reference to them, which the
+        # worker hands the operator as a largebinary. Building one from a URI
+        # touches no storage, so a run that only carries the reference through
+        # needs none either.
+        return largebinary(str(raw))
     if attr_type == AttributeType.TIMESTAMP:
         # TupleIO writes java.sql.Timestamp.toString ("YYYY-MM-DD HH:MM:SS[.f]");
         # the native path's schema maps TIMESTAMP -> datetime.datetime, and
         # pandas parses the JDBC form robustly.
         return pd.Timestamp(raw).to_pydatetime()
-    # LARGE_BINARY: defer until an operator actually exercises it. Failing loud
-    # beats silently passing a string through.
+    # Every type the schema can name is read above. A new one fails loud rather
+    # than passing a string through as though it had been read.
     raise NotImplementedError(
         f"py_op_driver: reading attribute type {attr_type!r} from JSONL is "
         f"not implemented yet"
@@ -290,6 +297,12 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
         if raw.startswith(_CAST_PICKLE_MARKER):
             raw = raw[len(_CAST_PICKLE_MARKER) :]
         return base64.b64encode(raw).decode("ascii")
+    if attr_type == AttributeType.LARGE_BINARY:
+        # The reference, not the object it points at: the URI is the whole field
+        # on the wire, which is what the worker sends and what LargeBinary holds
+        # on the other side. An operator that wrote the column itself may hand
+        # back the URI as plain text.
+        return value.uri if isinstance(value, largebinary) else str(value)
     if attr_type == AttributeType.TIMESTAMP:
         # Emit the same JDBC string java.sql.Timestamp.toString produces (>=1
         # fractional digit), so a passed-through timestamp column matches the

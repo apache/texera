@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -70,6 +70,102 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
         |        row["x"] = 2
         |        yield row
         |""".stripMargin
+  }
+
+  /** Reads a LARGE_BINARY column and writes out the reference it holds.
+    *
+    * The bytes of a large binary live in S3 and the field is the s3:// URI that
+    * points at them, so an operator can be handed one, and can hand one back,
+    * without any storage being reachable.
+    */
+  private class LargeBinaryOpDesc(readsInput: Boolean) extends PythonOperatorDescriptor {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        userFriendlyName = "Large Binary",
+        operatorDescription = "reads or writes a reference to a large binary",
+        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map(
+        operatorInfo.outputPorts.head.id ->
+          (if (readsInput) Schema().add(new Attribute("uri", AttributeType.STRING))
+           else Schema().add(new Attribute("blob", AttributeType.LARGE_BINARY)))
+      )
+
+    override def generatePythonCode(): String =
+      if (readsInput)
+        """from pytexera import *
+          |
+          |class ProcessTupleOperator(UDFOperatorV2):
+          |
+          |    @overrides
+          |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+          |        yield {"uri": tuple_["blob"].uri}
+          |""".stripMargin
+      else
+        """from pytexera import *
+          |
+          |class ProcessTupleOperator(UDFOperatorV2):
+          |
+          |    @overrides
+          |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+          |        yield {"blob": largebinary(tuple_["uri"])}
+          |""".stripMargin
+  }
+
+  private val someObject = "s3://a-bucket/a/large/object"
+
+  // The schema sidecar names large_binary, so the harness has to carry it in as
+  // well as out. The operator reads the reference itself, which a column handed
+  // over as plain text could not answer for.
+  "PyOpExecHarness" should "hand a large binary column to the operator as a reference" in {
+    val dir = Files.createTempDirectory("py-op-harness-large-binary-in-")
+    val inputSchema = Schema().add(new Attribute("blob", AttributeType.LARGE_BINARY))
+    val input = dir.resolve("input_port_0.jsonl")
+    val row = Tuple
+      .builder(inputSchema)
+      .add("blob", AttributeType.LARGE_BINARY, new LargeBinary(someObject))
+      .build()
+    TupleIO.writeTuples(input, Iterator(row), inputSchema)
+
+    val result = PyOpExecHarness.execute(
+      new LargeBinaryOpDesc(readsInput = true),
+      inputs = Map(PortIdentity(0) -> input),
+      outputDir = dir.resolve("actual")
+    )
+
+    val out = result.outputs(PortIdentity(0))
+    TupleIO
+      .readTuples(out, TupleIO.readSchemaSidecar(out))
+      .map(_.getField[String]("uri"))
+      .toSeq shouldBe Seq(someObject)
+  }
+
+  it should "write back a large binary the operator made" in {
+    val dir = Files.createTempDirectory("py-op-harness-large-binary-out-")
+    val inputSchema = Schema().add(new Attribute("uri", AttributeType.STRING))
+    val input = dir.resolve("input_port_0.jsonl")
+    val row = Tuple.builder(inputSchema).add("uri", AttributeType.STRING, someObject).build()
+    TupleIO.writeTuples(input, Iterator(row), inputSchema)
+
+    val result = PyOpExecHarness.execute(
+      new LargeBinaryOpDesc(readsInput = false),
+      inputs = Map(PortIdentity(0) -> input),
+      outputDir = dir.resolve("actual")
+    )
+
+    val out = result.outputs(PortIdentity(0))
+    // Read back as a LargeBinary and not as the text of one: the column is
+    // declared large_binary, and this is the type the rest of the pipeline gets.
+    TupleIO
+      .readTuples(out, TupleIO.readSchemaSidecar(out))
+      .map(_.getField[LargeBinary]("blob").getUri)
+      .toSeq shouldBe Seq(someObject)
   }
 
   "PyOpExecHarness" should "record each yield as it was yielded" in {
