@@ -109,9 +109,12 @@ class ExtractDateTimeOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     val lines = scala.collection.mutable.ArrayBuffer[String](
       "out1df = in1df.copy()",
       // A no-op where the source already parsed its input, which is the usual case;
-      // made anyway for one that handed the column over as text. NOT coerced: the
-      // engine reads a real moment here, so a cell Python cannot is a disagreement.
-      s"""_texera_ts = pd.to_datetime(out1df[$source])"""
+      // made anyway for one that handed the column over as text. Microseconds and
+      // not the nanoseconds pandas parses into by default: nanoseconds reach 1677
+      // to 2262, where the engine reads a java.sql.Timestamp and the year 2500 is
+      // an ordinary moment. NOT coerced: the engine reads a real moment here, so a
+      // cell Python cannot is a disagreement.
+      s"""_texera_ts = out1df[$source].astype("datetime64[us]")"""
     )
     asked.foreach { field =>
       val target = pyStringLiteral(columnFor(field))
