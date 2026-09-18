@@ -110,6 +110,21 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     code.indexOf("text is None") should be < code.indexOf("self.pipeline(")
   }
 
+  // The executor reads a tuple, where an empty cell is always None. The exported
+  // script reads a frame, where a column holding nothing else comes back as
+  // float64 and its cells as NaN, which `is None` does not catch.
+  it should "guard a missing text cell in the exported script, NaN included" in {
+    val d = configured()
+    val code = d.generateStandaloneCode()
+
+    val guard = code.linesIterator
+      .find(_.contains("pd.isna(_t)"))
+      .getOrElse(fail("exported script no longer guards a missing text cell"))
+    guard should include("strip()")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(_t)") should be < code.indexOf("_pipeline(_t)")
+  }
+
   "HuggingFaceSpamSMSDetectionOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()

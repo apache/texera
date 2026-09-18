@@ -101,6 +101,18 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(".predict(")
   }
 
+  // Both paths hand predict the frame itself. Asserted as text because the
+  // executor's own block is only ever run inside the engine.
+  it should "keep the feature frame two dimensional in both paths" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    d.generatePythonCode() should include("model.predict(X)")
+    d.generatePythonCode() should not include "squeeze"
+    d.generateStandaloneCode() should include("model.predict(X)")
+    d.generateStandaloneCode() should not include "squeeze"
+  }
+
   // The scores are computed over the rows the model can be applied to, the way
   // COUNT and MIN are computed over the rows that have a value.
   it should "drop rows with missing values before scoring" in {
@@ -198,6 +210,59 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out") {
       answers should have length 2
       answers.head shouldBe answers(1)
+    }
+  }
+
+  // Both shapes squeeze() used to collapse to one dimension, which scikit-learn
+  // rejects: one feature read across several rows, and several features read
+  // across the one row a drop left behind.
+  it should "score a single-feature table and a table with one surviving row" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas, sklearn")) cancel(s"'$python' cannot import pandas and sklearn")
+
+    val op = new SklearnTestingOpDesc
+    op.model = "model"
+    op.target = "target"
+    val body = op.generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+
+    val driver =
+      s"""import pandas as pd
+         |from sklearn.tree import DecisionTreeClassifier
+         |
+         |train = pd.DataFrame({"f1": [0, 1, 0, 1], "f2": [0, 0, 1, 1], "target": [0, 1, 1, 0]})
+         |one_feature = DecisionTreeClassifier(random_state=0).fit(train[["f1"]], train["target"])
+         |two_features = DecisionTreeClassifier(random_state=0).fit(
+         |    train[["f1", "f2"]], train["target"]
+         |)
+         |
+         |cases = [
+         |    (one_feature, pd.DataFrame({"f1": [0.0, 1.0, 0.0], "target": [0, 1, 1]})),
+         |    # Every row but one carries a hole, so the drop leaves a single row
+         |    # under two feature columns.
+         |    (
+         |        two_features,
+         |        pd.DataFrame(
+         |            {"f1": [0.0, None, None], "f2": [0.0, 1.0, None], "target": [0, 1, 1]}
+         |        ),
+         |    ),
+         |]
+         |
+         |for fitted, frame in cases:
+         |    in1df = pd.DataFrame({"model": [fitted]})
+         |    in2df = frame
+         |$body
+         |    print("scored", round(float(out1df["accuracy"].iloc[0]), 10))
+         |""".stripMargin
+
+    val script = Files.createTempFile("sklearn-testing-shapes-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(180, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.linesIterator.count(_.startsWith("scored ")) shouldBe 2
     }
   }
 

@@ -99,15 +99,17 @@ class HuggingFaceSpamSMSDetectionOpDesc
     val spamLit = pyStringLiteral(resultAttributeSpam)
     val probabilityLit = pyStringLiteral(resultAttributeProbability)
     s"""from transformers import pipeline
+       |import pandas as pd
        |
        |_pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
        |out1df = in1df.copy()
        |
        |def _classify(_t):
-       |    # An empty cell arrives as None, which the pipeline rejects. Keep the row
-       |    # and leave the results empty rather than ending the run over a value the
-       |    # model has nothing to say about.
-       |    if _t is None or (isinstance(_t, str) and not _t.strip()):
+       |    # An empty cell reaches the frame as None, or as NaN once a column holds
+       |    # nothing else, and the pipeline rejects both. Keep the row and leave the
+       |    # results empty rather than ending the run over a value the model has
+       |    # nothing to say about.
+       |    if pd.isna(_t) or (isinstance(_t, str) and not _t.strip()):
        |        return None
        |    return _pipeline(_t)[0]
        |

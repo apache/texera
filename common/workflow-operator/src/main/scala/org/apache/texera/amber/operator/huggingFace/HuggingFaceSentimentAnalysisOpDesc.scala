@@ -122,6 +122,7 @@ class HuggingFaceSentimentAnalysisOpDesc
     s"""from transformers import AutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
+       |import pandas as pd
        |from scipy.special import softmax
        |
        |model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
@@ -134,10 +135,11 @@ class HuggingFaceSentimentAnalysisOpDesc
        |for _col in ($positiveLit, $neutralLit, $negativeLit):
        |    out1df[_col] = 0.0
        |for _idx, _text in out1df[${pyStringLiteral(attribute)}].items():
-       |    # An empty cell arrives as None, which the tokenizer rejects. Keep the row
-       |    # and leave the scores empty rather than ending the run over a value the
-       |    # model has nothing to say about.
-       |    if _text is None or (isinstance(_text, str) and not _text.strip()):
+       |    # An empty cell reaches the frame as None, or as NaN once a column holds
+       |    # nothing else, and the tokenizer rejects both. Keep the row and leave the
+       |    # scores empty rather than ending the run over a value the model has
+       |    # nothing to say about.
+       |    if pd.isna(_text) or (isinstance(_text, str) and not _text.strip()):
        |        for _col in ($positiveLit, $neutralLit, $negativeLit):
        |            out1df.at[_idx, _col] = None
        |        continue

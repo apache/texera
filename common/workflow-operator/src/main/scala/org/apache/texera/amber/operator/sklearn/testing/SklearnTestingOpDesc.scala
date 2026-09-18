@@ -82,7 +82,10 @@ class SklearnTestingOpDesc
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
          |${narrowToFittableColumns("X", " " * 12)}
-         |            predictions = model.predict(X.squeeze())
+         |            #predict wants (n_samples, n_features). Squeezing the frame first
+         |            #collapsed a single feature, or a single surviving row, to one
+         |            #dimension, which scikit-learn rejects.
+         |            predictions = model.predict(X)
          |            if $isRegressionStr:
          |                tuple_["R2"] = r2_score(Y, predictions)
          |                tuple_["RMSE"] = root_mean_squared_error(Y, predictions)
@@ -144,7 +147,10 @@ class SklearnTestingOpDesc
        |Y = scored_df[$targetLit]
        |X = scored_df.drop($targetLit, axis=1)
        |${narrowToFittableColumns("X", "")}
-       |predictions = model.predict(X.squeeze())
+       |# predict wants (n_samples, n_features). Squeezing the frame first collapsed
+       |# a single feature, or a single surviving row, to one dimension, which
+       |# scikit-learn rejects.
+       |predictions = model.predict(X)
        |if $isRegressionStr:
        |    out1df["R2"] = r2_score(Y, predictions)
        |    out1df["RMSE"] = root_mean_squared_error(Y, predictions)
