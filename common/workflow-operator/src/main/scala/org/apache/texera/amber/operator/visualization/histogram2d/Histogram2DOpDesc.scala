@@ -159,6 +159,7 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |            text_auto=True
        |        )
        |        fig.write_json(outputJson)
-       |        print("2D histogram saved to " + outputJson)""".stripMargin
+       |        fig.write_html(outputHtml)
+       |        print("2D histogram saved to " + outputJson + " and " + outputHtml)""".stripMargin
   }
 }
