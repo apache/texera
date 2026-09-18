@@ -209,6 +209,120 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The executor gives every element of a nested array a column of its own,
+  // named for its position counted from one, so {"items":[{"id":1},{"id":2}]}
+  // is items1.id and items2.id. json_normalize opens an object and leaves an
+  // array whole, so the export handed the plan one items column holding a list
+  // and a step reading items1.id found no such column.
+  it should "name a flattened array's columns the way the executor does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-flatten-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    Files.write(
+      data,
+      ("""{"items":[{"id":1},{"id":2}],"tags":["x","y"],"name":"a"}""" + "\n" +
+        """{"items":[{"id":3},{"id":4}],"tags":["z"],"name":"b"}""" + "\n")
+        .getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.flatten = true
+    val schema = op.sourceSchema()
+    schema.getAttributeNames should contain allOf ("items1.id", "items2.id", "tags1", "tags2")
+
+    val exec = new JSONLScanSourceOpExec(objectMapper.writeValueAsString(op))
+    exec.open()
+    val fromEngine =
+      try exec
+        .produceTuple()
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(schema).getField[Any]("items2.id"))
+        .toList
+      finally exec.close()
+    fromEngine shouldBe List(2, 4)
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}"
+         |${op.generateStandaloneCode()}
+         |print(sorted(out1df.columns))
+         |print(list(out1df["items2.id"]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      // The columns the schema declares, and no items column standing for them.
+      out should include(s"${schema.getAttributeNames.sorted.mkString("['", "', '", "']")}")
+      out.trim should endWith("[2, 4]")
+    }
+  }
+
+  // The exact re-read a long needs looks its column up by name, and under
+  // flattening that name belongs to the flattened record rather than to the one
+  // the file holds.
+  it should "keep a nullable long inside a flattened array exact" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-flatten-long-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    Files.write(
+      data,
+      ("""{"items":[{"id":9007199254740993}]}""" + "\n" +
+        """{"items":[{}]}""" + "\n" +
+        """{"items":[{"id":9007199254740995}]}""" + "\n").getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.flatten = true
+    op.sourceSchema().getAttribute("items1.id").getType shouldBe AttributeType.LONG
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}"
+         |${op.generateStandaloneCode()}
+         |print([None if pd.isna(v) else int(v) for v in out1df["items1.id"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      out.trim should endWith("[9007199254740993, None, 9007199254740995]")
+    }
+  }
+
   // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
   // (UDF_PYTHON_PATH), then python3 / python / py.
   private def resolvePython(): Option[String] = {

@@ -98,8 +98,14 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     readArgs += s"convert_dates=[${dateColumns.mkString(", ")}]"
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"
+    // json_normalize opens a nested object and leaves a nested array whole, so
+    // an array arrived as one column holding a list where the executor had
+    // already given each element a column of its own. The flattening the
+    // executor does is done here instead, and json_normalize is left the frame
+    // to build out of records that are flat by then.
     val baseExpr =
-      if (flatten) s"pd.json_normalize($readExpr.to_dict('records'))"
+      if (flatten)
+        s"pd.json_normalize([_texera_json_flatten(_r) for _r in $readExpr.to_dict('records')])"
       else readExpr
 
     val lines = scala.collection.mutable.ArrayBuffer[String]()
@@ -112,15 +118,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     lines += s"out1df = $baseExpr"
 
     if (longColumns.nonEmpty) {
-      lines += s"_records = [json.loads(_l) for _l in $taken]"
+      // Flattened or not, a column's name is a key of the record the lookup
+      // below reads, because a flattened record is flattened first.
+      val parsed = if (flatten) "_texera_json_flatten(json.loads(_l))" else "json.loads(_l)"
+      lines += s"_records = [$parsed for _l in $taken]"
       longColumns.foreach { name =>
         val nameLit = pyStringLiteral(name)
-        // Flattening joins a nested key to its parent with a dot, so the schema's
-        // name is a path into the record rather than a key of it. Without
-        // flattening it is a key, and a key is free to hold a dot of its own.
-        val valueExpr =
-          if (flatten) s"_texera_json_value(_r, $nameLit)" else s"_r.get($nameLit)"
-        lines += s"""out1df[$nameLit] = pd.array([$valueExpr for _r in _records], dtype="Int64")"""
+        lines += s"""out1df[$nameLit] = pd.array([_r.get($nameLit) for _r in _records], dtype="Int64")"""
       }
     }
 
@@ -128,7 +132,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
   }
 
   override def standaloneHelpers(): Seq[String] =
-    if (flatten && longColumnCount > 0) Seq(JSONLScanSourceOpDesc.JsonValueAtPath) else Seq.empty
+    if (flatten) Seq(JSONLScanSourceOpDesc.JsonFlatten) else Seq.empty
 
   override def standaloneImports(): Seq[String] = {
     val windowed = offset.exists(_ > 0) || limit.isDefined
@@ -228,18 +232,31 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
 object JSONLScanSourceOpDesc {
 
   /**
-    * A flattened column's name read back out of the record it came from.
+    * One record flattened the way `JSONUtils.JSONToMap` flattens it, so the
+    * names the two paths give a nested value are the same names.
     *
-    * Only the columns an exact re-read has to rebuild need this, and only when
-    * flattening is on: the name is then a dotted path rather than a key. A path
-    * the record does not hold reads as nothing, which is what the flattened
-    * frame carries there.
+    * A nested object joins its key to its parent's with a dot, and an array
+    * element takes its parent's name followed by its position counted from one:
+    * `{"items": [{"id": 1}, {"id": 2}]}` is `items1.id` and `items2.id` on both
+    * sides. A value nested no deeper keeps its own key.
     */
-  val JsonValueAtPath: String =
-    """def _texera_json_value(record, path):
-      |    for part in path.split("."):
-      |        if not isinstance(record, dict) or part not in record:
-      |            return None
-      |        record = record[part]
-      |    return record""".stripMargin
+  val JsonFlatten: String =
+    """def _texera_json_flatten(record):
+      |    flat = {}
+      |    stack = [(record, "")]
+      |    while stack:
+      |        node, parent = stack.pop()
+      |        if isinstance(node, dict):
+      |            for key, child in node.items():
+      |                path = parent + "." + key if parent else key
+      |                if isinstance(child, (dict, list)):
+      |                    stack.append((child, path))
+      |                else:
+      |                    flat[path] = child
+      |        elif isinstance(node, list):
+      |            for index, child in enumerate(node):
+      |                stack.append((child, parent + str(index + 1)))
+      |        elif parent:
+      |            flat[parent] = node
+      |    return flat""".stripMargin
 }
