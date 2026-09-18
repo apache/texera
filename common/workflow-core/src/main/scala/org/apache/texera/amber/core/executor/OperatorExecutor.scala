@@ -40,6 +40,12 @@ trait OperatorExecutor {
 
   def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike]
 
+  /** Optional whole-batch processing; None means process per-tuple via processTuple. */
+  def processBatchMultiPort(
+      batch: Array[Tuple],
+      port: Int
+  ): Option[Iterator[(TupleLike, Option[PortIdentity])]] = None
+
   def produceStateOnFinish(port: Int): Option[State] = None
 
   def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
