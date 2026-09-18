@@ -367,19 +367,19 @@ export class JointUIService {
     return operatorElement;
   }
 
+  /**
+   * Renders the statistics sub-concept only (port row counts and worker
+   * count); the operator's execution state is rendered separately via
+   * {@link changeOperatorState}.
+   */
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    statistics: OperatorStatistics | undefined,
-    isSource: boolean,
-    isSink: boolean
+    statistics: OperatorStatistics | undefined
   ): void {
     if (!statistics) {
-      this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
       return;
     }
-
-    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -411,7 +411,6 @@ export class JointUIService {
         element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
       }
     });
-    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -426,16 +425,27 @@ export class JointUIService {
     });
   }
 
-  public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
+  /**
+   * Show a selected operator's details: its state and port counts, and (by default) its action
+   * buttons: delete, chat with an agent, add/remove a port. A view whose structure is locked (the Form
+   * View's preview) passes `withButtons = false`: none of those actions can happen there, and buttons
+   * that do nothing would only suggest the preview can be edited. The buttons start hidden and
+   * foldOperatorDetails hides them again, so leaving them out here is all it takes.
+   */
+  public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string, withButtons = true): void {
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorStateClass}`]: { visibility: "visible" },
       [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
-      ".delete-button": { visibility: "visible" },
-      ".chat-button": { visibility: "visible" },
-      ".add-input-port-button": { visibility: "visible" },
-      ".add-output-port-button": { visibility: "visible" },
-      ".remove-input-port-button": { visibility: "visible" },
-      ".remove-output-port-button": { visibility: "visible" },
+      ...(withButtons
+        ? {
+            ".delete-button": { visibility: "visible" },
+            ".chat-button": { visibility: "visible" },
+            ".add-input-port-button": { visibility: "visible" },
+            ".add-output-port-button": { visibility: "visible" },
+            ".remove-input-port-button": { visibility: "visible" },
+            ".remove-output-port-button": { visibility: "visible" },
+          }
+        : {}),
     });
   }
 

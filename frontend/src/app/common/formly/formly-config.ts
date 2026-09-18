@@ -26,6 +26,8 @@ import { CodeareaCustomTemplateComponent } from "../../workspace/component/codea
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { DatasetFileSelectorComponent } from "../../workspace/component/dataset-file-selector/dataset-file-selector.component";
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { ExposePropertyWrapperComponent } from "./expose-property-wrapper/expose-property-wrapper.component";
+import { EditableLabelWrapperComponent } from "./editable-label-wrapper/editable-label-wrapper.component";
 import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 import { UiUdfParametersComponent } from "../../workspace/component/ui-udf-parameters/ui-udf-parameters.component";
 import { DatasetVersionSelectorComponent } from "../../workspace/component/dataset-version-selector/dataset-version-selector.component";
@@ -92,6 +94,8 @@ export const TEXERA_FORMLY_CONFIG = {
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },
     { name: "collab-wrapper", component: CollabWrapperComponent },
+    { name: "expose-property-wrapper", component: ExposePropertyWrapperComponent },
+    { name: "editable-label-wrapper", component: EditableLabelWrapperComponent },
   ],
 };
 
