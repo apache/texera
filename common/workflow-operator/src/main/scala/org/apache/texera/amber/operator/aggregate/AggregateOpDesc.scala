@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -36,6 +36,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
+import scala.util.Try
 
 class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
@@ -141,12 +142,26 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // The engine aggregates in two phases across partitions; one process needs
-  // only the one groupby, or a single-row reduction when no key is grouped on.
-  //
-  // Must run before `getPhysicalPlan`, which rewrites `aggregations` in place:
-  // it turns COUNT into SUM for the final phase, and this reads them as written.
-  override def generateStandaloneCode(): String = {
+  /** The engine aggregates in two phases across partitions; one process needs
+    * only the one groupby, or a single-row reduction when no key is grouped on.
+    *
+    * Must run before `getPhysicalPlan`, which rewrites `aggregations` in place:
+    * it turns COUNT into SUM for the final phase, and this reads them as
+    * written.
+    *
+    * What SUM wraps and what AVERAGE divides both follow the column's DECLARED
+    * type, not the dtype pandas inferred: a holed INTEGER column arrives as a
+    * float, and an INTEGER and a LONG arrive alike. Without a schema the two
+    * fall back to what pandas does on its own.
+    */
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    val schema = inputSchemas.get(operatorInfo.inputPorts.head.id)
+    build(name => schema.flatMap(s => Try(s.getAttribute(name).getType).toOption))
+  }
+
+  override def generateStandaloneCode(): String = build(_ => None)
+
+  private def build(declaredType: String => Option[AttributeType]): String = {
     val keys = Option(groupByKeys).getOrElse(List())
     val aggs = Option(aggregations).getOrElse(List())
 
@@ -161,13 +176,45 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # here. This is concatAgg's fold, written out.
         |    partial = ""
         |    for v in series:
-        |        text = "" if pd.isna(v) else str(v)
+        |        if pd.isna(v):
+        |            text = ""
+        |        elif isinstance(v, bool) or (hasattr(v, "dtype") and v.dtype == bool):
+        |            # The engine folds with Java's toString, which spells a
+        |            # boolean in lower case. Python's spells it capitalised.
+        |            text = "true" if v else "false"
+        |        else:
+        |            text = str(v)
         |        partial = text if partial == "" else partial + "," + text
-        |    return partial""".stripMargin
+        |    return partial
+        |
+        |def _texera_agg_int_sum(series):
+        |    # The engine adds an INTEGER column as Java ints, which wrap at
+        |    # 2**31. pandas widens to a larger integer instead, so 2147483647
+        |    # and 1 answer 2147483648 where the run reported -2147483648.
+        |    total = int(series.sum())
+        |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
+        |
+        |def _texera_agg_ts_sum(series):
+        |    # SUM keeps the column's own type, so a sum of timestamps is a
+        |    # timestamp: the engine adds the epoch milliseconds and builds one
+        |    # from the total. pandas refuses to reduce datetime64 at all.
+        |    kept = series.dropna()
+        |    return pd.Timestamp(int(kept.astype("int64").sum() // 10**6), unit="ms")
+        |
+        |def _texera_agg_ts_mean(series):
+        |    # AVERAGE is declared DOUBLE whatever column it reads, so the
+        |    # average of a timestamp column is the mean of its epoch
+        |    # milliseconds. pandas would answer with a timestamp.
+        |    kept = series.dropna()
+        |    if len(kept) == 0:
+        |        return None
+        |    return float(kept.astype("int64").mean() / 10**6)""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs
-        .map(agg => s"    ${pyStringLiteral(agg.resultAttribute)}: ${aggExprScalar(agg)},")
+        .map(agg =>
+          s"    ${pyStringLiteral(agg.resultAttribute)}: ${aggExprScalar(agg, declaredType)},"
+        )
         .mkString("\n")
       s"""$concatHelper
          |out1df = pd.DataFrame([{
@@ -178,7 +225,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       val aggLines = aggs.zipWithIndex
         .map {
           case (agg, i) =>
-            s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups")}"
+            s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups", declaredType)}"
         }
         .mkString("\n")
       val mergeLines = aggs.indices
@@ -194,15 +241,28 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     }
   }
 
-  private def aggExprScalar(agg: AggregationOperation): String = {
+  private def aggExprScalar(
+      agg: AggregationOperation,
+      declaredType: String => Option[AttributeType]
+  ): String = {
     val attrLit =
       if (agg.attribute == null || agg.attribute.isEmpty) "None"
       else pyStringLiteral(agg.attribute)
+    val declared = Option(agg.attribute).filter(_.nonEmpty).flatMap(declaredType)
     agg.aggFunction match {
-      case AggregationFunction.SUM     => s"in1df[$attrLit].sum()"
-      case AggregationFunction.AVERAGE => s"in1df[$attrLit].mean()"
-      case AggregationFunction.MIN     => s"in1df[$attrLit].min()"
-      case AggregationFunction.MAX     => s"in1df[$attrLit].max()"
+      case AggregationFunction.SUM =>
+        declared match {
+          case Some(AttributeType.INTEGER)   => s"_texera_agg_int_sum(in1df[$attrLit])"
+          case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_sum(in1df[$attrLit])"
+          case _                             => s"in1df[$attrLit].sum()"
+        }
+      case AggregationFunction.AVERAGE =>
+        declared match {
+          case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_mean(in1df[$attrLit])"
+          case _                             => s"in1df[$attrLit].mean()"
+        }
+      case AggregationFunction.MIN => s"in1df[$attrLit].min()"
+      case AggregationFunction.MAX => s"in1df[$attrLit].max()"
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
         else s"int(in1df[$attrLit].count())"
@@ -210,16 +270,33 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     }
   }
 
-  private def aggExprGroupby(agg: AggregationOperation, groups: String): String = {
+  private def aggExprGroupby(
+      agg: AggregationOperation,
+      groups: String,
+      declaredType: String => Option[AttributeType]
+  ): String = {
     val attrLit =
       if (agg.attribute == null || agg.attribute.isEmpty) "None"
       else pyStringLiteral(agg.attribute)
     val resultLit = pyStringLiteral(agg.resultAttribute)
+    val declared = Option(agg.attribute).filter(_.nonEmpty).flatMap(declaredType)
     agg.aggFunction match {
-      case AggregationFunction.SUM     => s"$groups[$attrLit].sum().rename($resultLit)"
-      case AggregationFunction.AVERAGE => s"$groups[$attrLit].mean().rename($resultLit)"
-      case AggregationFunction.MIN     => s"$groups[$attrLit].min().rename($resultLit)"
-      case AggregationFunction.MAX     => s"$groups[$attrLit].max().rename($resultLit)"
+      case AggregationFunction.SUM =>
+        declared match {
+          case Some(AttributeType.INTEGER) =>
+            s"$groups[$attrLit].apply(_texera_agg_int_sum).rename($resultLit)"
+          case Some(AttributeType.TIMESTAMP) =>
+            s"$groups[$attrLit].apply(_texera_agg_ts_sum).rename($resultLit)"
+          case _ => s"$groups[$attrLit].sum().rename($resultLit)"
+        }
+      case AggregationFunction.AVERAGE =>
+        declared match {
+          case Some(AttributeType.TIMESTAMP) =>
+            s"$groups[$attrLit].apply(_texera_agg_ts_mean).rename($resultLit)"
+          case _ => s"$groups[$attrLit].mean().rename($resultLit)"
+        }
+      case AggregationFunction.MIN => s"$groups[$attrLit].min().rename($resultLit)"
+      case AggregationFunction.MAX => s"$groups[$attrLit].max().rename($resultLit)"
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty)
           s"$groups.size().rename($resultLit)"
