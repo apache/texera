@@ -63,13 +63,9 @@ object UnifiedResourceSchema {
       ownerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       wid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       workflowUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
-      projectsOfWorkflow: Field[String] = DSL.inline(""),
       uid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       userName: Field[String] = DSL.inline(""),
       userEmail: Field[String] = DSL.inline(""),
-      pid: Field[Integer] = DSL.cast(null, classOf[Integer]),
-      projectOwnerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
-      projectColor: Field[String] = DSL.inline(""),
       versionedResourceId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       datasetStoragePath: Field[String] = DSL.cast(null, classOf[String]),
       repositoryName: Field[String] = DSL.inline(""),
@@ -97,13 +93,9 @@ object UnifiedResourceSchema {
         ownerId -> ownerId.as(resourceOwnerIdAlias),
         wid -> wid.as("wid"),
         workflowUserAccess -> workflowUserAccess.as("workflow_privilege"),
-        projectsOfWorkflow -> projectsOfWorkflow.as("projects"),
         uid -> uid.as("uid"),
         userName -> userName.as("userName"),
         userEmail -> userEmail.as("email"),
-        pid -> pid.as("pid"),
-        projectOwnerId -> projectOwnerId.as("owner_uid"),
-        projectColor -> projectColor.as("color"),
         versionedResourceId -> versionedResourceId.as("versioned_resource_id"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
         repositoryName -> repositoryName.as("repository_name"),
@@ -128,7 +120,7 @@ object UnifiedResourceSchema {
   * Refer to /sql/texera_ddl.sql to understand what each attribute is
   *
   * Attributes common across all resource types:
-  * - `resourceType`: The type of the resource (e.g., project, workflow, file) as a `String`.
+  * - `resourceType`: The type of the resource (e.g., workflow, dataset) as a `String`.
   * - `name`: The name of the resource as a `String`.
   * - `description`: A textual description of the resource as a `String`.
   * - `creationTime`: The timestamp when the resource was created, as a `Timestamp`.
@@ -138,22 +130,9 @@ object UnifiedResourceSchema {
   * Attributes specific to workflows:
   * - `wid`: Workflow ID, as an `Integer`.
   * - `workflowUserAccess`: Access privileges associated with the workflow, as a `PrivilegeEnum`.
-  * - `projectsOfWorkflow`: IDs of projects associated with the workflow, concatenated as a `String`.
   * - `uid`: User ID associated with the workflow, as an `Integer`.
   * - `userName`: Name of the user associated with the workflow, as a `String`.
   * - `userEmail`: Email of the user associated with the workflow, as a `String`.
-  *
-  * Attributes specific to projects:
-  * - `pid`: Project ID, as an `Integer`.
-  * - `projectOwnerId`: ID of the project owner, as an `Integer`.
-  * - `projectColor`: Color associated with the project, as a `String`.
-  *
-  * Attributes specific to files:
-  * - `fid`: File ID, as an `Integer`.
-  * - `fileUploadTime`: Timestamp when the file was uploaded, as a `Timestamp`.
-  * - `filePath`: Path of the file, as a `String`.
-  * - `fileSize`: Size of the file, as an `Integer`.
-  * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
   *
   * Attributes shared by the LakeFS-backed resources (datasets, models). One row is one
   * resource type, so each builder feeds these slots its own columns instead of duplicating
