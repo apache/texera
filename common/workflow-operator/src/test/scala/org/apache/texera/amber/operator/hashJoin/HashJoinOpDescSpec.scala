@@ -87,11 +87,11 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new HashJoinOpDesc[String]
     d.buildAttributeName = "id"
     d.probeAttributeName = "key"
-    // "key" is only suffixed when the left frame has a column of that name, and
-    // the frame is not known until the script runs, so the choice is in Python.
-    d.generateStandaloneCode() should include(
-      """drop(columns=["key#@1" if "key" in in1df.columns else "key"])"""
-    )
+    // "key" is renamed only when the left frame has a column of that name, and
+    // the frame is not known until the script runs, so the name the rename
+    // settled on is what gets dropped.
+    d.generateStandaloneCode() should include("""_probe_key = _rename.get("key", "key")""")
+    d.generateStandaloneCode() should include("drop(columns=[_probe_key])")
   }
 
   it should "keep the shared key when both sides name it the same" in {
@@ -151,6 +151,91 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
       // The payload the drop used to take, not the right key it used to keep.
       lines(1) shouldBe "1,payload,9"
     }
+  }
+
+  // The engine appends "#@1" until the name is free, so a right column that
+  // meets an already-suffixed one lands on "#@1#@1". pandas' `suffixes` appends
+  // once and then refuses the duplicate it just made, which ended the run.
+  it should "rename a right column that collides twice, the way the engine does" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "k"
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1], "x": [10]})
+         |in2df = pd.DataFrame({"k": [1], "x": [20], "x#@1": [30]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-chained-rename-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Left names first and untouched, then the right ones in their own order:
+      // "k" and "x" each lost a collision, and the right's own "x#@1" was free.
+      out.trim shouldBe "k,x,k#@1,x#@1#@1,x#@1"
+    }
+  }
+
+  // An outer join leaves holes, and a hole costs a pandas integer column its
+  // type. The engine writes a null and the column stays INTEGER.
+  it should "keep a declared integer column integral across an outer join" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("k", AttributeType.INTEGER))
+      .add(new Attribute("x", AttributeType.INTEGER))
+    val right = Schema()
+      .add(new Attribute("kk", AttributeType.INTEGER))
+      .add(new Attribute("y", AttributeType.INTEGER))
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "kk"
+    d.joinType = JoinType.FULL_OUTER
+    val block =
+      d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1, 2], "x": [10, 20]})
+         |in2df = pd.DataFrame({"kk": [1, 3], "y": [30, 40]})
+         |$block
+         |print(",".join(f"{c}:{out1df[c].dtype}" for c in out1df.columns))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-outer-int-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe "k:Int64,x:Int64,y:Int64"
+    }
+  }
+
+  // Without a schema there is nothing to say which columns were integers, so
+  // the block stays what pandas does on its own.
+  it should "leave the widening alone when no schema is given" in {
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "kk"
+    d.joinType = JoinType.FULL_OUTER
+    d.generateStandaloneCode() should not include "astype(\"Int64\")"
   }
 
   "HashJoinOpDesc" should "round-trip its config fields through the polymorphic base" in {
