@@ -22,7 +22,7 @@ package org.apache.texera.service.util
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
-import org.apache.texera.common.config.KubernetesConfig
+import org.apache.texera.common.config.{EnvironmentalVariable, KubernetesConfig}
 
 import scala.jdk.CollectionConverters._
 
@@ -32,10 +32,16 @@ import scala.jdk.CollectionConverters._
   * parameter (not a mutable global) so tests can construct an instance backed by a stubbed
   * client and exercise the passthrough wrappers without a live cluster.
   */
-class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
+class KubernetesClient(
+    client: io.fabric8.kubernetes.client.KubernetesClient,
+    // A constructor parameter rather than a direct KubernetesConfig read, so the spec can
+    // build a pod both ways: the mount contract below is security- and scheduling-sensitive
+    // and needs asserting on, but the default must stay the PodSecurity-safe one.
+    mountingEnabled: Boolean = KubernetesConfig.mounterEnabled
+) {
 
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
-  private val podNamePrefix = "computing-unit"
+  private val podNamePrefix = KubernetesConfig.computeUnitPodNamePrefix
 
   def generatePodURI(cuid: Int): String = {
     s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local:${KubernetesConfig.computeUnitPortNumber}"
@@ -120,23 +126,40 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
       memoryLimit: String,
       gpuLimit: String,
       envVars: Map[String, Any],
-      shmSize: Option[String] = None
+      shmSize: Option[String] = None,
+      /** A curated image to run instead of the deployment's own. */
+      curatedImage: Option[String] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
       throw new Exception(s"Pod with cuid $cuid already exists")
     }
 
-    val envList = envVars
-      .map {
-        case (key, value) =>
+    val baseEnv = envVars.map {
+      case (key, value) =>
+        new EnvVarBuilder().withName(key).withValue(value.toString).build()
+    }.toList
+
+    // Which CU this is, and where its propagated mounts show up. The pod is deliberately
+    // not given the mounter's address: only an authenticated platform caller may request a
+    // mount, so the address would be of no use to code running here except to probe the
+    // node's privileged mounter.
+    val inPodMountRoot = "/mnt/texera-mounts"
+    val mounterEnv =
+      if (!mountingEnabled) Nil
+      else
+        List(
           new EnvVarBuilder()
-            .withName(key)
-            .withValue(value.toString)
+            .withName(EnvironmentalVariable.ENV_CU_ID)
+            .withValue(cuid.toString)
+            .build(),
+          new EnvVarBuilder()
+            .withName(EnvironmentalVariable.ENV_MOUNT_IN_POD_ROOT)
+            .withValue(inPodMountRoot)
             .build()
-      }
-      .toList
-      .asJava
+        )
+
+    val envList = (baseEnv ++ mounterEnv).asJava
 
     // Setup the resource requirements
     val resourceBuilder = new ResourceRequirementsBuilder()
@@ -171,13 +194,42 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
     val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
-      .withImage(KubernetesConfig.computeUnitImageName)
+      .withImage(curatedImage.getOrElse(KubernetesConfig.computeUnitImageName))
       .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()
       .withEnv(envList)
       .withResources(resourceBuilder.build())
+
+    // A curated image was supplied by an administrator and reviewed by nobody, so a unit
+    // started from one is pinned to a non-root user with no way to regain privilege.
+    //
+    // Curated images only. The deployment's own image is its operator's choice, and one
+    // that has replaced it with an image needing root would break on upgrade.
+    if (curatedImage.isDefined && KubernetesConfig.computingUnitRunAsNonRoot) {
+      containerBuilder
+        .withNewSecurityContext()
+        .withRunAsNonRoot(true)
+        .withRunAsUser(KubernetesConfig.computingUnitRunAsUser)
+        .withAllowPrivilegeEscalation(false)
+        .withNewCapabilities()
+        .withDrop("ALL")
+        .endCapabilities()
+        .endSecurityContext()
+    }
+
+    // The FUSE mount is performed by the per-node texera-mounter (privileged), not here,
+    // so this pod stays UNPRIVILEGED. It only *receives* the mount via HostToContainer
+    // propagation from a host directory scoped to this CU id (see the hostPath volume below).
+    if (mountingEnabled) {
+      containerBuilder
+        .addNewVolumeMount()
+        .withName("texera-mounts")
+        .withMountPath(inPodMountRoot)
+        .withMountPropagation("HostToContainer")
+        .endVolumeMount()
+    }
 
     // If shmSize requested, mount /dev/shm
     shmSize.foreach { _ =>
@@ -204,6 +256,21 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
         .endVolume()
     }
 
+    // Per-CU host directory the mounter mounts into (DirectoryOrCreate so it exists
+    // before the mounter mounts). Scoped by cuid so a CU can only ever see its own mounts.
+    // Guarded because `baseline` and `restricted` forbid hostPath: on a cluster enforcing
+    // either on the pool namespace, an unconditional one makes every CU pod unschedulable.
+    if (mountingEnabled) {
+      specBuilder
+        .addNewVolume()
+        .withName("texera-mounts")
+        .withNewHostPath()
+        .withPath(s"${KubernetesConfig.mounterHostRoot}/$cuid")
+        .withType("DirectoryOrCreate")
+        .endHostPath()
+        .endVolume()
+    }
+
     val pod = specBuilder
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)
@@ -219,4 +286,10 @@ class KubernetesClient(client: io.fabric8.kubernetes.client.KubernetesClient) {
 }
 
 /** Production singleton bound to a real in-cluster fabric8 client. */
-object KubernetesClient extends KubernetesClient(new KubernetesClientBuilder().build())
+object KubernetesClient
+    extends KubernetesClient(
+      new KubernetesClientBuilder().build(),
+      // Passed explicitly: a companion object extending its companion class may not rely on
+      // the class's default constructor arguments.
+      KubernetesConfig.mounterEnabled
+    )

@@ -371,6 +371,63 @@ describe("NotebookMigrationService", () => {
     });
   });
 
+  // sendScriptToAIGenerateWorkflow — same lifecycle as the notebook path, but the conversion
+  // hands back a derived notebook too, since a script arrives without one.
+  describe("sendScriptToAIGenerateWorkflow (enabled)", () => {
+    let fakeLLM: {
+      initialize: ReturnType<typeof vi.fn>;
+      verifyConnection: ReturnType<typeof vi.fn>;
+      convertScriptToWorkflow: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+    };
+
+    const conversion = {
+      workflowJSON: { ops: 1 },
+      workflowNotebookMapping: { m: 2 },
+      notebook: { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] },
+    };
+
+    beforeEach(() => {
+      fakeLLM = {
+        initialize: vi.fn(),
+        verifyConnection: vi.fn().mockResolvedValue(true),
+        convertScriptToWorkflow: vi.fn(),
+        close: vi.fn(),
+      };
+      vi.spyOn(service as any, "createMigrationLLM").mockReturnValue(fakeLLM);
+    });
+
+    it("returns the workflow, mapping and derived notebook, and closes the client", async () => {
+      fakeLLM.convertScriptToWorkflow.mockResolvedValue(conversion);
+
+      const result = await service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4");
+
+      expect(result).toEqual({
+        workflowContent: { ops: 1 },
+        mappingContent: { m: 2 },
+        notebook: conversion.notebook,
+      });
+      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x = 1");
+      expect(fakeLLM.initialize).toHaveBeenCalledWith("gpt-4");
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("rejects when the connection cannot be verified, and still closes the client", async () => {
+      fakeLLM.verifyConnection.mockResolvedValue(false);
+
+      await expect(service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4")).rejects.toThrow(/authenticate/i);
+      expect(fakeLLM.convertScriptToWorkflow).not.toHaveBeenCalled();
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("rethrows conversion errors and still closes the client", async () => {
+      fakeLLM.convertScriptToWorkflow.mockRejectedValue(new Error("conversion boom"));
+
+      await expect(service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4")).rejects.toThrow(/conversion boom/);
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+  });
+
   // Feature flag gate (defence in depth). With the flag off, every public
   // method must short-circuit — no HTTP traffic, no fetch, no LLM lifecycle,
   // no notifications.
@@ -387,6 +444,10 @@ describe("NotebookMigrationService", () => {
 
     it("sendToAIGenerateWorkflow rejects with a disabled-feature error", async () => {
       await expect(service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4")).rejects.toThrow(/disabled/i);
+    });
+
+    it("sendScriptToAIGenerateWorkflow rejects with a disabled-feature error", async () => {
+      await expect(service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4")).rejects.toThrow(/disabled/i);
     });
 
     it("sendNotebookToJupyter returns 0 with no HTTP call or notification", async () => {
@@ -470,6 +531,39 @@ describe("NotebookMigrationService", () => {
         this.onerror?.(new ProgressEvent("error"));
       });
       await expect(service.parseAndTagNotebook(new File([""], "x.ipynb"))).rejects.toThrow(/Failed to read/);
+    });
+  });
+
+  // parseScriptFile (reads an uploaded .py as text)
+  describe("parseScriptFile", () => {
+    it("resolves the file's contents verbatim", async () => {
+      const source = "import os\n\nprint(os.getcwd())\n";
+
+      await expect(service.parseScriptFile(new File([source], "script.py"))).resolves.toBe(source);
+    });
+
+    it("rejects an empty file before it can cost an LLM round trip", async () => {
+      await expect(service.parseScriptFile(new File([""], "empty.py"))).rejects.toThrow(/empty/i);
+    });
+
+    it("rejects a file holding only whitespace", async () => {
+      await expect(service.parseScriptFile(new File(["  \n\t\n"], "blank.py"))).rejects.toThrow(/empty/i);
+    });
+
+    it("rejects when the file content is not a string", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        // result is a getter-only property, so shadow it with an own non-string value.
+        Object.defineProperty(this, "result", { value: null, configurable: true });
+        this.onload?.(new ProgressEvent("load"));
+      });
+      await expect(service.parseScriptFile(new File([""], "x.py"))).rejects.toThrow(/not a valid string/);
+    });
+
+    it("rejects when the file cannot be read", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+      await expect(service.parseScriptFile(new File([""], "x.py"))).rejects.toThrow(/Failed to read/);
     });
   });
 });
