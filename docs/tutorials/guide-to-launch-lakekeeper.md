@@ -71,7 +71,7 @@ For more information of why using RESTCatalog, see [Issue #4126](https://github.
   +LAKEKEEPER__PG_DATABASE_URL_WRITE="postgres://<user>:<urlencoded_password>@<host>:5432/texera_lakekeeper"
   ```           
 
-  If you have customized storage-related values in `common/config/src/main/resources/storage.conf` (for example, the bucket name, S3 endpoint, or MinIO credentials), check the below environment variables in the script and modify their values accordingly:
+  If you have customized storage-related values in `common/config/src/main/resources/storage.conf` (for example, the bucket name, S3 endpoint, or RustFS credentials), check the below environment variables in the script and modify their values accordingly:
 
 ```shell
   # Storage settings — must stay in sync with storage.conf
@@ -81,7 +81,7 @@ STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME="${STORAGE_ICEBERG_CATALOG_REST_WARE
 STORAGE_ICEBERG_CATALOG_REST_REGION="${STORAGE_ICEBERG_CATALOG_REST_REGION:-us-west-2}"
 STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET="${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET:-texera-iceberg}"
 STORAGE_S3_ENDPOINT="${STORAGE_S3_ENDPOINT:-http://localhost:9000}"
-STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
+STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_rustfs}"
 STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 ```                                                                                                                                                                                                                                                                                                                                                                                      
                   
@@ -96,7 +96,7 @@ STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 
   1. Start Lakekeeper if it's not already running (on http://localhost:8181)                                                                 
   2. Bootstrap the Lakekeeper server (creates the default project)
-  3. Create the texera-iceberg bucket in MinIO if it doesn't exist                                                                           
+  3. Create the texera-iceberg bucket in RustFS if it doesn't exist                                                                           
   4. Register the texera warehouse with Lakekeeper, pointing at that bucket                                                                                                            
                                                                                                       
                   

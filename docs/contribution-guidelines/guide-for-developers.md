@@ -147,9 +147,9 @@ Execute `sql/iceberg_postgres_catalog.sql`  to create the database for storing I
 psql -U postgres -f "sql/iceberg_postgres_catalog.sql"
 ```
 
-### Setup the LakeFS+Minio locally
+### Setup the LakeFS+RustFS locally
 
-Texera requires [LakeFS](https://lakefs.io/) and S3([Minio](https://min.io/docs/minio/kubernetes/upstream/index.html) is one of the implementations) as the dataset storage. Setting up these two storage services locally are required to make Texera's dataset feature functioning.
+Texera requires [LakeFS](https://lakefs.io/) and S3([RustFS](https://docs.rustfs.com/) is one of the implementations) as the dataset storage. Setting up these two storage services locally are required to make Texera's dataset feature functioning.
 
 Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) which contains both docker engine and docker compose. Make sure you launch the Docker after installing it.
 
@@ -160,7 +160,7 @@ cd file-service/src/main/resources
 
 Edit `docker-compose.yml` by: search for `volumes` in the file and follow the instructions in the comment. This step is required otherwise your data will be lost if containers are deleted
 
-Execute the following command to start LakeFS and Minio:
+Execute the following command to start LakeFS and RustFS:
 ```
 docker compose up
 ```

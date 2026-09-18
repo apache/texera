@@ -74,11 +74,11 @@ to access services in the main namespace using the same service names.
 ) | nindent 0 }}
 
 ---
-{{/* MinIO ExternalName */}}
+{{/* RustFS ExternalName */}}
 {{- include "external-name-service" (dict 
-  "name" (printf "%s-minio" .Release.Name)
+  "name" (printf "%s-rustfs-svc" .Release.Name)
   "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-minio.%s.svc.cluster.local" .Release.Name $namespace)
+  "externalName" (printf "%s-rustfs-svc.%s.svc.cluster.local" .Release.Name $namespace)
 ) | nindent 0 }}
 
 ---

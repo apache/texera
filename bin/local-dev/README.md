@@ -42,7 +42,7 @@ bin/local-dev/
 ├── main.sh                       shell engine — sbt builds, service lifecycle, port checks
 ├── tui.py                        Textual dashboard surfaced by `bin/local-dev.sh -i`
 ├── docker-compose.override.yml   overlay on top of bin/single-node/docker-compose.yml
-│                                 (host-LAN-IP MinIO endpoint, Lakekeeper warehouse, etc.)
+│                                 (host-LAN-IP RustFS endpoint, Lakekeeper warehouse, etc.)
 └── tests/
     ├── test_local_dev_sh.sh      bash smoke: license header, syntax, version, --help,
     │                             error-on-bad-input, regression guards
