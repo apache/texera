@@ -47,6 +47,7 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
 import { PanelService } from "../../service/panel/panel.service";
 import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -190,6 +191,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService,
     protected config: GuiConfigService,
     private router: Router,
     private jupyterPanelService: JupyterPanelService,
@@ -283,6 +285,17 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(status => {
         this.computingUnitStatus = status;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // The warehouse pick also feeds getRunButtonBehavior (#7817); without this
+    // the snapshot keeps saying "Run" after the load leaves no warehouse, and
+    // "Create Warehouse" after one is created. Every relevant transition ends
+    // in a selectWarehouse call, so the pick stream covers them all.
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
   }
@@ -398,10 +411,35 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // no computing unit, show "Connect" button
+    // No computing unit: name the thing that is missing, the way the warehouse
+    // gate below does, and let the click open the create dialog.
     if (this.computingUnitStatus === ComputingUnitState.NoComputingUnit) {
       return {
-        text: "Connect",
+        text: "Computing Unit",
+        icon: "plus-circle",
+        disable: false,
+        onClick: () => this.runWorkflow(),
+      };
+    }
+
+    // Per-user warehouses enabled but none to write to (#7817): mirror the
+    // Connect state above — same word as the picker's own empty state, and
+    // runWorkflow() routes
+    // the click into the create-warehouse modal. Only in the states whose
+    // button would start a run: mid-execution the button is Pause/Resume/Kill,
+    // and losing the last warehouse must not take that control away.
+    if (
+      this.computingUnitSelectionComponent?.warehouseRequiredButMissing &&
+      [
+        ExecutionState.Uninitialized,
+        ExecutionState.Completed,
+        ExecutionState.Terminated,
+        ExecutionState.Killed,
+        ExecutionState.Failed,
+      ].includes(this.executionState)
+    ) {
+      return {
+        text: "Warehouse",
         icon: "plus-circle",
         disable: false,
         onClick: () => this.runWorkflow(),
@@ -907,6 +945,14 @@ export class MenuComponent implements OnInit, OnDestroy {
 
       // Show the modal in the ComputingUnitSelectionComponent, seeding the name field
       this.computingUnitSelectionComponent.showAddComputeUnitModalVisible(defaultName);
+      return;
+    }
+
+    // Per-user warehouses enabled but none to write to (#7817): an execution
+    // must have a warehouse, so lead to the create-warehouse modal instead of
+    // running — the same shape as the Connect flow above.
+    if (this.computingUnitSelectionComponent.warehouseRequiredButMissing) {
+      this.computingUnitSelectionComponent.showAddWarehouseModalVisible();
       return;
     }
 

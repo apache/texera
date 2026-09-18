@@ -48,6 +48,8 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -100,7 +102,9 @@ export class ExecuteWorkflowService {
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService,
+    private config: GuiConfigService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -207,6 +211,9 @@ export class ExecuteWorkflowService {
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
@@ -219,6 +226,9 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
@@ -228,6 +238,21 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * While the deployment requires a warehouse (#7817) and none is picked,
+   * refuses with a toast and returns true. Checked at every public entry
+   * point before it resets the previous execution's state — a refused click
+   * must not wipe the results already on screen (#7751 adds the backend-side
+   * rejection).
+   */
+  private refuseToRunWithoutWarehouse(): boolean {
+    if (!this.config.env.warehouseEnabled || this.warehouseService.getSelectedWarehouseIdValue() !== undefined) {
+      return false;
+    }
+    this.notificationService.error("Create or select a warehouse before running.");
+    return true;
   }
 
   public sendExecutionRequest(
@@ -240,6 +265,11 @@ export class ExecuteWorkflowService {
     // Get the current computing unit ID from the status service
     const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
     const computingUnitId = selectedUnit?.computingUnit.cuid;
+
+    // The warehouse this execution writes to (#7817); undefined serializes away,
+    // which the backend today reads as the shared default storage (#7751
+    // tightens that to a rejection while the feature is enabled).
+    const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
 
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {
@@ -254,6 +284,7 @@ export class ExecuteWorkflowService {
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
       computingUnitId: computingUnitId, // Include the computing unit ID
+      warehouseId: warehouseId,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
