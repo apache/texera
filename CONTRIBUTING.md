@@ -138,7 +138,7 @@ yarn format:fix
 ### 4. PR Review
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
-- [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.1.0-incubating`); the change will be backported to that branch automatically.
+- [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.2`). The label nominates the branch; the change is backported there automatically once that branch's release manager — listed in [`.github/release-branches.yml`](.github/release-branches.yml) — approves the PR. The required `Backport Approvals` check stays red until every `release/*` label on the PR is approved, so ask each manager to either approve or remove their label; a manager (or any committer) removing it declines that backport.
 - [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/apache/texera/actions)).
 - [ ] Fully test your changes locally.
 
