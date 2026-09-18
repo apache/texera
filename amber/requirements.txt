@@ -22,7 +22,7 @@ pyarrow==23.0.1
 betterproto==2.0.0b7
 pampy==0.3.0
 overrides==7.7.0
-typing_extensions==4.14.1
+typing_extensions==4.16.0
 bidict==0.22.0
 cached_property==2.0.1
 psutil==7.2.2
