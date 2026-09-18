@@ -204,6 +204,26 @@ describe("MenuComponent", () => {
     expect(component.isSaving).toBe(false);
   });
 
+  it("leaves only once every queued save has landed, not just its own", () => {
+    // A rename made while the switch's save is out saves through the menu itself and is queued
+    // behind the switch's save; the hand-over waits for the queue to drain, or the page load
+    // would abort that save.
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const drained$ = new Subject<void>();
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(drained$.asObservable());
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(navigate).not.toHaveBeenCalled(); // its own save is done, another is still queued
+    drained$.next();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
   it("ignores a second click while the hand-over is already in progress", () => {
     component.writeAccess = true;
     vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
