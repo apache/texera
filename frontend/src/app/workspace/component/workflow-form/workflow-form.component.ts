@@ -1964,12 +1964,26 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * The browser is leaving this document: save, and change nothing else.
+   *
+   * The canvas switch is a full-page navigation, and the browser may keep this document in its
+   * back/forward cache rather than discarding it. Coming back restores the JavaScript state as it
+   * was left, and nothing re-runs, so anything torn down here would stay torn down on a page that
+   * looks live. A document that really is discarded takes its websockets and its graph with it, so
+   * there is nothing to tear down on the way out either way.
+   */
+  @HostListener("window:beforeunload")
+  onBeforeUnload(): void {
+    // The queue is deliberately left open: a document restored from the cache goes on using it.
+    this.save();
+  }
+
+  /**
    * Tear down exactly what the operator canvas tears down: both views drive the same
    * singleton services, so anything left bound here follows the user to the next page
    * (the symptom was a frozen canvas after a visit -- the old shared model still attached).
    * On the way out, save once more so a last edit is not lost.
    */
-  @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     this.destroyed = true;
     // The final save joins the queue behind anything still in flight, then the queue is closed: the

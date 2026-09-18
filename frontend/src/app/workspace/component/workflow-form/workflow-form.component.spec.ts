@@ -255,6 +255,22 @@ describe("WorkflowFormComponent", () => {
       expect(h.workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
       expect(h.workflowResultService.clearResults).toHaveBeenCalled();
     });
+
+    // The canvas switch is a full-page navigation, and the browser may keep this document in its
+    // back/forward cache. Coming back restores the JavaScript state as it was left and re-runs
+    // nothing, so anything torn down on the way out would stay torn down on a page that still
+    // looks live (issue #8599).
+    it("tears nothing down on beforeunload, so a page restored from the cache still works", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.onBeforeUnload();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(h.executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(h.workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
   });
 
   describe("title bar and saving", () => {

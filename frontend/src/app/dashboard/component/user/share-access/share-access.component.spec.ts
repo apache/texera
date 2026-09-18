@@ -181,6 +181,18 @@ describe("ShareAccessComponent", () => {
       expect(c.isPublic).toBe(false);
     });
 
+    // isPublic staying null hides the Private/Public choice, which is right for a kind that cannot
+    // be published and wrong when the request merely failed: the dialog then looked complete while
+    // silently offering one control fewer, and the only way to find out was the network tab.
+    it("says so when the publish state cannot be read, instead of hiding the choice silently", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(throwError(() => new Error("boom")));
+
+      const c = setupComponent({ type: "workflow", id: 9 });
+
+      expect(c.isPublic).toBeNull();
+      expect(notificationSpy.error).toHaveBeenCalled();
+    });
+
     it("loads publish state for dataset via DatasetService.getDataset", () => {
       datasetPublished = true;
       const c = setupComponent({ type: "dataset", id: 12 });
