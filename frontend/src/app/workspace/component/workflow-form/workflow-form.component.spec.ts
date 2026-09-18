@@ -1500,10 +1500,10 @@ describe("WorkflowFormComponent", () => {
       expect((component as any).selectedUnit).toEqual({ accessPrivilege: "WRITE" });
     });
 
-    it("offers Connect before a unit is chosen", () => {
+    it("names the missing computing unit before one is chosen", () => {
       build(formViewWorkflow).ngOnInit();
 
-      expect(component.runButtonState).toEqual({ label: "Connect", icon: "plus-circle", disabled: true });
+      expect(component.runButtonState).toEqual({ label: "Computing Unit", icon: "plus-circle", disabled: true });
     });
 
     it("offers Run once a unit is up and the graph is valid", () => {
@@ -1629,7 +1629,7 @@ describe("WorkflowFormComponent", () => {
 
     it("does nothing when the button is disabled", () => {
       build(formViewWorkflow).ngOnInit();
-      // Default state is "Connect" (disabled): no unit chosen.
+      // Default state is "Computing Unit" (disabled): no unit chosen.
 
       component.onRun();
 
