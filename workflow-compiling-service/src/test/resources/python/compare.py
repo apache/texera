@@ -324,21 +324,28 @@ def _run_comparison(
     return None
 
 
-def _load_actual_plot(path) -> dict:
+def _load_actual_plots(path) -> list:
+    """Every chart the run drew, one per row of the runtime path's output."""
     import json
 
     with open(path, "r", encoding="utf-8") as fh:
-        line = next((raw for raw in fh if raw.strip()), None)
-    if line is None:
+        lines = [raw for raw in fh if raw.strip()]
+    if not lines:
         raise AssertionError(f"{path} is empty")
 
-    row = json.loads(line)
-    if "json-content" in row and row["json-content"]:
-        value = row["json-content"]
-        return json.loads(value) if isinstance(value, str) else value
-    if "html-content" in row and row["html-content"]:
-        return _plotly_payload_from_html(row["html-content"])
-    raise AssertionError(f"{path} has neither html-content nor json-content")
+    plots = []
+    for number, line in enumerate(lines, start=1):
+        row = json.loads(line)
+        if "json-content" in row and row["json-content"]:
+            value = row["json-content"]
+            plots.append(json.loads(value) if isinstance(value, str) else value)
+        elif "html-content" in row and row["html-content"]:
+            plots.append(_plotly_payload_from_html(row["html-content"]))
+        else:
+            raise AssertionError(
+                f"{path} row {number} has neither html-content nor json-content"
+            )
+    return plots
 
 
 def _plotly_payload_from_html(html: str) -> dict:
@@ -367,12 +374,18 @@ def _plotly_payload_from_html(html: str) -> dict:
     return {"data": args[1], "layout": args[2]}
 
 
-def _load_expected_plot(path) -> dict:
+def _load_expected_plots(path) -> list:
+    """Every chart the exported script drew. An operator that draws one writes a
+    lone figure; one that draws a chart per row writes the sequence."""
     import json
 
     with open(path, "r", encoding="utf-8") as fh:
         value = json.load(fh)
-    return {"data": value.get("data", []), "layout": value.get("layout", {})}
+    figures = value if isinstance(value, list) else [value]
+    return [
+        {"data": fig.get("data", []), "layout": fig.get("layout", {})}
+        for fig in figures
+    ]
 
 
 def _strip_unstable(value):
@@ -410,19 +423,28 @@ def _run_plotly_comparison(actual_path, expected_path) -> "str | None":
     and the --serve loop treat both kinds identically."""
     import json
 
-    actual = _strip_unstable(_load_actual_plot(actual_path))
-    expected = _strip_unstable(_load_expected_plot(expected_path))
-    if _plots_equal(actual, expected):
-        return None
-    return "\n".join(
-        [
-            "Plotly JSON mismatch",
-            "--- actual ---",
-            json.dumps(actual, indent=2, sort_keys=True),
-            "--- expected ---",
-            json.dumps(expected, indent=2, sort_keys=True),
-        ]
-    )
+    actual = [_strip_unstable(p) for p in _load_actual_plots(actual_path)]
+    expected = [_strip_unstable(p) for p in _load_expected_plots(expected_path)]
+
+    if len(actual) != len(expected):
+        return (
+            f"Plotly chart count mismatch: the run drew {len(actual)} and the "
+            f"exported script drew {len(expected)}"
+        )
+
+    for index, (one, other) in enumerate(zip(actual, expected)):
+        if _plots_equal(one, other):
+            continue
+        return "\n".join(
+            [
+                f"Plotly JSON mismatch on chart {index + 1} of {len(actual)}",
+                "--- actual ---",
+                json.dumps(one, indent=2, sort_keys=True),
+                "--- expected ---",
+                json.dumps(other, indent=2, sort_keys=True),
+            ]
+        )
+    return None
 
 
 def main() -> None:
