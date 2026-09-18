@@ -261,6 +261,9 @@ jobs:
           RC_DIR="${{ steps.vars.outputs.rc_dir }}"
           COMMIT_HASH="${{ steps.vars.outputs.commit_hash }}"
           IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          # Container images for an RC are tagged with the RC tag (leading
+          # "v" stripped), e.g. v1.2.0-incubating-rc1 -> 1.2.0-incubating-rc1.
+          IMAGE_TAG="${TAG_NAME#v}"
 
           # Get GPG key ID from the imported key
           GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
@@ -278,6 +281,7 @@ jobs:
           sed -i "s|\${GPG_KEY_ID}|${GPG_KEY_ID}|g" vote-email.txt
           sed -i "s|\${GPG_EMAIL}|${GPG_EMAIL}|g" vote-email.txt
           sed -i "s|\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" vote-email.txt
+          sed -i "s|\${IMAGE_TAG}|${IMAGE_TAG}|g" vote-email.txt
 
           echo "✓ Vote email template generated!"
 
