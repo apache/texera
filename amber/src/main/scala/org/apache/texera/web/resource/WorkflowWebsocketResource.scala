@@ -121,7 +121,7 @@ class WorkflowWebsocketResource extends LazyLogging {
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
-          workflowStateOpt.map(_.executionService.getValue) match {
+          executionStateOpt match {
             case Some(value) => value.wsInput.onNext(other, uidOpt)
             case None        => throw new IllegalStateException("workflow execution is not initialized")
           }
