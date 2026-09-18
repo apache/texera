@@ -53,11 +53,19 @@ object SamplingHelpers {
       |        return ((self._next(26) << 27) + self._next(27)) * (2.0 ** -53)
       |
       |    def next_int(self, bound):
+      |        if bound <= 0:
+      |            raise ValueError("bound must be positive")
       |        if bound & (-bound) == bound:
       |            return (bound * self._next(31)) >> 31
       |        while True:
       |            bits = self._next(31)
       |            value = bits % bound
-      |            if bits - value + (bound - 1) >= 0:
+      |            # Java rejects a draw by letting this sum overflow: it is an int
+      |            # there, so a draw within bound of 2**31 wraps negative and is
+      |            # taken again. Python would carry the sum instead and never
+      |            # reject, which parts the two sequences on the draw that should
+      |            # have been thrown away.
+      |            probe = bits - value + (bound - 1)
+      |            if ((probe + (1 << 31)) % (1 << 32)) - (1 << 31) >= 0:
       |                return value""".stripMargin
 }
