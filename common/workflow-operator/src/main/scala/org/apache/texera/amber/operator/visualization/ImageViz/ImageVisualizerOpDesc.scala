@@ -22,16 +22,19 @@ package org.apache.texera.amber.operator.visualization.ImageViz
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
+class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("image content column")
@@ -96,6 +99,60 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
          |        yield {"html-content": all_images_html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML visualization, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  /** The executor hands `b64encode` whatever the column holds, so a column of
+    * text ends in the reason page: `b64encode` refuses a `str`. The exported
+    * script reads the same column out of JSONL, where a BINARY column arrives as
+    * the base64 text of its bytes, which is already what the tag wants.
+    *
+    * So the text is read as an image only where the column was declared BINARY.
+    * A column of any other type falls through to the same `b64encode` call and
+    * fails there, which is the page the run showed.
+    */
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    val carriesBytes = inputSchemas
+      .get(operatorInfo.inputPorts.head.id)
+      .flatMap(_.getAttributes.find(_.getName == binaryContent))
+      .forall(_.getType == AttributeType.BINARY)
+    val textIsTheImage =
+      if (carriesBytes) "isinstance(binary_image_data, str)" else "False"
+    s"""import base64
+       |
+       |LT = chr(60)
+       |GT = chr(62)
+       |
+       |def encode_image_to_html(binary_image_data):
+       |    try:
+       |        if $textIsTheImage:
+       |            encoded_image_str = binary_image_data
+       |        else:
+       |            encoded_image_data = base64.b64encode(binary_image_data)
+       |            encoded_image_str = encoded_image_data.decode("utf-8")
+       |        return (
+       |            f'{LT}img src="data:image;base64,{encoded_image_str}" alt="Image" '
+       |            f'style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;"{GT}'
+       |        )
+       |    except Exception:
+       |        return (
+       |            f'{LT}h1{GT}Image is not available.{LT}/h1{GT}'
+       |            f'{LT}p{GT}Reason: Binary input is not valid{LT}/p{GT}'
+       |        )
+       |
+       |all_images_html = f"{LT}div{GT}" + "".join(
+       |    encode_image_to_html(binary_image_data)
+       |    for binary_image_data in in1df[${pyStringLiteral(binaryContent)}]
+       |) + f"{LT}/div{GT}"
+       |
+       |with open(outputHtml, "w", encoding="utf-8") as output:
+       |    output.write(all_images_html)
+       |print("Image visualizer saved to " + outputHtml)""".stripMargin
   }
 
 }
