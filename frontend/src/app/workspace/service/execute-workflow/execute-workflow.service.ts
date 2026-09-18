@@ -244,8 +244,7 @@ export class ExecuteWorkflowService {
    * While the deployment requires a warehouse (#7817) and none is picked,
    * refuses with a toast and returns true. Checked at every public entry
    * point before it resets the previous execution's state — a refused click
-   * must not wipe the results already on screen — and again in
-   * sendExecutionRequest as the shared belt (#7751 adds the backend-side
+   * must not wipe the results already on screen (#7751 adds the backend-side
    * rejection).
    */
   private refuseToRunWithoutWarehouse(): boolean {
@@ -271,12 +270,6 @@ export class ExecuteWorkflowService {
     // which the backend today reads as the shared default storage (#7751
     // tightens that to a rejection while the feature is enabled).
     const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
-
-    // Final belt for callers that reach this method directly; the public entry
-    // points refuse BEFORE they reset the previous execution's state.
-    if (this.refuseToRunWithoutWarehouse()) {
-      return;
-    }
 
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {

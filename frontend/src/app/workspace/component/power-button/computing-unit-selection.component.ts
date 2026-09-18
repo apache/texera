@@ -265,15 +265,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
             // Caught inside the switchMap so a failure ends only this request,
             // not the stream.
             catchError((err: unknown) => {
-              // The pick lives in the root-scoped service, so clearing the list
-              // is not enough: a stale id would still ride the next execution
-              // request. The flag falls back to the boot-time config instead of
-              // false — failing open here would un-gate Run on an enabled
-              // deployment just because one status request failed.
+              // A transport failure is not an answer: the last known list and
+              // pick stay (clearing them is reserved for an authoritative
+              // response — enabled:false, or a list without the pick). The flag
+              // only falls back to the boot-time config, never to false: failing
+              // open would un-gate Run on an enabled deployment just because one
+              // status request failed.
               this.warehouseEnabled = this.config.env.warehouseEnabled;
-              this.warehouses = [];
-              this.warehouseService.selectWarehouse(undefined);
-              console.error("Failed to fetch warehouse status", err);
+              this.notificationService.error(`Failed to fetch warehouses: ${extractErrorMessage(err)}`);
               return EMPTY;
             })
           )
@@ -283,12 +282,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(status => {
         this.warehouseEnabled = status.enabled;
         this.warehouses = [...status.warehouses];
-        if (
-          this.selectedWarehouseId === undefined ||
-          !this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
-        ) {
-          this.applyWarehousePreselect();
-        }
+        this.applyWarehousePreselect();
       });
     this.refreshWarehouses();
 
@@ -384,8 +378,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
         if (units.some(unit => unit.computingUnit.cuid === remembered)) {
           this.selectComputingUnit(wid, remembered);
           // The remembered shortcut skips the execution lookup the warehouse
-          // preselect rides on, so look the latest execution up for it alone.
-          this.preselectWarehouseFromLatestExecution(wid);
+          // preselect rides on, so run the lookup for the warehouse alone.
+          this.selectFromLastExecution(wid, false);
         } else {
           this.forgetComputingUnit(wid);
           this.selectFromLastExecution(wid);
@@ -393,8 +387,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
   }
 
-  /** The unit the workflow last ran on, else any unit that is running. */
-  private selectFromLastExecution(wid: number): void {
+  /**
+   * The unit the workflow last ran on, else any unit that is running — and the warehouse it last
+   * wrote to, for the preselect (#7817). `selectUnit` is false when the unit was already settled by
+   * a remembered choice and only the warehouse still needs the lookup.
+   */
+  private selectFromLastExecution(wid: number, selectUnit: boolean = true): void {
     // The workflow can change while the lookup is out; that later change decided for itself, so an
     // answer (or a failure) that arrives for the earlier one is stale.
     const stillShown = () => wid === this.workflowId;
@@ -404,14 +402,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe({
         next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
           if (stillShown()) {
-            this.selectComputingUnit(wid, latestWorkflowExecution.cuId);
+            if (selectUnit) {
+              this.selectComputingUnit(wid, latestWorkflowExecution.cuId);
+            }
             this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
             this.applyWarehousePreselect();
           }
         },
         error: () => {
           const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
-          if (stillShown() && runningUnit) {
+          if (selectUnit && stillShown() && runningUnit) {
             this.selectComputingUnit(wid, runningUnit.computingUnit.cuid);
           }
           // No execution history: still preselect a warehouse (the first one).
@@ -499,9 +499,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   /**
    * Fetches the warehouse list, on init and on every dropdown open (mirroring
-   * onDropdownVisibilityChange). Preselection re-runs only when the current
-   * pick is gone (first load, or the picked warehouse was deleted), so a
-   * routine refresh cannot override a manual pick.
+   * onDropdownVisibilityChange). Every answer re-runs the preselect, whose
+   * manual-pick guard keeps a routine refresh from overriding a user's choice.
    */
   private refreshWarehouses(): void {
     this.warehouseRefreshRequested$.next();
@@ -528,27 +527,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
     const lastUsed = this.warehouses.find(warehouse => warehouse.whid === this.lastExecutionWhid);
     this.warehouseService.selectWarehouse((lastUsed ?? this.warehouses[0]).whid);
-  }
-
-  /** The warehouse the workflow last ran against, for the preselect; first-warehouse fallback otherwise. */
-  private preselectWarehouseFromLatestExecution(wid: number): void {
-    const stillShown = () => wid === this.workflowId;
-    this.workflowExecutionsService
-      .retrieveLatestWorkflowExecution(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
-          if (stillShown()) {
-            this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
-            this.applyWarehousePreselect();
-          }
-        },
-        error: () => {
-          if (stillShown()) {
-            this.applyWarehousePreselect();
-          }
-        },
-      });
   }
 
   onWarehouseSelected(whid: number): void {
@@ -592,12 +570,21 @@ export class ComputingUnitSelectionComponent implements OnInit {
     // Mirrors onComputingUnitCreated: a warehouse created from the workspace is
     // what the next execution should write to — as explicit a choice as a pick.
     this.manualWarehousePick = true;
+    // Appended locally, as the dashboard tab does: the backend lists by
+    // created_at ascending, so no round trip is needed to keep the order.
+    this.warehouses = [...this.warehouses, warehouse];
     this.warehouseService.selectWarehouse(warehouse.whid);
-    this.refreshWarehouses();
   }
 
   confirmDeleteWarehouse(warehouse: DashboardWarehouse): void {
-    this.warehouseActionsService.confirmAndDelete(warehouse, () => this.refreshWarehouses());
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => {
+      this.warehouses = this.warehouses.filter(entry => entry.whid !== warehouse.whid);
+      // Deleting the picked warehouse leaves the pick dangling; the preselect
+      // moves it (its manual-pick guard no longer holds for a gone id).
+      if (this.selectedWarehouseId === warehouse.whid) {
+        this.applyWarehousePreselect();
+      }
+    });
   }
 
   isComputingUnitRunning(): boolean {

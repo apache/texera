@@ -426,9 +426,8 @@ describe("ExecuteWorkflowService", () => {
       TestBed.inject(WarehouseService).selectWarehouse(undefined);
       const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
       const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
-      const settings = service["workflowActionService"].getWorkflowSettings();
 
-      service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+      service.executeWorkflowWithEmailNotification("exec", false);
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
 

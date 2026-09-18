@@ -2549,21 +2549,26 @@ describe("PowerButtonComponent", () => {
       expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeNull();
     });
 
-    it("clears any stale pick when the status request fails", () => {
-      // The pick outlives the component (root-scoped service), so a failure that only
-      // hides the picker would still send a previous workflow's warehouse id.
-      TestBed.inject(WarehouseService).selectWarehouse(9);
+    it("a status failure keeps the last known list and pick, and reports the error", () => {
+      // A transport failure is not an answer; only an authoritative response
+      // (enabled:false, or a list without the pick) may clear the pick.
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
       vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
         throwError(() => new Error("status unavailable"))
       );
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
-      failedFixture.detectChanges();
+      comp.onWarehouseDropdownVisibilityChange(true);
 
-      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
-      expect(failedFixture.componentInstance.warehouseEnabled).toBe(false);
-      errorSpy.mockRestore();
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1, 2]);
+      expect(errorSpy).toHaveBeenCalledWith("Failed to fetch warehouses: status unavailable");
     });
 
     it("clears any stale pick when the feature is disabled or no warehouse exists", () => {
@@ -2753,7 +2758,6 @@ describe("PowerButtonComponent", () => {
       failedFixture.detectChanges();
 
       expect(failedFixture.componentInstance.warehouseRequiredButMissing).toBe(true);
-      expect(failedFixture.componentInstance.warehouses).toEqual([]);
       errorSpy.mockRestore();
       TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
     });
@@ -2796,6 +2800,45 @@ describe("PowerButtonComponent", () => {
 
       pending.error(new Error("no execution"));
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("deleting the picked warehouse removes it locally and re-preselects, with no refetch", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear(); // drop the boot-time call; only the action below counts
+      const deleteSpy = vi
+        .spyOn(TestBed.inject(WarehouseActionsService), "confirmAndDelete")
+        .mockImplementation((_warehouse, onDeleted) => onDeleted());
+
+      comp.confirmDeleteWarehouse(makeWarehouse(2, "second"));
+
+      expect(deleteSpy).toHaveBeenCalledTimes(1);
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1]);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+      expect(statusSpy).not.toHaveBeenCalled();
+    });
+
+    it("a created warehouse is appended locally and becomes the pick, with no refetch", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: "error",
+      });
+      emit(100);
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear(); // drop the boot-time call; only the action below counts
+
+      comp.onWarehouseCreated(makeWarehouse(9, "fresh"));
+
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1, 9]);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(9);
+      expect(statusSpy).not.toHaveBeenCalled();
     });
   });
 });
