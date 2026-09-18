@@ -474,6 +474,9 @@ class Tuple:
             AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
             AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
             AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
+            AttributeType.LARGE_BINARY: lambda f: int_32(
+                salt + java_hash_bytes(map(ord, f.uri), 0, salt)
+            ),
         }
 
         for name, field in self.as_key_value_pairs():
