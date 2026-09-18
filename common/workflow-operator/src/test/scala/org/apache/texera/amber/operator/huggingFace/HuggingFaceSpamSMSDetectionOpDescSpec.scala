@@ -103,15 +103,18 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
 
     // An empty cell arrives as None, and the pipeline answers it with
     // `ValueError: You need to specify either text or text_target`, ending the run.
+    // pandas is asked rather than None compared, because the type rule naming the
+    // column string is a warning the editor prints, not a filter, and a numeric
+    // column reaches the executor with its own NaN.
     val guard = code.linesIterator
-      .find(_.contains("text is None"))
+      .find(_.contains("pd.isna(text)"))
       .getOrElse(fail("generated code no longer guards an empty text cell"))
     guard should include("strip()")
-    code.indexOf("text is None") should be < code.indexOf("self.pipeline(")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(text)") should be < code.indexOf("self.pipeline(")
   }
 
-  // The executor reads a tuple, where an empty cell is always None. The exported
-  // script reads a frame, where a column holding nothing else comes back as
+  // The script reads a frame, where a column holding nothing else comes back as
   // float64 and its cells as NaN, which `is None` does not catch.
   it should "guard a missing text cell in the exported script, NaN included" in {
     val d = configured()

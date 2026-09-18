@@ -79,6 +79,7 @@ class HuggingFaceSentimentAnalysisOpDesc
        |from transformers import AutoModelForSequenceClassification
        |from transformers import AutoTokenizer, AutoConfig
        |import numpy as np
+       |import pandas as pd
        |from scipy.special import softmax
        |
        |class ProcessTupleOperator(UDFOperatorV2):
@@ -92,10 +93,11 @@ class HuggingFaceSentimentAnalysisOpDesc
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
        |        text = tuple_[$attribute]
-       |        # An empty cell arrives as None, which the tokenizer rejects. Keep the row
-       |        # and leave the scores empty rather than ending the run over a value the
-       |        # model has nothing to say about.
-       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |        # An empty cell arrives as None, and a column the type rule was meant to
+       |        # keep out can carry a NaN of its own. The tokenizer rejects both. Keep
+       |        # the row and leave the scores empty rather than ending the run over a
+       |        # value the model has nothing to say about.
+       |        if pd.isna(text) or (isinstance(text, str) and not text.strip()):
        |            for label in ($resultAttributePositive, $resultAttributeNeutral, $resultAttributeNegative):
        |                tuple_[label] = None
        |            yield tuple_

@@ -67,6 +67,7 @@ class HuggingFaceSpamSMSDetectionOpDesc
 
   override def generatePythonCode(): String = {
     pyb"""from transformers import pipeline
+       |import pandas as pd
        |from pytexera import *
        |
        |class ProcessTupleOperator(UDFOperatorV2):
@@ -77,10 +78,11 @@ class HuggingFaceSpamSMSDetectionOpDesc
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
        |        text = tuple_[$attribute]
-       |        # An empty cell arrives as None, which the pipeline rejects. Keep the row
-       |        # and leave the results empty rather than ending the run over a value the
-       |        # model has nothing to say about.
-       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |        # An empty cell arrives as None, and a column the type rule was meant to
+       |        # keep out can carry a NaN of its own. The pipeline rejects both. Keep
+       |        # the row and leave the results empty rather than ending the run over a
+       |        # value the model has nothing to say about.
+       |        if pd.isna(text) or (isinstance(text, str) and not text.strip()):
        |            tuple_[$resultAttributeSpam] = None
        |            tuple_[$resultAttributeProbability] = None
        |            yield tuple_
