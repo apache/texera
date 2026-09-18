@@ -541,12 +541,13 @@ object TypeCastingTransformHandler extends TransformHandler {
   * query, so the branches both the JVM Lucene path and the pandas path have to
   * agree on, multi-term OR and whole-word boundaries, actually run.
   *
-  * The rows are intentionally punctuation-free. Sweeping `isCaseSensitive` puts
-  * the JVM's `CaseSensitiveAnalyzer` in play, a `WhitespaceTokenizer` that leaves
-  * punctuation attached to the word ("perfect."), while the standalone regex
-  * matches on `\b` boundaries and honours no case at all. Clean words keep the
-  * two in agreement, which is why the canonical table's punctuated `short_text`
-  * cannot be reused here, and why no Lucene phrase or wildcard syntax appears.
+  * Both analyzers tokenize on Unicode word boundaries, so a term next to
+  * punctuation is a term to either path, and the case-sensitive scenario below
+  * carries such a row. What the two do part on is a word punctuation belongs
+  * inside: the tokenizer keeps "don't" whole while `\bdon\b` finds the "don" in
+  * it, so no row holds one. No Lucene phrase or wildcard syntax appears either,
+  * since the script matches the terms a query is written with rather than
+  * running the query.
   */
 object KeywordSearchTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[KeywordSearchOpDesc]
@@ -593,12 +594,19 @@ object KeywordSearchTransformHandler extends TransformHandler {
     desc.isCaseSensitive = false
 
     // The base fixture is all lower-case, so sweeping the flag there decides
-    // nothing: the two analyzers agree on every row it holds.
+    // nothing: the two analyzers agree on every row it holds. The last row ends
+    // the term in a period, which the case-sensitive analyzer tokenizes away and
+    // `\b` reads as a boundary, so both paths keep it.
     val casedDir = testRoot.resolve("cased")
     Files.createDirectories(casedDir)
     val casedColumn = Seq(("a\"b\\c_txt", AttributeType.STRING))
     val casedRows: Seq[Seq[Any]] =
-      Seq(Seq[Any]("i love this"), Seq[Any]("I Love this"), Seq[Any]("LOVE it"))
+      Seq(
+        Seq[Any]("i love this"),
+        Seq[Any]("I Love this"),
+        Seq[Any]("LOVE it"),
+        Seq[Any]("everything was absolutely Love.")
+      )
     val casedInput =
       CuratedHandlers.writeFixture(casedDir.resolve("input_port_0.jsonl"), casedColumn, casedRows)
 
