@@ -197,16 +197,18 @@ export class WorkflowResultExportService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
-    // we should export all operators, otherwise the ones requestedOperatorIds names below, or
-    // the highlighted ones when it names none, which means the export button came from the
-    // context-menu
-    destination: "dataset" | "local" = "dataset", // default to dataset
+    destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null, // computing unit for cluster setting
-    // The operators to export, for a caller that already knows them. Ignored when exportAll
-    // asks for everything; left out, the scope falls back to the canvas selection.
-    requestedOperatorIds: readonly string[] = []
+    // The operators this export covers. The caller resolves them: the dialog already works out
+    // its own scope in order to report what a blocking dataset blocks, so it says so here rather
+    // than leaving the scope to be worked out a second time, separately, from a flag and the
+    // canvas -- two answers to one question that agree only for as long as nobody edits one.
+    operatorIds: readonly string[]
   ): void {
+    // Copied now, not read later: the restriction analysis below is asynchronous, and the canvas
+    // selection a caller may have handed us is the live array, so the scope would otherwise be
+    // whatever is selected when the analysis answers rather than what was asked for.
+    const scope = [...operatorIds];
     this.computeRestrictionAnalysis()
       .pipe(take(1))
       .subscribe(restrictionResult =>
@@ -217,11 +219,10 @@ export class WorkflowResultExportService {
           rowIndex,
           columnIndex,
           filename,
-          exportAll,
           destination,
           unit,
           restrictionResult,
-          requestedOperatorIds
+          scope
         )
       );
   }
@@ -231,10 +232,9 @@ export class WorkflowResultExportService {
    *
    * This method handles the core export logic:
    * 1. Validates configuration and computing unit availability
-   * 2. Determines operator scope (all, the operators the caller named, or the highlighted ones)
-   * 3. Applies restriction filtering with user feedback
-   * 4. Makes the export API call
-   * 5. Handles response and shows appropriate notifications
+   * 2. Applies restriction filtering with user feedback
+   * 3. Makes the export API call
+   * 4. Handles response and shows appropriate notifications
    *
    * Shows error messages if all operators are blocked, warning messages if some are blocked.
    *
@@ -247,11 +247,10 @@ export class WorkflowResultExportService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    exportAll: boolean,
     destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null,
     downloadability: WorkflowResultDownloadability,
-    requestedOperatorIds: readonly string[]
+    operatorIds: readonly string[]
   ): void {
     // Validates configuration and computing unit availability
     if (!this.config.env.exportExecutionResultEnabled) {
@@ -267,22 +266,6 @@ export class WorkflowResultExportService {
       this.notificationService.error("Cannot export result: workflow ID is not available");
       return;
     }
-
-    // Determines operator scope. "Everything" wins first: the top menu means the whole workflow
-    // whatever else it was handed. Otherwise a caller that names its operators wins over the
-    // canvas selection, which answers a different question -- what the user has selected. That
-    // is the context menu's scope, but not a result cell's: a cell belongs to one operator,
-    // whoever is selected. The Form View selects the step the user is configuring, and until
-    // they click one it selects nothing, so a cell's export there came out with an empty scope
-    // and returned below without sending a request -- a button that did nothing at all.
-    const operatorIds = exportAll
-      ? this.workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .map(operator => operator.operatorID)
-      : requestedOperatorIds.length > 0
-        ? [...requestedOperatorIds]
-        : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
     if (operatorIds.length === 0) {
       return;

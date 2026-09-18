@@ -85,7 +85,7 @@ export class ResultExportationComponent implements OnInit {
    operators; the menu, which wants to export all of them; and a result cell, which names the
    one operator whose results it shows in operatorIds below and sends no trigger of its own.
    */
-  sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
+  sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered ?? "";
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
   inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
@@ -120,10 +120,7 @@ export class ResultExportationComponent implements OnInit {
       return this.operatorIds;
     }
     if (this.sourceTriggered === "menu") {
-      return this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(op => op.operatorID);
+      return this.workflowActionService.getTexeraGraph().getAllOperatorIDs();
     } else {
       return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     }
@@ -273,10 +270,11 @@ export class ResultExportationComponent implements OnInit {
       this.rowIndex,
       this.columnIndex,
       this.inputFileName,
-      this.sourceTriggered === "menu",
       destination,
       this.selectedComputingUnit,
-      this.operatorIds
+      // The same scope the dialog reported on, so what is exported is what the dialog said it
+      // would export.
+      this.getOperatorIdsToCheck()
     );
     this.modalRef.close();
   }

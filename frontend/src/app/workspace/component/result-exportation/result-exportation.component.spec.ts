@@ -88,7 +88,10 @@ describe("ResultExportationComponent", () => {
         {
           provide: WorkflowActionService,
           useValue: {
-            getTexeraGraph: vi.fn().mockReturnValue({ getAllOperators: vi.fn().mockReturnValue([]) }),
+            getTexeraGraph: vi.fn().mockReturnValue({
+              getAllOperators: vi.fn().mockReturnValue([]),
+              getAllOperatorIDs: vi.fn().mockReturnValue([]),
+            }),
             getJointGraphWrapper: vi
               .fn()
               .mockReturnValue({ getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue([]) }),
@@ -141,8 +144,7 @@ describe("ResultExportationComponent", () => {
     expect(args[0]).toBe("csv"); // exportType, from modal data
     expect(args[1]).toBe("my-workflow"); // workflowName
     expect(args[2]).toEqual([1]); // datasetIds resolved from ds.dataset.did
-    expect(args[6]).toBe(true); // exportAll, because sourceTriggered === "menu"
-    expect(args[7]).toBe("dataset"); // destination
+    expect(args[6]).toBe("dataset"); // destination
     expect(modalClose).toHaveBeenCalledTimes(1);
   });
 
@@ -152,8 +154,43 @@ describe("ResultExportationComponent", () => {
     expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
     const args = exportWorkflowExecutionResult.mock.calls[0];
     expect(args[2]).toEqual([]); // local download carries no dataset ids
-    expect(args[7]).toBe("local");
+    expect(args[6]).toBe("local");
     expect(modalClose).toHaveBeenCalledTimes(1);
+  });
+
+  // The dialog reports on a scope (what a blocking dataset blocks, what kind of output is on
+  // offer) and then exports. Those have to be the same scope, so the export is handed the list
+  // the dialog resolved rather than a flag the service would resolve again, differently.
+  describe("the scope the dialog exports", () => {
+    const exportedOperatorIds = (): readonly string[] => {
+      component.onClickExportResult("local");
+      return exportWorkflowExecutionResult.mock.calls[0][8];
+    };
+    const graph = () => TestBed.inject(WorkflowActionService).getTexeraGraph() as any;
+    const wrapper = () => TestBed.inject(WorkflowActionService).getJointGraphWrapper() as any;
+
+    it("is the operators the caller named, whatever the canvas has selected", () => {
+      component.operatorIds = ["opNamed"];
+      wrapper().getCurrentHighlightedOperatorIDs.mockReturnValue(["opHighlighted"]);
+
+      expect(exportedOperatorIds()).toEqual(["opNamed"]);
+    });
+
+    it("is the whole workflow when the top menu opened the dialog", () => {
+      component.operatorIds = [];
+      component.sourceTriggered = "menu";
+      graph().getAllOperatorIDs.mockReturnValue(["op1", "op2"]);
+
+      expect(exportedOperatorIds()).toEqual(["op1", "op2"]);
+    });
+
+    it("is the canvas selection for anyone else who named nothing", () => {
+      component.operatorIds = [];
+      component.sourceTriggered = "context-menu";
+      wrapper().getCurrentHighlightedOperatorIDs.mockReturnValue(["opHighlighted"]);
+
+      expect(exportedOperatorIds()).toEqual(["opHighlighted"]);
+    });
   });
 
   it("onClickCreateNewDataset opens the dataset-creator modal and adopts the created dataset", () => {
@@ -183,6 +220,7 @@ describe("ResultExportationComponent", () => {
       };
       graph.getTexeraGraph.mockReturnValue({
         getAllOperators: () => ids.map(id => ({ operatorID: id })),
+        getAllOperatorIDs: () => ids,
       });
     }
 
@@ -240,6 +278,7 @@ describe("ResultExportationComponent", () => {
       };
       graph.getTexeraGraph.mockReturnValue({
         getAllOperators: () => ids.map(id => ({ operatorID: id })),
+        getAllOperatorIDs: () => ids,
       });
     }
 
@@ -381,6 +420,7 @@ describe("ResultExportationComponent", () => {
       };
       graph.getTexeraGraph.mockReturnValue({
         getAllOperators: () => ids.map(id => ({ operatorID: id })),
+        getAllOperatorIDs: () => ids,
       });
     }
 
@@ -484,7 +524,7 @@ describe("ResultExportationComponent", () => {
       exportBtn!.triggerEventHandler("click", null);
       expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
       const args = exportWorkflowExecutionResult.mock.calls[0];
-      expect(args[7]).toBe("local");
+      expect(args[6]).toBe("local");
     });
 
     it("renders the dataset destination with its list and create button", () => {
@@ -601,7 +641,7 @@ describe("ResultExportationComponent", () => {
       expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
       const args = exportWorkflowExecutionResult.mock.calls[0];
       expect(args[2]).toEqual([1]); // the clicked dataset's did
-      expect(args[7]).toBe("dataset");
+      expect(args[6]).toBe("dataset");
       expect(modalClose).toHaveBeenCalledTimes(1);
     });
 
@@ -780,7 +820,10 @@ describe("ResultExportationComponent (context-menu source with default modal dat
         {
           provide: WorkflowActionService,
           useValue: {
-            getTexeraGraph: vi.fn().mockReturnValue({ getAllOperators: vi.fn().mockReturnValue([]) }),
+            getTexeraGraph: vi.fn().mockReturnValue({
+              getAllOperators: vi.fn().mockReturnValue([]),
+              getAllOperatorIDs: vi.fn().mockReturnValue([]),
+            }),
             getJointGraphWrapper: vi.fn().mockReturnValue({
               getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(["hl-1", "hl-2"]),
             }),
@@ -826,7 +869,7 @@ describe("ResultExportationComponent (context-menu source with default modal dat
     expect(component.blockedOperatorIds).toEqual([]);
   });
 
-  it("exports highlighted operators only (exportAll === false) for a context-menu trigger", () => {
+  it("exports to the destination it was given for a context-menu trigger", () => {
     const exportService = TestBed.inject(WorkflowResultExportService)
       .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
 
@@ -834,17 +877,19 @@ describe("ResultExportationComponent (context-menu source with default modal dat
 
     expect(exportService).toHaveBeenCalledTimes(1);
     const args = exportService.mock.calls[0];
-    expect(args[6]).toBe(false); // exportAll is false because sourceTriggered !== "menu"
-    expect(args[7]).toBe("local");
+    expect(args[6]).toBe("local"); // destination
   });
 
-  it("names no operator of its own, leaving the scope to the selection", () => {
+  // The context menu names no operators of its own, so the dialog resolves the selection and
+  // hands that over. It does not pass nothing and leave the export to read the canvas a second
+  // time, which would let what is exported differ from what the dialog reported on.
+  it("hands over the selection it resolved, not an empty scope", () => {
     const exportService = TestBed.inject(WorkflowResultExportService)
       .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
 
     component.onClickExportResult("local");
 
-    expect(exportService.mock.calls[0][9]).toEqual([]);
+    expect(exportService.mock.calls[0][8]).toEqual(["hl-1", "hl-2"]);
   });
 });
 
@@ -890,9 +935,10 @@ describe("ResultExportationComponent (a caller that names its operators)", () =>
           useValue: {
             // Both fallbacks answer with something else, so a passing test can only be reading
             // the operator the caller named.
-            getTexeraGraph: vi
-              .fn()
-              .mockReturnValue({ getAllOperators: vi.fn().mockReturnValue([{ operatorID: "op-all" }]) }),
+            getTexeraGraph: vi.fn().mockReturnValue({
+              getAllOperators: vi.fn().mockReturnValue([{ operatorID: "op-all" }]),
+              getAllOperatorIDs: vi.fn().mockReturnValue(["op-all"]),
+            }),
             getJointGraphWrapper: vi.fn().mockReturnValue({
               getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(["op-highlighted"]),
             }),
@@ -924,6 +970,12 @@ describe("ResultExportationComponent (a caller that names its operators)", () =>
     fixture?.destroy();
   });
 
+  // A result cell names its operator and sends no trigger of its own, so this field arrives
+  // absent and must read as a string rather than as undefined wearing a string's type.
+  it("reads an absent source trigger as an empty string", () => {
+    expect(component.sourceTriggered).toBe("");
+  });
+
   it("checks the named operator rather than the canvas selection", () => {
     expect(component.exportableOperatorIds).toEqual(["op-named"]);
     expect(component.blockedOperatorIds).toEqual([]);
@@ -936,6 +988,6 @@ describe("ResultExportationComponent (a caller that names its operators)", () =>
     component.onClickExportResult("local");
 
     expect(exportService).toHaveBeenCalledTimes(1);
-    expect(exportService.mock.calls[0][9]).toEqual(["op-named"]);
+    expect(exportService.mock.calls[0][8]).toEqual(["op-named"]);
   });
 });
