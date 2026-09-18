@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789649527459,
+  "lastUpdate": 1789736797282,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14394,6 +14394,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 708.8104926489683,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "d11878426b59967e5466ef6a927ef1a97d63b606",
+          "message": "fix(frontend): keep the warehouse run-button label inside the button, and name the picker in its tooltip (#8589)\n\n### What changes were proposed in this PR?\n\nA follow-up to the warehouse picker (#8551).\n\n- **The run button's label overflowed.** `#run-button` is a fixed 140px,\nwhich fits `Empty Workflow` with about a pixel to spare; `Create\nWarehouse` ran roughly 13px past it and spilled over the execution\ntimer. The label is now `Warehouse` — the same word the picker's own\nempty state already shows, mirroring how the computing-unit flow repeats\n`Connect` in both places — and the button keeps its fixed width, so\nnothing else on the toolbar moves.\n- **The trigger's tooltip now reads `Warehouse: <name>`.** Two pickers\nsit side by side showing nothing but a name, and the trigger ellipsises\nthat name at 220px; one tooltip says which picker this is and carries\nthe name in full, in the same shape every time — short names included,\nso there is nothing to learn about when it appears. It replaces\n\"Warehouse this execution writes to\", which named the picker but not the\nwarehouse.\n\nFlag off (the default): the picker never renders and the run button is\nuntouched.\n\n### before:\n\n<img width=\"715\" height=\"208\" alt=\"Screenshot 2026-09-17 at 11 28 13 PM\"\nsrc=\"https://github.com/user-attachments/assets/59f58e27-259d-413d-aca2-ce2bbf2aec24\"\n/>\n\n<img width=\"761\" height=\"191\" alt=\"Screenshot 2026-09-17 at 11 29 10 PM\"\nsrc=\"https://github.com/user-attachments/assets/c0cd7e1e-ea60-4f0f-b5c0-48b445c42d12\"\n/>\n\n### after:\n\n<img width=\"657\" height=\"165\" alt=\"Screenshot 2026-09-17 at 11 30 12 PM\"\nsrc=\"https://github.com/user-attachments/assets/e007fcaf-7771-4030-a961-49e361cf14aa\"\n/>\n\n<img width=\"758\" height=\"278\" alt=\"Screenshot 2026-09-17 at 11 30 45 PM\"\nsrc=\"https://github.com/user-attachments/assets/2771ae7d-0713-40a1-af96-7f0324996089\"\n/>\n\n### Any related issues, documentation, discussions?\n\nFollow-up to #8551. Part of #6870. The remaining divergences are on the\ncomputing-unit side and are tracked separately in #8587; a warehouse\nstatus badge needs a backend signal first (#8588).\n\n### How was this PR tested?\n\n- Label widths measured in a browser against the button's real clipping\nwidth (140px minus padding, border and icon leaves ~106px for text)\nacross the font stack's macOS, Windows and Linux faces: `Warehouse`\n72px, `Create Warehouse` 119px, and main's own `Empty Workflow`/`Invalid\nWorkflow` 105px.\n- Vitest: the run-button label test updated, a tooltip test added\ncovering both a long and a short name and pinning one tooltip per\ncontrol; the workspace suite passes in full (3323 tests).\n- Failure paths verified rather than assumed: the label and the\ntooltip's name were each reverted on purpose and the suite confirmed to\nfail for the expected reason before being restored.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5, claude-fable-5)",
+          "timestamp": "2026-09-18T07:12:01Z",
+          "url": "https://github.com/apache/texera/commit/d11878426b59967e5466ef6a927ef1a97d63b606"
+        },
+        "date": 1789736796635,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 634.2146539458145,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1089.207624608018,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1155.5963073203584,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 785.3039099548988,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1120.7448023720815,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1150.5941362703115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 838.3915613166258,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1106.702827420879,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1147.63495034584,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 711.0994435178595,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 909.724725347809,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 933.0508992285928,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 724.4784268891043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 897.3607215016386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 933.4814782242355,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 718.3297522452167,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 896.8856706506004,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 906.2123468260149,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 453.24971291911044,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 522.924824250239,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 527.5714098080458,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 444.4738532050997,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 513.433723198668,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 523.2623990020833,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 442.7563691767222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 500.8776246509196,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 499.4066082717449,
             "unit": "tuples/sec"
           }
         ]
