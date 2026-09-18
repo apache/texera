@@ -152,6 +152,18 @@ class WorkflowResourceCoverSpec
       .execute()
   }
 
+  "workflow metadata" should "return the workflow owner, name and description" in {
+    resource.getOwnerName(testWid) shouldBe "cover_owner"
+    resource.getWorkflowName(testWid) shouldBe "cover_test_workflow"
+    resource.getWorkflowDescription(testWid) shouldBe "desc"
+  }
+
+  it should "reject a missing workflow id" in {
+    assertThrows[BadRequestException](resource.getOwnerName(null))
+    assertThrows[BadRequestException](resource.getWorkflowName(null))
+    assertThrows[BadRequestException](resource.getWorkflowDescription(null))
+  }
+
   "getCoverImage" should "throw NotFoundException when no cover is set" in {
     assertThrows[NotFoundException] {
       resource.getCoverImage(testWid, session(owner))
