@@ -157,6 +157,13 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId
       )
 
+      // Same rule as initExecutionService: check the pick before anything
+      // destructive, or an agent request that is going to be refused takes the
+      // execution in flight down with it. Resolved again inside the init call —
+      // one indexed single-row read, against a request that already writes
+      // several rows.
+      WorkflowService.resolveLakekeeperWarehouseName(request.warehouseId, user.getUser.getUid)
+
       shutdownPreviousExecution(workflowService)
 
       // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.

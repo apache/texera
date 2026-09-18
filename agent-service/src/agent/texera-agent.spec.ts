@@ -1087,6 +1087,8 @@ describe("delegate mode", () => {
     agent.setDelegateWarehouse(42);
     expect((agent as any).buildExecutionConfig().warehouseId).toBe(42);
 
+    // An absent pick is a pick: clearing it keeps a stale id from riding the
+    // next run and being refused while the feature is off.
     agent.setDelegateWarehouse(undefined);
     expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
   });

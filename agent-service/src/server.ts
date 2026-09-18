@@ -498,10 +498,11 @@ export function buildApp() {
 
             // The prompt carries the workspace's current warehouse pick, so a run
             // uses what the user has selected now rather than whatever was
-            // selected when the agent was created (#7751).
-            if (typeof msg.warehouseId === "number") {
-              agent.setDelegateWarehouse(msg.warehouseId);
-            }
+            // selected when the agent was created. An absent field IS the
+            // current selection — none — so it clears a previous pick rather
+            // than leaving a stale id to be sent (and refused while the feature
+            // is off) forever (#7751).
+            agent.setDelegateWarehouse(typeof msg.warehouseId === "number" ? msg.warehouseId : undefined);
 
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));
