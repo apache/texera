@@ -21,7 +21,7 @@ import { localGetObject, localSetObject } from "../../../common/util/storage";
 import { HeatmapView } from "./heatmap-scoring";
 
 /** localStorage key for the persisted heat-map overlay state. */
-export const HEATMAP_OVERLAY_STORAGE_KEY = "heatmapOverlay";
+export const HEATMAP_OVERLAY_STORAGE_KEY = "heatmap-overlay";
 
 /** Persisted shape: the active view, or null when the overlay is off. */
 export interface PersistedHeatmapOverlay {

@@ -148,6 +148,41 @@ describe("HeatmapStatsRestoreService", () => {
     expect(statusService.setExternalStatus).not.toHaveBeenCalled();
   });
 
+  it("is cold: reads no gate and issues no request until subscribed", () => {
+    const pending = service.restoreLatestRunStatistics();
+
+    expect(executeService.getExecutionState).not.toHaveBeenCalled();
+    expect(executionsService.retrieveWorkflowExecutions).not.toHaveBeenCalled();
+
+    pending.subscribe();
+
+    expect(executionsService.retrieveWorkflowExecutions).toHaveBeenCalledWith(42);
+  });
+
+  it("evaluates the gates at subscribe time, not at call time", () => {
+    const pending = service.restoreLatestRunStatistics();
+    savePersistedHeatmapView(null);
+
+    pending.subscribe();
+
+    expect(executionsService.retrieveWorkflowExecutions).not.toHaveBeenCalled();
+    expect(statusService.setExternalStatus).not.toHaveBeenCalled();
+  });
+
+  it("drops the restore when a run starts while the fetches are in flight", () => {
+    // The entry guard passes on Uninitialized, which is also the state before the websocket
+    // connects; a live run landing mid-flight must not be overwritten by the previous run.
+    executionsService.retrieveWorkflowRuntimeStatistics.mockImplementation(() => {
+      executeService.getExecutionState.mockReturnValue({ state: ExecutionState.Running } as never);
+      return of([makeStatsRow({})]);
+    });
+
+    service.restoreLatestRunStatistics().subscribe();
+
+    expect(executionsService.retrieveWorkflowRuntimeStatistics).toHaveBeenCalled();
+    expect(statusService.setExternalStatus).not.toHaveBeenCalled();
+  });
+
   it("neither ingests nor throws when the workflow has no executions", () => {
     executionsService.retrieveWorkflowExecutions.mockReturnValue(of([]));
 
@@ -184,18 +219,42 @@ describe("HeatmapStatsRestoreService", () => {
     expect(executionsService.retrieveWorkflowRuntimeStatistics).toHaveBeenCalledWith(42, 5, 11);
   });
 
+  // The error path is pinned via an explicit { error, complete } observer. RxJS 7 reports an
+  // unhandled error asynchronously instead of rethrowing from subscribe(), so a not.toThrow()
+  // assertion would pass with catchError deleted.
   it("swallows an HTTP error from the executions fetch", () => {
     executionsService.retrieveWorkflowExecutions.mockReturnValue(throwError(() => new Error("500")));
+    const onError = vi.fn();
+    const onComplete = vi.fn();
 
-    expect(() => service.restoreLatestRunStatistics().subscribe()).not.toThrow();
+    service.restoreLatestRunStatistics().subscribe({ error: onError, complete: onComplete });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledTimes(1);
     expect(statusService.setExternalStatus).not.toHaveBeenCalled();
   });
 
   it("swallows an HTTP error from the statistics fetch", () => {
     executionsService.retrieveWorkflowRuntimeStatistics.mockReturnValue(throwError(() => new Error("500")));
+    const onError = vi.fn();
+    const onComplete = vi.fn();
 
-    expect(() => service.restoreLatestRunStatistics().subscribe()).not.toThrow();
+    service.restoreLatestRunStatistics().subscribe({ error: onError, complete: onComplete });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledTimes(1);
     expect(statusService.setExternalStatus).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an ingestion failure instead of swallowing it as a skipped restore", () => {
+    statusService.setExternalStatus.mockImplementation(() => {
+      throw new Error("ingest failed");
+    });
+    const onError = vi.fn();
+
+    service.restoreLatestRunStatistics().subscribe({ error: onError });
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "ingest failed" }));
   });
 
   it("does not ingest an empty statistics payload", () => {

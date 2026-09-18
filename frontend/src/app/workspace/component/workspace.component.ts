@@ -261,8 +261,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // Best-effort: repaint the heat-map from the last run's persisted
           // statistics. The service itself gates on the overlay being
           // persisted-on (and skips during a live execution), so this is a
-          // no-op for everyone else.
-          this.heatmapStatsRestoreService.restoreLatestRunStatistics().pipe(untilDestroyed(this)).subscribe();
+          // no-op for everyone else. Fetch failures are swallowed there; an
+          // error arriving here is a mapping or ingestion bug, so it is logged.
+          this.heatmapStatsRestoreService
+            .restoreLatestRunStatistics()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (err: unknown) => console.error("Failed to restore heat-map statistics:", err),
+            });
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment

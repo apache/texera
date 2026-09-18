@@ -48,8 +48,8 @@ export function operatorStateFromStatusCode(code: number): OperatorState {
  * per operator (by timestamp; the later row wins a tie, matching write
  * order), mapped to the wire shape WorkflowStatusService ingests.
  *
- * Port-level metrics are not persisted historically, so the port maps are
- * empty — restored port labels read 0, like a resetStatus snapshot.
+ * The engine sums the ports away before persisting, so the port maps are left
+ * absent rather than empty — an empty map would zero the port labels.
  */
 export function toOperatorRuntimeStatusMap(rows: WorkflowRuntimeStatistics[]): Record<string, OperatorRuntimeStatus> {
   const latestByOperator: Record<string, WorkflowRuntimeStatistics> = {};
@@ -66,10 +66,8 @@ export function toOperatorRuntimeStatusMap(rows: WorkflowRuntimeStatistics[]): R
       operatorState: operatorStateFromStatusCode(row.status),
       aggregatedInputRowCount: row.inputTupleCount,
       aggregatedInputSize: row.inputTupleSize,
-      inputPortMetrics: {},
       aggregatedOutputRowCount: row.outputTupleCount,
       aggregatedOutputSize: row.outputTupleSize,
-      outputPortMetrics: {},
       numWorkers: row.numberOfWorkers,
       aggregatedDataProcessingTime: row.totalDataProcessingTime,
       aggregatedControlProcessingTime: row.totalControlProcessingTime,

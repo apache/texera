@@ -18,19 +18,16 @@
  */
 
 import { Injectable } from "@angular/core";
-import { EMPTY, Observable, of } from "rxjs";
-import { catchError, map, switchMap } from "rxjs/operators";
+import { EMPTY, Observable, defer, of } from "rxjs";
+import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
-import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
+import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { isNotInExecution } from "../../types/execute-workflow.interface";
+import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { loadPersistedHeatmapView } from "./heatmap-overlay-persistence";
 import { toOperatorRuntimeStatusMap } from "./runtime-statistics-mapper";
-
-/** Persisted execution status code for a completed run (EXECUTION_STATUS_CODE). */
-const EXECUTION_COMPLETED_CODE = 3;
 
 /**
  * Restores the last execution's per-operator statistics after a page refresh,
@@ -57,37 +54,46 @@ export class HeatmapStatsRestoreService {
    * silently (including on HTTP errors — restoring is best-effort) when:
    * - the overlay is not persisted on,
    * - the workflow has never been saved (no wid),
-   * - an execution is in progress (the live stream wins),
+   * - an execution is in progress, on entry or by the time the fetches return
+   *   (the live stream wins),
    * - the workflow has no executions or the run left no statistics.
    */
   public restoreLatestRunStatistics(): Observable<void> {
-    if (loadPersistedHeatmapView() === null) {
-      return EMPTY;
-    }
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
-    if (wid === undefined) {
-      return EMPTY;
-    }
-    if (!isNotInExecution(this.executeWorkflowService.getExecutionState().state)) {
-      return EMPTY;
-    }
+    return defer(() => {
+      if (loadPersistedHeatmapView() === null) {
+        return EMPTY;
+      }
+      const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+      if (wid === undefined) {
+        return EMPTY;
+      }
+      if (this.isExecuting()) {
+        return EMPTY;
+      }
 
-    return this.workflowExecutionsService.retrieveWorkflowExecutions(wid).pipe(
-      switchMap(executions => {
-        const run = this.pickLatestRun(executions);
-        if (run === undefined) {
-          return EMPTY;
-        }
-        return this.workflowExecutionsService.retrieveWorkflowRuntimeStatistics(wid, run.eId, run.cuId);
-      }),
-      map(rows => {
-        const runtimeStatus = toOperatorRuntimeStatusMap(rows);
-        if (Object.keys(runtimeStatus).length > 0) {
+      return this.workflowExecutionsService.retrieveWorkflowExecutions(wid).pipe(
+        switchMap(executions => {
+          const run = this.pickLatestRun(executions);
+          if (run === undefined) {
+            return EMPTY;
+          }
+          return this.workflowExecutionsService.retrieveWorkflowRuntimeStatistics(wid, run.eId, run.cuId);
+        }),
+        // Only the fetches are best-effort. Placed above the map so a mapping or ingestion
+        // failure still surfaces instead of looking like a run with nothing to restore.
+        catchError(() => EMPTY),
+        tap(rows => {
+          const runtimeStatus = toOperatorRuntimeStatusMap(rows);
+          // Re-checked, not redundant: the entry guard ran two round trips ago, and the
+          // websocket can connect and start streaming a live run inside that window.
+          if (this.isExecuting() || Object.keys(runtimeStatus).length === 0) {
+            return;
+          }
           this.workflowStatusService.setExternalStatus(runtimeStatus);
-        }
-      }),
-      catchError(() => EMPTY)
-    );
+        }),
+        map(() => undefined)
+      );
+    });
   }
 
   /**
@@ -100,6 +106,11 @@ export class HeatmapStatsRestoreService {
       entries.length === 0
         ? undefined
         : entries.reduce((latest, entry) => (entry.startingTime > latest.startingTime ? entry : latest));
-    return latestOf(executions.filter(e => e.status === EXECUTION_COMPLETED_CODE)) ?? latestOf(executions);
+    const completed = executions.filter(e => EXECUTION_STATUS_CODE[e.status] === ExecutionState.Completed);
+    return latestOf(completed) ?? latestOf(executions);
+  }
+
+  private isExecuting(): boolean {
+    return !isNotInExecution(this.executeWorkflowService.getExecutionState().state);
   }
 }

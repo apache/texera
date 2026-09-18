@@ -78,16 +78,22 @@ describe("toOperatorRuntimeStatusMap", () => {
         operatorState: OperatorState.Running,
         aggregatedInputRowCount: 1_000,
         aggregatedInputSize: 8_000,
-        inputPortMetrics: {},
         aggregatedOutputRowCount: 250,
         aggregatedOutputSize: 2_000,
-        outputPortMetrics: {},
         numWorkers: 2,
         aggregatedDataProcessingTime: 5_000_000,
         aggregatedControlProcessingTime: 1_000_000,
         aggregatedIdleTime: 700_000,
       },
     });
+  });
+
+  it("omits the port maps rather than emitting empty ones, so port labels survive a restore", () => {
+    // An empty map reads as "every port measured zero" and makes JointUIService write 0 over
+    // the port display names; absent means "no per-port information" and leaves them alone.
+    const restored = toOperatorRuntimeStatusMap([makeRow({ operatorId: "op1" })]).op1;
+    expect(restored).not.toHaveProperty("inputPortMetrics");
+    expect(restored).not.toHaveProperty("outputPortMetrics");
   });
 
   it("keeps only the latest row per operator, regardless of input order", () => {
