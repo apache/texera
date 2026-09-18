@@ -168,6 +168,39 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // A group keyed on a missing value and one keyed on a NaN are two groups to
+  // the engine. The two are only distinct in a nullable dtype, which is what an
+  // Arrow file is read into.
+  it should "group a missing key apart from a NaN one" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val desc = descWith(List("k"), aggOp(AggregationFunction.SUM, "v", "total"))
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |in1df = pd.DataFrame({
+         |    "k": pd.arrays.FloatingArray(np.array([0.0, np.nan]), np.array([True, False])),
+         |    "v": [1, 2],
+         |})
+         |${desc.generateStandaloneCode()}
+         |print(len(out1df), sorted(int(x) for x in out1df["total"]))
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-null-nan-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Two groups of one row each, not one group totalling 3.
+      out.trim shouldBe "2 [1, 2]"
+    }
+  }
+
   // Without a schema the type-led branches cannot be chosen.
   it should "fall back to pandas' own answers when no schema is given" in {
     val desc = descWith(List.empty, aggOp(AggregationFunction.SUM, "i", "int_total"))
@@ -219,7 +252,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def canImportPandas(python: String): Boolean =
     Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
     ).toOption.exists { p =>
       if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
       else p.exitValue() == 0

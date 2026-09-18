@@ -226,6 +226,43 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // A key that is missing and a key holding a NaN are two different keys to the
+  // engine, so only the missing one matches a missing right key. The two are
+  // only distinct in a nullable dtype, which is what an Arrow file is read into.
+  it should "match a missing key but not a NaN one" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "k"
+    d.joinType = JoinType.LEFT_OUTER
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def col(vals, mask):
+         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
+         |
+         |in1df = pd.DataFrame({"k": col([0.0, np.nan], [True, False]), "lv": [1, 2]})
+         |in2df = pd.DataFrame({"k": col([0.0], [True]), "rv": [9]})
+         |${d.generateStandaloneCode()}
+         |print(len(out1df), int(out1df["rv"].notna().sum()))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-null-nan-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Both left rows come back, and exactly one of them found a partner.
+      out.trim shouldBe "2 1"
+    }
+  }
+
   // Without a schema nothing says which columns were integers.
   it should "leave the widening alone when no schema is given" in {
     val d = new HashJoinOpDesc[Integer]
@@ -272,7 +309,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def canImportPandas(python: String): Boolean =
     Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
     ).toOption
       .exists { p =>
         if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
