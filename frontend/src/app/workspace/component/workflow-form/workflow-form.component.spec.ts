@@ -71,7 +71,8 @@ describe("WorkflowFormComponent", () => {
       h.datePipe as any,
       h.panelResizeService as any,
       h.validationWorkflowService as any,
-      h.config as any
+      h.config as any,
+      h.warehouseService as any
     );
     return component;
   };
@@ -1504,6 +1505,34 @@ describe("WorkflowFormComponent", () => {
       build(formViewWorkflow).ngOnInit();
 
       expect(component.runButtonState).toEqual({ label: "Computing Unit", icon: "plus-circle", disabled: true });
+    });
+
+    it("names the missing warehouse instead of offering a run that would be refused (#8591)", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(undefined);
+
+      expect(component.runButtonState).toEqual({ label: "Warehouse", icon: "plus-circle", disabled: true });
+    });
+
+    it("says 'No access' before the warehouse, since picking one would not unblock a reader", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      (component as any).selectedUnit = { accessPrivilege: "READ" };
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(undefined);
+
+      expect(component.runButtonState).toEqual({ label: "No access", icon: "lock", disabled: true });
+    });
+
+    it("runs once a warehouse is picked", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(7);
+
+      expect(component.runButtonState).toEqual({ label: "Run", icon: "caret-right", disabled: false });
     });
 
     it("offers Run once a unit is up and the graph is valid", () => {
