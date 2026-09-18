@@ -47,8 +47,14 @@ export default defineConfig({
   // `require()` calls inside the CJS package crash on first import.
   // Explicit-include forces esbuild to pre-bundle it (alongside its
   // `base64-js` + `ieee754` transitive deps) into a browser-runnable ESM.
+  //
+  // `@vitest/coverage-v8/browser` is loaded dynamically by the coverage provider once
+  // `--coverage` is passed, and it is not in the import graph either, so it needs the same
+  // hint. Without it the run fails with "Failed to fetch dynamically imported module:
+  // /@id/@vitest/coverage-v8/browser" and no coverage is produced -- the tests still pass,
+  // which is why the gap went unnoticed.
   optimizeDeps: {
-    include: ["buffer"],
+    include: ["buffer", "@vitest/coverage-v8/browser"],
   },
   test: {
     // Emit a JUnit-XML report alongside the default console reporter so
@@ -56,6 +62,12 @@ export default defineConfig({
     // flakies on main. Written to a distinct filename so the upload step
     // can disambiguate it from the unit-test report.
     reporters: ["default", ["junit", { outputFile: "junit-browser.xml" }]],
+    // Written to its own directory so it does not overwrite the jsdom run's
+    // coverage/gui/lcov.info. Codecov merges multiple uploads under one flag, so both
+    // records count and the lines these tests already exercise stop reading as uncovered.
+    coverage: {
+      reportsDirectory: "coverage-browser",
+    },
     globals: true,
     // browser-buffer-polyfill must run FIRST: it puts Buffer/process on
     // globalThis before any test module loads, which is required for
