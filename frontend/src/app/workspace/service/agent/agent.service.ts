@@ -668,12 +668,6 @@ export class AgentService {
       if (selectedUnit) {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
-      // Same for the warehouse the user picked: agent runs write into it rather than
-      // shared storage, which the backend requires while the feature is on (#7751).
-      const selectedWarehouseId = this.warehouseService.getSelectedWarehouseIdValue();
-      if (selectedWarehouseId !== undefined) {
-        body.warehouseId = selectedWarehouseId;
-      }
 
       return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
         map(response => {

@@ -149,7 +149,6 @@ describe("AgentService", () => {
       expect(req.request.body.name).toEqual("Bob");
       expect(req.request.body.workflowId).toBeUndefined();
       expect(req.request.body.computingUnitId).toBeUndefined();
-      expect(req.request.body.warehouseId).toBeUndefined();
       req.flush(apiAgent);
 
       expect(created?.id).toEqual("agent-1");
@@ -164,17 +163,6 @@ describe("AgentService", () => {
       expect(req.request.body.workflowId).toEqual(42);
       expect(req.request.body.computingUnitId).toEqual(7);
       expect(req.request.body.userToken).toBeUndefined();
-      req.flush(apiAgent);
-    });
-
-    it("includes the selected warehouse id in the payload", () => {
-      // Agent runs must write into the warehouse the user picked, the same way they
-      // run on the computing unit the user picked (#7751).
-      selectedWarehouseId = 5;
-      service.createAgent("gpt-5-mini", "Bob", 42).subscribe();
-
-      const req = httpMock.expectOne(r => r.method === "POST" && r.url === "/api/agents");
-      expect(req.request.body.warehouseId).toEqual(5);
       req.flush(apiAgent);
     });
   });
