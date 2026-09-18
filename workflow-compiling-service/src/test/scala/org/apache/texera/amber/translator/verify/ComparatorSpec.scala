@@ -154,14 +154,99 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "read an integer column by its declared type on both sides" in {
-    // The script widens a holed integer column to float and writes 6.0 where the
-    // engine wrote 6. Both are the integer the schema declares, so this is the one
-    // difference in spelling that is not a difference in answer.
+  it should "reject an integer column only one side widened to a float" in {
+    // This passed on the grounds that 6.0 and 6 spell the same integer. They do
+    // not survive the same: a later cast to text writes "6" from one and "6.0"
+    // from the other.
     val dir = Files.createTempDirectory("comparator-spec-int-spelling-")
     val a = writeLongs(dir, "a.jsonl", Seq(6L))
     val b = writeLines(dir, "b.jsonl", Seq("""{"n":6.0}"""))
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("the two sides wrote it differently")
+  }
+
+  it should "accept an integer column both sides widened alike" in {
+    // Where the engine's own path is a Python operator its table goes through
+    // pandas too, so a hole widens the column on both paths and the two still
+    // agree. What is asked here is whether the paths match, not whether pandas
+    // kept the type.
+    val dir = Files.createTempDirectory("comparator-spec-int-both-widened-")
+    // writeLongs for the schema sidecar it leaves; the rows are then rewritten
+    // as the widened form both paths would have produced.
+    val a = writeLongs(dir, "a.jsonl", Seq(6L))
+    Files.writeString(a, "{\"n\":6.0}\n")
+    val b = writeLines(dir, "b.jsonl", Seq("""{"n":6.0}"""))
     noException should be thrownBy Comparator.assertEqual(a, b)
+  }
+
+  // The comparison took its columns from the actual side and selected those out
+  // of the expected one, so a column only the expected side carried was never
+  // looked at.
+  it should "report a column only one side carries" in {
+    val dir = Files.createTempDirectory("comparator-spec-extra-column-")
+    val a = writeLines(dir, "a.jsonl", Seq("""{"id":1,"name":"alice"}"""))
+    val b = writeLines(dir, "b.jsonl", Seq("""{"id":1,"name":"alice","extra":9}"""))
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("only in expected")
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(b, a)
+    }.getMessage should include("only in actual")
+  }
+
+  // Column order is part of the schema: it decides what a positional UDF reads,
+  // what a file export writes, and what code asking for the first column gets.
+  it should "treat column-reordered files as unequal" in {
+    val dir = Files.createTempDirectory("comparator-spec-column-order-")
+    val a = writeLines(dir, "a.jsonl", Seq("""{"a":1,"b":2}"""))
+    val b = writeLines(dir, "b.jsonl", Seq("""{"b":2,"a":1}"""))
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("different order")
+  }
+
+  // Reading both sides with `dtype=str` settles them on one spelling, which a
+  // text column needs, but it reads the JSON number 6 as "6" just as readily, so
+  // a side that wrote a number where the engine declared text compared equal to
+  // the text. What the file actually holds is what separates them.
+  it should "reject a number written where the schema declares text" in {
+    val dir = Files.createTempDirectory("comparator-spec-text-number-")
+    val textSchema = Schema().add(new Attribute("code", AttributeType.STRING))
+    val a = dir.resolve("a.jsonl")
+    TupleIO.writeTuples(
+      a,
+      Iterator(Tuple.builder(textSchema).add(textSchema.getAttribute("code"), "6").build()),
+      textSchema
+    )
+    val b = writeLines(dir, "b.jsonl", Seq("""{"code":6}"""))
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("declared text but holds 6")
+  }
+
+  // numpy counts True as 1 and the frame comparison is asked not to check
+  // dtypes, so a column of booleans compared equal to a column of ones. The
+  // engine says a BOOLEAN column holds true and false.
+  it should "reject a number written where the schema declares a boolean" in {
+    val dir = Files.createTempDirectory("comparator-spec-bool-number-")
+    val boolSchema = Schema().add(new Attribute("flag", AttributeType.BOOLEAN))
+    val a = dir.resolve("a.jsonl")
+    TupleIO.writeTuples(
+      a,
+      Iterator(
+        Tuple.builder(boolSchema).add(boolSchema.getAttribute("flag"), Boolean.box(true)).build()
+      ),
+      boolSchema
+    )
+    val b = writeLines(dir, "b.jsonl", Seq("""{"flag":1}"""))
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("the two sides wrote it differently")
   }
 
   it should "report a model column only one side produced" in {
@@ -279,5 +364,24 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     val expected = writeLines(dir, "expected.json", Seq(plotlyFigure(7)))
     val (exit, said) = runPlotly(actual, expected)
     withClue(s"compare.py said:\n$said") { exit shouldBe 0 }
+  }
+
+  // `bool` is a subclass of `int` in Python, so a boolean setting fell into the
+  // numeric branch and True compared equal to 1. A column whose declared type
+  // changed from boolean to integer reaches a figure as exactly that.
+  it should "treat a boolean setting and the number 1 as different" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-bool-")
+    val actual = writeLines(
+      dir,
+      "actual.jsonl",
+      Seq("""{"json-content": {"data": [{"visible": true}], "layout": {}}}""")
+    )
+    def expected(visible: String): Path =
+      writeLines(dir, s"expected-$visible.json", Seq(s"""{"data": [{"visible": $visible}], "layout": {}}"""))
+
+    val (asNumber, said) = runPlotly(actual, expected("1"))
+    withClue(s"compare.py said:\n$said") { asNumber should not be 0 }
+    val (asBoolean, alsoSaid) = runPlotly(actual, expected("true"))
+    withClue(s"compare.py said:\n$alsoSaid") { asBoolean shouldBe 0 }
   }
 }

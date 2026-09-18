@@ -143,9 +143,25 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
             # probe's first column as a Series, not the whole frame (predicting
             # on a DataFrame would make CountVectorizer iterate column labels).
             names = getattr(m_actual, "feature_names_in_", None)
-            x_a = probe[list(names)] if names is not None else probe.iloc[:, 0]
             names_e = getattr(m_expected, "feature_names_in_", None)
-            x_e = probe[list(names_e)] if names_e is not None else probe.iloc[:, 0]
+
+            # What a model was fitted on is part of the model, and each side was
+            # being asked about its own features. Two models fitted on different
+            # columns still answer alike on a probe that carries both, so the
+            # predictions agreed while the models did not. One side having names
+            # where the other has none is the same divergence: it says the two
+            # were fitted on differently shaped input.
+            listed = None if names is None else list(names)
+            listed_e = None if names_e is None else list(names_e)
+            if listed != listed_e:
+                raise AssertionError(
+                    f"model column {col!r} row {i}: fitted feature names differ\n"
+                    f"  actual:   {listed}\n"
+                    f"  expected: {listed_e}"
+                )
+
+            x_a = probe[listed] if listed is not None else probe.iloc[:, 0]
+            x_e = probe[listed_e] if listed_e is not None else probe.iloc[:, 0]
 
             pred_a = np.asarray(m_actual.predict(x_a))
             pred_e = np.asarray(m_expected.predict(x_e))
@@ -193,13 +209,15 @@ def _string_columns(actual_path: str) -> dict:
     }
 
 
-def _exact_integers(path: str, columns: list) -> dict:
-    """The named columns re-read with Python's json, whose integers are exact.
+def _declared_strings(path: str, columns: list) -> dict:
+    """The named columns re-read with Python's json, which keeps a string a
+    string and leaves a number a number.
 
-    `read_json` parses a column holding a null through float64, so a LONG of
-    9007199254740993 is already 9007199254740992 by the time anything compares
-    it. Pinning the dtype does not help: the rounding happens on the way in.
-    A value that is not whole is itself the divergence, so it is reported.
+    Reading them with `dtype=str` settles the two sides on one spelling, which
+    is what a text column needs, but it settles too much: it turns the JSON
+    number 6 into "6" as readily as it leaves "6" alone, so a side that wrote a
+    number where the engine declared text compared equal to the text. The
+    engine's own output is always text here, so a number is the divergence.
     """
     import json
 
@@ -216,17 +234,128 @@ def _exact_integers(path: str, columns: list) -> dict:
                 cell = row.get(column)
                 if cell is None:
                     values[column].append(pd.NA)
-                elif isinstance(cell, bool) or not isinstance(cell, (int, float)):
-                    raise AssertionError(
-                        f"column '{column}' is declared integral but holds {cell!r} in {path}"
-                    )
-                elif cell != int(cell):
-                    raise AssertionError(
-                        f"column '{column}' is declared integral but holds {cell!r} in {path}"
-                    )
+                elif isinstance(cell, str):
+                    values[column].append(cell)
                 else:
-                    values[column].append(int(cell))
-    return {column: pd.array(cells, dtype="Int64") for column, cells in values.items()}
+                    raise AssertionError(
+                        f"column '{column}' is declared text but holds {cell!r} in {path}"
+                    )
+    return {column: pd.array(cells, dtype="string") for column, cells in values.items()}
+
+
+def _raw_column(path: str, columns: list) -> dict:
+    """The named columns as Python's json read them, where an integer is exact
+    and a float is still a float."""
+    import json
+
+    values = {column: [] for column in columns}
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            for column in columns:
+                values[column].append(row.get(column))
+    return values
+
+
+def _json_kind(cell) -> str:
+    if isinstance(cell, bool):
+        return "boolean"
+    if isinstance(cell, int):
+        return "integer"
+    if isinstance(cell, float):
+        return "float"
+    return type(cell).__name__
+
+
+def _assert_sides_agree(actual: dict, expected: dict, columns: list, declared: str) -> None:
+    """Fail where the two sides wrote a column as different JSON kinds.
+
+    What the comparison is asked is whether the paths match, not whether pandas
+    kept the declared type: where the engine's own path is a Python operator its
+    table goes through pandas too, so a hole widens the column on both paths
+    alike and the two still agree. One side widening on its own is the
+    divergence, and it is the one the digits hide.
+    """
+    for column in columns:
+        kinds_a = {_json_kind(c) for c in actual[column] if c is not None}
+        kinds_e = {_json_kind(c) for c in expected[column] if c is not None}
+        if kinds_a != kinds_e:
+            raise AssertionError(
+                f"column '{column}' is declared {declared} and the two sides wrote it "
+                f"differently\n"
+                f"  actual:   {sorted(kinds_a) or ['all null']}\n"
+                f"  expected: {sorted(kinds_e) or ['all null']}"
+            )
+
+
+def _exact_integers(actual_path: str, expected_path: str, columns: list) -> tuple:
+    """Both sides' named columns re-read with Python's json, whose integers are
+    exact, having first agreed on what each column holds.
+
+    `read_json` parses a column holding a null through float64, so a LONG of
+    9007199254740993 is already 9007199254740992 by the time anything compares
+    it. Pinning the dtype does not help: the rounding happens on the way in.
+
+    One side writing a float where the other wrote an integer is the divergence
+    the digits hide. 6.0 was read as the 6 the schema asked for, on the grounds
+    that both spell the same integer, but they do not survive the same: a later
+    cast to text writes "6" from one and "6.0" from the other.
+
+    Both sides writing a float is not a divergence; see [[_assert_sides_agree]].
+    """
+    import pandas as pd
+
+    actual = _raw_column(actual_path, columns)
+    expected = _raw_column(expected_path, columns)
+    _assert_sides_agree(actual, expected, columns, "integral")
+
+    def arrays(values):
+        out = {}
+        for column, cells in values.items():
+            # A column either side widened is compared as the float it now is,
+            # exactly rather than by tolerance; one both sides kept integral is
+            # carried in the nullable integer, where a long stays exact.
+            widened = any(isinstance(c, float) for c in cells)
+            dtype = "float64" if widened else "Int64"
+            out[column] = pd.array(
+                [pd.NA if c is None else c for c in cells], dtype=dtype
+            )
+        return out
+
+    return arrays(actual), arrays(expected)
+
+
+def _declared_booleans(actual_path: str, expected_path: str, columns: list) -> tuple:
+    """Both sides' declared BOOLEAN columns, having first agreed on what each
+    one holds.
+
+    numpy counts True as 1, and `assert_frame_equal` is asked not to check
+    dtypes, so a column of booleans compared equal to a column of ones. The
+    engine says of a BOOLEAN column that it holds true and false, and a side
+    that wrote a number there has changed the type of the answer.
+
+    As with the integers, both sides widening alike is not a divergence: a hole
+    costs a pandas boolean column its type on whichever path went through
+    pandas, and if both did they still agree.
+    """
+    import pandas as pd
+
+    actual = _raw_column(actual_path, columns)
+    expected = _raw_column(expected_path, columns)
+    _assert_sides_agree(actual, expected, columns, "boolean")
+
+    def arrays(values):
+        out = {}
+        for column, cells in values.items():
+            kept = all(c is None or isinstance(c, bool) for c in cells)
+            cells = [pd.NA if c is None else c for c in cells]
+            out[column] = pd.array(cells, dtype="boolean" if kept else "float64")
+        return out
+
+    return arrays(actual), arrays(expected)
 
 
 def _run_comparison(
@@ -254,6 +383,21 @@ def _run_comparison(
     actual = pd.read_json(actual_path, lines=True, dtype=str_cols or None)
     expected = pd.read_json(expected_path, lines=True, dtype=str_cols or None)
 
+    # `dtype=str` above settles the spelling, which a text column needs, but it
+    # also turns a JSON number into text, so a side that wrote 6 where the engine
+    # declared text compared equal to "6". Re-read those columns from the raw
+    # JSON, where a number is still a number and so still a divergence.
+    raw_str_cols = [
+        name for name in str_cols if name in actual.columns and name in expected.columns
+    ]
+    if raw_str_cols:
+        try:
+            for frame, path in ((actual, actual_path), (expected, expected_path)):
+                for column, values in _declared_strings(path, raw_str_cols).items():
+                    frame[column] = values
+        except AssertionError as exc:
+            return str(exc)
+
     # Both sides take the ENGINE's declared type, which also settles a column a
     # hole widened to float on one path and not the other.
     int_cols = [
@@ -263,11 +407,29 @@ def _run_comparison(
     ]
     if int_cols:
         try:
-            for frame, path in ((actual, actual_path), (expected, expected_path)):
-                for column, values in _exact_integers(path, int_cols).items():
-                    frame[column] = values
+            exact_a, exact_e = _exact_integers(actual_path, expected_path, int_cols)
         except AssertionError as exc:
             return str(exc)
+        for column in int_cols:
+            actual[column] = exact_a[column]
+            expected[column] = exact_e[column]
+
+    # numpy counts True as 1 and the dtype check is off, so a column of booleans
+    # compared equal to a column of ones. The engine says a BOOLEAN column holds
+    # true and false; a side that wrote a number there changed the answer's type.
+    bool_cols = [
+        name
+        for name, kind in declared.items()
+        if kind == "boolean" and name in actual.columns and name in expected.columns
+    ]
+    if bool_cols:
+        try:
+            bool_a, bool_e = _declared_booleans(actual_path, expected_path, bool_cols)
+        except AssertionError as exc:
+            return str(exc)
+        for column in bool_cols:
+            actual[column] = bool_a[column]
+            expected[column] = bool_e[column]
 
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
@@ -282,6 +444,31 @@ def _run_comparison(
     if ignore_cols:
         actual = actual.drop(columns=ignore_cols, errors="ignore")
         expected = expected.drop(columns=ignore_cols, errors="ignore")
+
+    # The column list is part of the answer, and neither half of it was being
+    # checked. The comparison took its columns from `actual` and selected those
+    # out of `expected`, so a column only `expected` carried was never looked
+    # at. Order went unchecked too, under `check_like`, and order is what a
+    # positional UDF reads by, what a file export writes out, and what code
+    # asking for the first column gets.
+    if list(actual.columns) != list(expected.columns):
+        only_actual = [c for c in actual.columns if c not in set(expected.columns)]
+        only_expected = [c for c in expected.columns if c not in set(actual.columns)]
+        detail = []
+        if only_actual:
+            detail.append(f"  only in actual:   {only_actual}")
+        if only_expected:
+            detail.append(f"  only in expected: {only_expected}")
+        if not detail:
+            detail.append("  the same columns in a different order")
+        return "\n".join(
+            [
+                "column mismatch",
+                f"  actual:   {list(actual.columns)}",
+                f"  expected: {list(expected.columns)}",
+            ]
+            + detail
+        )
 
     if unordered:
         # Sort both sides by the same column key so set-equal frames collapse
@@ -303,19 +490,20 @@ def _run_comparison(
     # 100000 and 100001 compare equal. Integer columns are compared exactly.
     exact_cols = [c for c in int_cols if c in actual.columns]
     loose_cols = [c for c in actual.columns if c not in exact_cols]
+    # No `check_like`: it sorts both frames' columns before comparing, which is
+    # what let a reordering through. The lists are known equal by here, so each
+    # of these two selections holds the same columns in the same order.
     try:
         if exact_cols:
             pd.testing.assert_frame_equal(
                 actual[exact_cols],
                 expected[exact_cols],
-                check_like=True,
                 check_dtype=False,
                 check_exact=True,
             )
         pd.testing.assert_frame_equal(
             actual[loose_cols],
             expected[loose_cols],
-            check_like=True,
             check_dtype=False,
             rtol=1e-5,
         )
@@ -404,6 +592,13 @@ def _strip_unstable(value):
 def _plots_equal(actual, expected) -> bool:
     import math
 
+    # Before the numeric branch, because `bool` is a subclass of `int` and a
+    # boolean fell into it: True and 1 went through math.isclose and compared
+    # equal. A trace says things with booleans that a number does not, and a
+    # column whose declared type changed from boolean to integer reaches the
+    # figure as exactly this difference.
+    if isinstance(actual, bool) or isinstance(expected, bool):
+        return isinstance(actual, bool) and isinstance(expected, bool) and actual == expected
     if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
         return math.isclose(float(actual), float(expected), rel_tol=1e-9, abs_tol=1e-12)
     if isinstance(actual, dict) and isinstance(expected, dict):
