@@ -451,7 +451,7 @@
           [nzPopoverTrigger]="'hover'"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || selectedComputingUnit?.accessPrivilege !== Privilege.WRITE"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || (selectedComputingUnit !== null && selectedComputingUnit.accessPrivilege !== Privilege.WRITE)"
           id="run-button"
           nz-button
           nzType="primary">

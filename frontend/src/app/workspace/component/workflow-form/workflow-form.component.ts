@@ -53,6 +53,7 @@ import { FormBindingService, ResolvedField } from "../../service/form-binding/fo
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
@@ -299,7 +300,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // Same source the operator canvas reads its "Invalid" / "Empty" states from, so Run is
     // disabled here exactly when it is disabled there.
     private validationWorkflowService: ValidationWorkflowService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private warehouseService: WarehouseService
   ) {}
 
   ngOnInit(): void {
@@ -1526,8 +1528,15 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** No unit chosen yet: the button shows a disabled "Connect" hint and the unit is picked in the
-   *  embedded selector -- unlike the canvas, where the Connect button is itself the click target. */
+  /** The exact condition ExecuteWorkflowService refuses a run on, so the button can say it first
+   *  instead of starting nothing and explaining in a toast. */
+  public get hasNoWarehouse(): boolean {
+    return this.config.env.warehouseEnabled && this.warehouseService.getSelectedWarehouseIdValue() === undefined;
+  }
+
+  /** No unit chosen yet: the button names what is missing and stays disabled, because the unit is
+   *  picked in the embedded selector -- unlike the canvas, where that button is itself the click
+   *  target for creating one. */
   public get hasNoComputingUnit(): boolean {
     return this.computingUnitStatus === ComputingUnitState.NoComputingUnit;
   }
@@ -1564,13 +1573,18 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       return { label: "Empty", icon: "info-circle", disabled: true };
     }
     if (this.hasNoComputingUnit) {
-      return { label: "Connect", icon: "plus-circle", disabled: true };
+      return { label: "Computing Unit", icon: "plus-circle", disabled: true };
     }
     // A unit is chosen and connected, but shared to this reader read-only: the canvas gates
     // execution on write access to the unit, so the form disables Run rather than sending a request
     // that the unit would reject.
     if (!this.hasUnitWriteAccess) {
       return { label: "No access", icon: "lock", disabled: true };
+    }
+    // Last of the blocked states: picking a warehouse is the only one of them the reader can act
+    // on here, so naming it earlier would send a reader without write access to fix the wrong thing.
+    if (this.hasNoWarehouse) {
+      return { label: "Warehouse", icon: "plus-circle", disabled: true };
     }
     return { label: "Run", icon: "caret-right", disabled: false };
   }
