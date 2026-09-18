@@ -20,8 +20,10 @@
 package org.apache.texera.amber.engine.architecture.worker.managers
 
 import com.google.common.collect.Queues
-import org.apache.texera.amber.core.storage.model.BufferedItemWriter
+import org.apache.texera.amber.core.storage.model.{ArrowVectorizedSink, BufferedItemWriter}
 import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.common.config.ApplicationConfig
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.util.control.NonFatal
@@ -29,12 +31,18 @@ import scala.util.control.NonFatal
 sealed trait TerminateSignal
 case object PortStorageWriterTerminateSignal extends TerminateSignal
 
+// A unit of work for the writer thread: a single row, or a whole Arrow batch
+// (columnar sink) decoded on this thread instead of on the hot DP thread.
+sealed trait StorageWriteItem
+final case class RowWriteItem(tuple: Tuple) extends StorageWriteItem
+final case class ArrowBatchWriteItem(arrowIpcBytes: Array[Byte]) extends StorageWriteItem
+
 class OutputPortStorageWriterThread(
     bufferedItemWriter: BufferedItemWriter[Tuple]
 ) extends Thread {
 
-  val queue: LinkedBlockingQueue[Either[Tuple, TerminateSignal]] =
-    Queues.newLinkedBlockingQueue[Either[Tuple, TerminateSignal]]()
+  val queue: LinkedBlockingQueue[Either[StorageWriteItem, TerminateSignal]] =
+    Queues.newLinkedBlockingQueue[Either[StorageWriteItem, TerminateSignal]]()
 
   // Captured failure from put-one or close() so the worker DP thread can
   // re-throw and let the coordinator's pekko supervisor surface a FatalError
@@ -50,8 +58,17 @@ class OutputPortStorageWriterThread(
       var internalStop = false
       while (!internalStop) {
         queue.take() match {
-          case Left(tuple) => bufferedItemWriter.putOne(tuple)
-          case Right(_)    => internalStop = true
+          case Left(RowWriteItem(tuple)) => bufferedItemWriter.putOne(tuple)
+          case Left(ArrowBatchWriteItem(bytes)) =>
+            bufferedItemWriter match {
+              // Vectorized sink (opt-in): write the Arrow batch straight to
+              // storage, no per-row object materialization.
+              case sink: ArrowVectorizedSink if ApplicationConfig.enableVectorizedSink =>
+                sink.writeArrowBatch(bytes)
+              // Otherwise decode here (off the DP thread) into rows.
+              case _ => ArrowUtils.deserializeTuples(bytes).foreach(bufferedItemWriter.putOne)
+            }
+          case Right(_) => internalStop = true
         }
       }
     } catch {

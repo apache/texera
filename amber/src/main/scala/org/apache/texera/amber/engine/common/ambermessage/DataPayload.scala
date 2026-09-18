@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.common.ambermessage
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.tuple.Tuple
+import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
@@ -36,6 +36,24 @@ sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
   */
 final case class StateFrame(frame: State, loopCounter: Long = 0L, loopStartId: String = "")
     extends DataPayload
+
+object ColumnarFrame {
+  // Bump when the on-wire columnar encoding changes incompatibly. A receiver
+  // that sees an unknown version fails fast (see DataProcessor) rather than
+  // misreading bytes, which matters for mixed-version workers during a rollout.
+  val CurrentFormatVersion: Int = 1
+}
+
+// Columnar wire payload: a batch encoded as Arrow IPC stream bytes, stamped
+// with the format version that produced it.
+final case class ColumnarFrame(
+    arrowIpcBytes: Array[Byte],
+    rowCount: Int,
+    schema: Schema,
+    formatVersion: Int = ColumnarFrame.CurrentFormatVersion
+) extends DataPayload {
+  val inMemSize: Long = arrowIpcBytes.length.toLong
+}
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {

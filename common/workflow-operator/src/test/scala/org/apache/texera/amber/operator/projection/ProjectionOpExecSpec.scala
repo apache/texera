@@ -19,8 +19,10 @@
 
 package org.apache.texera.amber.operator.projection
 
+import org.apache.texera.amber.core.executor.ColumnarResult
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -128,6 +130,53 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[RuntimeException] {
       projectionOpExec.processTuple(tuple, 0).next()
     }
+  }
+
+  private def batch(n: Int): Array[Tuple] =
+    (0 until n).map { i =>
+      Tuple
+        .builder(tupleSchema)
+        .add(new Attribute("field1", AttributeType.STRING), s"s$i")
+        .add(new Attribute("field2", AttributeType.INTEGER), Int.box(i))
+        .add(new Attribute("field3", AttributeType.BOOLEAN), Boolean.box(i % 2 == 0))
+        .build()
+    }.toArray
+
+  it should "match the row path via processColumnarBatch (rename + reorder)" in {
+    val d = new ProjectionOpDesc()
+    d.attributes = List(new AttributeUnit("field2", "f2"), new AttributeUnit("field1", "f1"))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val rows = batch(200)
+    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows), 0) match {
+      case ColumnarResult.Emit(r) => r
+      case other                  => fail(s"expected Emit, got $other")
+    }
+    val cols = out.getSchema.getFields
+    assert(cols.get(0).getName == "f2" && cols.get(1).getName == "f1")
+    val decoded = (0 until out.getRowCount).map(i => ArrowUtils.getTexeraTuple(i, out)).toList
+    out.close(); exec.close()
+    assert(decoded.map(_.getField[Any]("f2")) == rows.map(_.getField[Any]("field2")).toList)
+    assert(decoded.map(_.getField[Any]("f1")) == rows.map(_.getField[Any]("field1")).toList)
+  }
+
+  it should "match the row path via processColumnarBatch (drop mode)" in {
+    val d = new ProjectionOpDesc()
+    d.isDrop = true
+    d.attributes = List(new AttributeUnit("field2", "field2"))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val rows = batch(150)
+    val out = exec.processColumnarBatch(ArrowUtils.serializeTuples(tupleSchema, rows), 0) match {
+      case ColumnarResult.Emit(r) => r
+      case other                  => fail(s"expected Emit, got $other")
+    }
+    val names = (0 until out.getSchema.getFields.size).map(out.getSchema.getFields.get(_).getName)
+    assert(names == Seq("field1", "field3"))
+    val decoded = (0 until out.getRowCount).map(i => ArrowUtils.getTexeraTuple(i, out)).toList
+    out.close(); exec.close()
+    assert(decoded.map(_.getField[Any]("field1")) == rows.map(_.getField[Any]("field1")).toList)
+    assert(decoded.map(_.getField[Any]("field3")) == rows.map(_.getField[Any]("field3")).toList)
   }
 
   it should "allow empty alias" in {
