@@ -17,11 +17,11 @@
 
 {{/* Define storage path configuration, please change it to your own path and make sure the path exists with the right permission*/}}
 {{/* This path only works for local-path storage class */}}
-{{- $hostBasePath := .Values.persistence.minioHostLocalPath }}
+{{- $hostBasePath := .Values.persistence.rustfsHostLocalPath }}
 
-{{- if and .Values.minio.enabled .Values.minio.persistence.enabled }}
-{{- $name := "minio" }}
-{{- $persistence := .Values.minio.persistence }}
+{{- if and .Values.rustfs.enabled .Values.rustfs.persistence.enabled }}
+{{- $name := "rustfs" }}
+{{- $persistence := .Values.rustfs.persistence }}
 {{- $volumeName := printf "%s-data-pv" $name }}
 {{- $claimName := printf "%s-data-pvc" $name }}
 {{- $storageClass := $persistence.storageClass | default "local-path" }}

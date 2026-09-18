@@ -195,20 +195,18 @@ $shell: #fafafa;
 .instr {
   margin-bottom: 26px;
 
+  /* The header row. Reading, its one child is the full-width toggle button, which carries the row's
+     padding so the whole row stays clickable; authoring, the row itself is padded and holds the
+     icon, the title input and a small chevron toggle. */
   .instr-bar {
     display: flex;
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 13px 16px;
-    cursor: pointer;
-    user-select: none;
-    appearance: none;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-align: left;
+
+    &.authoring {
+      padding: 13px 16px;
+    }
 
     h2 {
       margin: 0;
@@ -225,6 +223,40 @@ $shell: #fafafa;
       color: $text-2;
       transform: rotate(-90deg);
       transition: transform 0.2s;
+    }
+  }
+
+  .instr-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    appearance: none;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: -2px;
+      border-radius: 8px;
+    }
+  }
+
+  /* The authoring toggle is only the chevron: the row's padding is on the row, and the title input
+     takes the width. */
+  .instr-chev {
+    flex: none;
+    padding: 4px;
+    border-radius: 4px;
+
+    &:focus-visible {
+      outline-offset: 0;
     }
   }
 
@@ -784,6 +816,289 @@ $shell: #fafafa;
       width: 100% !important;
       max-width: none !important;
       height: 100% !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Author mode: the in-place editing UI (Edit/Done). Everything here shows only
+   while authoring; a reader never renders these elements.
+   ============================================================================ */
+
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+
+  .lede {
+    margin: 0;
+    color: $text-2;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+}
+
+.hint {
+  font-size: 12px;
+  color: $text-2;
+}
+
+/* Author edits the instruction heading right here: looks like the h2, with a faint dashed
+   box so it reads as editable; firms up on hover, a real input on focus. */
+.instr-title-input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: 1px dashed #dcdcdc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: text;
+
+  &:hover {
+    border-style: solid;
+    border-color: #b0b0b0;
+  }
+
+  &:focus {
+    border-style: solid;
+    border-color: $blue;
+    background: #fff;
+    outline: none;
+  }
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid $divider;
+  margin: -16px -16px 14px;
+  padding: 0 16px;
+
+  button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 12px;
+    color: $text-2;
+    font-weight: 500;
+    cursor: pointer;
+
+    &[aria-current="true"] {
+      color: $blue;
+      border-bottom-color: $blue;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: -2px;
+    }
+  }
+}
+
+.md-input {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid $border;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  background: $shell;
+
+  &:focus {
+    background: #fff;
+    border-color: $blue;
+    outline: none;
+  }
+}
+
+.field-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.field-top-spacer {
+  flex: 1;
+}
+
+.grip {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  padding-top: 3px;
+}
+
+/* Move up / Move down: quiet icon buttons at the row's right edge, the keyboard route the drag
+   handle does not give. Disabled at the ends rather than hidden, so the row does not reflow as a
+   card reaches the top or bottom. */
+.move {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 3px;
+  border-radius: 3px;
+  color: $text-2;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+
+  &:hover:not([aria-disabled="true"]) {
+    color: $text;
+  }
+
+  /* At the top or bottom the button stays focusable (aria-disabled, not disabled) so a move that
+     reaches the end does not drop the keyboard focus; it only looks inert and does nothing. */
+  &[aria-disabled="true"] {
+    color: rgba(0, 0, 0, 0.15);
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $blue;
+    outline-offset: 1px;
+  }
+}
+
+.field-help {
+  font-size: 13px;
+  color: $text-2;
+  margin-top: 2px;
+}
+
+.broken {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #874d00;
+}
+
+/* A dragged card lifts; the gap it left fades. */
+.cdk-drag-preview {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+.edit {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed $border;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px 18px;
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .label {
+      font-size: 12px;
+      color: $text-2;
+    }
+
+    input {
+      border: 1px solid $border;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+
+      &:focus {
+        border-color: $blue;
+        outline: none;
+      }
+    }
+  }
+
+  .field.wide {
+    grid-column: 1 / -1;
+  }
+
+  .edit-foot {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+
+    .spacer {
+      flex: 1;
+    }
+
+    .remove {
+      background: none;
+      border: 1px solid $border;
+      border-radius: 6px;
+      padding: 4px 10px;
+      color: #ff4d4f;
+      cursor: pointer;
+
+      &:hover {
+        border-color: #ff4d4f;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $blue;
+        outline-offset: 2px;
+      }
+    }
+  }
+}
+
+.respick {
+  margin-top: 26px;
+  padding: 15px 18px;
+
+  h3 {
+    margin: 0 0 3px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 11px;
+    font-size: 13px;
+    color: $text-2;
+  }
+
+  .opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill {
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 13px;
+    border: 1px solid $border;
+    background: #fff;
+    color: $text-2;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $blue;
+      color: $blue;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: 2px;
+    }
+
+    &.on {
+      background: rgba(24, 144, 255, 0.1);
+      border-color: $blue;
+      color: $blue;
+      font-weight: 500;
     }
   }
 }

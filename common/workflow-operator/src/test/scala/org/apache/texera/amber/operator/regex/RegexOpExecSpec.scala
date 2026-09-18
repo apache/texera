@@ -127,6 +127,20 @@ class RegexOpExecSpec extends AnyFlatSpec {
   // Descriptor parse failure surfaces during construction
   // ---------------------------------------------------------------------------
 
+  it should "yield nothing when the column is empty" in {
+    val exec = new RegexOpExec(descJson(regex = "hello"))
+    // A blank CSV cell arrives as null. This used to throw a NullPointerException on
+    // the toString instead of answering the filter.
+    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+  }
+
+  it should "yield nothing when the column is empty and the regex matches anything" in {
+    val exec = new RegexOpExec(descJson(regex = ".*"))
+    // `.*` finds a match in every value, including the empty string, but a row with
+    // no value has none to search, so it is filtered out rather than kept.
+    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+  }
+
   "RegexOpExec construction" should
     "throw on malformed descriptor JSON" in {
     // The constructor calls objectMapper.readValue; mis-formed JSON must
