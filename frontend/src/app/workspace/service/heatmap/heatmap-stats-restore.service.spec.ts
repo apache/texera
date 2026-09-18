@@ -36,6 +36,7 @@ function makeExecution(overrides: Partial<WorkflowExecutionsEntry>): WorkflowExe
     eId: 1,
     vId: 1,
     cuId: 7,
+    whId: null,
     sId: 0,
     userName: "user",
     avatar: "",
