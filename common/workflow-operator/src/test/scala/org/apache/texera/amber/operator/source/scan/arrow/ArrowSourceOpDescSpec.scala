@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
+import com.typesafe.config.ConfigFactory
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.ipc.ArrowFileWriter
@@ -35,7 +36,11 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.{File, FileOutputStream}
 import java.nio.channels.Channels
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -153,6 +158,61 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.inferSchema() shouldBe schema
   }
 
+  // A missing double and a stored NaN are two different values to the engine,
+  // and a numpy column has one slot for both. A holed integer column loses its
+  // type the same way.
+  "ArrowSourceOpDesc.generateStandaloneCode" should
+    "keep a missing value apart from a NaN, and an integer integral" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema = Schema(
+      List(new Attribute("d", AttributeType.DOUBLE), new Attribute("i", AttributeType.INTEGER))
+    )
+    val file = writeArrowFile(
+      schema,
+      Seq(
+        Array[Any](null, null),
+        Array[Any](Double.box(Double.NaN), Int.box(7))
+      )
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    // The block reads the file from the script's own directory, so run there.
+    val workDir = Files.createTempDirectory("arrow-standalone-")
+    workDir.toFile.deleteOnExit()
+    val beside = workDir.resolve(file.getName)
+    Files.copy(file.toPath, beside)
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${d.generateStandaloneCode()}
+         |print(str(out1df["d"].dtype), str(out1df["i"].dtype))
+         |print(repr(out1df["d"].iloc[0]), repr(out1df["d"].iloc[1]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "Float64 Int32"
+      // The first is the value that was missing, the second the NaN that was
+      // stored. Under numpy dtypes both printed as nan.
+      lines(1) should include("<NA>")
+      lines(1) should include("nan")
+    }
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()
@@ -162,4 +222,30 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[RuntimeException](d.inferSchema())
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
