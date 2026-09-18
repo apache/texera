@@ -17,15 +17,54 @@
  under the License.
 -->
 
-<a
-  nz-dropdown
-  [nzDropdownMenu]="menu">
-  <span
-    nz-icon
-    nzType="setting"
-    nzTheme="outline"></span>
-</a>
-<nz-dropdown-menu #menu="nzDropdownMenu">
+<!-- Buttons rather than anchors so the menus can be reached by keyboard.
+     Click-triggered with [nzClickHide]="false": each menu holds several
+     independent options, so the defaults (open on hover, dismiss on any click)
+     would mean reopening it once per option. -->
+<div class="console-toolbar">
+  <button
+    nz-button
+    nzType="text"
+    nzSize="small"
+    nz-dropdown
+    nzTrigger="click"
+    [nzClickHide]="false"
+    nzOverlayClassName="console-display-settings"
+    [nzDropdownMenu]="settingsMenu"
+    [(nzVisible)]="settingsMenuOpen"
+    nz-tooltip
+    nzTooltipTitle="Display options"
+    aria-label="Display options"
+    aria-haspopup="true"
+    [attr.aria-expanded]="settingsMenuOpen">
+    <span
+      nz-icon
+      nzType="setting"
+      nzTheme="outline"></span>
+  </button>
+  <button
+    nz-button
+    nzType="text"
+    nzSize="small"
+    nz-dropdown
+    nzTrigger="click"
+    [nzClickHide]="false"
+    nzOverlayClassName="console-type-filter"
+    [nzDropdownMenu]="typeFilterMenu"
+    [(nzVisible)]="typeFilterMenuOpen"
+    nz-tooltip
+    nzTooltipTitle="Filter by message type"
+    aria-label="Filter by message type"
+    aria-haspopup="true"
+    [attr.aria-expanded]="typeFilterMenuOpen">
+    <span
+      nz-icon
+      nzType="filter"
+      nzTheme="outline"
+      class="filter-icon"></span>
+  </button>
+</div>
+<nz-dropdown-menu #settingsMenu="nzDropdownMenu">
   <ul nz-menu>
     <li nz-menu-item>
       <nz-switch
@@ -53,13 +92,44 @@
     </li>
   </ul>
 </nz-dropdown-menu>
+<nz-dropdown-menu #typeFilterMenu="nzDropdownMenu">
+  <ul nz-menu>
+    <li nz-menu-item>
+      <label
+        nz-checkbox
+        [nzChecked]="allTypesVisible"
+        [nzIndeterminate]="typeFilterIndeterminate"
+        (nzCheckedChange)="setAllTypesVisible($event)"
+        >Select all</label
+      >
+    </li>
+    <li nz-menu-divider></li>
+    <li
+      nz-menu-item
+      *ngFor="let type of messageTypes">
+      <label
+        nz-checkbox
+        [nzChecked]="isTypeVisible(type)"
+        (nzCheckedChange)="setTypeVisibility(type, $event)">
+        <nz-badge [nzStatus]="labelMapping.get(type) ?? ''"></nz-badge>
+        {{ typeLabel(type) }}
+      </label>
+    </li>
+  </ul>
+</nz-dropdown-menu>
+
+<div
+  *ngIf="hiddenMessageCount > 0"
+  class="hidden-count-notice">
+  Hidden by filter: {{ hiddenMessageCount }}
+</div>
 
 <nz-list
   nzSize="small"
   class="console-list-container"
   #consoleList>
   <nz-list-item
-    *ngFor="let entry of consoleMessages"
+    *ngFor="let entry of filteredMessages"
     class="console-message-entry"
     nzNoFlex>
     <div
