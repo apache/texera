@@ -121,6 +121,9 @@ export interface AgentDelegateConfig {
   workflowId?: number;
   workflowName?: string;
   computingUnitId?: number;
+  // The warehouse the delegating user picked in the workspace; carried the same
+  // way computingUnitId is, so agent-driven runs write into it (#7751).
+  warehouseId?: number;
 }
 
 export interface AgentSettingsApi {
@@ -149,6 +152,7 @@ export interface CreateAgentRequest {
   name?: string;
   workflowId?: number;
   computingUnitId?: number;
+  warehouseId?: number;
   settings?: AgentSettingsApi;
 }
 

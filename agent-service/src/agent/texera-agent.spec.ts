@@ -1077,7 +1077,7 @@ describe("delegate mode", () => {
   test("buildExecutionConfig projects the delegate config and live settings", async () => {
     const agent = makeAgentWith(textModel("x"));
     expect((agent as any).buildExecutionConfig()).toBeUndefined();
-    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2 };
+    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2, warehouseId: 42 };
     agent.updateSettings({
       executionTimeoutMs: 7000,
       maxOperatorResultCharLimit: 11,
@@ -1087,6 +1087,7 @@ describe("delegate mode", () => {
       userToken: "tok",
       workflowId: 5,
       computingUnitId: 2,
+      warehouseId: 42,
       maxOperatorResultCharLimit: 11,
       maxOperatorResultCellCharLimit: 13,
       executionTimeoutMs: 7000,

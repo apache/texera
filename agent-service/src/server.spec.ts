@@ -113,6 +113,30 @@ describe(`POST ${API}/agents`, () => {
     expect(agent.state).toBe("AVAILABLE");
   });
 
+  test("carries the picked warehouse from the request through to the delegate config", async () => {
+    // The whole point of the field: an agent-driven run must write into the
+    // warehouse the user picked in the workspace, not shared storage (#7751).
+    // The body schema rejects unknown properties, so this also pins the field
+    // surviving validation. The delegate config is only attached once the
+    // workflow fetch succeeds, so stub it.
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ name: "W", content: JSON.stringify({ operators: [], links: [] }) }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    try {
+      const res = await createAgent({ modelType: "test-model", workflowId: 7, computingUnitId: 3, warehouseId: 42 });
+      expect(res.status).toBe(200);
+
+      const agent = await readJson<{ delegate?: { computingUnitId?: number; warehouseId?: number } }>(res);
+      expect(agent.delegate?.computingUnitId).toBe(3);
+      expect(agent.delegate?.warehouseId).toBe(42);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   test("auto-numbers agent ids monotonically", async () => {
     const a = await readJson<{ id: string }>(await createAgent());
     const b = await readJson<{ id: string }>(await createAgent());

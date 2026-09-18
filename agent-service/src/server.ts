@@ -88,6 +88,7 @@ async function createAgentInstance(
         workflowId: delegateConfig.workflowId,
         workflowName: delegateConfig.workflowName,
         computingUnitId: delegateConfig.computingUnitId,
+        warehouseId: delegateConfig.warehouseId,
       });
 
       log.info({ agentId, workflowId: delegateConfig.workflowId }, "loaded workflow for agent");
@@ -130,6 +131,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
           workflowId: delegateConfig.workflowId,
           workflowName: delegateConfig.workflowName,
           computingUnitId: delegateConfig.computingUnitId,
+          warehouseId: delegateConfig.warehouseId,
         }
       : undefined,
     settings: settingsApi,
@@ -175,7 +177,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post(
     "/",
     async ({ body, headers }) => {
-      const { modelType, name, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
+      const { modelType, name, workflowId, computingUnitId, warehouseId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
@@ -198,6 +200,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         userInfo,
         workflowId,
         computingUnitId,
+        warehouseId,
       };
 
       const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
@@ -233,6 +236,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         name: t.Optional(t.String()),
         workflowId: t.Optional(t.Number()),
         computingUnitId: t.Optional(t.Number()),
+        warehouseId: t.Optional(t.Number()),
         settings: t.Optional(
           t.Object({
             maxOperatorResultCharLimit: t.Optional(t.Number()),
