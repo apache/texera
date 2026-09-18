@@ -51,11 +51,9 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
     (process.exitValue(), out)
   }
 
-  // A bound of 2**30 + 1 puts about half of the draws in the rejection zone, so
-  // the very first one with this seed is a draw Java throws away. Java decides
-  // that by letting `u - r + m` overflow an int; carrying the sum instead keeps
-  // the discarded value and shifts every later draw by one, which is what these
-  // five numbers pin. They are what java.util.Random answers for this seed.
+  // A bound of 2**30 + 1 puts about half the draws in the rejection zone, so the
+  // first one with this seed is already a draw Java throws away. The five
+  // numbers are what java.util.Random answers.
   "SamplingHelpers.JavaRandom" should "reject the draws Java's overflow check rejects" in {
     val (exit, out) = runWithHelper(
       """r = _TexeraJavaRandom(1)
@@ -68,10 +66,8 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // java.util.Random#nextInt(int) opens with this check, and Reservoir Sampling
-  // reaches it with a reservoir of zero: the engine ends the run there, so a
-  // script that answered with an empty table instead would be reporting a result
-  // the run never had.
+  // Reservoir Sampling reaches this check with a reservoir of zero, and the
+  // engine ends the run there.
   it should "refuse a bound that is not positive, the way Java does" in {
     val (exit, out) = runWithHelper(
       """r = _TexeraJavaRandom(1)
@@ -88,8 +84,7 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // The power-of-two bound takes the other branch, which has no rejection at
-  // all, so it would keep working even if the check above were dropped.
+  // The power-of-two bound takes the branch that never rejects.
   it should "take the power-of-two shortcut without rejecting" in {
     val (exit, out) = runWithHelper(
       """r = _TexeraJavaRandom(42)

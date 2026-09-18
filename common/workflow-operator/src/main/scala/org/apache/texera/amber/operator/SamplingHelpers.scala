@@ -60,11 +60,8 @@ object SamplingHelpers {
       |        while True:
       |            bits = self._next(31)
       |            value = bits % bound
-      |            # Java rejects a draw by letting this sum overflow: it is an int
-      |            # there, so a draw within bound of 2**31 wraps negative and is
-      |            # taken again. Python would carry the sum instead and never
-      |            # reject, which parts the two sequences on the draw that should
-      |            # have been thrown away.
+      |            # Java rejects a draw by letting this sum overflow an int.
+      |            # Python would carry it and never reject.
       |            probe = bits - value + (bound - 1)
       |            if ((probe + (1 << 31)) % (1 << 32)) - (1 << 31) >= 0:
       |                return value""".stripMargin

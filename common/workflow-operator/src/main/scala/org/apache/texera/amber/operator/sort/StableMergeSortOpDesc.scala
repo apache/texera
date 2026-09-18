@@ -82,12 +82,8 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // treats NaN as a missing value and always places it at na_position, so DESC
   // ordering of a Double column with NaNs will differ.
   //
-  // A string column parts on one narrower case. The engine compares with
-  // String.compareTo, which reads UTF-16 code units, while pandas compares
-  // Python strings by code point. The two agree across the basic plane and
-  // differ only where a character above U+FFFF meets one in U+E000..U+FFFF,
-  // since the surrogate pair that encodes the first holds units below that
-  // range.
+  // A string column parts more narrowly: the engine reads UTF-16 code units and
+  // pandas reads code points, which agree below U+FFFF and can differ above it.
   override def generateStandaloneCode(): String = {
     val criteria = Option(keys).getOrElse(ListBuffer.empty)
     if (criteria.isEmpty) return "out1df = in1df.copy()"

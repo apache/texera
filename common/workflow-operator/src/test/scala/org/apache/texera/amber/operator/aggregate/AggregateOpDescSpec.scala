@@ -114,9 +114,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Four places where pandas answers a question the engine answers differently,
-  // run rather than asserted as text: the arithmetic is the point, not the
-  // spelling of the call.
+  // Run rather than asserted as text: the arithmetic is the point.
   it should "answer SUM, AVERAGE and CONCAT the way the engine answers them" in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -170,8 +168,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Without a schema the two type-led branches cannot be chosen, so the block
-  // stays what pandas does on its own rather than guessing.
+  // Without a schema the type-led branches cannot be chosen.
   it should "fall back to pandas' own answers when no schema is given" in {
     val desc = descWith(List.empty, aggOp(AggregationFunction.SUM, "i", "int_total"))
     desc.generateStandaloneCode() should include("in1df[\"i\"].sum()")

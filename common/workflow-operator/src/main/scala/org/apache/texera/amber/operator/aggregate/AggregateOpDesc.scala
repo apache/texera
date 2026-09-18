@@ -149,10 +149,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     * it turns COUNT into SUM for the final phase, and this reads them as
     * written.
     *
-    * What SUM wraps and what AVERAGE divides both follow the column's DECLARED
-    * type, not the dtype pandas inferred: a holed INTEGER column arrives as a
-    * float, and an INTEGER and a LONG arrive alike. Without a schema the two
-    * fall back to what pandas does on its own.
+    * SUM and AVERAGE follow the column's DECLARED type: a holed INTEGER column
+    * arrives as a float, and an INTEGER and a LONG arrive alike.
     */
   override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     val schema = inputSchemas.get(operatorInfo.inputPorts.head.id)
@@ -179,8 +177,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |        if pd.isna(v):
         |            text = ""
         |        elif isinstance(v, bool) or (hasattr(v, "dtype") and v.dtype == bool):
-        |            # The engine folds with Java's toString, which spells a
-        |            # boolean in lower case. Python's spells it capitalised.
+        |            # Java's toString spells a boolean in lower case.
         |            text = "true" if v else "false"
         |        else:
         |            text = str(v)
@@ -188,23 +185,19 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return partial
         |
         |def _texera_agg_int_sum(series):
-        |    # The engine adds an INTEGER column as Java ints, which wrap at
-        |    # 2**31. pandas widens to a larger integer instead, so 2147483647
-        |    # and 1 answer 2147483648 where the run reported -2147483648.
+        |    # The engine adds an INTEGER column as Java ints, which wrap.
         |    total = int(series.sum())
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
         |def _texera_agg_ts_sum(series):
-        |    # SUM keeps the column's own type, so a sum of timestamps is a
-        |    # timestamp: the engine adds the epoch milliseconds and builds one
-        |    # from the total. pandas refuses to reduce datetime64 at all.
+        |    # SUM keeps the column's own type, so the engine adds the epoch
+        |    # milliseconds and builds a timestamp from the total.
         |    kept = series.dropna()
         |    return pd.Timestamp(int(kept.astype("int64").sum() // 10**6), unit="ms")
         |
         |def _texera_agg_ts_mean(series):
-        |    # AVERAGE is declared DOUBLE whatever column it reads, so the
-        |    # average of a timestamp column is the mean of its epoch
-        |    # milliseconds. pandas would answer with a timestamp.
+        |    # AVERAGE is declared DOUBLE whatever column it reads, so this is
+        |    # the mean of the epoch milliseconds and not a timestamp.
         |    kept = series.dropna()
         |    if len(kept) == 0:
         |        return None

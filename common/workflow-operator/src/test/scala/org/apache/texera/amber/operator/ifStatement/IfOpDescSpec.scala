@@ -91,10 +91,8 @@ class IfOpDescSpec extends AnyFlatSpec with Matchers {
     op.generateStandaloneCode() should include("\"_texera_if_ready\"")
   }
 
-  // The engine picks the route from a State message, which the verification harness
-  // has no channel for, so the exported block is where both routes can be run. False
-  // is the half a fixture cannot reach: with no State the engine keeps its default,
-  // and that default is True.
+  // The engine picks the route from a State message, which the verification
+  // harness has no channel for, so False is only reachable here.
   it should "send the rows to True by default and to False when the switch is off" in {
     val python = resolvePythonExecutable().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")

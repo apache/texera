@@ -153,9 +153,8 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // The engine appends "#@1" until the name is free, so a right column that
-  // meets an already-suffixed one lands on "#@1#@1". pandas' `suffixes` appends
-  // once and then refuses the duplicate it just made, which ended the run.
+  // A right column meeting an already-suffixed one lands on "#@1#@1". pandas'
+  // `suffixes` refused the duplicate it made and ended the run.
   it should "rename a right column that collides twice, the way the engine does" in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -187,8 +186,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // An outer join leaves holes, and a hole costs a pandas integer column its
-  // type. The engine writes a null and the column stays INTEGER.
+  // A hole costs a pandas integer column its type; the engine keeps INTEGER.
   it should "keep a declared integer column integral across an outer join" in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -228,8 +226,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Without a schema there is nothing to say which columns were integers, so
-  // the block stays what pandas does on its own.
+  // Without a schema nothing says which columns were integers.
   it should "leave the widening alone when no schema is given" in {
     val d = new HashJoinOpDesc[Integer]
     d.buildAttributeName = "k"
