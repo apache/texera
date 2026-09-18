@@ -189,19 +189,28 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    total = int(series.sum())
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
+        |def _texera_agg_ts_epoch_ms(series):
+        |    # A timestamp reaches the engine as its epoch milliseconds whatever
+        |    # resolution the column carries, and reading the integers out of a
+        |    # microsecond column asks for a different number than a nanosecond
+        |    # one, so cast to milliseconds before reading them.
+        |    return series.dropna().astype("datetime64[ms]").astype("int64")
+        |
         |def _texera_agg_ts_sum(series):
         |    # SUM keeps the column's own type, so the engine adds the epoch
-        |    # milliseconds and builds a timestamp from the total.
-        |    kept = series.dropna()
-        |    return pd.Timestamp(int(kept.astype("int64").sum() // 10**6), unit="ms")
+        |    # milliseconds as Java longs, which wrap, and builds a timestamp
+        |    # from the total. Python integers carry the sum exactly, so the
+        |    # wrap is the only place a total loses anything.
+        |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
+        |    return pd.Timestamp(((total + (1 << 63)) % (1 << 64)) - (1 << 63), unit="ms")
         |
         |def _texera_agg_ts_mean(series):
         |    # AVERAGE is declared DOUBLE whatever column it reads, so this is
         |    # the mean of the epoch milliseconds and not a timestamp.
-        |    kept = series.dropna()
+        |    kept = _texera_agg_ts_epoch_ms(series)
         |    if len(kept) == 0:
         |        return None
-        |    return float(kept.astype("int64").mean() / 10**6)""".stripMargin
+        |    return float(kept.astype(object).sum()) / len(kept)""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs

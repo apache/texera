@@ -210,25 +210,34 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     */
   override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     val block = generateStandaloneCode()
-    val integerColumns = inputSchemas.values
-      .flatMap(_.getAttributes)
-      .filter(a => a.getType == AttributeType.INTEGER || a.getType == AttributeType.LONG)
-      .map(_.getName)
-      .toSeq
-      .distinct
+    val integral = (a: Attribute) =>
+      a.getType == AttributeType.INTEGER || a.getType == AttributeType.LONG
+    val integerColumns = (
+      inputSchemas.get(operatorInfo.inputPorts.head.id),
+      inputSchemas.get(operatorInfo.inputPorts.last.id)
+    ) match {
+      case (Some(build), Some(probe)) =>
+        val leftNames = build.getAttributes.map(_.getName).toSet
+        val rightNames = probe.getAttributes.map(_.getName).toSet
+        // Name the right column as the merge will name it, so that a double on
+        // the right is not read as the integer on the left it collided with.
+        val renamedRight = probe.getAttributes.filter(integral).map { attr =>
+          var name = attr.getName
+          val others = rightNames - attr.getName
+          while (leftNames.contains(name) || others.contains(name)) name = name + "#@1"
+          name
+        }
+        (build.getAttributes.filter(integral).map(_.getName) ++ renamedRight).distinct
+      case _ => List.empty
+    }
     if (integerColumns.isEmpty || joinType == JoinType.INNER) block
     else {
       val namesLit = integerColumns.map(pyStringLiteral).mkString("[", ", ", "]")
       s"""$block
          |# A hole costs a pandas integer column its type; the engine writes a
          |# null and leaves it INTEGER.
-         |_texera_int_names = $namesLit
-         |for _texera_int_col in out1df.columns:
-         |    # A renamed right column wears one "#@1" per collision it lost.
-         |    _texera_base = _texera_int_col
-         |    while _texera_base not in _texera_int_names and _texera_base.endswith("#@1"):
-         |        _texera_base = _texera_base[:-3]
-         |    if _texera_base in _texera_int_names:
+         |for _texera_int_col in $namesLit:
+         |    if _texera_int_col in out1df.columns:
          |        out1df[_texera_int_col] = out1df[_texera_int_col].astype("Int64")""".stripMargin
     }
   }

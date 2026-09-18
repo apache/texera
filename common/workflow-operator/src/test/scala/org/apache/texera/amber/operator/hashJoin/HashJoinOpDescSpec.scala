@@ -226,6 +226,49 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The two sides can name a column alike and declare it differently, and only
+  // the left one is the integer: the right one wears its rename out.
+  it should "leave a right column alone that shares an integer column's name" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("k", AttributeType.INTEGER))
+      .add(new Attribute("x", AttributeType.INTEGER))
+    val right = Schema()
+      .add(new Attribute("kk", AttributeType.INTEGER))
+      .add(new Attribute("x", AttributeType.DOUBLE))
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "kk"
+    d.joinType = JoinType.FULL_OUTER
+    val block =
+      d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1, 2], "x": [10, 20]})
+         |in2df = pd.DataFrame({"kk": [1, 3], "x": [1.5, 2.5]})
+         |$block
+         |print(",".join(f"{c}:{out1df[c].dtype}" for c in out1df.columns))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-outer-int-collision-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // The renamed right column keeps its 1.5, rather than being cast to the
+      // integer the left column declared.
+      out.trim shouldBe "k:Int64,x:Int64,x#@1:float64"
+    }
+  }
+
   // A key that is missing and a key holding a NaN are two different keys to the
   // engine, so only the missing one matches a missing right key. The two are
   // only distinct in a nullable dtype, which is what an Arrow file is read into.

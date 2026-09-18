@@ -168,6 +168,55 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The integers behind a timestamp column mean microseconds or nanoseconds
+  // depending on the resolution it was read at, and a nanosecond total leaves
+  // the range of a 64-bit integer after a handful of modern dates.
+  it should "read a timestamp as epoch milliseconds at either resolution" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("t", AttributeType.TIMESTAMP)
+    val desc = descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
+    )
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    def report(unit: String): String =
+      s"""in1df = pd.DataFrame({
+         |    "t": pd.to_datetime(["2024-01-01"] * 6).astype("datetime64[$unit]"),
+         |})
+         |$block
+         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
+         |print(repr(float(out1df.iloc[0]["ts_avg"])))""".stripMargin
+
+    val driver =
+      s"""import pandas as pd
+         |${report("ns")}
+         |${report("us")}
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-timestamp-units-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Six times 1704067200000 milliseconds, read back as a timestamp: a date
+      // no nanosecond count can hold, and the same one at either resolution.
+      out.trim.linesIterator.toSeq shouldBe Seq(
+        "2293-12-31T00:00:00",
+        "1704067200000.0",
+        "2293-12-31T00:00:00",
+        "1704067200000.0"
+      )
+    }
+  }
+
   // A group keyed on a missing value and one keyed on a NaN are two groups to
   // the engine. The two are only distinct in a nullable dtype, which is what an
   // Arrow file is read into.
