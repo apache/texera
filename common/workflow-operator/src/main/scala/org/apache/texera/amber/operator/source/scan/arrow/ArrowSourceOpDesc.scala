@@ -61,7 +61,11 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     //
     // The executor drops `offset` rows and then takes `limit` of them. Feather has
     // no row-range read, so the same window is taken once the frame is in memory.
-    val window = (offset, limit) match {
+    //
+    // Clamped first: the property editor refuses a negative, but a plan posted to
+    // the API can still carry one, and `iloc` reads it from the end where `drop`
+    // skips nothing and `take` keeps nothing.
+    val window = (offset.map(_.max(0)), limit.map(_.max(0))) match {
       case (Some(o), Some(l)) => Some(s"$o:${o + l}")
       case (Some(o), None)    => Some(s"$o:")
       case (None, Some(l))    => Some(s":$l")

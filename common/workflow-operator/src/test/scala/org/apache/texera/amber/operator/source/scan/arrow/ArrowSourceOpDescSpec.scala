@@ -214,6 +214,18 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // Only the property editor refuses a negative window; a plan posted to the API
+  // arrives with one intact. `iloc` counts a negative bound from the end, so -1
+  // asked for the last row where the executor's drop skips none, and for all but
+  // the last where its take keeps none.
+  it should "take a negative window from the front, as the executor reads it" in {
+    val d = new ArrowSourceOpDesc
+    d.offset = Some(-1)
+    d.limit = Some(-1)
+
+    d.generateStandaloneCode() should include("out1df.iloc[0:0]")
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()

@@ -136,6 +136,19 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  // Only the property editor refuses a negative window; a plan posted to the API
+  // arrives with one intact. pandas rejects a negative nrows outright, where this
+  // reader's take just keeps no rows, so the export asks for the empty window.
+  it should "ask pandas for the empty window a negative limit means to the reader" in {
+    val d = describing(writeCsv("id\n1\n2\n3\n"))
+    d.limit = Some(-1)
+    d.offset = Some(-1)
+
+    val code = d.generateStandaloneCode()
+    code should include("nrows=0")
+    code should include("skiprows=range(1, 1)")
+  }
+
   private def writeCsv(content: String): String = {
     val file = Files.createTempFile("csv-old-", ".csv")
     file.toFile.deleteOnExit()

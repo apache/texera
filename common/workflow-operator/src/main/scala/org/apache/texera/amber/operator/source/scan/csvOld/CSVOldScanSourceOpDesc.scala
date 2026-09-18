@@ -129,11 +129,13 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
       )
     if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
 
-    offset.foreach { o =>
+    // Clamped, as in the newer CSV scan: pandas rejects a negative `nrows` where
+    // the executor's `take` keeps no rows, and only the editor refuses one.
+    offset.map(_.max(0)).foreach { o =>
       if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
       else args += s"skiprows=$o"
     }
-    limit.foreach(l => args += s"nrows=$l")
+    limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
 
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 

@@ -279,6 +279,22 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(!code.contains("io.BytesIO"))
   }
 
+  // Only the property editor refuses a negative window; a plan posted to the API
+  // arrives with one intact. pandas rejects a negative nrows outright, where the
+  // executor's take just keeps no rows, so the export asks for the empty window.
+  it should "ask pandas for the empty window a negative limit means to the executor" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.limit = Some(-1)
+    csvScanSourceOpDesc.offset = Some(-1)
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("nrows=0"))
+    assert(code.contains("skiprows=range(1, 1)"))
+  }
+
   // The parser sets no null value, so only an empty field is null. pandas reads a list of
   // words as missing by default, which turned the country code NA into a null.
   it should "read only an empty field as null, the way the parser does" in {

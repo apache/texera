@@ -210,12 +210,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
       )
     if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
 
-    offset.foreach { o =>
+    // Clamped: the property editor refuses a negative, but a plan posted to the API
+    // can still carry one, and pandas rejects a negative `nrows` outright where the
+    // executor's `take` simply keeps no rows.
+    offset.map(_.max(0)).foreach { o =>
       // With a header, skip offset rows after row 0; without, skip offset rows from the start.
       if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
       else args += s"skiprows=$o"
     }
-    limit.foreach(l => args += s"nrows=$l")
+    limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
 
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 
