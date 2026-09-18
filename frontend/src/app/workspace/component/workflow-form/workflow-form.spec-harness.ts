@@ -53,6 +53,11 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
 export function setupHarness() {
   const router = { navigate: vi.fn() };
   const workflowChangedStream = new Subject<unknown>();
+  // Announces every form-config write (see formBindingChanged$ and the form-binding mock below).
+  const formBindingChanged = new Subject<unknown>();
+  // The root-level modification lock as other writers flip it (the execute service after a run, the
+  // computing-unit selector); tests emit `true` to stand in for one of them unlocking the graph.
+  const modificationEnabled = new Subject<boolean>();
   const workflowMetaDataChangedStream = new Subject<unknown>();
   // Compilation reports column names late; the form rebuilds its inputs off this stream.
   const compilationChanged = new Subject<unknown>();
@@ -65,10 +70,52 @@ export function setupHarness() {
   const selectedUnitStream = new Subject<any>();
   const validationStream = new Subject<{ errors: Record<string, unknown>; workflowEmpty: boolean }>();
   const connectionStream = new Subject<boolean>();
+  // A result changed; the form bumps versions and re-fits. Tests drive it directly.
+  const resultUpdateStream = new Subject<Record<string, unknown>>();
+  // Fires when the canvas's view-result set changes (a co-editor's eye toggle included).
+  const viewResultChanged = new Subject<unknown>();
+  // Fires for a change of the graph's shape (operator added/deleted/disabled, link added/deleted); one
+  // subject stands in for all five streams, since the form treats them alike.
+  const graphStructureChanged = new Subject<unknown>();
+  // Fires when a step's display name changes; its own subject, so a test can tell it from the shape.
+  const displayNameChanged = new Subject<unknown>();
   // The operators the graph holds: `hasOperatorIds` gates operatorSchemaFor, `graphOperators`
   // supplies each operator's type (which picks the custom widget). Tests add to them as needed.
   const hasOperatorIds = new Set<string>();
   const graphOperators: any[] = [];
+  // Operators with view-result ("the eye") on in the canvas; the form shows these on top of the
+  // always-shown terminal steps.
+  const viewResultIds = new Set<string>();
+  // Selecting a step on the embedded canvas drives the read-only inspect panel.
+  const highlightStream = new Subject<readonly string[]>();
+  const unhighlightStream = new Subject<readonly string[]>();
+  const highlightedIds: string[] = [];
+  const updateSharedModelAwareness = vi.fn();
+  // The joint wrapper's unhighlight: drops the ids from the selection and nothing else. The two
+  // streams stay under the tests' control, so this does not emit.
+  const unhighlightOperators = vi.fn((...ops: string[]) => {
+    for (const op of ops) {
+      const at = highlightedIds.indexOf(op);
+      if (at !== -1) {
+        highlightedIds.splice(at, 1);
+      }
+    }
+  });
+  // The action service's unhighlight, which is the one the form has to use: it delegates to the
+  // wrapper AND publishes the resulting selection on the shared awareness channel, so co-editors
+  // stop seeing the highlight. Modelled as the real pair so a test can tell the two apart.
+  const serviceUnhighlightOperators = vi.fn((...ops: string[]) => {
+    unhighlightOperators(...ops);
+    updateSharedModelAwareness("highlighted", [...highlightedIds]);
+  });
+  // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.
+  const anyResultIds = new Set<string>();
+  // Operators the engine treats as terminal (out-degree 0 on the ENABLED plan): the engine materializes
+  // a terminal's result with no eye set, so the form shows it too. A test marks an id terminal by adding
+  // it here (no downstream at all) or to disabledDownstream (its only downstream link is disabled) --
+  // both mean "no enabled downstream link", so getAllEnabledLinks emits no link from that operator.
+  const terminalIds = new Set<string>();
+  const disabledDownstream = new Set<string>();
   // The preview centres the embedded graph once it is built; tests assert this fired.
   const triggerCenterEvent = vi.fn();
 
@@ -78,6 +125,7 @@ export function setupHarness() {
     reloadWorkflow: vi.fn(),
     enableWorkflowModification: vi.fn(),
     disableWorkflowModification: vi.fn(),
+    getWorkflowModificationEnabledStream: () => modificationEnabled.asObservable(),
     clearWorkflow: vi.fn(),
     workflowChanged: () => workflowChangedStream.asObservable(),
     workflowMetaDataChanged: () => workflowMetaDataChangedStream.asObservable(),
@@ -85,23 +133,67 @@ export function setupHarness() {
     getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
+    setHighlightingEnabled: vi.fn(),
+    unhighlightOperators: serviceUnhighlightOperators,
     getTexeraGraph: () => ({
       triggerCenterEvent,
       hasOperator: (id: string) => hasOperatorIds.has(id),
       getOperator: (id: string) => graphOperators.find(o => o.operatorID === id),
+      getAllOperators: () => graphOperators,
+      getOperatorsToViewResult: () => new Set(viewResultIds),
+      getViewResultOperatorsChangedStream: () => viewResultChanged.asObservable(),
+      getOperatorAddStream: () => graphStructureChanged.asObservable(),
+      getOperatorDeleteStream: () => graphStructureChanged.asObservable(),
+      getLinkAddStream: () => graphStructureChanged.asObservable(),
+      getLinkDeleteStream: () => graphStructureChanged.asObservable(),
+      getDisabledOperatorsChangedStream: () => graphStructureChanged.asObservable(),
+      getOperatorDisplayNameChangedStream: () => displayNameChanged.asObservable(),
+      // Enabled links only: a non-terminal operator emits one dummy outgoing link; a terminal operator
+      // (in terminalIds, or whose downstream is disabled via disabledDownstream) emits none. Drives the
+      // component's terminal detection (terminalOperatorIds).
+      getAllEnabledLinks: () =>
+        graphOperators
+          .filter(op => !terminalIds.has(op.operatorID) && !disabledDownstream.has(op.operatorID))
+          .map(op => ({
+            linkID: `${op.operatorID}-out`,
+            source: { operatorID: op.operatorID },
+            target: { operatorID: "downstream" },
+          })),
+      updateSharedModelAwareness,
     }),
-    // Exposing or un-exposing a property announces on this stream; the form re-reads its config.
-    formBindingChanged$: new Subject<unknown>(),
+    getJointGraphWrapper: () => ({
+      getJointOperatorHighlightStream: () => highlightStream.asObservable(),
+      getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
+      getCurrentHighlightedOperatorIDs: () => highlightedIds,
+      unhighlightOperators,
+    }),
+    // Every config write announces on this stream (setFormBinding emits it); the form re-reads its
+    // config on it unless the write is one of its own presentation edits. The form-binding mock's
+    // writers below emit here, as the real service does, so that chain is under test.
+    formBindingChanged$: formBindingChanged.asObservable(),
   };
   // Resolves the exposed inputs and reads/writes their values. Tests point `resolveFields` at the
   // inputs they want rendered; `readValue` seeds the write-back guard.
   const formBindingService = {
     // The presentation config: the instruction plus the fields. Tests override getConfig to give an
     // instruction; resolveFields drives which inputs render.
-    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [], resultOperatorIds: [] }),
+    getConfig: vi.fn().mockReturnValue({ instruction: undefined, fields: [] }),
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
+    // A result card's friendly label; the mock returns the operator's display name or its id.
+    operatorLabel: (op: any) => op?.customDisplayName ?? op?.operatorType ?? op?.operatorID,
+    // Author-mode writes. Spied so a test can assert the edit was made without needing a real
+    // binding store, and each announces on formBindingChanged$ as the real service does (every
+    // write goes through setFormBinding, which emits), so the page's reaction to its own writes --
+    // rebuild, or not, for a presentation edit -- is what the tests see.
+    updateBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    setFieldOverride: vi.fn(() => formBindingChanged.next(undefined)),
+    removeBinding: vi.fn(() => formBindingChanged.next(undefined)),
+    reorder: vi.fn(() => formBindingChanged.next(undefined)),
+    toggleShownResult: vi.fn(() => formBindingChanged.next(undefined)),
+    updateConfig: vi.fn(() => formBindingChanged.next(undefined)),
+    setFields: vi.fn(),
   };
   // A field per property the tests expose. Real formly json-schema conversion is exercised by the
   // property panel's own spec; here a deterministic map keeps these tests about the component's
@@ -178,7 +270,18 @@ export function setupHarness() {
     killWorkflow: vi.fn(),
     resetExecutionAndWorkers: vi.fn(),
   };
-  const workflowResultService = { clearResults: vi.fn() };
+  // Results: `anyResultIds` marks which operators produced a non-empty result; `snapshotById`
+  // lets a test give an operator a snapshot (drives vizHasContent). `hasPaginatedResult` is off
+  // unless a test overrides it. `getResultUpdateStream` is the stream the form watches.
+  const snapshotById = new Map<string, ReadonlyArray<object>>();
+  const workflowResultService = {
+    clearResults: vi.fn(),
+    getResultUpdateStream: () => resultUpdateStream.asObservable(),
+    hasNonEmptyResult: (id: string) => anyResultIds.has(id),
+    hasPaginatedResult: (_id: string) => false,
+    getResultService: (id: string) => ({ getCurrentResultSnapshot: () => snapshotById.get(id) }),
+  };
+  const panelResizeService = { changePanelSize: vi.fn() };
   const notificationService = { error: vi.fn() };
   // Not logged in by default so opening a workflow does not save; the save tests log in.
   const userService = { getCurrentUser: () => undefined, isLogin: vi.fn().mockReturnValue(false) };
@@ -205,7 +308,14 @@ export function setupHarness() {
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
   const host = { nativeElement: { querySelector: () => null, contains: () => false } };
   const datePipe = { transform: () => "01/01/2026 00:00:00" };
-  const config = { env: { formViewEnabled: true } };
+  const config = { env: { formViewEnabled: true, warehouseEnabled: false } };
+  // The run button asks the same pair ExecuteWorkflowService refuses on: the flag above and the
+  // pick below.
+  let selectedWarehouseId: number | undefined = undefined;
+  const warehouseService = {
+    getSelectedWarehouseIdValue: () => selectedWarehouseId,
+    selectWarehouse: (whid: number | undefined) => (selectedWarehouseId = whid),
+  };
 
   // Point the persist mock at `workflow`; each spec supplies the remaining constructor
   // arguments in its own order via the named mocks above.
@@ -235,21 +345,40 @@ export function setupHarness() {
     computingUnitStatusService,
     workflowConsoleService,
     workflowWebsocketService,
+    panelResizeService,
     validationWorkflowService,
     host,
     datePipe,
     config,
+    warehouseService,
     workflowChangedStream,
+    formBindingChanged,
     workflowMetaDataChangedStream,
     compilationChanged,
     executionStateStream,
+    modificationEnabled,
     durationEvents,
     statusStream,
     selectedUnitStream,
     validationStream,
     connectionStream,
+    resultUpdateStream,
+    viewResultChanged,
+    graphStructureChanged,
+    displayNameChanged,
     hasOperatorIds,
     graphOperators,
+    viewResultIds,
+    anyResultIds,
+    terminalIds,
+    disabledDownstream,
+    snapshotById,
     triggerCenterEvent,
+    highlightStream,
+    unhighlightStream,
+    highlightedIds,
+    unhighlightOperators,
+    serviceUnhighlightOperators,
+    updateSharedModelAwareness,
   };
 }
