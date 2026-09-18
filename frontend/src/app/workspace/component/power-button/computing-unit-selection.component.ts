@@ -558,6 +558,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return this.warehouseEnabled && this.selectedWarehouseId === undefined;
   }
 
+  /**
+   * `Warehouse: <name>` — one tooltip that says which picker this is (two of
+   * them sit side by side showing nothing but a name) and carries the name in
+   * full, which the trigger ellipsises at 220px. Always the same shape, short
+   * names included, so there is nothing to learn about when it appears.
+   */
+  get warehouseButtonTooltip(): string {
+    const selected = this.selectedWarehouse;
+    return selected ? `Warehouse: ${selected.name}` : "Warehouse";
+  }
+
   getWarehouseButtonText(): string {
     return this.selectedWarehouse?.name ?? "Warehouse";
   }

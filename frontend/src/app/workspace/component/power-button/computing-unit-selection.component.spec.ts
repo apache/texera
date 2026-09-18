@@ -56,6 +56,7 @@ import { ComputingUnitActionsService } from "../../../common/service/computing-u
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
 import { DashboardWarehouse } from "../../../common/type/warehouse";
@@ -2839,6 +2840,30 @@ describe("PowerButtonComponent", () => {
       expect(comp.warehouses.map(w => w.whid)).toEqual([1, 9]);
       expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(9);
       expect(statusSpy).not.toHaveBeenCalled();
+    });
+
+    it("the trigger's tooltip names the picker and the warehouse, whatever the name's length", () => {
+      // Two pickers sit side by side showing nothing but a name, and the
+      // trigger ellipsises at 220px: one tooltip carries both facts, in the
+      // same shape every time, rather than a second one nested on the name.
+      const { comp, pickerFixture } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "wh"), makeWarehouse(2, "a-very-long-warehouse-name-that-truncates")],
+        latest: "error",
+      });
+      pickerFixture.detectChanges();
+      const trigger = pickerFixture.debugElement.query(By.css(".warehouse-dropdown-button"));
+      const tooltip = trigger.injector.get(NzTooltipDirective) as NzTooltipDirective;
+
+      comp.onWarehouseSelected(2);
+      pickerFixture.detectChanges();
+      expect(tooltip.title).toBe("Warehouse: a-very-long-warehouse-name-that-truncates");
+
+      comp.onWarehouseSelected(1);
+      pickerFixture.detectChanges();
+      expect(tooltip.title).toBe("Warehouse: wh");
+
+      expect(pickerFixture.debugElement.query(By.css(".warehouse-name-text[nz-tooltip]"))).toBeNull();
     });
   });
 });

@@ -207,6 +207,8 @@
   align-items: center;
   min-width: 220px;
   max-width: 280px;
+  // The gap between this picker and the computing-unit one that follows it;
+  // the computing-unit trigger has none because nothing follows it.
   margin-right: 4px;
   padding: 0 8px;
   overflow: hidden;

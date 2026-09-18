@@ -414,7 +414,7 @@ describe("MenuComponent", () => {
 
     it("keeps Pause in control of a running execution even when the warehouse disappears", () => {
       // Deleting the last warehouse mid-run flips warehouseRequiredButMissing;
-      // the primary button must stay Pause/Kill, not become "Create Warehouse".
+      // the primary button must stay Pause/Kill, not become the warehouse prompt.
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.Running;
@@ -441,7 +441,9 @@ describe("MenuComponent", () => {
 
       const behavior = component.getRunButtonBehavior();
 
-      expect(behavior.text).toBe("Create Warehouse");
+      // Same word the picker's own empty state shows, as CU repeats "Connect";
+      // it also has to fit the run button's fixed width.
+      expect(behavior.text).toBe("Warehouse");
       expect(behavior.icon).toBe("plus-circle");
       expect(behavior.disable).toBe(false);
     });

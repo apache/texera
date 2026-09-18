@@ -68,7 +68,7 @@
     (nzVisibleChange)="onWarehouseDropdownVisibilityChange($event)"
     class="warehouse-dropdown-button"
     nz-tooltip
-    nzTooltipTitle="Warehouse this execution writes to">
+    [nzTooltipTitle]="warehouseButtonTooltip">
     <div class="button-content">
       <texera-user-avatar
         *ngIf="selectedWarehouse as selected"
