@@ -98,6 +98,6 @@ class VisualizationJsonComparatorSpec extends AnyFlatSpec with Matchers {
       .assertEqual(actual, expected)
     // The counts, so the failure reads as a missing figure rather than as two
     // long dumps to count out by hand.
-    thrown.stderr should include("(2 drawn, 1 expected)")
+    thrown.stderr should include("the run drew 2 and the exported script drew 1")
   }
 }
