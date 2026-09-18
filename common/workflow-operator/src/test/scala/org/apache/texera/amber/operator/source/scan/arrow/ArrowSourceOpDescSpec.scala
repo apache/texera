@@ -19,13 +19,14 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
+import com.typesafe.config.ConfigFactory
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.ArrowUtils
@@ -35,7 +36,11 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.{File, FileOutputStream}
 import java.nio.channels.Channels
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -153,6 +158,62 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.inferSchema() shouldBe schema
   }
 
+  // A missing double and a stored NaN are two different values to the engine,
+  // and a numpy column has one slot for both. A holed integer column loses its
+  // type the same way.
+  "ArrowSourceOpDesc.generateStandaloneCode" should
+    "keep a missing value apart from a NaN, and an integer integral" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema = Schema(
+      List(new Attribute("d", AttributeType.DOUBLE), new Attribute("i", AttributeType.INTEGER))
+    )
+    val file = writeArrowFile(
+      schema,
+      Seq(
+        Array[Any](null, null),
+        Array[Any](Double.box(Double.NaN), Int.box(7))
+      )
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    // The block reads the file from the script's own directory, so run there.
+    val workDir = Files.createTempDirectory("arrow-standalone-")
+    workDir.toFile.deleteOnExit()
+    val beside = workDir.resolve(file.getName)
+    Files.copy(file.toPath, beside)
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${bindSourceFile(d)}
+         |${d.generateStandaloneCode()}
+         |print(str(out1df["d"].dtype), str(out1df["i"].dtype))
+         |print(repr(out1df["d"].iloc[0]), repr(out1df["d"].iloc[1]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "Float64 Int32"
+      // The first is the value that was missing, the second the NaN that was
+      // stored. Under numpy dtypes both printed as nan.
+      lines(1) should include("<NA>")
+      lines(1) should include("nan")
+    }
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()
@@ -163,15 +224,19 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
 
-  // pd.read_feather carries a null in a float, which rounds every value past 2^53:
-  // the file's 9007199254740993 reads back as ...992, where the executor hands the
-  // exact value on. The file states its own types, so only the hole causes this.
-  "ArrowSourceOpDesc.generateStandaloneCode" should "keep a nullable long exact" in {
+  // The same nullable dtypes keep a long exact: carried in a float, every value
+  // past 2^53 is rounded, and the file's 9007199254740993 read back as ...992
+  // where the executor hands the exact value on.
+  it should "keep a nullable long exact, as the executor does" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
     val schema = Schema(List(new Attribute("big", AttributeType.LONG)))
     val file = writeArrowFile(
       schema,
       Seq(Array[Any](9007199254740993L), Array[Any](null), Array[Any](9007199254740995L))
     )
+
     val d = new ArrowSourceOpDesc
     d.fileName = Some(file.toURI.toString)
 
@@ -182,15 +247,59 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
       finally exec.close()
     fromEngine shouldBe List(9007199254740993L, null, 9007199254740995L)
 
-    d.generateStandaloneCode() should include(
-      """out1df["big"] = pd.read_feather(sourceFile, columns=["big"], dtype_backend="numpy_nullable")["big"]"""
+    val workDir = Files.createTempDirectory("arrow-long-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${bindSourceFile(d)}
+         |${d.generateStandaloneCode()}
+         |print([None if pd.isna(v) else int(v) for v in out1df["big"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      out.trim should endWith("[9007199254740993, None, 9007199254740995]")
+    }
   }
 
-  // The base's sourceSchema returns null here: this operator reads its types out of
-  // the file. Asking for them without a file must leave the export alone, not throw.
-  it should "emit a plain read when the file cannot be inspected" in {
-    val d = new ArrowSourceOpDesc
-    d.generateStandaloneCode() shouldBe """out1df = pd.read_feather(sourceFile)"""
+  /** The block names its file by placeholder; the translator puts a name there. */
+  private def bindSourceFile(d: ArrowSourceOpDesc): String =
+    s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${d.standaloneSourceName().get}""""
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
   }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
