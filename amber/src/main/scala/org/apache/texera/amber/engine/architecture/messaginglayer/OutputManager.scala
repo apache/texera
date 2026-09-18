@@ -37,7 +37,9 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.common.ambermessage.ColumnarFrame
+import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
+import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.net.URI
 import scala.collection.mutable
@@ -202,6 +204,42 @@ class OutputManager(
   def emitState(state: State, loopCounter: Long = 0L, loopStartId: String = ""): Unit = {
     networkOutputBuffers.foreach(kv => kv._2.sendState(state, loopCounter, loopStartId))
     saveStateToStorageIfNeeded(state, loopCounter, loopStartId)
+  }
+
+  // Columnar emit is safe only when each output link has a single receiver
+  // (e.g. one-to-one); hash/range shuffles would need per-key column splitting.
+  def canEmitColumnar: Boolean =
+    networkOutputBuffers.nonEmpty && networkOutputBuffers.groupBy(_._1._1).forall(_._2.size == 1)
+
+  // Send a whole Arrow batch downstream as a ColumnarFrame (no per-tuple path).
+  def emitColumnarBatch(root: VectorSchemaRoot): Unit = {
+    val bytes = ArrowUtils.serializeRoot(root)
+    val rowCount = root.getRowCount
+    val texeraSchema = ArrowUtils.toTexeraSchema(root.getSchema)
+    networkOutputBuffers.keys.foreach {
+      case (_, receiver) =>
+        outputGateway.sendTo(receiver, ColumnarFrame(bytes, rowCount, texeraSchema))
+    }
+    // Materialize to result storage for the GUI result panel, matching the row
+    // path's saveTupleToStorageIfNeeded. Only decodes when a port needs storage.
+    if (outputPortResultWriterThreads.nonEmpty) {
+      var i = 0
+      while (i < rowCount) {
+        saveTupleToStorageIfNeeded(ArrowUtils.getTexeraTuple(i, root))
+        i += 1
+      }
+    }
+  }
+
+  // Columnar batches pending emit, drained one-per-step by the DP loop so that
+  // backpressure applies between batches (unlike a synchronous emit).
+  private var columnarOutputIter: Iterator[VectorSchemaRoot] = Iterator.empty
+  def setColumnarOutput(it: Iterator[VectorSchemaRoot]): Unit = columnarOutputIter = it
+  def hasUnfinishedColumnarOutput: Boolean = columnarOutputIter.hasNext
+  def emitOneColumnarBatch(): Unit = {
+    val root = columnarOutputIter.next()
+    emitColumnarBatch(root)
+    root.close()
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIBaseOption: Option[URI]): Unit = {
