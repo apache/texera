@@ -89,16 +89,23 @@ class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // iframe HTML document and emit it as the "html-content" column.
   override def generateStandaloneCode(): String = {
     val urlLit = pyStringLiteral(urlContentAttrName)
-    s"""def _texera_urlviz_iframe(u):
+    s"""import html
+       |
+       |def _texera_urlviz_iframe(u):
        |    # "null", not Python's "None": the operator interpolates the field into a
        |    # Scala string, and the JVM renders a null that way.
-       |    u = "null" if pd.isna(u) else u
+       |    u = "null" if pd.isna(u) else str(u)
+       |    # The cell lands where an attribute is expected, so a quote in it would
+       |    # close src= and leave the rest of the cell standing as attributes of the
+       |    # iframe. escapeAttribute on the executor writes the same five characters
+       |    # in the same order, so the two paths write the page the same way.
+       |    u = html.escape(u, quote=True)
        |    return (
        |        '<!DOCTYPE html>\\n'
        |        '<html lang="en">\\n'
        |        '<body>\\n'
        |        '  <div class="modal-body">\\n'
-       |        '    <iframe src="' + str(u) + '" frameborder="0"\\n'
+       |        '    <iframe src="' + u + '" frameborder="0"\\n'
        |        '       style="height:100vh; width:100%; border:none;">\\n'
        |        '    </iframe>\\n'
        |        '  </div>\\n'

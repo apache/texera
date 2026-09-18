@@ -105,7 +105,24 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCode
   // The translator skips it in the leaf-DataFrame print block.
   override def producesDataFrame(): Boolean = false
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  /** The executor hands `b64encode` whatever the column holds, so a column of
+    * text ends in the reason page: `b64encode` refuses a `str`. The exported
+    * script reads the same column out of JSONL, where a BINARY column arrives as
+    * the base64 text of its bytes, which is already what the tag wants.
+    *
+    * So the text is read as an image only where the column was declared BINARY.
+    * A column of any other type falls through to the same `b64encode` call and
+    * fails there, which is the page the run showed.
+    */
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    val carriesBytes = inputSchemas
+      .get(operatorInfo.inputPorts.head.id)
+      .flatMap(_.getAttributes.find(_.getName == binaryContent))
+      .forall(_.getType == AttributeType.BINARY)
+    val textIsTheImage =
+      if (carriesBytes) "isinstance(binary_image_data, str)" else "False"
     s"""import base64
        |
        |LT = chr(60)
@@ -113,7 +130,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCode
        |
        |def encode_image_to_html(binary_image_data):
        |    try:
-       |        if isinstance(binary_image_data, str):
+       |        if $textIsTheImage:
        |            encoded_image_str = binary_image_data
        |        else:
        |            encoded_image_data = base64.b64encode(binary_image_data)

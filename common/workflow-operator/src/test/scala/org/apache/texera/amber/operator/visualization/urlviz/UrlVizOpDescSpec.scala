@@ -22,14 +22,21 @@ package org.apache.texera.amber.operator.visualization.urlviz
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import javax.validation.constraints.NotNull
+import scala.io.Source
+import scala.util.Try
 
 class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -125,4 +132,94 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
     val b = new UrlVizOpDesc
     a.operatorIdentifier should not equal b.operatorIdentifier
   }
+
+  // ---------------------------------------------------------------------------
+  // The cell lands where an attribute is expected
+  // ---------------------------------------------------------------------------
+
+  // A quote in the cell used to close `src=` and leave the rest of it standing as
+  // attributes of the iframe, which is the page speaking for whoever wrote the
+  // row. Both paths are held to the same written page for that value.
+  private val hostileUrl = """https://example.invalid/a" onload="alert(1)"""
+
+  /** A configured descriptor: `urlContentAttrName` is a val, so Jackson writes it. */
+  private def descFor(urlAttr: String): UrlVizOpDesc = {
+    val node = objectMapper.createObjectNode()
+    node.put("operatorType", "URLVisualizer")
+    node.put("urlContentAttrName", urlAttr)
+    objectMapper.readValue(node.toString, classOf[UrlVizOpDesc])
+  }
+
+  it should "escape a hostile cell rather than letting it add an attribute" in {
+    val attr = new Attribute("url", AttributeType.STRING)
+    val tuple = Tuple.builder(Schema().add(attr)).add(attr, hostileUrl).build()
+    val page = new UrlVizOpExec(objectMapper.writeValueAsString(descFor("url")))
+      .processTuple(tuple, port = 0)
+      .next()
+      .getFields
+      .head
+      .asInstanceOf[String]
+
+    page should include("""src="https://example.invalid/a&quot; onload=&quot;alert(1)"""")
+    page should not include """onload="alert"""
+  }
+
+  it should "write that cell the same way in the exported script" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val desc = descFor("url")
+    val attr = new Attribute("url", AttributeType.STRING)
+    val tuple = Tuple.builder(Schema().add(attr)).add(attr, hostileUrl).build()
+    val fromExecutor = new UrlVizOpExec(objectMapper.writeValueAsString(desc))
+      .processTuple(tuple, port = 0)
+      .next()
+      .getFields
+      .head
+      .asInstanceOf[String]
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"url": [${pyStringLiteral(hostileUrl)}]})
+         |${desc.generateStandaloneCode()}
+         |
+         |print(out1df["html-content"].iloc[0])
+         |""".stripMargin
+
+    val script = Files.createTempFile("urlviz-hostile-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe fromExecutor
+    }
+  }
+
+  private def resolvePython(): Option[String] = {
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
+      "python3",
+      "python",
+      "py"
+    )).distinct
+      .find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }

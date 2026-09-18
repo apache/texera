@@ -19,11 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.ImageViz
 
-import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   var opDesc: ImageVisualizerOpDesc = _
@@ -115,5 +121,73 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     code should not include "<h1"
     code should not include "<p"
     code should not include "<div"
+  }
+
+  // The executor hands b64encode whatever the column holds, and b64encode refuses
+  // a str, so a column of text ends in the reason page. The exported script reads
+  // the same column out of JSONL, where a BINARY column arrives as the base64 text
+  // of its bytes, so text is the image there and only there.
+  private val inPort = new ImageVisualizerOpDesc().operatorInfo.inputPorts.head.id
+
+  private def standaloneFor(columnType: AttributeType): String = {
+    opDesc.binaryContent = "image_bytes"
+    opDesc.generateStandaloneCode(Map(inPort -> Schema().add("image_bytes", columnType)))
+  }
+
+  it should "read the column's text as the image only where it was declared binary" in {
+    standaloneFor(AttributeType.BINARY) should include("if isinstance(binary_image_data, str):")
+  }
+
+  it should "let a text column fail in b64encode, the way the executor does" in {
+    val code = standaloneFor(AttributeType.STRING)
+    code should include("if False:")
+    code should not include "isinstance(binary_image_data, str)"
+    // The call the executor makes on the same value, left to refuse it here too.
+    code should include("base64.b64encode(binary_image_data)")
+  }
+
+  // Both paths run the same two lines on a string, so the answer is one both can
+  // be held to: b64encode raises, and the reason page is what the viewer sees.
+  it should "answer a string column with the reason page in both paths" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+
+    val body = standaloneFor(AttributeType.STRING).linesIterator
+      .takeWhile(!_.startsWith("all_images_html"))
+      .mkString("\n")
+    val driver =
+      s"""$body
+         |print(encode_image_to_html("not an image"))
+         |""".stripMargin
+
+    val script = Files.createTempFile("image-visualizer-string-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out should include("Image is not available.")
+      out should include("Reason: Binary input is not valid")
+      out should not include "img src"
+    }
+    // The executor's own reason page, which the run showed for the same value.
+    opDesc.generatePythonCode() should include("Image is not available.")
+  }
+
+  private def resolvePython(): Option[String] = {
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
+      "python3",
+      "python",
+      "py"
+    )).distinct
+      .find(runnable)
   }
 }
