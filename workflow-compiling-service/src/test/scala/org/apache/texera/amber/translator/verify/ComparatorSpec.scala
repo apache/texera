@@ -24,7 +24,9 @@ import org.apache.texera.amber.translator.verify.tags.IntegrationTest
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, StandardCopyOption}
+import java.util.concurrent.TimeUnit
+import scala.io.Source
 
 // Tagged @IntegrationTest: Comparator.assertEqual shells out to compare.py, so
 // this spec needs Python and must run in the Python-provisioned integration job.
@@ -188,5 +190,94 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
         probePath = Some(probe)
       )
     }.getMessage should include("missing from actual")
+  }
+
+  // An operator that draws a chart per row writes one JSONL row per chart on the
+  // runtime side and an array on the exported one. Reading a single figure from
+  // each, as this did, left every chart after the first unread.
+  private def plotlyFigure(value: Int): String =
+    s"""{"data": [{"type": "indicator", "value": $value}], "layout": {}}"""
+
+  /** compare.py --plotly, as its own process: the exit code and what it said. */
+  private def runPlotly(actual: Path, expected: Path): (Int, String) = {
+    val script = Files.createTempFile("compare-", ".py")
+    script.toFile.deleteOnExit()
+    val stream = getClass.getResourceAsStream("/python/compare.py")
+    require(stream != null, "compare.py not found at /python/compare.py")
+    try Files.copy(stream, script, StandardCopyOption.REPLACE_EXISTING)
+    finally stream.close()
+
+    val python = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3")
+    val process = new ProcessBuilder(
+      python,
+      script.toString,
+      "--plotly",
+      actual.toString,
+      expected.toString
+    ).redirectErrorStream(true).start()
+    val said = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    (process.exitValue(), said)
+  }
+
+  "Comparator's plotly comparison" should "read every chart on both sides" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-all-")
+    val actual = writeLines(
+      dir,
+      "actual.jsonl",
+      Seq(1, 2, 3).map(v => s"""{"json-content": ${plotlyFigure(v)}}""")
+    )
+    val expected = writeLines(
+      dir,
+      "expected.json",
+      Seq(Seq(1, 2, 3).map(plotlyFigure).mkString("[", ",", "]"))
+    )
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") { exit shouldBe 0 }
+  }
+
+  it should "catch a chart that differs after the first" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-second-")
+    val actual = writeLines(
+      dir,
+      "actual.jsonl",
+      Seq(1, 2, 3).map(v => s"""{"json-content": ${plotlyFigure(v)}}""")
+    )
+    val expected = writeLines(
+      dir,
+      "expected.json",
+      Seq(Seq(1, 99, 3).map(plotlyFigure).mkString("[", ",", "]"))
+    )
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") {
+      exit should not be 0
+      said should include("chart 2 of 3")
+    }
+  }
+
+  it should "catch an exported script that drew fewer charts than the run" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-count-")
+    val actual = writeLines(
+      dir,
+      "actual.jsonl",
+      Seq(1, 2, 3).map(v => s"""{"json-content": ${plotlyFigure(v)}}""")
+    )
+    val expected = writeLines(dir, "expected.json", Seq(plotlyFigure(1)))
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") {
+      exit should not be 0
+      said should include("drew 3")
+      said should include("drew 1")
+    }
+  }
+
+  // The operators that draw one chart write a lone figure, and there are far
+  // more of those than there are of the other kind.
+  it should "still read a lone figure as the one chart it is" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-one-")
+    val actual = writeLines(dir, "actual.jsonl", Seq(s"""{"json-content": ${plotlyFigure(7)}}"""))
+    val expected = writeLines(dir, "expected.json", Seq(plotlyFigure(7)))
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") { exit shouldBe 0 }
   }
 }
