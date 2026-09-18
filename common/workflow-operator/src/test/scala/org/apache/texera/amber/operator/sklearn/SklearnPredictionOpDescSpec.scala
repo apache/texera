@@ -188,6 +188,22 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The executor keeps the model of every row the model port hands it, each one
+  // overwriting the last, so it predicts with the model on the final row. A model
+  // port carrying more than one row is where reading the first row instead would
+  // answer with a different model than the run did.
+  it should "predict with the last model the model port carries, as the executor does" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    // The executor's own line, which holds one model rather than collecting them.
+    d.generatePythonCode() should include("self.model = tuple_[")
+    Seq("y", "").foreach { groundTruth =>
+      d.groundTruthAttribute = groundTruth
+      d.generateStandaloneCode() should include("model = in1df[\"model\"].iloc[-1]")
+    }
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc

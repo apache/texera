@@ -134,7 +134,6 @@ class SklearnTestingOpDesc
     val targetLit = pyStringLiteral(target)
     s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
        |
-       |model = in1df[$modelLit].iloc[0]
        |out1df = in1df.copy()
        |# The same drop the executor makes before it scores: the model arrives
        |# already fitted, so this operator cannot ask which estimator it holds and
@@ -150,16 +149,21 @@ class SklearnTestingOpDesc
        |# predict wants (n_samples, n_features). Squeezing the frame first collapsed
        |# a single feature, or a single surviving row, to one dimension, which
        |# scikit-learn rejects.
-       |predictions = model.predict(X)
+       |#
+       |# The model port carries one model per row and the executor scores each of
+       |# them on its own, so a row has to be given the score of the model it holds.
+       |# One score written down the column would report the first model's answer
+       |# for all of them.
+       |predictions = [_model.predict(X) for _model in in1df[$modelLit]]
        |if $isRegressionStr:
-       |    out1df["R2"] = r2_score(Y, predictions)
-       |    out1df["RMSE"] = root_mean_squared_error(Y, predictions)
-       |    out1df["MAE"] = mean_absolute_error(Y, predictions)
+       |    out1df["R2"] = [r2_score(Y, _p) for _p in predictions]
+       |    out1df["RMSE"] = [root_mean_squared_error(Y, _p) for _p in predictions]
+       |    out1df["MAE"] = [mean_absolute_error(Y, _p) for _p in predictions]
        |else:
-       |    out1df["accuracy"] = round(accuracy_score(Y, predictions), 4)
-       |    out1df["f1"] = f1_score(Y, predictions, average="weighted")
-       |    out1df["precision"] = precision_score(Y, predictions, average="weighted")
-       |    out1df["recall"] = recall_score(Y, predictions, average="weighted")""".stripMargin
+       |    out1df["accuracy"] = [round(accuracy_score(Y, _p), 4) for _p in predictions]
+       |    out1df["f1"] = [f1_score(Y, _p, average="weighted") for _p in predictions]
+       |    out1df["precision"] = [precision_score(Y, _p, average="weighted") for _p in predictions]
+       |    out1df["recall"] = [recall_score(Y, _p, average="weighted") for _p in predictions]""".stripMargin
   }
 
 }

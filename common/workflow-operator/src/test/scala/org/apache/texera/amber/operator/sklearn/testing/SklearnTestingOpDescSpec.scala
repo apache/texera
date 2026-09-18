@@ -266,6 +266,47 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The model port carries one model per row, and the executor takes each of
+  // those rows on its own. Two models that answer differently are what tells a
+  // per-row score from one score written down the column.
+  it should "score each model row with the model that row holds" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas, sklearn")) cancel(s"'$python' cannot import pandas and sklearn")
+
+    val op = new SklearnTestingOpDesc
+    op.model = "model"
+    op.target = "target"
+
+    val driver =
+      s"""import pandas as pd
+         |from sklearn.tree import DecisionTreeClassifier
+         |
+         |# Two models that disagree on every row: one was trained to answer 0,
+         |# the other to answer 1. Against labels that are all 0 the first scores
+         |# 1.0 and the second 0.0.
+         |features = pd.DataFrame({"f1": [0, 1]})
+         |answers_0 = DecisionTreeClassifier(random_state=0).fit(features, [0, 0])
+         |answers_1 = DecisionTreeClassifier(random_state=0).fit(features, [1, 1])
+         |
+         |in1df = pd.DataFrame({"model": [answers_0, answers_1]})
+         |in2df = pd.DataFrame({"f1": [0, 1], "target": [0, 0]})
+         |${op.generateStandaloneCode()}
+         |
+         |print([round(float(a), 10) for a in out1df["accuracy"]])
+         |""".stripMargin
+
+    val script = Files.createTempFile("sklearn-testing-two-models-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(180, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.linesIterator.toSeq should contain("[1.0, 0.0]")
+    }
+  }
+
   private def resolvePython(): Option[String] = {
     def fromConfig: Option[String] =
       Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption

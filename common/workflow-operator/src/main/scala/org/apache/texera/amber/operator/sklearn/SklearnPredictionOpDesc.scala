@@ -136,13 +136,23 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
        |    out1df.loc[_complete, $resultLit] = _predicted""".stripMargin
   }
 
+  /** Python that takes the model the executor predicts with.
+    *
+    * The executor keeps the model of every row the model port hands it, each one
+    * overwriting the last, so the model it predicts with is the one on the final
+    * row. Reading the first row instead would answer with a different model
+    * whenever that port carries more than one.
+    */
+  private def takeTheModelTheExecutorKeeps(modelLit: String): String =
+    s"model = in1df[$modelLit].iloc[-1]"
+
   override def generateStandaloneCode(): String = {
     val modelLit = pyStringLiteral(model)
     val resultLit = pyStringLiteral(resultAttribute)
     if (groundTruthAttribute.nonEmpty) {
       s"""from sklearn.pipeline import Pipeline
          |
-         |model = in1df[$modelLit].iloc[0]
+         |${takeTheModelTheExecutorKeeps(modelLit)}
          |out1df = in2df.copy()
          |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
          |$narrowToFittedFeatures
@@ -150,7 +160,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
     } else {
       s"""from sklearn.pipeline import Pipeline
          |
-         |model = in1df[$modelLit].iloc[0]
+         |${takeTheModelTheExecutorKeeps(modelLit)}
          |out1df = in2df.copy()
          |X = in2df
          |$narrowToFittedFeatures
