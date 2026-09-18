@@ -219,6 +219,21 @@ describe("WorkflowUtilService", () => {
     expect(parsed.content).toBe(content);
   });
 
+  // The persist endpoint returns the stored row, which names the publish flag isPublic; the rest
+  // of the frontend knows it as isPublished. Without the carry-over, a save fed back as metadata
+  // lost the flag, and the next save went out without it.
+  it("should carry the persist response's isPublic over to isPublished", () => {
+    const fromPersist = { wid: 1, name: "n", content: "{}", isPublic: true } as unknown as Workflow;
+
+    expect(WorkflowUtilService.parseWorkflowInfo(fromPersist).isPublished).toBe(1);
+  });
+
+  it("should leave an isPublished the payload already carries alone", () => {
+    const fromRetrieve = { wid: 1, name: "n", content: "{}", isPublished: 0, isPublic: true } as unknown as Workflow;
+
+    expect(WorkflowUtilService.parseWorkflowInfo(fromRetrieve).isPublished).toBe(0);
+  });
+
   it("should create a fresh comment box at the default position", () => {
     const commentBox = workflowUtilService.getNewCommentBox();
 
