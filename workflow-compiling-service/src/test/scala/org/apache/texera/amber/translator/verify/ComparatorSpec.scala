@@ -21,6 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.translator.verify.tags.IntegrationTest
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -366,6 +367,44 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     withClue(s"compare.py said:\n$said") { exit shouldBe 0 }
   }
 
+  // A bullet or gauge chart draws its charts onto one page and yields that page
+  // as a single row, and its script writes the whole set to its page and only
+  // the first of them as a figure. Both sides are pages then, and every call on
+  // them is a chart to compare.
+  private def plotlyPage(values: Int*): String =
+    values
+      .map(v =>
+        s"""<div><script>Plotly.newPlot("div$v", """ +
+          s"""[{"type": "indicator", "value": $v}], {}, {"responsive": true})</script></div>"""
+      )
+      .mkString
+
+  /** A page as the runtime path hands it over: one JSONL row, markup escaped. */
+  private def plotlyPageRow(values: Int*): String = {
+    val node = objectMapper.createObjectNode()
+    node.put("html-content", plotlyPage(values: _*))
+    objectMapper.writeValueAsString(node)
+  }
+
+  it should "read every chart on a page the run drew as one row" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-page-")
+    val actual = writeLines(dir, "actual.jsonl", Seq(plotlyPageRow(1, 2, 3)))
+    val expected = writeLines(dir, "expected.html", Seq(plotlyPage(1, 2, 3)))
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") { exit shouldBe 0 }
+  }
+
+  it should "catch a chart after the first on a page the script wrote" in {
+    val dir = Files.createTempDirectory("comparator-spec-plotly-page-second-")
+    val actual = writeLines(dir, "actual.jsonl", Seq(plotlyPageRow(1, 2, 3)))
+    val expected = writeLines(dir, "expected.html", Seq(plotlyPage(1, 99, 3)))
+    val (exit, said) = runPlotly(actual, expected)
+    withClue(s"compare.py said:\n$said") {
+      exit should not be 0
+      said should include("chart 2 of 3")
+    }
+  }
+
   // `bool` is a subclass of `int` in Python, so a boolean setting fell into the
   // numeric branch and True compared equal to 1. A column whose declared type
   // changed from boolean to integer reaches a figure as exactly that.
@@ -377,7 +416,11 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
       Seq("""{"json-content": {"data": [{"visible": true}], "layout": {}}}""")
     )
     def expected(visible: String): Path =
-      writeLines(dir, s"expected-$visible.json", Seq(s"""{"data": [{"visible": $visible}], "layout": {}}"""))
+      writeLines(
+        dir,
+        s"expected-$visible.json",
+        Seq(s"""{"data": [{"visible": $visible}], "layout": {}}""")
+      )
 
     val (asNumber, said) = runPlotly(actual, expected("1"))
     withClue(s"compare.py said:\n$said") { asNumber should not be 0 }

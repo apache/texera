@@ -49,12 +49,15 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                 probe may include extra columns (e.g. the training target).
 
   --plotly      Compare Plotly figures instead of DataFrames. The actual side is
-                a one-row JSONL with `html-content` or `json-content`; for
-                `html-content` the first `Plotly.newPlot(...)` payload is
-                extracted. The expected side is the standalone path's
-                `fig.write_json(...)`. Only data and layout are compared, with
-                display-only `uid` fields stripped and floats matched by
-                tolerance. Takes none of the DataFrame flags.
+                a JSONL with `html-content` or `json-content`, a chart per row
+                or a page of them in one row; every `Plotly.newPlot(...)`
+                payload counts. The expected side is the standalone path's
+                `fig.write_json(...)`, one figure or a list of them, or its page
+                when that is where the whole set landed. The two are compared in
+                order, so a chart one path drew and the other did not is a
+                mismatch. Only data and layout are compared, with display-only
+                `uid` fields stripped and floats matched by tolerance. Takes
+                none of the DataFrame flags.
 
 Exit 0  - Outputs equal (and model predictions match, if --model-cols)
 Exit 1  - Outputs differ; detail on stderr
@@ -513,7 +516,9 @@ def _run_comparison(
 
 
 def _load_actual_plots(path) -> list:
-    """Every chart the run drew, one per row of the runtime path's output."""
+    """Every chart the run drew: a row per chart, or a row holding a page of
+    them, which is how an operator that draws a chart per input row hands them
+    over."""
     import json
 
     with open(path, "r", encoding="utf-8") as fh:
@@ -528,7 +533,7 @@ def _load_actual_plots(path) -> list:
             value = row["json-content"]
             plots.append(json.loads(value) if isinstance(value, str) else value)
         elif "html-content" in row and row["html-content"]:
-            plots.append(_plotly_payload_from_html(row["html-content"]))
+            plots.extend(_plotly_payloads_from_html(row["html-content"]))
         else:
             raise AssertionError(
                 f"{path} row {number} has neither html-content nor json-content"
@@ -536,8 +541,11 @@ def _load_actual_plots(path) -> list:
     return plots
 
 
-def _plotly_payload_from_html(html: str) -> dict:
-    """Pull the data/layout arguments out of the first Plotly.newPlot(...) call.
+def _plotly_payloads_from_html(html: str) -> list:
+    """Pull the data/layout arguments out of every Plotly.newPlot(...) call.
+
+    Every call, because a page can hold a chart per input row and reading the
+    first would leave the rest of them uncompared.
 
     Scanned with a JSON decoder rather than a regex because the payload is
     arbitrary nested JSON that no bracket-matching pattern handles reliably.
@@ -545,30 +553,39 @@ def _plotly_payload_from_html(html: str) -> dict:
     import json
 
     marker = "Plotly.newPlot("
-    start = html.find(marker)
-    if start < 0:
+    index = html.find(marker)
+    if index < 0:
         raise AssertionError("html-content does not contain Plotly.newPlot(...)")
 
     decoder = json.JSONDecoder()
-    index = start + len(marker)
-    args: list = []
-    while len(args) < 4:
-        while index < len(html) and html[index] in " \t\r\n,":
-            index += 1
-        value, consumed = decoder.raw_decode(html[index:])
-        args.append(value)
-        index += consumed
+    plots: list = []
+    while index >= 0:
+        index += len(marker)
+        args: list = []
+        while len(args) < 4:
+            while index < len(html) and html[index] in " \t\r\n,":
+                index += 1
+            value, consumed = decoder.raw_decode(html[index:])
+            args.append(value)
+            index += consumed
+        plots.append({"data": args[1], "layout": args[2]})
+        index = html.find(marker, index)
 
-    return {"data": args[1], "layout": args[2]}
+    return plots
 
 
 def _load_expected_plots(path) -> list:
     """Every chart the exported script drew. An operator that draws one writes a
-    lone figure; one that draws a chart per row writes the sequence."""
+    lone figure; one that draws a chart per row writes the sequence, or writes
+    them to its page and only the first as a figure, in which case the page is
+    what this is handed."""
     import json
 
     with open(path, "r", encoding="utf-8") as fh:
-        value = json.load(fh)
+        text = fh.read()
+    if str(path).endswith(".html"):
+        return _plotly_payloads_from_html(text)
+    value = json.loads(text)
     figures = value if isinstance(value, list) else [value]
     return [
         {"data": fig.get("data", []), "layout": fig.get("layout", {})}
