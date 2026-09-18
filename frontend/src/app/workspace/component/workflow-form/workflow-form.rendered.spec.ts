@@ -716,8 +716,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
     finishLoad();
 
     expect(el(".runbar .run")).not.toBeNull();
-    // Default state: no unit chosen, so the button reads Connect and is disabled.
-    expect(el(".runbar .run")?.textContent?.trim()).toContain("Connect");
+    // Default state: no unit chosen, so the button names what is missing and is disabled.
+    expect(el(".runbar .run")?.textContent?.trim()).toContain("Computing Unit");
     expect((el(".runbar .run") as HTMLButtonElement).disabled).toBe(true);
     expect(el(".runbar texera-computing-unit-selection")).not.toBeNull();
     // At rest there is nothing to count and no run note.
