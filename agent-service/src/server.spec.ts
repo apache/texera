@@ -119,11 +119,15 @@ describe(`POST ${API}/agents`, () => {
     // The body schema rejects unknown properties, so this also pins the field
     // surviving validation. The delegate config is only attached once the
     // workflow fetch succeeds, so stub it.
-    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ name: "W", content: JSON.stringify({ operators: [], links: [] }) }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      })
+    // A fresh Response per call: a shared one can only be read once, so any
+    // other fetch in the same run would consume the body and leave the
+    // workflow load failing (silently, into the handler's catch).
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+      (async () =>
+        new Response(JSON.stringify({ name: "W", content: JSON.stringify({ operators: [], links: [] }) }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })) as any
     );
     try {
       const res = await createAgent({ modelType: "test-model", workflowId: 7, computingUnitId: 3, warehouseId: 42 });
