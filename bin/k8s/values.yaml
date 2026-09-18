@@ -377,8 +377,7 @@ litellm:
 
 # Images an administrator registers, which a computing unit can then be started from.
 curatedImages:
-  # Off until the UI to manage these ships.
-  enabled: false
+  enabled: true
   prepull:
     # Pull every ready image onto every node, so the first unit there does not wait for it.
     # Costs node disk: each node holds each ready image. Turning it off also removes the
