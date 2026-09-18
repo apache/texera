@@ -19,15 +19,20 @@
 
 package org.apache.texera.amber.operator.source.scan.parquet
 
-import org.apache.parquet.schema.LogicalTypeAnnotation
 import org.apache.parquet.schema.LogicalTypeAnnotation.{
   DateLogicalTypeAnnotation,
   DecimalLogicalTypeAnnotation,
+  Float16LogicalTypeAnnotation,
+  IntLogicalTypeAnnotation,
+  IntervalLogicalTypeAnnotation,
+  JsonLogicalTypeAnnotation,
   StringLogicalTypeAnnotation,
+  TimeLogicalTypeAnnotation,
   TimestampLogicalTypeAnnotation
 }
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
-import org.apache.parquet.schema.{MessageType, PrimitiveType, Type}
+import org.apache.parquet.schema.Type.Repetition
+import org.apache.parquet.schema.{MessageType, Type}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 
 import scala.jdk.CollectionConverters._
@@ -36,9 +41,10 @@ import scala.jdk.CollectionConverters._
   * What a Parquet file says its columns are, in Texera's terms.
   *
   * The file states its own types, so nothing is inferred from the values the way
-  * a CSV forces. Only the flat primitives map: a column that is a group, a list
-  * or a map has no Texera column to be, and is refused by name rather than
-  * silently dropped or stringified.
+  * a CSV forces. A column is read where Texera holds the value the file means by
+  * it and the exported script reads that same value off the same bytes. The rest
+  * are refused by name rather than silently dropped, stringified, or read as
+  * something the file does not say.
   */
 object ParquetSchemaMapping {
 
@@ -52,52 +58,74 @@ object ParquetSchemaMapping {
   /** The Texera type a Parquet column is read as, or an error naming the column. */
   def typeOf(field: Type): AttributeType = {
     if (!field.isPrimitive) {
-      throw new UnsupportedOperationException(
-        s"Parquet column '${field.getName}' is a nested ${describe(field)}, which has no Texera " +
-          "column to be. Flatten it before reading the file."
+      refuse(
+        field,
+        s"a nested ${describe(field)}, which has no Texera column to be. " +
+          "Flatten it before reading the file."
+      )
+    }
+    // A repeated column holds a list per row, and a Texera cell holds one value.
+    // Keeping the first of them would drop the rest in silence, where pandas
+    // hands the script the whole list.
+    if (field.isRepetition(Repetition.REPEATED)) {
+      refuse(
+        field,
+        "repeated, so it holds a list per row rather than one value. " +
+          "Flatten it before reading the file."
       )
     }
     val primitive = field.asPrimitiveType()
-    // A DECIMAL is an integer that a scale moves the point in, and Texera has no
-    // column that holds one exactly. Read as the number it stands for: the column
-    // it is stored in holds 1234 where the file means 12.34, and a reader that
-    // took the storage for the value would be off by a factor of the scale.
-    if (primitive.getLogicalTypeAnnotation.isInstanceOf[DecimalLogicalTypeAnnotation]) {
-      return AttributeType.DOUBLE
-    }
-    primitive.getPrimitiveTypeName match {
-      case PrimitiveTypeName.BOOLEAN                          => AttributeType.BOOLEAN
-      case PrimitiveTypeName.FLOAT | PrimitiveTypeName.DOUBLE => AttributeType.DOUBLE
-      case PrimitiveTypeName.INT32 =>
-        annotated[DateLogicalTypeAnnotation](
-          primitive,
-          AttributeType.TIMESTAMP,
-          AttributeType.INTEGER
-        )
-      case PrimitiveTypeName.INT64 =>
-        annotated[TimestampLogicalTypeAnnotation](
-          primitive,
-          AttributeType.TIMESTAMP,
-          AttributeType.LONG
-        )
-      case PrimitiveTypeName.BINARY =>
-        annotated[StringLogicalTypeAnnotation](
-          primitive,
-          AttributeType.STRING,
-          AttributeType.BINARY
-        )
-      case PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY | PrimitiveTypeName.INT96 => AttributeType.BINARY
+    primitive.getLogicalTypeAnnotation match {
+      // A DECIMAL is an integer that a scale moves the point in, and Texera has no
+      // column that holds one exactly. Read as the number it stands for: the column
+      // it is stored in holds 1234 where the file means 12.34, and a reader that
+      // took the storage for the value would be off by a factor of the scale.
+      case _: DecimalLogicalTypeAnnotation => AttributeType.DOUBLE
+      case _: DateLogicalTypeAnnotation | _: TimestampLogicalTypeAnnotation =>
+        AttributeType.TIMESTAMP
+      // JSON is text that carries a grammar. The grammar is not Texera's to keep,
+      // but the text is, and pandas reads that column as text too. ENUM and BSON
+      // are bytes on both sides, so they stay with their storage below.
+      case _: StringLogicalTypeAnnotation | _: JsonLogicalTypeAnnotation => AttributeType.STRING
+      // An unsigned column counts up where its storage counts down: the largest
+      // unsigned 32-bit value is stored as -1, and read as its storage it would
+      // arrive as -1 where pandas reads 4294967295. The next Texera integer up
+      // holds it. Past 64 bits there is no next one.
+      case annotation: IntLogicalTypeAnnotation if !annotation.isSigned =>
+        if (annotation.getBitWidth == 64) {
+          refuse(field, "an unsigned 64-bit integer, which is wider than any Texera column.")
+        }
+        AttributeType.LONG
+      // A time of day is not a moment, an interval is three counts at once, and a
+      // 16-bit float is a number Texera would hand back as its two raw bytes.
+      // pandas reads each of them as the value the file means, so a column read as
+      // its storage here would part the engine from the script.
+      case _: TimeLogicalTypeAnnotation =>
+        refuse(field, "a time of day, which has no Texera column to be.")
+      case _: IntervalLogicalTypeAnnotation =>
+        refuse(field, "an interval, which has no Texera column to be.")
+      case _: Float16LogicalTypeAnnotation =>
+        refuse(field, "a 16-bit float, which has no Texera column to be.")
+      case _ => storageOf(primitive.getPrimitiveTypeName)
     }
   }
 
-  /** `whenAnnotated` if the column carries annotation `A`, `otherwise` if it does not. */
-  private def annotated[A <: LogicalTypeAnnotation](
-      primitive: PrimitiveType,
-      whenAnnotated: AttributeType,
-      otherwise: AttributeType
-  )(implicit tag: scala.reflect.ClassTag[A]): AttributeType =
-    if (tag.runtimeClass.isInstance(primitive.getLogicalTypeAnnotation)) whenAnnotated
-    else otherwise
+  /** The Texera type of a column the file says no more about than its storage. */
+  private def storageOf(storage: PrimitiveTypeName): AttributeType =
+    storage match {
+      case PrimitiveTypeName.BOOLEAN                          => AttributeType.BOOLEAN
+      case PrimitiveTypeName.INT32                            => AttributeType.INTEGER
+      case PrimitiveTypeName.INT64                            => AttributeType.LONG
+      case PrimitiveTypeName.FLOAT | PrimitiveTypeName.DOUBLE => AttributeType.DOUBLE
+      // The timestamp the older writers wrote, before there was an annotation for
+      // one: a Julian day and the nanoseconds into it, in twelve bytes.
+      case PrimitiveTypeName.INT96 => AttributeType.TIMESTAMP
+      case PrimitiveTypeName.BINARY | PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY =>
+        AttributeType.BINARY
+    }
+
+  private def refuse(field: Type, what: String): Nothing =
+    throw new UnsupportedOperationException(s"Parquet column '${field.getName}' is $what")
 
   private def describe(field: Type): String =
     Option(field.getLogicalTypeAnnotation).map(_.toString).getOrElse("group")

@@ -57,22 +57,34 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     // the same footer the executor does, which is the whole point of the format;
     // the text formats have to be told because they carry nothing to read.
     val read = s"""out1df = pd.read_parquet(${pyStringLiteral(basename)})"""
-    // The exception the footer does not settle: a DECIMAL is read as the float
-    // the operator reads it as, rather than as the objects pandas prefers.
-    val decimals =
+    // The columns pandas does not land on the same value as the executor. A
+    // DECIMAL arrives as decimal.Decimal objects and a FLOAT keeps the single
+    // precision the executor widens; an unsigned column, a duration and a zoned
+    // timestamp come back as the Arrow types the writer left in the file's
+    // metadata, where the executor reads what the footer alone states.
+    val columns =
       """|for _column, _values in out1df.items():
          |    if isinstance(next(iter(_values.dropna()), None), Decimal):
-         |        out1df[_column] = _values.astype(float)""".stripMargin
+         |        out1df[_column] = _values.astype(float)
+         |    elif isinstance(_values.dtype, pd.DatetimeTZDtype):
+         |        out1df[_column] = _values.dt.tz_convert("UTC").dt.tz_localize(None)
+         |    elif _values.dtype.kind in "um":
+         |        out1df[_column] = _values.astype("int64")
+         |    elif _values.dtype == "float32":
+         |        out1df[_column] = _values.astype("float64")""".stripMargin
     // The executor drops `offset` rows and then takes `limit` of them. Parquet
     // can skip whole row groups but not an arbitrary row range, so the same
     // window is taken once the frame is in memory, as the Arrow source does.
     val window = (offset, limit) match {
-      case (Some(o), Some(l)) => Some(s"$o:${o + l}")
+      // The end of the window is counted in Long: two Ints the operator accepts
+      // can add up past what an Int holds, and the slice would come out negative
+      // and take the wrong rows.
+      case (Some(o), Some(l)) => Some(s"$o:${o.toLong + l}")
       case (Some(o), None)    => Some(s"$o:")
       case (None, Some(l))    => Some(s":$l")
       case _                  => None
     }
-    (Seq(read, decimals) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
+    (Seq(read, columns) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
       .mkString("\n")
   }
 

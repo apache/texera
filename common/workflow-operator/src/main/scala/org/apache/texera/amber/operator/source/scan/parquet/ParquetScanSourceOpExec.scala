@@ -20,12 +20,15 @@
 package org.apache.texera.amber.operator.source.scan.parquet
 
 import org.apache.parquet.example.data.Group
+import org.apache.parquet.example.data.simple.NanoTime
 import org.apache.parquet.example.data.simple.convert.GroupRecordConverter
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.io.{ColumnIOFactory, LocalInputFile}
 import org.apache.parquet.schema.LogicalTypeAnnotation.{
   DateLogicalTypeAnnotation,
   DecimalLogicalTypeAnnotation,
+  IntLogicalTypeAnnotation,
+  JsonLogicalTypeAnnotation,
   StringLogicalTypeAnnotation,
   TimeUnit,
   TimestampLogicalTypeAnnotation
@@ -44,6 +47,10 @@ import java.time.temporal.ChronoUnit
 import scala.jdk.CollectionConverters._
 
 class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor {
+
+  /** The Julian day 1970-01-01 falls on, which an INT96 counts its days from. */
+  private val UnixEpochJulianDay = 2440588L
+
   private val desc: ParquetScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[ParquetScanSourceOpDesc])
   private var reader: Option[ParquetFileReader] = None
@@ -87,6 +94,12 @@ class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor
     primitive.getLogicalTypeAnnotation match {
       case annotation: DecimalLogicalTypeAnnotation =>
         decimalOf(group, index, primitive, annotation)
+      // An unsigned column counts up where its storage counts down, so the bits
+      // are read again as the number the file means: -1 in an unsigned 32-bit
+      // column is 4294967295, which is what pandas reads there too. The narrower
+      // widths are stored as themselves and the same reading leaves them alone.
+      case annotation: IntLogicalTypeAnnotation if !annotation.isSigned =>
+        group.getInteger(index, 0).toLong & 0xffffffffL
       case _ => primitiveOf(group, index, primitive)
     }
   }
@@ -139,11 +152,20 @@ class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor
         }
       case PrimitiveTypeName.BINARY =>
         primitive.getLogicalTypeAnnotation match {
-          case _: StringLogicalTypeAnnotation => group.getBinary(index, 0).toStringUsingUTF8
-          case _                              => group.getBinary(index, 0).getBytes
+          case _: StringLogicalTypeAnnotation | _: JsonLogicalTypeAnnotation =>
+            group.getBinary(index, 0).toStringUsingUTF8
+          case _ => group.getBinary(index, 0).getBytes
         }
-      case PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY | PrimitiveTypeName.INT96 =>
-        group.getBinary(index, 0).getBytes
+      // Twelve bytes holding a Julian day and the nanoseconds into it, which is
+      // how a timestamp was written before there was an annotation for one. The
+      // same UTC arithmetic as above: the wall clock it lands on is the value.
+      case PrimitiveTypeName.INT96 =>
+        val nanoTime = NanoTime.fromBinary(group.getInt96(index, 0))
+        val moment = Instant.EPOCH
+          .plus(nanoTime.getJulianDay - UnixEpochJulianDay, ChronoUnit.DAYS)
+          .plusNanos(nanoTime.getTimeOfDayNanos)
+        Timestamp.valueOf(LocalDateTime.ofInstant(moment, ZoneOffset.UTC))
+      case PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY => group.getBinary(index, 0).getBytes
     }
   }
 
