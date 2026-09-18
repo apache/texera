@@ -57,6 +57,14 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("Method not implemented.");
   }
 
+  orcidLogin(code: string): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  appleLogin(): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
   isLogin(): boolean {
     return this.user !== undefined;
   }

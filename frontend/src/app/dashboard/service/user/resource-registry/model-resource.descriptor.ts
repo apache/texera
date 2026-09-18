@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+import { EntityType, HubService } from "../../../../hub/service/hub.service";
 import { DEFAULT_MODEL_NAME, ModelService, validateModelName } from "../model/model.service";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
 import { HUB_MODEL_RESULT_DETAIL, USER_MODEL } from "../../../../app-routing.constant";
@@ -42,6 +42,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
 
   constructor(
     private modelService: ModelService,
+    private hubService: HubService,
     private downloadService: DownloadService
   ) {}
 
@@ -53,6 +54,7 @@ export class ModelResourceDescriptor implements ResourceDescriptor {
   retrieveSingleFile = (filePath: string, isLogin: boolean) =>
     this.modelService.retrieveModelVersionSingleFile(filePath, isLogin);
   retrieveOwners = () => this.modelService.retrieveOwners();
+  retrievePublicOwners = () => this.hubService.getPublicOwners(EntityType.Model);
   isPublic = (id: number) => this.modelService.getModel(id).pipe(map(dashboard => dashboard.model.isPublic));
   // The endpoint toggles, so `next` is the caller's expectation rather than a payload.
   setPublished = (id: number) => this.modelService.updateModelPublicity(id);

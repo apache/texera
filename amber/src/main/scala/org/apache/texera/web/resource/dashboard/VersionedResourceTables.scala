@@ -69,6 +69,10 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       size: Long
   ): DashboardClickableFileEntry
 
+  /** Owner-only; `joinWithAccessAndOwner` would fan out a row per grant. */
+  final override def joinWithOwner: Table[_ <: Record] =
+    table.join(USER).on(USER.UID.eq(ownerUidColumn))
+
   /** `accessCondition` narrows the access join: search to the caller, the hub to nothing. */
   final def joinWithAccessAndOwner(accessCondition: Option[Condition]): Table[Record] = {
     val accessJoin = table

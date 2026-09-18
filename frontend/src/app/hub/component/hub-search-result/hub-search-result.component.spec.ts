@@ -77,6 +77,7 @@ class StubSortButtonComponent {
 })
 class StubFiltersComponent {
   @Input() entityType?: EntityType;
+  @Input() ownerScope?: string;
   masterFilterList: ReadonlyArray<string> = [];
   masterFilterListChange = new Subject<ReadonlyArray<string>>();
   getSearchKeywords = vi.fn(() => [] as string[]);
