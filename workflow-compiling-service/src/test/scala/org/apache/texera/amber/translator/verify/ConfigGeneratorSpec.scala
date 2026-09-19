@@ -120,4 +120,34 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     // must resolve to a numeric column rather than the first (string) column.
     Set("id", "score", "open", "high", "low", "close") should contain(op.color.toString)
   }
+
+  // A rule states the types the operator takes. Filling the field from a column
+  // outside them writes a configuration nobody would, and the run would then
+  // report the operator as covered on it. Nothing reaches this against today's
+  // fixtures, every type a rule names having a column in each of them, so what
+  // these two pin is that a fixture narrowed later says so.
+  private val textOnly = Map(
+    0 -> new Schema(
+      new Attribute("iso_country", AttributeType.STRING),
+      new Attribute("name", AttributeType.STRING)
+    )
+  )
+
+  it should "refuse a single-column field when no column has a type it accepts" in {
+    // `locations` still resolves, being a @SampleColumn; `color` is the one
+    // constrained to integer/long/double, and this port holds neither.
+    val result = ConfigGenerator.generate(classOf[ChoroplethMapOpDesc], textOnly)
+    result.isRight shouldBe false
+    result.swap.toOption.get should include("color accepts")
+    result.swap.toOption.get should include("no column at port 0")
+  }
+
+  it should "refuse a list field when no column has a type it accepts" in {
+    // `valueColumns` takes integer/long/double; `nameColumn` is unconstrained
+    // and would have been filled, which is what made the old fallback silent.
+    val result = ConfigGenerator.generate(classOf[RadarChartOpDesc], textOnly)
+    result.isRight shouldBe false
+    result.swap.toOption.get should include("valueColumns accepts")
+    result.swap.toOption.get should include("no column at port 0")
+  }
 }

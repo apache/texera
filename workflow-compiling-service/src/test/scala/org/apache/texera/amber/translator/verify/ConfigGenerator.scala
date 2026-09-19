@@ -128,21 +128,48 @@ object ConfigGenerator {
       used: collection.Set[(Int, String)],
       siblings: JsonNode
   ): Either[String, JsonNode] =
-    columnNames(schemas, port).map { names =>
-      val filtered = allowedTypes(f, siblings) match {
+    columnNames(schemas, port).flatMap { names =>
+      val admitted: Either[String, Seq[String]] = allowedTypes(f, siblings) match {
         case Some(types) =>
           val matching = schemas
             .get(port)
             .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
             .getOrElse(Seq.empty)
-          if (matching.nonEmpty) matching else names
-        case None => names
+          if (matching.nonEmpty) Right(matching)
+          else Left(noAllowedColumn(f, schemas, port, types))
+        case None => Right(names)
       }
-      val free = filtered.filterNot(name => used.contains((port, name)))
-      val arr = objectMapper.createArrayNode()
-      (if (free.nonEmpty) free else filtered).foreach(arr.add)
-      arr
+      admitted.map { columns =>
+        val free = columns.filterNot(name => used.contains((port, name)))
+        val arr = objectMapper.createArrayNode()
+        (if (free.nonEmpty) free else columns).foreach(arr.add)
+        arr
+      }
     }
+
+  /** Why no column at `port` can fill `f`.
+    *
+    * Taking a column the rule does not admit wrote a configuration nobody would:
+    * the operator states which types the field takes, and a generator that reads
+    * that and then ignores it is testing something the operator does not
+    * describe. Nothing reaches this today, every type a rule names having a
+    * column in every fixture, so its whole job is to say so the day one of them
+    * narrows, rather than to quietly choose another column and report the
+    * operator as covered.
+    */
+  private def noAllowedColumn(
+      f: Field,
+      schemas: Map[Int, Schema],
+      port: Int,
+      types: Set[AttributeType]
+  ): String = {
+    val present = schemas
+      .get(port)
+      .map(_.getAttributes.map(a => s"${a.getName}:${a.getType}").mkString(", "))
+      .getOrElse("no schema")
+    s"${jsonNameOf(f)} accepts ${types.mkString("/")}, and no column at port $port " +
+      s"has one of those types (port holds: $present)"
+  }
 
   /** The key a field carries in the config JSON. */
   private def jsonNameOf(f: Field): String =
@@ -835,7 +862,7 @@ object ConfigGenerator {
               .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName)) match {
               case Some(cols) if cols.nonEmpty =>
                 Right(take(cols.find(c => !used.contains((port, c))).getOrElse(cols.head)))
-              case _ => firstUnused(schemas, port, used) // no type-matching column; fall back
+              case _ => Left(noAllowedColumn(f, schemas, port, types))
             }
           case None => firstUnused(schemas, port, used)
         }
