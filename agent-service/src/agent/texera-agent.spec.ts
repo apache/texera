@@ -1074,10 +1074,29 @@ describe("delegate mode", () => {
     }
   });
 
+  test("setDelegateWarehouse points an existing delegate at the current pick", async () => {
+    // An agent created before the picker loaded carries no warehouse; every run
+    // would be refused, and nothing in the agent panel could fix it (#7751).
+    const agent = makeAgentWith(textModel("x"));
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).delegateConfig).toBeUndefined();
+
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBe(42);
+
+    // An absent pick is a pick: clearing it keeps a stale id from riding the
+    // next run and being refused while the feature is off.
+    agent.setDelegateWarehouse(undefined);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+  });
+
   test("buildExecutionConfig projects the delegate config and live settings", async () => {
     const agent = makeAgentWith(textModel("x"));
     expect((agent as any).buildExecutionConfig()).toBeUndefined();
-    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2 };
+    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2, warehouseId: 42 };
     agent.updateSettings({
       executionTimeoutMs: 7000,
       maxOperatorResultCharLimit: 11,
@@ -1087,6 +1106,7 @@ describe("delegate mode", () => {
       userToken: "tok",
       workflowId: 5,
       computingUnitId: 2,
+      warehouseId: 42,
       maxOperatorResultCharLimit: 11,
       maxOperatorResultCellCharLimit: 13,
       executionTimeoutMs: 7000,
