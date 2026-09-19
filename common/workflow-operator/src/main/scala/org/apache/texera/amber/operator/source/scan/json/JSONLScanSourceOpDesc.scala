@@ -95,7 +95,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
           .filter(_.getType == AttributeType.TIMESTAMP)
           .map(a => pyStringLiteral(a.getName))
       )
-    readArgs += s"convert_dates=[${dateColumns.mkString(", ")}]"
+    // Under flattening the schema names a nested value for the column the
+    // flattening is about to build, and read_json is asked about that name
+    // while the file still holds the object around it. It finds no such column,
+    // converts nothing, and the value reaches the plan as text, where a sort
+    // puts a 2025 date before a 2024 one. Those columns are converted once the
+    // frame that holds them exists, below.
+    if (!flatten) readArgs += s"convert_dates=[${dateColumns.mkString(", ")}]"
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"
     // json_normalize opens a nested object and leaves a nested array whole, so
@@ -125,6 +131,15 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       longColumns.foreach { name =>
         val nameLit = pyStringLiteral(name)
         lines += s"""out1df[$nameLit] = pd.array([_r.get($nameLit) for _r in _records], dtype="Int64")"""
+      }
+    }
+
+    if (flatten) {
+      // A format is inferred for each value on its own, the way this operator's
+      // own parser reads each value on its own, so a column whose lines wrote
+      // the same instant two ways still converts whole.
+      dateColumns.foreach { nameLit =>
+        lines += s"""out1df[$nameLit] = pd.to_datetime(out1df[$nameLit], format="mixed")"""
       }
     }
 

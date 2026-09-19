@@ -372,6 +372,74 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // read_json is handed the name the flattening will give a nested value, so it
+  // looks for a column the file does not yet have and converts nothing. The
+  // value stayed text, and a plan sorting on it read January 2025 as coming
+  // before March 2024.
+  it should "give a flattened timestamp the type the schema declares" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-flatten-date-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    // Written so that the text and the instant disagree on the order: as text
+    // "01/15/2025" comes first, as a moment "03/01/2024" does.
+    Files.write(
+      data,
+      ("""{"id":1,"meta":{"when":"03/01/2024 10:00:00"}}""" + "\n" +
+        """{"id":2,"meta":{"when":"01/15/2025 08:30:00"}}""" + "\n")
+        .getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.flatten = true
+    val schema = op.sourceSchema()
+    schema.getAttribute("meta.when").getType shouldBe AttributeType.TIMESTAMP
+
+    val exec = new JSONLScanSourceOpExec(objectMapper.writeValueAsString(op))
+    exec.open()
+    val fromEngine =
+      try exec
+        .produceTuple()
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
+        .toList
+        .sortBy(_.getField[java.sql.Timestamp]("meta.when").getTime)
+        .map(_.getField[Any]("id"))
+      finally exec.close()
+    fromEngine shouldBe List(1, 2)
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}"
+         |${op.generateStandaloneCode()}
+         |print(out1df["meta.when"].dtype.kind)
+         |print(list(out1df.sort_values("meta.when")["id"]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      // "M" is a datetime column; text would print "O".
+      out.linesIterator.map(_.trim).toList should contain("M")
+      out.trim should endWith("[1, 2]")
+    }
+  }
+
   // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
   // (UDF_PYTHON_PATH), then python3 / python / py.
   private def resolvePython(): Option[String] = {
