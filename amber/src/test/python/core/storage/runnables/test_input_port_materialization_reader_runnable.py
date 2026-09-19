@@ -219,11 +219,11 @@ class TestRunTupleLoop:
         return ActorVirtualIdentity(name="me")
 
     @staticmethod
-    def _run_with_documents(reader, tuples):
+    def _run_with_documents(reader, tuples, states=()):
         result_doc = MagicMock()
         result_doc.get.return_value = iter(tuples)
         state_doc = MagicMock()
-        state_doc.get.return_value = iter([])  # no materialized states
+        state_doc.get.return_value = iter(states)
         with patch(DOCUMENT_FACTORY) as mock_factory:
             mock_factory.open_document.side_effect = [
                 (result_doc, reader.tuple_schema),
@@ -274,11 +274,16 @@ class TestRunTupleLoop:
         reader = _build_reader(me)
         reader.partitioner.flush.side_effect = lambda receiver, ecm: [ecm]
         reader.partitioner.add_tuple_to_batch.side_effect = lambda tup: [(me, [tup])]
+        state_row = {State.LOOP_COUNTER: 0, State.LOOP_START_ID: ""}
 
         reader.stop()
-        self._run_with_documents(reader, [Tuple({"x": 1}), Tuple({"x": 2})])
+        with patch.object(State, "from_tuple", return_value=State({"i": 1})) as load:
+            self._run_with_documents(
+                reader, [Tuple({"x": 1}), Tuple({"x": 2})], [state_row]
+            )
 
-        # No tuple is replayed once stopped ...
+        # No state or tuple is replayed once stopped ...
+        load.assert_not_called()
         assert _emitted_data_frames(reader) == []
         reader.partitioner.add_tuple_to_batch.assert_not_called()
         # ... but the channel is still closed, so the downstream port
