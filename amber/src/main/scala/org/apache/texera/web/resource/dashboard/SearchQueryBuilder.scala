@@ -39,12 +39,10 @@ object SearchQueryBuilder {
   // DATASET_RESOURCE_TYPE aliases ResourceType.Dataset, whose value doubles as the leading
   // segment of a storage logical path, so renaming that prefix silently changes search results
   // with no compile error here.
-  // TODO: give every resource type (file, workflow, project, dataset, model) a single shared
+  // TODO: give every resource type (workflow, dataset, model) a single shared
   //       constant/enum instead of these raw strings, so the search contract has one source of
   //       truth and no longer borrows an unrelated storage constant.
-  val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
-  val PROJECT_RESOURCE_TYPE = "project"
   val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
   val MODEL_RESOURCE_TYPE = ResourceType.Model.toString
   val ALL_RESOURCE_TYPE = ""
