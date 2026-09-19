@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.texera.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
+import org.apache.texera.amber.engine.architecture.common.PekkoActorRefMappingService
 import org.apache.texera.amber.engine.architecture.coordinator.execution.OperatorExecution
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ControlInvocation,
@@ -41,9 +42,12 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   DirectControlMessagePayload,
   WorkflowFIFOMessage
 }
+import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR, SELF}
 import org.apache.texera.amber.engine.common.{CheckpointState, SerializedState}
 import org.apache.texera.web.SessionState
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import com.twitter.util.Promise
 
 import scala.concurrent.duration.DurationInt
 
@@ -66,6 +70,25 @@ final case class CoordinatorConfig(
 )
 
 object Coordinator {
+  // Removing a worker's actorRef stops other actors from reaching it. Restarted regions reuse
+  // actorId, so the control channels must go too: otherwise the coordinator resumes the old
+  // control-message sequence numbers and the new worker discards its commands as duplicates.
+  case class CleanupWorkerChannels(
+      workerIds: Seq[ActorVirtualIdentity],
+      completionPromise: Promise[Unit]
+  )
+
+  def cleanupWorkerChannels(
+      workerIds: Seq[ActorVirtualIdentity],
+      asyncRPCClient: AsyncRPCClient,
+      actorRefService: PekkoActorRefMappingService
+  ): Unit = {
+    workerIds.foreach { workerId =>
+      asyncRPCClient.inputGateway.removeControlChannel(workerId)
+      asyncRPCClient.outputGateway.removeControlChannel(workerId)
+      actorRefService.removeActorRef(workerId)
+    }
+  }
 
   def props(
       workflowContext: WorkflowContext,
@@ -189,9 +212,21 @@ class Coordinator(
       globalReplayManager.markRecoveryStatus(id, status)
   }
 
-  override def receive: Receive = {
-    super.receive orElse handleDirectInvocation orElse handleReplayMessages
+  private def handleCleanupWorkerChannels: Receive = {
+    case Coordinator.CleanupWorkerChannels(workerIds, completionPromise) =>
+      Coordinator.cleanupWorkerChannels(
+        workerIds,
+        cp.asyncRPCClient,
+        cp.actorRefService
+      )
+      completionPromise.setDone()
   }
+
+  override def receive: Receive =
+    handleCleanupWorkerChannels orElse
+      super.receive orElse
+      handleDirectInvocation orElse
+      handleReplayMessages
 
   /** flow-control */
   override def getQueuedCredit(channelId: ChannelIdentity): Long = {
