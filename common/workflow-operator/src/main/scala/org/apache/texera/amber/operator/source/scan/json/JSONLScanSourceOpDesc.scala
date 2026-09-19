@@ -128,6 +128,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       }
     }
 
+    // A JSONL file states no column order, so the schema this operator infers
+    // sorts the names it found and the rows the workflow sees follow that
+    // order. read_json keeps the order the first record happened to use, which
+    // is the same columns in a different order, and column order is what a
+    // positional read downstream and a file export both go by.
+    lines += "out1df = out1df[sorted(out1df.columns)]"
+
     lines.mkString("\n")
   }
 
