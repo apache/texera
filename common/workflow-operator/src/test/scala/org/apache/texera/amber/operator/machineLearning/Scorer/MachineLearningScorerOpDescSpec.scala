@@ -95,6 +95,19 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       )
   }
 
+  // `result['Class']` is assigned after the metrics, so the frame comes back with
+  // Class last, where the schema above declares it first and the engine writes its
+  // rows through that schema. The exported script has none to write through, so it
+  // put the same numbers under a different column order.
+  it should "put Class first in the exported frame, as the schema declares it" in {
+    val d = new MachineLearningScorerOpDesc
+    d.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.f1Score)
+    d.generateStandaloneCode() should include(
+      "return pd.DataFrame(result)[['Class'] + metric_list]"
+    )
+  }
+
   it should "produce an empty schema for regression with no metrics" in {
     val d = new MachineLearningScorerOpDesc
     d.isRegression = true
