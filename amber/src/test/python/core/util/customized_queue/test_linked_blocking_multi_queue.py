@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import itertools
 import pytest
 import random
 import time
@@ -247,6 +248,30 @@ class TestLinkedBlockingMultiQueue:
         assert total == sum(filter(lambda x: x % 3 != 0, range(11)))
 
         reraise()
+
+
+class TestAddSubQueue:
+    def test_priority_groups_stay_sorted_regardless_of_registration_order(self):
+        # DefaultSubQueueSelection serves priority_groups in list order, so a
+        # group registered after a lower-priority one must be inserted at its
+        # sorted position rather than appended.
+        for order in itertools.permutations([0, 1, 2, 3]):
+            lbmq = LinkedBlockingMultiQueue()
+            for priority in order:
+                lbmq.add_sub_queue(f"q{priority}", priority)
+            assert [pg.priority for pg in lbmq.priority_groups] == [0, 1, 2, 3]
+
+    def test_same_priority_registered_out_of_order_joins_the_existing_group(self):
+        lbmq = LinkedBlockingMultiQueue()
+        lbmq.add_sub_queue("data1", 2)
+        lbmq.add_sub_queue("control", 0)
+        lbmq.add_sub_queue("data2", 2)
+
+        assert [pg.priority for pg in lbmq.priority_groups] == [0, 2]
+        assert (
+            lbmq.get_sub_queue("data2").priority_group
+            is lbmq.get_sub_queue("data1").priority_group
+        )
 
 
 class TestPeek:
