@@ -108,6 +108,10 @@ $reportMissingKept
        |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X_train, Y_train)
        |
        |_test = ${dropMissingRowsStandalone("in2df")}
+       |# The operator runs once per port, so it says this for the table it scores
+       |# as well as for the one it fits.
+       |if len(_test) < len(in2df):
+       |    print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")
        |Y_test = _test[$targetLit]
        |X_test = _test.drop($targetLit, axis=1)
        |$narrowTest

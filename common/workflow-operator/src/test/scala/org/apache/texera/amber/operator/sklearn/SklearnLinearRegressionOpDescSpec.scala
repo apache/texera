@@ -108,6 +108,20 @@ class SklearnLinearRegressionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("X_test = _fittable")
   }
 
+  // The operator runs once per port and counts the rows it dropped each time, so
+  // the script says it for the table it scores as well as the one it fits.
+  it should "count the rows it dropped on both tables" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generateStandaloneCode()
+    code should include(
+      """print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")"""
+    )
+    code should include(
+      """print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")"""
+    )
+  }
+
   "SklearnLinearRegressionOpDesc" should
     "round-trip its target through the polymorphic base" in {
     val d = new SklearnLinearRegressionOpDesc
