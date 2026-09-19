@@ -49,7 +49,7 @@ import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.inter
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
-import { USER_WORKSPACE } from "../../app-routing.constant";
+import { isLeavingWorkspace, USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
@@ -108,6 +108,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
    */
   private autoPersistRegistered = false;
 
+  /**
+   * Whether this page opened onto a workflow that was already live, handed over by its Form View
+   * rather than loaded from scratch. Decided once, in ngAfterViewInit, before anything can change
+   * what it is read from.
+   */
+  private resumedSession = false;
+
   constructor(
     private userService: UserService,
     // list additional 3 services in constructor so they are initialized even if no one use them directly
@@ -159,13 +166,19 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      * WorkflowActionService is the single source of the workflow representation. WorkflowPersistService reflects
      * changes from WorkflowActionService.
      */
-    // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
-    this.workflowActionService.resetAsNewWorkflow();
-    // if a workflow id is present in the route, display loading spinner immediately while loading
     const widInRoute = this.route.snapshot.params.id;
-    if (widInRoute) {
-      this.isLoading = true;
-      this.workflowActionService.disableWorkflowModification();
+    // Arriving from the Form View of this same workflow, which kept its session for us (see its
+    // ngOnDestroy). The graph is already here and already in its co-editing room, so clearing it
+    // and fetching it again would undo exactly what was kept.
+    this.resumedSession = widInRoute !== undefined && this.workflowActionService.hasWorkflowOpen(Number(widInRoute));
+    if (!this.resumedSession) {
+      // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
+      this.workflowActionService.resetAsNewWorkflow();
+      // if a workflow id is present in the route, display loading spinner immediately while loading
+      if (widInRoute) {
+        this.isLoading = true;
+        this.workflowActionService.disableWorkflowModification();
+      }
     }
     this.onWIDChange();
     this.updateViewCount();
@@ -195,11 +208,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ngOnDestroy() {
     this.persistBeforeLeaving();
     this.codeEditorViewRef.clear();
-    this.workflowActionService.clearWorkflow();
     // Tear down the connection and all websocket-derived session state so a
-    // re-entered workflow starts clean instead of reusing the previous one.
-    this.computingUnitStatusService.disconnect();
-    this.resetWorkflowSessionState();
+    // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
+    // View of this same workflow is taking over, in which case the session is handed to it
+    // rather than rebuilt, which is what used to make the switch take seconds.
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getWorkflowMetadata().wid)) {
+      this.workflowActionService.clearWorkflow();
+      this.computingUnitStatusService.disconnect();
+      this.resetWorkflowSessionState();
+    }
   }
 
   private persistBeforeLeaving(): void {
@@ -316,6 +333,22 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   registerLoadOperatorMetadata() {
     const wid = this.route.snapshot.params.id;
+    // The Form View handed this workflow over still open: the graph, its co-editing room and the
+    // computing unit connection are the ones it was using. Nothing to fetch, nothing to rebuild.
+    // Only the lock it put on the graph is undone, since editing is what the canvas is for, and
+    // the view is centred because this canvas's paper is a new one, at its default offset.
+    if (this.resumedSession) {
+      this.workflowActionService.enableWorkflowModification();
+      this.registerAutoPersistWorkflow();
+      this.triggerCenter();
+      // This page and everything on it is new, and the metadata it needs was set by the view that
+      // was here before: the stream that carries it does not replay, so say it again now that
+      // this page's own subscribers are listening. Without it the menu shows no workflow name
+      // and no id, the computing unit picker does not restore the unit this workflow last ran
+      // on, and this page believes the user cannot write to the workflow.
+      this.workflowActionService.republishWorkflowMetadata();
+      return;
+    }
     // load workflow with wid if presented in the URL
     if (wid) {
       // show loading spinner right away while waiting for workflow to load

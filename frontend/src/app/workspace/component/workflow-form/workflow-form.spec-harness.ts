@@ -51,7 +51,15 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
  * constructor takes.
  */
 export function setupHarness() {
-  const router = { navigate: vi.fn() };
+  // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
+  // navigation in flight, so nothing to hand the session to. `serializeUrl` is the real
+  // router's, turning a UrlTree back into a path; here the tests hand in the path itself.
+  const router = {
+    navigate: vi.fn(),
+    navigateByUrl: vi.fn(),
+    getCurrentNavigation: vi.fn().mockReturnValue(null),
+    serializeUrl: (url: unknown) => String(url),
+  };
   const workflowChangedStream = new Subject<unknown>();
   // Announces every form-config write (see formBindingChanged$ and the form-binding mock below).
   const formBindingChanged = new Subject<unknown>();
@@ -129,8 +137,14 @@ export function setupHarness() {
     clearWorkflow: vi.fn(),
     workflowChanged: () => workflowChangedStream.asObservable(),
     workflowMetaDataChanged: () => workflowMetaDataChangedStream.asObservable(),
+    // As the real one does: the metadata it already holds, re-announced on the same stream.
+    republishWorkflowMetadata: vi.fn(() => workflowMetaDataChangedStream.next(undefined)),
     getWorkflow: vi.fn().mockReturnValue({ wid: 7, content: { operators: [], operatorPositions: {} } }),
-    getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
+    // Carries the wid, as the real metadata does once a workflow is open: it is what tells the
+    // page, on the way out, whether the navigation is leaving this workflow or handing it over.
+    getWorkflowMetadata: () => ({ wid: 7, name: "scGPT", lastModifiedTime: 1767225600000 }),
+    // Off by default: most specs open a workflow that is not already live, and so load it.
+    hasWorkflowOpen: vi.fn().mockReturnValue(false),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
     setHighlightingEnabled: vi.fn(),

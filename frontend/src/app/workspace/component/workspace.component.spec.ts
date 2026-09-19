@@ -48,7 +48,7 @@ import { ComputingUnitStatusService } from "../../common/service/computing-unit/
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
-import { USER_WORKSPACE } from "../../app-routing.constant";
+import { USER_WORKSPACE, workspaceFormUrl } from "../../app-routing.constant";
 
 describe("WorkspaceComponent", () => {
   let component: WorkspaceComponent;
@@ -114,8 +114,12 @@ describe("WorkspaceComponent", () => {
       getTexeraGraph: vi.fn().mockReturnValue(stubGraph),
       getWorkflow: vi.fn().mockReturnValue(stubWorkflow),
       getWorkflowMetadata: vi.fn().mockReturnValue({ wid: 42, readonly: false }),
+      // Off by default: most specs open a workflow that is not already live, and so load it.
+      hasWorkflowOpen: vi.fn().mockReturnValue(false),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
+      // As the real one does: the metadata it already holds, re-announced on the same stream.
+      republishWorkflowMetadata: vi.fn(() => metadataChangedSubject.next()),
     };
 
     workflowPersistService = {
@@ -143,7 +147,14 @@ describe("WorkspaceComponent", () => {
     codeEditorService = { vc: undefined };
     messageService = { error: vi.fn() };
 
-    routerMock = { navigate: vi.fn() };
+    // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
+    // navigation in flight, so nothing to hand the session to. `serializeUrl` is the real
+    // router's, turning a UrlTree back into a path; here the tests hand in the path itself.
+    routerMock = {
+      navigate: vi.fn(),
+      getCurrentNavigation: vi.fn().mockReturnValue(null),
+      serializeUrl: (url: unknown) => String(url),
+    };
     locationMock = { go: vi.fn() };
     connectionResetSubject = new Subject<void>();
     computingUnitStatusService = {
@@ -234,6 +245,40 @@ describe("WorkspaceComponent", () => {
       component.ngAfterViewInit();
       expect(component.isLoading).toBe(true);
       expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
+    });
+
+    // The Form View hands this workflow over still live: the same graph, already in the same
+    // co-editing room. Clearing it and fetching it again would undo exactly what was handed over.
+    // Only the lock the Form View put on the graph is lifted, since editing is what a canvas is for.
+    it("attaches to a workflow the Form View handed over, instead of loading it again", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
+      expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.setNewSharedModel).not.toHaveBeenCalled();
+      expect(workflowActionService.reloadWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.enableWorkflowModification).toHaveBeenCalled();
+      expect(component.isLoading).toBe(false);
+      expect(stubGraph.triggerCenterEvent).toHaveBeenCalled();
+    });
+
+    // This page is new and so is everything on it, but the metadata was set by the view that was
+    // here before, and the stream carrying it does not replay. Everything that shows the workflow
+    // -- the menu's name and id, the computing unit picker, this page's own write access -- would
+    // otherwise sit at its initial value until some later edit happened to save.
+    it("re-announces the metadata for the subscribers this page has only just mounted", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+      expect(component.writeAccess).toBe(false);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(component.writeAccess).toBe(true);
     });
   });
 
@@ -518,6 +563,23 @@ describe("WorkspaceComponent", () => {
       expect(workflowResultService.clearResults).not.toHaveBeenCalled();
     });
 
+    // Handing the workflow to its own Form View is not leaving it. The session below the two
+    // views -- the shared document and its room, the computing unit, the running execution --
+    // is the same one, and dropping it here would cost the Form View a reconnect for nothing.
+    it("keeps the session when this workflow's Form View takes over", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
     it("skips even the save on beforeunload when the user is not signed in", async () => {
       await createFixture();
       fixture.detectChanges();
@@ -526,6 +588,17 @@ describe("WorkspaceComponent", () => {
       component.onBeforeUnload();
 
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("tears it down when the destination is another workflow's Form View", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(43) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
     });
 
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {
