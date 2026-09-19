@@ -968,7 +968,10 @@ object TransformVerificationRunner {
       inputs = standaloneInputs,
       outputPortCount = outputPortCount,
       workDir = workDir,
-      exactIntegers = !pathAIsPython
+      exactIntegers = !pathAIsPython,
+      // What the run declared its output columns to be, so the script writes an
+      // integral column the way the engine's writer wrote it.
+      outputSchemas = pathAOutputSchemas
     )
 
     // The operator declares whether its output row order is meaningful via
