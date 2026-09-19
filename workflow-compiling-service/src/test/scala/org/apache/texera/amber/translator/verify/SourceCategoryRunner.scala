@@ -305,7 +305,10 @@ object SourceCategoryRunner {
       opDesc = opDesc,
       inputs = Map.empty,
       outputPortCount = 1,
-      workDir = workDir
+      workDir = workDir,
+      // What the read declared its columns to be, so an integral one is written
+      // the way the engine's writer wrote it.
+      outputSchemas = pathA.outputSchemas
     )
 
     val actual = pathA.outputs(PortIdentity(0))
