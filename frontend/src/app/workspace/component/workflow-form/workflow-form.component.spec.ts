@@ -326,6 +326,19 @@ describe("WorkflowFormComponent", () => {
 
       expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
     });
+
+    // The fields this page reads off the open workflow are its own. Everything else it mounts
+    // that shows the workflow -- the computing unit picker under the form, which restores the
+    // unit this workflow last ran on -- learns it from a stream that does not replay, and this
+    // page never sets the metadata, because what is already open is already right.
+    it("re-announces the metadata for the subscribers it has only just mounted", () => {
+      const seen: unknown[] = [];
+      h.workflowMetaDataChangedStream.subscribe(m => seen.push(m));
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(seen).toHaveLength(1);
+    });
   });
 
   describe("handing over to the operator canvas", () => {

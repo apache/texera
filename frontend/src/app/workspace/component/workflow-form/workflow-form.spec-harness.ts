@@ -137,6 +137,8 @@ export function setupHarness() {
     clearWorkflow: vi.fn(),
     workflowChanged: () => workflowChangedStream.asObservable(),
     workflowMetaDataChanged: () => workflowMetaDataChangedStream.asObservable(),
+    // As the real one does: the metadata it already holds, re-announced on the same stream.
+    republishWorkflowMetadata: vi.fn(() => workflowMetaDataChangedStream.next(undefined)),
     getWorkflow: vi.fn().mockReturnValue({ wid: 7, content: { operators: [], operatorPositions: {} } }),
     // Carries the wid, as the real metadata does once a workflow is open: it is what tells the
     // page, on the way out, whether the navigation is leaving this workflow or handing it over.

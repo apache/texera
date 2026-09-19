@@ -637,9 +637,32 @@ export class WorkflowActionService {
    * over between them rather than each building its own. The arriving view asks this before
    * loading: seeding a second document for the same workflow would leave the room and rejoin it,
    * which is what used to leave a ghost of yourself in the co-editor list.
+   *
+   * A workflow that was open and has since been left does not answer true here, and the reason is
+   * worth stating because it is not local: `destroyYModel` destroys the document but keeps the
+   * object, `wid` and all. What clears it is `clearWorkflow` going on to `reloadWorkflow(undefined)`,
+   * which seeds a fresh model with no `wid`. Were that to stop happening, a canvas re-entered from
+   * the dashboard would attach to a destroyed document instead of loading. Pinned by a test.
    */
   public hasWorkflowOpen(workflowId: number): boolean {
     return this.texeraGraph.sharedModel.wid === workflowId;
+  }
+
+  /**
+   * Announce the metadata already in hand, unchanged, for a view that arrived on a workflow that
+   * was already open.
+   *
+   * `workflowMetaDataChanged()` is a plain Subject, so it carries no current value: a subscriber
+   * that arrives after the metadata was set hears nothing until the next change. Everything a
+   * view puts on screen about the workflow -- its name and id in the menu, the computing unit it
+   * last ran on, whether this user may write to it -- is learnt only from that stream, and a view
+   * handed an open workflow never sets the metadata, because it is already right. Without this
+   * they would each sit at their initial value until the next edit happened to save.
+   *
+   * `setWorkflowMetadata` cannot do the job: it returns early for the value it already holds.
+   */
+  public republishWorkflowMetadata(): void {
+    this.workflowMetadataChangeSubject.next(this.workflowMetadata);
   }
 
   /**

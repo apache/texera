@@ -118,6 +118,8 @@ describe("WorkspaceComponent", () => {
       hasWorkflowOpen: vi.fn().mockReturnValue(false),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
+      // As the real one does: the metadata it already holds, re-announced on the same stream.
+      republishWorkflowMetadata: vi.fn(() => metadataChangedSubject.next()),
     };
 
     workflowPersistService = {
@@ -262,6 +264,21 @@ describe("WorkspaceComponent", () => {
       expect(workflowActionService.enableWorkflowModification).toHaveBeenCalled();
       expect(component.isLoading).toBe(false);
       expect(stubGraph.triggerCenterEvent).toHaveBeenCalled();
+    });
+
+    // This page is new and so is everything on it, but the metadata was set by the view that was
+    // here before, and the stream carrying it does not replay. Everything that shows the workflow
+    // -- the menu's name and id, the computing unit picker, this page's own write access -- would
+    // otherwise sit at its initial value until some later edit happened to save.
+    it("re-announces the metadata for the subscribers this page has only just mounted", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+      expect(component.writeAccess).toBe(false);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(component.writeAccess).toBe(true);
     });
   });
 
