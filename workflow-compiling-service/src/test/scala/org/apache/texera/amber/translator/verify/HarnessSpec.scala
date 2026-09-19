@@ -26,6 +26,7 @@ import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
 /** The two ways of running one operator, and the file format they meet in.
@@ -185,5 +186,54 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     lines.get(0) should not include "\"n\":6.0"
     lines.get(1) should include("\"n\":null")
     lines.get(2) should include("\"n\":7")
+  }
+
+  // JSON carries bytes as base64 text, and the engine decodes it before the
+  // operator sees the field (TupleIO.readTuples). Left as text, the script's
+  // operator is handed a str where the run's was handed bytes, and anything it
+  // does with them answers for the base64 rather than for the value.
+  it should "hand a binary column to the script as bytes" taggedAs NeedsPython in {
+    val withBlob = new Schema(
+      new Attribute("id", AttributeType.INTEGER),
+      new Attribute("blob", AttributeType.BINARY)
+    )
+    def row(id: Int, blob: Array[Byte]): Tuple = {
+      val b = Tuple.builder(withBlob)
+      b.add(withBlob.getAttribute("id"), Int.box(id))
+      b.add(withBlob.getAttribute("blob"), blob)
+      b.build()
+    }
+
+    val dir = Files.createTempDirectory("harness-spec-binary-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(
+      input,
+      Iterator(row(1, "hi".getBytes(StandardCharsets.UTF_8)), row(2, null)),
+      withBlob
+    )
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+
+    val result = StandaloneRunner.run(
+      opDesc = new DistinctOpDesc,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work
+    )
+
+    // The prologue decodes that column and no other. Distinct answers the same
+    // whether it is handed the bytes or the base64 spelling of them, so what the
+    // body is given has to be read off the script rather than off the output.
+    val script = Files.readString(work.resolve("script.py"))
+    script should include("in1df['blob'] = in1df['blob'].map(")
+    script should include("base64.b64decode")
+    script should not include "in1df['id'] = in1df['id'].map("
+
+    // And the column still leaves as the base64 the engine's writer wrote:
+    // decoding it on the way in must not turn it into a pickle on the way out.
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 2
+    lines.get(0) should include("\"blob\":\"aGk=\"")
+    lines.get(1) should include("\"blob\":null")
   }
 }

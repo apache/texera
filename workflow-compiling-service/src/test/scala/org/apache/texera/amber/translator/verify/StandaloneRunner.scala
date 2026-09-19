@@ -220,6 +220,14 @@ object StandaloneRunner extends LazyLogging {
     sb.append("    for _c in df.columns:\n")
     sb.append("        if df[_c].dtype == object:\n")
     sb.append("            df[_c] = df[_c].map(_texera_plain)\n")
+    // Bytes are written as the base64 the engine's writer writes, not as a
+    // base64 pickle of them: the prologue hands a BINARY column over as bytes,
+    // the way the engine hands one to an operator, and the branch below would
+    // otherwise answer a column the run wrote as `aGk=` with a pickle of it.
+    sb.append(
+      "            df[_c] = df[_c].map(lambda _v: base64.b64encode(_v).decode('ascii') " +
+        "if isinstance(_v, (bytes, bytearray)) else _v)\n"
+    )
     sb.append(
       "            df[_c] = df[_c].map(lambda _v: base64.b64encode(pickle.dumps(_v)).decode('ascii') " +
         "if not isinstance(_v, (str, int, float, bool, type(None))) else _v)\n"
@@ -357,6 +365,20 @@ object StandaloneRunner extends LazyLogging {
           )
           sb.append(s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].astype('boolean')\n")
         }
+        // The fixture carries a BINARY column as base64 text, which is how JSON
+        // carries bytes at all, and the engine decodes it before the operator
+        // sees it (TupleIO.readTuples). Left as text, the script's operator is
+        // handed a str where the run's was handed bytes, and anything it does
+        // with them -- a length, a decode, a digest -- answers for the base64
+        // rather than for the value.
+        binaryColumns(path).foreach { col =>
+          sb.append(s"if ${py(col)} in in${n}df.columns:\n")
+          sb.append(
+            s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].map(\n" +
+              s"        lambda _v: None if pd.isna(_v) else base64.b64decode(_v)\n" +
+              s"    )\n"
+          )
+        }
         // Only where the reader lost the value: a column with no holes already
         // came back exact, and replacing it would hand the operator a nullable
         // dtype the run never had.
@@ -483,6 +505,12 @@ object StandaloneRunner extends LazyLogging {
     */
   private def booleanColumns(input: Path): Seq[String] =
     columnsOfType(input, AttributeType.BOOLEAN)
+
+  /** BINARY-typed column names. JSON carries bytes as base64 text, and the
+    * engine decodes it before the operator sees the field.
+    */
+  private def binaryColumns(input: Path): Seq[String] =
+    columnsOfType(input, AttributeType.BINARY)
 
   /** Per output port, the columns the schema declares integral, which is what
     * the engine's writer goes by.
