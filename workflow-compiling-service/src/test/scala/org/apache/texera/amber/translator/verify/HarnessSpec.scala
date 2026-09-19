@@ -148,4 +148,42 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     lines.get(1) should include("\"flag\":null")
     lines.get(2) should include("\"flag\":false")
   }
+
+  // The engine writes a tuple through the schema, so a column it declares
+  // INTEGER leaves as an integer. pandas has no plain integer that carries a
+  // null, so the same column left the script as 6.0 as soon as a row was
+  // missing, and the two sides disagreed on every value in it.
+  it should "write an integral column with a hole the way the engine writes it" taggedAs NeedsPython in {
+    val holed = new Schema(
+      new Attribute("id", AttributeType.INTEGER),
+      new Attribute("n", AttributeType.INTEGER)
+    )
+    def row(id: Int, n: Integer): Tuple = {
+      val b = Tuple.builder(holed)
+      b.add(holed.getAttribute("id"), Int.box(id))
+      b.add(holed.getAttribute("n"), n)
+      b.build()
+    }
+
+    val dir = Files.createTempDirectory("harness-spec-integral-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(input, Iterator(row(1, 6), row(2, null), row(3, 7)), holed)
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+
+    val result = StandaloneRunner.run(
+      opDesc = new DistinctOpDesc,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work,
+      outputSchemas = Map(PortIdentity(0) -> holed)
+    )
+
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 3
+    lines.get(0) should include("\"n\":6")
+    lines.get(0) should not include "\"n\":6.0"
+    lines.get(1) should include("\"n\":null")
+    lines.get(2) should include("\"n\":7")
+  }
 }

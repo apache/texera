@@ -80,7 +80,8 @@ object StandaloneRunner extends LazyLogging {
       outputPortCount: Int,
       workDir: Path,
       pythonExe: String = resolvePython(),
-      exactIntegers: Boolean = false
+      exactIntegers: Boolean = false,
+      outputSchemas: Map[PortIdentity, Schema] = Map.empty
   ): Result = {
     val gen = opDesc match {
       case g: StandaloneCodeGenerator => g
@@ -98,16 +99,18 @@ object StandaloneRunner extends LazyLogging {
         (1 to outputPortCount).map(i => i -> workDir.resolve(s"output_port_${i - 1}.jsonl")).toMap
       else Map.empty
 
+    val inputSchemas = schemasOf(inputs)
     val source =
       renderScript(
         // The sidecar says what each column was DECLARED as, which the JSONL
         // cannot carry.
-        gen.generateStandaloneCode(schemasOf(inputs)),
+        gen.generateStandaloneCode(inputSchemas),
         inputs,
         outputPaths,
         gen.standaloneHelpers(),
         gen.standaloneImports(),
-        exactIntegers
+        exactIntegers,
+        integralOutputColumns(outputSchemas, outputPaths.keys.toSeq)
       )
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
 
@@ -175,7 +178,8 @@ object StandaloneRunner extends LazyLogging {
       outputs: Map[Int, Path],
       helpers: Seq[String],
       imports: Seq[String],
-      exactIntegers: Boolean
+      exactIntegers: Boolean,
+      integralOutputs: Map[Int, Seq[String]]
   ): String = {
     val sb = new StringBuilder
 
@@ -262,6 +266,41 @@ object StandaloneRunner extends LazyLogging {
     sb.append("            df[_c] = df[_c].map(_texera_ts_str)\n")
     sb.append("    return df\n")
     sb.append("\n")
+
+    // The engine writes a tuple through the schema, so a column it declares
+    // INTEGER leaves as an integer however the operator held it. pandas has no
+    // plain integer that carries a null, so the same column leaves the script
+    // as 6.0 whenever a row is missing, and the two sides then disagree on
+    // every value in it. The declared columns are written the way the engine
+    // writes them: as integers, with the hole kept.
+    //
+    // Only where the values ARE whole. A column the script filled with 6.5
+    // where the run had 6 is a real disagreement, and rounding it here would
+    // report the two sides as equal.
+    if (integralOutputs.values.exists(_.nonEmpty)) {
+      sb.append("def _texera_int_cols(df, _columns):\n")
+      // An operator that rebuilds its rows hands back a column of objects
+      // rather than a float column, so the values are read one at a time: a
+      // numpy scalar unwrapped, anything that is not a plain number left for
+      // the branch below to refuse.
+      sb.append("    def _texera_num(_v):\n")
+      sb.append("        if hasattr(_v, 'item') and getattr(_v, 'ndim', None) == 0:\n")
+      sb.append("            _v = _v.item()\n")
+      sb.append("        if isinstance(_v, bool) or not isinstance(_v, (int, float)):\n")
+      sb.append("            return None\n")
+      sb.append("        return _v\n")
+      sb.append("    for _c in _columns:\n")
+      sb.append("        if _c not in df.columns or pd.api.types.is_integer_dtype(df[_c]):\n")
+      sb.append("            continue\n")
+      sb.append("        _known = [_texera_num(_v) for _v in df[_c] if not pd.isna(_v)]\n")
+      sb.append("        if any(_v is None or float(_v) % 1 != 0 for _v in _known):\n")
+      sb.append("            continue\n")
+      sb.append("        df[_c] = pd.array(\n")
+      sb.append("            [pd.NA if pd.isna(_v) else int(_v) for _v in df[_c]], dtype='Int64'\n")
+      sb.append("        )\n")
+      sb.append("    return df\n")
+      sb.append("\n")
+    }
 
     // Prologue: load each external input into in{N}df. Every option below undoes
     // an inference that would otherwise hand the two paths different data.
@@ -368,8 +407,12 @@ object StandaloneRunner extends LazyLogging {
     // caller is expected to verify viz outputs by other means.
     outputs.toSeq.sortBy(_._1).foreach {
       case (n, path) =>
+        val frame = integralOutputs.getOrElse(n, Seq.empty) match {
+          case Seq() => s"out${n}df"
+          case cols  => s"_texera_int_cols(out${n}df, [${cols.map(py).mkString(", ")}])"
+        }
         sb.append(
-          s"_texera_encode_obj_cols(_texera_encode_ts_cols(out${n}df))" +
+          s"_texera_encode_obj_cols(_texera_encode_ts_cols($frame))" +
             s".to_json(${py(path.toString)}, orient='records', lines=True)\n"
         )
     }
@@ -440,6 +483,29 @@ object StandaloneRunner extends LazyLogging {
     */
   private def booleanColumns(input: Path): Seq[String] =
     columnsOfType(input, AttributeType.BOOLEAN)
+
+  /** Per output port, the columns the schema declares integral, which is what
+    * the engine's writer goes by.
+    *
+    * The schemas are the ones the run itself produced rather than a propagation
+    * of this operator's own: asking an operator to propagate a second time
+    * builds it a second physical plan, and Aggregate's two-stage one does not
+    * survive that. A caller with no schemas to hand over names no column, and
+    * the epilogue then writes each frame as pandas holds it.
+    */
+  private def integralOutputColumns(
+      outputSchemas: Map[PortIdentity, Schema],
+      ports: Seq[Int]
+  ): Map[Int, Seq[String]] =
+    ports.map { port =>
+      val declared = outputSchemas
+        .get(PortIdentity(port - 1))
+        .toSeq
+        .flatMap(_.getAttributes)
+        .filter(a => a.getType == AttributeType.INTEGER || a.getType == AttributeType.LONG)
+        .map(_.getName)
+      port -> declared
+    }.toMap
 
   private def columnsOfType(input: Path, attributeType: AttributeType): Seq[String] =
     scala.util
