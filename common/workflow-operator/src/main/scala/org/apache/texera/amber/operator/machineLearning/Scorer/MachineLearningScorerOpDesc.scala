@@ -314,7 +314,10 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |
        |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
        |  result['Class'] = labels
-       |  return pd.DataFrame(result)
+       |  # Class first and the metrics in the order they were picked, which is
+       |  # the column order this operator declares and so the order of the rows
+       |  # the workflow shows.
+       |  return pd.DataFrame(result)[['Class'] + metric_list]
        |
        |def regression_metrics(y_true, y_pred, metric_list):
        |  result = dict()
