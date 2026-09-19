@@ -26,6 +26,7 @@ from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable import Runnable
+from proto.org.apache.texera.amber.core import PortIdentity
 
 
 class DataProcessor(Runnable, Stoppable):
@@ -66,7 +67,9 @@ class DataProcessor(Runnable, Stoppable):
                 self.process_tuple()
 
     def process_internal_marker(self, internal_marker: InternalMarker) -> None:
-        with self._executor_session() as (executor, port_id):
+        with self._executor_session() as (executor, tuple_port_id):
+            port_identity = self._marker_port_identity()
+            port_id = tuple_port_id if port_identity is None else port_identity.id
             if isinstance(internal_marker, StartChannel):
                 self._set_output_state(executor.produce_state_on_start(port_id))
             elif isinstance(internal_marker, EndChannel):
@@ -74,16 +77,34 @@ class DataProcessor(Runnable, Stoppable):
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
-                self._declare_input_schema(executor, port_id)
+                self._declare_input_schema(executor, port_id, port_identity)
                 self._set_output_tuple(executor.on_finish(port_id))
 
-    def _declare_input_schema(self, executor, port_id: int) -> None:
+    def _marker_port_identity(self) -> Optional[PortIdentity]:
+        """
+        The port the marker belongs to, read off the channel it arrived on.
+
+        A marker carries no tuple, and the port the runtime tracks moves only
+        when one does. With two input ports and nothing at all on the second,
+        its marker would otherwise be read as the first port's, finishing that
+        one twice and leaving the empty port unfinished.
+        """
+        channel_id = self._context.current_input_channel_id
+        if channel_id is None:
+            return None
+        try:
+            return self._context.input_manager.get_port_id(channel_id)
+        except KeyError:
+            # A channel the input manager does not know is no port of ours.
+            return None
+
+    def _declare_input_schema(
+        self, executor, port_id: int, port_identity: Optional[PortIdentity]
+    ) -> None:
         """
         Tell the executor what the finishing port was declared to carry, so an
-        operator handed no rows can still say what its columns were. A source
-        has no input port to ask, so it is left alone.
+        operator handed no rows can still say what its columns were.
         """
-        port_identity = self._context.tuple_processing_manager.current_input_port_id
         if port_identity is None:
             return
         executor.input_schemas[port_id] = self._context.input_manager.get_port(
