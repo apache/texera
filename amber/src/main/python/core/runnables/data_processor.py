@@ -76,7 +76,29 @@ class DataProcessor(Runnable, Stoppable):
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
+                self._declare_input_schema(executor, port_id)
                 self._set_output_tuple(executor.on_finish(port_id))
+
+    def _declare_input_schema(self, executor, port_id: int) -> None:
+        """
+        Tell the executor what the finishing port was declared to carry, so an
+        operator handed no rows can still say what its columns were.
+
+        The marker names the port by number, but a port is registered under its
+        whole identity, so the channel the marker arrived on is what can name
+        the port object holding the schema.
+        """
+        channel_id = self._context.current_input_channel_id
+        if channel_id is None:
+            return
+        try:
+            port_identity = self._context.input_manager.get_port_id(channel_id)
+        except KeyError:
+            # A channel the input manager does not know is no port of ours.
+            return
+        executor.input_schemas[port_id] = self._context.input_manager.get_port(
+            port_identity
+        ).get_schema()
 
     def process_state(self, state: State) -> None:
         """
