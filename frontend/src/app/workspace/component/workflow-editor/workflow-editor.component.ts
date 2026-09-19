@@ -205,8 +205,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngAfterViewInit() {
-    this.editor = document.getElementById("workflow-editor")!;
-    this.editorWrapper = document.getElementById("workflow-editor-wrapper")!;
+    // This component's own elements, not whichever the document happens to hold first. Two of
+    // these editors are briefly in the page at once when the two views of a workflow hand over:
+    // the arriving one initialises while the departing one is still being removed. Searching the
+    // document returned the departing view's container, so the paper was built into a div about
+    // to disappear and the arriving canvas stayed blank, with nothing to pan and nothing to click.
+    const host = this.elementRef.nativeElement as HTMLElement;
+    this.editor = host.querySelector("#workflow-editor")!;
+    this.editorWrapper = host.querySelector("#workflow-editor-wrapper")!;
     document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
