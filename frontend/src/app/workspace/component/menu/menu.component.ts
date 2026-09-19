@@ -650,9 +650,17 @@ export class MenuComponent implements OnInit, OnDestroy {
   public pythonCodeForModal = "";
 
   public onClickExportAsPython(): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-      this.validationWorkflowService.getValidTexeraGraph()
-    );
+    // Exporting the valid part of the graph answers a workflow with a required
+    // value missing by leaving that operator and its links out, and handing back
+    // a script that runs and is not the workflow. The button is disabled in that
+    // state; this says the same thing for a click that arrives another way.
+    if (this.isWorkflowEmpty || !this.isWorkflowValid) {
+      this.notificationService.error("This workflow cannot be exported yet: fix the errors the canvas reports first.");
+      return;
+    }
+
+    // The whole graph, now that it is known to be whole.
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
 
     this.isTranslatingToPython = true;
     this.workflowToPythonService

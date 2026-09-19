@@ -456,6 +456,53 @@ describe("MenuComponent", () => {
     expect(component.runDisable).toBe(true);
   });
 
+  describe("export as Python", () => {
+    // Exporting the valid part of the graph answers a workflow with a required
+    // value missing by leaving that operator and its links out, and handing back
+    // a script that runs and is not the workflow.
+    it("refuses a workflow the canvas reports errors on", () => {
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const convert = vi.spyOn(component["workflowToPythonService"], "convertToPython");
+      validationStream$.next({
+        errors: { "operator-1": { isValid: false, messages: { attribute: "required" } } } as any,
+        workflowEmpty: false,
+      });
+
+      component.onClickExportAsPython();
+
+      expect(convert).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
+      expect(component.isTranslatingToPython).toBe(false);
+    });
+
+    it("refuses an empty workflow", () => {
+      vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const convert = vi.spyOn(component["workflowToPythonService"], "convertToPython");
+      validationStream$.next({ errors: {}, workflowEmpty: true });
+
+      component.onClickExportAsPython();
+
+      expect(convert).not.toHaveBeenCalled();
+    });
+
+    // The whole graph, not the valid part of it: the two agree once the workflow
+    // is valid, and asking for the valid part is what dropped operators.
+    it("sends the whole graph once the workflow is valid", () => {
+      const convert = vi
+        .spyOn(component["workflowToPythonService"], "convertToPython")
+        .mockReturnValue(of({ type: "success", pythonCode: "print(1)" } as any));
+      const validSubgraph = vi.spyOn(validationWorkflowService, "getValidTexeraGraph");
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(validSubgraph).not.toHaveBeenCalled();
+      expect(convert).toHaveBeenCalled();
+      expect(convert.mock.calls[0][0].operators).toHaveLength(1);
+    });
+  });
+
   describe("hasOperators", () => {
     it("returns false on an empty graph", () => {
       expect(component.hasOperators()).toBe(false);

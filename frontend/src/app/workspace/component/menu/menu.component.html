@@ -155,7 +155,7 @@
         </button>
         <button
           (click)="onClickExportAsPython()"
-          [disabled]="isTranslatingToPython"
+          [disabled]="isTranslatingToPython || isWorkflowEmpty || !isWorkflowValid"
           nz-button
           title="export as Python script">
           <i
