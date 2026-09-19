@@ -136,6 +136,30 @@ describe("WorkflowEditorComponent", () => {
       expect(wrapper.getHeatmapView()).toBeNull();
     });
 
+    // Two of these editors are in the page at once for one tick when the two views of a workflow
+    // hand over: the arriving one initialises while the departing one is still being removed, and
+    // both templates carry id="workflow-editor". Searching the document found the departing view's
+    // container, so the paper was built into a div about to disappear and the arriving canvas came
+    // up blank -- nothing to pan, nothing to click, while the graph itself was untouched.
+    it("builds its paper in its own container, not whichever the document holds first", () => {
+      const decoy = document.createElement("div");
+      decoy.id = "workflow-editor";
+      // Earlier in document order than the fixture, as the departing view's container is.
+      document.body.insertBefore(decoy, document.body.firstChild);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        const host = other.nativeElement as HTMLElement;
+        expect(host.contains((other.componentInstance as any).editor)).toBe(true);
+        expect((other.componentInstance as any).editor).not.toBe(decoy);
+        expect(decoy.querySelector("svg")).toBeNull();
+        other.destroy();
+      } finally {
+        decoy.remove();
+      }
+    });
+
     it("should hide operator status on the canvas by default", () => {
       // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;
