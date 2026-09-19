@@ -94,11 +94,18 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     d.generateStandaloneCode() should include("drop(columns=[_probe_key])")
   }
 
-  it should "keep the shared key when both sides name it the same" in {
+  // Both sides naming the key alike does not make it one column: the rename
+  // moves the right one aside because it meets the left one, so the drop is
+  // decided by the name the rename produced rather than by the two the operator
+  // was given.
+  it should "emit the shared key once when both sides name it the same" in {
     val d = new HashJoinOpDesc[String]
     d.buildAttributeName = "k"
     d.probeAttributeName = "k"
-    d.generateStandaloneCode() should not include "drop(columns="
+    val code = d.generateStandaloneCode()
+    code should include("""_probe_key = _rename.get("k", "k")""")
+    code should include("""if _probe_key != "k":""")
+    code should include("drop(columns=[_probe_key])")
   }
 
   /** The bug this pins: with a left `key` payload and a right `key` join column,
@@ -153,6 +160,58 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  /** The bug this pins: both sides naming the key alike reads as one shared
+    * column, but the rename moves the right one aside before the merge, so the
+    * frame carried a second `k#@1` the operator never promises. This is the
+    * everyday join, the same name on both sides.
+    */
+  it should "promise and emit the key once when both sides name it the same" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("k", AttributeType.INTEGER))
+      .add(new Attribute("name", AttributeType.STRING))
+    val right = Schema()
+      .add(new Attribute("k", AttributeType.INTEGER))
+      .add(new Attribute("score", AttributeType.INTEGER))
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "k"
+    val promised = d
+      .getExternalOutputSchemas(Map(PortIdentity() -> left, PortIdentity(1) -> right))(
+        d.operatorInfo.outputPorts.head.id
+      )
+      .getAttributeNames
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1], "name": ["alice"]})
+         |in2df = pd.DataFrame({"k": [1], "score": [95]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |print(",".join(map(str, out1df.iloc[0].tolist())))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-shared-key-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      promised shouldBe List("k", "name", "score")
+      lines.head.split(",").toList shouldBe promised
+      lines(1) shouldBe "1,alice,95"
+    }
+  }
+
   // A right column meeting an already-suffixed one lands on "#@1#@1". pandas'
   // `suffixes` refused the duplicate it made and ended the run.
   it should "rename a right column that collides twice, the way the engine does" in {
@@ -181,8 +240,10 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out\nscript:\n$driver") {
       process.exitValue() shouldBe 0
       // Left names first and untouched, then the right ones in their own order:
-      // "k" and "x" each lost a collision, and the right's own "x#@1" was free.
-      out.trim shouldBe "k,x,k#@1,x#@1#@1,x#@1"
+      // "x" lost a collision and the right's own "x#@1" was free. The right "k"
+      // lost one too, and being the join key it is then dropped, the engine
+      // emitting the key once.
+      out.trim shouldBe "k,x,x#@1#@1,x#@1"
     }
   }
 

@@ -273,12 +273,15 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
          |    right_on=_probe_key,
          |)""".stripMargin
     // `_probe_key` is whatever the rename settled on, so this drops the right
-    // column rather than a left one that happened to share its name.
+    // column rather than a left one that happened to share its name. Asked of
+    // the name the rename produced and not of the two the operator was given:
+    // when both sides name the key alike the rename still moves the right one
+    // aside, and a test on the operator's own two names read that as one shared
+    // column and kept the copy, where the engine emits the key once.
     val tail =
-      if (buildAttributeName != probeAttributeName)
-        "out1df = out1df.drop(columns=[_probe_key]).reset_index(drop=True)"
-      else
-        "out1df = out1df.reset_index(drop=True)"
+      s"""if _probe_key != $buildKeyLit:
+         |    out1df = out1df.drop(columns=[_probe_key])
+         |out1df = out1df.reset_index(drop=True)""".stripMargin
     s"$merge\n$tail"
   }
 }
