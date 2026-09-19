@@ -18,8 +18,8 @@
  */
 
 import { Injectable } from "@angular/core";
-import { EMPTY, Observable, defer, of } from "rxjs";
-import { catchError, map, switchMap, tap } from "rxjs/operators";
+import { EMPTY, Observable, defer } from "rxjs";
+import { catchError, map, switchMap, takeUntil, tap } from "rxjs/operators";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -91,7 +91,13 @@ export class HeatmapStatsRestoreService {
           }
           this.workflowStatusService.setExternalStatus(runtimeStatus);
         }),
-        map(() => undefined)
+        map(() => undefined),
+        // Any other producer writing statistics means the canvas is no longer ours to restore:
+        // pressing Run resets the execution state to Uninitialized, which isExecuting() cannot
+        // see until the backend answers, but resetStatus() writes here first. Unsubscribing
+        // tears the pending fetch down, so the tap above never runs. A plain Subject, so
+        // subscribing does not itself emit, and the restore's own write is downstream.
+        takeUntil(this.workflowStatusService.getStatisticsUpdateStream())
       );
     });
   }

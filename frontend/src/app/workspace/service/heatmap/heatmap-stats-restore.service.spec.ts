@@ -18,7 +18,7 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { of, throwError } from "rxjs";
+import { Subject, of, throwError } from "rxjs";
 import type { Mocked } from "vitest";
 import { HeatmapStatsRestoreService } from "./heatmap-stats-restore.service";
 import { savePersistedHeatmapView } from "./heatmap-overlay-persistence";
@@ -74,6 +74,7 @@ describe("HeatmapStatsRestoreService", () => {
   let statusService: Mocked<WorkflowStatusService>;
   let actionService: Mocked<WorkflowActionService>;
   let executeService: Mocked<ExecuteWorkflowService>;
+  let statisticsUpdates: Subject<Record<string, never>>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -87,7 +88,13 @@ describe("HeatmapStatsRestoreService", () => {
     actionService = {
       getWorkflowMetadata: vi.fn(() => ({ wid: 42 })),
     } as unknown as Mocked<WorkflowActionService>;
-    statusService = { setExternalStatus: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    // A plain Subject, like the real one: subscribing does not emit, so it only cuts the
+    // restore short when another producer actually writes statistics.
+    statisticsUpdates = new Subject<Record<string, never>>();
+    statusService = {
+      setExternalStatus: vi.fn(),
+      getStatisticsUpdateStream: vi.fn(() => statisticsUpdates.asObservable()),
+    } as unknown as Mocked<WorkflowStatusService>;
     executeService = {
       getExecutionState: vi.fn(() => ({ state: ExecutionState.Uninitialized })),
     } as unknown as Mocked<ExecuteWorkflowService>;
@@ -245,6 +252,26 @@ describe("HeatmapStatsRestoreService", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(statusService.setExternalStatus).not.toHaveBeenCalled();
+  });
+
+  it("drops the restore when Run clears the canvas before the fetches return", () => {
+    // Run calls resetExecutionState() before the backend answers, so the execution state is
+    // briefly Uninitialized and isExecuting() reads false. resetStatus() writes the cleared
+    // statistics first, and that write is what the restore has to yield to.
+    executionsService.retrieveWorkflowRuntimeStatistics.mockImplementation(() => {
+      statisticsUpdates.next({});
+      return of([makeStatsRow({})]);
+    });
+
+    service.restoreLatestRunStatistics().subscribe();
+
+    expect(statusService.setExternalStatus).not.toHaveBeenCalled();
+  });
+
+  it("still restores when nothing else writes statistics first", () => {
+    service.restoreLatestRunStatistics().subscribe();
+
+    expect(statusService.setExternalStatus).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces an ingestion failure instead of swallowing it as a skipped restore", () => {
