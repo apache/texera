@@ -33,7 +33,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.TimeUnit
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.io.Source
@@ -193,11 +193,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.close()
   }
 
+  // `encoding` and not the inherited `fileEncoding`: the descriptor drops that
+  // one on the way over, so setting it never reached the executor at all.
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    fileScanSourceOpDesc = describing(
+      Paths.get(TestOperators.TestCRLFTextFilePath),
+      """"encoding":"US_ASCII""""
     )
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -317,6 +319,28 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  // The Encoding field the panel offers is `encoding`, and the executor was
+  // decoding with the inherited `fileEncoding` this descriptor drops on the way
+  // over, so every file came back read as UTF-8 whatever was chosen. A UTF-16
+  // file is the one that shows it: read as UTF-8 its text is not its text.
+  it should "decode with the charset the Encoding field names" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("file-scan-encoding-")
+    dir.toFile.deleteOnExit()
+    val file = dir.resolve("utf16.txt")
+    Files.write(file, "première\ndeuxième\n".getBytes(StandardCharsets.UTF_16))
+
+    val desc = describing(file, """"encoding":"UTF_16"""")
+    assert(linesFromEngine(desc) == Seq("première", "deuxième"))
+
+    val out = runStandalone(python, dir, desc, """print(list(out1df["line"]))""")._2
+    assert(out.trim.endsWith("""['première', 'deuxième']"""))
+  }
+
   it should "take an archive entry's own name for the filename column" in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
@@ -358,16 +382,20 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     archive
   }
 
-  /** `extract` and `outputFileName` are vals, so the flags are deserialized in. */
-  private def extractingDesc(archive: Path, fields: String*): FileScanSourceOpDesc = {
+  /** `extract`, `outputFileName` and `encoding` are vals, so the fields are
+    * deserialized in.
+    */
+  private def describing(file: Path, fields: String*): FileScanSourceOpDesc = {
     val desc = objectMapper.readValue(
-      (Seq(""""operatorType":"FileScan"""", """"extract":true""") ++ fields)
-        .mkString("{", ",", "}"),
+      (""""operatorType":"FileScan"""" +: fields).mkString("{", ",", "}"),
       classOf[FileScanSourceOpDesc]
     )
-    desc.setResolvedFileName(FileResolver.resolve(archive.toString))
+    desc.setResolvedFileName(FileResolver.resolve(file.toString))
     desc
   }
+
+  private def extractingDesc(archive: Path, fields: String*): FileScanSourceOpDesc =
+    describing(archive, """"extract":true""" +: fields: _*)
 
   private def tuplesFromEngine(desc: FileScanSourceOpDesc): Seq[Tuple] = {
     val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(desc))

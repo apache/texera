@@ -55,7 +55,12 @@ class FileScanSourceOpDesc
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
-  private val encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
+  // The charset the panel offers, and the one the executor decodes with. The
+  // inherited `fileEncoding` is named in this class's @JsonIgnoreProperties, so
+  // it never survives the trip into the executor: reading that one there left
+  // every file decoded as UTF-8 whatever was chosen. The name is kept as the
+  // panel spells it, a saved workflow carrying `encoding` and not the other.
+  val encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Extract")
@@ -78,11 +83,8 @@ class FileScanSourceOpDesc
 
   override def generateStandaloneCode(): String = {
     val col = attributeName
-    // `encoding` is the charset the panel offers, which is the one to honour.
-    // The executor reads the inherited `fileEncoding` instead, and that one is in
-    // this class's @JsonIgnoreProperties, so it never survives the trip and the
-    // engine decodes UTF-8 whatever the user chose. Following the executor here
-    // would mean ignoring the field as well; the export states what was asked for.
+    // `encoding` is the charset the panel offers, and the one the executor now
+    // decodes with.
     val enc = encoding.toString.replace("_", "-").toLowerCase
     val colLit = pyStringLiteral(col)
     val encLit = pyStringLiteral(enc)
