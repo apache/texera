@@ -170,7 +170,9 @@ class IcebergIterator(Iterator[T]):
         self.num_of_returned_records = 0
         # Total number of records to return, used for termination condition
         self.total_records_to_return = (
-            self.until_index - self.from_index if until_index else float("inf")
+            self.until_index - self.from_index
+            if until_index is not None
+            else float("inf")
         )
         # Load the table instance, initially the table instance may not exist
         self.table = self._load_table_metadata()
