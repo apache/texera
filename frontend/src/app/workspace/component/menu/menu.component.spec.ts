@@ -907,6 +907,7 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
@@ -920,10 +921,29 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
       expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    // The canvas resets to DEFAULT_WORKFLOW (wid 0) on every load and the real id only arrives with
+    // the workflow, so a click landing in that window used to open a dialog that asked the backend
+    // about workflow 0 and came back without a Private/Public choice (issue #8599).
+    it.each([
+      ["the workflow has not loaded yet (wid 0)", 0],
+      ["there is no workflow id at all", undefined],
+    ])("does not open the share dialog while %s", async (_case, wid) => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const createSpy = vi
+        .spyOn(modalService, "create")
+        .mockReturnValue({ afterClose: of(undefined) } as unknown as NzModalRef);
+      component.workflowId = wid;
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -1509,6 +1529,22 @@ describe("MenuComponent", () => {
     afterEach(() => {
       fixture.destroy();
       vi.restoreAllMocks();
+    });
+
+    // Until the workflow arrives the id is DEFAULT_WORKFLOW's, and the dialog opened on it asks the
+    // backend about workflow 0 and comes back without a Private/Public choice (issue #8599).
+    it("disables the Share button until the workflow id arrives", () => {
+      component.workflowId = undefined;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 0;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 7;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(false);
     });
 
     describe("view switch", () => {

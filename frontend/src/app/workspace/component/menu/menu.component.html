@@ -420,6 +420,7 @@
         <button
           nz-button
           id="share-button"
+          [disabled]="!workflowId"
           (click)="onClickOpenShareAccess()">
           <span
             nz-icon
