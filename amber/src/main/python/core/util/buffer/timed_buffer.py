@@ -36,7 +36,7 @@ class TimedBuffer(IBuffer):
         if (
             flush
             or len(self._buffer) >= self._max_message_num
-            or (datetime.now() - self._last_output_time).seconds
+            or (datetime.now() - self._last_output_time).total_seconds()
             >= self._max_flush_interval_in_ms / 1000
         ):
             self._last_output_time = datetime.now()
