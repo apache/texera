@@ -245,10 +245,16 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   // other moment. The first three rows are ordinary ones, and they are also three
   // different formats in one column: the engine hands DateParserUtils a field at
   // a time, so a row states its own format rather than the column's first one.
+  // Two of them state an offset, which DateParserUtils reads and java.sql.Timestamp
+  // then keeps no zone for: the moment is held as the wall clock of the machine's
+  // own zone. The expectation is taken from the engine rather than written down,
+  // so the pair says the same thing wherever the suite runs.
   private val timestampCases = Seq(
     "2024-03-05 14:09:07",
     "2024-03-05T14:09:07",
     "March 5, 2024",
+    "2024-03-05T14:09:07Z",
+    "2024-03-05T14:09:07+05:30",
     "1677-09-22 00:12:44",
     "2262-04-11 23:47:16",
     "2500-01-01 00:00:00",
@@ -315,6 +321,15 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     // The rows that made the issue: a moment either side of the nanosecond edge.
     fromEngine.takeRight(3) shouldBe
       Seq("2500-01-01 00:00:00", "1500-06-15 08:30:00", "9999-12-31 23:59:59")
+    // And the pair that states an offset, which reaches the same moment by two
+    // spellings: five and a half hours apart in the text, and so in the reading.
+    val zoned = fromScript.slice(3, 5)
+    java.time.Duration
+      .between(
+        java.time.LocalDateTime.parse(zoned(1).replace(' ', 'T')),
+        java.time.LocalDateTime.parse(zoned(0).replace(' ', 'T'))
+      )
+      .toMinutes shouldBe 330
   }
 
   // The one place the script is meant to differ, and the reason it cannot simply

@@ -135,18 +135,32 @@ object StandaloneHelpers {
       |    # Still coerced, which the strict cast is not: the engine accepts a set
       |    # of formats no single pandas call states, so text neither can read is
       |    # answered with an empty cell rather than by ending the run.
+      |    #
+      |    # A reading that states an offset is moved to the zone the machine is
+      |    # set to and then holds that wall clock, which is what the engine does
+      |    # with one: DateParserUtils reads the offset and java.sql.Timestamp
+      |    # keeps no zone of its own. Left alone, the offset travels as far as
+      |    # the conversion below and stops the cast on a value the run reads.
+      |    # tzlocal() and not a fixed offset, so each instant gets the one in
+      |    # force when it happened.
       |    from dateutil.parser import parse as _parse_date
+      |    from dateutil.tz import tzlocal
       |
       |    if pd.api.types.is_datetime64_any_dtype(s):
+      |        if getattr(s.dtype, "tz", None) is not None:
+      |            s = s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
       |        return s.astype("datetime64[us]")
       |
       |    def _one(x):
       |        if pd.isna(x):
       |            return None
       |        try:
-      |            return _parse_date(str(x).strip())
+      |            parsed = _parse_date(str(x).strip())
       |        except (ValueError, OverflowError):
       |            return None
+      |        if parsed.tzinfo is not None:
+      |            parsed = parsed.astimezone(tzlocal()).replace(tzinfo=None)
+      |        return parsed
       |
       |    return s.map(_one).astype("datetime64[us]")
       |
