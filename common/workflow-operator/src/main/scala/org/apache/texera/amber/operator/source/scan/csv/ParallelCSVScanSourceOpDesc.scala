@@ -108,9 +108,11 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (hasHeader)
       reader.readNext()
 
+    // A Limit of 0 asks for zero output rows, not zero rows to infer the schema from,
+    // so the sample always includes at least one row regardless of the output limit.
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
+        .take(math.max(limit.getOrElse(INFER_READ_LIMIT), 1).min(INFER_READ_LIMIT))
         .map(seq => seq.toArray)
     )
 
