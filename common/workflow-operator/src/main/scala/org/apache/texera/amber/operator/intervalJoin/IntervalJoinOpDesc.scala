@@ -26,7 +26,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -52,8 +52,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class IntervalJoinOpDesc extends LogicalOp {
-
+class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
   @JsonPropertyDescription("Choose one attribute in the left table")
@@ -146,6 +145,40 @@ class IntervalJoinOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Inner interval join: left point in [rightKey, rightKey + constant], bounds
+  // toggled by include{Left,Right}Bound. Cross-join + mask computes the full
+  // result (no sorted-input assumption, unlike the exec). Runtime dtype check
+  // picks numeric vs pd.DateOffset (unit from timeIntervalType).
+  //
+  // Both keys are read off the merged frame rather than copied into columns of
+  // the operator's own naming, which would overwrite an input column that
+  // happens to carry that name and then drop it. Only the right key needs
+  // locating: the merge leaves every left name alone and suffixes a right one
+  // that collides.
+  override def generateStandaloneCode(): String = {
+    val leftLit = objectMapper.writeValueAsString(leftAttributeName)
+    val rightLit = objectMapper.writeValueAsString(rightAttributeName)
+    val loOp = if (includeLeftBound) ">=" else ">"
+    val hiOp = if (includeRightBound) "<=" else "<"
+    val offsetUnit = Option(timeIntervalType).flatten match {
+      case Some(TimeIntervalType.YEAR)   => "years"
+      case Some(TimeIntervalType.MONTH)  => "months"
+      case Some(TimeIntervalType.HOUR)   => "hours"
+      case Some(TimeIntervalType.MINUTE) => "minutes"
+      case Some(TimeIntervalType.SECOND) => "seconds"
+      case _                             => "days" // DAY or unset
+    }
+    s"""_pairs = in1df.merge(in2df, how="cross", suffixes=("", "#@1"))
+       |_iv_l = _pairs[$leftLit]
+       |_iv_r = _pairs[$rightLit if $rightLit not in in1df.columns else $rightLit + "#@1"]
+       |if pd.api.types.is_datetime64_any_dtype(_iv_r):
+       |    _iv_hi = _iv_r + pd.DateOffset($offsetUnit=$constant)
+       |else:
+       |    _iv_hi = _iv_r + $constant
+       |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)
+       |out1df = _pairs[_iv_match].reset_index(drop=True)""".stripMargin
+  }
 
   def this(
       leftTableAttributeName: String,

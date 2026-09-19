@@ -459,6 +459,18 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   def operatorInfo: OperatorInfo
 
+  /**
+    * Whether the row ORDER of this operator's output is part of its contract.
+    * Defaults to false: the engine runs operators across parallel workers, so
+    * for almost every operator the output row order is an implementation-defined
+    * interleaving. Only operators whose very purpose is to establish an order
+    * override this, which here is the sort family: Sort, Stable Merge Sort and
+    * Sort Partitions. Anything comparing two runs of an operator reads it to
+    * decide whether the rows have to arrive in the same order or only be the
+    * same rows.
+    */
+  def orderSensitive: Boolean = false
+
   private def getOperatorVersion: String = {
     val path = "amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")

@@ -23,10 +23,16 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
+import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -108,6 +114,149 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // Run rather than asserted as text: the arithmetic is the point.
+  it should "answer SUM, AVERAGE and CONCAT the way the engine answers them" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema()
+      .add("i", AttributeType.INTEGER)
+      .add("t", AttributeType.TIMESTAMP)
+      .add("b", AttributeType.BOOLEAN)
+    val desc = descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "i", "int_total"),
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg"),
+      aggOp(AggregationFunction.CONCAT, "b", "flags")
+    )
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    val driver =
+      s"""import pandas as pd
+         |in1df = pd.DataFrame({
+         |    "i": pd.Series([2147483647, 1], dtype="int64"),
+         |    "t": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+         |    "b": pd.Series([True, False], dtype=bool),
+         |})
+         |$block
+         |row = out1df.iloc[0]
+         |# The engine adds INTEGER as a Java int, which wraps; sums timestamps
+         |# into a timestamp; declares AVERAGE a DOUBLE whatever it read; and
+         |# folds CONCAT with Java's toString, which lowercases a boolean.
+         |print(int(row["int_total"]))
+         |print(pd.Timestamp(row["ts_total"]).isoformat())
+         |print(repr(float(row["ts_avg"])))
+         |print(row["flags"])
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-engine-answers-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "-2147483648"
+      // 1577836800000 + 1577923200000 milliseconds, read back as a timestamp.
+      lines(1) shouldBe "2070-01-01T00:00:00"
+      lines(2) shouldBe "1577880000000.0"
+      lines(3) shouldBe "true,false"
+    }
+  }
+
+  // The integers behind a timestamp column mean microseconds or nanoseconds
+  // depending on the resolution it was read at, and a nanosecond total leaves
+  // the range of a 64-bit integer after a handful of modern dates.
+  it should "read a timestamp as epoch milliseconds at either resolution" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("t", AttributeType.TIMESTAMP)
+    val desc = descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
+    )
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    def report(unit: String): String =
+      s"""in1df = pd.DataFrame({
+         |    "t": pd.to_datetime(["2024-01-01"] * 6).astype("datetime64[$unit]"),
+         |})
+         |$block
+         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
+         |print(repr(float(out1df.iloc[0]["ts_avg"])))""".stripMargin
+
+    val driver =
+      s"""import pandas as pd
+         |${report("ns")}
+         |${report("us")}
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-timestamp-units-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Six times 1704067200000 milliseconds, read back as a timestamp: a date
+      // no nanosecond count can hold, and the same one at either resolution.
+      out.trim.linesIterator.toSeq shouldBe Seq(
+        "2293-12-31T00:00:00",
+        "1704067200000.0",
+        "2293-12-31T00:00:00",
+        "1704067200000.0"
+      )
+    }
+  }
+
+  // A group keyed on a missing value and one keyed on a NaN are two groups to
+  // the engine. The two are only distinct in a nullable dtype, which is what an
+  // Arrow file is read into.
+  it should "group a missing key apart from a NaN one" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val desc = descWith(List("k"), aggOp(AggregationFunction.SUM, "v", "total"))
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |in1df = pd.DataFrame({
+         |    "k": pd.arrays.FloatingArray(np.array([0.0, np.nan]), np.array([True, False])),
+         |    "v": [1, 2],
+         |})
+         |${desc.generateStandaloneCode()}
+         |print(len(out1df), sorted(int(x) for x in out1df["total"]))
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-null-nan-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Two groups of one row each, not one group totalling 3.
+      out.trim shouldBe "2 [1, 2]"
+    }
+  }
+
+  // Without a schema the type-led branches cannot be chosen.
+  it should "fall back to pandas' own answers when no schema is given" in {
+    val desc = descWith(List.empty, aggOp(AggregationFunction.SUM, "i", "int_total"))
+    desc.generateStandaloneCode() should include("in1df[\"i\"].sum()")
+    desc.generateStandaloneCode() should not include "_texera_agg_int_sum(in1df"
+  }
+
   "AggregateOpDesc JSON schema" should
     "make the attribute optional only for count and required for every other function" in {
     val aggDef = OperatorMetadataGenerator
@@ -131,4 +280,30 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     val elseRequired = rule.get("else").get("required").elements().asScala.map(_.asText()).toList
     elseRequired should contain("attribute")
   }
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
