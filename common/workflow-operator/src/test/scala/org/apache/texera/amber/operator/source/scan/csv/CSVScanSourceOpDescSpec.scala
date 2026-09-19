@@ -97,6 +97,17 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.sourceSchema().getAttributes.map(_.getName).toList
   }
 
+  // Writes a two-column, two-data-row CSV and returns the absolute path.
+  private def writeSimpleCsv(): String = {
+    val tmpFile = Files.createTempFile("simple-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,name\n1,Alice\n2,Bob\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
+  }
+
   // Writes a numeric column with one blank cell and returns the absolute path.
   private def writeCsvWithBlankNumericCell(): String = {
     val tmpFile = Files.createTempFile("blank-cell-", ".csv")
@@ -319,6 +330,26 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(columnNames(csv, path) == List("id", "name", "age"))
     assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
     assert(columnNames(oldCsv, path) == List("id", "name", "age"))
+  }
+
+  // Limit bounds the operator's output row count, not the sample sourceSchema() reads
+  // to infer columns. A Limit of 0 used to leave that sample empty: CSV and parallel
+  // CSV then reported a schema with no attributes, and old CSV threw
+  // ArrayIndexOutOfBoundsException reading the (empty) inferred type of its first
+  // header, before a single row was read.
+  it should "still infer the file's columns when Limit is 0" in {
+    val path = writeSimpleCsv()
+
+    val csv = new CSVScanSourceOpDesc()
+    csv.limit = Some(0)
+    val parallelCsv = new ParallelCSVScanSourceOpDesc()
+    parallelCsv.limit = Some(0)
+    val oldCsv = new CSVOldScanSourceOpDesc()
+    oldCsv.limit = Some(0)
+
+    assert(columnNames(csv, path) == List("id", "name"))
+    assert(columnNames(parallelCsv, path) == List("id", "name"))
+    assert(columnNames(oldCsv, path) == List("id", "name"))
   }
 
 }

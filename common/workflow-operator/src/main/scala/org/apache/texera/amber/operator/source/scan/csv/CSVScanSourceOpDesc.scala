@@ -115,7 +115,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     parser.beginParsing(inputReader)
 
     var data: Array[Array[String]] = Array()
-    val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    // A Limit of 0 asks for zero output rows, not zero rows to infer the schema from,
+    // so the sample always includes at least one row regardless of the output limit.
+    val readLimit = math.max(limit.getOrElse(INFER_READ_LIMIT), 1).min(INFER_READ_LIMIT)
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {

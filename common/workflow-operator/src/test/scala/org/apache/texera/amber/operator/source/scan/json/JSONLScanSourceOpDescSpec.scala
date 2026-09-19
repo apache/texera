@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.source.scan.json
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -27,6 +28,9 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -70,6 +74,28 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     physical.parallelizable shouldBe true
     physical.inputPorts.keySet shouldBe empty
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
+  }
+
+  // Limit bounds the operator's output row count, not the sample sourceSchema() reads
+  // to infer columns. A Limit of 0 used to leave that sample empty, so the operator
+  // reported a schema with no attributes at all.
+  "JSONLScanSourceOpDesc.sourceSchema" should "still infer the file's columns when Limit is 0" in {
+    val tmpFile = Files.createTempFile("jsonl-", ".jsonl")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      """{"id": 1, "name": "Alice"}
+        |{"id": 2, "name": "Bob"}
+        |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+    val path = tmpFile.toString
+
+    val d = new JSONLScanSourceOpDesc
+    d.limit = Some(0)
+    d.fileName = Some(path)
+    d.setResolvedFileName(FileResolver.resolve(path))
+
+    d.sourceSchema().getAttributes.map(_.getName).toList shouldBe List("id", "name")
   }
 
   "JSONLScanSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {

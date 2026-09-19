@@ -103,8 +103,10 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    // A Limit of 0 asks for zero output rows, not zero rows to infer the schema from,
+    // so the sample always includes at least one row regardless of the output limit.
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + math.max(limit.getOrElse(INFER_READ_LIMIT), 1).min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
         .slice(startOffset, endOffset)
