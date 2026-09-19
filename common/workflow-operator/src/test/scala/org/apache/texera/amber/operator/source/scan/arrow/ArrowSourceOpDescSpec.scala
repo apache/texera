@@ -21,8 +21,10 @@ package org.apache.texera.amber.operator.source.scan.arrow
 
 import com.typesafe.config.ConfigFactory
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{Float4Vector, SmallIntVector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.arrow.vector.types.FloatingPointPrecision
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowFileSchema}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -40,6 +42,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
@@ -62,6 +65,51 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
           ArrowUtils.setTexeraTuple(Tuple.builder(schema).addSequentially(values).build(), i, root)
       }
       root.setRowCount(rows.size)
+      writer.writeBatch()
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+    file
+  }
+
+  /** A file holding the narrow numeric widths [[ArrowUtils.fromTexeraSchema]]
+    * cannot name.
+    *
+    * It writes every float as a double and every integer as 32 or 64 bits, so a
+    * single-precision or 16-bit column can only be built from the Arrow schema
+    * itself. Real files carry them: anything pyarrow writes from a numpy
+    * `float32` or `int16` array does.
+    */
+  private def writeNarrowArrowFile(): File = {
+    val fields = List(
+      new Field(
+        "f",
+        FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
+        null
+      ),
+      new Field("s", FieldType.nullable(new ArrowType.Int(16, true)), null)
+    )
+    val file = File.createTempFile("arrow-narrow-", ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(new ArrowFileSchema(fields.asJava), allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      root.allocateNew()
+      val f = root.getVector("f").asInstanceOf[Float4Vector]
+      val s = root.getVector("s").asInstanceOf[SmallIntVector]
+      // 2^24 and 1: the pair a single-precision sum cannot tell from 2^24 alone.
+      f.setSafe(0, 16777216.0f)
+      f.setSafe(1, 1.0f)
+      s.setSafe(0, 7.toShort)
+      s.setSafe(1, 8.toShort)
+      root.setRowCount(2)
       writer.writeBatch()
       writer.end()
     } finally {
@@ -282,6 +330,65 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out") {
       process.exitValue() shouldBe 0
       out.trim should endWith("[9007199254740993, None, 9007199254740995]")
+    }
+  }
+
+  // A file states the width of each of its numbers, and Texera has no column
+  // narrower than a double or a 32-bit integer. Both sides have to land on the
+  // Texera width: the executor was reading a whole single-precision column as
+  // null, and the script was keeping a width whose arithmetic gives another
+  // answer.
+  it should "read the narrow numeric widths as the Texera column, on both paths" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val file = writeNarrowArrowFile()
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+
+    d.inferSchema().getAttributes.map(a => (a.getName, a.getType)) shouldBe List(
+      ("f", AttributeType.DOUBLE),
+      ("s", AttributeType.INTEGER)
+    )
+
+    val exec = new ArrowSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val fromEngine =
+      try exec.produceTuple().map(_.getFields.toList).toList
+      finally exec.close()
+    fromEngine shouldBe List(List(16777216.0d, 7), List(1.0d, 8))
+
+    val workDir = Files.createTempDirectory("arrow-widths-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${bindSourceFile(d)}
+         |${d.generateStandaloneCode()}
+         |print(str(out1df["f"].dtype), str(out1df["s"].dtype))
+         |print([float(v) for v in out1df["f"]], [int(v) for v in out1df["s"]])
+         |# The pair the single-precision column could not add: kept as Float32
+         |# this printed 16777216.0, where the executor's doubles give 16777217.0.
+         |print(float(out1df["f"].sum()))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "Float64 Int32"
+      lines(1) shouldBe "[16777216.0, 1.0] [7, 8]"
+      lines(2) shouldBe "16777217.0"
     }
   }
 

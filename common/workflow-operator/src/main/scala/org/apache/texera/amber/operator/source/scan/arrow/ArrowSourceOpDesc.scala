@@ -53,6 +53,19 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     // is not rounded on its way through a float.
     val read =
       s"""out1df = pd.read_feather($SourceFilePlaceholder, dtype_backend="numpy_nullable")"""
+    // The widths pandas keeps and Texera has no column for. A file states the
+    // width of each of its numbers, and pandas reads every one of them back,
+    // where a Texera column is a double or a 32-bit integer and nothing
+    // narrower. Left alone, a single-precision column summed to a different
+    // number on the two sides: 16777216 and 1 add to 16777217 as doubles and to
+    // 16777216 as floats. See ParquetScanSourceOpDesc, which normalizes the
+    // same widths for the same reason.
+    val widths =
+      """|for _column, _values in out1df.items():
+         |    if _values.dtype == "Float32":
+         |        out1df[_column] = _values.astype("Float64")
+         |    elif _values.dtype == "Int16":
+         |        out1df[_column] = _values.astype("Int32")""".stripMargin
     // A timestamp column needs nothing here. The file names UTC and holds the
     // wall clock as UTC, so pd.read_feather and the executor read the same
     // reading off it — no zone of the reader's own enters either side. The other
@@ -72,7 +85,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case _                  => None
     }
 
-    (read +: window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)").toSeq)
+    (Seq(read, widths) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
       .mkString("\n")
   }
 
