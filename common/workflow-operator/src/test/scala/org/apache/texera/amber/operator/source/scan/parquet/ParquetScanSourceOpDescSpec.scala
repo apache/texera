@@ -413,7 +413,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileName = Some("file:///tmp/some%20dir/data.parquet")
     // The translator names the file, so that two sources reading different files
     // whose paths end alike do not both ask for "data.parquet".
-    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(sourceFile)")
+    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(sourceFile,")
     d.standaloneSourcePath() shouldBe d.fileName
     d.standaloneSourceName() shouldBe Some("data.parquet")
   }
@@ -424,7 +424,17 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new ParquetScanSourceOpDesc
     d.fileName = Some("file:///tmp/data.parquet")
     d.standaloneImports() should contain("from decimal import Decimal")
-    d.generateStandaloneCode() should include("_values.astype(float)")
+    d.generateStandaloneCode() should include("""_values.astype("Float64")""")
+  }
+
+  // Parquet says of every value whether it is there, and a numpy column has
+  // nowhere to put that: a holed integer column is widened through a float,
+  // where 9007199254740993 comes back as ...992. The executor reads the exact
+  // long off the same file.
+  it should "read into the nullable dtypes, which keep a holed integer integral" in {
+    val d = new ParquetScanSourceOpDesc
+    d.fileName = Some("file:///tmp/data.parquet")
+    d.generateStandaloneCode() should include("""dtype_backend="numpy_nullable"""")
   }
 
   // The rest of what pandas reads differently from the executor: a FLOAT keeps
@@ -437,7 +447,8 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generateStandaloneCode()
     code should include("""_values.dt.tz_convert("UTC").dt.tz_localize(None)""")
     code should include("""elif _values.dtype.kind in "um":""")
-    code should include("""elif _values.dtype == "float32":""")
+    // Named in the nullable spelling, the read now asking for those dtypes.
+    code should include("""elif _values.dtype == "Float32":""")
   }
 
   // The executor drops `offset` rows and then takes `limit`, and the script has
@@ -547,6 +558,13 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         row.append("seen_at", 0L)
         row.append("legacy_at", new NanoTime(2440588, 0L).toBinary)
         row.append("active", false)
+      },
+      // A hole in every column, which is what costs a numpy column its type: a
+      // holed integer is widened through a float, and `big` above came back as
+      // ...992. Every field is optional, so a row that appends nothing to one
+      // leaves it null.
+      row => {
+        row.append("label", "carol")
       }
     )
 
@@ -557,8 +575,13 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       case (column, index) => column -> rows.map(row => comparable(row(index)))
     }.toMap
 
+    // The body names its file by placeholder and leaves the naming to whoever
+    // assembles the script, the translator doing it across a whole plan. Nothing
+    // bound it here, so the script stopped on a `sourceFile` that was never
+    // defined and this comparison never ran.
+    val bindFile = s"""sourceFile = "${d.standaloneSourceName().get}""""
     val script = (d.standaloneImports() :+ "import json" :+ "import pandas as pd" :+
-      d.generateStandaloneCode() :+ ParityDriver).mkString("\n")
+      bindFile :+ d.generateStandaloneCode() :+ ParityDriver).mkString("\n")
     val scriptFile = Files.createTempFile("parquet_parity_", ".py")
     scriptFile.toFile.deleteOnExit()
     Files.write(scriptFile, script.getBytes(StandardCharsets.UTF_8))
@@ -603,10 +626,17 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
        |for _column in out1df.columns:
        |    _values = []
        |    for _value in out1df[_column]:
-       |        if hasattr(_value, "isoformat"):
-       |            _values.append(int(_value.value))
-       |        elif isinstance(_value, (bytes, bytearray)):
+       |        # Bytes first, since pd.isna reads a buffer element by element.
+       |        if isinstance(_value, (bytes, bytearray)):
        |            _values.append(list(_value))
+       |        # A hole: pd.NA in a nullable column and NaT in a timestamp one,
+       |        # the first of which json refuses outright and the second of which
+       |        # the branch below would write as the sentinel it holds. The
+       |        # executor hands a null over, so that is what it is compared as.
+       |        elif _value is None or pd.isna(_value):
+       |            _values.append(None)
+       |        elif hasattr(_value, "isoformat"):
+       |            _values.append(int(_value.value))
        |        elif hasattr(_value, "item"):
        |            _values.append(_value.item())
        |        else:

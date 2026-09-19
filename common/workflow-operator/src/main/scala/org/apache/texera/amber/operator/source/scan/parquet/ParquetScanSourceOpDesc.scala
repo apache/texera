@@ -57,22 +57,32 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     // No date columns to name, and no dtype map. pandas reads the types out of
     // the same footer the executor does, which is the whole point of the format;
     // the text formats have to be told because they carry nothing to read.
-    val read = s"""out1df = pd.read_parquet($SourceFilePlaceholder)"""
+    // Read into the nullable dtypes, as the Arrow source is. Parquet says of
+    // every value whether it is there, and a numpy column has nowhere to put
+    // that: pandas widens a holed integer column through a float, where every
+    // value past 2^53 is rounded and 9007199254740993 came back as ...992. The
+    // executor reads the exact long, and the declared column stays integral.
+    val read =
+      s"""out1df = pd.read_parquet($SourceFilePlaceholder, dtype_backend="numpy_nullable")"""
     // The columns pandas does not land on the same value as the executor. A
     // DECIMAL arrives as decimal.Decimal objects and a FLOAT keeps the single
     // precision the executor widens; an unsigned column, a duration and a zoned
     // timestamp come back as the Arrow types the writer left in the file's
     // metadata, where the executor reads what the footer alone states.
+    //
+    // Named in the nullable spelling, `Float32` and not `float32`, and widened
+    // into the nullable dtype in turn, so a hole stays a hole rather than
+    // becoming the NaN a numpy column would have to write it as.
     val columns =
       """|for _column, _values in out1df.items():
          |    if isinstance(next(iter(_values.dropna()), None), Decimal):
-         |        out1df[_column] = _values.astype(float)
+         |        out1df[_column] = _values.astype("Float64")
          |    elif isinstance(_values.dtype, pd.DatetimeTZDtype):
          |        out1df[_column] = _values.dt.tz_convert("UTC").dt.tz_localize(None)
          |    elif _values.dtype.kind in "um":
-         |        out1df[_column] = _values.astype("int64")
-         |    elif _values.dtype == "float32":
-         |        out1df[_column] = _values.astype("float64")""".stripMargin
+         |        out1df[_column] = _values.astype("Int64")
+         |    elif _values.dtype == "Float32":
+         |        out1df[_column] = _values.astype("Float64")""".stripMargin
     // The executor drops `offset` rows and then takes `limit` of them. Parquet
     // can skip whole row groups but not an arbitrary row range, so the same
     // window is taken once the frame is in memory, as the Arrow source does.
