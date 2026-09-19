@@ -411,7 +411,11 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   "ParquetScanSourceOpDesc.generateStandaloneCode" should "read the file by its own name" in {
     val d = new ParquetScanSourceOpDesc
     d.fileName = Some("file:///tmp/some%20dir/data.parquet")
-    d.generateStandaloneCode() should startWith("""out1df = pd.read_parquet("data.parquet")""")
+    // The translator names the file, so that two sources reading different files
+    // whose paths end alike do not both ask for "data.parquet".
+    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(sourceFile)")
+    d.standaloneSourcePath() shouldBe d.fileName
+    d.standaloneSourceName() shouldBe Some("data.parquet")
   }
 
   // pandas fills a DECIMAL column with decimal.Decimal objects, which do not mix

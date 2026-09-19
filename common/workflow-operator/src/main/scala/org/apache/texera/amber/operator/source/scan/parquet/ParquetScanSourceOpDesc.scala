@@ -28,8 +28,8 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
@@ -51,12 +51,13 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
   // cannot then multiply by a float.
   override def standaloneImports(): Seq[String] = Seq("from decimal import Decimal")
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
   override def generateStandaloneCode(): String = {
-    val basename = sourceBasename(fileName.getOrElse(""))
     // No date columns to name, and no dtype map. pandas reads the types out of
     // the same footer the executor does, which is the whole point of the format;
     // the text formats have to be told because they carry nothing to read.
-    val read = s"""out1df = pd.read_parquet(${pyStringLiteral(basename)})"""
+    val read = s"""out1df = pd.read_parquet($SourceFilePlaceholder)"""
     // The columns pandas does not land on the same value as the executor. A
     // DECIMAL arrives as decimal.Decimal objects and a FLOAT keeps the single
     // precision the executor widens; an unsigned column, a duration and a zoned
