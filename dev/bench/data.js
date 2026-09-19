@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789736799678,
+  "lastUpdate": 1789822618846,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14551,6 +14551,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 499.4066082717449,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "957b6c965640c07ace034eb9edcae53ef974324a",
+          "message": "fix(workflow): stop the workspace destroying itself on beforeunload (#8600)\n\n### What changes were proposed in this PR?\n\nSwitching between the operator canvas and the Form View is a full-page\nnavigation, and both pages ran their entire teardown from a\n`beforeunload` host binding: clear the graph, destroy the Yjs shared\ndocument, disconnect the computing unit, reset the execution state and\nthe results.\n\nA browser does not always discard a document it navigates away from.\nChrome may keep it in the back/forward cache, and going back restores\nthe JavaScript state exactly as it was left, re-running nothing. What\ncame back was the page these methods had already gutted:\n\n- an empty canvas that answered no clicks, because the graph had been\ncleared;\n- a workflow id reset to `DEFAULT_WORKFLOW`'s, which the share dialog\nthen asked the backend about;\n- an autosave still subscribed to that reset metadata, which wrote the\ndefault out as a brand-new blank workflow, so the workflow list grew by\none on every trip.\n\nThere was never anything to tear down there. A document that really is\ndiscarded takes its websockets and its graph with it, and a document\nthat comes back needs them. So `beforeunload` now only saves, and the\nteardown stays in `ngOnDestroy`, which runs when the page is genuinely\nreplaced. Both views change the same way.\n\nThree more defects turned this into a silent failure, and all are fixed\nhere:\n\n- `WorkflowResource.getWorkflowType` read\n`workflowDao.fetchOneByWid(wid)` and dereferenced it, so an id matching\nno row answered 500 with a stack trace rather than 404.\n- The share dialog's publish-state subscription had no error handler. A\nfailed request left `isPublic` null, and the template hides the\nPrivate/Public choice on exactly that (`*ngIf=\"isPublic !== null\"`), so\nthe dialog looked complete while offering one control fewer and the only\nway to find out was the network tab. `ngOnInit` also doubles as a\nrefresh after an access change, so a failed second read used to keep the\nvalue from the first: the buttons stayed on screen showing a state\nnothing had confirmed, while the toast said the choice was not shown. It\nis dropped now.\n- The Share button had no gate. `ngAfterViewInit` calls\n`resetAsNewWorkflow()`, so the metadata sits at `DEFAULT_WORKFLOW` (wid\n0) on every canvas load and the real id only arrives with the workflow;\nthe menu renders outside the loading spinner's container, so a click in\nthat window opened a dialog that asked `GET /workflow/type/0` and came\nback without the Private/Public choice. The button is disabled until the\nid arrives and the handler refuses the same window. This is the second\nroute to the symptom, and it is the gesture the issue reports.\n\n#### Before\n\n<!-- Drop the recording here: open a saved workflow, switch to the Form\nView, press the browser's Back button. The canvas comes back blank and\nunclickable, the share dialog has no Private/Public choice, and the\nworkflow list has gained a blank workflow. -->\n\n#### After\n\n<!-- Drop the recording here: the same steps on this branch. The canvas\ncomes back live, the share dialog keeps both buttons, and no blank\nworkflow is created. -->\n\n**One behaviour changes deliberately.** The shared document is no longer\ndestroyed on unload, so a co-editor is no longer told explicitly that\nyou left; the room notices when the socket closes with the document.\nDestroying it on unload is what made a restored page unusable, and a\nrestored page needs its room.\n\n### Any related issues, documentation, discussions?\n\nCloses #8599.\n\n### How was this PR tested?\n\nReproduced first, on a local instance running plain `main`\n(`e7d1676e1`): open a saved workflow, switch to the Form View, press the\nbrowser's Back button, and the canvas comes back blank and unclickable,\nthe share dialog has no Private/Public choice, and the workflow list has\ngained a blank workflow. With this branch deployed to the same instance,\nnone of the three happens.\n\nThe endpoint was checked against that instance directly: `GET\n/api/workflow/type/0` and `/type/999999` answered 500 before and answer\n404 after.\n\nUnit tests:\n\n- `workspace.component.spec` and `workflow-form.component.spec`:\n`beforeunload` saves and tears nothing down; the existing tests that\n`ngOnDestroy` still tears everything down are unchanged and still pass.\nThe workspace test dispatches a real `beforeunload` DOM event rather\nthan calling the handler, so the host binding being removed or miswired\nis caught too; `workflow-form.rendered.spec` already did this for the\nform.\n- `menu.component.spec`: the share dialog is not opened for wid 0 or for\nno id at all, and the Share button is disabled until the id arrives.\n- `share-access.component.spec`: a failed publish-state request reports\nitself instead of hiding the choice silently, and a failed refresh drops\nthe value the previous read left behind.\n- `WorkflowResourceCoverSpec`: `getWorkflowType` reports the publish\nstate, and throws `NotFoundException` for an id that matches no\nworkflow.\n\nEach new guard was deletion-checked: restoring the teardown on\n`beforeunload` in either view, dropping the error handler or the\n`isPublic` reset, removing the `[disabled]` on the Share button, or\nremoving the handler's own guard each turns exactly the intended tests\nred. Removing the `@HostListener` itself now turns a test red, which it\nwould not have before.\n\nFull frontend suite: 224 files, 6126 passed, 1 skipped (pre-existing), 0\nfailed. `WorkflowExecutionService/testOnly ...\nWorkflowResourceCoverSpec`: 16 passed. `ng build\n--configuration=production` (AOT), `eslint`, `prettier --check`,\n`scalafmtCheck` on main and test sources: all clean.\n\n**Deliberately out of scope.** Grepping for the same shape found two\nmore pages that act on `beforeunload`, and neither is on the path this\nissue reports, so both are left alone and filed instead of widened into\nhere: the Hub's workflow detail page clears the graph there, and\n`AgentPanelComponent` deactivates the current agent there. The app's\nother four `beforeunload` bindings only write panel geometry to\n`localStorage` and are unaffected.\n\n**The in-page button, the gesture the issue reports,** reaches the same\nsymptom by the second route above rather than through the cache, which\nis why it did not reproduce for me on the Back button's steps: it needs\nthe click to land before the workflow does. Found by @mengw15 in review.\nThe Back-button path is the one I reproduced in a running instance; the\nbutton gate that closes this one is covered by tests rather than by a\nmanual repro, since it is a race against the workflow fetch.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Opus 5, Anthropic). Co-authored\nwith Claude; the author reviewed the change line by line and reproduced\nboth the failure and the fix in a running instance before submission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01FVvP3ttj22f9LB4p9u2anY\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-19T00:26:43Z",
+          "url": "https://github.com/apache/texera/commit/957b6c965640c07ace034eb9edcae53ef974324a"
+        },
+        "date": 1789822618333,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 717.578435442791,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1338.1757011558748,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1458.0661699720044,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 957.7068041557961,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1389.6455376632132,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1467.07186678739,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 985.8961157250263,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1394.8933518483702,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1448.2443675431657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 811.5362481076791,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1115.021008781233,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1175.8610320647617,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 838.3304798554834,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1128.3467570170624,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1174.3822410601279,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 857.6376383430296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1103.2491458129207,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1140.0962427846705,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 530.1008730621168,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 637.8582343202872,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 648.1080814956482,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 536.8874484966991,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 629.6944980479661,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 640.3150070800922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 512.5337635845165,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 601.2910132705201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 611.3257312330819,
             "unit": "tuples/sec"
           }
         ]
