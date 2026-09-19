@@ -21,7 +21,16 @@ package org.apache.texera.amber.operator.source.scan.arrow
 
 import com.typesafe.config.ConfigFactory
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{Float4Vector, SmallIntVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  Float4Vector,
+  SmallIntVector,
+  TinyIntVector,
+  UInt1Vector,
+  UInt2Vector,
+  UInt4Vector,
+  UInt8Vector,
+  VectorSchemaRoot
+}
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowFileSchema}
@@ -76,13 +85,16 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     file
   }
 
-  /** A file holding the narrow numeric widths [[ArrowUtils.fromTexeraSchema]]
-    * cannot name.
+  /** A file holding the numeric widths [[ArrowUtils.fromTexeraSchema]] cannot
+    * name.
     *
-    * It writes every float as a double and every integer as 32 or 64 bits, so a
-    * single-precision or 16-bit column can only be built from the Arrow schema
-    * itself. Real files carry them: anything pyarrow writes from a numpy
-    * `float32` or `int16` array does.
+    * It writes every float as a double and every integer as a signed 32 or 64
+    * bits, so a single-precision, narrow or unsigned column can only be built
+    * from the Arrow schema itself. Real files carry them: anything pyarrow writes
+    * from a numpy `float32`, `int16` or `uint32` array does.
+    *
+    * Each column holds the value its own width cannot be read out of by
+    * accident, and one the reading has to leave alone.
     */
   private def writeNarrowArrowFile(): File = {
     val fields = List(
@@ -91,7 +103,11 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
         FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
         null
       ),
-      new Field("s", FieldType.nullable(new ArrowType.Int(16, true)), null)
+      new Field("s", FieldType.nullable(new ArrowType.Int(16, true)), null),
+      new Field("b", FieldType.nullable(new ArrowType.Int(8, true)), null),
+      new Field("u8", FieldType.nullable(new ArrowType.Int(8, false)), null),
+      new Field("u16", FieldType.nullable(new ArrowType.Int(16, false)), null),
+      new Field("u32", FieldType.nullable(new ArrowType.Int(32, false)), null)
     )
     val file = File.createTempFile("arrow-narrow-", ".arrow")
     file.deleteOnExit()
@@ -104,11 +120,26 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
       root.allocateNew()
       val f = root.getVector("f").asInstanceOf[Float4Vector]
       val s = root.getVector("s").asInstanceOf[SmallIntVector]
+      val b = root.getVector("b").asInstanceOf[TinyIntVector]
+      val u8 = root.getVector("u8").asInstanceOf[UInt1Vector]
+      val u16 = root.getVector("u16").asInstanceOf[UInt2Vector]
+      val u32 = root.getVector("u32").asInstanceOf[UInt4Vector]
       // 2^24 and 1: the pair a single-precision sum cannot tell from 2^24 alone.
       f.setSafe(0, 16777216.0f)
       f.setSafe(1, 1.0f)
       s.setSafe(0, 7.toShort)
       s.setSafe(1, 8.toShort)
+      // A signed 8-bit column, whose negative must survive the unsigned reading.
+      b.setSafe(0, (-3).toByte)
+      b.setSafe(1, 4.toByte)
+      // The largest value each unsigned width counts to, every one of them
+      // stored as -1, beside a value the two readings agree on.
+      u8.setSafe(0, 0xff)
+      u8.setSafe(1, 1)
+      u16.setSafe(0, 0xffff)
+      u16.setSafe(1, 1)
+      u32.setSafe(0, -1)
+      u32.setSafe(1, 1)
       root.setRowCount(2)
       writer.writeBatch()
       writer.end()
@@ -333,12 +364,12 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // A file states the width of each of its numbers, and Texera has no column
-  // narrower than a double or a 32-bit integer. Both sides have to land on the
-  // Texera width: the executor was reading a whole single-precision column as
-  // null, and the script was keeping a width whose arithmetic gives another
-  // answer.
-  it should "read the narrow numeric widths as the Texera column, on both paths" in {
+  // A file states the width and the sign of each of its numbers, and Texera has
+  // no column narrower than a double or a 32-bit integer. Both sides have to land
+  // on the Texera one: the executor was reading a whole single-precision, narrow
+  // or unsigned column as null, or as the -1 its storage counts down to, and the
+  // script was keeping a width whose arithmetic gives another answer.
+  it should "read the numeric widths and signs as the Texera column, on both paths" in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -346,9 +377,15 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new ArrowSourceOpDesc
     d.fileName = Some(file.toURI.toString)
 
+    // An unsigned 32-bit column is a LONG: its largest value is past what an
+    // INTEGER holds. Every narrower width fits in one.
     d.inferSchema().getAttributes.map(a => (a.getName, a.getType)) shouldBe List(
       ("f", AttributeType.DOUBLE),
-      ("s", AttributeType.INTEGER)
+      ("s", AttributeType.INTEGER),
+      ("b", AttributeType.INTEGER),
+      ("u8", AttributeType.INTEGER),
+      ("u16", AttributeType.INTEGER),
+      ("u32", AttributeType.LONG)
     )
 
     val exec = new ArrowSourceOpExec(objectMapper.writeValueAsString(d))
@@ -356,7 +393,10 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val fromEngine =
       try exec.produceTuple().map(_.getFields.toList).toList
       finally exec.close()
-    fromEngine shouldBe List(List(16777216.0d, 7), List(1.0d, 8))
+    fromEngine shouldBe List(
+      List(16777216.0d, 7, -3, 255, 65535, 4294967295L),
+      List(1.0d, 8, 4, 1, 1, 1L)
+    )
 
     val workDir = Files.createTempDirectory("arrow-widths-")
     workDir.toFile.deleteOnExit()
@@ -368,8 +408,9 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
       s"""import pandas as pd
          |${bindSourceFile(d)}
          |${d.generateStandaloneCode()}
-         |print(str(out1df["f"].dtype), str(out1df["s"].dtype))
-         |print([float(v) for v in out1df["f"]], [int(v) for v in out1df["s"]])
+         |print(" ".join(str(out1df[c].dtype) for c in out1df.columns))
+         |print([float(v) for v in out1df["f"]])
+         |print([[int(v) for v in out1df[c]] for c in ("s", "b", "u8", "u16", "u32")])
          |# The pair the single-precision column could not add: kept as Float32
          |# this printed 16777216.0, where the executor's doubles give 16777217.0.
          |print(float(out1df["f"].sum()))
@@ -386,10 +427,41 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out") {
       process.exitValue() shouldBe 0
       val lines = out.trim.linesIterator.toSeq
-      lines.head shouldBe "Float64 Int32"
-      lines(1) shouldBe "[16777216.0, 1.0] [7, 8]"
-      lines(2) shouldBe "16777217.0"
+      lines.head shouldBe "Float64 Int32 Int32 Int32 Int32 Int64"
+      lines(1) shouldBe "[16777216.0, 1.0]"
+      lines(2) shouldBe "[[7, 8], [-3, 4], [255, 1], [65535, 1], [4294967295, 1]]"
+      lines(3) shouldBe "16777217.0"
     }
+  }
+
+  // Nothing in Texera holds a value past 2^63 - 1, so the column is refused at
+  // the schema rather than read as the -1 its storage counts down to.
+  it should "refuse an unsigned 64-bit column, having no Texera type for it" in {
+    val fields = List(new Field("u", FieldType.nullable(new ArrowType.Int(64, false)), null))
+    val file = File.createTempFile("arrow-u64-", ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(new ArrowFileSchema(fields.asJava), allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      root.allocateNew()
+      root.getVector("u").asInstanceOf[UInt8Vector].setSafe(0, -1L)
+      root.setRowCount(1)
+      writer.writeBatch()
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    val ex = intercept[RuntimeException](d.inferSchema())
+    ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
 
   /** The block names its file by placeholder; the translator puts a name there. */
