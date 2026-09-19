@@ -215,7 +215,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // executor's `take` simply keeps no rows.
     offset.map(_.max(0)).foreach { o =>
       // With a header, skip offset rows after row 0; without, skip offset rows from the start.
-      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      // The end of the range is counted in Long: the largest offset the operator
+      // accepts overflows an Int on the way past the header, and the range came
+      // out empty, skipping nothing where the executor's `drop` keeps no rows.
+      if (hasHeader) args += s"skiprows=range(1, ${o.toLong + 1})"
       else args += s"skiprows=$o"
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")

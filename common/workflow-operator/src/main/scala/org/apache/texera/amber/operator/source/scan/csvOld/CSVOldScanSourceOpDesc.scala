@@ -132,7 +132,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // Clamped, as in the newer CSV scan: pandas rejects a negative `nrows` where
     // the executor's `take` keeps no rows, and only the editor refuses one.
     offset.map(_.max(0)).foreach { o =>
-      if (hasHeader) args += s"skiprows=range(1, ${o + 1})"
+      // Counted in Long past the header, as in the newer CSV scan.
+      if (hasHeader) args += s"skiprows=range(1, ${o.toLong + 1})"
       else args += s"skiprows=$o"
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")

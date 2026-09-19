@@ -83,7 +83,10 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     // the API can still carry one, and `iloc` reads it from the end where `drop`
     // skips nothing and `take` keeps nothing.
     val window = (offset.map(_.max(0)), limit.map(_.max(0))) match {
-      case (Some(o), Some(l)) => Some(s"$o:${o + l}")
+      // The end of the window is counted in Long: two Ints the operator accepts
+      // can add up past what an Int holds, and the slice would come out negative
+      // and take the wrong rows. As in ParquetScanSourceOpDesc.
+      case (Some(o), Some(l)) => Some(s"$o:${o.toLong + l}")
       case (Some(o), None)    => Some(s"$o:")
       case (None, Some(l))    => Some(s":$l")
       case _                  => None

@@ -305,6 +305,18 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.generateStandaloneCode() should include("out1df.iloc[0:0]")
   }
 
+  // Both bounds are Ints the operator accepts, and their sum is not one. Added
+  // as Ints the window ended at -2, which `iloc` reads from the end: it asked
+  // for everything but the last two rows where the executor takes every row
+  // from the offset on.
+  it should "count the end of the window past what an Int holds" in {
+    val d = new ArrowSourceOpDesc
+    d.offset = Some(Int.MaxValue)
+    d.limit = Some(Int.MaxValue)
+
+    d.generateStandaloneCode() should include("out1df.iloc[2147483647:4294967294]")
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()

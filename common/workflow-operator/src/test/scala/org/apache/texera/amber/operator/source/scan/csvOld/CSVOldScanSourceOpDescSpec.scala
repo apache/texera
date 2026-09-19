@@ -149,6 +149,16 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("skiprows=range(1, 1)")
   }
 
+  // The largest offset the operator accepts is an Int, and the row past the
+  // header is not. Added as Ints the range ran to a negative and came out empty,
+  // so pandas skipped nothing where this reader's take keeps no rows.
+  it should "count the skipped range past what an Int holds" in {
+    val d = describing(writeCsv("id\n1\n2\n3\n"))
+    d.offset = Some(Int.MaxValue)
+
+    d.generateStandaloneCode() should include("skiprows=range(1, 2147483648)")
+  }
+
   private def writeCsv(content: String): String = {
     val file = Files.createTempFile("csv-old-", ".csv")
     file.toFile.deleteOnExit()

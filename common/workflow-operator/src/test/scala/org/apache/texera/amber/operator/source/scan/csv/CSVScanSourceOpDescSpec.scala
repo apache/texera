@@ -295,6 +295,18 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(code.contains("skiprows=range(1, 1)"))
   }
 
+  // The largest offset the operator accepts is an Int, and the row past the
+  // header is not. Added as Ints the range ran to a negative and came out empty,
+  // so pandas skipped nothing where the executor's drop keeps no rows.
+  it should "count the skipped range past what an Int holds" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.offset = Some(Int.MaxValue)
+
+    assert(csvScanSourceOpDesc.generateStandaloneCode().contains("skiprows=range(1, 2147483648)"))
+  }
+
   // The parser sets no null value, so only an empty field is null. pandas reads a list of
   // words as missing by default, which turned the country code NA into a null.
   it should "read only an empty field as null, the way the parser does" in {
