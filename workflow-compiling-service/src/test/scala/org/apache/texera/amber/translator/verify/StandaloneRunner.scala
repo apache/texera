@@ -110,7 +110,8 @@ object StandaloneRunner extends LazyLogging {
         gen.standaloneHelpers(),
         gen.standaloneImports(),
         exactIntegers,
-        integralOutputColumns(outputSchemas, outputPaths.keys.toSeq)
+        integralOutputColumns(outputSchemas, outputPaths.keys.toSeq),
+        gen.standaloneSourceName()
       )
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
 
@@ -179,7 +180,8 @@ object StandaloneRunner extends LazyLogging {
       helpers: Seq[String],
       imports: Seq[String],
       exactIntegers: Boolean,
-      integralOutputs: Map[Int, Seq[String]]
+      integralOutputs: Map[Int, Seq[String]],
+      sourceFileName: Option[String]
   ): String = {
     val sb = new StringBuilder
 
@@ -417,6 +419,16 @@ object StandaloneRunner extends LazyLogging {
       sb.append(helper)
       if (!helper.endsWith("\n")) sb.append('\n')
       sb.append('\n')
+    }
+
+    // A source names the file it reads by placeholder and leaves the naming to
+    // whoever assembles the script, the translator doing it across a whole plan
+    // so that two sources reading different files whose paths end alike do not
+    // both ask for the same one. This runner assembles a single operator, so
+    // there is nobody to collide with and the name the source offers stands.
+    // Without this the body reads a bare `sourceFile` that was never bound.
+    sourceFileName.foreach { name =>
+      sb.append(s"${StandaloneCodeGenerator.SourceFilePlaceholder} = ${py(name)}\n\n")
     }
 
     sb.append("# ── operator body ──\n")

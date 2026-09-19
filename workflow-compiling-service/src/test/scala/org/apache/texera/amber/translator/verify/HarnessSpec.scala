@@ -20,8 +20,11 @@
 package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -63,6 +66,32 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     val input = dir.resolve("input_port_0.jsonl")
     TupleIO.writeTuples(input, rows.iterator, schema)
     test(dir, input)
+  }
+
+  /** A source, in the one respect this spec is about: it reads no input port and
+    * names the file it reads by placeholder, leaving the naming to whoever
+    * assembles the script.
+    */
+  private class StubSource(path: Path) extends LogicalOp with StandaloneCodeGenerator {
+    override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp =
+      throw new UnsupportedOperationException("the harness never builds a physical op")
+
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "StubSource",
+        "Stands in for a source that names its file by placeholder",
+        OperatorGroupConstants.INPUT_GROUP,
+        inputPorts = List.empty,
+        outputPorts = List(OutputPort())
+      )
+
+    override def standaloneSourcePath(): Option[String] = Some(path.toUri.toString)
+
+    override def generateStandaloneCode(): String =
+      s"out1df = pd.read_json(${StandaloneCodeGenerator.SourceFilePlaceholder}, lines=True)"
   }
 
   "TupleIO" should "read back the rows and the schema it wrote" in {
@@ -112,6 +141,34 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       lines.get(0) should include("\"id\":1")
       lines.get(2) should include("\"id\":3")
     }
+  }
+
+  // A source writes a placeholder where its file should be named, since only
+  // whoever assembles the whole script can settle on a name. Nothing bound it
+  // here, so every source's script stopped on a `sourceFile` that was never
+  // defined, which no operator spec could see: they assert the text the operator
+  // emits, and the text is right.
+  it should "name the file a source reads, which the body leaves to it" taggedAs NeedsPython in {
+    val dir = Files.createTempDirectory("harness-source-")
+    // Beside the script, under the name the source offers, which is how an
+    // exported script is meant to find its data.
+    val data = dir.resolve("rows.jsonl")
+    TupleIO.writeTuples(data, rows.iterator, schema)
+
+    val result = StandaloneRunner.run(
+      opDesc = new StubSource(data),
+      inputs = Map.empty,
+      outputPortCount = 1,
+      workDir = dir
+    )
+
+    val script = Files.readString(dir.resolve("script.py"))
+    script should include("sourceFile = 'rows.jsonl'")
+
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 4
+    lines.get(0) should include("\"id\":1")
+    lines.get(3) should include("\"id\":2")
   }
 
   // pandas has no plain boolean column that carries a null, so read_json reads
