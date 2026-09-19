@@ -716,8 +716,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
     finishLoad();
 
     expect(el(".runbar .run")).not.toBeNull();
-    // Default state: no unit chosen, so the button reads Connect and is disabled.
-    expect(el(".runbar .run")?.textContent?.trim()).toContain("Connect");
+    // Default state: no unit chosen, so the button names what is missing and is disabled.
+    expect(el(".runbar .run")?.textContent?.trim()).toContain("Computing Unit");
     expect((el(".runbar .run") as HTMLButtonElement).disabled).toBe(true);
     expect(el(".runbar texera-computing-unit-selection")).not.toBeNull();
     // At rest there is nothing to count and no run note.
@@ -869,14 +869,20 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el("texera-property-editor")!.hasAttribute("inert")).toBe(false);
   });
 
-  it("tears the workflow down when the browser unloads (the beforeunload host binding)", () => {
+  // Dispatching the DOM event, rather than calling the handler, is what would catch the host
+  // binding being removed or miswired. What it must do is save and nothing else: the browser may
+  // keep this document in its back/forward cache, and coming back re-runs nothing, so a teardown
+  // here would leave a page that looks live and is not (issue #8599).
+  it("saves and tears nothing down when the browser unloads (the beforeunload host binding)", () => {
     fixture.detectChanges();
     finishLoad();
     const workflowActionService: any = TestBed.inject(WorkflowActionService);
+    const save = vi.spyOn(fixture.componentInstance as any, "save");
 
     window.dispatchEvent(new Event("beforeunload"));
 
-    expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    expect(save).toHaveBeenCalled();
+    expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
   });
 
   // The held rebuild is drained by a real blur: a focusout bubbling up from a control inside the

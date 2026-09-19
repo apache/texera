@@ -20,13 +20,12 @@ from threading import Event
 from typing import Iterator, Optional
 
 from core.architecture.managers import Context
-from core.models import State, TupleLike, InternalMarker
-from core.models.internal_marker import StartChannel, EndChannel
+from core.models import State, TupleLike
+from core.models.internal_marker import EndChannel, PortMarker, StartChannel
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable import Runnable
-from proto.org.apache.texera.amber.core import PortIdentity
 
 
 class DataProcessor(Runnable, Stoppable):
@@ -66,10 +65,10 @@ class DataProcessor(Runnable, Stoppable):
             else:
                 self.process_tuple()
 
-    def process_internal_marker(self, internal_marker: InternalMarker) -> None:
-        with self._executor_session() as (executor, tuple_port_id):
-            port_identity = self._marker_port_identity()
-            port_id = tuple_port_id if port_identity is None else port_identity.id
+    def process_internal_marker(self, internal_marker: PortMarker) -> None:
+        if not isinstance(internal_marker, PortMarker):
+            raise TypeError("expected a PortMarker")
+        with self._executor_session(internal_marker.port_id) as (executor, port_id):
             if isinstance(internal_marker, StartChannel):
                 self._set_output_state(executor.produce_state_on_start(port_id))
             elif isinstance(internal_marker, EndChannel):
@@ -77,35 +76,25 @@ class DataProcessor(Runnable, Stoppable):
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
-                self._declare_input_schema(executor, port_id, port_identity)
+                self._declare_input_schema(executor, port_id)
                 self._set_output_tuple(executor.on_finish(port_id))
 
-    def _marker_port_identity(self) -> Optional[PortIdentity]:
-        """
-        The port the marker belongs to, read off the channel it arrived on.
-
-        A marker carries no tuple, and the port the runtime tracks moves only
-        when one does. With two input ports and nothing at all on the second,
-        its marker would otherwise be read as the first port's, finishing that
-        one twice and leaving the empty port unfinished.
-        """
-        channel_id = self._context.current_input_channel_id
-        if channel_id is None:
-            return None
-        try:
-            return self._context.input_manager.get_port_id(channel_id)
-        except KeyError:
-            # A channel the input manager does not know is no port of ours.
-            return None
-
-    def _declare_input_schema(
-        self, executor, port_id: int, port_identity: Optional[PortIdentity]
-    ) -> None:
+    def _declare_input_schema(self, executor, port_id: int) -> None:
         """
         Tell the executor what the finishing port was declared to carry, so an
         operator handed no rows can still say what its columns were.
+
+        The marker names the port by number, but a port is registered under its
+        whole identity, so the channel the marker arrived on is what can name
+        the port object holding the schema.
         """
-        if port_identity is None:
+        channel_id = self._context.current_input_channel_id
+        if channel_id is None:
+            return
+        try:
+            port_identity = self._context.input_manager.get_port_id(channel_id)
+        except KeyError:
+            # A channel the input manager does not know is no port of ours.
             return
         executor.input_schemas[port_id] = self._context.input_manager.get_port(
             port_identity
@@ -130,7 +119,7 @@ class DataProcessor(Runnable, Stoppable):
                 self._set_output_tuple(executor.process_tuple(tuple_, port_id))
 
     @contextmanager
-    def _executor_session(self):
+    def _executor_session(self, marker_port_id: int | None = None):
         """
         Open one executor invocation: hand back (executor, port_id) under a
         print-capture session, route any exception to the exception manager
@@ -142,7 +131,11 @@ class DataProcessor(Runnable, Stoppable):
         """
         try:
             executor = self._context.executor_manager.executor
-            port_id = self._context.tuple_processing_manager.get_input_port_id()
+            port_id = (
+                self._context.tuple_processing_manager.get_input_port_id()
+                if marker_port_id is None
+                else marker_port_id
+            )
             with replace_print(
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,

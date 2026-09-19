@@ -111,6 +111,9 @@ rustfs:
     rustfs:
       access_key: texera_rustfs
       secret_key: password
+  extraEnv:
+    - name: RUSTFS_CORS_ALLOWED_ORIGINS
+      value: "*"
   config:
     rustfs:
       # Must match storage.s3.region: the region is part of the SigV4 scope.
@@ -371,6 +374,15 @@ litellm:
         litellm_params:
           model: gpt-5-mini
           api_key: "os.environ/OPENAI_API_KEY"
+
+# Images an administrator registers, which a computing unit can then be started from.
+curatedImages:
+  enabled: true
+  prepull:
+    # Pull every ready image onto every node, so the first unit there does not wait for it.
+    # Costs node disk: each node holds each ready image. Turning it off also removes the
+    # pre-pulls already made.
+    enabled: true
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
