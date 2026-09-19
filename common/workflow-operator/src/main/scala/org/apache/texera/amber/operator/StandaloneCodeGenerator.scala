@@ -67,8 +67,20 @@ trait StandaloneCodeGenerator {
   }
 
   /**
-    * The file's own name, for a script that reads it from its own directory
-    * rather than through Texera's resolved URI.
+    * The file this operator reads, as Texera resolved it, or None for one that
+    * reads no file.
+    *
+    * The script cannot open a resolved URI, so the body writes
+    * [[StandaloneCodeGenerator.SourceFilePlaceholder]] where the file should be
+    * named and the translator puts a name there. The name has to come from the
+    * plan: two sources reading different files whose paths end in the same
+    * segment both asked for `data.csv`, and the script read one of them twice.
+    */
+  def standaloneSourcePath(): Option[String] = None
+
+  /**
+    * The name to offer for [[standaloneSourcePath]], before the plan has had a
+    * chance to say whether another source already wants it.
     *
     * Taken from the last path segment instead of by parsing the whole string as a
     * URI: the resolver percent-encodes the file-relative segments but leaves the
@@ -76,12 +88,13 @@ trait StandaloneCodeGenerator {
     * called `v3 - with long text` makes `new URI` throw on the space and no code
     * is generated at all.
     */
-  protected def sourceBasename(rawPath: String): String = {
-    val segment = rawPath.split("/").lastOption.getOrElse("")
-    // Percent-decoding only, matching what `URI.getPath` used to return here: form
-    // decoding would also turn a literal `+` in a file name into a space.
-    URLDecoder.decode(segment.replace("+", "%2B"), StandardCharsets.UTF_8)
-  }
+  final def standaloneSourceName(): Option[String] =
+    standaloneSourcePath().map { rawPath =>
+      val segment = rawPath.split("/").lastOption.getOrElse("")
+      // Percent-decoding only, matching what `URI.getPath` used to return here: form
+      // decoding would also turn a literal `+` in a file name into a space.
+      URLDecoder.decode(segment.replace("+", "%2B"), StandardCharsets.UTF_8)
+    }
 
   def producesDataFrame(): Boolean = true
 
@@ -109,4 +122,15 @@ trait StandaloneCodeGenerator {
     * to start.
     */
   def standaloneImports(): Seq[String] = Seq.empty
+}
+
+object StandaloneCodeGenerator {
+
+  /**
+    * What a source writes where the file it reads should be named.
+    *
+    * A bare identifier rather than a string literal, because the translator only
+    * rewrites the code parts of a body and leaves literals and comments alone.
+    */
+  val SourceFilePlaceholder: String = "sourceFile"
 }

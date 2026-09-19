@@ -36,7 +36,9 @@ class FileScanSourceOpExec private[scan] (
     FileScanUtils.createTuplesFromFile(
       fileName = desc.fileName.get,
       attributeType = desc.attributeType,
-      fileEncoding = desc.fileEncoding,
+      // `encoding`, the field the panel writes, and not the inherited
+      // `fileEncoding` this descriptor ignores on the way over.
+      fileEncoding = desc.encoding,
       extract = desc.extract,
       outputFileName = desc.outputFileName,
       fileScanOffset = desc.fileScanOffset,

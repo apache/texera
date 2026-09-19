@@ -84,11 +84,16 @@ object ArrowUtils extends LazyLogging {
               // Use the attribute type from the schema (which includes metadata)
               // instead of deriving it from the Arrow type
               val attributeType = schema.getAttributes(index).getType
-              // A timestamp is the one type whose field says more than the
-              // schema does, so it is the only one that reads the field.
+              // A timestamp and an unsigned integer are the types whose field
+              // says more than the schema does, so they are the ones that read
+              // the field.
               attributeType match {
                 case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
-                case _                       => AttributeTypeUtils.parseField(value, attributeType)
+                case _ =>
+                  AttributeTypeUtils.parseField(
+                    unsignedValueOf(value, fieldVector.getField.getType),
+                    attributeType
+                  )
               }
             } catch {
               case e: Exception =>
@@ -100,6 +105,29 @@ object ArrowUtils extends LazyLogging {
       )
       .build()
   }
+
+  /** The number an unsigned column counts to, out of the storage it counts in.
+    *
+    * Arrow's unsigned vectors hand back the raw storage, signed: `UInt1Vector` a
+    * Byte, `UInt4Vector` an Int, each reading the file's largest value as -1.
+    * `UInt2Vector` is the exception and hands back a Character, which is already
+    * the number but is no kind of integer to the parse below. Every other value
+    * passes through untouched.
+    *
+    * Nothing wider is handled because nothing wider arrives: [[toAttributeType]]
+    * refuses an unsigned 64-bit column, having no Texera type to hold it.
+    */
+  private def unsignedValueOf(value: AnyRef, arrowType: ArrowType): AnyRef =
+    arrowType match {
+      case int: ArrowType.Int if !int.getIsSigned =>
+        value match {
+          case byte: java.lang.Byte      => Int.box(byte & 0xff)
+          case char: java.lang.Character => Int.box(char.toInt)
+          case integer: Integer          => Long.box(integer.toLong & 0xffffffffL)
+          case other                     => other
+        }
+      case _ => value
+    }
 
   /** The wall clock a timestamp column holds, read the way its own field states.
     *
@@ -182,15 +210,23 @@ object ArrowUtils extends LazyLogging {
   @throws[AttributeTypeException]
   def toAttributeType(srcType: ArrowType): AttributeType = {
     srcType match {
+      // An unsigned column counts up where its storage counts down: the largest
+      // unsigned 32-bit value is stored as -1, so read as its storage it would
+      // arrive as -1 where the file means 4294967295. The next Texera integer up
+      // holds it, and [[unsignedValueOf]] does the reading. Past 64 bits there is
+      // no next one. The same widening covers the narrow widths, Texera having no
+      // column shorter than a 32-bit integer.
       case int: ArrowType.Int =>
-        int.getBitWidth match {
-          case 16 | 32 =>
-            AttributeType.INTEGER
-
-          case 64 =>
-            AttributeType.LONG
-
-          case other =>
+        (int.getBitWidth, int.getIsSigned) match {
+          case (8 | 16 | 32, true) => AttributeType.INTEGER
+          case (8 | 16, false)     => AttributeType.INTEGER
+          case (64, true)          => AttributeType.LONG
+          case (32, false)         => AttributeType.LONG
+          case (64, false) =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              "Unsupported unsigned 64-bit Int, which is wider than any Texera column"
+            )
+          case (other, _) =>
             throw new AttributeTypeUtils.AttributeTypeException(
               s"Unsupported Int bit width: $other"
             )
