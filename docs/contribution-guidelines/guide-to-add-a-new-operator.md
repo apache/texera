@@ -125,6 +125,12 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   machine is set to, and pandas reads the same number as UTC, so the two paths part by the
   local offset and agree again on a machine set to UTC. `ArrowUtils` states the convention;
   follow it wherever an operator turns a number into a moment.
+- The fragment answers the same inputs the operator answers. A guard, the page it writes, and
+  any number it computes have to match on both sides. One path refusing a table the other
+  draws is a divergence the verification will not catch, because it only compares runs that
+  both produced something. Where the operator wraps its work in a try and yields a page, the
+  fragment writes that same page instead of raising: a raise ends the whole exported script,
+  not just that one chart.
 - Where the two engines genuinely differ, note the difference in a comment.
 
 ## 4. Verification
