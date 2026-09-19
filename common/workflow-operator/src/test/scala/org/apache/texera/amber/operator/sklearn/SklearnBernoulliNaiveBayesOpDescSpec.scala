@@ -83,6 +83,21 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("\"Skipped\"")
   }
 
+  // The operator runs once per port and counts the rows it dropped each time, so
+  // the script says it for the table it scores as well as the one it fits.
+  "SklearnBernoulliNaiveBayesOpDesc.generateStandaloneCode" should
+    "count the rows it dropped on both tables" in {
+    val d = new SklearnBernoulliNaiveBayesOpDesc
+    d.target = "y"
+    val code = d.generateStandaloneCode()
+    code should include(
+      """print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")"""
+    )
+    code should include(
+      """print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")"""
+    )
+  }
+
   "SklearnBernoulliNaiveBayesOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnBernoulliNaiveBayesOpDesc
