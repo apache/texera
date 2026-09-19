@@ -287,6 +287,50 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  /** The bug this pins: the merge widened an unmatched integer column to
+    * float64, and the cast that put the type back read a value already rounded.
+    * 9007199254740993 is the first integer float64 cannot hold.
+    */
+  it should "keep an integer past 2^53 exact across an outer join" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("k", AttributeType.LONG))
+      .add(new Attribute("id", AttributeType.LONG))
+    val right = Schema()
+      .add(new Attribute("kk", AttributeType.LONG))
+      .add(new Attribute("y", AttributeType.STRING))
+
+    val d = new HashJoinOpDesc[java.lang.Long]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "kk"
+    d.joinType = JoinType.FULL_OUTER
+    val block =
+      d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1], "id": [9007199254740993]})
+         |in2df = pd.DataFrame({"kk": [2], "y": ["b"]})
+         |$block
+         |print(out1df["id"].iloc[0])
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-outer-big-int-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      // Not the 9007199254740992 a round trip through float64 leaves behind.
+      out.trim shouldBe "9007199254740993"
+    }
+  }
+
   // The two sides can name a column alike and declare it differently, and only
   // the left one is the integer: the right one wears its rename out.
   it should "leave a right column alone that shares an integer column's name" in {
@@ -373,7 +417,23 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     d.buildAttributeName = "k"
     d.probeAttributeName = "kk"
     d.joinType = JoinType.FULL_OUTER
-    d.generateStandaloneCode() should not include "astype(\"Int64\")"
+    d.generateStandaloneCode() should not include "astype("
+  }
+
+  // The cast has to happen before the merge, because the merge is what digs the
+  // hole that costs the column its type.
+  it should "widen the inputs rather than the merged frame" in {
+    val left = Schema().add(new Attribute("k", AttributeType.INTEGER))
+    val right = Schema().add(new Attribute("kk", AttributeType.INTEGER))
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "kk"
+    d.joinType = JoinType.FULL_OUTER
+    val block = d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))
+    block should include("in1df.astype(_left_ints).merge(")
+    block should include("in2df.astype(_right_ints).rename(columns=_rename)")
+    // The frame the merge produced is never cast back.
+    block should not include "out1df[_texera_int_col]"
   }
 
   "HashJoinOpDesc" should "round-trip its config fields through the polymorphic base" in {
