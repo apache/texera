@@ -159,6 +159,21 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.generateStandaloneCode() should include("skiprows=range(1, 2147483648)")
   }
 
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from. The types came
+  // back empty while the header still asked each column for one, and the
+  // operator threw before a row was read. A file's columns do not depend on how
+  // many of its rows were asked for.
+  it should "keep the file's columns when the window asks for no rows" in {
+    val d = describing(writeCsv("id,name\n1,alice\n2,bob\n"))
+    d.limit = Some(0)
+
+    val schema = d.sourceSchema()
+    schema.getAttributeNames shouldBe List("id", "name")
+    schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
+    schema.getAttribute("name").getType shouldBe AttributeType.STRING
+  }
+
   private def writeCsv(content: String): String = {
     val file = Files.createTempFile("csv-old-", ".csv")
     file.toFile.deleteOnExit()

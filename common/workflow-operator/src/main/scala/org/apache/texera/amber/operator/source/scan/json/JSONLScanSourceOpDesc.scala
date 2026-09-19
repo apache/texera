@@ -213,8 +213,12 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
 
     val startOffset = offset.getOrElse(0)
+    // A window of no rows is still a window on this file, and the file's columns
+    // do not depend on how many of its rows were asked for. Reading the sample
+    // through the limit left a Limit of 0 nothing to infer from, and the operator
+    // declared a schema of no columns at all.
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     reader
       .lines()
       .iterator()

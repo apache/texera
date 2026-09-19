@@ -562,4 +562,27 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(columnNames(oldCsv, path) == List("id", "name", "age"))
   }
 
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from. The three readers
+  // then failed differently on the same file: these two declared a schema of no
+  // columns at all, and the old one threw, its header still asking each column
+  // for a type the empty sample could not give. A file's columns do not depend
+  // on how many of its rows were asked for.
+  it should "keep the file's columns when the window asks for no rows" in {
+    val path = writeSemicolonCsv()
+    val csv = new CSVScanSourceOpDesc()
+    csv.customDelimiter = Some(";")
+    csv.limit = Some(0)
+    val parallelCsv = new ParallelCSVScanSourceOpDesc()
+    parallelCsv.customDelimiter = Some(";")
+    parallelCsv.limit = Some(0)
+    val oldCsv = new CSVOldScanSourceOpDesc()
+    oldCsv.customDelimiter = Some(";")
+    oldCsv.limit = Some(0)
+
+    assert(columnNames(csv, path) == List("id", "name", "age"))
+    assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
+    assert(columnNames(oldCsv, path) == List("id", "name", "age"))
+  }
+
 }

@@ -185,8 +185,12 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    // A window of no rows is still a window on this file, and the file's columns
+    // do not depend on how many of its rows were asked for. Reading the sample
+    // through the limit left a Limit of 0 nothing to infer from, and the types
+    // came back empty while the header below still asked each column for one.
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
         .slice(startOffset, endOffset)

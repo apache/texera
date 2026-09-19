@@ -440,6 +440,30 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from and the operator
+  // declared a schema of no columns at all. A file's columns do not depend on
+  // how many of its rows were asked for.
+  it should "keep the file's columns when the window asks for no rows" in {
+    val data = Files.createTempFile("jsonl-zero-window-", ".jsonl")
+    data.toFile.deleteOnExit()
+    Files.write(
+      data,
+      "{\"id\":1,\"name\":\"alice\"}\n{\"id\":2,\"name\":\"bob\"}\n".getBytes(
+        StandardCharsets.UTF_8
+      )
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.limit = Some(0)
+
+    val schema = op.sourceSchema()
+    schema.getAttributeNames shouldBe List("id", "name")
+    schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
+  }
+
   // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
   // (UDF_PYTHON_PATH), then python3 / python / py.
   private def resolvePython(): Option[String] = {

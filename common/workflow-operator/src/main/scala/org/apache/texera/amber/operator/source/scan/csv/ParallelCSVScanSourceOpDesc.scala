@@ -193,9 +193,13 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     if (hasHeader)
       reader.readNext()
 
+    // A window of no rows is still a window on this file, and the file's columns
+    // do not depend on how many of its rows were asked for. Reading the sample
+    // through the limit left a Limit of 0 nothing to infer from, and the types
+    // came back empty while the header below still asked each column for one.
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
+        .take(limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
         .map(seq => seq.toArray)
     )
 
