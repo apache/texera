@@ -160,6 +160,29 @@ describe("WorkflowEditorComponent", () => {
       }
     });
 
+    // The paper is bound to the root-provided joint graph, which outlives this component. Once the
+    // switch between a workflow's two views routes instead of reloading, a mount happens on every
+    // switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its paper on destroy, so none is left listening to the shared graph", () => {
+      const remove = vi.spyOn(component.paper, "remove");
+
+      fixture.destroy();
+
+      expect(remove).toHaveBeenCalled();
+    });
+
+    // `.bind()` returns a new function every call, so removing a freshly bound one never matched
+    // what was added: one stale listener was left per mount, and after a few switches a single
+    // Ctrl/Cmd-Z was handled several times over.
+    it("removes the keydown listener it added, rather than a differently bound one", () => {
+      const handler = vi.spyOn(component as any, "_handleKeyboardAction");
+
+      fixture.destroy();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true }));
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     it("should hide operator status on the canvas by default", () => {
       // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;

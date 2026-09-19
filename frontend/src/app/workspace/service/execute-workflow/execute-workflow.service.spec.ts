@@ -20,7 +20,7 @@
 import "zone.js/testing";
 
 import { DOCUMENT } from "@angular/core";
-import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "./execute-workflow.service";
@@ -109,6 +109,45 @@ describe("ExecuteWorkflowService", () => {
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  // A view handed a session mid-run subscribes after the last state change, and the stream carries
+  // no current value, so it heard nothing about the run: it showed Run for a workflow that was
+  // running. The lock is reapplied only when the state changes too, so a canvas that unlocked the
+  // graph on arrival left a running workflow editable until the run happened to end.
+  describe("republishExecutionState", () => {
+    it("says the current state again for subscribers that arrived after it was set", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      const before = service.getExecutionState();
+      const seen: ExecutionStateInfo[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current));
+
+      service.republishExecutionState();
+
+      expect(seen).toEqual([before]);
+      expect(service.getExecutionState()).toBe(before);
+    });
+
+    it("reapplies the lock the current state implies, rather than unlocking outright", () => {
+      const actionService = service["workflowActionService"];
+      const enable = vi.spyOn(actionService, "enableWorkflowModification");
+      const disable = vi.spyOn(actionService, "disableWorkflowModification");
+
+      // Uninitialized: nothing is running, so the graph may be edited.
+      service.republishExecutionState();
+      expect(enable).toHaveBeenCalled();
+      expect(disable).not.toHaveBeenCalled();
+
+      enable.mockClear();
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      enable.mockClear();
+      disable.mockClear();
+
+      // Running: the graph stays locked, which is the case the canvas's hand-over got wrong.
+      service.republishExecutionState();
+      expect(disable).toHaveBeenCalled();
+      expect(enable).not.toHaveBeenCalled();
+    });
+  });
 
   it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
     (service as any).currentState = { state: ExecutionState.Running };

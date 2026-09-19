@@ -310,6 +310,17 @@ describe("WorkflowFormComponent", () => {
       workflowActionService.hasWorkflowOpen.mockReturnValue(true);
     });
 
+    // The execution-state stream is a plain Subject too, so a page handed a session mid-run hears
+    // nothing about the run until it changes state: it showed Run for a workflow that was running,
+    // and the lock rule, which reads isRunning, would have let edit mode unlock a graph mid-run.
+    it("arrives knowing a run is already in flight", () => {
+      h.execution.state = ExecutionState.Running;
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.executionState).toBe(ExecutionState.Running);
+    });
+
     it("takes what it needs from the open workflow instead of loading it", () => {
       build(formViewWorkflow).ngOnInit();
 

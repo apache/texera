@@ -109,6 +109,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
+  /** One bound reference, so the listener that is added is the one that can be removed. */
+  private readonly keyboardActionListener = (event: KeyboardEvent) => this._handleKeyboardAction(event);
   // Heat-map hover tooltip (shown while the Performance overlay is on). Null when hidden.
   public heatmapTooltip: {
     x: number;
@@ -213,7 +215,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const host = this.elementRef.nativeElement as HTMLElement;
     this.editor = host.querySelector("#workflow-editor")!;
     this.editorWrapper = host.querySelector("#workflow-editor-wrapper")!;
-    document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
+    document.addEventListener("keydown", this.keyboardActionListener);
     this.initializeJointPaper();
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
@@ -261,7 +263,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     this.paperResizeObserver?.disconnect();
-    document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
+    // The paper is bound to the joint graph, which is root-provided and outlives this component,
+    // so an undisposed one goes on listening to that graph from a DOM node no longer on the page.
+    // Harmless while every mount followed a page load; the switch between a workflow's two views
+    // routes now, so a mount happens on every switch and the papers pile up. Two live papers on
+    // one model both answer pointer events, and whichever answers decides whether an operator can
+    // be dragged -- measured: an operator was undraggable after two round-trips (issue #8582).
+    this.paper?.remove();
+    // The same bound reference that was registered: `.bind()` returns a new function every call,
+    // so removing a freshly bound one never matched and left the listener behind. One stale
+    // listener per mount meant one Ctrl/Cmd-Z undoing several entries after a few switches.
+    document.removeEventListener("keydown", this.keyboardActionListener);
     // The overlay belongs to the canvas being viewed, but the wrapper holding
     // the view is root-provided and outlives this component, while the menu's
     // checkbox re-initializes to off and the metrics behind the overlay are

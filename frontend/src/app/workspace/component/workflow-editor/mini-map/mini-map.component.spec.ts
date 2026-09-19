@@ -46,6 +46,12 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
  * instead, and records the calls the component makes against it.
  */
 class StubPaper {
+  /**
+   * The container the paper was built into. The mini-map measures the main canvas's viewport
+   * through this, rather than looking `#workflow-editor` up in the document: both views of a
+   * workflow mount an editor, and they overlap for a tick when the switch routes between them.
+   */
+  public el: HTMLElement | undefined;
   public readonly handlers: Record<string, () => void> = {};
   public readonly pageToLocalPointArgs: { x: number; y: number }[] = [];
   public readonly translateArgs: [number, number][] = [];
@@ -162,8 +168,9 @@ describe("MiniMapComponent", () => {
   }
 
   /**
-   * The mini-map reads the main editor's element out of the document by id, so
-   * mount a stand-in with an explicit size and viewport rect.
+   * A stand-in for the main canvas's container, with an explicit size and viewport rect. The
+   * mini-map reaches it through the main paper's own `el` (see StubPaper), so tests that need it
+   * measured also hand it to the paper they attach.
    */
   function mountWorkflowEditorStub(width: number, height: number, left: number, top: number): HTMLDivElement {
     const editor = document.createElement("div");
@@ -176,8 +183,12 @@ describe("MiniMapComponent", () => {
     return editor;
   }
 
-  /** Publishes `paper` on the stream the mini-map subscribes to in ngAfterViewInit. */
+  /**
+   * Publishes `paper` on the stream the mini-map subscribes to in ngAfterViewInit, standing it in
+   * the editor container the test mounted, as a real main paper is built into one.
+   */
   function attachMainPaper(paper: StubPaper): void {
+    paper.el = paper.el ?? editorStub;
     mainPaper$.next(paper as unknown as joint.dia.Paper);
   }
 
@@ -187,6 +198,19 @@ describe("MiniMapComponent", () => {
   });
 
   describe("mini-map paper", () => {
+    // Bound to the root-provided joint graph, which outlives this component. Once the switch
+    // between a workflow's two views routes instead of reloading, this component is mounted on
+    // every switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its own paper on destroy, so none is left listening to the shared graph", () => {
+      sizeMiniMapContainer(912, 100);
+      fixture.detectChanges();
+      const remove = vi.spyOn((component as any).ownPaper, "remove");
+
+      fixture.destroy();
+
+      expect(remove).toHaveBeenCalled();
+    });
+
     it("fits the whole main canvas into the mini-map container", () => {
       // 912 / (2688 - -960) == 0.25; the height (100) is deliberately different
       // so a width/height mix-up in the scale formula cannot pass.

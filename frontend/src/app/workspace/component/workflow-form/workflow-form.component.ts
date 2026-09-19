@@ -617,6 +617,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
 
   /** What the page does once the workflow is in front of it, whichever way it got there. */
   private settleIntoForm(): void {
+    // The run this page arrived on top of. The state stream is a plain Subject and carries no
+    // current value, so a page handed a session mid-run hears nothing about it until the run
+    // changes state: it showed Run for a workflow that was running, and the lock rule below --
+    // which reads `isRunning` -- would have let edit mode unlock a graph mid-run. On the loading
+    // path there is nothing in flight and this reads the same Uninitialized it started at.
+    this.executionState = this.executeWorkflowService.getExecutionState().state;
     // The workflow is shown, not edited, from here: dragging operators around or deleting them
     // belongs to the operator canvas. Lock now, and keep it locked against anything else that
     // unlocks the graph (clampEditability). The clamp is dropped when this page is destroyed;

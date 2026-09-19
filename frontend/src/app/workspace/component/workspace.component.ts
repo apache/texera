@@ -348,10 +348,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     const wid = this.route.snapshot.params.id;
     // The Form View handed this workflow over still open: the graph, its co-editing room and the
     // computing unit connection are the ones it was using. Nothing to fetch, nothing to rebuild.
-    // Only the lock it put on the graph is undone, since editing is what the canvas is for, and
-    // the view is centred because this canvas's paper is a new one, at its default offset.
+    // The lock the Form View put on the graph is lifted, since editing is what the canvas is for,
+    // and the view is centred because this canvas's paper is a new one, at its default offset.
     if (this.resumedSession) {
-      this.workflowActionService.enableWorkflowModification();
+      // Not an unconditional unlock: a run may still be in flight. The execute service owns the
+      // state-to-lock rule and reapplies it only when the state changes, so ask it to apply that
+      // rule again rather than restating it here. Unlocking outright left a workflow that was
+      // still running editable until its run happened to end. This also re-announces the state
+      // itself, which is what tells this page's own subscribers that a run is in flight.
+      this.executeWorkflowService.republishExecutionState();
       this.registerAutoPersistWorkflow();
       this.triggerCenter();
       // This page and everything on it is new, and the metadata it needs was set by the view that

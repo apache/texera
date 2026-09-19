@@ -194,6 +194,22 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
+  /**
+   * Announce the execution state already in hand, unchanged, and reapply the graph lock it implies,
+   * for a view that arrived on a workflow whose run was already in flight.
+   *
+   * `getExecutionStateStream()` is a plain Subject, so it carries no current value: a view that
+   * attaches to a handed-over session subscribes after the last state change and hears nothing
+   * until the next one. Two things were then wrong at once. The arriving page showed **Run** for a
+   * workflow that was running, because its own `executionState` sat at its initial value. And the
+   * lock is only reapplied when the state changes (see `updateExecutionState`), so a canvas that
+   * unlocked the graph on arrival left a running workflow editable until the run happened to end.
+   */
+  public republishExecutionState(): void {
+    this.updateWorkflowActionLock(this.currentState);
+    this.executionStateStream.next({ previous: this.currentState, current: this.currentState });
+  }
+
   public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
     if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
