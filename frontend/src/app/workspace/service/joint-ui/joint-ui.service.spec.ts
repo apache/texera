@@ -23,6 +23,7 @@ import { JointUIService, operatorNameClass, operatorStateClass, operatorPortMetr
 import { CommentBox, OperatorPredicate } from "../../types/workflow-common.interface";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { Coeditor } from "../../../common/type/user";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
 
 // Minimal mock of OperatorMetadataService — the constructor subscribes to
 // getOperatorMetadata() but the schemas list isn't needed for the methods
@@ -424,6 +425,19 @@ describe("JointUIService", () => {
       expect(payload[".delete-button"].visibility).toBe("visible");
       expect(payload[".chat-button"].visibility).toBe("visible");
     });
+    it("unfolds the state and metrics without the action buttons when asked (a structure-locked preview)", () => {
+      // The buttons start hidden and stay so: none of delete, chat, add/remove port can act on a
+      // locked preview, and a button that does nothing would suggest the preview can be edited.
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.unfoldOperatorDetails(paper, "op-1", false);
+      const [payload] = attrSpy.mock.calls[0];
+      expect(payload[`.${operatorStateClass}`].visibility).toBe("visible");
+      expect(payload[`.${operatorPortMetricsClass}`].visibility).toBe("visible");
+      expect(Object.keys(payload)).not.toContain(".delete-button");
+      expect(Object.keys(payload)).not.toContain(".chat-button");
+      expect(Object.keys(payload).some(key => key.endsWith("-port-button"))).toBe(false);
+    });
   });
 
   describe("showAgentActionLabel / hideAgentActionLabel", () => {
@@ -631,6 +645,46 @@ describe("JointUIService", () => {
     });
   });
 
+  describe("applyHeatmapColor", () => {
+    it("paints the body fill with the ramp color for a given score", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.applyHeatmapColor(paper, "op-1", 1);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", scoreToColor(1));
+    });
+    it("paints the neutral no-data color when the score is undefined", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.applyHeatmapColor(paper, "op-1", undefined);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", HEATMAP_NO_DATA_COLOR);
+    });
+    it("no-ops when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.applyHeatmapColor(paper, "missing-op", 0.5)).not.toThrow();
+    });
+  });
+
+  describe("restoreOperatorFill", () => {
+    it("restores the default white fill for an enabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.restoreOperatorFill(paper, { operatorID: "op-1" } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#FFFFFF");
+    });
+    it("restores the disabled grey fill for a disabled operator", () => {
+      const { paper, attrSpy } = makePaperWithModel();
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.restoreOperatorFill(paper, { operatorID: "op-1", isDisabled: true } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith("rect.body/fill", "#E0E0E0");
+    });
+    it("no-ops when the model is missing", () => {
+      const paper = { getModelById: vi.fn(() => null) } as unknown as joint.dia.Paper;
+      const service = new JointUIService(emptyMetadataStub as never);
+      expect(() => service.restoreOperatorFill(paper, { operatorID: "missing-op" } as OperatorPredicate)).not.toThrow();
+    });
+  });
+
   describe("changeOperatorViewResultStatus", () => {
     it("writes the view-result asset path when viewResult is true", () => {
       const { paper, attrSpy } = makePaperWithModel();
@@ -689,15 +743,29 @@ describe("JointUIService", () => {
       return { paper, attrSpy, portPropSpy };
     }
 
-    it("falls back to the Uninitialized state when statistics is undefined", () => {
+    it("renders nothing when statistics is undefined (state is rendered separately)", () => {
+      const { paper, attrSpy, portPropSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(paper, "op-1", undefined);
+      expect(attrSpy).not.toHaveBeenCalled();
+      expect(portPropSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the operator's execution-state rendering", () => {
+      // State is a separate sub-concept rendered via changeOperatorState;
+      // a statistics update must not repaint the state class.
       const { paper, attrSpy } = makeStatsPaper(() => []);
       const service = new JointUIService(emptyMetadataStub as never);
-      service.changeOperatorStatistics(paper, "op-1", undefined, false, false);
-      // changeOperatorState writes the state-class fill payload.
-      const [payload] = attrSpy.mock.calls[0];
-      expect((payload as Record<string, { text: string }>)[`.${operatorStateClass}`].text).toBe(
-        OperatorState.Uninitialized.toString()
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 0,
+        aggregatedOutputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      });
+      const stateWrites = attrSpy.mock.calls.filter(
+        c => typeof c[0] === "object" && c[0] !== null && `.${operatorStateClass}` in (c[0] as object)
       );
+      expect(stateWrites).toHaveLength(0);
     });
 
     it("writes per-port counts derived from inputPortMetrics and outputPortMetrics", () => {
@@ -708,20 +776,13 @@ describe("JointUIService", () => {
         { id: "out-1", group: "out", attrs: { ".port-label": { text: "result: 0" } } },
       ]);
       const service = new JointUIService(emptyMetadataStub as never);
-      service.changeOperatorStatistics(
-        paper,
-        "op-1",
-        {
-          operatorState: OperatorState.Running,
-          aggregatedInputRowCount: 0,
-          aggregatedOutputRowCount: 0,
-          inputPortMetrics: { "0": 42 },
-          outputPortMetrics: { "1": 7 },
-          numWorkers: 3,
-        },
-        false,
-        false
-      );
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 0,
+        aggregatedOutputRowCount: 0,
+        inputPortMetrics: { "0": 42 },
+        outputPortMetrics: { "1": 7 },
+        numWorkers: 3,
+      });
       expect(portPropSpy).toHaveBeenCalledWith("in-0", "attrs/.port-label/text", (42).toLocaleString());
       expect(portPropSpy).toHaveBeenCalledWith("out-1", "attrs/.port-label/text", (7).toLocaleString());
     });
@@ -729,20 +790,13 @@ describe("JointUIService", () => {
     it("writes the worker count label when statistics include numWorkers", () => {
       const { paper, attrSpy } = makeStatsPaper(() => []);
       const service = new JointUIService(emptyMetadataStub as never);
-      service.changeOperatorStatistics(
-        paper,
-        "op-1",
-        {
-          operatorState: OperatorState.Ready,
-          aggregatedInputRowCount: 0,
-          aggregatedOutputRowCount: 0,
-          inputPortMetrics: {},
-          outputPortMetrics: {},
-          numWorkers: 8,
-        },
-        false,
-        false
-      );
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 0,
+        aggregatedOutputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+        numWorkers: 8,
+      });
       // attr() is called once with the workers selector and the formatted string.
       const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
       expect(valuesWritten).toContain("#workers: 8");
@@ -751,19 +805,12 @@ describe("JointUIService", () => {
     it("defaults the worker count to 1 when numWorkers is unspecified", () => {
       const { paper, attrSpy } = makeStatsPaper(() => []);
       const service = new JointUIService(emptyMetadataStub as never);
-      service.changeOperatorStatistics(
-        paper,
-        "op-1",
-        {
-          operatorState: OperatorState.Ready,
-          aggregatedInputRowCount: 0,
-          aggregatedOutputRowCount: 0,
-          inputPortMetrics: {},
-          outputPortMetrics: {},
-        },
-        false,
-        false
-      );
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 0,
+        aggregatedOutputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      });
       const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
       expect(valuesWritten).toContain("#workers: 1");
     });

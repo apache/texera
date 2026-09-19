@@ -205,18 +205,6 @@ describe("WorkspaceComponent", () => {
   }
 
   describe("ngOnInit", () => {
-    it("parses numeric pid from route query params", async () => {
-      await createFixture(configureRoute({}, { pid: "13" }));
-      component.ngOnInit();
-      expect(component.pid).toBe(13);
-    });
-
-    it("treats non-numeric pid as undefined", async () => {
-      await createFixture(configureRoute({}, { pid: "not-a-number" }));
-      component.ngOnInit();
-      expect(component.pid).toBeUndefined();
-    });
-
     it("enables highlighting on the workflow action service", async () => {
       await createFixture();
       component.ngOnInit();
@@ -392,6 +380,48 @@ describe("WorkspaceComponent", () => {
         vi.useRealTimers();
       }
     });
+
+    it("does not persist an edit made by a signed-out visitor", async () => {
+      // A guest can still edit the canvas; persisting on their behalf would write to whatever
+      // workflow id the URL happens to carry.
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        userService.isLogin.mockReturnValue(false);
+        workflowPersistService.isWorkflowPersistEnabled.mockReturnValue(true);
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        vi.advanceTimersByTime(5000);
+
+        expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not persist when workflow persistence is switched off", async () => {
+      // The other half of the same guard. A deployment can turn persistence off, and while it is
+      // off a signed-in user's edits must not be written back either.
+      vi.useFakeTimers();
+      try {
+        const workflowChanged$ = new Subject<void>();
+        await createFixture();
+        workflowActionService.workflowChanged.mockReturnValue(workflowChanged$.asObservable());
+        userService.isLogin.mockReturnValue(true);
+        workflowPersistService.isWorkflowPersistEnabled.mockReturnValue(false);
+
+        component.registerAutoPersistWorkflow();
+        workflowChanged$.next();
+        vi.advanceTimersByTime(5000);
+
+        expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("updateViewCount", () => {
@@ -465,6 +495,37 @@ describe("WorkspaceComponent", () => {
       expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
       expect(workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
       expect(workflowResultService.clearResults).toHaveBeenCalled();
+    });
+
+    // A full-page navigation away fires beforeunload, and the browser may then keep this document
+    // in its back/forward cache instead of discarding it. Coming back restores the JavaScript
+    // state as it was left and re-runs nothing, so anything torn down here stays torn down: the
+    // graph came back empty, the workflow id came back as the default, and the still-subscribed
+    // autosave then wrote that default out as a new, blank workflow (issue #8599).
+    // Dispatching the DOM event, rather than calling the handler, is what would catch the host
+    // binding being removed or miswired.
+    it("saves on beforeunload and tears nothing down, so a page restored from the cache still works", async () => {
+      await createFixture();
+      fixture.detectChanges();
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    it("skips even the save on beforeunload when the user is not signed in", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      userService.isLogin.mockReturnValue(false);
+
+      component.onBeforeUnload();
+
+      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
     });
 
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {

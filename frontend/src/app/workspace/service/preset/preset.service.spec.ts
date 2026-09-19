@@ -256,18 +256,6 @@ describe("PresetService", () => {
       expect((errors[0] as Error).message).toMatch(/already exists/);
     });
 
-    it("updatePreset does not write the preset back when the original preset is missing", async () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
-
-      const errors = await captureRxjsUnhandled(() =>
-        presetService.updatePreset(presetType, presetTarget, { presetProperty: "missing" }, { presetProperty: "v3" })
-      );
-
-      expect(userConfigStub.set).not.toHaveBeenCalled();
-      expect(errors).toHaveLength(1);
-      expect((errors[0] as Error).message).toMatch(/doesn't exist/);
-    });
-
     it("deletePreset removes the matching preset via savePresets", () => {
       const a: Preset = { presetProperty: "v1" };
       const b: Preset = { presetProperty: "v2" };

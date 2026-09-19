@@ -35,7 +35,12 @@ import org.apache.texera.dao.jooq.generated.tables.WorkflowVersion
 import java.net.{HttpURLConnection, URL}
 import java.nio.charset.StandardCharsets
 import scala.util.control.NonFatal
-import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.service.util.{
+  JupyterEndpointResolver,
+  JupyterEndpoints,
+  JupyterProbe,
+  JupyterProvisioner
+}
 
 object NotebookMigrationResource extends LazyLogging {
 
@@ -58,6 +63,8 @@ object NotebookMigrationResource extends LazyLogging {
       mapper.createObjectNode().put("success", true).put("deleted", deleted)
     )
 
+  // Also the answer when the user has no Jupyter provisioned: either way there is no
+  // server for them to reach.
   private def jupyterUnavailableResponse: Response =
     Response
       .status(500)
@@ -106,40 +113,15 @@ object NotebookMigrationResource extends LazyLogging {
     }
   }
 
-  // jupyterUrl and jupyterToken are single process-wide values, so this service still
-  // targets one Jupyter per process (the per-user-pod model) and must not be deployed as a
-  // shared global instance yet: every user would get the same Jupyter and the same token.
-  // Resolving these per user is a later stage of the migration (#7665).
-  private val jupyterUrl = StorageConfig.jupyterURL
-  private val jupyterToken = StorageConfig.jupyterToken
-
   // Default notebook name used when a request does not specify one, so a param-less
   // getJupyterIframeURL call reproduces the URL from before this service became stateless.
   private val defaultNotebookName = "notebook.ipynb"
 
-  private def isJupyterAvailable(jupyterUrl: String): Boolean = {
-    var conn: java.net.HttpURLConnection = null
-    try {
-      conn = new java.net.URL(s"$jupyterUrl/api")
-        .openConnection()
-        .asInstanceOf[java.net.HttpURLConnection]
-
-      conn.setRequestMethod("GET")
-      conn.setConnectTimeout(2000)
-      conn.setReadTimeout(2000)
-
-      val status = conn.getResponseCode
-
-      status == 200 || status == 403
-    } catch {
-      case _: Exception => false
-    } finally {
-      if (conn != null) conn.disconnect()
-    }
-  }
-
   // Returns the Jupyter iframe reference URL for the given notebook.
-  def getJupyterIframeURL(notebookName: String): Response = {
+  def getJupyterIframeURL(
+      notebookName: String,
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
+  ): Response = {
     // notebookName flows into the returned URL, so validate it the same way setNotebook does:
     // block path traversal and keep it to a plain .ipynb filename.
     if (!notebookName.matches("[A-Za-z0-9._-]+\\.ipynb")) {
@@ -149,26 +131,31 @@ object NotebookMigrationResource extends LazyLogging {
         .build()
     }
 
-    if (!isJupyterAvailable(jupyterUrl)) {
+    if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
       return jupyterUnavailableResponse
     }
 
     Response
-      .ok(successUrlJson(s"$jupyterUrl/notebooks/work/$notebookName?token=$jupyterToken"))
+      .ok(
+        successUrlJson(s"${jupyter.publicUrl}/notebooks/work/$notebookName?token=${jupyter.token}")
+      )
       .build()
   }
 
   // Returns the URL of Jupyter
-  def getJupyterURL(): Response = {
-    if (!isJupyterAvailable(jupyterUrl)) {
+  def getJupyterURL(jupyter: JupyterEndpoints = JupyterEndpoints.configured): Response = {
+    if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
       return jupyterUnavailableResponse
     }
 
-    Response.ok(successUrlJson(jupyterUrl)).build()
+    Response.ok(successUrlJson(jupyter.publicUrl)).build()
   }
 
   // Set the notebook in Jupyter
-  def setNotebook(body: String): Response = {
+  def setNotebook(
+      body: String,
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
+  ): Response = {
     var conn: HttpURLConnection = null
     try {
       val json = parseBody(body) match {
@@ -189,12 +176,12 @@ object NotebookMigrationResource extends LazyLogging {
           .build()
       }
 
-      if (!isJupyterAvailable(jupyterUrl)) {
+      if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
         return jupyterUnavailableResponse
       }
 
       // Construct Jupyter API URL
-      val apiUrl = s"$jupyterUrl/api/contents/work/$notebookName"
+      val apiUrl = s"${jupyter.internalUrl}/api/contents/work/$notebookName"
 
       val url = new URL(apiUrl)
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
@@ -203,7 +190,7 @@ object NotebookMigrationResource extends LazyLogging {
       conn.setDoOutput(true)
       conn.setRequestProperty("Content-Type", "application/json")
       // The Jupyter Contents API requires authentication; send the configured token.
-      conn.setRequestProperty("Authorization", s"token $jupyterToken")
+      conn.setRequestProperty("Authorization", s"token ${jupyter.token}")
 
       val requestBody =
         s"""
@@ -258,7 +245,10 @@ object NotebookMigrationResource extends LazyLogging {
   }
 
   // Delete the notebook file from Jupyter's work/ directory:
-  def deleteNotebook(body: String): Response = {
+  def deleteNotebook(
+      body: String,
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
+  ): Response = {
     var conn: HttpURLConnection = null
     try {
       val json = parseBody(body) match {
@@ -277,17 +267,17 @@ object NotebookMigrationResource extends LazyLogging {
           .build()
       }
 
-      if (!isJupyterAvailable(jupyterUrl)) {
+      if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
         return jupyterUnavailableResponse
       }
 
-      val url = new URL(s"$jupyterUrl/api/contents/work/$notebookName")
+      val url = new URL(s"${jupyter.internalUrl}/api/contents/work/$notebookName")
       conn = url.openConnection().asInstanceOf[HttpURLConnection]
 
       conn.setRequestMethod("DELETE")
       conn.setConnectTimeout(2000)
       conn.setReadTimeout(2000)
-      conn.setRequestProperty("Authorization", s"token $jupyterToken")
+      conn.setRequestProperty("Authorization", s"token ${jupyter.token}")
 
       val status = conn.getResponseCode
 
@@ -553,6 +543,27 @@ object NotebookMigrationResource extends LazyLogging {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class NotebookMigrationResource extends LazyLogging {
 
+  // Runs `call` against the caller's own Jupyter, starting one if they have none. The uid
+  // comes from the authenticated session, so a request cannot name another user's server.
+  private def withNewJupyter(user: SessionUser)(call: JupyterEndpoints => Response): Response =
+    respondWith(JupyterProvisioner.ensure(user.getUid), call)
+
+  // As above, but never starts a pod: reading a URL or deleting a file should not bring a
+  // Jupyter into existence for a user who has none.
+  private def withJupyter(user: SessionUser)(call: JupyterEndpoints => Response): Response =
+    respondWith(JupyterEndpointResolver.resolve(user.getUid), call)
+
+  // Visible to the spec so the no-Jupyter branch can be driven directly: the two callers
+  // above resolve against live configuration, which a test cannot flip.
+  private[resource] def respondWith(
+      jupyter: Option[JupyterEndpoints],
+      call: JupyterEndpoints => Response
+  ): Response =
+    jupyter match {
+      case Some(endpoints) => call(endpoints)
+      case None            => NotebookMigrationResource.jupyterUnavailableResponse
+    }
+
   @GET
   @Path("/get-jupyter-iframe-url")
   def getJupyterIframeURL(
@@ -563,28 +574,30 @@ class NotebookMigrationResource extends LazyLogging {
     val name = Option(notebookName)
       .filter(_.nonEmpty)
       .getOrElse(NotebookMigrationResource.defaultNotebookName)
-    NotebookMigrationResource.getJupyterIframeURL(name)
+    withNewJupyter(user) { jupyter =>
+      NotebookMigrationResource.getJupyterIframeURL(name, jupyter)
+    }
   }
 
   @GET
   @Path("/get-jupyter-url")
   def getJupyterURL(@Auth user: SessionUser): Response = {
     logger.info("Getting Jupyter API URL")
-    NotebookMigrationResource.getJupyterURL()
+    withJupyter(user)(NotebookMigrationResource.getJupyterURL)
   }
 
   @POST
   @Path("/set-notebook")
   def setNotebook(body: String, @Auth user: SessionUser): Response = {
     logger.info("Setting notebook")
-    NotebookMigrationResource.setNotebook(body)
+    withNewJupyter(user)(NotebookMigrationResource.setNotebook(body, _))
   }
 
   @POST
   @Path("/delete-notebook")
   def deleteNotebook(body: String, @Auth user: SessionUser): Response = {
     logger.info("Deleting notebook from Jupyter")
-    NotebookMigrationResource.deleteNotebook(body)
+    withJupyter(user)(NotebookMigrationResource.deleteNotebook(body, _))
   }
 
   @POST

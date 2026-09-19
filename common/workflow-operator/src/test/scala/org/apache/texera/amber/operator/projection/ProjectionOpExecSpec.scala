@@ -248,9 +248,8 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(outputTuple.getField[Boolean]("field3"))
   }
 
-  it should "match drop names case-sensitively" in {
-    // Unlike the descriptor, whose Schema.remove lowercases both sides and
-    // would drop field2, the diff-based rewrite matches names exactly.
+  it should "match drop names case-insensitively" in {
+    // Matches the descriptor, whose Schema.remove lowercases both sides.
     opDesc.isDrop = true
     opDesc.attributes = List(
       new AttributeUnit("FIELD2", "")
@@ -259,7 +258,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     projectionOpExec.open()
 
     val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
-    assert(output.fieldMappings == Map("field1" -> "hello", "field2" -> 1, "field3" -> true))
+    assert(output.fieldMappings == Map("field1" -> "hello", "field3" -> true))
   }
 
   it should "tolerate duplicate entries in the drop list" in {

@@ -17,8 +17,8 @@
  */
 
 /**
- * The leading segment of a logical file path, identifying the resource kind (e.g. /datasets/...).
+ * The leading segment of a logical file path, identifying the resource kind (e.g. /dataset/...).
  */
 export enum ResourceType {
-  Datasets = "datasets",
+  Dataset = "dataset",
 }

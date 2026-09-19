@@ -44,7 +44,7 @@ class SklearnTrainingMultinomialNaiveBayesOpDescSpec extends AnyFlatSpec with Ma
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingMultinomialNaiveBayesOpDesc.getOutputSchemas" should

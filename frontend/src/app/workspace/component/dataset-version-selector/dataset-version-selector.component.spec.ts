@@ -101,11 +101,11 @@ describe("DatasetVersionSelectorComponent", () => {
     });
 
     it("shows the chosen path in a read-only box", () => {
-      setFormControl("/datasets/owner@x.com/myds/v1");
+      setFormControl("/dataset/owner@x.com/myds/v1");
       fixture.detectChanges();
 
       const box = selectionBox()!;
-      expect(box.value).toBe("/datasets/owner@x.com/myds/v1");
+      expect(box.value).toBe("/dataset/owner@x.com/myds/v1");
       // The path is only editable through the picker, never by typing.
       expect(box.readOnly).toBe(true);
       expect(box.required).toBe(true);
@@ -114,13 +114,13 @@ describe("DatasetVersionSelectorComponent", () => {
     it("opens the picker from the button and shows whatever it returns", () => {
       setFormControl("");
       fixture.detectChanges();
-      modalServiceSpy.create.mockReturnValue({ afterClose: of("/datasets/owner@x.com/myds/v2") });
+      modalServiceSpy.create.mockReturnValue({ afterClose: of("/dataset/owner@x.com/myds/v2") });
 
       openButton().click();
       fixture.detectChanges();
 
       expect(modalServiceSpy.create).toHaveBeenCalledTimes(1);
-      expect(selectionBox()!.value).toBe("/datasets/owner@x.com/myds/v2");
+      expect(selectionBox()!.value).toBe("/dataset/owner@x.com/myds/v2");
     });
   });
 });

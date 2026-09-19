@@ -26,8 +26,8 @@ package org.apache.texera.amber.core.storage
   * Path shape: /<prefix>/ownerEmail/resourceName/versionName/fileRelativePath
   */
 object ResourceType extends Enumeration {
-  val Datasets: Value = Value("datasets")
-  val Models: Value = Value("models")
+  val Dataset: Value = Value("dataset")
+  val Model: Value = Value("model")
 
   /**
     * Returns the resource type named by the given path segment, or None if it is not a known

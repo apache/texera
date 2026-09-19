@@ -17,11 +17,39 @@
 
 import pytest
 import threading
+from contextlib import contextmanager
 from time import sleep
 
-from core.models.internal_queue import InternalQueue
+from loguru import logger
+
+from core.models.internal_queue import InternalQueue, InternalQueueElement
+from core.models.payload import DataFrame
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
+from proto.org.apache.texera.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+)
+
+
+@contextmanager
+def muted_catch_logs():
+    """
+    `NetworkSender._send_data` is wrapped in `@logger.catch(reraise=True)`,
+    which logs the whole traceback at ERROR before re-raising. CI runs pytest
+    with `-s` and `LOGURU_LEVEL=WARNING`, so an expected failure would
+    otherwise dump a traceback into the build log and read as a real error.
+
+    `logger.catch` attributes the record to the *caller's* module rather than
+    to the decorated function's module, so the name to silence is this test
+    module's own `__name__` (which varies with pytest's import mode -- hence
+    `__name__` rather than a literal).
+    """
+    logger.disable(__name__)
+    try:
+        yield
+    finally:
+        logger.enable(__name__)
 
 
 class TestNetworkSender:
@@ -67,3 +95,60 @@ class TestNetworkSender:
         assert not network_sender_thread.is_alive()
         network_receiver_thread.join()
         network_sender_thread.join()
+
+    @pytest.fixture
+    def channel_id(self):
+        worker_id = ActorVirtualIdentity(name="test")
+        return ChannelIdentity(worker_id, worker_id, False)
+
+    @pytest.mark.timeout(5)
+    def test_receive_rejects_an_element_that_is_neither_data_control_nor_ecm(
+        self, network_sender, channel_id
+    ):
+        # A plain subclass of InternalQueueElement is neither DataElement nor
+        # DCMElement nor ECMElement, so it walks the whole dispatch chain and
+        # falls off the end. The sender must refuse it loudly rather than drop
+        # it silently.
+        #
+        # The stable `__repr__` lets the matcher pin the *interpolated* entry
+        # as well, mirroring the payload test below: matching only the constant
+        # prefix would leave `{next_entry}` -- the sole non-constant part of
+        # that line -- unconstrained.
+        class UnknownEntry(InternalQueueElement):
+            def __repr__(self):
+                return "<unknown-entry>"
+
+        unknown = UnknownEntry(tag=channel_id)
+        with pytest.raises(TypeError, match="Unexpected entry <unknown-entry>"):
+            network_sender.receive(unknown)
+
+    @pytest.mark.timeout(5)
+    def test_send_data_rejects_a_payload_that_is_neither_dataframe_nor_stateframe(
+        self, network_sender, channel_id
+    ):
+        class NotAPayload:
+            def __repr__(self):
+                return "<not-a-payload>"
+
+        with muted_catch_logs():
+            with pytest.raises(TypeError, match="Unexpected payload <not-a-payload>"):
+                network_sender._send_data(channel_id, NotAPayload())
+
+    @pytest.mark.timeout(5)
+    def test_receive_routes_a_data_element_to_send_data(
+        self, network_sender, channel_id, monkeypatch
+    ):
+        # Guards the dispatch chain above: without a positive case, swapping
+        # the DataElement arm for the else-arm would still leave the negative
+        # test green.
+        from core.models.internal_queue import DataElement
+
+        seen = []
+        monkeypatch.setattr(
+            network_sender,
+            "_send_data",
+            lambda to, payload: seen.append((to, payload)),
+        )
+        payload = DataFrame(frame=None)
+        network_sender.receive(DataElement(tag=channel_id, payload=payload))
+        assert seen == [(channel_id, payload)]

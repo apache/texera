@@ -279,10 +279,11 @@ def _jvm(name: str, port: int, project: Optional[str], own_src: str) -> Service:
 
 SERVICES: list[Service] = [
     Service("postgres",   "docker", 5432),
-    Service("minio",      "docker", 9000),
+    Service("rustfs",     "docker", 9000),
     Service("lakefs",     "docker", 8000),
     Service("lakekeeper", "docker", 8181),
     Service("litellm",    "docker", 4000),
+    Service("jupyter",    "docker", 9100),
     _jvm("config-service",                  9094, "ConfigService",
          "config-service/src"),
     _jvm("access-control-service",          9096, "AccessControlService",
@@ -295,6 +296,8 @@ SERVICES: list[Service] = [
          "amber/src"),
     _jvm("computing-unit-managing-service", 8082, "ComputingUnitManagingService",
          "computing-unit-managing-service/src"),
+    _jvm("notebook-migration-service",      9098, "NotebookMigrationService",
+         "notebook-migration-service/src"),
     _jvm("texera-web",                      8080, "WorkflowExecutionService",
          "amber/src"),
     Service("agent-service", "bun",  3001),

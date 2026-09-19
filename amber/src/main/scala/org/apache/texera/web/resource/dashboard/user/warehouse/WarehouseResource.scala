@@ -32,6 +32,8 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -44,17 +46,37 @@ object WarehouseResource {
       .getInstance()
       .createDSLContext()
 
-  // A warehouse's user-facing name becomes part of the Lakekeeper catalog name
-  // `user-<uid>-<name>`, which in turn becomes a VFS URI path segment — so the
-  // character rule is delegated to VFSURIFactory (the layer that parses it); the
-  // length cap is this registration layer's own constraint.
+  // The display name no longer reaches Lakekeeper or any URI — the catalog name is
+  // minted from uid and whid — but it stays under VFSURIFactory's character rule
+  // rather than growing a second charset; the length cap is this registration
+  // layer's own constraint.
   private[warehouse] def isValidWarehouseName(name: String): Boolean =
     name.length <= 64 && VFSURIFactory.isValidWarehouseName(name)
 
+  // The Lakekeeper catalog name minted for a warehouse row: stable, short, and
+  // mapping straight back to the row.
+  private[warehouse] def lakekeeperWarehouseName(uid: Integer, whid: Integer): String =
+    s"user-$uid-$whid"
+
+  // Draws the id the next insert will use from the table's sequence, without consuming
+  // an insert. The sequence is looked up rather than named literally -- its generated
+  // name is not a stable contract.
+  private[warehouse] def drawNextWhid(context: DSLContext): Integer =
+    context.fetchValue(
+      DSL.field(
+        "nextval(pg_get_serial_sequence({0}, {1}))",
+        classOf[Integer],
+        DSL.inline(s"${USER_WAREHOUSE.getSchema.getName}.${USER_WAREHOUSE.getName}"),
+        DSL.inline(USER_WAREHOUSE.WHID.getName)
+      )
+    )
+
   case class DashboardWarehouse(
       whid: Integer,
+      // The display name, unique per user and free to change.
       name: String,
-      warehouseName: String,
+      // The Lakekeeper catalog name, `user-<uid>-<whid>`.
+      lakekeeperWarehouseName: String,
       flavor: String,
       createdAtMillis: Long,
       // Owner display info, mirroring DashboardWorkflowComputingUnit: today every
@@ -79,7 +101,7 @@ object WarehouseResource {
     DashboardWarehouse(
       row.getWhid,
       row.getName,
-      row.getWarehouseName,
+      row.getLakekeeperWarehouseName,
       row.getFlavor.getLiteral,
       row.getCreatedAt.toInstant.toEpochMilli,
       ownerName = owner._1,
@@ -163,21 +185,26 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
       throw new WebApplicationException(s"a warehouse named '$name' already exists", 409)
     }
 
-    val warehouseName = s"user-$uid-$name"
+    // Never derive the catalog name from `name`: it is also the S3 key prefix and a
+    // component of every result URI an execution wrote, so a name-derived one could
+    // never change again. Drawing the id up front keeps the creation order below intact.
+    val whid: Integer = drawNextWhid(context)
+    val mintedName = lakekeeperWarehouseName(uid, whid)
     // Create in Lakekeeper first, record after: a failed creation leaves no orphaned row.
-    val warehouseId =
+    val lakekeeperWarehouseId =
       try {
-        client.createWarehouse(warehouseName)
+        client.createWarehouse(mintedName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(e.getMessage, 502)
       }
 
     val row = context.newRecord(USER_WAREHOUSE)
+    row.setWhid(whid)
     row.setUid(uid)
     row.setName(name)
-    row.setWarehouseName(warehouseName)
-    row.setLakekeeperWarehouseId(warehouseId)
+    row.setLakekeeperWarehouseName(mintedName)
+    row.setLakekeeperWarehouseId(lakekeeperWarehouseId)
     row.setFlavor(UserWarehouseFlavorEnum.local)
     row.setS3Bucket(StorageConfig.icebergRESTCatalogS3Bucket)
     row.setS3Endpoint(StorageConfig.s3Endpoint)
@@ -191,11 +218,11 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
         // Compensate: without the row the user could neither list nor delete the
         // just-created warehouse, so remove it (it is empty at this point).
         try {
-          client.deleteWarehouseEmptyFirst(warehouseId)
+          client.deleteWarehouseEmptyFirst(lakekeeperWarehouseId)
         } catch {
           case cleanup: Exception =>
             logger.error(
-              s"failed to clean up Lakekeeper warehouse $warehouseId after a failed create",
+              s"failed to clean up Lakekeeper warehouse $lakekeeperWarehouseId after a failed create",
               cleanup
             )
         }

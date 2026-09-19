@@ -28,21 +28,25 @@ class EntityTypeSpec extends AnyFlatSpec with Matchers {
   "EntityType.value" should "be the lowercase form of the case-object name" in {
     EntityType.Workflow.value shouldBe "workflow"
     EntityType.Dataset.value shouldBe "dataset"
+    EntityType.Model.value shouldBe "model"
   }
 
   "EntityType.toString" should "mirror value (used by error messages and SQL strings)" in {
     EntityType.Workflow.toString shouldBe "workflow"
     EntityType.Dataset.toString shouldBe "dataset"
+    EntityType.Model.toString shouldBe "model"
   }
 
   "EntityType.fromString" should "round-trip the canonical lowercase value" in {
     EntityType.fromString("workflow") shouldBe EntityType.Workflow
     EntityType.fromString("dataset") shouldBe EntityType.Dataset
+    EntityType.fromString("model") shouldBe EntityType.Model
   }
 
   it should "accept mixed case (equalsIgnoreCase)" in {
     EntityType.fromString("Workflow") shouldBe EntityType.Workflow
     EntityType.fromString("DATASET") shouldBe EntityType.Dataset
+    EntityType.fromString("Model") shouldBe EntityType.Model
   }
 
   it should "throw IllegalArgumentException for an unknown value" in {

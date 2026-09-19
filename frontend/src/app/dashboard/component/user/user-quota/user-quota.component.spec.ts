@@ -366,13 +366,13 @@ describe("UserQuotaComponent", () => {
    * produces a different sequence than the full sum does.
    */
   describe("sortBySize", () => {
-    // Largest-first is what the comparator returns today. Note that this is inverted relative to the
-    // NzTableSortFn contract (`a - b`, which nz-table negates for 'descend'); see the header-click
-    // test below, which pins the resulting caret/order mismatch as the user actually sees it.
-    it("orders executions by total cache size, largest first", () => {
+    // Ascending, as NzTableSortFn requires (`a - b`): nz-table takes the comparator's result as-is
+    // for 'ascend' and negates it for 'descend', so a `b - a` comparator lights the up caret while
+    // rendering largest-first. The header-click test below pins the caret and the order together.
+    it("orders executions by total cache size, smallest first", () => {
       const scrambled = [SIZE_SORT_MIDDLE, SIZE_SORT_SMALL, SIZE_SORT_BIG];
 
-      expect([...scrambled].sort(component.sortBySize).map(e => e.eid)).toEqual([30, 10, 20]);
+      expect([...scrambled].sort(component.sortBySize).map(e => e.eid)).toEqual([20, 10, 30]);
     });
   });
 
@@ -560,19 +560,18 @@ describe("UserQuotaComponent", () => {
       };
 
       await clickSort();
-      // NOTE: the direction indicator and the row order disagree, and that is recorded here rather
-      // than blessed. nzSortDirections defaults to ['ascend', 'descend', null], so the first click
-      // selects 'ascend' and lights the up caret — but the rows come out LARGEST first, because
-      // sortBySize returns `b - a` while NzTableSortFn expects `a - b` (nz-table negates the result
-      // itself for 'descend'). Correcting the comparator is meant to flip both halves below.
+      // nzSortDirections defaults to ['ascend', 'descend', null] and this header does not override
+      // it, so the first click selects 'ascend' and lights the up caret. The caret and the row order
+      // have to agree: up means smallest-first. Asserting the order on its own would still pass
+      // against a comparator inverted the other way, so both halves are pinned in both directions.
       expect(caretActive("up")).toBe(true);
       expect(caretActive("down")).toBe(false);
-      expect(eids()).toEqual(["30", "10", "20"]);
+      expect(eids()).toEqual(["20", "10", "30"]);
 
       await clickSort();
       expect(caretActive("down")).toBe(true);
       expect(caretActive("up")).toBe(false);
-      expect(eids()).toEqual(["20", "10", "30"]);
+      expect(eids()).toEqual(["30", "10", "20"]);
     });
   });
 });

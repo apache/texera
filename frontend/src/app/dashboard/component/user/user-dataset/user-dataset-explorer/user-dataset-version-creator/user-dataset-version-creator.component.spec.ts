@@ -25,7 +25,7 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { of, throwError } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator.component";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
@@ -138,6 +138,78 @@ describe("UserDatasetVersionCreatorComponent", () => {
     expect(modalClose).toHaveBeenCalledWith({ did: 7 });
   });
 
+  it("onClickCreate reports both the typed and the sanitized name when the name had to be rewritten", async () => {
+    const fixture = await createFixture({ isCreatingVersion: false });
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    // Padded on both sides, and the only junk at the end is the whitespace itself.
+    // That is what separates the four candidate trims: only stripping the leading
+    // side leaves a trailing run for the dash rule to collapse, so "my-dataset-"
+    // distinguishes it from "my-dataset" (trim), "-my-dataset" (trimEnd) and
+    // "-my-dataset-" (no trim at all).
+    component.form.get("name")?.setValue("  My Dataset ");
+    createDataset.mockReturnValue(of({ did: 7 }));
+
+    component.onClickCreate();
+
+    expect(createDataset.mock.calls[0][0]).toMatchObject({ name: "my-dataset-" });
+    // The writer typed one name and got another, so the toast has to name both —
+    // and in that order, or it reads as the rewrite having gone the other way.
+    expect(notifySuccess).toHaveBeenCalledWith(
+      "Dataset '  My Dataset ' was sanitized to 'my-dataset-' and created successfully."
+    );
+    // The spinner comes back down on the success path too, or the form stays
+    // locked behind a request that has already returned.
+    expect(component.isCreating).toBe(false);
+  });
+
+  it("onClickCreate reports a name that needed no rewriting just once", async () => {
+    const fixture = await createFixture({ isCreatingVersion: false });
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    // Already lower-case, alphanumeric and hyphenated: sanitization is a no-op.
+    component.form.get("name")?.setValue("already-clean-1");
+    createDataset.mockReturnValue(of({ did: 7 }));
+
+    component.onClickCreate();
+
+    expect(component.isDatasetNameSanitized).toBe(false);
+    expect(notifySuccess).toHaveBeenCalledWith("Dataset 'already-clean-1' created successfully.");
+  });
+
+  it("onClickCreate notifies with the stored name and closes with null when dataset creation fails", async () => {
+    const fixture = await createFixture({ isCreatingVersion: false });
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.get("name")?.setValue("My Dataset");
+    createDataset.mockReturnValue(throwError(() => ({ error: { message: "duplicate name" } })));
+
+    component.onClickCreate();
+
+    // The failure names the dataset as it would have been stored, and the backend's
+    // own reason, so the writer can tell a clash from a rejected name.
+    expect(notifyError).toHaveBeenCalledWith("Dataset my-dataset creation failed: duplicate name");
+    // The spinner has to come back down, or the form is left permanently locked.
+    expect(component.isCreating).toBe(false);
+    expect(modalClose).toHaveBeenCalledWith(null);
+  });
+
+  it("onClickCreate locks the form while the creation request is still outstanding", async () => {
+    const fixture = await createFixture({ isCreatingVersion: false });
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.get("name")?.setValue("My Dataset");
+    // Never emits: the request is still in flight when we look at the flag.
+    createDataset.mockReturnValue(new Subject().asObservable());
+
+    component.onClickCreate();
+
+    // `isCreating` drives both the spinner and the disabled state of the create
+    // button, so without it being raised a second click fires a second create.
+    expect(component.isCreating).toBe(true);
+    expect(modalClose).not.toHaveBeenCalled();
+  });
+
   it("onClickCreate creates a dataset version and closes the modal on success", async () => {
     const fixture = await createFixture({ isCreatingVersion: true, did: 42 });
     fixture.detectChanges();
@@ -150,6 +222,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
     expect(createDatasetVersion).toHaveBeenCalledWith(42, "v2 notes");
     expect(notifySuccess).toHaveBeenCalledWith("Version Created");
     expect(modalClose).toHaveBeenCalledWith({ dvid: 1 });
+    expect(component.isCreating).toBe(false);
   });
 
   it("onClickCreate notifies and closes with null when version creation fails", async () => {
@@ -163,6 +236,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
 
     expect(notifyError).toHaveBeenCalled();
     expect(modalClose).toHaveBeenCalledWith(null);
+    expect(component.isCreating).toBe(false);
   });
 
   it("onClickCancel closes the modal with null", async () => {

@@ -59,18 +59,18 @@ class DatasetFileDocument:
 
         :param file_path:
            Expected format -
-             "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
+             "/dataset/ownerEmail/datasetName/versionName/fileRelativePath"
            Example:
-             "/datasets/bob@texera.com/twitterDataset/v1/california/tw1.csv"
+             "/dataset/bob@texera.com/twitterDataset/v1/california/tw1.csv"
         """
         parts = file_path.strip("/").split("/")
 
         invalid_format = ValueError(
             "Invalid file path format. Expected: "
-            "/datasets/ownerEmail/datasetName/versionName/fileRelativePath"
+            "/dataset/ownerEmail/datasetName/versionName/fileRelativePath"
         )
 
-        # TODO(datasets-prefix): require the prefix once all stored paths are migrated (36.sql) and ml model support work is completed.
+        # TODO(dataset-prefix): require the prefix once all stored paths are migrated (36.sql) and ml model support work is completed.
         if parts and parts[0] in {t.value for t in ResourceType}:
             if len(parts) < 5:
                 raise invalid_format
@@ -80,7 +80,7 @@ class DatasetFileDocument:
             self.version_name = parts[3]
             self.file_relative_path = "/".join(parts[4:])
         elif len(parts) >= 4:
-            self.resource_type = ResourceType.DATASETS
+            self.resource_type = ResourceType.DATASET
             self.owner_email = parts[0]
             self.dataset_name = parts[1]
             self.version_name = parts[2]

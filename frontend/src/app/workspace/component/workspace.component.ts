@@ -90,7 +90,6 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
@@ -136,19 +135,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    /**
-     * On initialization of the workspace, there are two possibilities regarding which component has
-     * routed to this component:
-     *
-     * 1. Routed to this component from within UserProjectSection component
-     *    - track the pid identifying that project
-     *    - upon persisting of a workflow, must also ensure it is also added to the project
-     *
-     * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project, parseInt will return NaN.
-     *    - NaN || undefined will result in undefined.
-     */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -187,19 +173,40 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
+  /**
+   * The browser is leaving this document: save the workflow, and change nothing else.
+   *
+   * Tearing the session down here was the cause of a page that came back dead. A full-page
+   * navigation away (the Form View switch is one) fires this, and the browser may then keep the
+   * document in its back/forward cache rather than discarding it. Coming back restores the
+   * JavaScript state exactly as it was left, so whatever this method had already destroyed stayed
+   * destroyed: an empty graph on a canvas that answered no clicks, and a workflow id reset to the
+   * default, which the share dialog then asked the backend about and got an error for. Nothing
+   * re-runs on a restore, because the component was never re-created.
+   *
+   * There is nothing to tear down on the way out anyway. A document that is really discarded takes
+   * its websockets and its graph with it, and a document that comes back needs them.
+   */
   @HostListener("window:beforeunload")
-  ngOnDestroy() {
-    if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
-      const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
-    }
+  onBeforeUnload(): void {
+    this.persistBeforeLeaving();
+  }
 
+  ngOnDestroy() {
+    this.persistBeforeLeaving();
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
     // Tear down the connection and all websocket-derived session state so a
     // re-entered workflow starts clean instead of reusing the previous one.
     this.computingUnitStatusService.disconnect();
     this.resetWorkflowSessionState();
+  }
+
+  private persistBeforeLeaving(): void {
+    if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
+      const workflow = this.workflowActionService.getWorkflow();
+      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
+    }
   }
 
   /**
