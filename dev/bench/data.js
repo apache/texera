@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789822618846,
+  "lastUpdate": 1789822621790,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -53142,6 +53142,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2085761.733,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "957b6c965640c07ace034eb9edcae53ef974324a",
+          "message": "fix(workflow): stop the workspace destroying itself on beforeunload (#8600)\n\n### What changes were proposed in this PR?\n\nSwitching between the operator canvas and the Form View is a full-page\nnavigation, and both pages ran their entire teardown from a\n`beforeunload` host binding: clear the graph, destroy the Yjs shared\ndocument, disconnect the computing unit, reset the execution state and\nthe results.\n\nA browser does not always discard a document it navigates away from.\nChrome may keep it in the back/forward cache, and going back restores\nthe JavaScript state exactly as it was left, re-running nothing. What\ncame back was the page these methods had already gutted:\n\n- an empty canvas that answered no clicks, because the graph had been\ncleared;\n- a workflow id reset to `DEFAULT_WORKFLOW`'s, which the share dialog\nthen asked the backend about;\n- an autosave still subscribed to that reset metadata, which wrote the\ndefault out as a brand-new blank workflow, so the workflow list grew by\none on every trip.\n\nThere was never anything to tear down there. A document that really is\ndiscarded takes its websockets and its graph with it, and a document\nthat comes back needs them. So `beforeunload` now only saves, and the\nteardown stays in `ngOnDestroy`, which runs when the page is genuinely\nreplaced. Both views change the same way.\n\nThree more defects turned this into a silent failure, and all are fixed\nhere:\n\n- `WorkflowResource.getWorkflowType` read\n`workflowDao.fetchOneByWid(wid)` and dereferenced it, so an id matching\nno row answered 500 with a stack trace rather than 404.\n- The share dialog's publish-state subscription had no error handler. A\nfailed request left `isPublic` null, and the template hides the\nPrivate/Public choice on exactly that (`*ngIf=\"isPublic !== null\"`), so\nthe dialog looked complete while offering one control fewer and the only\nway to find out was the network tab. `ngOnInit` also doubles as a\nrefresh after an access change, so a failed second read used to keep the\nvalue from the first: the buttons stayed on screen showing a state\nnothing had confirmed, while the toast said the choice was not shown. It\nis dropped now.\n- The Share button had no gate. `ngAfterViewInit` calls\n`resetAsNewWorkflow()`, so the metadata sits at `DEFAULT_WORKFLOW` (wid\n0) on every canvas load and the real id only arrives with the workflow;\nthe menu renders outside the loading spinner's container, so a click in\nthat window opened a dialog that asked `GET /workflow/type/0` and came\nback without the Private/Public choice. The button is disabled until the\nid arrives and the handler refuses the same window. This is the second\nroute to the symptom, and it is the gesture the issue reports.\n\n#### Before\n\n<!-- Drop the recording here: open a saved workflow, switch to the Form\nView, press the browser's Back button. The canvas comes back blank and\nunclickable, the share dialog has no Private/Public choice, and the\nworkflow list has gained a blank workflow. -->\n\n#### After\n\n<!-- Drop the recording here: the same steps on this branch. The canvas\ncomes back live, the share dialog keeps both buttons, and no blank\nworkflow is created. -->\n\n**One behaviour changes deliberately.** The shared document is no longer\ndestroyed on unload, so a co-editor is no longer told explicitly that\nyou left; the room notices when the socket closes with the document.\nDestroying it on unload is what made a restored page unusable, and a\nrestored page needs its room.\n\n### Any related issues, documentation, discussions?\n\nCloses #8599.\n\n### How was this PR tested?\n\nReproduced first, on a local instance running plain `main`\n(`e7d1676e1`): open a saved workflow, switch to the Form View, press the\nbrowser's Back button, and the canvas comes back blank and unclickable,\nthe share dialog has no Private/Public choice, and the workflow list has\ngained a blank workflow. With this branch deployed to the same instance,\nnone of the three happens.\n\nThe endpoint was checked against that instance directly: `GET\n/api/workflow/type/0` and `/type/999999` answered 500 before and answer\n404 after.\n\nUnit tests:\n\n- `workspace.component.spec` and `workflow-form.component.spec`:\n`beforeunload` saves and tears nothing down; the existing tests that\n`ngOnDestroy` still tears everything down are unchanged and still pass.\nThe workspace test dispatches a real `beforeunload` DOM event rather\nthan calling the handler, so the host binding being removed or miswired\nis caught too; `workflow-form.rendered.spec` already did this for the\nform.\n- `menu.component.spec`: the share dialog is not opened for wid 0 or for\nno id at all, and the Share button is disabled until the id arrives.\n- `share-access.component.spec`: a failed publish-state request reports\nitself instead of hiding the choice silently, and a failed refresh drops\nthe value the previous read left behind.\n- `WorkflowResourceCoverSpec`: `getWorkflowType` reports the publish\nstate, and throws `NotFoundException` for an id that matches no\nworkflow.\n\nEach new guard was deletion-checked: restoring the teardown on\n`beforeunload` in either view, dropping the error handler or the\n`isPublic` reset, removing the `[disabled]` on the Share button, or\nremoving the handler's own guard each turns exactly the intended tests\nred. Removing the `@HostListener` itself now turns a test red, which it\nwould not have before.\n\nFull frontend suite: 224 files, 6126 passed, 1 skipped (pre-existing), 0\nfailed. `WorkflowExecutionService/testOnly ...\nWorkflowResourceCoverSpec`: 16 passed. `ng build\n--configuration=production` (AOT), `eslint`, `prettier --check`,\n`scalafmtCheck` on main and test sources: all clean.\n\n**Deliberately out of scope.** Grepping for the same shape found two\nmore pages that act on `beforeunload`, and neither is on the path this\nissue reports, so both are left alone and filed instead of widened into\nhere: the Hub's workflow detail page clears the graph there, and\n`AgentPanelComponent` deactivates the current agent there. The app's\nother four `beforeunload` bindings only write panel geometry to\n`localStorage` and are unaffected.\n\n**The in-page button, the gesture the issue reports,** reaches the same\nsymptom by the second route above rather than through the cache, which\nis why it did not reproduce for me on the Back button's steps: it needs\nthe click to land before the workflow does. Found by @mengw15 in review.\nThe Back-button path is the one I reproduced in a running instance; the\nbutton gate that closes this one is covered by tests rather than by a\nmanual repro, since it is a race against the workflow fetch.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Opus 5, Anthropic). Co-authored\nwith Claude; the author reviewed the change line by line and reproduced\nboth the failure and the fix in a running instance before submission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01FVvP3ttj22f9LB4p9u2anY\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-19T00:26:43Z",
+          "url": "https://github.com/apache/texera/commit/957b6c965640c07ace034eb9edcae53ef974324a"
+        },
+        "date": 1789822621158,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 13473.097,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 16756.168,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 19188.917,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 74011.45,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 80288.074,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 89686.867,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 684986.895,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 703704.623,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 728847.82,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10184.135,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 12100.767,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14924.563,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 71574.58,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 76359.651,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 82295.587,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 681871.396,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 697863.241,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 716507.211,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 9831.727,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 12201.824,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 14299.695,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 71189.374,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 75878.531,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 79593.347,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 689214.18,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 707540.807,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 729770.76,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 11853.941,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 15852.464,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 17681.996,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 88807.447,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 98177.104,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 111309.353,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 849320.906,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 871745.178,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 886069.262,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 11534.699,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14712.243,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 16969.728,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 87598.911,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 95008.576,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 108640.898,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 849621.974,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 873996.284,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 930505.385,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11442.088,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 13055.772,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 15436.194,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 89813.427,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 96221.951,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 99632.427,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 875381.612,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 902178.481,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 953287.995,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 18602.092,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 20531.093,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 23910.102,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 156290.103,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 161003.756,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 174312.659,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1537682.032,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1580014.071,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1644593.023,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 18485.632,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 19305.837,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 23717.146,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 157516.134,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 169058.261,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 183485.253,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1560039.526,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1588409.342,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1638933.344,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 19150.347,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 21631.577,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 28426.654,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 165407.335,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 172992.336,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 190192.413,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1636840.888,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1662321.274,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1667830.33,
             "unit": "us"
           }
         ]
