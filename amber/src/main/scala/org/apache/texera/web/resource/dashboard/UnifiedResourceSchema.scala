@@ -80,7 +80,12 @@ object UnifiedResourceSchema {
       // mark the row and route it accordingly.
       workflowDefaultView: Field[DefaultViewEnum] = DSL.cast(null, classOf[DefaultViewEnum]),
       modelFramework: Field[String] = DSL.cast(null, classOf[String]),
-      modelFormat: Field[String] = DSL.cast(null, classOf[String])
+      modelFormat: Field[String] = DSL.cast(null, classOf[String]),
+      workflowHasUnpublishedChanges: Field[java.lang.Boolean] =
+        DSL.cast(null, classOf[java.lang.Boolean]),
+      workflowPublishedName: Field[String] = DSL.cast(null, classOf[String]),
+      workflowPublishedDescription: Field[String] = DSL.cast(null, classOf[String]),
+      viewerHasGrantedAccess: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -110,7 +115,13 @@ object UnifiedResourceSchema {
         workflowCoverImage -> workflowCoverImage.as("workflow_cover_image"),
         workflowDefaultView -> workflowDefaultView.as("workflow_default_view"),
         modelFramework -> modelFramework.as("model_framework"),
-        modelFormat -> modelFormat.as("model_format")
+        modelFormat -> modelFormat.as("model_format"),
+        workflowHasUnpublishedChanges -> workflowHasUnpublishedChanges
+          .as("workflow_has_unpublished_changes"),
+        workflowPublishedName -> workflowPublishedName.as("workflow_published_name"),
+        workflowPublishedDescription -> workflowPublishedDescription
+          .as("workflow_published_description"),
+        viewerHasGrantedAccess -> viewerHasGrantedAccess.as("viewer_has_granted_access")
       )
     )
   }

@@ -62,6 +62,13 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   // The select lists default_view under its own alias (not carried by the WORKFLOW POJO),
   // and toEntryImpl reads it back by that alias — the record has to carry the column.
   private val defaultViewField = WORKFLOW.DEFAULT_VIEW.as("workflow_default_view")
+  private val driftField =
+    JDSL.field(JDSL.name("workflow_has_unpublished_changes"), classOf[java.lang.Boolean])
+  private val publishedNameField = JDSL.field(JDSL.name("workflow_published_name"), classOf[String])
+  private val publishedDescriptionField =
+    JDSL.field(JDSL.name("workflow_published_description"), classOf[String])
+  private val grantedField =
+    JDSL.field(JDSL.name("viewer_has_granted_access"), classOf[java.lang.Boolean])
 
   private val ownerUid: Integer = Integer.valueOf(42)
   private val viewerUid: Integer = Integer.valueOf(43)
@@ -79,7 +86,13 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
       uidValue: Integer = ownerUid,
       privilege: PrivilegeEnum = PrivilegeEnum.WRITE,
       cover: String = "cover-b64",
-      defaultView: DefaultViewEnum = DefaultViewEnum.CANVAS
+      defaultView: DefaultViewEnum = DefaultViewEnum.CANVAS,
+      hasUnpublishedChanges: java.lang.Boolean = null,
+      // The rows these tests describe belong to a viewer who was granted access, which is what
+      // leaves the author's own name and description in place.
+      grantedAccess: java.lang.Boolean = java.lang.Boolean.TRUE,
+      publishedName: String = null,
+      publishedDescription: String = null
   ): Record = {
     val record = ctx.newRecord(
       WORKFLOW.WID,
@@ -89,7 +102,11 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
       WORKFLOW_USER_ACCESS.PRIVILEGE,
       USER.NAME,
       coverField,
-      defaultViewField
+      defaultViewField,
+      driftField,
+      publishedNameField,
+      publishedDescriptionField,
+      grantedField
     )
     record.set(WORKFLOW.WID, wid)
     record.set(WORKFLOW.NAME, "wf-name")
@@ -99,11 +116,60 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     record.set(USER.NAME, "owner-name")
     record.set(coverField, cover)
     record.set(defaultViewField, defaultView)
+    record.set(driftField, hasUnpublishedChanges)
+    record.set(publishedNameField, publishedName)
+    record.set(publishedDescriptionField, publishedDescription)
+    record.set(grantedField, grantedAccess)
     record
   }
 
   private def workflowOf(record: Record, uid: Integer): DashboardWorkflow =
     WorkflowSearchQueryBuilder.toEntryImpl(uid, record).workflow.get
+
+  // -- what a viewer without granted access is shown --------------------------
+
+  "toEntryImpl" should "serve the published name and description to a viewer without granted access" in {
+    // Publishing pins what the public sees, and a listing is where the public meets a workflow, so
+    // the listing has to serve the pinned copy too rather than the author's live metadata.
+    val record = translatedRecord(
+      grantedAccess = java.lang.Boolean.FALSE,
+      publishedName = "as-published",
+      publishedDescription = "described-as-published"
+    )
+
+    val workflow = workflowOf(record, viewerUid).workflow
+
+    workflow.getName shouldBe "as-published"
+    workflow.getDescription shouldBe "described-as-published"
+  }
+
+  it should "leave the author's live name and description for a viewer who was granted access" in {
+    val record = translatedRecord(
+      grantedAccess = java.lang.Boolean.TRUE,
+      publishedName = "as-published",
+      publishedDescription = "described-as-published"
+    )
+
+    val workflow = workflowOf(record, ownerUid).workflow
+
+    workflow.getName shouldBe "wf-name"
+    workflow.getDescription shouldBe "wf-description"
+  }
+
+  it should "treat an unknown access answer as public, which is the safe direction" in {
+    // Showing the published copy to someone who turns out to have access is harmless; the reverse
+    // would hand the author's live metadata to the public.
+    val record = translatedRecord(grantedAccess = null, publishedName = "as-published")
+
+    workflowOf(record, viewerUid).workflow.getName shouldBe "as-published"
+  }
+
+  it should "keep the author's name when a public workflow has nothing pinned" in {
+    // Nothing to substitute, so the row is left as it is rather than blanked.
+    val record = translatedRecord(grantedAccess = java.lang.Boolean.FALSE, publishedName = null)
+
+    workflowOf(record, viewerUid).workflow.getName shouldBe "wf-name"
+  }
 
   // -- privilege fallback -----------------------------------------------------
 
