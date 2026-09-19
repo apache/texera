@@ -369,6 +369,36 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(out.trim.endsWith("""[('a.txt', 'first'), ('b.txt', 'second')]"""))
   }
 
+  // Include Filename is only offered once Extract is on, and reading the entries
+  // line by line is the default there, so this is the configuration the panel
+  // invites first. The line-by-line branch carried no name, leaving a one-field
+  // row against the two-column schema, and the first tuple could not be built.
+  it should "name the entry each line came from, reading an archive line by line" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("file-scan-archive-lines-")
+    dir.toFile.deleteOnExit()
+    val archive = writeArchive(dir, "a.txt" -> "one\ntwo\n", "b.txt" -> "three\n")
+
+    val desc = extractingDesc(archive, """"outputFileName":true""")
+    val engine =
+      tuplesFromEngine(desc).map(t => (t.getField[String]("filename"), t.getField[String]("line")))
+    assert(engine == Seq(("a.txt", "one"), ("a.txt", "two"), ("b.txt", "three")))
+
+    val out = runStandalone(
+      python,
+      dir,
+      desc,
+      """print(list(out1df.itertuples(index=False, name=None)))"""
+    )._2
+    assert(
+      out.trim.endsWith("""[('a.txt', 'one'), ('a.txt', 'two'), ('b.txt', 'three')]""")
+    )
+  }
+
   /** A zip at `dir/archive.zip` holding the given entries. */
   private def writeArchive(dir: Path, entries: (String, String)*): Path = {
     val archive = dir.resolve("archive.zip")

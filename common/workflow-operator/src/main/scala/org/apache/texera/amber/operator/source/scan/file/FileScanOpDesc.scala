@@ -141,10 +141,10 @@ class FileScanOpDesc
         (" " * 8, "_fn", "_f.read()", "_f")
       }
 
-    // Match the platform (FileScanUtils.createTuplesFromFile): its line-by-line
-    // branch ignores outputFileName and emits only the value, so the filename
-    // column is added ONLY in single-value mode.
-    val emitFilename = outputFileName && attributeType.isSingle
+    // Whatever the flag says, as the platform now reads it: every row carries the
+    // name of the file its value came from, a line's as much as a whole file's.
+    // See FileScanUtils.createTuplesFromFile.
+    val emitFilename = outputFileName
 
     if (attributeType.isSingle) {
       if (emitFilename) buf += s"${indent}_rows.append(($nameExpr, $readWhole))"
@@ -172,7 +172,8 @@ class FileScanOpDesc
               .fold(s"$lines.readlines()")(o => s"$lines.readlines()[$o:]")
           fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
         }
-      buf += s"${indent}_rows.extend($castExpr for l in $linesExpr)"
+      val row = if (emitFilename) s"($nameExpr, $castExpr)" else castExpr
+      buf += s"${indent}_rows.extend($row for l in $linesExpr)"
     }
 
     val colLit = pyStringLiteral(col)

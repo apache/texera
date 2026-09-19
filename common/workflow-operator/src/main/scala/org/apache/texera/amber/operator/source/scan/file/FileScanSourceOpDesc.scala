@@ -115,10 +115,10 @@ class FileScanSourceOpDesc
         fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
       }
 
-    // Match the platform (FileScanUtils.createTuplesFromFile): its line-by-line
-    // branch emits only the value, so the filename column is added ONLY in
-    // single-value mode, whatever the flag says.
-    val emitFilename = outputFileName && attributeType.isSingle
+    // Whatever the flag says, as the platform now reads it: every row carries
+    // the name of the file its value came from, a line's as much as a whole
+    // file's. See FileScanUtils.createTuplesFromFile.
+    val emitFilename = outputFileName
 
     if (extract) {
       // The engine reads the files INSIDE the archive, one tuple per entry, and
@@ -143,7 +143,8 @@ class FileScanSourceOpDesc
         // TextIOWrapper, not splitlines: it ends a line where `open(..., "r")`
         // does, which is what the branch below reads with.
         val linesExpr = windowed(s"io.TextIOWrapper(_f, encoding=$encLit)")
-        buf += s"            _rows.extend($castExpr for l in $linesExpr)"
+        val row = if (emitFilename) s"(_name, $castExpr)" else castExpr
+        buf += s"            _rows.extend($row for l in $linesExpr)"
       }
       if (emitFilename) buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
       else buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
@@ -158,8 +159,12 @@ class FileScanSourceOpDesc
       buf += s"""    out1df = pd.DataFrame($dfCols)"""
     } else {
       val linesExpr = windowed("_f")
+      val dfCols =
+        if (emitFilename)
+          s"""{"filename": $SourceFilePlaceholder, $colLit: [$castExpr for l in $linesExpr]}"""
+        else s"""{$colLit: [$castExpr for l in $linesExpr]}"""
       buf += s"""with open($SourceFilePlaceholder, "r", encoding=$encLit) as _f:"""
-      buf += s"""    out1df = pd.DataFrame({$colLit: [$castExpr for l in $linesExpr]})"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
     }
 
     buf.mkString("\n")

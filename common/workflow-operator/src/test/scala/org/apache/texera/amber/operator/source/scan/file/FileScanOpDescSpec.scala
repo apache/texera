@@ -191,11 +191,20 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(withoutName.contains("        _rows.append(_f.read())"))
     assert(withoutName.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
 
-    // The platform's line-by-line branch (FileScanUtils.createTuplesFromFile)
-    // emits only the value, so line mode must drop the filename column too.
+    // A line carries the name of the file it came from, as the whole file does,
+    // which is what the platform's line-by-line branch now emits and what the
+    // schema declares either way. It used to emit the value alone, leaving a
+    // one-field row against a two-column schema.
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     fileScanOpDesc.outputFileName = true
-    assert(!fileScanOpDesc.generateStandaloneCode().contains("filename"))
+    val lines = fileScanOpDesc.generateStandaloneCode()
+    assert(lines.contains("""        _rows.extend((_fn, l.rstrip("\n")) for l in _f)"""))
+    assert(lines.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+
+    fileScanOpDesc.outputFileName = false
+    val bareLines = fileScanOpDesc.generateStandaloneCode()
+    assert(bareLines.contains("""        _rows.extend(l.rstrip("\n") for l in _f)"""))
+    assert(bareLines.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
   }
 
   it should "open binary attribute types in binary mode" in {
