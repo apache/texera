@@ -1006,6 +1006,12 @@ class WorkflowResourceSpec
     assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
   }
 
+  "WorkflowResource.retrievePublicWorkflow" should "hide private and missing workflows" in {
+    val wid = seedWorkflow(sessionUser1, "private-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid))
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid + 100000))
+  }
+
   "WorkflowResource.searchWorkflowByOperator" should "return only workflows whose content contains the operator" in {
     val wid = seedWorkflow(
       sessionUser1,
