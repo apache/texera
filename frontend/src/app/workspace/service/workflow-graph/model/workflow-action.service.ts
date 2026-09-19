@@ -709,7 +709,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getLinkDeleteStream(),
       this.getTexeraGraph().getPortAddedOrDeletedStream(),
       this.getTexeraGraph().getOperatorPropertyChangeStream(),
-      this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent(),
       this.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.getTexeraGraph().getCommentBoxAddStream(),

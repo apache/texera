@@ -1553,8 +1553,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
     /**
      * When the cursor leaves a link, the delete button disappears.
-     * If there is no breakpoint present on that link, the breakpoint button also disappears,
-     * otherwise, the breakpoint button is not changed.
      */
     fromJointPaperEvent(this.paper, "link:mouseleave")
       .pipe(map(value => value[0]))
@@ -1562,10 +1560,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(elementView => {
         // ensure that the link element exists
         if (this.paper.getModelById(elementView.model.id)) {
-          const LinksWithBreakpoint = this.wrapper.getLinkIDsWithBreakpoint();
-          if (!LinksWithBreakpoint.includes(elementView.model.id.toString())) {
-            this.paper.getModelById(elementView.model.id).findView(this.paper).hideTools();
-          }
+          this.paper.getModelById(elementView.model.id).findView(this.paper).hideTools();
           this.paper.getModelById(elementView.model.id).attr({
             ".tool-remove": { display: "none" },
           });
@@ -1580,7 +1575,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
     this.handleLinkBreakpointHighlightEvents();
-    this.handleLinkBreakpointToggleEvents();
   }
 
   // when a link is added, append a breakpoint link-tool to its LinkView
@@ -1666,25 +1660,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
           }
         });
-      });
-  }
-
-  /**
-   * show/hide the breakpoint button according to the observable value received
-   */
-  private handleLinkBreakpointToggleEvents(): void {
-    this.wrapper
-      .getLinkBreakpointShowStream()
-      .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
-      .subscribe(linkID => {
-        this.paper.getModelById(linkID.linkID).findView(this.paper).showTools();
-      });
-
-    this.wrapper
-      .getLinkBreakpointHideStream()
-      .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
-      .subscribe(linkID => {
-        this.paper.getModelById(linkID.linkID).findView(this.paper).hideTools();
       });
   }
 
