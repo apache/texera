@@ -30,4 +30,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # skywalking-eyes is a composite action that builds license-eye from source
+      # on every run, which costs more than the header scan itself. Cache the
+      # installed binary so warm runs skip the Go toolchain entirely. The key is
+      # the hash of this file, so bumping the pinned action below (e.g. by
+      # Renovate) invalidates the cache and forces a rebuild.
+      - name: Cache license-eye
+        id: license-eye
+        uses: actions/cache@v6
+        with:
+          path: /usr/local/bin/license-eye
+          key: license-eye-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/workflows/check-header.yml') }}
+
+      # Cold cache: the action installs license-eye to /usr/local/bin, then scans.
       - uses: apache/skywalking-eyes@61275cc80d0798a405cb070f7d3a8aaf7cf2c2c1 # v0.8.0
+        if: steps.license-eye.outputs.cache-hit != 'true'
+
+      # Warm cache: same invocation as the action's own check step, run against
+      # the restored binary. Keep the flags in sync with the pinned action.
+      - name: Check license headers
+        if: steps.license-eye.outputs.cache-hit == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: license-eye -v info -c .licenserc.yaml header check
