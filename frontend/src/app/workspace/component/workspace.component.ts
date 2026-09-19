@@ -354,6 +354,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       this.workflowActionService.enableWorkflowModification();
       this.registerAutoPersistWorkflow();
       this.triggerCenter();
+      // This page and everything on it is new, and the metadata it needs was set by the view that
+      // was here before: the stream that carries it does not replay, so say it again now that
+      // this page's own subscribers are listening. Without it the menu shows no workflow name
+      // and no id, the computing unit picker does not restore the unit this workflow last ran
+      // on, and this page believes the user cannot write to the workflow.
+      this.workflowActionService.republishWorkflowMetadata();
       return;
     }
     // load workflow with wid if presented in the URL

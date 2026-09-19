@@ -578,6 +578,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       this.storedPositions = { ...(this.workflowActionService.getWorkflow().content?.operatorPositions ?? {}) };
       this.canEdit = !metadata.readonly;
       this.settleIntoForm();
+      // This page and everything on it is new, and the metadata it needs was set by the view that
+      // was here before: the stream that carries it does not replay, so say it again now that this
+      // page's own subscribers are listening -- after settling in, which is what mounts them.
+      // The fields read above are this component's own; the computing unit picker below the form
+      // has no such shortcut and would not restore the unit this workflow last ran on.
+      this.workflowActionService.republishWorkflowMetadata();
       return;
     }
     this.workflowActionService.resetAsNewWorkflow();

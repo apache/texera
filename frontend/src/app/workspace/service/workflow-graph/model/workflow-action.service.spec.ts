@@ -42,6 +42,7 @@ import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.i
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { ExecutionMode, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -89,6 +90,40 @@ describe("WorkflowActionService", () => {
       service.setNewSharedModel();
 
       expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+
+    // Not local to this method: destroying the document keeps the object and its wid, and what
+    // clears it is clearWorkflow going on to reloadWorkflow(undefined), which seeds a fresh model
+    // with none. Were that to stop happening, a canvas re-entered from the dashboard would attach
+    // to a destroyed document instead of loading the workflow.
+    it("is false for a workflow that has been left, not only for one never opened", () => {
+      service.setNewSharedModel(42);
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+
+      service.clearWorkflow();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+  });
+
+  // The stream is a plain Subject and carries no current value, so a view that attaches to an
+  // already-open workflow -- and therefore never sets the metadata, because it is already right --
+  // has to say it again for the subscribers it has just mounted: the menu's name and id, the
+  // computing unit picker, the workspace's write access.
+  describe("republishWorkflowMetadata", () => {
+    it("re-announces the metadata it already holds, which setWorkflowMetadata will not", () => {
+      const metadata: WorkflowMetadata = { ...DEFAULT_WORKFLOW, wid: 42, name: "kept open" };
+      service.setWorkflowMetadata(metadata);
+      const seen: WorkflowMetadata[] = [];
+      service.workflowMetaDataChanged().subscribe(m => seen.push(m));
+
+      // The same value a view would read back and hand straight to the setter: it returns early.
+      service.setWorkflowMetadata(service.getWorkflowMetadata());
+      expect(seen).toEqual([]);
+
+      service.republishWorkflowMetadata();
+
+      expect(seen).toEqual([metadata]);
     });
   });
 
