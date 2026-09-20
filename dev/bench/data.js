@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789909500600,
+  "lastUpdate": 1789909503179,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -53726,6 +53726,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1667830.33,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "roshiiiiz",
+            "username": "roshiiiz",
+            "email": "roshaanzafar12@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "28594efe6cf7628be81bd9ff8939199417773ecd",
+          "message": "fix(agent-service): reject maxSteps 0 in settings (#7821)\n\n<!--\nThanks for sending a pull request (PR)! Here are some tips for you:\n1. If this is your first time, please read our contributor guidelines:\n[Contributing to\nTexera](https://github.com/apache/texera/blob/main/CONTRIBUTING.md)\n  2. Ensure you have added or run the appropriate tests for your PR\n  3. If the PR is work in progress, mark it a draft on GitHub.\n  4. Please write your PR title to summarize what this PR proposes, we\n    are following Conventional Commits style for PR titles as well:\n- `fix` is for behavior that worked before and no longer does; adding or\nremoving a functionality, or reworking one so that user-facing behavior\nintentionally changes, is a `feat`; a change that leaves the user-facing\n        behavior unchanged is a `refactor`.\n- A test-only PR is `test(<module>): ...`; repairing a broken test is\n        `fix(test, <module>): ...`.\n- A dependency bump is `fix(deps, <module>): ...` when it patches a CVE\nand `chore(deps, <module>): ...` otherwise; GitHub Actions bumps take\n        `ci` as their module, e.g. `chore(deps, ci): ...`.\n- A PR targeting a release branch appends the version as the last scope\n        component, e.g. `fix(deps, frontend, v1.2): ...`.\n    See CONTRIBUTING.md for the full convention.\n  5. Be sure to keep the PR description updated to reflect all changes.\n-->\n\n### What changes were proposed in this PR?\n<!--\nPlease clarify what changes you are proposing. The purpose of this\nsection\nis to outline the changes. Here are some tips for you:\n  1. If you propose a new API, clarify the use case for a new API.\n  2. If you fix a bug, you can clarify why it is a bug.\n  3. If it is a refactoring, clarify what has been changed.\n  3. It would be helpful to include a before-and-after comparison using \n     screenshots or GIFs.\n  4. Please consider writing useful notes for better and faster reviews.\n-->\nThis PR fixes a critical bug where providing a `maxSteps` value of `0`\nor negative would cause the agent execution loop to hang indefinitely.\n\nChanges made:\n- Updated the Elysia validation schema in `server.ts` to enforce a `{\nminimum: 1 }` rule for `maxSteps`. This guarantees the server rejects\ninvalid limits at the API boundary with a 400 Bad Request.\n- Added a fallback boundary clamp using `Math.max(1, updates.maxSteps)`\nin `texera-agent.ts` during agent settings updates. This guarantees\ninternal state strictly enforces the limit even if schema validation is\nbypassed.\n- Added a new automated unit test to `texera-agent.spec.ts` asserting\nthat `maxSteps` is correctly clamped to 1 if `0` or a negative number is\nprovided.\n\n### Any related issues, documentation, discussions?\n<!--\nPlease use this section to link other resources if not mentioned\nalready.\n1. If this PR fixes an issue, please include `Fixes #1234`, `Resolves\n#1234`\nor `Closes #1234`. If it is only related, simply mention the issue\nnumber.\n  2. If there is design documentation, please add the link.\n  3. If there is a discussion in the mailing list, please add the link.\n-->\nCloses #7484\n\n### How was this PR tested?\n<!--\nIf tests were added, say they were added here. Or simply mention that if\nthe PR\nis tested with existing test cases. Make sure to include/update test\ncases that\ncheck the changes thoroughly including negative and positive cases if\npossible.\nIf it was tested in a way different from regular unit tests, please\nclarify how\nyou tested step by step, ideally copy and paste-able, so that other\nreviewers can\ntest and check, and descendants can verify in the future. If tests were\nnot added,\nplease describe why they were not added and/or why it was difficult to\nadd.\n-->\nTested manually via local API and verified with automated unit tests:\n1. Booted the local `agent-service` via `bun run dev`.\n2. Issued a `PATCH /api/agents/:id/settings` HTTP request passing\n`{\"maxSteps\": 0}`.\n3. Verified the server correctly rejected the payload with a `400 Bad\nRequest` schema validation error (\"Expected number to be greater or\nequal to 1\").\n4. Ran the automated `agent-service` test suite (`bun test`) which\nexecutes the new dedicated unit test asserting the clamping behavior.\nThe entire suite successfully passed.\n\n### Was this PR authored or co-authored using generative AI tooling?\n<!--\nIf generative AI tooling has been used in the process of authoring this\nPR,\nplease include the phrase: 'Generated-by: ' followed by the name of the\ntool\nand its version. If no, write 'No'. \nPlease refer to the [ASF Generative Tooling\nGuidance](https://www.apache.org/legal/generative-tooling.html) for\ndetails.\n-->\nGenerated-by: Antigravity (DeepMind)\n\n\n<img width=\"897\" height=\"301\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/3c6b76c9-0fd2-4609-9a9b-1187e7f19ca0\"\n/>\n\n=========================================================================================================================================================================================================================================================\n<img width=\"917\" height=\"402\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/7a01398e-0db2-4088-a32f-9f810458d692\"\n/>\n\n---------\n\nCo-authored-by: Xuan Gu <162244362+xuang7@users.noreply.github.com>",
+          "timestamp": "2026-09-20T00:43:43Z",
+          "url": "https://github.com/apache/texera/commit/28594efe6cf7628be81bd9ff8939199417773ecd"
+        },
+        "date": 1789909502674,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 14374.139,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 17347.799,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 18361.385,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 89467.251,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 98497.051,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 102701.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 860489.653,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 889855.643,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 903699.387,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11497.166,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 14399.135,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 17036.848,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 87285.33,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 93366.877,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 99476.386,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 850169.656,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 885622.209,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 897123.046,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 11218.626,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14509.242,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 16937.329,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 86983.144,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 94141.557,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 105036.794,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 857944.133,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 898605.46,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 911368.805,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 13260.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 15768.775,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 22368.261,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 106375.944,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 114782.838,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 122571.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1055084.615,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1092837.251,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1118412.461,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13214.902,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 16228.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 19643.218,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 108432.573,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 115068.67,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 126703.857,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1067865.318,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1109503.184,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1143744.499,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 13392.508,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 17305.609,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 19834.455,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 108416.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 116573.191,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 128434.884,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1074854.739,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1122074.41,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1145542.844,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 21653.252,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 25382.77,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 35320.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 187383.111,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 195754.134,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 208168.169,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1865641.388,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1914874.137,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1989960.755,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21593.861,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 22532.007,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 27774.853,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 188079.679,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 198476.015,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 213487.28,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1871556.679,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1920532.277,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1958273.194,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 22336.724,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 25910.432,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 34236.556,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 196884.936,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 204342.933,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 217301.895,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1931416.116,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1980744.723,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2020561.222,
             "unit": "us"
           }
         ]
