@@ -122,6 +122,69 @@ describe("UiUdfParametersSyncService", () => {
     });
   });
 
+  it("should rethrow a non-parse error without emitting a parse-error event", () => {
+    const unexpectedError = new TypeError("cannot read properties of undefined");
+    operator.operatorProperties.uiParameters = [parameter("count", "integer", "42")];
+    parserServiceMock.parse.mockImplementation(() => {
+      throw unexpectedError;
+    });
+
+    const parametersChangedObserver = observeParameterChanges();
+    const parseErrorObserver = vitest.fn();
+    service.uiParametersParseError$.subscribe(parseErrorObserver);
+
+    // Only UiUdfParametersParseError is a user-facing parse problem; anything else is a defect
+    // and must surface instead of being reported to the user as an editor parse error.
+    expect(() => service.syncStructureFromCode(operatorId, code)).toThrow(unexpectedError);
+
+    expect(parseErrorObserver).not.toHaveBeenCalled();
+    expect(parametersChangedObserver).not.toHaveBeenCalled();
+  });
+
+  // Both nullish guards on the existing-parameter read are covered: the missing-key row exercises
+  // the `?? []` right operand, the missing-object row the `?.` short-circuit in front of it.
+  // operatorProperties is typed non-optional on OperatorPredicate, so the second row can only arise
+  // from a malformed or legacy persisted operator record, never from a statically-typed caller.
+  [
+    { shape: "no uiParameters key", properties: {} as { uiParameters: UiUdfParameter[] } },
+    { shape: "no operatorProperties at all", properties: undefined as unknown as { uiParameters: UiUdfParameter[] } },
+  ].forEach(({ shape, properties }) => {
+    it(`should treat a Python UDF with ${shape} as having no existing parameters`, () => {
+      // Workflows saved before uiParameters existed (and freshly added UDFs) carry no such key.
+      operator.operatorProperties = properties;
+      parserServiceMock.parse.mockReturnValue([parameter("count", "integer"), parameter("name", "string")]);
+
+      const parametersChangedObserver = observeParameterChanges();
+
+      service.syncStructureFromCode(operatorId, code);
+
+      // No existing values to preserve, so every parsed parameter starts blank.
+      expect(parametersChangedObserver).toHaveBeenCalledWith({
+        operatorId,
+        parameters: [parameter("count", "integer", ""), parameter("name", "string", "")],
+      });
+      expect(parametersChangedObserver).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("should clear a previous parse error once the code parses again", () => {
+    const parseErrorObserver = vitest.fn();
+    service.uiParametersParseError$.subscribe(parseErrorObserver);
+
+    parserServiceMock.parse.mockImplementationOnce(() => {
+      throw new UiUdfParametersParseError("invalid parameters");
+    });
+    service.syncStructureFromCode(operatorId, code);
+
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
+    service.syncStructureFromCode(operatorId, code);
+
+    // uiParametersParseError$ documents that an event WITHOUT a message clears the operator's
+    // current parse error, so a successful re-parse must emit exactly {operatorId} and must never
+    // report a message of its own.
+    expect(parseErrorObserver.mock.calls).toEqual([[{ operatorId, message: "invalid parameters" }], [{ operatorId }]]);
+  });
+
   it("should not replay a previous parser error to a late subscriber", () => {
     parserServiceMock.parse.mockImplementation(() => {
       throw new UiUdfParametersParseError("invalid parameters");

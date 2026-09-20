@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, OnDestroy, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -25,13 +25,11 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
+import { ExecutionMode, ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -39,9 +37,7 @@ import { SearchResultsComponent } from "../search-results/search-results.compone
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
-import { isDefined } from "../../../../common/util/predicate";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { map, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
@@ -70,8 +66,19 @@ import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 
 /**
+ * What a conversion yields, whichever input produced it. `notebook` is the uploaded one for an
+ * .ipynb and the LLM-derived one for a .py; either way it is what gets stored and shown in the
+ * Jupyter panel.
+ */
+interface GeneratedWorkflow {
+  workflowContent: WorkflowContent;
+  mappingContent: MappingContent;
+  notebook: Notebook;
+}
+
+/**
  * Saved-workflow-section component contains information and functionality
- * of the saved workflows section and is re-used in the user projects section when a project is clicked
+ * of the saved workflows section: the list of workflows the user owns or has access to
  *
  * This component:
  *  - displays the workflows the user has access to
@@ -151,9 +158,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
 
-  // receive input from parent components (UserProjectSection), if any
-  @Input() public pid?: number = undefined;
-  @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   public viewType: "list" | "card" =
     localStorage.getItem(UserWorkflowComponent.VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
@@ -162,7 +166,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
-    private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
@@ -216,34 +219,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * open the Modal to add workflow(s) to project
-   */
-  public onClickOpenAddWorkflow() {
-    const modalRef = this.modalService.create({
-      nzContent: NgbdModalAddProjectWorkflowComponent,
-      nzData: { projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Add Workflows To Project",
-      nzCentered: true,
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
-  }
-
-  /**
-   * open the Modal to remove workflow(s) from project
-   */
-  public onClickOpenRemoveWorkflow() {
-    const modalRef = this.modalService.create({
-      nzContent: NgbdModalRemoveProjectWorkflowComponent,
-      nzData: { projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Remove Workflows From Project",
-      nzCentered: true,
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
-  }
-
-  /**
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
@@ -259,10 +234,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
     let filterParams = this.filters.getSearchFilterParameters();
-    if (isDefined(this.pid)) {
-      // force the project id in the search query to be the current pid.
-      filterParams.projectIds = [this.pid];
-    }
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(
         this.searchService
@@ -296,7 +267,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
         executionMode: this.config.env.defaultExecutionMode,
       },
     };
-    let localPid = this.pid;
     this.workflowPersistService
       .createWorkflow(emptyWorkflowContent, DEFAULT_WORKFLOW_NAME)
       .pipe(
@@ -305,18 +275,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
             throw new Error("Workflow creation failed.");
           }
         }),
-        mergeMap(createdWorkflow => {
-          // Check if localPid is defined; if so, add the workflow to the project
-          if (localPid) {
-            return this.userProjectService.addWorkflowToProject(localPid, createdWorkflow.workflow.wid!).pipe(
-              // Regardless of the project addition outcome, pass the wid downstream
-              map(() => createdWorkflow.workflow.wid)
-            );
-          } else {
-            // If there's no localPid, skip adding to the project and directly pass the wid downstream
-            return of(createdWorkflow.workflow.wid);
-          }
-        }),
+        map(createdWorkflow => createdWorkflow.workflow.wid),
         untilDestroyed(this)
       )
       .subscribe({
@@ -332,54 +291,103 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return this.config.env.pythonNotebookMigrationEnabled;
   }
 
-  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromNotebook. */
+  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromFile. */
   public openAiGenerateModal(): void {
     this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
-      nzTitle: "AI Generate Workflow from Python Notebook",
+      nzTitle: "AI Generate Workflow from Source Code",
       nzContent: NotebookImportModalComponent,
       nzWidth: 700,
       nzFooter: null,
       nzCentered: true,
+      nzBodyStyle: { paddingTop: "4px" },
       nzData: {
-        requestImport: (file, model) => this.generateWorkflowFromNotebook(file, model),
+        requestImport: (file, model) => this.generateWorkflowFromFile(file, model),
       },
     });
   }
 
   /**
-   * Parse the notebook, generate a workflow via the LLM, save it, store the cell mapping, and open it.
-   * Resolves true on success (modal closes), false to keep the modal open on a bad file or a failure.
+   * Generate a workflow from an uploaded notebook or Python file, save it, store the mapping,
+   * and open it. Resolves true on success (modal closes), false to keep the modal open on a bad
+   * file or a failure.
    */
-  private async generateWorkflowFromNotebook(file: NzUploadFile, model: string): Promise<boolean> {
+  private async generateWorkflowFromFile(file: NzUploadFile, model: string): Promise<boolean> {
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
-    if (fileExtension !== "ipynb") {
-      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+    if (fileExtension !== "ipynb" && fileExtension !== "py") {
+      this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       return false;
     }
+
+    const generated =
+      fileExtension === "ipynb"
+        ? await this.generateFromNotebook(file, model)
+        : await this.generateFromScript(file, model);
+    // Null means the step already told the user what went wrong.
+    if (!generated) {
+      return false;
+    }
+
+    return this.saveAndOpenGenerated(file, generated);
+  }
+
+  /** Read and convert an .ipynb. Null after reporting a read or generation failure. */
+  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
     let notebook: Notebook;
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
     } catch (error) {
       this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
       console.error("Notebook parse failed:", error);
-      return false;
+      return null;
     }
 
-    let generated: { workflowContent: WorkflowContent; mappingContent: MappingContent };
     try {
-      generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      const generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      // The uploaded notebook is what gets stored, so it rides along with the generated pair.
+      return { ...generated, notebook };
     } catch (error) {
-      if (error instanceof LlmRequestTimeoutError) {
-        this.notificationService.error(
-          `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the notebook.`
-        );
-      } else {
-        this.notificationService.error("Error while communicating with the LLM, check console for details.");
-      }
-      console.error("LLM generation failed:", error);
-      return false;
+      this.reportGenerationFailure(error, "notebook");
+      return null;
+    }
+  }
+
+  /** Read and convert a .py. The notebook comes back derived, since the upload had no cells. */
+  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
+    let scriptSource: string;
+    try {
+      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
+    } catch (error) {
+      this.notificationService.error("Failed to read the Python file. Please upload a valid, non-empty .py file.");
+      console.error("Python file read failed:", error);
+      return null;
     }
 
+    try {
+      return await this.notebookMigrationService.sendScriptToAIGenerateWorkflow(scriptSource, model);
+    } catch (error) {
+      this.reportGenerationFailure(error, "script");
+      return null;
+    }
+  }
+
+  // A timeout is worth telling apart from a transport error: the user can act on it by picking
+  // a faster model or trimming the input.
+  private reportGenerationFailure(error: unknown, input: "notebook" | "script"): void {
+    if (error instanceof LlmRequestTimeoutError) {
+      this.notificationService.error(
+        `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
+      );
+    } else {
+      this.notificationService.error("Error while communicating with the LLM, check console for details.");
+    }
+    console.error("LLM generation failed:", error);
+  }
+
+  /**
+   * Persist the generated workflow, attach its notebook and mapping, then open it. Shared by both
+   * inputs: once a conversion has produced a workflow and a notebook, nothing downstream differs.
+   */
+  private async saveAndOpenGenerated(file: NzUploadFile, generated: GeneratedWorkflow): Promise<boolean> {
     // Commit point: persisting captures the expensive LLM result. On failure nothing was created,
     // so returning false to let the user retry is safe.
     let wid: number;
@@ -401,16 +409,9 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
 
     // Best-effort follow-ups: never discard the created workflow, so log/warn and still open it.
-    if (this.pid) {
-      try {
-        await firstValueFrom(this.userProjectService.addWorkflowToProject(this.pid, wid));
-      } catch (error) {
-        console.error("Adding the generated workflow to the project failed:", error);
-      }
-    }
     try {
       await firstValueFrom(
-        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, notebook)
+        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, generated.notebook)
       );
     } catch (error) {
       this.notificationService.warning(
@@ -443,24 +444,13 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
-   *
-   * for workflow components inside a project-section, it will also add
-   * the workflow to the project
    */
   public async onClickDuplicateWorkflow(entry: DashboardEntry): Promise<void> {
     if (entry.workflow.workflow.wid) {
       try {
-        let duplicatedWorkflowsInfo: DashboardWorkflow[] = [];
-        if (!isDefined(this.pid)) {
-          duplicatedWorkflowsInfo = await firstValueFrom(
-            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid])
-          );
-        } else {
-          const localPid = this.pid;
-          duplicatedWorkflowsInfo = await firstValueFrom(
-            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid], localPid)
-          );
-        }
+        const duplicatedWorkflowsInfo: DashboardWorkflow[] = await firstValueFrom(
+          this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid])
+        );
 
         const userIds = new Set<number>();
         duplicatedWorkflowsInfo.forEach(workflow => {
@@ -487,13 +477,39 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           return entry;
         });
 
-        this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
+        this.searchResultsComponent.entries = [
+          ...(await firstValueFrom(this.withWorkflowSizes(newEntries))),
+          ...this.searchResultsComponent.entries,
+        ];
       } catch (err: unknown) {
         console.log("Error duplicating workflow:", err);
         // @ts-ignore // TODO: fix this with notification component
         alert((err as any).error);
       }
     }
+  }
+
+  /**
+   * A DashboardEntry built from a duplicate response carries no size — only search asks the
+   * backend for one — so it would render as an empty workflow. Fill the sizes in before the
+   * rows go on screen, since the list items read the size once on binding.
+   */
+  private withWorkflowSizes(entries: DashboardEntry[]): Observable<DashboardEntry[]> {
+    const wids = entries.map(e => e.workflow.workflow.wid).filter((wid): wid is number => wid != null);
+    if (wids.length === 0) {
+      return of(entries);
+    }
+    return this.workflowPersistService.getSizes(wids).pipe(
+      map(sizes => {
+        entries.forEach(entry => {
+          const wid = entry.workflow.workflow.wid;
+          if (wid != null && sizes[wid] != null) {
+            entry.setSize(sizes[wid]);
+          }
+        });
+        return entries;
+      })
+    );
   }
 
   /**
@@ -584,9 +600,11 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           if (typeof result !== "string") {
             throw new Error("Incorrect format: file is not a string");
           }
-          const workflowContent = JSON.parse(result) as WorkflowContent;
+          // The landing view rides as a sibling key next to the content (see exportedWorkflow);
+          // pull it back out so it is stored on the workflow row, not inside content.
+          const { defaultView, ...workflowContent } = JSON.parse(result) as ExportedWorkflow;
           this.workflowPersistService
-            .createWorkflow(workflowContent, this.deriveWorkflowName(name))
+            .createWorkflow(workflowContent, this.deriveWorkflowName(name), defaultView)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: uploadedWorkflow => {
@@ -650,38 +668,22 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
 
     if (targetWids.length > 0) {
-      if (!isDefined(this.pid)) {
-        this.workflowPersistService
-          .duplicateWorkflow(targetWids)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
+      this.workflowPersistService
+        .duplicateWorkflow(targetWids)
+        .pipe(
+          switchMap(duplicatedWorkflowsInfo =>
+            this.withWorkflowSizes(duplicatedWorkflowsInfo.map(info => new DashboardEntry(info)))
+          ),
+          untilDestroyed(this)
+        )
+        .subscribe({
+          next: sizedEntries => {
+            this.searchResultsComponent.entries = [...sizedEntries, ...this.searchResultsComponent.entries];
 
-              // this.searchResultsComponent.clearAllSelections();
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
-          });
-      } else {
-        const localPid = this.pid;
-        this.workflowPersistService
-          .duplicateWorkflow(targetWids, localPid)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
-
-              // this.searchResultsComponent.clearAllSelections();
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
-          });
-      }
+            // this.searchResultsComponent.clearAllSelections();
+          }, // TODO: fix this with notification component
+          error: (err: unknown) => alert(err),
+        });
     }
   }
 

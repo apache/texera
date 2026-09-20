@@ -200,6 +200,34 @@ describe("HuggingFaceImageUploadComponent", () => {
     });
   });
 
+  describe("rendered preview label", () => {
+    const previewLabel = () => fixture.nativeElement.querySelector(".hf-image-meta span") as HTMLElement | null;
+
+    it("labels the preview 'Uploaded image' when an image has no filename", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("Uploaded image");
+    });
+
+    it("labels the preview with the filename once one is known", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "cat.jpg";
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("cat.jpg");
+    });
+
+    it("renders no preview at all without an image, so the label is never empty", () => {
+      // The preview only renders while previewSrc is non-empty, which happens exactly
+      // when hasImage is true — and displayFileName is never empty in that case.
+      component.formControl.setValue("");
+      fixture.detectChanges();
+
+      expect(previewLabel()).toBeNull();
+    });
+  });
+
   // ── Shared mocking helpers ──────────────────────────────────────────────
   // These helpers let us drive the private compressImage / renderCompressedDataUrl
   // pipeline end-to-end through onFileSelected.

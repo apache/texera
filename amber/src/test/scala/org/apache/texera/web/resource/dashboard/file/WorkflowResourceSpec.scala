@@ -25,24 +25,18 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_OF_PROJECT,
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowUserAccessDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Project,
-  User,
-  Workflow,
-  WorkflowUserAccess
-}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowUserAccess}
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.CoverImageRequest
-import org.apache.texera.web.resource.dashboard.user.project.ProjectResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
+  DefaultViewRequest,
   WorkflowIDs,
   WorkflowWithPrivilege
 }
@@ -67,7 +61,6 @@ import javax.ws.rs.{
   WebApplicationException
 }
 import scala.jdk.CollectionConverters._
-import org.apache.texera.web.auth.GuestAuthFilter
 import org.apache.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowVersionResource
@@ -138,13 +131,6 @@ class WorkflowResourceSpec
     workflow
   }
 
-  private val testProject1: Project = {
-    val project = new Project()
-    project.setName("test_project1")
-    project.setDescription("this is project description")
-    project
-  }
-
   private val exampleEmailAddress = "name@example.com"
   private val exampleWord1 = "Lorem"
   private val exampleWord2 = "Ipsum"
@@ -170,16 +156,26 @@ class WorkflowResourceSpec
     new WorkflowResource()
   }
 
-  private val projectResource: ProjectResource = {
-    new ProjectResource()
-  }
-
   private val dashboardResource: DashboardResource = {
     new DashboardResource()
   }
 
+  // `FulltextSearchQueryUtils.usePgroonga` is a JVM-global `var` and amber's tests are
+  // unforked, so every suite in one `test` invocation shares it. This spec must force it
+  // `false` — its embedded Postgres has no pgroonga extension, and the `true` arm fails 11
+  // of the search tests with `function pgroonga_condition(...) does not exist`. Capture the
+  // live value in `beforeAll` right before the write, so what is put back is exactly the
+  // value this suite clobbered. Capturing at construction instead would put back whatever
+  // the flag held when sbt instantiated this class; under sbt today that is the same value,
+  // since a suite is constructed immediately before it runs and nothing touches the flag in
+  // between — but that is a property of sbt's scheduling, not of this suite, and it stops
+  // holding under eager construction (a nesting `Suites`, `OneInstancePerTest`, forking).
+  // The initialiser below is only so the field never holds an invented default.
+  private var pgroongaBeforeWrite: Boolean = FulltextSearchQueryUtils.usePgroonga
+
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
+    pgroongaBeforeWrite = FulltextSearchQueryUtils.usePgroonga
     FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
@@ -198,7 +194,7 @@ class WorkflowResourceSpec
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
       workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid), None),
+        WorkflowIDs(List(workflow.workflow.getWid)),
         sessionUser1
       )
     )
@@ -206,21 +202,16 @@ class WorkflowResourceSpec
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
       workflowResource.deleteWorkflow(
-        WorkflowIDs(List(workflow.workflow.getWid), None),
+        WorkflowIDs(List(workflow.workflow.getWid)),
         sessionUser2
       )
     )
-
-    // delete all projects in the database
-    var projects = projectResource.getProjectList(sessionUser1)
-    projects.forEach(project => projectResource.deleteProject(project.pid))
-
-    projects = projectResource.getProjectList(sessionUser2)
-    projects.forEach(project => projectResource.deleteProject(project.pid))
-
   }
 
   override protected def afterAll(): Unit = {
+    // Restore before the teardown below, so this does not depend on `closeConnectionPool`
+    // staying non-throwing (today it swallows any `Exception` itself).
+    FulltextSearchQueryUtils.usePgroonga = pgroongaBeforeWrite
     closeConnectionPool()
   }
 
@@ -559,27 +550,6 @@ class WorkflowResourceSpec
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
-  it should "return a proper condition for a single projectId" in {
-    val projectIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
-    val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(1)).toString)
-  }
-
-  it should "return a proper condition for multiple projectIds" in {
-    val projectIdList = new java.util.ArrayList[Integer](
-      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
-    )
-    val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(
-      projectFilter.toString == WORKFLOW_OF_PROJECT.PID
-        .eq(Integer.valueOf(1))
-        .or(WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(2)))
-        .toString
-    )
-  }
-
   it should "return a proper condition for a single workflowID" in {
     val workflowIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val workflowIdFilter: Condition =
@@ -681,10 +651,8 @@ class WorkflowResourceSpec
     )
   }
 
-  "/search API" should "be able to search for resources in different tables" in {
+  "/search API" should "be able to search for resources by keyword" in {
 
-    // create different types of resources, project, workflow, and file
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     // search
     val DashboardClickableFileEntryList =
@@ -692,88 +660,95 @@ class WorkflowResourceSpec
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 1)
 
   }
 
   it should "return all resources when no keyword provided" in {
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray(""))
       )
-    assert(DashboardClickableFileEntryList.results.length == 2)
+    assert(DashboardClickableFileEntryList.results.length == 1)
   }
 
   it should "return multiple matching resources from a single resource type" in {
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    projectResource.createProject(sessionUser1, "common project1")
-    projectResource.createProject(sessionUser1, "common project2")
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(getKeywordsArray("common"))
+        SearchQueryParams(getKeywordsArray("test"))
       )
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
   it should "handle multiple keywords correctly" in {
-    projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(getKeywordsArray("test", "project1"))
+        SearchQueryParams(getKeywordsArray("test", "workflow1"))
       )
     assert(
       DashboardClickableFileEntryList.results.length == 1
-    ) // should only return the project
+    ) // should only return test_workflow1
   }
 
   it should "filter results by different resourceType" in {
-    // create different types of resources
-    // 3 projects, 2 file, and 1 workflow,
-    projectResource.createProject(sessionUser1, "test project1")
-    projectResource.createProject(sessionUser1, "test project2")
-    projectResource.createProject(sessionUser1, "test project3")
+    // create 3 workflows
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 4)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
     // filter resources by workflow
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "workflow", keywords = getKeywordsArray("test"))
     )
-    assert(DashboardClickableFileEntryList.results.length == 1)
+    assert(DashboardClickableFileEntryList.results.length == 3)
 
-    // filter resources by project
+    // filter resources by dataset
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
-      SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
+      SearchQueryParams(resourceType = "dataset", keywords = getKeywordsArray("test"))
     )
-    assert(DashboardClickableFileEntryList.results.length == 3)
+    assert(DashboardClickableFileEntryList.results.isEmpty)
+
+    // The counts above cannot distinguish a working filter from an ignored one, because every
+    // seeded row is a workflow and the only other searchable types are LakeFS-backed (a seeded
+    // dataset is dropped during hydration when LakeFS is unreachable, so it cannot be counted
+    // here -- DatasetSearchQueryBuilderSpec covers that path against a stub). Asserting that an
+    // unrecognised value is rejected pins that resourceType is dispatched on, not ignored.
+    assertThrows[IllegalArgumentException] {
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
+      )
+    }
   }
 
   it should "return resources that match any of all provided keywords" in {
     // This test is designed to verify that the searchAllResources function correctly
     // returns resources that match all of the provided keywords
 
-    // Create different types of resources, a project, a workflow, and a file
-    projectResource.createProject(sessionUser1, "test project")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
+    workflowResource.persistWorkflow(testWorkflow2, sessionUser1)
     // Perform search with multiple keywords
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
-        SearchQueryParams(keywords = getKeywordsArray("test", "project"))
+        SearchQueryParams(keywords = getKeywordsArray("test", "workflow2"))
       )
 
     // Assert that the search results include resources that match any of the provided keywords
@@ -783,8 +758,8 @@ class WorkflowResourceSpec
   it should "not return resources that belong to a different user" in {
     // This test is designed to verify that the searchAllResources function does not return resources that belong to a different user
 
-    // Create a project for a different user (sessionUser2)
-    projectResource.createProject(sessionUser2, "test project2")
+    // Create a workflow for a different user (sessionUser2)
+    workflowResource.persistWorkflow(testWorkflow1, sessionUser2)
 
     // Perform search for resources using sessionUser1
     val DashboardClickableFileEntryList =
@@ -793,7 +768,7 @@ class WorkflowResourceSpec
         SearchQueryParams(keywords = getKeywordsArray("test"))
       )
 
-    // Assert that the search results do not include the project that belongs to the different user
+    // Assert that the search results do not include the workflow that belongs to the different user
     // Assuming that DashboardClickableFileEntryList is a list of resources where each resource has a `user` property
     assert(DashboardClickableFileEntryList.results.isEmpty)
   }
@@ -801,10 +776,13 @@ class WorkflowResourceSpec
   it should "paginate results correctly" in {
     // This test is designed to verify that the pagination works correctly
 
-    // Create 1 workflow, 10 projects
-    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    for (i <- 1 to 10) {
-      projectResource.createProject(sessionUser1, s"test project $i")
+    // Create 11 workflows
+    for (i <- 1 to 11) {
+      val workflow = new Workflow()
+      workflow.setName(s"test_pagination_workflow$i")
+      workflow.setDescription("")
+      workflow.setContent(exampleContent)
+      workflowResource.persistWorkflow(workflow, sessionUser1)
     }
 
     // Request the first page of results (page size is 10)
@@ -1050,7 +1028,7 @@ class WorkflowResourceSpec
       "{\"operators\":[{\"operatorID\":\"op1\",\"operatorType\":\"CSVFileScan\"}]}"
     ).workflow.getWid
 
-    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
 
     assert(copies.size == 1)
     assert(copies.head.workflow.getName == "dup-src_copy")
@@ -1094,19 +1072,7 @@ class WorkflowResourceSpec
     assertThrows[NotFoundException](WorkflowResource.getWorkflowName(wid + 100000))
   }
 
-  "WorkflowResource.persistWorkflow" should "reject the guest user" in {
-    val workflow = seedWorkflow(sessionUser1, "guest-wf", "d", "{\"a\":1}").workflow
-    workflow.setContent("{\"a\":2}")
-
-    // the message distinguishes the guest rejection from the access-privilege one
-    val thrown = intercept[ForbiddenException](
-      workflowResource.persistWorkflow(workflow, new SessionUser(GuestAuthFilter.GUEST))
-    )
-    assert(thrown.getMessage.contains("Guest user"))
-    assert(workflowResource.retrieveWorkflow(workflow.getWid, sessionUser1).content == "{\"a\":1}")
-  }
-
-  it should "update the workflow in place for its owner and record a version" in {
+  "WorkflowResource.persistWorkflow" should "update the workflow in place for its owner and record a version" in {
     val workflow = seedWorkflow(sessionUser1, "persist-owner", "d", "{\"a\":1}").workflow
     val versionsBefore = versionCount(workflow.getWid)
     workflow.setContent("{\"a\":2}")
@@ -1242,25 +1208,7 @@ class WorkflowResourceSpec
     assert(getDSLContext.fetchCount(WORKFLOW_USER_CLONES, WORKFLOW_USER_CLONES.WID.eq(wid)) == 0)
   }
 
-  "WorkflowResource.duplicateWorkflow" should "add the copy, not the original, to the project" in {
-    val wid =
-      seedWorkflow(sessionUser1, "dup-into-project", "d", contentWithOperator).workflow.getWid
-    val pid = projectResource.createProject(sessionUser1, "dup-target-project").getPid
-
-    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), Some(pid)), sessionUser1)
-
-    assert(copies.size == 1)
-    val widsInProject = getDSLContext
-      .select(WORKFLOW_OF_PROJECT.WID)
-      .from(WORKFLOW_OF_PROJECT)
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
-      .fetchInto(classOf[Integer])
-      .asScala
-      .toList
-    assert(widsInProject == List(copies.head.workflow.getWid))
-  }
-
-  it should "wrap a failure raised while copying the workflow in a WebApplicationException" in {
+  "WorkflowResource.duplicateWorkflow" should "wrap a failure raised while copying the workflow in a WebApplicationException" in {
     // "{}" has no operators array, so assignNewOperatorIds throws.
     //
     // Note what this does NOT pin: transactionality. assignNewOperatorIds fails before
@@ -1271,7 +1219,7 @@ class WorkflowResourceSpec
     val wid = seedWorkflow(sessionUser1, "dup-no-operators").workflow.getWid
 
     val thrown = intercept[WebApplicationException](
-      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+      workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
     )
 
     // not a ForbiddenException/BadRequestException, which the same catch swallows
@@ -1283,7 +1231,7 @@ class WorkflowResourceSpec
   "WorkflowResource.deleteWorkflow" should "wrap an unexpected failure in a WebApplicationException" in {
     // A request body without a "wids" field deserializes to a null list.
     val thrown = intercept[WebApplicationException](
-      workflowResource.deleteWorkflow(WorkflowIDs(null, None), sessionUser1)
+      workflowResource.deleteWorkflow(WorkflowIDs(null), sessionUser1)
     )
 
     assert(thrown.getClass == classOf[WebApplicationException])
@@ -1308,9 +1256,258 @@ class WorkflowResourceSpec
       .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, "bogus://not-a-vfs-uri")
       .execute()
 
-    workflowResource.deleteWorkflow(WorkflowIDs(List(wid), None), sessionUser1)
+    workflowResource.deleteWorkflow(WorkflowIDs(List(wid)), sessionUser1)
 
     assert(workflowNamesOf(sessionUser1).isEmpty)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Form View: the per-workflow default view (canvas or form).
+  // ---------------------------------------------------------------------------
+
+  // duplicateWorkflow runs assignNewOperatorIds over the content, which requires a
+  // real `operators` array, so the toy content used elsewhere in this spec won't do.
+  private val contentWithOperators =
+    """{"operators":[{"operatorID":"Limit-operator-1","operatorType":"Limit"}],""" +
+      """"operatorPositions":{},"links":[],"commentBoxes":[],"settings":{}}"""
+
+  /** Persist a fresh workflow owned by user 1 and return its wid. */
+  private def persistFreshWorkflow(
+      name: String,
+      content: String = contentWithOperators
+  ): Integer = {
+    val workflow = new Workflow()
+    workflow.setName(name)
+    workflow.setContent(content)
+    workflowResource.persistWorkflow(workflow, sessionUser1)
+    workflow.getWid
+  }
+
+  private def defaultView(wid: Integer): DefaultViewEnum =
+    getDSLContext
+      .select(WORKFLOW.DEFAULT_VIEW)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  private def contentOf(wid: Integer): String =
+    getDSLContext
+      .select(WORKFLOW.CONTENT)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  private def lastModifiedOf(wid: Integer): Timestamp =
+    getDSLContext
+      .select(WORKFLOW.LAST_MODIFIED_TIME)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+      .value1()
+
+  "/set-default-view API" should "switch the default view to form and back to canvas" in {
+    val wid = persistFreshWorkflow("param_toggle")
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS, "a new workflow must default to the canvas")
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+    assert(defaultView(wid) == DefaultViewEnum.FORM)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  it should "reject a user without write access" in {
+    val wid = persistFreshWorkflow("param_no_access")
+
+    assertThrows[ForbiddenException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser2)
+    }
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  it should "reject an invalid or missing view value" in {
+    val wid = persistFreshWorkflow("param_invalid")
+
+    assertThrows[BadRequestException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest("SIDEBAR"), sessionUser1)
+    }
+    // A missing/null body value must be a 400, not a 500 (lookupLiteral returns null, not NPE).
+    assertThrows[BadRequestException] {
+      workflowResource.setDefaultView(wid, DefaultViewRequest(null), sessionUser1)
+    }
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+  }
+
+  // A plain save (persistWorkflow) only writes name, description and content -- never
+  // `default_view`, so saving the canvas must not reset the default view. The edit payload mirrors
+  // what the frontend sends.
+  it should "survive a subsequent save of the workflow" in {
+    val wid = persistFreshWorkflow("param_survives_save")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("param_survives_save_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(
+      defaultView(wid) == DefaultViewEnum.FORM,
+      "saving the canvas must not reset the default view"
+    )
+  }
+
+  // The frontend feeds the saved row back as its metadata, where the publish flag has another
+  // name, so the very next autosave arrives with isPublic unset. A save must neither fail on that
+  // (the column is NOT NULL, and writing the null made every second save a 500) nor rewrite the
+  // flag: publishing is /public and /private's job alone.
+  "/persist API" should "neither fail nor change is_public when the save carries no flag" in {
+    val wid = persistFreshWorkflow("persist_keeps_public")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_keeps_public_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    // isPublic deliberately left null, exactly as the frontend's second save sends it
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getName == "persist_keeps_public_edited")
+    assert(saved.getIsPublic, "a plain save must not touch the publish flag")
+  }
+
+  it should "not un-publish a workflow when the save says isPublic = false" in {
+    val wid = persistFreshWorkflow("persist_ignores_flag")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_ignores_flag_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    edit.setIsPublic(false)
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getIsPublic, "a stale flag on a save must not un-publish the workflow")
+  }
+
+  // A biologist's path is hub -> clone -> use, so a copy has to stay usable.
+  it should "be inherited by a duplicated workflow" in {
+    val wid = persistFreshWorkflow("param_source")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
+
+    assert(copies.length == 1)
+    assert(
+      defaultView(copies.head.workflow.getWid) == DefaultViewEnum.FORM,
+      "the copy must keep the preference"
+    )
+  }
+
+  // The hub's clone button goes through cloneWorkflow (not duplicateWorkflow); a cloned
+  // form-default workflow must stay form-default so the copy opens straight into its form.
+  it should "be inherited by a workflow cloned through cloneWorkflow" in {
+    val wid =
+      seedWorkflow(sessionUser1, "clone-formview-src", "d", contentWithOperator).workflow.getWid
+    workflowResource.makePublic(wid, sessionUser1)
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val newWid = workflowResource.cloneWorkflow(wid, sessionUser2, cloneRequest)
+
+    assert(defaultView(newWid) == DefaultViewEnum.FORM, "the clone must keep the default view")
+  }
+
+  // Both views load a workflow through this endpoint, and the client needs the default view
+  // to know which one to open first. Leaving the value out of the payload left the client
+  // guessing, so it is worth pinning down.
+  it should "be reported by the endpoint both views load through" in {
+    val wid = persistFreshWorkflow("param_retrieve")
+    assert(
+      workflowResource.retrieveWorkflow(wid, sessionUser1).defaultView == DefaultViewEnum.CANVAS
+    )
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    assert(workflowResource.retrieveWorkflow(wid, sessionUser1).defaultView == DefaultViewEnum.FORM)
+  }
+
+  it should "leave a duplicate of a plain workflow defaulting to the canvas" in {
+    val wid = persistFreshWorkflow("plain_source")
+
+    val copies = workflowResource.duplicateWorkflow(WorkflowIDs(List(wid)), sessionUser1)
+
+    assert(copies.length == 1)
+    assert(defaultView(copies.head.workflow.getWid) == DefaultViewEnum.CANVAS)
+  }
+
+  // Setting the preference updates only its own column, so a mere change must not bump the
+  // workflow's last-modified time (which would reorder the dashboard's "recent" listing).
+  it should "not change last_modified_time when the default view is set" in {
+    val wid = persistFreshWorkflow("param_mtime")
+    val before = lastModifiedOf(wid)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+    assert(
+      lastModifiedOf(wid) == before,
+      "setting the default view must not bump last_modified_time"
+    )
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+    assert(lastModifiedOf(wid) == before, "setting it back must not bump last_modified_time")
+  }
+
+  // The dashboard listing (GET /workflow/list) selects specific columns, so it has to include
+  // default_view explicitly or every listed workflow would report the POJO default (null).
+  it should "be reported by the workflow listing endpoint" in {
+    val wid = persistFreshWorkflow("param_list")
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    val listed =
+      workflowResource.retrieveWorkflowsBySessionUser(sessionUser1).find(_.workflow.getWid == wid)
+
+    assert(listed.isDefined)
+    assert(
+      listed.get.workflow.getDefaultView == DefaultViewEnum.FORM,
+      "the listing must carry the default view"
+    )
+  }
+
+  // The hub loads a public workflow through retrievePublicWorkflow, and a clone opens
+  // straight into the form only when that response says the source defaults to the form.
+  it should "be reported by retrievePublicWorkflow for a public workflow" in {
+    val workflow = new Workflow()
+    workflow.setName("param_public_retrieve")
+    workflow.setContent(contentWithOperators)
+    workflow.setIsPublic(true)
+    workflowResource.persistWorkflow(workflow, sessionUser1)
+    val wid = workflow.getWid
+
+    assert(workflowResource.retrievePublicWorkflow(wid).defaultView == DefaultViewEnum.CANVAS)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    assert(workflowResource.retrievePublicWorkflow(wid).defaultView == DefaultViewEnum.FORM)
+  }
+
+  // Switching the default back to canvas only changes the preference; the author's setup lives
+  // in content under `formBinding` and must survive so switching back to form restores it.
+  it should "keep the form definition in content when the default view is set back to canvas" in {
+    val withBinding =
+      """{"operators":[{"operatorID":"Limit-operator-1","operatorType":"Limit"}],""" +
+        """"operatorPositions":{},"links":[],"commentBoxes":[],"settings":{},""" +
+        """"formBinding":{"exposed":["Limit-operator-1"]}}"""
+    val wid = persistFreshWorkflow("param_keep_def", withBinding)
+    workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
+
+    workflowResource.setDefaultView(wid, DefaultViewRequest("CANVAS"), sessionUser1)
+
+    assert(defaultView(wid) == DefaultViewEnum.CANVAS)
+    assert(
+      contentOf(wid).contains("formBinding"),
+      "switching back to canvas must not erase the form definition"
+    )
   }
 
 }

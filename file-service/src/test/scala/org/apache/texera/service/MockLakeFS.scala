@@ -22,7 +22,7 @@ package org.apache.texera.service
 import com.dimafeng.testcontainers._
 import io.lakefs.clients.sdk.{ApiClient, RepositoriesApi}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.service.util.S3StorageClient
+import org.apache.texera.service.util.{RustFSContainer, S3StorageClient}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.testcontainers.containers.Network
 import org.testcontainers.utility.DockerImageName
@@ -34,7 +34,7 @@ import software.amazon.awssdk.services.s3.S3Configuration
 import java.net.URI
 
 /**
-  * Trait to spin up a LakeFS + MinIO + Postgres stack using Testcontainers,
+  * Trait to spin up a LakeFS + RustFS + Postgres stack using Testcontainers,
   * similar to how MockTexeraDB uses EmbeddedPostgres.
   */
 trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suite =>
@@ -53,29 +53,27 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
   postgres.container.withNetwork(network)
 
   // LakeFS bakes the pre-signed endpoint into its env before containers start,
-  // so MinIO cannot use a dynamically mapped host port: presigned URLs must be
-  // reachable from the host at an address known ahead of time. Reserve a free
-  // host port and pin MinIO's 9000 to it.
-  val minioHostPort: Int = {
+  // so the object store cannot use a dynamically mapped host port: presigned URLs
+  // must be reachable from the host at an address known ahead of time. Reserve a
+  // free host port and pin the S3 port to it.
+  val objectStoreHostPort: Int = {
     val socket = new java.net.ServerSocket(0)
     try socket.getLocalPort
     finally socket.close()
   }
 
-  // MinIO for object storage
-  val minio = MinIOContainer(
-    dockerImageName = DockerImageName.parse("minio/minio:RELEASE.2025-02-28T09-55-16Z"),
-    userName = "texera_minio",
-    password = "password"
-  )
-  minio.container.withNetwork(network)
-  minio.container.withCreateContainerCmdModifier { cmd =>
+  // RustFS for object storage
+  val objectStore: GenericContainer = RustFSContainer()
+  objectStore.container.withNetwork(network)
+  objectStore.container.withCreateContainerCmdModifier { cmd =>
     import com.github.dockerjava.api.model.{ExposedPort, PortBinding, Ports}
-    // setting explicit bindings replaces them all, so 9001 (console) must keep
-    // a dynamic binding or the container readiness check never passes
+    // RustFSContainer exposes only the S3 port, so pinning it is the whole
+    // binding set; the console is not started.
     cmd.getHostConfig.withPortBindings(
-      new PortBinding(Ports.Binding.bindPort(minioHostPort), ExposedPort.tcp(9000)),
-      new PortBinding(Ports.Binding.empty(), ExposedPort.tcp(9001))
+      new PortBinding(
+        Ports.Binding.bindPort(objectStoreHostPort),
+        ExposedPort.tcp(RustFSContainer.Port)
+      )
     )
   }
 
@@ -98,10 +96,11 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
     env = Map(
       "LAKEFS_BLOCKSTORE_TYPE" -> "s3",
       "LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE" -> "true",
-      "LAKEFS_BLOCKSTORE_S3_ENDPOINT" -> s"http://${minio.container.getNetworkAliases.get(0)}:9000",
-      "LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT" -> s"http://localhost:$minioHostPort",
-      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID" -> "texera_minio",
-      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY" -> "password",
+      "LAKEFS_BLOCKSTORE_S3_ENDPOINT" -> s"http://${objectStore.container.getNetworkAliases
+        .get(0)}:${RustFSContainer.Port}",
+      "LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT" -> s"http://localhost:$objectStoreHostPort",
+      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID" -> RustFSContainer.DefaultUser,
+      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY" -> RustFSContainer.DefaultPassword,
       "LAKEFS_AUTH_ENCRYPT_SECRET_KEY" -> "random_string_for_lakefs",
       "LAKEFS_LOGGING_LEVEL" -> "INFO",
       "LAKEFS_STATS_ENABLED" -> "1",
@@ -114,10 +113,11 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
   )
   lakefs.container.withNetwork(network)
 
-  override val container = MultipleContainers(postgres, minio, lakefs)
+  override val container = MultipleContainers(postgres, objectStore, lakefs)
 
   def lakefsBaseUrl: String = s"http://${lakefs.host}:${lakefs.mappedPort(8000)}"
-  def minioEndpoint: String = s"http://${minio.host}:${minio.mappedPort(9000)}"
+  def objectStoreEndpoint: String =
+    s"http://${objectStore.host}:${objectStore.mappedPort(RustFSContainer.Port)}"
   def lakefsApiBasePath: String = s"$lakefsBaseUrl/api/v1"
 
   // ---- Clients (lazy so they initialize after containers are started) ----
@@ -134,20 +134,20 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
   lazy val repositoriesApi: RepositoriesApi = new RepositoriesApi(lakefsApiClient)
 
   /**
-    * S3 client instance for testing pointed at MinIO.
+    * S3 client instance for testing pointed at RustFS.
     *
     * Notes:
-    * - Region can be any value for MinIO, but MUST match what your signing expects.
-    *   so we use that.
+    * - The region MUST match RUSTFS_REGION: it is part of the SigV4 credential scope.
     * - Path-style is important: http://host:port/bucket/key
     */
   lazy val s3Client: S3Client = {
     //Temporal credentials for testing purposes only
-    val creds = AwsBasicCredentials.create("texera_minio", "password")
+    val creds =
+      AwsBasicCredentials.create(RustFSContainer.DefaultUser, RustFSContainer.DefaultPassword)
     S3Client
       .builder()
       .endpointOverride(URI.create(StorageConfig.s3Endpoint)) // set in afterStart()
-      .region(Region.US_WEST_2) // Required for `.build()`; not important in this test config.
+      .region(Region.US_WEST_2) // must match RustFSContainer's RUSTFS_REGION
       .credentialsProvider(StaticCredentialsProvider.create(creds))
       .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
       .build()
@@ -172,7 +172,7 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
     }
 
     // replace storage endpoints in StorageConfig
-    StorageConfig.s3Endpoint = minioEndpoint
+    StorageConfig.s3Endpoint = objectStoreEndpoint
     StorageConfig.lakefsEndpoint = lakefsApiBasePath
 
     // create S3 bucket used by lakeFS in tests

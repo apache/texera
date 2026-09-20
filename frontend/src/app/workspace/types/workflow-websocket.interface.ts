@@ -22,7 +22,6 @@ import {
   LogicalOperator,
   LogicalPlan,
   OperatorStatsUpdate,
-  WebOutputMode,
   WorkflowResultUpdateEvent,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
@@ -124,16 +123,6 @@ export type ResultExportResponse = Readonly<{
   message: string;
 }>;
 
-export type OperatorAvailableResult = Readonly<{
-  operatorID: string;
-  cacheValid: boolean;
-  outputMode: WebOutputMode;
-}>;
-
-export type WorkflowAvailableResultEvent = Readonly<{
-  availableOperators: ReadonlyArray<OperatorAvailableResult>;
-}>;
-
 export type OperatorResultCacheStatus = "cache invalid" | "cache valid";
 
 export interface CacheStatusUpdateEvent
@@ -233,7 +222,6 @@ export type TexeraWebsocketEventTypeMap = {
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   ResultExportResponse: ResultExportResponse;
-  WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
   WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;

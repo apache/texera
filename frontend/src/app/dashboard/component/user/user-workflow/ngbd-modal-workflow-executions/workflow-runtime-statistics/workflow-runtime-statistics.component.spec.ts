@@ -68,12 +68,17 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
 
   // Two operators, the first appearing twice, so grouping/relative-time behavior is observable.
   // initialTimestamp = 1000 (first stat) => relative timestamps 0, 2000, 1000.
+  // Every metric the scan operator carries gets a DISTINCT value, so no two metric keys produce the
+  // same y-series and the metric-index -> metric-key mapping cannot be silently permuted.
   function validStats(): WorkflowRuntimeStatistics[] {
     return [
       makeStat({
         operatorId: "scan-op-111111",
         timestamp: 1000,
         inputTupleCount: 10,
+        inputTupleSize: 11,
+        outputTupleCount: 12,
+        outputTupleSize: 13,
         totalDataProcessingTime: 2 * NANOS,
         totalControlProcessingTime: 3 * NANOS,
         totalIdleTime: 4 * NANOS,
@@ -83,7 +88,12 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
         operatorId: "scan-op-111111",
         timestamp: 3000,
         inputTupleCount: 20,
+        inputTupleSize: 21,
+        outputTupleCount: 22,
+        outputTupleSize: 23,
         totalDataProcessingTime: 5 * NANOS,
+        totalControlProcessingTime: 6 * NANOS,
+        totalIdleTime: 7 * NANOS,
         numberOfWorkers: 2,
       }),
       makeStat({
@@ -236,6 +246,15 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     // Metric 4 = Total Data Processing Time (ns->s converted during grouping).
     const scanProc = seriesNamed(dataset(4, grouped), "scan-111111");
     expect(scanProc.y).toEqual([2, 5]);
+
+    // The remaining indices, so no two entries of the metricKeys array are interchangeable:
+    // 1 = Input Tuple Size, 2 = Output Tuple Count, 3 = Output Tuple Size,
+    // 5 = Total Control Processing Time, 6 = Total Idle Time (5 and 6 ns->s converted).
+    expect(seriesNamed(dataset(1, grouped), "scan-111111").y).toEqual([11, 21]);
+    expect(seriesNamed(dataset(2, grouped), "scan-111111").y).toEqual([12, 22]);
+    expect(seriesNamed(dataset(3, grouped), "scan-111111").y).toEqual([13, 23]);
+    expect(seriesNamed(dataset(5, grouped), "scan-111111").y).toEqual([3, 6]);
+    expect(seriesNamed(dataset(6, grouped), "scan-111111").y).toEqual([4, 7]);
   });
 
   it("onTabChanged re-plots the newly selected metric onto the #chart div", async () => {
@@ -271,5 +290,37 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     expect(warnSpy).toHaveBeenCalledWith("No workflow runtime statistics available.");
     expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
     expect(gd.data).toBeUndefined();
+  });
+
+  it("onTabChanged after a statistics-less init yields an empty dataset and warns instead of plotting", async () => {
+    // ngOnInit bails out before groupedStatistics is ever assigned, but the tabs still render,
+    // so a tab click reaches createDataset with no grouping in place.
+    await createFixture({ workflowRuntimeStatistics: undefined });
+    const gd = chartDiv();
+    fixture.detectChanges();
+
+    expect((component as unknown as { createDataset(i: number): Series[] }).createDataset(3)).toEqual([]);
+
+    component.onTabChanged(3);
+
+    expect(warnSpy).toHaveBeenCalledWith("No data available for the chart.");
+    expect(gd.data).toBeUndefined();
+  });
+
+  it("createDataset falls back to the numberOfWorkers metric for an out-of-range metric index", async () => {
+    await createFixture({ workflowRuntimeStatistics: validStats() });
+    const grouped = group();
+
+    // NOTE: the template renders exactly one nz-tab per metric key, so the real UI never produces
+    // an out-of-range index. This pins a defensive default in createDataset for programmatic callers,
+    // not a UI path.
+    // There are 8 metric keys (indices 0..7), so index 8 selects none of them.
+    const outOfRange = seriesNamed(dataset(8, grouped), "scan-111111");
+
+    // It falls back to numberOfWorkers, i.e. the same series metric index 7 selects...
+    expect(outOfRange.y).toEqual([1, 2]);
+    expect(outOfRange.y).toEqual(seriesNamed(dataset(7, grouped), "scan-111111").y);
+    // ...and not the metric-0 series, so the fallback really did pick a different key.
+    expect(outOfRange.y).not.toEqual(seriesNamed(dataset(0, grouped), "scan-111111").y);
   });
 });

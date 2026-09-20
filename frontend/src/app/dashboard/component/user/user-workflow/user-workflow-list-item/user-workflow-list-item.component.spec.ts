@@ -28,10 +28,9 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "../../../../../common/service/workflow-persist/workflow-persist.service";
-import { UserProjectService } from "../../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
+import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "../../../../../common/type/workflow";
 import { of } from "rxjs";
 import { NzListComponent } from "ng-zorro-antd/list";
@@ -64,15 +63,14 @@ class TestHostComponent {
   @ViewChild(UserWorkflowListItemComponent, { static: true }) inner!: UserWorkflowListItemComponent;
 }
 
-// A fresh DashboardEntry per call so methods that mutate the workflow (rename,
-// remove-from-project) cannot leak into the shared testWorkflowEntries fixture.
-function makeWorkflowEntry(workflowOverrides: Partial<Workflow> = {}, projectIDs: number[] = [1]): DashboardEntry {
+// A fresh DashboardEntry per call so methods that mutate the workflow (rename)
+// cannot leak into the shared testWorkflowEntries fixture.
+function makeWorkflowEntry(workflowOverrides: Partial<Workflow> = {}): DashboardEntry {
   return new DashboardEntry({
     workflow: { ...testWorkflow1, ...workflowOverrides },
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [...projectIDs],
     ownerId: 1,
     coverImage: null,
   });
@@ -87,7 +85,6 @@ describe("UserWorkflowListItemComponent", () => {
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: UserProjectService, useValue: new StubUserProjectService() },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         provideRouter([]),
         ...commonTestProviders,
@@ -161,16 +158,6 @@ describe("UserWorkflowListItemComponent", () => {
       vi.restoreAllMocks();
     });
 
-    it("getProjectIds returns the set of the entry's project ids", () => {
-      component.entry = makeWorkflowEntry({}, [1, 2, 3]);
-      expect(component.getProjectIds()).toEqual(new Set([1, 2, 3]));
-    });
-
-    it("isLightColor reports light vs dark hex colors", () => {
-      expect(component.isLightColor("ffffff")).toBe(true);
-      expect(component.isLightColor("000000")).toBe(false);
-    });
-
     describe("confirmUpdateWorkflowCustomName", () => {
       it("persists the new name, updates the workflow, and stops editing", () => {
         const persist = TestBed.inject(WorkflowPersistService);
@@ -233,17 +220,6 @@ describe("UserWorkflowListItemComponent", () => {
       });
     });
 
-    it("removeWorkflowFromProject calls the service and prunes the entry's project ids", () => {
-      const userProject = TestBed.inject(UserProjectService);
-      const spy = vi.spyOn(userProject, "removeWorkflowFromProject").mockReturnValue(of({} as Response));
-      component.entry = makeWorkflowEntry({ wid: 9 }, [1, 2]);
-
-      component.removeWorkflowFromProject(1);
-
-      expect(spy).toHaveBeenCalledWith(1, 9);
-      expect([...component.entry.workflow.projectIDs]).toEqual([2]);
-    });
-
     it("onClickGetWorkflowExecutions opens the execution-history modal for the workflow", () => {
       const modal = TestBed.inject(NzModalService);
       const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
@@ -281,6 +257,64 @@ describe("UserWorkflowListItemComponent", () => {
         expect(spy).not.toHaveBeenCalled();
       });
     });
+
+    it("opens the share modal for this row's workflow, carrying its write access and the owner list", async () => {
+      const entry = makeWorkflowEntry({ wid: 21, name: "wf" });
+      entry.workflow.accessLevel = "WRITE";
+      component.entry = entry;
+      const persist = TestBed.inject(WorkflowPersistService);
+      // The owner list is the autocomplete the dialog exists to offer; it is the one awaited
+      // value in the method, so nothing else proves it is resolved before the modal opens.
+      vi.spyOn(persist, "retrieveOwners").mockReturnValue(of(["a@example.com", "b@example.com"]));
+      const modal = TestBed.inject(NzModalService);
+      const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nzContent: ShareAccessComponent,
+          nzData: expect.objectContaining({
+            writeAccess: true,
+            type: "workflow",
+            id: 21,
+            allOwners: ["a@example.com", "b@example.com"],
+          }),
+        })
+      );
+    });
+
+    it("marks the share modal read-only for a row the viewer can only read", async () => {
+      const entry = makeWorkflowEntry({ wid: 21 });
+      entry.workflow.accessLevel = "READ";
+      component.entry = entry;
+      const modal = TestBed.inject(NzModalService);
+      const spy = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      await component.onClickOpenShareAccess();
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ nzData: expect.objectContaining({ writeAccess: false }) })
+      );
+    });
+
+    describe("mis-wired inputs", () => {
+      // Both accessors are read from the template on every change-detection pass, so a silent
+      // undefined would surface as an unrelated crash deep in ng-zorro instead of here.
+      it("refuses to read the entry before one has been provided", () => {
+        component.entry = undefined as any;
+
+        expect(() => component.entry).toThrowError("entry property must be provided to UserWorkflowListItemComponent.");
+      });
+
+      it("refuses to read a workflow off an entry that carries no workflow payload", () => {
+        // The guard tests for the payload, not for entry.type: an entry of any kind that does
+        // carry a workflow passes it, so this must not claim to be a kind check.
+        component.entry = { name: "ds" } as unknown as DashboardEntry;
+
+        expect(() => component.workflow).toThrowError(/Entry must be workflow/);
+      });
+    });
   });
 
   function sendInput(editableDescriptionInput: HTMLInputElement, text: string) {
@@ -299,36 +333,16 @@ describe("UserWorkflowListItemComponent", () => {
 describe("UserWorkflowListItemComponent rendering", () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let component: UserWorkflowListItemComponent;
-  let projectService: {
-    getProjectList: ReturnType<typeof vi.fn>;
-    removeWorkflowFromProject: ReturnType<typeof vi.fn>;
-  };
-
-  /**
-   * Projects are stored with a bare hex colour and the template prepends the '#'. The shared
-   * testUserProjects fixture already includes one, which makes every tag fail the format check and
-   * take the dark arm, so this suite supplies its own colours to reach both.
-   */
-  const PROJECTS = [
-    { pid: 1, name: "Light", description: "", ownerId: 1, color: "ffffff", creationTime: 0, accessLevel: "WRITE" },
-    { pid: 2, name: "Dark", description: "", ownerId: 1, color: "101010", creationTime: 0, accessLevel: "WRITE" },
-  ];
-
   let persistService: { updateWorkflowName: ReturnType<typeof vi.fn> };
 
   async function setup(opts: { executionsTracking?: boolean } = {}) {
     // StubWorkflowPersistService does not declare updateWorkflowName, so it cannot be spied on.
     persistService = { updateWorkflowName: vi.fn(() => of({} as Response)) };
-    projectService = {
-      getProjectList: vi.fn(() => of(PROJECTS as any)),
-      removeWorkflowFromProject: vi.fn(() => of({} as Response)),
-    };
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: persistService },
-        { provide: UserProjectService, useValue: projectService },
         { provide: FileSaverService, useValue: { saveAs: vi.fn() } },
         provideRouter([]),
         ...commonTestProviders,
@@ -370,6 +384,17 @@ describe("UserWorkflowListItemComponent rendering", () => {
         return typeof t === "string" && pred(t);
       })
       .map(d => d.nativeElement as HTMLElement);
+  }
+
+  /**
+   * The one element whose tooltip title satisfies the predicate. Indexing byTooltip() directly
+   * reports a missing or duplicated action as a TypeError on `undefined.click()` — or, worse,
+   * silently clicks the first of several; asserting the match is unique names the real problem.
+   */
+  function onlyByTooltip(pred: (title: string) => boolean): HTMLElement {
+    const matches = byTooltip(pred);
+    expect(matches).toHaveLength(1);
+    return matches[0];
   }
 
   beforeEach(async () => {
@@ -445,37 +470,6 @@ describe("UserWorkflowListItemComponent rendering", () => {
     });
   });
 
-  describe("project tags", () => {
-    it("removes the project whose tag was clicked, not the first one", () => {
-      const el = render(makeWorkflowEntry({ wid: 7 }, [1, 2]));
-
-      void el;
-      const removers = byTooltip(t => t === "Remove from project");
-      expect(removers.length).toBe(2);
-      // Second tag is pid 2; passing the loop variable is what makes this land on 2 and not 1.
-      removers[1].click();
-
-      expect(projectService.removeWorkflowFromProject).toHaveBeenCalledWith(2, 7);
-    });
-
-    it("darkens the text on a light tag and lightens it on a dark one", () => {
-      // Asserted per tag rather than "both classes appear somewhere": inverting both arms merely
-      // swaps which tag gets which class, and a set-level check cannot see that.
-      render(makeWorkflowEntry({ wid: 7 }, [1, 2]));
-
-      const [lightTag] = byTooltip(t => t === "Light");
-      const [darkTag] = byTooltip(t => t === "Dark");
-
-      expect(lightTag.classList).toContain("light-color");
-      expect(lightTag.classList).not.toContain("dark-color");
-      expect(lightTag.style.color).toBe("black");
-
-      expect(darkTag.classList).toContain("dark-color");
-      expect(darkTag.classList).not.toContain("light-color");
-      expect(darkTag.style.color).toBe("white");
-    });
-  });
-
   describe("row actions", () => {
     it("withholds the executions action while execution tracking is off", () => {
       render(makeWorkflowEntry());
@@ -509,6 +503,37 @@ describe("UserWorkflowListItemComponent rendering", () => {
       fixture.debugElement.query(By.css("button[nz-popconfirm]")).triggerEventHandler("nzOnConfirm", null);
       expect(deleted).toHaveBeenCalledTimes(1);
       expect(duplicated).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the executions modal from the history action", async () => {
+      await setup({ executionsTracking: true });
+      render(makeWorkflowEntry({ wid: 11, name: "wf" }));
+      const modal = TestBed.inject(NzModalService);
+      const create = vi.spyOn(modal, "create").mockReturnValue({} as any);
+
+      onlyByTooltip(t => t.startsWith("Executions of the workflow")).click();
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ nzContent: WorkflowExecutionHistoryComponent, nzData: { wid: 11 } })
+      );
+    });
+  });
+
+  describe("inline name and description editors", () => {
+    it("puts name editing behind the pencil and description editing behind the plus", () => {
+      // Two adjacent icon buttons on the same toolbar; swapping them would open the wrong editor.
+      render(makeWorkflowEntry());
+      expect(component.editingName).toBe(false);
+      expect(component.editingDescription).toBe(false);
+
+      onlyByTooltip(t => t === "Customize Workflow Name").click();
+
+      expect(component.editingName).toBe(true);
+      expect(component.editingDescription).toBe(false);
+
+      onlyByTooltip(t => t === "Add Description").click();
+
+      expect(component.editingDescription).toBe(true);
     });
   });
 

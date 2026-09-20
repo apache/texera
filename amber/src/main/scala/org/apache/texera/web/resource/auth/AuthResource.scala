@@ -31,7 +31,7 @@ import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnu
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
-import org.apache.texera.web.model.http.response.TokenIssueResponse
+import org.apache.texera.web.model.http.response.{RegistrationResponse, TokenIssueResponse}
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
@@ -45,8 +45,11 @@ import javax.ws.rs.core.{MediaType, Response}
 /**
   * The address supplied by a signed-in user whose account has none — see [[AuthResource.setEmail]].
   * There is no uid: the account is the one the request is authenticated as.
+  *
+  * `code` is the proof mailed to that address by [[AuthResource.sendEmailCode]], and is required
+  * only where `user-sys.email-verification` is on. The same shape serves both calls.
   */
-case class SetEmailRequest(email: String)
+case class SetEmailRequest(email: String, code: String = null)
 
 object AuthResource {
   private val logger: Logger = Logger(classOf[AuthResource])
@@ -155,12 +158,50 @@ object AuthResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class AuthResource {
 
+  protected def emailVerificationRequired: Boolean = UserSystemConfig.emailVerification
+  protected def verifier: EmailCodeVerifier = EmailCodeVerifier.instance
+
+  /**
+    * Mail a code to the address a signed-in account without one wants to claim.
+    *
+    * Refused for an account that already has an address: that account has nothing to prove here, and
+    * allowing it would turn this into a way to send mail to arbitrary addresses.
+    */
+  @POST
+  @Path("/email/code")
+  @RolesAllowed(Array("INACTIVE", "RESTRICTED", "REGULAR", "ADMIN"))
+  def sendEmailCode(request: SetEmailRequest, @Auth sessionUser: SessionUser): Unit = {
+    val email = Option(request.email).getOrElse("").trim
+    ValidateEmail(email)
+
+    val current = new UserDao(
+      SqlServer.getInstance().createDSLContext().configuration()
+    ).fetchOneByUid(sessionUser.getUid)
+    if (current == null) throw new NotAuthorizedException("Login credentials are incorrect.")
+    if (current.getEmail != null) {
+      throw new WebApplicationException(
+        "This account already has an email address.",
+        Response.Status.CONFLICT
+      )
+    }
+
+    verifier.issue(EmailCodeVerifier.ADD_EMAIL, sessionUser.getUid.toString, email)
+  }
+
   @PUT
   @Path("/email")
   @RolesAllowed(Array("INACTIVE", "RESTRICTED", "REGULAR", "ADMIN"))
   def setEmail(request: SetEmailRequest, @Auth sessionUser: SessionUser): TokenIssueResponse = {
     val email = Option(request.email).getOrElse("").trim
     ValidateEmail(email)
+    if (emailVerificationRequired) {
+      verifier.check(
+        EmailCodeVerifier.ADD_EMAIL,
+        sessionUser.getUid.toString,
+        email,
+        request.code
+      )
+    }
 
     val user = SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
@@ -262,9 +303,50 @@ class AuthResource {
     }
   }
 
+  /**
+    * Begin a registration.
+    *
+    * Where verification is off this creates the account outright, as it always has. Where it is on,
+    * nothing is created: a code goes to the address, and the client re-submits the same fields plus
+    * that code to [[registerVerify]]. Nothing about the pending signup is written down anywhere in
+    * between — the client is holding it, and the code is derived rather than stored.
+    */
   @POST
   @Path("/register")
-  def register(request: UserRegistrationRequest): TokenIssueResponse = {
+  def register(request: UserRegistrationRequest): RegistrationResponse = {
+    val (username, useremail, userpassword) = validatedRegistration(request)
+
+    if (!emailVerificationRequired) {
+      return RegistrationResponse(createRegisteredAccount(username, useremail, userpassword))
+    }
+
+    verifier.issue(EmailCodeVerifier.REGISTER, username, useremail)
+    // No token: the account does not exist yet, and will not until the code comes back.
+    RegistrationResponse(null)
+  }
+
+  /**
+    * Finish a registration by presenting the code mailed to the address, along with the same fields
+    * [[register]] was given.
+    *
+    * The password arrives again rather than having been kept: re-submitting is what keeps this
+    * stateless, and it means no password or hash is ever stored, mailed, or handed to the browser
+    * while the signup is pending.
+    */
+  @POST
+  @Path("/register/verify")
+  def registerVerify(request: UserRegistrationRequest): RegistrationResponse = {
+    val (username, useremail, userpassword) = validatedRegistration(request)
+
+    if (emailVerificationRequired) {
+      verifier.check(EmailCodeVerifier.REGISTER, username, useremail, request.code)
+    }
+
+    RegistrationResponse(createRegisteredAccount(username, useremail, userpassword))
+  }
+
+  /** Trim, then apply the checks that do not depend on what is already in the database. */
+  private def validatedRegistration(request: UserRegistrationRequest): (String, String, String) = {
     val username = Option(request.username).getOrElse("").trim
     val useremail = Option(request.email).getOrElse("").trim
     val userpassword = request.password
@@ -273,20 +355,24 @@ class AuthResource {
     ValidateEmail(useremail)
     if (userpassword == null || userpassword.isEmpty)
       throw new NotAcceptableException("Password cannot be empty")
+    (username, useremail, userpassword)
+  }
 
+  /** The authoritative uniqueness checks live here, inside the create. */
+  private def createRegisteredAccount(
+      username: String,
+      useremail: String,
+      userpassword: String
+  ): String = {
     val usernameExists = LocalAuthProvisioner.handleExists(username)
     val existingByEmail = fetchUserByEmailIgnoreCase(useremail)
     val emailExists = existingByEmail != null
 
-    // A placeholder account (created for a dataset contributor, never had any
-    // credential) is claimed by the first registration with its email. The
-    // account keeps its uid, so existing contributor links stay valid, and it
-    // stays INACTIVE until an admin approves it.
     if (!usernameExists && emailExists && existingByEmail.getIsPlaceholder) {
       existingByEmail.setName(username)
       claimPlaceholder(existingByEmail)
       LocalAuthProvisioner.claimWithLocalCredential(existingByEmail, username, userpassword)
-      return TokenIssueResponse(jwtToken(jwtClaims(existingByEmail)))
+      return jwtToken(jwtClaims(existingByEmail))
     }
 
     (usernameExists, emailExists) match {
@@ -301,7 +387,7 @@ class AuthResource {
         user.setRole(UserRoleEnum.INACTIVE)
         // Reports losing the race to a concurrent registration of the same handle as a 409.
         LocalAuthProvisioner.createLocalAccount(user, username, userpassword)
-        TokenIssueResponse(jwtToken(jwtClaims(user)))
+        jwtToken(jwtClaims(user))
     }
   }
 

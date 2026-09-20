@@ -218,6 +218,18 @@ describe("SharedModelChangeHandler", () => {
     });
   });
 
+  describe("element position change with no value", () => {
+    it("leaves the joint element alone when the update carries no position", () => {
+      addOperatorWithPosition(mockScanPredicate);
+      const setAbsolute = vi.spyOn(jointGraphWrapper, "setAbsolutePosition");
+
+      // An update whose value is empty: the handler must not try to place the element.
+      texeraGraph.sharedModel.elementPositionMap.set(mockScanPredicate.operatorID, null as never);
+
+      expect(setAbsolute).not.toHaveBeenCalled();
+    });
+  });
+
   describe("comment box add and delete", () => {
     it("should emit commentBoxAddSubject and add a joint comment element when a comment box is added", () => {
       let addedCommentBox: any;
@@ -441,6 +453,91 @@ describe("SharedModelChangeHandler", () => {
       expect(change.newProperty.dependencies).toEqual([{ id: 0, internal: false }]);
       sub.unsubscribe();
     });
+
+    it("reports a display-name change on an output port too", () => {
+      // The input side is covered above; the handler picks the port list from an `isInput`
+      // ternary, so the output side is a separate arm.
+      const operatorWithNamedOutput: OperatorPredicate = {
+        ...mockScanPredicate,
+        outputPorts: [{ portID: "output-0", displayName: "orig" }],
+      };
+      addOperatorWithPosition(operatorWithNamedOutput);
+
+      let change: { operatorID: string; portID: string; newDisplayName: string } | undefined;
+      const sub = texeraGraph.getPortDisplayNameChangedSubject().subscribe(v => (change = v));
+
+      const portType = texeraGraph.getSharedPortDescriptionType({
+        operatorID: operatorWithNamedOutput.operatorID,
+        portID: "output-0",
+      });
+      (portType!.get("displayName") as any).insert(0, "new-");
+
+      expect(change).toBeDefined();
+      expect(change!.portID).toEqual("output-0");
+      expect(change!.newDisplayName).toEqual("new-orig");
+      sub.unsubscribe();
+    });
+
+    it("reports a property change on an output port too", () => {
+      addOperatorWithPosition(mockScanPredicate);
+
+      let change: any;
+      const sub = texeraGraph.getPortPropertyChangedStream().subscribe(v => (change = v));
+
+      texeraGraph.setPortProperty(
+        { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
+        { partitionInfo: { type: "none" }, dependencies: [] }
+      );
+
+      expect(change).toBeDefined();
+      expect(change.operatorPortID.portID).toEqual("output-0");
+      sub.unsubscribe();
+    });
+
+    it("stays quiet for a port property change that carries no partition or dependencies", () => {
+      addOperatorWithPosition(mockSentimentPredicate);
+
+      let emitted = false;
+      const sub = texeraGraph.getPortPropertyChangedStream().subscribe(() => (emitted = true));
+
+      // Only one half of the pair the handler requires before announcing a change.
+      texeraGraph.setPortProperty(
+        { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" },
+        { partitionInfo: { type: "hash", hashAttributeNames: ["col"] } }
+      );
+
+      expect(emitted).toBe(false);
+      sub.unsubscribe();
+    });
+
+    it("removes nothing from the joint element when that side has no ports", () => {
+      // mockScanPredicate has output ports only; the input side has nothing to strip, which
+      // is the arm the port-removal helper guards against.
+      addOperatorWithPosition(mockScanPredicate);
+      const handler = (texeraGraph as any).sharedModelChangeHandler ?? (service as any).sharedModelChangeHandler;
+      const element = jointGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element;
+      const portsBefore = element.getPorts().length;
+
+      (handler as any).onPortRemoved(mockScanPredicate.operatorID, true);
+
+      expect(element.getPorts().length).toEqual(portsBefore);
+    });
+
+    it("refuses a port event that is neither a display name nor a property change", () => {
+      addOperatorWithPosition(mockSentimentPredicate);
+      const handler = (texeraGraph as any).sharedModelChangeHandler ?? (service as any).sharedModelChangeHandler;
+
+      // A path of length 1 reaches neither the add/delete arm (length 2) nor either
+      // property arm, which is the guard's whole purpose. Yjs cannot produce such an event
+      // through the graph API, so it is handed to the handler directly.
+      expect(() =>
+        (handler as any).handlePortEvent(
+          { path: ["ports"], delta: [], target: { toJSON: () => "" } },
+          mockSentimentPredicate.operatorID,
+          true
+        )
+      ).toThrow(/undefined port operation/);
+    });
   });
 
   describe("deep comment box changes", () => {
@@ -575,6 +672,24 @@ describe("SharedModelChangeHandler", () => {
 
       expect(added?.operatorID).toBe(mockScanPredicate.operatorID);
       expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
+      sub.unsubscribe();
+    });
+
+    it("deletes an operator that another client removed", () => {
+      addOperatorWithPosition(mockScanPredicate);
+      const deleted: string[] = [];
+      const sub = texeraGraph.getOperatorDeleteStream().subscribe(e => deleted.push(e.deletedOperatorID));
+
+      applyAsRemote(peerDoc =>
+        peerDoc.transact(() => {
+          peerDoc.getMap("operatorIDMap").delete(mockScanPredicate.operatorID);
+          peerDoc.getMap("elementPositionMap").delete(mockScanPredicate.operatorID);
+        })
+      );
+
+      // The local-only unhighlight is skipped for a remote transaction; the removal itself is not.
+      expect(deleted).toEqual([mockScanPredicate.operatorID]);
+      expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeFalsy();
       sub.unsubscribe();
     });
 
