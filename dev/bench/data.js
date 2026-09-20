@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789822621790,
+  "lastUpdate": 1789909500600,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14708,6 +14708,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 611.3257312330819,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "roshiiiiz",
+            "username": "roshiiiz",
+            "email": "roshaanzafar12@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "28594efe6cf7628be81bd9ff8939199417773ecd",
+          "message": "fix(agent-service): reject maxSteps 0 in settings (#7821)\n\n<!--\nThanks for sending a pull request (PR)! Here are some tips for you:\n1. If this is your first time, please read our contributor guidelines:\n[Contributing to\nTexera](https://github.com/apache/texera/blob/main/CONTRIBUTING.md)\n  2. Ensure you have added or run the appropriate tests for your PR\n  3. If the PR is work in progress, mark it a draft on GitHub.\n  4. Please write your PR title to summarize what this PR proposes, we\n    are following Conventional Commits style for PR titles as well:\n- `fix` is for behavior that worked before and no longer does; adding or\nremoving a functionality, or reworking one so that user-facing behavior\nintentionally changes, is a `feat`; a change that leaves the user-facing\n        behavior unchanged is a `refactor`.\n- A test-only PR is `test(<module>): ...`; repairing a broken test is\n        `fix(test, <module>): ...`.\n- A dependency bump is `fix(deps, <module>): ...` when it patches a CVE\nand `chore(deps, <module>): ...` otherwise; GitHub Actions bumps take\n        `ci` as their module, e.g. `chore(deps, ci): ...`.\n- A PR targeting a release branch appends the version as the last scope\n        component, e.g. `fix(deps, frontend, v1.2): ...`.\n    See CONTRIBUTING.md for the full convention.\n  5. Be sure to keep the PR description updated to reflect all changes.\n-->\n\n### What changes were proposed in this PR?\n<!--\nPlease clarify what changes you are proposing. The purpose of this\nsection\nis to outline the changes. Here are some tips for you:\n  1. If you propose a new API, clarify the use case for a new API.\n  2. If you fix a bug, you can clarify why it is a bug.\n  3. If it is a refactoring, clarify what has been changed.\n  3. It would be helpful to include a before-and-after comparison using \n     screenshots or GIFs.\n  4. Please consider writing useful notes for better and faster reviews.\n-->\nThis PR fixes a critical bug where providing a `maxSteps` value of `0`\nor negative would cause the agent execution loop to hang indefinitely.\n\nChanges made:\n- Updated the Elysia validation schema in `server.ts` to enforce a `{\nminimum: 1 }` rule for `maxSteps`. This guarantees the server rejects\ninvalid limits at the API boundary with a 400 Bad Request.\n- Added a fallback boundary clamp using `Math.max(1, updates.maxSteps)`\nin `texera-agent.ts` during agent settings updates. This guarantees\ninternal state strictly enforces the limit even if schema validation is\nbypassed.\n- Added a new automated unit test to `texera-agent.spec.ts` asserting\nthat `maxSteps` is correctly clamped to 1 if `0` or a negative number is\nprovided.\n\n### Any related issues, documentation, discussions?\n<!--\nPlease use this section to link other resources if not mentioned\nalready.\n1. If this PR fixes an issue, please include `Fixes #1234`, `Resolves\n#1234`\nor `Closes #1234`. If it is only related, simply mention the issue\nnumber.\n  2. If there is design documentation, please add the link.\n  3. If there is a discussion in the mailing list, please add the link.\n-->\nCloses #7484\n\n### How was this PR tested?\n<!--\nIf tests were added, say they were added here. Or simply mention that if\nthe PR\nis tested with existing test cases. Make sure to include/update test\ncases that\ncheck the changes thoroughly including negative and positive cases if\npossible.\nIf it was tested in a way different from regular unit tests, please\nclarify how\nyou tested step by step, ideally copy and paste-able, so that other\nreviewers can\ntest and check, and descendants can verify in the future. If tests were\nnot added,\nplease describe why they were not added and/or why it was difficult to\nadd.\n-->\nTested manually via local API and verified with automated unit tests:\n1. Booted the local `agent-service` via `bun run dev`.\n2. Issued a `PATCH /api/agents/:id/settings` HTTP request passing\n`{\"maxSteps\": 0}`.\n3. Verified the server correctly rejected the payload with a `400 Bad\nRequest` schema validation error (\"Expected number to be greater or\nequal to 1\").\n4. Ran the automated `agent-service` test suite (`bun test`) which\nexecutes the new dedicated unit test asserting the clamping behavior.\nThe entire suite successfully passed.\n\n### Was this PR authored or co-authored using generative AI tooling?\n<!--\nIf generative AI tooling has been used in the process of authoring this\nPR,\nplease include the phrase: 'Generated-by: ' followed by the name of the\ntool\nand its version. If no, write 'No'. \nPlease refer to the [ASF Generative Tooling\nGuidance](https://www.apache.org/legal/generative-tooling.html) for\ndetails.\n-->\nGenerated-by: Antigravity (DeepMind)\n\n\n<img width=\"897\" height=\"301\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/3c6b76c9-0fd2-4609-9a9b-1187e7f19ca0\"\n/>\n\n=========================================================================================================================================================================================================================================================\n<img width=\"917\" height=\"402\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/7a01398e-0db2-4088-a32f-9f810458d692\"\n/>\n\n---------\n\nCo-authored-by: Xuan Gu <162244362+xuang7@users.noreply.github.com>",
+          "timestamp": "2026-09-20T00:43:43Z",
+          "url": "https://github.com/apache/texera/commit/28594efe6cf7628be81bd9ff8939199417773ecd"
+        },
+        "date": 1789909500299,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 682.3278081935728,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1108.2764769223345,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1162.654972557262,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 843.4685067907192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1137.3871554257305,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1176.7652667051022,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 866.5936008671218,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1137.207836656683,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1163.5747274498149,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 724.1153366259357,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 926.490513030983,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 946.1370549991602,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 744.4761614616147,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 913.9218815877509,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 935.0321337316127,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 730.9349174657748,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 910.4174634792043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 928.4767471541427,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 453.5019826604428,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 530.2718782583012,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 534.7927473875882,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 458.3174331653315,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 526.9225857443861,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 533.6758632597956,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 439.3404689329623,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 508.98843343347994,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 516.7665296210771,
             "unit": "tuples/sec"
           }
         ]
