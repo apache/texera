@@ -56,7 +56,8 @@ export class HeatmapStatsRestoreService {
    * - the workflow has never been saved (no wid),
    * - an execution is in progress, on entry or by the time the fetches return
    *   (the live stream wins),
-   * - the workflow has no executions or the run left no statistics.
+   * - the workflow has no executions or the run left no statistics,
+   * - another producer writes statistics first (a new run clears the canvas).
    */
   public restoreLatestRunStatistics(): Observable<void> {
     return defer(() => {
@@ -96,7 +97,8 @@ export class HeatmapStatsRestoreService {
         // pressing Run resets the execution state to Uninitialized, which isExecuting() cannot
         // see until the backend answers, but resetStatus() writes here first. Unsubscribing
         // tears the pending fetch down, so the tap above never runs. A plain Subject, so
-        // subscribing does not itself emit, and the restore's own write is downstream.
+        // subscribing does not itself emit. The restore's own write does fire it, from inside
+        // the tap, which closes the stream only after that write has reached its subscribers.
         takeUntil(this.workflowStatusService.getStatisticsUpdateStream())
       );
     });

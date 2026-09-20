@@ -63,6 +63,19 @@ describe("WorkflowStatusService", () => {
     service = TestBed.inject(WorkflowStatusService);
   });
 
+  it("emits nothing on subscribe, before any producer has written", () => {
+    // Load-bearing for HeatmapStatsRestoreService, which uses this stream as a takeUntil
+    // notifier: were it a BehaviorSubject, the restore would be cancelled on every page load.
+    const stateEmissions: Record<string, OperatorState>[] = [];
+    const statisticsEmissions: Record<string, OperatorStatistics>[] = [];
+
+    service.getStateUpdateStream().subscribe(s => stateEmissions.push(s));
+    service.getStatisticsUpdateStream().subscribe(s => statisticsEmissions.push(s));
+
+    expect(stateEmissions).toHaveLength(0);
+    expect(statisticsEmissions).toHaveLength(0);
+  });
+
   it("splits an OperatorStatisticsUpdateEvent into the state and statistics streams", () => {
     const stateEmissions: Record<string, OperatorState>[] = [];
     const statisticsEmissions: Record<string, OperatorStatistics>[] = [];
