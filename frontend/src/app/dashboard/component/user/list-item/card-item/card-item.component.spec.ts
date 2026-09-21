@@ -43,6 +43,8 @@ import {
 } from "../../../../../app-routing.constant";
 import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { DefaultView } from "src/app/dashboard/type/workflow-metadata.interface";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
@@ -86,7 +88,11 @@ describe("CardItemComponent", () => {
   let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
-    const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const workflowPersistServiceSpy = {
+      updateWorkflowName: vi.fn(),
+      updateWorkflowDescription: vi.fn(),
+      setDefaultView: vi.fn(),
+    };
     const workflowCoverServiceSpy = {
       getCover: vi.fn().mockReturnValue(of(undefined)),
       setCoverFromFile: vi.fn(),
@@ -1163,6 +1169,208 @@ describe("CardItemComponent", () => {
       expect(component.isLiked).toBe(true);
       expect(component.likeCount).toBe(5);
       expect(getCountsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The card is the second renderer of the same dashboard entries as the list row, so it follows
+   * the same default-view rule (default-view-landing.ts): mark, deep-link and toggle, all gated on
+   * the Form View flag.
+   */
+  describe("default view", () => {
+    const enableFormView = () =>
+      (TestBed.inject(GuiConfigService) as unknown as { setConfig: (c: object) => void }).setConfig({
+        formViewEnabled: true,
+      });
+    const formEntry = (defaultView: DefaultView | undefined, accessLevel = "WRITE", accessibleUserIds = [42]) =>
+      makeWorkflowEntry({
+        id: 7,
+        accessibleUserIds,
+        accessLevel,
+        workflow: { isOwner: true, workflow: defaultView === undefined ? undefined : { defaultView } },
+      } as any);
+
+    beforeEach(() => {
+      component.currentUid = 42;
+      component.isPrivateSearch = true;
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(of(undefined));
+    });
+
+    it("opens a form-default workflow in its form and marks it with the Form View icon", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7", "form"]);
+    });
+
+    it("leaves a canvas-default workflow as the descriptor set it", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+    });
+
+    // Behind the flag the dashboard must look exactly as it does today.
+    it("ignores default_view entirely while the flag is off", () => {
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+      expect(component.canToggleDefaultView).toBe(false);
+    });
+
+    // The mark is the owner's entry point; a hub visitor still lands on the detail page.
+    it("marks a form-default hub card but does not repoint its link", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM, "READ", [99]);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "7"]);
+    });
+
+    it("offers the toggle only in private search, for a workflow the user can write", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      expect(component.canToggleDefaultView).toBe(true);
+
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      expect(component.canToggleDefaultView).toBe(false);
+
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      component.isPrivateSearch = false;
+      expect(component.canToggleDefaultView).toBe(false);
+
+      component.isPrivateSearch = true;
+      component.entry = makeDatasetEntry({ accessLevel: "WRITE" } as any);
+      expect(component.canToggleDefaultView).toBe(false);
+    });
+
+    // A collaborator with write access but no ownership has no cover-image controls, yet still gets
+    // the toggle: it lives in the action footer, not among the owner's cover controls.
+    it("offers the toggle to a writer who does not own the card, without the owner's cover controls", () => {
+      enableFormView();
+      component.entry = makeWorkflowEntry({
+        id: 7,
+        accessibleUserIds: [42],
+        accessLevel: "WRITE",
+        workflow: { isOwner: false },
+      } as any);
+      component.initializeEntry();
+
+      expect(component.canEditCover).toBe(false);
+      expect(component.canToggleDefaultView).toBe(true);
+    });
+
+    it("turns the default view on, marking the card and repointing it", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.FORM);
+      expect(component.entry.workflow?.workflow?.defaultView).toBe(DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7", "form"]);
+    });
+
+    it("turns it back off, restoring the plain card", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.CANVAS);
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+    });
+
+    // A failed call must not leave the card claiming a state the server never took.
+    it("keeps the previous state and reports it when the request fails", () => {
+      enableFormView();
+      const notify = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(throwError(() => new Error("nope")));
+
+      component.onToggleDefaultView();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+      expect(notify).toHaveBeenCalledWith("nope");
+    });
+
+    // A card without the cached workflow row must still record the toggle, not crash.
+    it("still persists the toggle when the entry has no cached workflow row", () => {
+      enableFormView();
+      component.entry = formEntry(undefined);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(false);
+    });
+
+    // The permission lives in the method, not only in the button's *ngIf: setting the default view
+    // writes the workflow row, which needs WRITE access whoever calls.
+    it("refuses to toggle for a collaborator without write access", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).not.toHaveBeenCalled();
+    });
+
+    it("renders the toggle for a writer and routes its click, but not for a reader", () => {
+      enableFormView();
+      const toggle = vi.spyOn(component, "onToggleDefaultView").mockImplementation(() => {});
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+
+      // In the always-visible action footer, in the list row's slot (right after Detail), not among the
+      // hover-only cover controls.
+      const button = fixture.debugElement.query(By.css(".private-actions button.default-view-toggle"));
+      expect(button).not.toBeNull();
+      expect(fixture.debugElement.query(By.css(".card-image-controls button.default-view-toggle"))).toBeNull();
+      const footerTitles = fixture.debugElement
+        .queryAll(By.css(".private-actions button"))
+        .map(b => b.nativeElement.getAttribute("title") ?? b.nativeElement.getAttribute("aria-label"));
+      expect(footerTitles.slice(0, 2)).toEqual(["Detail", "Open in the Form View by default"]);
+      // A toggle: constant name, state in aria-pressed.
+      expect(button.nativeElement.getAttribute("aria-label")).toBe("Open in the Form View by default");
+      expect(button.nativeElement.getAttribute("aria-pressed")).toBe("false");
+      button.triggerEventHandler("click", new MouseEvent("click"));
+      expect(toggle).toHaveBeenCalledTimes(1);
+
+      component.entry = formEntry(DefaultView.FORM, "WRITE");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+      expect(
+        fixture.debugElement.query(By.css("button.default-view-toggle")).nativeElement.getAttribute("aria-pressed")
+      ).toBe("true");
+
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css("button.default-view-toggle"))).toBeNull();
     });
   });
 });

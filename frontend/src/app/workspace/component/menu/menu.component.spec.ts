@@ -43,6 +43,7 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
@@ -56,6 +57,9 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -116,6 +120,161 @@ describe("MenuComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  it("does not open the Form View for a workflow that has not been saved yet", () => {
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: undefined } as any);
+    const href = window.location.href;
+
+    component.onClickOpenFormView();
+
+    expect(window.location.href).toBe(href);
+  });
+
+  it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {
+    // After "new workflow" the canvas holds the default workflow (wid 0); the switch's save creates
+    // it, and the page to open is the created one, not /workflow/0/form.
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 0 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 42, name: "created" } as any));
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(navigate).toHaveBeenCalledWith(42);
+  });
+
+  it("saves, then hands over to the Form View only once the save has completed", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const saved = { wid: 7, name: "saved" } as any;
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of(saved));
+    const metadataSpy = vi
+      .spyOn(component["workflowActionService"], "setWorkflowMetadata")
+      .mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    // The navigation unloads the document and aborts anything still in flight, so it must wait for
+    // the save's completion rather than be fired right after the request.
+    expect(persistSpy).toHaveBeenCalled();
+    expect(metadataSpy).toHaveBeenCalledWith(saved);
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("stays on the canvas and reports the error when the save before the switch fails", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(throwError(() => new Error("nope")));
+    const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    // Leaving would take the user away from changes that were never stored.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith("Could not save. Your latest changes are not stored yet.");
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("saves once more when an edit lands while the switch's save is out, then hands over", () => {
+    // The page stays editable until the full-page load; an edit made after the click is not in the
+    // save's snapshot and its own autosave (debounced) would be aborted by the load. workflowChanged
+    // marks it, and the hand-over saves again before leaving.
+    const edits = new Subject<unknown>();
+    vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+    component.ngOnInit();
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const first$ = new Subject<any>();
+    const second$ = new Subject<any>();
+    const persistSpy = vi
+      .spyOn(workflowPersistService, "persistWorkflow")
+      .mockReturnValueOnce(first$)
+      .mockReturnValueOnce(second$);
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    edits.next(undefined); // an edit while the first save is out
+    first$.complete();
+
+    expect(persistSpy).toHaveBeenCalledTimes(2); // saved once more
+    expect(navigate).not.toHaveBeenCalled();
+    second$.complete();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("ignores a second click while the hand-over is already in progress", () => {
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(new Subject<any>());
+    vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    component.onClickOpenFormView();
+
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes a reader straight over without a save, which they could not make", () => {
+    // Every save of a reader's is a 403 that would keep them on the canvas with an error.
+    component.writeAccess = false;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    const persistSpy = vi.spyOn(workflowPersistService, "persistWorkflow");
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(persistSpy).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(7);
+  });
+
+  describe("run button enablement (#8587)", () => {
+    const runButton = () => fixture.nativeElement.querySelector("#run-button") as HTMLButtonElement;
+
+    const render = () => {
+      component.applyRunButtonBehavior(component.getRunButtonBehavior());
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+    });
+
+    it("leaves the no-unit button clickable, since that is the state it exists to fix", () => {
+      // The privilege check asks a unit that does not exist; with no unit
+      // selected it used to be permanently true, so the button offered to
+      // connect and refused every click, leaving runWorkflow's create-unit
+      // branch unreachable.
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.selectedComputingUnit = null;
+
+      render();
+
+      expect(runButton().textContent?.trim()).toBe("Computing Unit");
+      expect(runButton().disabled).toBe(false);
+    });
+
+    it("still refuses to run on a unit the user may only read", () => {
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.selectedComputingUnit = {
+        computingUnit: { cuid: 1, name: "theirs" },
+        status: "Running",
+        accessPrivilege: Privilege.READ,
+      } as unknown as DashboardWorkflowComputingUnit;
+
+      render();
+
+      expect(runButton().disabled).toBe(true);
+    });
+  });
+
   describe("getRunButtonBehavior", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
@@ -139,14 +298,14 @@ describe("MenuComponent", () => {
       expect(behavior.disable).toBe(true);
     });
 
-    it("returns 'Connect' when no computing unit is attached", () => {
+    it("returns 'Computing Unit' when no computing unit is attached", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
 
       const behavior = component.getRunButtonBehavior();
 
-      expect(behavior.text).toBe("Connect");
+      expect(behavior.text).toBe("Computing Unit");
       expect(behavior.icon).toBe("plus-circle");
       expect(behavior.disable).toBe(false);
     });
@@ -297,6 +456,42 @@ describe("MenuComponent", () => {
       expect(behavior.icon).toBe("play-circle");
       expect(behavior.disable).toBe(false);
       expect(runSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps Pause in control of a running execution even when the warehouse disappears", () => {
+      // Deleting the last warehouse mid-run flips warehouseRequiredButMissing;
+      // the primary button must stay Pause/Kill, not become the warehouse prompt.
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Running;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Pause");
+    });
+
+    it("offers to create a warehouse when one is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      // Same word the picker's own empty state shows, as the computing-unit
+      // flow repeats its own; it also has to fit the run button's fixed width.
+      expect(behavior.text).toBe("Warehouse");
+      expect(behavior.icon).toBe("plus-circle");
+      expect(behavior.disable).toBe(false);
     });
   });
 
@@ -479,6 +674,51 @@ describe("MenuComponent", () => {
 
       expect(executeSpy).toHaveBeenCalledWith("Untitled Execution", false);
     });
+
+    it("leads to the create-warehouse modal when a warehouse is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddComputeUnitModalVisible: vi.fn(),
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).toHaveBeenCalledTimes(1);
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("recomputes the Run button snapshot when the warehouse pick changes", () => {
+      // The button text is a stored snapshot; without the subscription it
+      // would keep saying "Run" after the warehouse load leaves none.
+      const applySpy = vi.spyOn(component, "applyRunButtonBehavior");
+
+      TestBed.inject(WarehouseService).selectWarehouse(7);
+
+      expect(applySpy).toHaveBeenCalled();
+    });
+
+    it("submits the execution when a warehouse is selected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: false,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
+
+      component.runWorkflow();
+
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).not.toHaveBeenCalled();
+    });
   });
 
   it("onWorkflowNameChange forwards the new name to the workflow action service", () => {
@@ -541,6 +781,44 @@ describe("MenuComponent", () => {
       expect(fileNameArg).toBe("my-workflow.json");
       expect(blobArg).toBeInstanceOf(Blob);
       expect(blobArg.type).toBe("text/plain;charset=utf-8");
+    });
+
+    // Blob.text() is missing in jsdom, but FileReader.readAsText works.
+    const readBlob = (blob: Blob) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(blob);
+      });
+
+    it("carries the workflow's default view next to the content, as the dashboard download does", async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue({
+        operators: [],
+        links: [],
+      } as unknown as WorkflowContent);
+      vi.spyOn(workflowActionService, "getWorkflowMetadata").mockReturnValue({ wid: 7, defaultView: "FORM" } as any);
+
+      component.onClickExportWorkflow();
+
+      const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
+      expect(parsed.defaultView).toBe("FORM");
+      expect(parsed.operators).toEqual([]);
+    });
+
+    it("leaves the key out when the workflow has no default view", async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      vi.spyOn(workflowActionService, "getWorkflowContent").mockReturnValue({
+        operators: [],
+        links: [],
+      } as unknown as WorkflowContent);
+      vi.spyOn(workflowActionService, "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+
+      component.onClickExportWorkflow();
+
+      const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
+      expect("defaultView" in parsed).toBe(false);
     });
   });
 
@@ -629,6 +907,7 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
@@ -642,10 +921,29 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
       expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    // The canvas resets to DEFAULT_WORKFLOW (wid 0) on every load and the real id only arrives with
+    // the workflow, so a click landing in that window used to open a dialog that asked the backend
+    // about workflow 0 and came back without a Private/Public choice (issue #8599).
+    it.each([
+      ["the workflow has not loaded yet (wid 0)", 0],
+      ["there is no workflow id at all", undefined],
+    ])("does not open the share dialog while %s", async (_case, wid) => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const createSpy = vi
+        .spyOn(modalService, "create")
+        .mockReturnValue({ afterClose: of(undefined) } as unknown as NzModalRef);
+      component.workflowId = wid;
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -788,6 +1086,71 @@ describe("MenuComponent", () => {
         // View selection is remembered, but nothing is pushed while the overlay is off.
         expect(component.heatmapView).toBe(HeatmapView.Runtime);
         expect(setSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("heat-map overlay persistence", () => {
+      beforeEach(() => localStorage.clear());
+      afterEach(() => localStorage.clear());
+
+      it("restores a persisted view on init: checkbox on, selector set, view pushed", () => {
+        savePersistedHeatmapView(HeatmapView.IoImbalance);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(true);
+        expect(component.heatmapView).toBe(HeatmapView.IoImbalance);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.IoImbalance);
+      });
+
+      it("leaves the overlay off when nothing is persisted", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("leaves the overlay off for a persisted null view", () => {
+        savePersistedHeatmapView(null);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("persists the view when the overlay is toggled on, and null when toggled off", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.TimePerRow;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.TimePerRow);
+
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBeNull();
+      });
+
+      it("persists a view change made while the overlay is on", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.Runtime;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.IoImbalance);
+      });
+
+      it("does not persist a view browsed while the overlay is off", () => {
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBeNull();
       });
     });
 
@@ -1058,7 +1421,7 @@ describe("MenuComponent", () => {
     });
 
     it("shows the expand-jupyter button only when the flag is on and a notebook exists", () => {
-      const button = () => fixture.nativeElement.querySelector('button[title="expand Jupyter notebook"]');
+      const button = () => fixture.nativeElement.querySelector('button[title="expand uploaded source code"]');
       // commonTestProviders' MockGuiConfigService defaults the flag to false, and no notebook exists.
       expect(button()).toBeNull();
 
@@ -1086,7 +1449,7 @@ describe("MenuComponent", () => {
       fixture.detectChanges();
 
       const button = fixture.nativeElement.querySelector(
-        'button[title="expand Jupyter notebook"]'
+        'button[title="expand uploaded source code"]'
       ) as HTMLButtonElement;
       button.click();
 
@@ -1166,6 +1529,54 @@ describe("MenuComponent", () => {
     afterEach(() => {
       fixture.destroy();
       vi.restoreAllMocks();
+    });
+
+    // Until the workflow arrives the id is DEFAULT_WORKFLOW's, and the dialog opened on it asks the
+    // backend about workflow 0 and comes back without a Private/Public choice (issue #8599).
+    it("disables the Share button until the workflow id arrives", () => {
+      component.workflowId = undefined;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 0;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 7;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(false);
+    });
+
+    describe("view switch", () => {
+      const flag = (formViewEnabled: boolean) =>
+        (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ formViewEnabled });
+
+      it("shows Canvas pressed and hands Form View to onClickOpenFormView, only with the flag on", () => {
+        flag(false);
+        fixture.detectChanges();
+        expect(q(".view-switch")).toBeNull();
+
+        flag(true);
+        fixture.detectChanges();
+        const open = vi.spyOn(component, "onClickOpenFormView").mockImplementation(() => {});
+        const buttons = fixture.debugElement.queryAll(By.css(".view-switch button"));
+        expect(buttons.map(b => (b.nativeElement.textContent ?? "").trim())).toEqual(["Canvas", "Form View"]);
+        // The current view is the pressed segment: announced as such, and a live button on purpose.
+        expect(buttons[0].nativeElement.getAttribute("aria-pressed")).toBe("true");
+        expect(buttons[0].nativeElement.classList.contains("on")).toBe(true);
+        expect(buttons[1].nativeElement.getAttribute("aria-pressed")).toBe("false");
+        buttons[1].triggerEventHandler("click", null);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+
+      it("hides the switch while an older version is displayed", () => {
+        flag(true);
+        component.displayParticularWorkflowVersion = true;
+        fixture.detectChanges();
+
+        // A past version has no form to switch to.
+        expect(q(".view-switch")).toBeNull();
+      });
     });
 
     describe("version display bar", () => {

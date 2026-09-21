@@ -497,6 +497,37 @@ describe("WorkspaceComponent", () => {
       expect(workflowResultService.clearResults).toHaveBeenCalled();
     });
 
+    // A full-page navigation away fires beforeunload, and the browser may then keep this document
+    // in its back/forward cache instead of discarding it. Coming back restores the JavaScript
+    // state as it was left and re-runs nothing, so anything torn down here stays torn down: the
+    // graph came back empty, the workflow id came back as the default, and the still-subscribed
+    // autosave then wrote that default out as a new, blank workflow (issue #8599).
+    // Dispatching the DOM event, rather than calling the handler, is what would catch the host
+    // binding being removed or miswired.
+    it("saves on beforeunload and tears nothing down, so a page restored from the cache still works", async () => {
+      await createFixture();
+      fixture.detectChanges();
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    it("skips even the save on beforeunload when the user is not signed in", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      userService.isLogin.mockReturnValue(false);
+
+      component.onBeforeUnload();
+
+      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+    });
+
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {
       await createFixture();
       fixture.detectChanges();
