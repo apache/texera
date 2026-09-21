@@ -97,11 +97,21 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
 
   override onPopulate(field: FormlyFieldConfig): void {
     this.configureRowTemplate(this.getFieldArrayTemplate(field));
-    // Rows are read from the array being populated: Formly has not assigned each row's model yet.
-    const rows = (field.model ?? []) as ReadonlyArray<{ inputType?: string } | undefined>;
-    this.dropRowsWhoseResourceChanged(field, rows);
+    this.dropRowsWhoseResourceChanged(field, this.parameterRows(field));
     super.onPopulate(field);
+    const rows = this.parameterRows(field);
     field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType));
+  }
+
+  /**
+   * The parameter rows. Before Formly narrows `model` to this field's own array it still holds
+   * the whole operator's properties, so the array is taken from this field's key in that case.
+   */
+  private parameterRows(field: FormlyFieldConfig): ReadonlyArray<{ inputType?: string } | undefined> {
+    const model: unknown = Array.isArray(field.model)
+      ? field.model
+      : (field.model as Record<string, unknown> | undefined)?.[String(field.key)];
+    return Array.isArray(model) ? model : [];
   }
 
   /** Finds the Formly field config that backs one visible column in a parameter row. */

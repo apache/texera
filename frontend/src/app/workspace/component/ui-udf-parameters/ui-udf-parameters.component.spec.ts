@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormControl } from "@angular/forms";
+import { FormControl, UntypedFormArray } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { FormlyFieldConfig } from "@ngx-formly/core";
@@ -151,6 +151,33 @@ describe("UiUdfParametersComponent", () => {
     expect(valueOf(resourceRow)?.props?.resource).toBe("model");
     expect(valueOf(plainRow)?.type).toBeUndefined();
     expect(valueOf(unknownRow)?.type).toBeUndefined();
+  });
+
+  it("should find the rows before Formly narrows the field's model to them", () => {
+    const rows = [{ inputType: "dataset", attribute: { attributeName: "DATA" } }];
+    const operatorProperties = { code: "", uiParameters: rows };
+    const field: FormlyFieldConfig = {
+      key: "uiParameters",
+      props: {},
+      formControl: new UntypedFormArray([]),
+      fieldArray: rowConfig([{ key: "value" }, { key: "attributeName" }, { key: "attributeType" }]),
+      fieldGroup: [],
+    };
+    // Formly hands this field the whole operator's properties and narrows `model` to the
+    // parameter array while the base class populates, so the first read sees the properties.
+    let narrowed = false;
+    Object.defineProperty(field, "model", {
+      get: () => {
+        const model = narrowed ? rows : operatorProperties;
+        narrowed = true;
+        return model;
+      },
+      configurable: true,
+    });
+
+    component.onPopulate(field);
+
+    expect(component.getColumnField(field.fieldGroup![0], component.fieldColumns[0])?.type).toBe("resourcevalue");
   });
 
   it("should rebuild a row whose resource changed, so its cell renders the editor it now needs", () => {
