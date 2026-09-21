@@ -127,10 +127,13 @@ object StandaloneHelpers {
       |    # is handed one field at a time, so a row states its own format and the
       |    # rest of the column has no say in it.
       |    #
-      |    # Held at microsecond resolution and not the nanoseconds pandas parses
-      |    # into by default, which reach 1677 to 2262: the engine holds a
-      |    # java.sql.Timestamp, where the year 2500 is an ordinary moment and
-      |    # emptying it would answer for a row the run itself had no trouble with.
+      |    # What is read here is held at microsecond resolution and not the
+      |    # nanoseconds pandas parses into by default, which reach 1677 to 2262:
+      |    # the engine holds a java.sql.Timestamp, where the year 2500 is an
+      |    # ordinary moment and emptying it would answer for a row the run itself
+      |    # had no trouble with. A column that is already a moment is handed back
+      |    # at the resolution it arrived in instead, because parseField returns a
+      |    # java.sql.Timestamp untouched and that class counts nanoseconds.
       |    #
       |    # Still coerced, which the strict cast is not: the engine accepts a set
       |    # of formats no single pandas call states, so text neither can read is
@@ -148,8 +151,8 @@ object StandaloneHelpers {
       |
       |    if pd.api.types.is_datetime64_any_dtype(s):
       |        if getattr(s.dtype, "tz", None) is not None:
-      |            s = s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
-      |        return s.astype("datetime64[us]")
+      |            return s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
+      |        return s
       |
       |    def _one(x):
       |        if pd.isna(x):

@@ -332,6 +332,60 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .toMinutes shouldBe 330
   }
 
+  // A column that is already a moment is not text and is not re-read: parseField
+  // hands a java.sql.Timestamp back untouched, and that class counts nanoseconds,
+  // so narrowing the column here would fold two moments the run tells apart into
+  // one. The pair below differs only past the microsecond.
+  private val nanosecondCases = Seq(
+    "2024-03-05 14:09:07.123456789",
+    "2024-03-05 14:09:07.123456001"
+  )
+
+  it should "keep the resolution a timestamp column arrived in" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
+    // The declared type is what sends this down the branch under test: a column
+    // the engine already holds as a moment, cast to the type it already has.
+    val input = Schema().add(new Attribute("v", AttributeType.TIMESTAMP))
+    val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
+
+    val values = nanosecondCases.map(v => "\"" + v + "\"").mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": pd.to_datetime($values)})
+         |$generated
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-timestamp-nanos-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromScript = cellsOf(out)
+    val fromEngine =
+      nanosecondCases.map(v => engineAnswer(java.sql.Timestamp.valueOf(v), AttributeType.TIMESTAMP))
+    withClue(s"script said $fromScript\n") { fromScript shouldBe fromEngine }
+    // What the two answers have to carry: the rows stay apart.
+    fromEngine shouldBe nanosecondCases
+  }
+
   // The one place the script is meant to differ, and the reason it cannot simply
   // parse strictly: the engine accepts a set of formats no single pandas call
   // states, so text neither can read leaves an empty cell instead of ending an
