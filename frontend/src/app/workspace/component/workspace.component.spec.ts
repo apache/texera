@@ -163,9 +163,9 @@ describe("WorkspaceComponent", () => {
     };
     executeWorkflowService = {
       resetExecutionAndWorkers: vi.fn(),
-      // As the real one does: reapplies the lock its current state implies, and says that state
-      // again for subscribers that arrived after the last change.
-      republishExecutionState: vi.fn(),
+      // As the real one does: reapplies the lock its current state implies, and says nothing on
+      // the state stream, which carries transitions rather than a current value.
+      reapplyExecutionLock: vi.fn(),
     };
     workflowConsoleService = { clearConsoleMessages: vi.fn() };
     workflowResultService = { clearResults: vi.fn() };
@@ -272,8 +272,7 @@ describe("WorkspaceComponent", () => {
 
     // Not an unconditional unlock: a run may still be in flight, and the execute service reapplies
     // its state-to-lock rule only when the state changes, so unlocking outright here left a running
-    // workflow editable until its run happened to end. The same call re-announces the state, which
-    // is what tells the page's own subscribers that a run is going.
+    // workflow editable until its run happened to end.
     it("asks the execute service to reapply its lock rather than unlocking the graph outright", async () => {
       await createFixture(configureRoute({ id: "42" }));
       workflowActionService.hasWorkflowOpen.mockReturnValue(true);
@@ -281,7 +280,7 @@ describe("WorkspaceComponent", () => {
       component.ngOnInit();
       component.ngAfterViewInit();
 
-      expect(executeWorkflowService.republishExecutionState).toHaveBeenCalled();
+      expect(executeWorkflowService.reapplyExecutionLock).toHaveBeenCalled();
       expect(workflowActionService.enableWorkflowModification).not.toHaveBeenCalled();
     });
 

@@ -211,6 +211,21 @@ describe("MiniMapComponent", () => {
       expect(remove).toHaveBeenCalled();
     });
 
+    // Not on the way out of the browser, though: the document may be kept in the back/forward
+    // cache and restored with its JavaScript state as it was left, re-running nothing, so a paper
+    // disposed there would stay disposed on a page that looks live (#8599).
+    it("keeps its paper when the browser unloads, and still remembers whether it was hidden", () => {
+      sizeMiniMapContainer(912, 100);
+      fixture.detectChanges();
+      const remove = vi.spyOn((component as any).ownPaper, "remove");
+      component.hidden = true;
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(remove).not.toHaveBeenCalled();
+      expect(localStorage.getItem("mini-map")).toBe("true");
+    });
+
     it("fits the whole main canvas into the mini-map container", () => {
       // 912 / (2688 - -960) == 0.25; the height (100) is deliberately different
       // so a width/height mix-up in the scale formula cannot pass.

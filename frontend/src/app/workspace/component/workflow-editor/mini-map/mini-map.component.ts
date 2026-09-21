@@ -95,12 +95,26 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = false));
   }
 
+  /**
+   * The browser is leaving this document: remember whether the mini-map was hidden, and destroy
+   * nothing. The document may be kept in the back/forward cache and restored with its JavaScript
+   * state exactly as it was left, re-running nothing, so a paper disposed here would stay disposed
+   * on a page that looks live (the same reason the workspace stopped tearing down here, #8599).
+   */
   @HostListener("window:beforeunload")
+  onBeforeUnload(): void {
+    this.rememberVisibility();
+  }
+
   ngOnDestroy(): void {
     // Bound to the root-provided joint graph, which outlives this component: an undisposed paper
     // goes on listening to that graph from a detached node, and once the switch between a
     // workflow's two views routes, one is left behind on every switch (issue #8582).
     this.ownPaper?.remove();
+    this.rememberVisibility();
+  }
+
+  private rememberVisibility(): void {
     localStorage.setItem("mini-map", JSON.stringify(this.hidden));
   }
 

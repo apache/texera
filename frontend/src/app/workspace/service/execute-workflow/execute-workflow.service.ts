@@ -195,19 +195,22 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Announce the execution state already in hand, unchanged, and reapply the graph lock it implies,
-   * for a view that arrived on a workflow whose run was already in flight.
+   * Apply the graph lock the current execution state implies, for a view that arrived on a workflow
+   * whose run was already in flight.
    *
-   * `getExecutionStateStream()` is a plain Subject, so it carries no current value: a view that
-   * attaches to a handed-over session subscribes after the last state change and hears nothing
-   * until the next one. Two things were then wrong at once. The arriving page showed **Run** for a
-   * workflow that was running, because its own `executionState` sat at its initial value. And the
-   * lock is only reapplied when the state changes (see `updateExecutionState`), so a canvas that
-   * unlocked the graph on arrival left a running workflow editable until the run happened to end.
+   * The lock is otherwise only reapplied when the state changes (see `updateExecutionState`), so a
+   * view that unlocked the graph on arrival left a workflow that was still running editable until
+   * its run happened to end. The rule itself stays in the one place that owns it.
+   *
+   * Deliberately silent. `executionStateStream` carries transitions, not a current value, and
+   * re-announcing the state as `previous -> current` of the same state would be a transition that
+   * never happened: the result panel would read it as a run just finishing, and the canvas editor
+   * throws outright on any event whose `previous` is `Recovering` and whose `current` is not one of
+   * the states recovery can end in. A view that needs the current state reads `getExecutionState()`
+   * -- as the menu does when it is constructed, and as the Form View does before it settles in.
    */
-  public republishExecutionState(): void {
+  public reapplyExecutionLock(): void {
     this.updateWorkflowActionLock(this.currentState);
-    this.executionStateStream.next({ previous: this.currentState, current: this.currentState });
   }
 
   public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {

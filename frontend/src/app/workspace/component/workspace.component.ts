@@ -354,9 +354,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       // Not an unconditional unlock: a run may still be in flight. The execute service owns the
       // state-to-lock rule and reapplies it only when the state changes, so ask it to apply that
       // rule again rather than restating it here. Unlocking outright left a workflow that was
-      // still running editable until its run happened to end. This also re-announces the state
-      // itself, which is what tells this page's own subscribers that a run is in flight.
-      this.executeWorkflowService.republishExecutionState();
+      // still running editable until its run happened to end. Nothing is announced: the menu
+      // reads the current state when it is constructed, and the rest of this page's subscribers
+      // want transitions, not a repeat of one that already happened.
+      this.executeWorkflowService.reapplyExecutionLock();
       this.registerAutoPersistWorkflow();
       this.triggerCenter();
       // This page and everything on it is new, and the metadata it needs was set by the view that
