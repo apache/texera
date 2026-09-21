@@ -20,11 +20,13 @@
 import { ApplicationRef } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { NzModalService } from "ng-zorro-antd/modal";
+import { NzModalComponent, NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownModule } from "ngx-markdown";
 import { BehaviorSubject, Observable, Subject, of, throwError } from "rxjs";
 import { AgentChatComponent } from "./agent-chat.component";
+import { ReActStepDetailModalComponent } from "../react-step-detail-modal/react-step-detail-modal.component";
 import { AgentInfo, AgentService, AgentSettingsApi } from "../../../../service/agent/agent.service";
 import { AgentState, ReActStep, ToolOperatorAccess } from "../../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
@@ -782,6 +784,63 @@ describe("AgentChatComponent", () => {
       expect(messages[1].querySelector("button")).toBeTruthy();
     });
 
+    it("pluralises the tool-call summary and opens the details modal from the hover button", () => {
+      createComponent();
+      // A pure tool-call step carries no text, so nothing here waits on <markdown>.
+      const step = makeStep({
+        content: "",
+        isBegin: true,
+        toolCalls: [{ toolName: "addOperator" }, { toolName: "runWorkflow" }],
+      });
+      agentService.stepsSubject.next([step]);
+      fixture.detectChanges();
+
+      const message = fixture.nativeElement.querySelector(".messages-container .message") as HTMLElement;
+      expect(message.textContent).toContain("Execute 2 tools");
+
+      // The newest step is auto-hovered, so its details button is the one rendered.
+      (message.querySelector("button") as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(component.selectedResponse).toBe(step);
+      expect(component.isDetailsModalVisible).toBe(true);
+    });
+
+    it("closing the step-detail modal clears the flag through its two-way binding", () => {
+      createComponent();
+      component.showResponseDetails(makeStep());
+      fixture.detectChanges();
+      expect(component.isDetailsModalVisible).toBe(true);
+
+      // The child owns the close control; its visibleChange output is what drives
+      // the parent's [(visible)] binding back to false.
+      const detailModal = fixture.debugElement.query(By.directive(ReActStepDetailModalComponent));
+      expect(detailModal, "expected the step-detail modal to be in the template").toBeTruthy();
+
+      detailModal.componentInstance.closeModal();
+      fixture.detectChanges();
+
+      expect(component.isDetailsModalVisible).toBe(false);
+    });
+
+    it("mirrors typed text into currentMessage through the textarea's ngModel binding", () => {
+      createComponent();
+      const textarea = fixture.nativeElement.querySelector("textarea") as HTMLTextAreaElement;
+      const sendButton = fixture.nativeElement.querySelector(".input-area button") as HTMLButtonElement;
+      expect(sendButton.disabled).toBe(true);
+
+      textarea.value = "summarise the results";
+      textarea.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+
+      expect(component.currentMessage).toBe("summarise the results");
+      expect(sendButton.disabled).toBe(false);
+
+      sendButton.click();
+      expect(agentService.sendMessage).toHaveBeenCalledWith(AGENT_ID, "summarise the results");
+      expect(component.currentMessage).toBe("");
+    });
+
     it("shows the thinking spinner and stop button while generating", async () => {
       createComponent();
       agentService.stateSubject.next(AgentState.GENERATING);
@@ -875,6 +934,14 @@ describe("AgentChatComponent", () => {
         flushOverlay();
       };
 
+      const buttonWithText = (label: string): HTMLButtonElement => {
+        const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+          candidate => (candidate.textContent ?? "").trim() === label
+        );
+        expect(button, `expected a button labelled "${label}"`).toBeTruthy();
+        return button!;
+      };
+
       beforeEach(() => {
         createComponent();
         agentService.getSystemInfo.mockReturnValue(
@@ -939,6 +1006,108 @@ describe("AgentChatComponent", () => {
         flushOverlay();
         expect(document.querySelectorAll("nz-switch").length).toBe(0);
         expect(document.body.textContent).toContain('No operators match "nomatch-xyz"');
+      });
+
+      it("edits and saves every parameter from the Parameters tab", async () => {
+        component.showSystemInfo();
+        fixture.detectChanges();
+        await flushAsyncRendering();
+        flushOverlay();
+        clickTab("Parameters");
+
+        const items = Array.from(document.querySelectorAll<HTMLElement>(".settings-param-item"));
+        expect(items.length).toBe(5);
+
+        // Each row is typed into and then saved, so both the [(ngModel)] write-back and
+        // the row's own save handler run. Every value stays inside its nz-input-number
+        // range, so nothing is clamped on the way in.
+        const edits = [
+          { typed: "35000", payload: { maxOperatorResultCharLimit: 35000 }, toast: "Max character limit saved" },
+          { typed: "5000", payload: { maxOperatorResultCellCharLimit: 5000 }, toast: "Max cell character limit saved" },
+          { typed: "300", payload: { toolTimeoutSeconds: 300 }, toast: "Tool timeout saved" },
+          { typed: "25", payload: { executionTimeoutMinutes: 25 }, toast: "Execution timeout saved" },
+          { typed: "7", payload: { maxSteps: 7 }, toast: "Max steps saved" },
+        ];
+
+        edits.forEach(({ typed, payload, toast }, index) => {
+          const input = items[index].querySelector("input") as HTMLInputElement;
+          input.value = typed;
+          input.dispatchEvent(new Event("input"));
+          flushOverlay();
+
+          (items[index].querySelector(".settings-param-input > button") as HTMLButtonElement).click();
+
+          expect(agentService.updateAgentSettings).toHaveBeenCalledWith(AGENT_ID, payload);
+          expect(notification.success).toHaveBeenCalledWith(toast);
+        });
+
+        expect(component.settingsMaxCharLimit).toBe(35000);
+        expect(component.settingsMaxCellCharLimit).toBe(5000);
+        expect(component.settingsToolTimeoutSeconds).toBe(300);
+        expect(component.settingsExecutionTimeoutMinutes).toBe(25);
+        expect(component.settingsMaxSteps).toBe(7);
+      });
+
+      it("toggles, bulk-selects and searches operator types from the Operators tab", async () => {
+        component.showSystemInfo();
+        fixture.detectChanges();
+        await flushAsyncRendering();
+        flushOverlay();
+        clickTab("Operators");
+
+        // Nothing is allowed yet, so every switch starts off and the first click turns
+        // its row on. Doing this before the bulk buttons keeps the assertion independent
+        // of when ngModel pushes the new checked state back into nz-switch.
+        const switches = Array.from(document.querySelectorAll<HTMLElement>("nz-switch"));
+        expect(switches.length).toBe(2);
+        switches[0].click(); // rows are sorted, so this is CSVScan
+        flushOverlay();
+        expect(component.settingsAllowedOperatorTypes).toEqual(["CSVScan"]);
+        expect(agentService.updateAgentSettings).toHaveBeenCalledWith(AGENT_ID, { allowedOperatorTypes: ["CSVScan"] });
+        expect(notification.success).toHaveBeenCalledWith("1 operators enabled");
+
+        await flushAsyncRendering();
+        flushOverlay();
+
+        buttonWithText("Select All").click();
+        flushOverlay();
+        expect(component.settingsAllowedOperatorTypes).toEqual(["CSVScan", "PythonUDF"]);
+        expect(notification.success).toHaveBeenCalledWith("2 operators enabled");
+
+        buttonWithText("Deselect All").click();
+        flushOverlay();
+        expect(component.settingsAllowedOperatorTypes).toEqual([]);
+        expect(agentService.updateAgentSettings).toHaveBeenCalledWith(AGENT_ID, { allowedOperatorTypes: [] });
+        expect(notification.success).toHaveBeenCalledWith("All operators enabled");
+
+        const search = document.querySelector("input[placeholder='Search operators...']") as HTMLInputElement;
+        search.value = "python";
+        search.dispatchEvent(new Event("input"));
+        flushOverlay();
+
+        expect(component.operatorTypeSearchQuery).toBe("python");
+        expect(document.querySelectorAll("nz-switch").length).toBe(1);
+        expect(document.body.textContent).toContain("PythonUDF");
+      });
+
+      // nz-modal emits nzVisibleChange when it closes on its own (NzModalService.closeAll,
+      // for instance) rather than through the toolbar, and [(nzVisible)] has to carry
+      // that back into the component.
+      it("clears the modal flag when nz-modal reports that it closed", () => {
+        component.showSystemInfo();
+        flushOverlay();
+        expect(component.isSystemInfoModalVisible).toBe(true);
+
+        // The step-detail child renders an <nz-modal> of its own, so pick this one by title.
+        const systemInfoModal = fixture.debugElement
+          .queryAll(By.directive(NzModalComponent))
+          .find(modal => modal.componentInstance.nzTitle === "Agent System Information");
+        expect(systemInfoModal, "expected the system-info nz-modal to be in the template").toBeTruthy();
+
+        systemInfoModal!.triggerEventHandler("nzVisibleChange", false);
+        fixture.detectChanges();
+
+        expect(component.isSystemInfoModalVisible).toBe(false);
       });
     });
   });

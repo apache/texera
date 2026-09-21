@@ -21,7 +21,11 @@ import { Component, EventEmitter, Input, Output, TemplateRef, ViewChild } from "
 import { NgTemplateOutlet } from "@angular/common";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { LoadMoreFunction, SearchResultsComponent } from "./search-results.component";
+import { By } from "@angular/platform-browser";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { RouterTestingModule } from "@angular/router/testing";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { LoadMoreFunction, SearchResultsComponent, SearchResultsViewMode } from "./search-results.component";
 import { ListItemComponent } from "../list-item/list-item.component";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -292,6 +296,302 @@ describe("SearchResultsComponent", () => {
       expect(Array.from(cards).map(c => c.textContent)).toEqual(["7", "8"]);
 
       hostFixture.destroy();
+    });
+  });
+});
+
+/**
+ * Host that drives SearchResultsComponent purely through its template contract:
+ * inputs go in through bindings and every output is recorded as it arrives.
+ */
+@Component({
+  standalone: true,
+  imports: [SearchResultsComponent],
+  template: `
+    <texera-search-results
+      [viewMode]="viewMode"
+      [isPrivateSearch]="isPrivateSearch"
+      [editable]="true"
+      [currentUid]="currentUid"
+      [cardTemplate]="cardTemplateInput"
+      (deleted)="deletedEntries.push($event)"
+      (duplicated)="duplicatedEntries.push($event)"
+      (refresh)="refreshCount = refreshCount + 1"
+      (notifyWorkflow)="notifyCount = notifyCount + 1">
+    </texera-search-results>
+    <ng-template
+      #card
+      let-entry
+      ><span class="card-entry">card:{{ entry.name }}</span></ng-template
+    >
+  `,
+})
+class SearchResultsTemplateHostComponent {
+  @ViewChild("card", { static: true }) cardTemplate!: TemplateRef<{ $implicit: DashboardEntry }>;
+  @ViewChild(SearchResultsComponent, { static: true }) results!: SearchResultsComponent;
+  viewMode: SearchResultsViewMode = "list";
+  isPrivateSearch = true;
+  currentUid: number | undefined = 7;
+  cardTemplateInput?: TemplateRef<{ $implicit: DashboardEntry }>;
+  deletedEntries: DashboardEntry[] = [];
+  duplicatedEntries: DashboardEntry[] = [];
+  refreshCount = 0;
+  notifyCount = 0;
+}
+
+/**
+ * Deliberately a separate suite from the one above, with its own TestBed and no
+ * TestBed.overrideComponent: an override makes Angular re-JIT SearchResultsComponent
+ * from its decorator metadata, and the recompiled template loses the source map that
+ * attributes executed bindings back to search-results.component.html (issue #7458).
+ * Without the override the real ListItemComponent renders, so the child's outputs can
+ * be fired from the rendered DOM and the template's own bindings are actually counted.
+ */
+describe("SearchResultsComponent rendered template", () => {
+  let fixture: ComponentFixture<SearchResultsTemplateHostComponent>;
+  let host: SearchResultsTemplateHostComponent;
+
+  /** A workflow entry complete enough for the real ListItemComponent to render it. */
+  const workflowEntry = (id: number, name: string, checked = false, ownerId?: number): DashboardEntry =>
+    ({
+      id,
+      name,
+      description: `description of ${name}`,
+      type: "workflow",
+      workflow: { isOwner: true },
+      accessibleUserIds: [7],
+      likeCount: 0,
+      viewCount: 0,
+      isLiked: false,
+      size: 0,
+      checked,
+      ownerId,
+    }) as unknown as DashboardEntry;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SearchResultsTemplateHostComponent, NoopAnimationsModule, HttpClientTestingModule, RouterTestingModule],
+      providers: [{ provide: UserService, useClass: StubUserService }, NzModalService, ...commonTestProviders],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(SearchResultsTemplateHostComponent);
+    host = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    document.querySelectorAll(".cdk-overlay-container").forEach(c => (c.innerHTML = ""));
+  });
+
+  const el = (): HTMLElement => fixture.nativeElement as HTMLElement;
+
+  /** The only load-more button in the template; the list items render buttons of their own. */
+  const loadMoreButton = (): HTMLButtonElement | null => el().querySelector(".load-more button");
+
+  const renderedNames = (): string[] =>
+    Array.from(el().querySelectorAll(".resource-name")).map(node => (node.textContent ?? "").trim());
+
+  const renderedCards = (): string[] =>
+    Array.from(el().querySelectorAll(".card-entry")).map(node => (node.textContent ?? "").trim());
+
+  /** Loads the first page through the component's real API and renders it. */
+  const loadFirstPage = async (loadMoreFunction: LoadMoreFunction): Promise<void> => {
+    host.results.reset(loadMoreFunction);
+    await host.results.loadMore();
+    fixture.detectChanges();
+  };
+
+  /**
+   * Lets the click handler's promise chain settle. fixture.whenStable() cannot be used here:
+   * the cdk-virtual-scroll-viewport in the list view keeps the zone permanently unstable.
+   */
+  const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+  const clickLoadMore = async (): Promise<void> => {
+    loadMoreButton()!.click();
+    await settle();
+    fixture.detectChanges();
+  };
+
+  describe("list view", () => {
+    it("renders one list item per entry and appends the next page when Load more is clicked", async () => {
+      const loadMoreFunction = vi
+        .fn<LoadMoreFunction>()
+        .mockResolvedValueOnce({ entries: [workflowEntry(1, "alpha"), workflowEntry(2, "beta")], more: true })
+        .mockResolvedValueOnce({ entries: [workflowEntry(3, "gamma")], more: false });
+
+      await loadFirstPage(loadMoreFunction);
+
+      expect(el().querySelectorAll("texera-list-item").length).toBe(2);
+      expect(renderedNames()).toEqual(["alpha", "beta"]);
+      expect(loadMoreButton()?.textContent?.trim()).toBe("Load more");
+
+      await clickLoadMore();
+
+      expect(loadMoreFunction).toHaveBeenCalledTimes(2);
+      // the second page starts where the first one ended
+      expect(loadMoreFunction).toHaveBeenLastCalledWith(2, 20);
+      expect(renderedNames()).toEqual(["alpha", "beta", "gamma"]);
+      // the last page reported more: false, so the button is gone
+      expect(loadMoreButton()).toBeNull();
+    });
+
+    it("hides Load more while a page is still in flight", async () => {
+      let releasePage!: (page: { entries: DashboardEntry[]; more: boolean }) => void;
+      const pending = new Promise<{ entries: DashboardEntry[]; more: boolean }>(resolve => (releasePage = resolve));
+
+      await loadFirstPage(vi.fn<LoadMoreFunction>().mockResolvedValue({ entries: [], more: true }));
+      expect(loadMoreButton()).not.toBeNull();
+
+      host.results.loadMoreFunction = () => pending;
+      const inFlight = host.results.loadMore();
+      fixture.detectChanges();
+      expect(loadMoreButton()).toBeNull();
+
+      releasePage({ entries: [workflowEntry(1, "alpha")], more: true });
+      await inFlight;
+      fixture.detectChanges();
+      expect(loadMoreButton()).not.toBeNull();
+    });
+
+    it("forwards each list item's deleted and duplicated outputs with that item's own entry", async () => {
+      const alpha = workflowEntry(1, "alpha");
+      const beta = workflowEntry(2, "beta");
+      await loadFirstPage(vi.fn<LoadMoreFunction>().mockResolvedValue({ entries: [alpha, beta], more: false }));
+
+      // the second item's Copy button, so an entry mix-up cannot pass unnoticed
+      const copyButtons = el().querySelectorAll<HTMLButtonElement>('button[title="Copy"]');
+      expect(copyButtons.length).toBe(2);
+      copyButtons[1].click();
+      fixture.detectChanges();
+
+      expect(host.duplicatedEntries).toEqual([beta]);
+      expect(host.duplicatedEntries[0]).toBe(beta);
+
+      // delete is behind a popconfirm overlay, so fire it on the real child instead
+      const listItems = fixture.debugElement.queryAll(By.directive(ListItemComponent));
+      expect(listItems.length).toBe(2);
+      (listItems[1].componentInstance as ListItemComponent).deleted.emit();
+      fixture.detectChanges();
+
+      expect(host.deletedEntries).toEqual([beta]);
+      expect(host.deletedEntries[0]).toBe(beta);
+    });
+
+    it("forwards a list item's refresh output", async () => {
+      await loadFirstPage(
+        vi
+          .fn<LoadMoreFunction>()
+          .mockResolvedValue({ entries: [workflowEntry(1, "alpha"), workflowEntry(2, "beta")], more: false })
+      );
+
+      const listItems = fixture.debugElement.queryAll(By.directive(ListItemComponent));
+      expect(host.refreshCount).toBe(0);
+
+      (listItems[0].componentInstance as ListItemComponent).refresh.emit();
+      (listItems[1].componentInstance as ListItemComponent).refresh.emit();
+      fixture.detectChanges();
+
+      expect(host.refreshCount).toBe(2);
+    });
+
+    it("notifies only once ticking a checkbox leaves every entry selected", async () => {
+      // alpha starts selected, beta does not
+      const alpha = workflowEntry(1, "alpha", true);
+      const beta = workflowEntry(2, "beta", false);
+      await loadFirstPage(vi.fn<LoadMoreFunction>().mockResolvedValue({ entries: [alpha, beta], more: false }));
+
+      const checkboxes = el().querySelectorAll<HTMLInputElement>("input.large-checkbox");
+      expect(checkboxes.length).toBe(2);
+
+      // ticking beta completes the selection
+      checkboxes[1].click();
+      fixture.detectChanges();
+      expect(beta.checked).toBe(true);
+      expect(host.notifyCount).toBe(1);
+
+      // un-ticking alpha breaks it again, so nothing further is notified
+      checkboxes[0].click();
+      fixture.detectChanges();
+      expect(alpha.checked).toBe(false);
+      expect(host.notifyCount).toBe(1);
+    });
+
+    it("passes currentUid down, so the owner badge follows the current user", async () => {
+      // alpha belongs to the host's current user (7), beta to someone else (99)
+      await loadFirstPage(
+        vi.fn<LoadMoreFunction>().mockResolvedValue({
+          entries: [workflowEntry(1, "alpha", false, 7), workflowEntry(2, "beta", false, 99)],
+          more: false,
+        })
+      );
+
+      /** Names of the entries whose list item shows the owner badge. */
+      const ownerBadgedNames = (): string[] =>
+        Array.from(el().querySelectorAll("texera-list-item"))
+          .filter(item => item.querySelector(".owner-badge") !== null)
+          .map(item => (item.querySelector(".resource-name")?.textContent ?? "").trim());
+
+      expect(ownerBadgedNames()).toEqual(["alpha"]);
+
+      // re-pointing the current user moves the badge, so the binding is not a constant
+      host.currentUid = 99;
+      fixture.detectChanges();
+
+      expect(ownerBadgedNames()).toEqual(["beta"]);
+    });
+
+    it("passes isPrivateSearch down to each list item", async () => {
+      host.isPrivateSearch = false;
+      await loadFirstPage(
+        vi.fn<LoadMoreFunction>().mockResolvedValue({ entries: [workflowEntry(1, "alpha")], more: false })
+      );
+
+      // the checkbox and the button group are private-search only
+      expect(el().querySelectorAll("input.large-checkbox").length).toBe(0);
+      expect(el().querySelectorAll('button[title="Copy"]').length).toBe(0);
+      expect(el().querySelectorAll("texera-list-item").length).toBe(1);
+    });
+  });
+
+  describe("card view", () => {
+    beforeEach(() => {
+      host.viewMode = "card";
+      host.cardTemplateInput = host.cardTemplate;
+    });
+
+    it("renders the supplied card template per entry and appends the next page on Load more", async () => {
+      const loadMoreFunction = vi
+        .fn<LoadMoreFunction>()
+        .mockResolvedValueOnce({ entries: [workflowEntry(1, "alpha"), workflowEntry(2, "beta")], more: true })
+        .mockResolvedValueOnce({ entries: [workflowEntry(3, "gamma")], more: false });
+
+      await loadFirstPage(loadMoreFunction);
+
+      expect(renderedCards()).toEqual(["card:alpha", "card:beta"]);
+      // the card view is used instead of, not alongside, the list view
+      expect(el().querySelectorAll("texera-list-item").length).toBe(0);
+      expect(loadMoreButton()?.textContent?.trim()).toBe("Load more");
+
+      await clickLoadMore();
+
+      expect(loadMoreFunction).toHaveBeenLastCalledWith(2, 20);
+      expect(renderedCards()).toEqual(["card:alpha", "card:beta", "card:gamma"]);
+      expect(loadMoreButton()).toBeNull();
+    });
+
+    it("renders nothing when no card template is supplied", async () => {
+      host.cardTemplateInput = undefined;
+
+      await loadFirstPage(
+        vi.fn<LoadMoreFunction>().mockResolvedValue({ entries: [workflowEntry(1, "alpha")], more: true })
+      );
+
+      expect(renderedCards()).toEqual([]);
+      expect(el().querySelector(".card-grid")).toBeNull();
+      // the list view is not used as a fallback either
+      expect(el().querySelectorAll("texera-list-item").length).toBe(0);
+      expect(loadMoreButton()).toBeNull();
     });
   });
 });

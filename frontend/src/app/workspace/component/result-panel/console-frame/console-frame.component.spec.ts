@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, TestBed, fakeAsync, flush, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { Subject } from "rxjs";
 import { ConsoleFrameComponent } from "./console-frame.component";
@@ -170,6 +170,34 @@ describe("ConsoleFrameComponent", () => {
       getWorkerIds.mockClear();
       component.renderConsole();
       expect(getWorkerIds).not.toHaveBeenCalled();
+    });
+
+    it("displayConsoleMessages falls back to an empty list for an operator the service has never seen", () => {
+      // WorkflowConsoleService.getConsoleMessages returns undefined until the
+      // operator has produced its first message; the frame must not render undefined.
+      component.consoleMessages = [consoleMessage("PRINT")];
+      getConsoleMessages.mockReturnValue(undefined);
+
+      component.displayConsoleMessages("op-never-run");
+
+      expect(component.consoleMessages).toEqual([]);
+    });
+
+    it("ngOnChanges adopts the newly bound operator id and re-renders for it", () => {
+      // ResultPanelComponent recreates this frame with {operatorId, consoleInputEnabled}
+      // inputs, so the operator the console follows arrives through ngOnChanges.
+      getWorkerIds.mockReturnValue(["w-op2-1"]);
+      getConsoleMessages.mockReturnValue([consoleMessage("COMMAND")]);
+
+      component.ngOnChanges({
+        operatorId: { currentValue: "op2", previousValue: "op1", firstChange: false, isFirstChange: () => false },
+      });
+
+      expect(component.operatorId).toBe("op2");
+      expect(getWorkerIds).toHaveBeenCalledWith("op2");
+      expect(getConsoleMessages).toHaveBeenCalledWith("op2");
+      expect(component.workerIds).toEqual(["w-op2-1"]);
+      expect(component.consoleMessages).toEqual([consoleMessage("COMMAND")]);
     });
   });
 
@@ -378,5 +406,171 @@ describe("ConsoleFrameComponent", () => {
       expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-0", cmd: "break" });
       expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-1", cmd: "break" });
     });
+
+    it("sends the text typed into the command box, then clears it", fakeAsync(() => {
+      component.operatorId = "op1";
+      component.workerIds = ["w-7"];
+      component.consoleInputEnabled = true;
+      fixture.detectChanges();
+
+      // Drive the input the way a user does — set the DOM value and let the
+      // DefaultValueAccessor push it back through [(ngModel)]. Nothing here
+      // assigns component.command, so a broken view-to-model binding would send
+      // the empty string instead of the typed text.
+      const input = fixture.debugElement.query(By.css("input[nz-input]")).nativeElement as HTMLInputElement;
+      input.value = "print(row)";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      fixture.detectChanges();
+
+      input.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+      fixture.detectChanges();
+
+      expect(send).toHaveBeenCalledWith("DebugCommandRequest", {
+        operatorId: "op1",
+        workerId: "w-7",
+        cmd: "print(row)",
+      });
+      // the box is emptied after submitting, so the next command starts clean
+      expect(input.value).toBe("");
+      flush();
+    }));
+
+    it("narrows the command to the worker picked in the target-worker dropdown", fakeAsync(() => {
+      component.operatorId = "op1";
+      component.workerIds = ["w-7", "w-8"];
+      component.consoleInputEnabled = true;
+      fixture.detectChanges();
+
+      // open the nz-select and pick the *second* worker (W8), so a binding that
+      // ignored the selection would still be sitting on W7 / All Workers.
+      const select = fixture.debugElement.query(By.css("nz-select")).nativeElement as HTMLElement;
+      select.click();
+      // The option list renders into a CDK overlay, i.e. a view that hangs off
+      // ApplicationRef rather than off this fixture. Render the open state first, then
+      // flush, so the options are there whether or not Angular's automatic tick has
+      // run — it stops firing for the rest of a Vitest worker once a spec that mounts
+      // Monaco has gone before this one, and the suite runs with isolate: false.
+      fixture.detectChanges();
+      flush();
+      fixture.detectChanges();
+
+      const options = Array.from(document.querySelectorAll("nz-option-item"));
+      expect(options.map(option => option.textContent?.trim())).toEqual(["W7", "W8", "All Workers"]);
+      (options[1] as HTMLElement).click();
+      tick(500);
+      fixture.detectChanges();
+
+      // the closed select shows the picked worker
+      expect(fixture.debugElement.query(By.css("nz-select-item")).nativeElement.textContent.trim()).toBe("W8");
+
+      const input = fixture.debugElement.query(By.css("input[nz-input]")).nativeElement as HTMLInputElement;
+      input.value = "where";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      fixture.detectChanges();
+      input.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+
+      // exactly one send, to w-8 only — not broadcast, and not to w-7
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith("DebugCommandRequest", { operatorId: "op1", workerId: "w-8", cmd: "where" });
+      flush();
+    }));
   });
+});
+
+/**
+ * The settings dropdown (the little gear above the console) hosts the
+ * "Show Timestamp" / "Show Source" switches. Its menu is projected into a CDK
+ * overlay that only attaches once the trigger is hovered, and the trigger
+ * pipeline is wired in ngAfterViewInit behind an auditTime, so the fixture has
+ * to be created *inside* fakeAsync for tick() to drive it. That is why this
+ * lives in its own describe rather than reusing the fixture above.
+ */
+describe("ConsoleFrameComponent settings dropdown", () => {
+  const message: ConsoleMessage = {
+    workerId: "w-3",
+    timestamp: { nanos: 0, seconds: 1 },
+    msgType: { name: "PRINT" },
+    source: "operator-a:main",
+    title: "title",
+    message: "body",
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ConsoleFrameComponent, HttpClientTestingModule, NzDropDownModule],
+      providers: [
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            getExecutionStateStream: () => new Subject<StateEvent>().asObservable(),
+            getWorkerIds: () => [],
+            skipTuples: () => {},
+            retryExecution: () => {},
+          },
+        },
+        {
+          provide: WorkflowConsoleService,
+          useValue: {
+            getConsoleMessageUpdateStream: () => new Subject<void>().asObservable(),
+            getConsoleMessages: () => [],
+          },
+        },
+        { provide: WorkflowWebsocketService, useValue: { send: () => {} } },
+        { provide: NotificationService, useValue: { error: () => {} } },
+        { provide: UdfDebugService, useValue: { doStep: () => {}, doContinue: () => {} } },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+  });
+
+  it("toggles the timestamp and source tags independently from the settings menu", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.componentInstance.consoleMessages = [message];
+    fixture.detectChanges();
+
+    const timestampTags = () => fixture.debugElement.queryAll(By.css(".timestamp-tag")).length;
+    const sourceTags = () => fixture.debugElement.queryAll(By.css(".source-tag")).length;
+
+    // both switches default to on, so both tags start out rendered
+    expect(timestampTags()).toBe(1);
+    expect(sourceTags()).toBe(1);
+
+    // hovering the gear attaches the dropdown overlay
+    fixture.debugElement
+      .query(By.css("a[nz-dropdown]"))
+      .nativeElement.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    tick(300);
+    fixture.detectChanges();
+
+    const menuItems = Array.from(document.querySelectorAll("li[nz-menu-item]"));
+    expect(menuItems.map(item => item.textContent?.trim())).toEqual(["Show Timestamp", "Show Source"]);
+    const switches = Array.from(document.querySelectorAll("nz-switch button.ant-switch")) as HTMLElement[];
+    expect(switches.length).toBe(2);
+    expect(switches[0].classList.contains("ant-switch-checked")).toBe(true);
+
+    // flip only "Show Timestamp": the timestamp tag goes away and the source tag stays.
+    // Asserting the two independently is what distinguishes the bindings — turning
+    // both off at once would look the same if the two switches were swapped.
+    switches[0].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(switches[0].classList.contains("ant-switch-checked")).toBe(false);
+    expect(timestampTags()).toBe(0);
+    expect(sourceTags()).toBe(1);
+
+    // now flip "Show Source" as well
+    switches[1].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(switches[1].classList.contains("ant-switch-checked")).toBe(false);
+    expect(sourceTags()).toBe(0);
+    expect(timestampTags()).toBe(0);
+
+    fixture.destroy();
+    flush();
+  }));
 });

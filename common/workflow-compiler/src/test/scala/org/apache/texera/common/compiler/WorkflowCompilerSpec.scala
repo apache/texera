@@ -20,9 +20,9 @@
 package org.apache.texera.common.compiler
 
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -30,9 +30,11 @@ import org.apache.texera.amber.operator.filter.{
   SpecializedFilterOpDesc
 }
 import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, TestOperators}
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
@@ -86,6 +88,45 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val op = new LimitOpDesc
     op.limit = limit
     op
+  }
+
+  // Sort is a real, shipped `PythonOperatorDescriptor` whose `generatePythonCode`
+  // rejects an unconfigured operator, so `sortOp()` (no sort keys) and
+  // `sortOp("" -> ASC)` (a key with no attribute) are genuine ways for a user to
+  // land in the `#EXCEPTION DURING CODE GENERATION:` state.
+  private def sortOp(criteria: (String, SortPreference)*): SortOpDesc = {
+    val op = new SortOpDesc
+    op.attributes = criteria.map {
+      case (attributeName, preference) =>
+        val unit = new SortCriteriaUnit
+        unit.attributeName = attributeName
+        unit.sortPreference = preference
+        unit
+    }.toList
+    op
+  }
+
+  /**
+    * A test-only Python operator whose code generation fails with a
+    * whitespace-padded message. No shipped operator raises a padded message, so
+    * this is the only way to pin the compiler's regex-group + `trim` extraction
+    * of the marker's payload.
+    */
+  private class PaddedFailurePyOp extends PythonOperatorDescriptor {
+    override def asSource(): Boolean = true
+    override def generatePythonCode(): String =
+      throw new RuntimeException("   padded codegen failure   ")
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> Schema())
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "padded",
+        "raises a padded message during code generation",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List.empty,
+        List(OutputPort())
+      )
   }
 
   private val realCsvPath =
@@ -317,6 +358,214 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
   }
 
+  // -------------------- Python code-generation error path --------------------
+
+  // A `PythonOperatorDescriptor` whose `generatePythonCode` throws does not
+  // propagate the failure: it embeds `#EXCEPTION DURING CODE GENERATION: <msg>`
+  // in the generated code so schema propagation can still run. The compiler is
+  // the consumer that turns that marker back into a per-operator error, so these
+  // tests pin the marker -> error translation from the compiler's side.
+
+  // Re-anchor the subject after the sub-section.
+  "WorkflowCompiler" should "accumulate a per-operator error when a Python operator's code generation fails" in {
+    val csv = csvOp(realCsvPath)
+    val unconfiguredSort = sortOp() // no sort keys -> generatePythonCode throws
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(csv, unconfiguredSort),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            unconfiguredSort.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.physicalPlan.isEmpty, "any error must clear the physical plan")
+    val err = result.operatorIdToError(unconfiguredSort.operatorIdentifier)
+    assert(err.`type` == COMPILATION_ERROR)
+    assert(err.operatorId == unconfiguredSort.operatorIdentifier.id)
+    assert(
+      err.message.contains(
+        "Operator is not configured properly: " +
+          "requirement failed: Sort operator requires at least one sort key."
+      ),
+      s"unexpected message: ${err.message}"
+    )
+    // The failure belongs to the Python operator alone; the upstream csv compiled.
+    assert(
+      !result.operatorIdToError.contains(csv.operatorIdentifier),
+      s"only the Python op should have errored, got ${result.operatorIdToError.keySet}"
+    )
+    // Lenient mode records the error and keeps going *within* the same operator:
+    // the terminal sort's output port is still collected for storage, which only
+    // happens if the marker check did not abort the operator's expansion.
+    assert(
+      result.outputPortsNeedingStorage.exists(
+        _.opId.logicalOpId == unconfiguredSort.operatorIdentifier
+      ),
+      s"expected the sort's port to still be collected, got ${result.outputPortsNeedingStorage}"
+    )
+  }
+
+  it should "attribute each Python code-generation failure to its own logical operator" in {
+    val csv = csvOp(realCsvPath)
+    val noKeys = sortOp()
+    val blankKey = sortOp("" -> SortPreference.ASC)
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(csv, noKeys, blankKey),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            noKeys.operatorIdentifier,
+            PortIdentity(0)
+          ),
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            blankKey.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(
+      result.operatorIdToError.keySet ==
+        Set(noKeys.operatorIdentifier, blankKey.operatorIdentifier),
+      s"expected exactly the two Python ops in errors, got ${result.operatorIdToError.keySet}"
+    )
+    // Each operator carries the message its *own* code generation raised — a
+    // mixed-up mapping would put the wrong diagnostic on the wrong UI node.
+    assert(
+      result
+        .operatorIdToError(noKeys.operatorIdentifier)
+        .message
+        .contains("Operator is not configured properly: requirement failed: Sort operator requires")
+    )
+    assert(
+      result
+        .operatorIdToError(blankKey.operatorIdentifier)
+        .message
+        .contains(
+          "Operator is not configured properly: " +
+            "requirement failed: Each sort key must have an attribute selected."
+        )
+    )
+    // The rest of the plan still compiled: the csv's schemas survive.
+    assert(
+      result.operatorIdToOutputSchemas.contains(csv.operatorIdentifier),
+      "upstream csv's schemas should be retained even when downstream Python ops fail"
+    )
+  }
+
+  it should "trim the marker's message and report it as a plain RuntimeException" in {
+    val padded = new PaddedFailurePyOp
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(padded),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    // `message` is the RuntimeException's toString, so the extracted payload is
+    // the tail of it: exactly the raised message with its padding removed, and
+    // with the marker itself stripped off by the regex.
+    val message = result.operatorIdToError(padded.operatorIdentifier).message
+    assert(
+      message.endsWith("Operator is not configured properly: padded codegen failure"),
+      s"unexpected message: [$message]"
+    )
+    // The head of it is the exception's class name: the compiler wraps the
+    // extracted payload in a plain `RuntimeException` and the error map stores
+    // `err.toString`, so the type is part of what the UI renders. Pinning it
+    // here keeps the wrapper type from silently drifting.
+    assert(
+      message.startsWith("java.lang.RuntimeException: "),
+      s"expected a plain RuntimeException to be reported, got: [$message]"
+    )
+    assert(
+      !message.contains("#EXCEPTION DURING CODE GENERATION"),
+      s"the marker itself must not leak into the user-facing message: [$message]"
+    )
+  }
+
+  it should "report no code-generation error for a well-formed Python operator" in {
+    val csv = csvOp(realCsvPath)
+    val configuredSort = sortOp("Region" -> SortPreference.ASC)
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(csv, configuredSort),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            configuredSort.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(result.physicalPlan.isDefined)
+    // Same operator, same Python code path — the only difference is that code
+    // generation succeeded, so no marker is present to be turned into an error.
+    val sortPhysicalOps =
+      result.physicalPlan.get.getPhysicalOpsOfLogicalOp(configuredSort.operatorIdentifier)
+    assert(sortPhysicalOps.nonEmpty)
+    assert(sortPhysicalOps.forall(_.isPythonBased), "Sort must still be a Python-based operator")
+    assert(sortPhysicalOps.forall(!_.getCode.contains("#EXCEPTION DURING CODE GENERATION")))
+  }
+
+  it should "not subject non-Python operators to the code-generation check" in {
+    // Non-Python operators carry no code at all — `getCode` throws
+    // IllegalAccessError on them — so the check must stay behind the
+    // `isPythonBased` guard or every Scala operator would fail to compile.
+    val csv = csvOp(realCsvPath)
+    val filter = filterOp(new FilterPredicate("Region", ComparisonType.EQUAL_TO, "Asia"))
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      LogicalPlanPojo(
+        operators = List(csv, filter),
+        links = List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            filter.operatorIdentifier,
+            PortIdentity(0)
+          )
+        ),
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val physicalOps = result.physicalPlan.get.operators
+    assert(
+      physicalOps.forall(!_.isPythonBased),
+      "this plan must contain no Python-based op, otherwise the test proves nothing"
+    )
+  }
+
   // -------------------- physical-plan shape --------------------
 
   private def pojo(
@@ -537,5 +786,58 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       ex.getMessage != null && ex.getMessage.contains("DoesNotExist"),
       s"the thrown schema error should name the missing attribute, got: $ex"
     )
+  }
+
+  it should "throw immediately when a Python operator's code generation failed" in {
+    // The execution path passes no error buffer, so the marker found in the
+    // generated code must abort the compile instead of being collected. The
+    // lenient counterpart above turns the same marker into a per-operator error.
+    val csv = csvOp(realCsvPath)
+    val unconfiguredSort = sortOp()
+
+    val ex = intercept[RuntimeException] {
+      new WorkflowCompiler(newContext()).compile(
+        pojo(
+          List(csv, unconfiguredSort),
+          List(
+            LogicalLink(
+              csv.operatorIdentifier,
+              PortIdentity(0),
+              unconfiguredSort.operatorIdentifier,
+              PortIdentity(0)
+            )
+          )
+        ),
+        CompilationErrorHandling.Strict
+      )
+    }
+    assert(
+      ex.getMessage == "Operator is not configured properly: " +
+        "requirement failed: Sort operator requires at least one sort key.",
+      s"unexpected message: ${ex.getMessage}"
+    )
+  }
+
+  it should "not throw for a well-formed Python operator" in {
+    val csv = csvOp(realCsvPath)
+    val configuredSort = sortOp("Region" -> SortPreference.DESC)
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, configuredSort),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(0),
+            configuredSort.operatorIdentifier,
+            PortIdentity(0)
+          )
+        )
+      ),
+      CompilationErrorHandling.Strict
+    )
+
+    assert(result.physicalPlan.isDefined)
+    assert(result.operatorIdToError.isEmpty)
   }
 }

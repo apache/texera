@@ -59,8 +59,10 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.net.URI
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.DurationInt
+import scala.jdk.CollectionConverters._
 
 class WorkflowActorSpec
     extends TestKit(ActorSystem("WorkflowActorSpec"))
@@ -161,6 +163,40 @@ class WorkflowActorSpec
       extends TrivialControlTester(workerId) {
     override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit =
       throw new IllegalStateException("handleInputMessage failed")
+  }
+
+  /** A *direct* `WorkflowActor` subclass, i.e. the smallest actor that actually
+    * runs the base class's own `preStart`. `TrivialControlTester` overrides
+    * `preStart` without calling `super`, so nothing derived from it ever enters
+    * `WorkflowActor.preStart`.
+    */
+  private class MinimalWorkflowActor(
+      workerId: ActorVirtualIdentity,
+      failInitState: Boolean
+  ) extends WorkflowActor(replayLogConfOpt = None, actorId = workerId) {
+
+    /** The preStart steps observed from inside `initState`, in the order they
+      * happened. `transferService.initialize()` is not called by this class, so it
+      * is recorded through its only observable effect: `initState` finding the two
+      * periodic handles already live. Permuting the two calls therefore drops the
+      * first element of this sequence.
+      */
+    private val events = new ConcurrentLinkedQueue[String]()
+    def preStartEvents: Seq[String] = events.asScala.toSeq
+
+    override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {}
+
+    override def getQueuedCredit(channelId: ChannelIdentity): Long = 0L
+
+    override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
+    override def initState(): Unit = {
+      if (!transferService.resendHandle.isCancelled) events.add("transferService.initialize")
+      events.add("initState")
+      if (failInitState) throw new IllegalStateException("initState failed")
+    }
+
+    override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {}
   }
 
   // ---------------------------------------------------------------------------
@@ -502,6 +538,79 @@ class WorkflowActorSpec
       actor.ap.inputGateway.getAllChannels.isEmpty,
       "the checkpoint branch must not replay the top-level log"
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // preStart (WorkflowActor lines 229-238)
+  // ---------------------------------------------------------------------------
+
+  it should "start its transfer service and register itself with its parent in preStart" in {
+    val parent = TestProbe()
+    // The identity and the actor path name are deliberately different strings: with
+    // one literal for both, a registration reporting `context.self.path.name` instead
+    // of `actorId` would be indistinguishable from the real thing.
+    val actorId = ActorVirtualIdentity("prestart-succeeds-id")
+    val ref = TestActorRef[MinimalWorkflowActor](
+      Props(new MinimalWorkflowActor(actorId, failInitState = false)),
+      parent.ref,
+      "prestart-succeeds"
+    )
+    val transferService = ref.underlyingActor.transferService
+
+    // PekkoMessageTransferService starts out holding `Cancellable.alreadyCancelled`
+    // for both periodic handles, so live handles can only come from
+    // transferService.initialize() having run.
+    assert(!transferService.resendHandle.isCancelled)
+    assert(!transferService.creditPollingHandle.isCancelled)
+
+    // Order, not merely occurrence: initState found the transfer service already
+    // running, so initialize() ran first. Swapping the two calls yields Seq("initState").
+    assert(ref.underlyingActor.preStartEvents == Seq("transferService.initialize", "initState"))
+
+    // The parent is the only party that can answer GetActorRef for this actor, so
+    // the registration has to travel upwards rather than to self.
+    val registered = parent.expectMsgType[RegisterActorRef]
+    assert(registered.id == actorId)
+    assert(registered.ref == ref)
+
+    // Stopping the actor is also the cleanup this case owes the shared ActorSystem:
+    // left running, its 30s resend timer and its 200ms credit-polling timer keep
+    // firing until afterAll. postStop is what cancels them.
+    system.stop(ref)
+    awaitAssert(
+      {
+        assert(transferService.resendHandle.isCancelled)
+        assert(transferService.creditPollingHandle.isCancelled)
+      },
+      5.seconds,
+      100.millis
+    )
+  }
+
+  it should "rethrow an initialization failure so supervision tears the actor down" in {
+    val parent = TestProbe()
+    val actorId = ActorVirtualIdentity("prestart-fails-id")
+    // Swallowing this would leave a half-initialized actor in the running state and
+    // its supervisor none the wiser. Re-throwing turns it into an
+    // ActorInitializationException, which the default decider maps to Stop.
+    //
+    // Scope of this case: it pins `throw t` *given the catch exists*. It cannot see
+    // the catch block itself -- with no try/catch at all the exception takes exactly
+    // the same route to the same outcome -- and it does not observe the `logger.warn`,
+    // which is line-hit only.
+    val ref = TestActorRef[MinimalWorkflowActor](
+      Props(new MinimalWorkflowActor(actorId, failInitState = true)),
+      parent.ref,
+      "prestart-fails"
+    )
+
+    watch(ref)
+    expectTerminated(ref, 10.seconds)
+
+    // Ordering, the other half of the pin in the success case: a doomed actor must
+    // never have advertised itself upwards. Hoisting the registration above
+    // initState() would have put a RegisterActorRef here before the throw.
+    parent.expectNoMessage(500.millis)
   }
 
 }

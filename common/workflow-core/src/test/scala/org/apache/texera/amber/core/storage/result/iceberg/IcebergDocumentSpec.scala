@@ -328,4 +328,37 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     doc.asInstanceOf[IcebergDocument[Tuple]].tableNamespace shouldBe tableNamespace
     doc.asInstanceOf[IcebergDocument[Tuple]].tableName shouldBe name
   }
+  it should "re-resolve its catalog on every seek, keeping a polling reader's entry live" in {
+    // #7290 review: a reader that refreshed a pinned Table never touched the catalog
+    // cache again, so a long poll looked idle -- expiry could close the catalog under
+    // it. Per-seek re-resolution touches the cache at iterator construction AND every
+    // seek; the pinned-refresh implementation stopped at the construction touch.
+    val tableName = freshTableName()
+    IcebergUtil.createTable(
+      IcebergCatalogInstance.getInstance(),
+      tableNamespace,
+      tableName,
+      icebergSchema,
+      overrideIfExists = true
+    )
+    val counting = new CountingCatalog(IcebergCatalogInstance.getInstance())
+    IcebergCatalogInstance.replaceInstance(counting, Some("iceberg-doc-spec-counting"))
+    val doc = new IcebergDocument[Tuple](
+      tableNamespace,
+      tableName,
+      icebergSchema,
+      serde,
+      deserde,
+      Some("iceberg-doc-spec-counting")
+    )
+    write(doc, (1 to 3).map(tuple))
+
+    val before = counting.loadTableCalls.get()
+    doc.get().toList should have size 3
+
+    // Exactly the construction-time seek and the final exhausted-files seek resolve
+    // through the catalog: the pinned-refresh implementation touched it only once,
+    // and an eager constructor-time load would add a wasted third round trip.
+    (counting.loadTableCalls.get() - before) shouldBe 2
+  }
 }

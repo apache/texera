@@ -17,34 +17,33 @@
  * under the License.
  */
 
-import { Component, inject } from "@angular/core";
+import { Component, HostListener, inject, OnDestroy } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from "@angular/forms";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { NzUploadComponent, NzUploadFile } from "ng-zorro-antd/upload";
 import { Observable } from "rxjs";
-import { AsyncPipe, NgIf, NgFor, NgOptimizedImage } from "@angular/common";
+import { AsyncPipe, NgIf, NgFor, NgOptimizedImage, NgTemplateOutlet } from "@angular/common";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzSelectModule } from "ng-zorro-antd/select";
-import { NzAlertModule } from "ng-zorro-antd/alert";
+import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTabsComponent, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 
-// Passed in via nzData. The modal delegates "may I proceed?" to the opener so the
-// opener can keep the overwrite-confirm and generation logic (and the workflow state it
-// needs) without the modal knowing about them. Resolve true to close the modal (the
-// import has started), false to keep it open with the user's selection intact.
+// Passed in via nzData. requestImport resolves true to close the modal, false to keep it open
+// with the user's selection intact (bad file or a retryable failure).
 export interface NotebookImportModalData {
   requestImport: (file: NzUploadFile, model: string) => Promise<boolean>;
 }
 
 /**
- * The "AI Generate Workflow from Python Notebook" modal body. It owns the upload form and
- * the three model-dropdown states (loading / has models / none). On Submit it delegates the
- * decision to proceed to its opener via the requestImport callback (passed in through
- * nzData); the opener runs the overwrite-confirm and generation pipeline and the modal
- * closes itself only when that resolves true. Mirrors the component-as-nzContent pattern
- * used by the other modals opened from the menu (ResultExportationComponent, ...).
+ * The "AI Generate Workflow from Source Code" modal body: a tab per accepted input kind
+ * (Jupyter notebook, Python script), each with its own diagram, description and upload
+ * control, over a shared model dropdown and footer.
+ *
+ * On Submit it hands the file and model to requestImport and shows a loading state until
+ * it resolves; the opener dispatches on the uploaded file's extension.
  */
 @Component({
   selector: "texera-notebook-import-modal",
@@ -55,16 +54,20 @@ export interface NotebookImportModalData {
     NgFor,
     AsyncPipe,
     NgOptimizedImage,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     NzFormModule,
     NzSelectModule,
-    NzAlertModule,
+    NzSpinComponent,
     NzUploadComponent,
     NzButtonComponent,
     NzIconDirective,
+    NzTabsComponent,
+    NzTabComponent,
+    NzTabDirective,
   ],
 })
-export class NotebookImportModalComponent {
+export class NotebookImportModalComponent implements OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly modalRef = inject(NzModalRef);
   private readonly notebookMigrationService = inject(NotebookMigrationService);
@@ -79,6 +82,25 @@ export class NotebookImportModalComponent {
   // and an empty list (no models available, e.g. the fetch failed or the feature is off).
   public readonly models$: Observable<{ name: string }[]> = this.notebookMigrationService.getAvailableModels();
 
+  // The pane cross-fade reads as a flicker on a dense form, so only the ink bar animates.
+  // Held as a field rather than an inline literal so the binding keeps a stable reference.
+  public readonly tabAnimation = { inkBar: true, tabPane: false };
+
+  // Tab order: 0 = Jupyter notebook, 1 = Python file.
+  public selectedTabIndex = 0;
+
+  /**
+   * Switching tabs drops the selected file: the two tabs accept different extensions, so
+   * carrying a selection across would leave, say, an .ipynb staged under the Python tab.
+   * The model stays selected because it applies to either input.
+   */
+  public onTabChange(index: number): void {
+    this.selectedTabIndex = index;
+    const fileControl = this.importForm.get("file");
+    fileControl?.reset(null);
+    fileControl?.updateValueAndValidity();
+  }
+
   public beforeUpload = (file: NzUploadFile) => {
     this.importForm.patchValue({ file });
     this.importForm.get("file")?.markAsDirty();
@@ -90,24 +112,59 @@ export class NotebookImportModalComponent {
     this.modalRef.close();
   }
 
-  // Guards against a second submit while the opener callback (which may show an
-  // overwrite confirmation) is still pending, so a double-click cannot start two imports.
+  // True while generation runs: guards against a second submit and drives the loading overlay.
   public isSubmitting = false;
+  private startTime: number | null = null;
+  private timerHandle: ReturnType<typeof setInterval> | null = null;
+
+  public ngOnDestroy(): void {
+    this.stopTimer();
+  }
+
+  public get formattedElapsedTime(): string {
+    const diffMs = this.startTime === null ? 0 : Date.now() - this.startTime;
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  // Empty body on purpose: the zone-patched event firing is itself what repaints the stopwatch,
+  // so it catches up when the user returns to a backgrounded tab. Same reason as the timer below.
+  @HostListener("document:visibilitychange")
+  public onVisibilityChange(): void {}
+
+  private startTimer(): void {
+    this.stopTimer();
+    this.startTime = Date.now();
+    // Empty body: elapsed is computed from startTime; the zone-patched tick just triggers a repaint.
+    this.timerHandle = setInterval(() => {}, 1000);
+  }
+
+  private stopTimer(): void {
+    if (this.timerHandle !== null) {
+      clearInterval(this.timerHandle);
+      this.timerHandle = null;
+    }
+  }
 
   public async onSubmit(): Promise<void> {
     if (this.isSubmitting || !this.importForm.valid) return;
     const file: NzUploadFile = this.importForm.get("file")?.value;
     const model: string = this.importForm.get("model")?.value;
     this.isSubmitting = true;
+    this.startTimer();
+    this.modalRef.updateConfig({ nzClosable: false, nzMaskClosable: false, nzKeyboard: false });
     try {
-      // Ask the opener whether to proceed; close only if it does, so cancelling the
-      // overwrite-confirm leaves this modal open with the selection preserved.
+      // Close only on success, so a failure leaves the modal open with the selection preserved.
       if (await this.data.requestImport(file, model)) {
         this.modalRef.close();
+        return;
       }
+      this.modalRef.updateConfig({ nzClosable: true, nzMaskClosable: true, nzKeyboard: true });
     } finally {
-      // Re-enable submit if the modal is still open (import declined or it threw).
       this.isSubmitting = false;
+      this.stopTimer();
     }
   }
 }

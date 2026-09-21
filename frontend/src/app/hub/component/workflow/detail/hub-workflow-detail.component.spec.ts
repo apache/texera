@@ -23,7 +23,8 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline } from "@ant-design/icons-angular/icons";
-import { config, of, throwError } from "rxjs";
+import { By } from "@angular/platform-browser";
+import { config, of, Subject, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { HubWorkflowDetailComponent, THROTTLE_TIME_MS } from "./hub-workflow-detail.component";
@@ -280,6 +281,24 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 }, userOverride: undefined });
       expect(hubServiceMock.isLiked).not.toHaveBeenCalled();
     });
+
+    it("assigns the fetched description and passes it to the description child", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of("a real description"));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("a real description");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("a real description");
+    });
+
+    it("substitutes a placeholder when the workflow has no description", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of(""));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("No description available");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("No description available");
+    });
   });
 
   describe("ngAfterViewInit / loadWorkflowWithId", () => {
@@ -421,6 +440,75 @@ describe("HubWorkflowDetailComponent", () => {
       expect(component.isLiked).toBe(false);
       expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
     });
+
+    it("does not flip isLiked when postUnlike returns false", () => {
+      hubServiceMock.postUnlike.mockReturnValue(of(false));
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      hubServiceMock.getCounts.mockClear();
+      component.toggleLike();
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after a like carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = false;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after an unlike carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = true;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    // The like/unlike responses are asynchronous in production, so `wid` is re-checked
+    // inside each handler. A subject stands in for the pending request so the id can be
+    // cleared between issuing the call and the response arriving.
+    it("skips the like refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postLike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = false;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("skips the unlike refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postUnlike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(false);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
   });
 
   describe("formatCount", () => {
@@ -462,8 +550,11 @@ describe("HubWorkflowDetailComponent", () => {
  */
 describe("HubWorkflowDetailComponent rendered with its real children", () => {
   let fixture: ComponentFixture<HubWorkflowDetailComponent>;
+  // goBack() chains .catch() onto the navigation result, so this has to be a real promise.
+  let renderedRouter: { navigateByUrl: ReturnType<typeof vi.fn>; navigate: ReturnType<typeof vi.fn> };
 
   function render(opts: { isHub: boolean }): void {
+    renderedRouter = { navigateByUrl: vi.fn().mockResolvedValue(true), navigate: vi.fn().mockResolvedValue(true) };
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [
@@ -484,7 +575,7 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { params: opts.isHub ? { id: "5" } : {} } },
         },
-        { provide: Router, useValue: { navigateByUrl: vi.fn(), navigate: vi.fn() } },
+        { provide: Router, useValue: renderedRouter },
         {
           provide: HubService,
           useValue: {
@@ -531,6 +622,22 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
     render({ isHub: true });
 
     expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).not.toBeNull();
+  });
+
+  it("navigates back to the hub listing when the back button is clicked", () => {
+    // The goBack() unit test above calls the method directly, so nothing pinned the button's
+    // (click) binding: drop it from the template and that test still passes while the arrow
+    // becomes inert.
+    render({ isHub: true });
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(".go-back-button")!.click();
+
+    // Asserted as a literal, not as HUB_WORKFLOW_RESULT: the component navigates with that same
+    // symbol, so a symbolic assertion moves with it and cannot see the destination change. The
+    // route table in app-routing.module.ts spells the segments out as literals and does not import
+    // the constant, so the two really can drift apart into a navigation to a dead route.
+    expect(renderedRouter.navigateByUrl).toHaveBeenCalledWith("/hub/workflow/result");
+    expect(HUB_WORKFLOW_RESULT).toBe("/hub/workflow/result");
   });
 
   it("hides the back button when the wid arrived as modal data", () => {

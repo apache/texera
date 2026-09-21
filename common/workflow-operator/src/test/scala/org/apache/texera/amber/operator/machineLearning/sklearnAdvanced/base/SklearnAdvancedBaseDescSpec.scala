@@ -94,6 +94,9 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     val d = newOp(List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5")))
     val code = d.generatePythonCode()
     code should include("from pytexera import *")
+    // Unconditional: a hyperparameter's declared type is emitted as the callable
+    // that converts the user's text, and the one taking a mapping names json.loads.
+    code should include("import json")
     code should include("from sklearn.neighbors import KNeighborsClassifier")
     code should include("class ProcessTableOperator(UDFTableOperator):")
     code should include("def process_table(")
@@ -101,6 +104,13 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     code should include("model = KNeighborsClassifier(")
     code should include("model.fit(X_train, y_train)")
     code should include("yield df")
+  }
+
+  // This family reads a named list of features rather than every column, so the
+  // drop names those columns: a blank anywhere else must not cost the row.
+  it should "drop rows missing a selected feature or the ground truth" in {
+    val d = newOp(List(hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5")))
+    d.generatePythonCode() should include("self.dataset.dropna(subset=features + [")
   }
 
   it should "loop once when no parameter is sourced from the workflow" in {

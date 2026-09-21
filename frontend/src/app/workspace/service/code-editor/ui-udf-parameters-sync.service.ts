@@ -21,12 +21,17 @@ import { isEqual } from "lodash-es";
 import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { UiUdfParametersParseError, UiUdfParametersParserService } from "./ui-udf-parameters-parser.service";
+import {
+  UiUdfParametersEditError,
+  UiUdfParametersParseError,
+  UiUdfParametersParserService,
+} from "./ui-udf-parameters-parser.service";
 import type { UiUdfParameter } from "./ui-udf-parameters-parser.service";
 import { isDefined } from "../../../common/util/predicate";
 import { isPythonUdf } from "../workflow-graph/model/workflow-graph";
 import type { Text as YText } from "yjs";
 import type { YType } from "../../types/shared-editing.interface";
+import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type SharedOperatorProperties = Readonly<{ code?: string; [key: string]: unknown }>;
 
@@ -117,13 +122,34 @@ export class UiUdfParametersSyncService {
     }));
   }
 
+  /**
+   * Inserts a new self.UiParameter declaration into the operator's shared Python code
+   * (creating open() when missing) and immediately re-syncs the parameter rows.
+   * Throws UiUdfParametersEditError or UiUdfParametersParseError when the code cannot be edited.
+   */
+  addParameter(operatorId: string, attributeName: string, attributeType: AttributeType): void {
+    const yCode = this.getSharedYCode(operatorId);
+    if (!yCode) throw new UiUdfParametersEditError("Python UDF code is not available for this operator.");
+
+    const edit = this.uiUdfParametersParserService.computeParameterInsertion(
+      yCode.toString(),
+      attributeName,
+      attributeType
+    );
+    yCode.insert(edit.offset, edit.text);
+    this.syncStructureFromCode(operatorId);
+  }
+
   private getSharedCode(operatorId: string): string | undefined {
+    return this.getSharedYCode(operatorId)?.toString();
+  }
+
+  private getSharedYCode(operatorId: string): YText | undefined {
     try {
       const sharedOperatorType = this.workflowActionService.getTexeraGraph().getSharedOperatorType(operatorId);
 
       const operatorProperties = sharedOperatorType.get("operatorProperties") as YType<SharedOperatorProperties>;
-      const yCode = operatorProperties.get("code") as unknown as YText;
-      return yCode?.toString();
+      return operatorProperties.get("code") as unknown as YText;
     } catch (error) {
       console.warn("Unable to read Python UDF code from shared operator properties.", error);
       return undefined;
