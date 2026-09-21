@@ -177,6 +177,25 @@ describe("ExecuteWorkflowService", () => {
 
       expect(service.getExecutionDuration()).toBe(0);
     });
+
+    // Leaving the workspace takes this path, not resetExecutionState, and a run still going when
+    // it is taken would otherwise carry on counting into the next workflow.
+    it("stops a running clock when the execution and workers are reset", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(20_000);
+
+        service.resetExecutionAndWorkers();
+        const atReset = service.getExecutionDuration();
+        vi.advanceTimersByTime(20_000);
+
+        expect(atReset).toBe(0);
+        expect(service.getExecutionDuration()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   // A view handed a session mid-run needs the lock the run implies; the lock is otherwise only

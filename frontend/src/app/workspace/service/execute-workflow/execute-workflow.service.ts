@@ -456,6 +456,10 @@ export class ExecuteWorkflowService {
   public resetExecutionAndWorkers(): void {
     this.updateExecutionState({ state: ExecutionState.Uninitialized });
     this.assignedWorkerIds.clear();
+    // Leaving the workspace takes this path, not resetExecutionState, so the clock has to be
+    // stopped here as well: otherwise the next workflow opens showing the last run's time, and
+    // if that run was still going, showing it still counting up.
+    this.anchorDuration(0, false);
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
