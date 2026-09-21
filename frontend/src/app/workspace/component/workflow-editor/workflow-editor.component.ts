@@ -266,9 +266,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // The paper is bound to the joint graph, which is root-provided and outlives this component,
     // so an undisposed one goes on listening to that graph from a DOM node no longer on the page.
     // Harmless while every mount followed a page load; the switch between a workflow's two views
-    // routes now, so a mount happens on every switch and the papers pile up. Two live papers on
-    // one model both answer pointer events, and whichever answers decides whether an operator can
-    // be dragged -- measured: an operator was undraggable after two round-trips (issue #8582).
+    // routes now, so a mount happens on every switch and the papers pile up. Whether the
+    // undraggable operators recorded in #8580 follow from that is not settled -- #8582 tracks it.
     this.paper?.remove();
     // The same bound reference that was registered: `.bind()` returns a new function every call,
     // so removing a freshly bound one never matched and left the listener behind. One stale
