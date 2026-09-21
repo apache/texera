@@ -55,7 +55,9 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   private val executionId = ExecutionIdentity(1L)
 
   /** A Parquet file over `messageType`, one row per `rows` entry. */
-  private def writeFile(messageType: MessageType)(rows: (Group => Unit)*): File = {
+  private def writeFile(messageType: MessageType, footerMetadata: Map[String, String] = Map.empty)(
+      rows: (Group => Unit)*
+  ): File = {
     val file = File.createTempFile("parquet-src-", ".parquet")
     file.delete() // the writer refuses to overwrite
     file.deleteOnExit()
@@ -67,6 +69,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         .builder(new HadoopPath(file.getAbsolutePath))
         .withConf(conf)
         .withType(messageType)
+        .withExtraMetaData(footerMetadata.asJava)
         .build()
     ) { writer =>
       rows.foreach { fill =>
@@ -166,6 +169,50 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       // The wide storages hold the integer as its big-endian two's complement.
       row.append("in_bytes", Binary.fromConstantByteArray(Array[Byte](0, 0, 4, -46)))
     })
+  }
+
+  /**
+    * A file as pandas writes one from a frame keyed by a column: three columns in
+    * the footer, and beside them the note that `customer_id` was the frame's
+    * index. Written by hand because the note is pandas's own, and the Java writer
+    * here has nothing to say about an index.
+    */
+  private def indexedFile(): File = {
+    val pandasMetadata =
+      """|{"index_columns": ["customer_id"],
+         | "column_indexes": [],
+         | "columns": [{"name": "name", "field_name": "name",
+         |              "pandas_type": "unicode", "numpy_type": "object", "metadata": null},
+         |             {"name": "amt", "field_name": "amt",
+         |              "pandas_type": "float64", "numpy_type": "float64", "metadata": null},
+         |             {"name": "customer_id", "field_name": "customer_id",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null}],
+         | "pandas_version": "2.2.3"}""".stripMargin
+    writeFile(
+      Types
+        .buildMessage()
+        .addFields(
+          Types
+            .optional(PrimitiveTypeName.BINARY)
+            .as(LogicalTypeAnnotation.stringType())
+            .named("name"),
+          Types.optional(PrimitiveTypeName.DOUBLE).named("amt"),
+          Types.optional(PrimitiveTypeName.INT32).named("customer_id")
+        )
+        .named("sample"),
+      Map("pandas" -> pandasMetadata)
+    )(
+      row => {
+        row.append("name", "alice")
+        row.append("amt", 1.5d)
+        row.append("customer_id", 101)
+      },
+      row => {
+        row.append("name", "bob")
+        row.append("amt", 2.5d)
+        row.append("customer_id", 102)
+      }
+    )
   }
 
   private def unsignedColumn(name: String, bitWidth: Int): Type =
@@ -413,7 +460,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileName = Some("file:///tmp/some%20dir/data.parquet")
     // The translator names the file, so that two sources reading different files
     // whose paths end alike do not both ask for "data.parquet".
-    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(sourceFile,")
+    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(\n    sourceFile,")
     d.standaloneSourcePath() shouldBe d.fileName
     d.standaloneSourceName() shouldBe Some("data.parquet")
   }
@@ -435,6 +482,19 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new ParquetScanSourceOpDesc
     d.fileName = Some("file:///tmp/data.parquet")
     d.generateStandaloneCode() should include("""dtype_backend="numpy_nullable"""")
+  }
+
+  // A file pandas wrote records in its footer which of its columns held the
+  // frame's index, and pandas reads those back as an index rather than as
+  // columns. The executor reads the columns the footer states, so the note is
+  // stripped before the reader is handed the schema.
+  it should "read every column the footer states, index or not" in {
+    val d = new ParquetScanSourceOpDesc
+    d.fileName = Some("file:///tmp/data.parquet")
+    d.standaloneImports() should contain("import pyarrow.parquet as pq")
+    d.generateStandaloneCode() should include(
+      "schema=pq.read_schema(sourceFile).remove_metadata()"
+    )
   }
 
   // The rest of what pandas reads differently from the executor: a FLOAT keeps
@@ -575,13 +635,54 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       case (column, index) => column -> rows.map(row => comparable(row(index)))
     }.toMap
 
+    val fromScript = runExport(python, d, file, ParityDriver)
+    // The single precision the executor widens, stated as the sum it changes.
+    fromScript.get("size_sum").doubleValue() shouldBe 16777217.0d
+    fromScript.remove("size_sum")
+    fromScript shouldBe objectMapper.readTree(objectMapper.writeValueAsString(fromExecutor))
+  }
+
+  /**
+    * pandas writes into the footer which of a frame's columns was its index, and
+    * reads that column back as an index rather than as a column. The executor
+    * reads the columns the footer states and has no notion of an index, so a file
+    * written from a frame keyed by `customer_id` carried that column on the one
+    * side and dropped it on the other, where a projection naming it raised.
+    */
+  it should "keep the column a pandas index was written from" in {
+    val python = runnablePython().getOrElse(
+      cancel("No runnable python with pandas and pyarrow (udf.conf python.path, python3, python)")
+    )
+
+    val file = indexedFile()
+    val d = descFor(file)
+    val columns = d.inferSchema().getAttributeNames.toList
+    columns shouldBe List("name", "amt", "customer_id")
+
+    val fromScript = runExport(python, d, file, ColumnsDriver)
+    // The same columns, under the names the footer gives them and in its order.
+    fromScript.get("columns").elements().asScala.map(_.textValue()).toList shouldBe columns
+    fromScript.get("customer_id").elements().asScala.map(_.intValue()).toList shouldBe
+      readRows(d).map(_(2))
+  }
+
+  /**
+    * The generated code run over the file `d` reads, with `driver` printing what
+    * the frame it leaves holds. Returns the row the driver printed.
+    */
+  private def runExport(
+      python: String,
+      d: ParquetScanSourceOpDesc,
+      file: File,
+      driver: String
+  ): ObjectNode = {
     // The body names its file by placeholder and leaves the naming to whoever
     // assembles the script, the translator doing it across a whole plan. Nothing
     // bound it here, so the script stopped on a `sourceFile` that was never
     // defined and this comparison never ran.
     val bindFile = s"""sourceFile = "${d.standaloneSourceName().get}""""
     val script = (d.standaloneImports() :+ "import json" :+ "import pandas as pd" :+
-      bindFile :+ d.generateStandaloneCode() :+ ParityDriver).mkString("\n")
+      bindFile :+ d.generateStandaloneCode() :+ driver).mkString("\n")
     val scriptFile = Files.createTempFile("parquet_parity_", ".py")
     scriptFile.toFile.deleteOnExit()
     Files.write(scriptFile, script.getBytes(StandardCharsets.UTF_8))
@@ -601,13 +702,9 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"Script output:\n$output\n") {
       process.exitValue() shouldBe 0
       val printed = output.linesIterator.find(_.startsWith("JSON ")).map(_.drop("JSON ".length))
-      val fromScript = objectMapper
+      objectMapper
         .readTree(printed.getOrElse(fail("the script printed no row")))
         .asInstanceOf[ObjectNode]
-      // The single precision the executor widens, stated as the sum it changes.
-      fromScript.get("size_sum").doubleValue() shouldBe 16777217.0d
-      fromScript.remove("size_sum")
-      fromScript shouldBe objectMapper.readTree(objectMapper.writeValueAsString(fromExecutor))
     }
   }
 
@@ -644,6 +741,13 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
        |    _cells[_column] = _values
        |_cells["size_sum"] = float(out1df["size"].sum())
        |print("JSON " + json.dumps(_cells))""".stripMargin
+
+  /** Printed by the script over the indexed file: the columns it was left. */
+  private val ColumnsDriver: String =
+    """|print("JSON " + json.dumps({
+       |    "columns": list(out1df.columns),
+       |    "customer_id": [int(_value) for _value in out1df["customer_id"]],
+       |}))""".stripMargin
 
   /** The python the runtime test runs, if one on this machine can read Parquet. */
   private def runnablePython(): Option[String] = {

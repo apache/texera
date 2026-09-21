@@ -48,8 +48,10 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
 
   // A DECIMAL is the one column pandas does not land on the same type as the
   // executor: it fills that column with decimal.Decimal objects, which a script
-  // cannot then multiply by a float.
-  override def standaloneImports(): Seq[String] = Seq("from decimal import Decimal")
+  // cannot then multiply by a float. pyarrow is what pandas reads a Parquet file
+  // with; the footer is asked for directly here to read it the executor's way.
+  override def standaloneImports(): Seq[String] =
+    Seq("from decimal import Decimal", "import pyarrow.parquet as pq")
 
   override def standaloneSourcePath(): Option[String] = fileName
 
@@ -62,8 +64,21 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     // that: pandas widens a holed integer column through a float, where every
     // value past 2^53 is rounded and 9007199254740993 came back as ...992. The
     // executor reads the exact long, and the declared column stays integral.
+    //
+    // The footer is handed back to the reader stripped of its metadata. A file
+    // pandas wrote records there which of its columns held the frame's index,
+    // and pandas restores those as an index rather than as columns: a file
+    // written from a frame keyed by `customer_id` reads back without that
+    // column, and a projection naming it raises. The executor reads the columns
+    // the footer states and knows nothing of an index, so it hands `customer_id`
+    // on like any other. Stripped, pandas reads every column the file holds,
+    // under the name the footer gives it and in the order it states them.
     val read =
-      s"""out1df = pd.read_parquet($SourceFilePlaceholder, dtype_backend="numpy_nullable")"""
+      s"""|out1df = pd.read_parquet(
+          |    $SourceFilePlaceholder,
+          |    dtype_backend="numpy_nullable",
+          |    schema=pq.read_schema($SourceFilePlaceholder).remove_metadata(),
+          |)""".stripMargin
     // The columns pandas does not land on the same value as the executor. A
     // DECIMAL arrives as decimal.Decimal objects and a FLOAT keeps the single
     // precision the executor widens; an unsigned column, a duration and a zoned
