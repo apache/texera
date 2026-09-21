@@ -221,6 +221,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
             // The stream carries no current value, so the page reads the state it arrived on top
             // of from here. Nothing is in flight in these tests.
             getExecutionState: () => ({ state: ExecutionState.Uninitialized }),
+            getExecutionDuration: () => 0,
             executeWorkflow: vi.fn(),
             killWorkflow: vi.fn(),
             resetExecutionAndWorkers: vi.fn(),

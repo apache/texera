@@ -210,6 +210,10 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.executionDuration += 1000;
       });
     this.executionState = executeWorkflowService.getExecutionState().state;
+    // The clock, for the same reason: the backend sends the duration only when the run's start or
+    // end time changes, so a menu created mid-run -- which is what a routed switch between a
+    // workflow's two views makes -- would count from zero until the run ended.
+    this.executionDuration = executeWorkflowService.getExecutionDuration();
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     const initBehavior = this.getRunButtonBehavior();

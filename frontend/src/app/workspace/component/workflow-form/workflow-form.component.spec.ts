@@ -321,6 +321,29 @@ describe("WorkflowFormComponent", () => {
       expect(component.executionState).toBe(ExecutionState.Running);
     });
 
+    // The duration arrives as a websocket event the backend sends only when the run's start or end
+    // time changes, so a page that joined mid-run counted from zero until the run ended.
+    it("arrives with the clock the run is already at", () => {
+      h.execution.state = ExecutionState.Running;
+      h.execution.duration = 42_000;
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.executionDuration).toBe(42_000);
+    });
+
+    // Restoring the state enum alone left the banner off: no transition follows the hand-over, so
+    // the subscriber that raises it never runs, and the form showed nothing while the canvas it
+    // came from still showed the failure.
+    it("arrives showing a failure the retained run already had", () => {
+      h.execution.state = ExecutionState.Failed;
+      h.execution.errorMessages = [{ message: "boom" }];
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.runError).toContain("boom");
+    });
+
     it("takes what it needs from the open workflow instead of loading it", () => {
       build(formViewWorkflow).ngOnInit();
 

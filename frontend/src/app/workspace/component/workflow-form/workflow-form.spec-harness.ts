@@ -280,13 +280,18 @@ export function setupHarness() {
   const route = { snapshot: { params: { id: "7" } } };
   const operatorMetadataService = { getOperatorMetadata: () => of({}) };
   /** What the execute service currently holds, as the real one starts out. */
-  const execution: { state: ExecutionState } = { state: ExecutionState.Uninitialized };
+  const execution: { state: ExecutionState; errorMessages?: { message: string }[]; duration: number } = {
+    state: ExecutionState.Uninitialized,
+    duration: 0,
+  };
   const executeWorkflowService = {
     getExecutionStateStream: () => executionStateStream.asObservable(),
     // The state a page handed a live session arrives on top of: the stream above carries no
     // current value, so this is the only way the page can learn a run is already in flight.
     // Mutable, so a test can put a run in flight before the component is built.
     getExecutionState: () => execution,
+    // The clock the backend last reported, for a page that mounted mid-run.
+    getExecutionDuration: () => execution.duration,
     executeWorkflow: vi.fn(),
     killWorkflow: vi.fn(),
     resetExecutionAndWorkers: vi.fn(),

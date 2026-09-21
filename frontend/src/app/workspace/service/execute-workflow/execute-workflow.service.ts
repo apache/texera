@@ -95,6 +95,8 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
+  /** The last duration the backend reported for the current run; see getExecutionDuration. */
+  private executionDuration = 0;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -116,6 +118,12 @@ export class ExecuteWorkflowService {
           break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
+          break;
+        case "ExecutionDurationUpdateEvent":
+          // Held for views that mount mid-run. The backend sends this only when the run's start or
+          // end time changes, so a view created afterwards -- which is what a routed switch between
+          // a workflow's two views makes -- never hears it and would count from zero.
+          this.executionDuration = event.duration;
           break;
         default:
           // workflow status related event
@@ -192,6 +200,11 @@ export class ExecuteWorkflowService {
 
   public getExecutionState(): ExecutionStateInfo {
     return this.currentState;
+  }
+
+  /** How long the current run has been going, for a view that mounted after it started. */
+  public getExecutionDuration(): number {
+    return this.executionDuration;
   }
 
   /**

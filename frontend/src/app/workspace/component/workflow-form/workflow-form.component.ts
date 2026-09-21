@@ -58,7 +58,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { PropertyEditorComponent } from "../property-editor/property-editor.component";
@@ -463,17 +463,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         if (!wasRunning && this.isRunning) {
           this.runError = "";
         }
-        // Surface a failed run. Without this the spinner just stops and the form gives zero
-        // feedback -- the opposite of what a reader needs.
-        if (current.state === ExecutionState.Failed) {
-          // A required input left empty is by far the commonest reason a run fails here, and the
-          // engine reports it as an opaque "... is not contained in the schema". Answer with the
-          // same word the field itself already shows ("required"), so the two messages are
-          // consistent -- and it covers every operator, not just this one.
-          this.runError = this.hasEmptyRequiredInputs()
-            ? "Run failed: please fill in the required fields."
-            : this.friendlyRunError(current.errorMessages?.[0]?.message?.trim() ?? "");
-        }
+        this.showFailureIfAny(current);
         // Fit the charts to their cards once a run has results. Deliberately not on run START: the
         // run repaints operators and a re-fit then zoomed the whole preview down. Deliberately does
         // not open the workflow either -- someone using the form came for the inputs and results.
@@ -615,6 +605,23 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Surface a failed run. Without this the spinner just stops and the form gives zero feedback --
+   * the opposite of what a reader needs. Reads the fields, so it runs after they are built.
+   */
+  private showFailureIfAny(state: ExecutionStateInfo): void {
+    if (state.state !== ExecutionState.Failed) {
+      return;
+    }
+    // A required input left empty is by far the commonest reason a run fails here, and the engine
+    // reports it as an opaque "... is not contained in the schema". Answer with the same word the
+    // field itself already shows ("required"), so the two messages are consistent -- and it covers
+    // every operator, not just this one.
+    this.runError = this.hasEmptyRequiredInputs()
+      ? "Run failed: please fill in the required fields."
+      : this.friendlyRunError(state.errorMessages?.[0]?.message?.trim() ?? "");
+  }
+
   /** What the page does once the workflow is in front of it, whichever way it got there. */
   private settleIntoForm(): void {
     // The run this page arrived on top of. The state stream is a plain Subject and carries no
@@ -622,7 +629,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // changes state: it showed Run for a workflow that was running, and the lock rule below --
     // which reads `isRunning` -- would have let edit mode unlock a graph mid-run. On the loading
     // path there is nothing in flight and this reads the same Uninitialized it started at.
-    this.executionState = this.executeWorkflowService.getExecutionState().state;
+    const retained = this.executeWorkflowService.getExecutionState();
+    this.executionState = retained.state;
+    // Likewise the clock: the duration arrives as a websocket event the backend sends only when
+    // the run's start or end time changes, so a page that joined mid-run would have counted from
+    // zero -- or not at all -- until the run ended.
+    this.executionDuration = this.executeWorkflowService.getExecutionDuration();
     // The workflow is shown, not edited, from here: dragging operators around or deleting them
     // belongs to the operator canvas. Lock now, and keep it locked against anything else that
     // unlocks the graph (clampEditability). The clamp is dropped when this page is destroyed;
@@ -632,6 +644,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     this.refreshSavedState();
     this.later(() => this.adjustWorkflowNameWidth(), 0);
     this.readConfig();
+    // After the fields exist: a failure banner asks them whether a required one was left empty.
+    // A page handed a session after a failed run would otherwise show no failure at all, while
+    // the canvas it came from still showed one.
+    this.showFailureIfAny(retained);
     this.registerMetadataRefresh();
     this.registerAutoPersist();
     this.loading = false;
