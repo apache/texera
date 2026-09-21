@@ -308,7 +308,14 @@ export function setupHarness() {
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
   const host = { nativeElement: { querySelector: () => null, contains: () => false } };
   const datePipe = { transform: () => "01/01/2026 00:00:00" };
-  const config = { env: { formViewEnabled: true } };
+  const config = { env: { formViewEnabled: true, warehouseEnabled: false } };
+  // The run button asks the same pair ExecuteWorkflowService refuses on: the flag above and the
+  // pick below.
+  let selectedWarehouseId: number | undefined = undefined;
+  const warehouseService = {
+    getSelectedWarehouseIdValue: () => selectedWarehouseId,
+    selectWarehouse: (whid: number | undefined) => (selectedWarehouseId = whid),
+  };
 
   // Point the persist mock at `workflow`; each spec supplies the remaining constructor
   // arguments in its own order via the named mocks above.
@@ -343,6 +350,7 @@ export function setupHarness() {
     host,
     datePipe,
     config,
+    warehouseService,
     workflowChangedStream,
     formBindingChanged,
     workflowMetaDataChangedStream,

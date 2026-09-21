@@ -849,7 +849,13 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/type/{wid}")
   def getWorkflowType(@PathParam("wid") wid: Integer): String = {
+    // fetchOneByWid answers null for an id that matches no row, and dereferencing that answered
+    // every such request with a 500 and a stack trace, which reads as a broken server rather than
+    // as a workflow that is not there.
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+    if (workflow == null) {
+      throw new NotFoundException(s"Workflow with id $wid not found")
+    }
     if (workflow.getIsPublic) {
       "Public"
     } else {

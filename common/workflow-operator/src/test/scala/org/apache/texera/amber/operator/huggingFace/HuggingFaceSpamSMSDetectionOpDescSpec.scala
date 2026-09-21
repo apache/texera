@@ -82,6 +82,35 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("score").getType shouldBe AttributeType.DOUBLE
   }
 
+  it should "return null while a result attribute is still unset" in {
+    // getOutputSchemas is called continuously as the user configures the operator,
+    // so an unset name means "no schema yet", not "build one with a null column".
+    // The sibling operators (sentiment analysis, iris) already answer this way.
+    val in = Schema().add("msg", AttributeType.STRING)
+    val ports = Map((new HuggingFaceSpamSMSDetectionOpDesc).operatorInfo.inputPorts.head.id -> in)
+
+    val noSpamCol = configured()
+    noSpamCol.resultAttributeSpam = null
+    noSpamCol.getOutputSchemas(ports) shouldBe null
+
+    val noScoreCol = configured()
+    noScoreCol.resultAttributeProbability = null
+    noScoreCol.getOutputSchemas(ports) shouldBe null
+  }
+
+  it should "return null when a result attribute is blank" in {
+    val in = Schema().add("msg", AttributeType.STRING)
+    val ports = Map((new HuggingFaceSpamSMSDetectionOpDesc).operatorInfo.inputPorts.head.id -> in)
+
+    val blankSpamCol = configured()
+    blankSpamCol.resultAttributeSpam = "   "
+    blankSpamCol.getOutputSchemas(ports) shouldBe null
+
+    val blankScoreCol = configured()
+    blankScoreCol.resultAttributeProbability = ""
+    blankScoreCol.getOutputSchemas(ports) shouldBe null
+  }
+
   "HuggingFaceSpamSMSDetectionOpDesc.generatePythonCode" should
     "emit the spam-detection pipeline carrying the configured columns (encoded)" in {
     val d = configured()
