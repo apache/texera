@@ -1,0 +1,82 @@
+{
+  "_README": [
+    "Extra phrasings folded into an operator's embedded text at index time.",
+    "Texera's own descriptions are often three words ('join two inputs'), which",
+    "leaves the ranker little to match against. Each entry here adds the ways a",
+    "user would actually ask for that operator.",
+    "",
+    "Key: the operator's userFriendlyName, exactly as the palette shows it.",
+    "Value: phrasings, in English. Write intents, not synonyms of the name --",
+    "'keep only rows that match a condition' helps; 'filtering' does not.",
+    "",
+    "Entries for operators that do not exist are reported by the generator.",
+    "Re-run frontend/scripts/generate-operator-embeddings.mjs after editing."
+  ],
+  "Filter": [
+    "keep only rows that satisfy a condition",
+    "drop rows that fail a test",
+    "keep records where a value is above or below a threshold",
+    "select rows matching a where clause"
+  ],
+  "Unnest String": [
+    "flatten a nested structure into separate rows",
+    "expand an array field into one row per element",
+    "pull structured fields out of a nested object",
+    "explode a list column"
+  ],
+  "Projection": [
+    "keep only the columns you need",
+    "drop unnecessary columns from the output",
+    "select a subset of fields"
+  ],
+  "Hash Join": [
+    "combine two datasets on a shared column",
+    "match rows from two tables by a key",
+    "look up values from another table"
+  ],
+  "Union": [
+    "stack rows from two tables into one output",
+    "append one dataset to another",
+    "merge records from several sources"
+  ],
+  "URL Fetcher": [
+    "call a REST endpoint and read the response",
+    "download the contents of a web page by its address",
+    "request data from a third-party API"
+  ],
+  "Distinct": [
+    "keep only unique records and discard repeats",
+    "deduplicate rows that appear more than once",
+    "collapse identical rows into one"
+  ],
+  "Limit": [
+    "cap the number of rows that pass through",
+    "take only the first N records",
+    "truncate the output to a fixed size"
+  ],
+  "Sort": [
+    "order records by the value of a column",
+    "arrange rows ascending or descending"
+  ],
+  "Aggregate": [
+    "group records and compute a total per group",
+    "sum, average or count values per category"
+  ],
+  "Split": [
+    "divide one input into separate outputs",
+    "separate a column into several columns"
+  ],
+  "Regular Expression": [
+    "find text matching a pattern inside a column",
+    "extract substrings such as emails or phone numbers",
+    "validate that a field follows a format"
+  ],
+  "Keyword Search": [
+    "find records whose text contains a given word",
+    "search a column for a term or phrase"
+  ],
+  "Type Casting": [
+    "convert a column from one data type to another",
+    "change a field from text to number or date"
+  ]
+}

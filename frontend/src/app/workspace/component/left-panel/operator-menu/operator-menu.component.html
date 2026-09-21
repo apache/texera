@@ -19,7 +19,7 @@
 
 <div id="search-box">
   <input
-    placeholder="search operator"
+    placeholder="search, or describe what you want to do"
     nz-input
     [(ngModel)]="searchInputValue"
     (input)="onInput($event)"
@@ -30,12 +30,32 @@
     (selectionChange)="onSelectionChange($event)">
     <nz-auto-option
       *ngFor="let option of autocompleteOptions"
+      class="suggestion"
       [nzValue]="option"
       [nzLabel]="option.additionalMetadata.userFriendlyName"
       [nzDisabled]="! canModify">
-      <texera-operator-label [operator]="option"></texera-operator-label>
+      <div class="suggestion-head">
+        <texera-operator-label [operator]="option"></texera-operator-label>
+        <span
+          *ngIf="scoreLabel(option) as score"
+          class="semantic-score"
+          title="relevance">
+          {{ score }}
+        </span>
+      </div>
+      <div
+        *ngIf="option.additionalMetadata.operatorDescription as description"
+        class="suggestion-description">
+        {{ description }}
+      </div>
     </nz-auto-option>
   </nz-autocomplete>
+
+  <div
+    *ngIf="semanticLoading"
+    class="semantic-loading">
+    loading model…
+  </div>
 </div>
 
 <div id="spacer"></div>
