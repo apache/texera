@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789909503179,
+  "lastUpdate": 1789999132564,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -14865,6 +14865,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 516.7665296210771,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "279e12b2cd469c5cadaf69d987513f9b2552e2e6",
+          "message": "fix(ci): stop cancelling in-progress Backport Approvals runs (#8523)\n\n### What changes were proposed in this PR?\n\n`Backport Approvals` is a required status check on `main`, and GitHub\nevaluates the LATEST check run with that name. The workflow's\nconcurrency group had `cancel-in-progress: true`, so when two PR events\nland close together (a push right after a review request or a label\nchange), the newer run cancels the older one — and when the older run's\n\"cancelled\" terminal state is recorded after the newer run's success,\nthe required check reads as failed and the merge button is blocked. This\nhappened on #8516: the check showed a cancelled run as its latest state\nwhile a sibling run of the same commit had already passed; re-running\nthe cancelled run unblocked the merge.\n\nThe job completes in seconds, so cancellation saves nothing. This stops\ncancelling the in-progress run (`cancel-in-progress: false`). GitHub\nstill keeps at most one pending run per concurrency group and replaces\nit on a newer event, but a replaced pending run is cancelled before its\nsuccessor even starts, so its cancelled state can never land last: the\nlatest check run on the commit always ends as a real verdict. A skipped\nintermediate evaluation loses nothing, because the job reads the live\nlabels and reviews at run time rather than the event payload.\n\n### Any related issues, documentation, discussions?\n\nCloses #8522. Observed on #8516 (a cancelled `Backport Approvals` run\nblocked an otherwise green merge).\n\n### How was this PR tested?\n\nConfig-only change to the workflow's concurrency setting; no executable\ncode path changes. Verified the failure mechanism on #8516: the blocked\nmerge showed the cancelled run as the latest `Backport Approvals` check\nrun, and re-running it (6s pass) unblocked the merge immediately.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Fable 5, Anthropic). Reviewed by\nthe author before submission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-21T05:49:34Z",
+          "url": "https://github.com/apache/texera/commit/279e12b2cd469c5cadaf69d987513f9b2552e2e6"
+        },
+        "date": 1789999131937,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 606.3169715747812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1074.153710863459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1154.3651980607272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 816.3506199528246,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1113.2344772360102,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1154.5366301017118,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 844.5481330344651,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1115.4416387689841,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1152.7341583482057,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 708.1096456859099,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 913.4590912255837,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 932.3333185150777,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 723.9423010051692,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 914.5008307588694,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 928.560342211598,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 734.5392254738621,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 897.1274778620848,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 918.4923187680158,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 432.8908525198903,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 516.7272357508637,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 531.4922561710989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 450.7515703670855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 516.7649539953652,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 530.3903218809293,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 435.83435468571986,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 501.5250335857661,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 504.96655851209965,
             "unit": "tuples/sec"
           }
         ]
