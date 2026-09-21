@@ -43,6 +43,7 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
@@ -1085,6 +1086,71 @@ describe("MenuComponent", () => {
         // View selection is remembered, but nothing is pushed while the overlay is off.
         expect(component.heatmapView).toBe(HeatmapView.Runtime);
         expect(setSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("heat-map overlay persistence", () => {
+      beforeEach(() => localStorage.clear());
+      afterEach(() => localStorage.clear());
+
+      it("restores a persisted view on init: checkbox on, selector set, view pushed", () => {
+        savePersistedHeatmapView(HeatmapView.IoImbalance);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(true);
+        expect(component.heatmapView).toBe(HeatmapView.IoImbalance);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.IoImbalance);
+      });
+
+      it("leaves the overlay off when nothing is persisted", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("leaves the overlay off for a persisted null view", () => {
+        savePersistedHeatmapView(null);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("persists the view when the overlay is toggled on, and null when toggled off", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.TimePerRow;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.TimePerRow);
+
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBeNull();
+      });
+
+      it("persists a view change made while the overlay is on", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.Runtime;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.IoImbalance);
+      });
+
+      it("does not persist a view browsed while the overlay is off", () => {
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBeNull();
       });
     });
 

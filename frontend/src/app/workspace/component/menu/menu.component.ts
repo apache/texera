@@ -29,6 +29,7 @@ import { ValidationWorkflowService } from "../../service/validation/validation-w
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
@@ -225,6 +226,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public ngOnInit(): void {
+    this.restorePersistedHeatmapOverlay();
+
     // Marks an edit for the Form View hand-over (see onClickOpenFormView): set the moment an edit is
     // reported, before the autosave debounce, cleared when the switch's save snapshots the workflow.
     this.workflowActionService
@@ -602,14 +605,32 @@ export class MenuComponent implements OnInit, OnDestroy {
   public toggleHeatmap(): void {
     // The editor subscribes to this stream and colors operator fills (canvas + mini-map).
     // A null view turns the overlay off; a view enables it.
-    this.workflowActionService.getJointGraphWrapper().setHeatmapView(this.showHeatmap ? this.heatmapView : null);
+    const view = this.showHeatmap ? this.heatmapView : null;
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+    savePersistedHeatmapView(view);
   }
 
   public setHeatmapView(view: HeatmapView): void {
     this.heatmapView = view;
     if (this.showHeatmap) {
       this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+      savePersistedHeatmapView(view);
     }
+  }
+
+  /**
+   * Restores the persisted heat-map overlay state (Layers > Performance) on
+   * workspace entry. Only the Performance layer persists; the other canvas
+   * layers stay session-only.
+   */
+  public restorePersistedHeatmapOverlay(): void {
+    const view = loadPersistedHeatmapView();
+    if (view === null) {
+      return;
+    }
+    this.showHeatmap = true;
+    this.heatmapView = view;
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
   }
 
   /**
