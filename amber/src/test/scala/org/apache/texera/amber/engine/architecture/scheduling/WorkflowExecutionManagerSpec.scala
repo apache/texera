@@ -120,7 +120,7 @@ class WorkflowExecutionManagerSpec
     val rpcProbe = new CoordinatorRpcProbe(
       endWorkerResponse = call => if (call.receiver == firstWorkerId) None else Some(EmptyReturn())
     )
-    val coordinator = createCoordinatorHarness()
+    val coordinator = createCoordinatorHarness(rpcProbe)
     registerLiveWorker(coordinator.actorRefService, firstWorkerId)
     registerLiveWorker(coordinator.actorRefService, secondWorkerId)
 

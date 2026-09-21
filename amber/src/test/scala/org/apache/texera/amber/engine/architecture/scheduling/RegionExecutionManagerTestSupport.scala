@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorService,
   WorkflowActor
 }
+import org.apache.texera.amber.engine.architecture.coordinator.Coordinator
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
@@ -154,7 +155,7 @@ object RegionExecutionManagerTestSupport {
     override def receive: Receive = { case _ => () }
   }
 
-  class CoordinatorHarness extends WorkflowActor(None, COORDINATOR) {
+  class CoordinatorHarness(rpcProbe: CoordinatorRpcProbe) extends WorkflowActor(None, COORDINATOR) {
     override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ()
 
     override def getQueuedCredit(channelId: ChannelIdentity): Long = 0
@@ -164,6 +165,19 @@ object RegionExecutionManagerTestSupport {
     override def initState(): Unit = ()
 
     override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ()
+
+    override def receive: Receive =
+      handleCleanupWorkerChannels orElse super.receive
+
+    private def handleCleanupWorkerChannels: Receive = {
+      case Coordinator.CleanupWorkerChannels(workerIds, completionPromise) =>
+        Coordinator.cleanupWorkerChannels(
+          workerIds,
+          rpcProbe.asyncRPCClient,
+          actorRefMappingService
+        )
+        completionPromise.setDone()
+    }
   }
 
   def createSourceOp(logicalOpId: String): PhysicalOp =
@@ -242,8 +256,10 @@ object RegionExecutionManagerTestSupport {
 trait RegionExecutionManagerTestSupport { self: TestKit =>
   import RegionExecutionManagerTestSupport._
 
-  protected def createCoordinatorHarness(): CoordinatorHarnessFixture = {
-    val coordinatorRef = TestActorRef(new CoordinatorHarness)
+  protected def createCoordinatorHarness(
+      rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None)
+  ): CoordinatorHarnessFixture = {
+    val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe))
     coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
       Array(coordinatorRef.path.address)
     CoordinatorHarnessFixture(
