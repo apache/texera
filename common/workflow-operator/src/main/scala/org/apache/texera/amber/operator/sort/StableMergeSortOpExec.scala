@@ -19,8 +19,14 @@
 
 package org.apache.texera.amber.operator.sort
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable.ArrayBuffer
@@ -37,7 +43,9 @@ import scala.collection.mutable.ArrayBuffer
   * Null policy:
   *  - Nulls are always ordered last, regardless of ascending/descending per key.
   */
-class StableMergeSortOpExec(descString: String) extends OperatorExecutor {
+class StableMergeSortOpExec(descString: String)
+    extends OperatorExecutor
+    with ColumnarOperatorExecutor {
 
   private val desc: StableMergeSortOpDesc =
     objectMapper.readValue(descString, classOf[StableMergeSortOpDesc])
@@ -69,6 +77,20 @@ class StableMergeSortOpExec(descString: String) extends OperatorExecutor {
   /** Release internal buffers. */
   override def close(): Unit = {
     if (sortedBuckets != null) sortedBuckets.clear()
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
+  }
+
+  // Columnar: decode the batch (schema once) into processTuple; emit at onFinish.
+  @transient private var columnarAllocator: RootAllocator = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val n = root.getRowCount
+      var i = 0
+      while (i < n) { processTuple(ArrowUtils.getTexeraTuple(i, root), 0); i += 1 }
+      ColumnarResult.Consumed
+    }
   }
 
   /**

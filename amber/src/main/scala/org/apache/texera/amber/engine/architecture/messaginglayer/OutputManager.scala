@@ -37,7 +37,10 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.common.ambermessage.ColumnarFrame
+import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.net.URI
 import scala.collection.mutable
@@ -202,6 +205,95 @@ class OutputManager(
   def emitState(state: State, loopCounter: Long = 0L, loopStartId: String = ""): Unit = {
     networkOutputBuffers.foreach(kv => kv._2.sendState(state, loopCounter, loopStartId))
     saveStateToStorageIfNeeded(state, loopCounter, loopStartId)
+  }
+
+  // Columnar emit is possible whenever there are output links; multi-receiver
+  // links (hash/range/round-robin shuffles) are split per-receiver in emit.
+  def canEmitColumnar: Boolean = partitioners.nonEmpty
+
+  // Allocator for the per-receiver sub-batches built during columnar shuffle.
+  // Created lazily on first shuffle emit, freed by closeColumnarResources().
+  private var columnarEmitAllocator: RootAllocator = _
+  private def emitAllocator(): RootAllocator = {
+    if (columnarEmitAllocator == null) columnarEmitAllocator = new RootAllocator()
+    columnarEmitAllocator
+  }
+  def closeColumnarResources(): Unit = {
+    if (columnarEmitAllocator != null) {
+      columnarEmitAllocator.close()
+      columnarEmitAllocator = null
+    }
+  }
+
+  // Emit an Arrow batch downstream as ColumnarFrames, honoring each link's
+  // partitioning. Single-receiver links and broadcast ship the whole batch;
+  // shuffles slice it into one sub-batch per receiver.
+  def emitColumnarBatch(root: VectorSchemaRoot): Unit = {
+    val rowCount = root.getRowCount
+    val texeraSchema = ArrowUtils.toTexeraSchema(root.getSchema)
+    lazy val wholeBatchBytes = ArrowUtils.serializeRoot(root)
+
+    partitioners.foreach {
+      case (_, partitioner) =>
+        val receivers = partitioner.allReceivers
+        partitioner match {
+          case _ if receivers.size == 1 =>
+            outputGateway.sendTo(
+              receivers.head,
+              ColumnarFrame(wholeBatchBytes, rowCount, texeraSchema)
+            )
+          case _: BroadcastPartitioner =>
+            receivers.foreach(r =>
+              outputGateway.sendTo(r, ColumnarFrame(wholeBatchBytes, rowCount, texeraSchema))
+            )
+          case _ =>
+            // Shuffle/round-robin: assign each row to a receiver via the
+            // partitioner, then ship one Arrow sub-batch per receiver. The
+            // row decode here is only to compute the partition key; downstream
+            // still receives columnar data.
+            val masks = Array.fill(receivers.size)(new Array[Boolean](rowCount))
+            var i = 0
+            while (i < rowCount) {
+              val t = ArrowUtils.getTexeraTuple(i, root)
+              partitioner.getBucketIndex(t).foreach(b => masks(b)(i) = true)
+              i += 1
+            }
+            var b = 0
+            while (b < receivers.size) {
+              val sub = ArrowUtils.selectRows(root, masks(b), emitAllocator())
+              try {
+                if (sub.getRowCount > 0) {
+                  outputGateway.sendTo(
+                    receivers(b),
+                    ColumnarFrame(ArrowUtils.serializeRoot(sub), sub.getRowCount, texeraSchema)
+                  )
+                }
+              } finally sub.close()
+              b += 1
+            }
+        }
+    }
+
+    // Materialize to result storage for the GUI result panel, matching the row
+    // path's saveTupleToStorageIfNeeded. Only decodes when a port needs storage.
+    if (outputPortResultWriterThreads.nonEmpty) {
+      var i = 0
+      while (i < rowCount) {
+        saveTupleToStorageIfNeeded(ArrowUtils.getTexeraTuple(i, root))
+        i += 1
+      }
+    }
+  }
+
+  // Columnar batches pending emit, drained one-per-step by the DP loop so that
+  // backpressure applies between batches (unlike a synchronous emit).
+  private var columnarOutputIter: Iterator[VectorSchemaRoot] = Iterator.empty
+  def setColumnarOutput(it: Iterator[VectorSchemaRoot]): Unit = columnarOutputIter = it
+  def hasUnfinishedColumnarOutput: Boolean = columnarOutputIter.hasNext
+  def emitOneColumnarBatch(): Unit = {
+    val root = columnarOutputIter.next()
+    emitColumnarBatch(root)
+    root.close()
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIBaseOption: Option[URI]): Unit = {

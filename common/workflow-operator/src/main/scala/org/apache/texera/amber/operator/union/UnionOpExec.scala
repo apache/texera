@@ -19,11 +19,32 @@
 
 package org.apache.texera.amber.operator.union
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 
-class UnionOpExec extends OperatorExecutor {
+class UnionOpExec extends OperatorExecutor with ColumnarOperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     Iterator(tuple)
+  }
+
+  // Columnar: forward the Arrow batch unchanged (column copy).
+  @transient private var columnarAllocator: RootAllocator = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte]): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val n = root.getRowCount
+      ColumnarResult.Emit(ArrowUtils.selectRows(root, Array.fill(n)(true), columnarAllocator))
+    }
+  }
+
+  override def close(): Unit = {
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
   }
 }
