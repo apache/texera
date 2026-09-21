@@ -21,7 +21,12 @@ package org.apache.texera.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import io.grpc.MethodDescriptor
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.NetworkOutputBuffer
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.virtualidentity.{
@@ -59,6 +64,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import org.apache.texera.amber.util.ArrowUtils
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -169,6 +175,7 @@ class DataProcessor(
         sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
         // Send Completed signal to worker actor.
         executor.close()
+        outputManager.closeColumnarResources()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.debug(
@@ -201,7 +208,9 @@ class DataProcessor(
 
   def continueDataProcessing(): Unit = {
     val dataProcessingStartTime = System.nanoTime()
-    if (outputManager.hasUnfinishedOutput) {
+    if (outputManager.hasUnfinishedColumnarOutput) {
+      outputManager.emitOneColumnarBatch()
+    } else if (outputManager.hasUnfinishedOutput) {
       outputOneTuple()
     } else {
       processInputTuple(inputManager.getNextTuple)
@@ -217,23 +226,72 @@ class DataProcessor(
     val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
       case DataFrame(tuples) =>
-        stateManager.conditionalTransitTo(
-          READY,
-          RUNNING,
-          () => {
-            val (state, stateVersion) = stateManager.getStateWithVersion
-            asyncRPCClient.coordinatorInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(state, stateVersion),
-              asyncRPCClient.mkContext(COORDINATOR)
-            )
-          }
-        )
-        inputManager.initBatch(channelId, tuples)
-        processInputTuple(inputManager.getNextTuple)
+        processTupleBatch(channelId, portId, tuples)
+      case ColumnarFrame(bytes, _, _) =>
+        executor match {
+          // Native-Arrow path: consume the batch directly, emit a filtered batch.
+          case c: ColumnarOperatorExecutor if NetworkOutputBuffer.columnarWire =>
+            c.processColumnarBatch(bytes, portId.id) match {
+              case ColumnarResult.Emit(result) =>
+                logColumnarModeOnce(active = true, "")
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+                outputManager.setColumnarOutput(Iterator.single(result))
+              case ColumnarResult.EmitRows(rows) =>
+                logColumnarModeOnce(active = true, "")
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+                outputManager.outputIterator.setTupleOutput(rows)
+              case ColumnarResult.Consumed =>
+                logColumnarModeOnce(active = true, "")
+                statisticsManager.increaseInputStatistics(portId, bytes.length.toLong)
+              case ColumnarResult.Unsupported =>
+                logColumnarModeOnce(
+                  active = false,
+                  "operator has no native columnar path for this batch"
+                )
+                processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
+            }
+          case _ =>
+            processTupleBatch(channelId, portId, ArrowUtils.deserializeTuples(bytes))
+        }
       case StateFrame(state, loopCounter, loopStartId) =>
         processInputState(state, portId.id, loopCounter, loopStartId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
+  }
+
+  private def processTupleBatch(
+      channelId: ChannelIdentity,
+      portId: PortIdentity,
+      tuples: Array[Tuple]
+  ): Unit = {
+    stateManager.conditionalTransitTo(
+      READY,
+      RUNNING,
+      () => {
+        val (state, stateVersion) = stateManager.getStateWithVersion
+        asyncRPCClient.coordinatorInterface.workerStateUpdated(
+          WorkerStateUpdatedRequest(state, stateVersion),
+          asyncRPCClient.mkContext(COORDINATOR)
+        )
+      }
+    )
+    inputManager.initBatch(channelId, tuples)
+    // Whole-batch path if the executor supports it, else per-tuple; errors fall back.
+    val vectorized: Option[Iterator[(TupleLike, Option[PortIdentity])]] =
+      try executor.processBatchMultiPort(tuples, portId.id)
+      catch safely { case _ => None }
+    vectorized match {
+      case Some(outputIter) =>
+        var i = 0
+        while (i < tuples.length) {
+          statisticsManager.increaseInputStatistics(portId, tuples(i).inMemSize)
+          i += 1
+        }
+        inputManager.skipToEnd()
+        outputManager.outputIterator.setTupleOutput(outputIter)
+      case None =>
+        processInputTuple(inputManager.getNextTuple)
+    }
   }
 
   def processECM(
@@ -307,6 +365,17 @@ class DataProcessor(
           activeChannelId
         )
       }
+  }
+
+  // Log the columnar-wire decision once per worker so a silent fall back to the
+  // row path is visible in the logs.
+  @transient private var columnarModeLogged = false
+  private[architecture] def logColumnarModeOnce(active: Boolean, reason: String): Unit = {
+    if (!columnarModeLogged) {
+      columnarModeLogged = true
+      if (active) logger.info(s"columnar wire active for $executor")
+      else logger.info(s"columnar wire requested but using row path for $executor: $reason")
+    }
   }
 
   def handleExecutorException(e: Throwable): Unit = {
