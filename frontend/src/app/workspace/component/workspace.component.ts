@@ -53,6 +53,7 @@ import { USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
+import { HeatmapStatsRestoreService } from "../service/heatmap/heatmap-stats-restore.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
@@ -131,7 +132,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService
   ) {}
 
   ngOnInit() {
@@ -277,6 +279,17 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           if (shouldAutoLayout) {
             this.workflowActionService.autoLayoutWorkflow();
           }
+          // Best-effort: repaint the heat-map from the last run's persisted
+          // statistics. The service itself gates on the overlay being
+          // persisted-on (and skips during a live execution), so this is a
+          // no-op for everyone else. Fetch failures are swallowed there; an
+          // error arriving here is a mapping or ingestion bug, so it is logged.
+          this.heatmapStatsRestoreService
+            .restoreLatestRunStatistics()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (err: unknown) => console.error("Failed to restore heat-map statistics:", err),
+            });
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
