@@ -20,12 +20,14 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.FinalizePort
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.NetworkOutputBuffer
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.texera.amber.error.ErrorUtils.safely
 
@@ -48,9 +50,26 @@ trait EndChannelHandler {
         // `main_loop._process_state_frame` for how a Loop End treats it.
         dp.outputManager.emitState(outputState.get)
       }
-      dp.outputManager.outputIterator.setTupleOutput(
-        dp.executor.onFinishMultiPort(portId.id)
-      )
+      // Columnar source path: emit Arrow batches directly (no per-row Tuple),
+      // when enabled and the output is single-receiver-per-link. Else the
+      // row-oriented onFinishMultiPort path.
+      val columnarBatches =
+        if (NetworkOutputBuffer.columnarWire && dp.outputManager.canEmitColumnar)
+          dp.executor match {
+            case s: SourceOperatorExecutor => s.produceColumnarBatch()
+            case _                         => None
+          }
+        else None
+      columnarBatches match {
+        case Some(batchIter) =>
+          // Drained one batch per DP-loop step (backpressure applies between).
+          dp.outputManager.setColumnarOutput(batchIter)
+          dp.outputManager.outputIterator.setTupleOutput(Iterator.empty)
+        case None =>
+          dp.outputManager.outputIterator.setTupleOutput(
+            dp.executor.onFinishMultiPort(portId.id)
+          )
+      }
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
