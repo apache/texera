@@ -273,10 +273,12 @@ jobs:
             const commits = await listPushCommits();
             core.info(`Push contains ${commits.length} commit(s).`);
 
-            // push_entries: (PR, target) pairs cherry-picked straight to the
-            //   release branch, in commit order.
-            // pr_entries: (PR, target, manager) pairs that get an auto-opened
-            //   draft backport PR for the author to finish.
+            // pr_entries: (PR, target, manager, clean) pairs that each get an
+            //   auto-opened backport PR, in commit order -- ready for review
+            //   when the cherry-pick is clean, a draft for its author to finish
+            //   when it is not.
+            // push_entries: empty. Kept until the unreachable push-backports
+            //   job is removed, so that removal is a pure deletion.
             const pushEntries = [];
             const prEntries = [];
             const seenPrNumbers = new Set();
@@ -968,6 +970,46 @@ jobs:
             let pr = existing.data[0];
             if (pr) {
               core.info(`Backport PR already open: #${pr.number}; not duplicating.`);
+              // The branch was just force-pushed with a fresh cherry-pick onto
+              // the release branch as it stands now, which may have moved since
+              // the PR was opened. If that changed the outcome, the PR in front
+              // of the reviewer no longer describes its own branch -- a tree
+              // with conflict markers still reading "nothing here was edited by
+              // hand", or a resolved one still marked draft. Neither is safe to
+              // leave standing, and rewriting the PR from here would overwrite
+              // whatever a human has since done to it. Say so and stop.
+              if (pr.draft === clean) {
+                const wanted = clean ? "ready for review" : "a draft";
+                const note =
+                  `This backport was re-run and its branch force-pushed. The ` +
+                  `cherry-pick onto \`${TARGET_BRANCH}\` is now ` +
+                  `**${clean ? "clean" : "conflicted"}**, so this PR should be ` +
+                  `${wanted} — it is not, and what it says above no longer ` +
+                  `describes its branch. Check the branch before reviewing: ` +
+                  `[automation run](${runUrl}).`;
+                try {
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: pr.number, body: note,
+                  });
+                } catch (e) {
+                  core.warning(`Could not comment on #${pr.number}: ${e.message}`);
+                }
+                try {
+                  await github.rest.repos.createCommitStatus({
+                    owner, repo, sha: MERGE_SHA, state: "failure",
+                    context: `backport/${TARGET_BRANCH}`,
+                    description: `Backport PR #${pr.number} no longer matches its branch`,
+                    target_url: `${context.serverUrl}/${owner}/${repo}/pull/${pr.number}`,
+                  });
+                } catch (e) {
+                  core.warning(`Could not set commit status: ${e.message}`);
+                }
+                core.setFailed(
+                  `#${pr.number} is ${pr.draft ? "a draft" : "ready for review"} but the ` +
+                  `re-run cherry-pick is ${clean ? "clean" : "conflicted"}; it needs a look.`
+                );
+                return;
+              }
             } else {
               const conflictList = CONFLICT_FILES.trim()
                 ? CONFLICT_FILES.trim().split(/\s+/).map((f) => `- \`${f}\``).join("\n")
@@ -1113,7 +1155,13 @@ jobs:
                 core.warning(`Could not assign ${author}: ${e.message}`);
               }
             }
-            if (MANAGER && MANAGER !== author) {
+            // The backport PR is owned by github-actions[bot], so the source
+            // author is not its author and the guard below only exists to keep
+            // a conflicted backport's assignee from being asked to review their
+            // own resolution. A clean one has no assignee, and its manager must
+            // be asked even when they wrote the fix -- otherwise a fix authored
+            // by the release manager notifies nobody at all.
+            if (MANAGER && (clean || MANAGER !== author)) {
               try {
                 await github.rest.pulls.requestReviewers({
                   owner, repo, pull_number: pr.number, reviewers: [MANAGER],
