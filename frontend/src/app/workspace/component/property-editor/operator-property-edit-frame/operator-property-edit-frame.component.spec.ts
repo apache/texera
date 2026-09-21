@@ -2900,85 +2900,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
       );
     });
   });
-<<<<<<< HEAD
-=======
-
-  describe("choosing which properties the Form View exposes", () => {
-    it("wires each top-level tick box to the exposure service", () => {
-      const formBindingService = TestBed.inject(FormBindingService);
-      const setExposed = vi.spyOn(formBindingService, "setExposed");
-      component.exposeChoosing = true;
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-
-      component.ngOnChanges({
-        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
-      });
-      fixture.detectChanges();
-
-      const field = component.formlyFields?.[0]?.fieldGroup?.find(f => f.props?.["toggleExposed"] !== undefined);
-      (field!.props as any).toggleExposed(true);
-
-      expect(setExposed).toHaveBeenCalledWith(mockScanPredicate.operatorID, field!.key, true);
-    });
-
-    // The tick box belongs to top-level properties only; a nested field must not get one,
-    // not even one whose key collides with a top-level property name.
-    it("never puts a tick box on a nested field, including one whose name collides with a root property", () => {
-      const formBindingService = TestBed.inject(FormBindingService);
-      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
-      component.exposeChoosing = true;
-      component.currentOperatorId = "op-nested";
-
-      component.setFormlyFormBinding({
-        type: "object",
-        properties: {
-          tableName: { type: "string" },
-          group: {
-            type: "object",
-            properties: { tableName: { type: "string" }, value: { type: "string" } },
-          },
-        },
-      });
-
-      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
-      const decoratedTop = topLevel
-        .filter(f => f.props?.["toggleExposed"] !== undefined)
-        .map(f => f.key)
-        .sort();
-      expect(decoratedTop).toEqual(["group", "tableName"]);
-
-      // the nested tableName (same name as a root property) is not decorated
-      const nested = topLevel.find(f => f.key === "group")?.fieldGroup ?? [];
-      const nestedTableName = nested.find(f => f.key === "tableName");
-      expect(nestedTableName).toBeDefined();
-      expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
-    });
-
-    // Writing code is not "filling in a value", so a code-editor property is never offered for
-    // exposure; an ordinary property beside it still is.
-    it("does not offer exposure on a code-editor property", () => {
-      const formBindingService = TestBed.inject(FormBindingService);
-      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
-      component.exposeChoosing = true;
-      component.currentOperatorId = "op-code";
-
-      component.setFormlyFormBinding({
-        type: "object",
-        properties: {
-          code: { type: "string", description: "input your code here" },
-          limit: { type: "number" },
-        },
-      });
-
-      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
-      const codeField = topLevel.find(f => f.key === "code");
-      expect(codeField?.type).toBe("codearea");
-      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
-      // an ordinary property is still offered
-      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
-      expect(decorated).toEqual(["limit"]);
-    });
-  });
 
   /**
    * The spec's default TestBed swaps the template for a stub, so the collaborative title editor —
@@ -3141,5 +3062,4 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(quillComponent.quillBinding).toBeDefined();
     });
   });
->>>>>>> 2db7db0c1 (fix(frontend): suppress newline on Enter in title editors (#8055))
 });
