@@ -1198,9 +1198,16 @@ jobs:
             // A failure commit status on the merge commit keeps the "needs
             // backport" signal visible on main next to the successful ones.
             // A clean backport carries it too: it is open, not landed, and
-            // something still has to be done to it. The status turning green
-            // is not what this workflow reports -- the merge into the release
-            // branch is.
+            // something still has to be done to it.
+            //
+            // Nothing updates this status afterwards -- not when the backport
+            // PR merges, not when it is closed. That predates this change and
+            // already leaves landed backports red (#8562's v1.2 status still
+            // names the draft #8585, which merged on 2026-09-19); routing the
+            // clean ones here widens it from some commits to all of them.
+            // Settling it needs a handler on the backport PR closing, which
+            // belongs with the removal of push-backports -- the only place in
+            // the repository that writes a success for this context.
             try {
               await github.rest.repos.createCommitStatus({
                 owner, repo, sha: MERGE_SHA, state: "failure",
