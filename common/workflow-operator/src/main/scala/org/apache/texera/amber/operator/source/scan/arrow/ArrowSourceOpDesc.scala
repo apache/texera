@@ -44,8 +44,8 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   fileTypeName = Option("Arrow")
 
-  // pyarrow is what pandas reads an Arrow file with; the columns the file states
-  // are asked of it directly below.
+  // pyarrow is what reads an Arrow file, pandas going through it; the block
+  // below asks it for the file's own columns.
   override def standaloneImports(): Seq[String] = Seq("import pyarrow as pa")
 
   override def standaloneSourcePath(): Option[String] = fileName
@@ -54,25 +54,33 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     // Arrow says of every value whether it is there, and a numpy column has
     // nowhere to put that: a missing double and a stored NaN both land on NaN.
     // The nullable dtypes keep a holed integer integral too, so a long past 2^53
-    // is not rounded on its way through a float.
+    // is not rounded on its way through a float. Named here because the read
+    // below cannot ask pd.read_feather for them, and named for the types
+    // ArrowUtils.toAttributeType reads; a timestamp needs none, datetime64
+    // having a slot of its own for a missing value.
+    val dtypes =
+      """|_nullable = {
+         |    pa.bool_(): pd.BooleanDtype(),
+         |    pa.string(): pd.StringDtype(),
+         |    pa.float32(): pd.Float32Dtype(),
+         |    pa.float64(): pd.Float64Dtype(),
+         |    pa.int8(): pd.Int8Dtype(),
+         |    pa.int16(): pd.Int16Dtype(),
+         |    pa.int32(): pd.Int32Dtype(),
+         |    pa.int64(): pd.Int64Dtype(),
+         |    pa.uint8(): pd.UInt8Dtype(),
+         |    pa.uint16(): pd.UInt16Dtype(),
+         |    pa.uint32(): pd.UInt32Dtype(),
+         |}""".stripMargin
+    // A file pandas wrote notes in its schema what the frame it came from looked
+    // like, and pandas reads that note back: a column the frame was keyed by
+    // returns as the index, and numbered labels return as numbers where the file
+    // says "1" and "2". The executor reads the columns the file states, so the
+    // note is refused rather than undone, as the Parquet source refuses it.
     val read =
-      s"""out1df = pd.read_feather($SourceFilePlaceholder, dtype_backend="numpy_nullable")"""
-    // A file pandas wrote from a frame keyed by one of its columns says so in its
-    // schema, and pandas reads those columns back as the frame's index rather
-    // than as columns. The executor reads the columns the file states and has no
-    // notion of an index, so a file written from a frame keyed by `customer_id`
-    // kept that column on the one side and dropped it on the other, where an
-    // operator naming it raised. Put back under the name the file gives it, which
-    // is `__index_level_0__` for an index that had none, and in the file's own
-    // order, which is where pandas wrote them: last. The Parquet source strips
-    // the same note, which its reader lets it do before the columns are read.
-    val index =
       s"""|with pa.ipc.open_file($SourceFilePlaceholder) as _file:
-          |    _names = _file.schema.names
-          |if list(out1df.columns) != _names:
-          |    _index = out1df.index.to_frame(index=False)
-          |    _index.columns = [_name for _name in _names if _name not in out1df.columns]
-          |    out1df = pd.concat([out1df.reset_index(drop=True), _index], axis=1)[_names]""".stripMargin
+          |    _table = _file.read_all()
+          |out1df = _table.to_pandas(ignore_metadata=True, types_mapper=_nullable.get)""".stripMargin
     // The widths pandas keeps and Texera has no column for. A file states the
     // width and the sign of each of its numbers, and pandas reads every one of
     // them back, where a Texera column is a double or a 32-bit integer and
@@ -91,10 +99,10 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
          |    elif _values.dtype == "UInt32":
          |        out1df[_column] = _values.astype("Int64")""".stripMargin
     // A timestamp column needs nothing here. The file names UTC and holds the
-    // wall clock as UTC, so pd.read_feather and the executor read the same
-    // reading off it — no zone of the reader's own enters either side. The other
-    // scan sources have to name their date columns, CSV and JSONL carrying no
-    // types to go on, but Arrow states its own.
+    // wall clock as UTC, so pandas and the executor read the same reading off
+    // it: no zone of the reader's own enters either side. The other scan sources
+    // have to name their date columns, CSV and JSONL carrying no types to go on,
+    // but Arrow states its own.
     //
     // The executor drops `offset` rows and then takes `limit` of them. Feather has
     // no row-range read, so the same window is taken once the frame is in memory.
@@ -112,9 +120,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case _                  => None
     }
 
-    // The index is put back before the widths are looked at, a column restored
-    // from one being as narrow as any other.
-    (Seq(read, index, widths) ++ window.map(w =>
+    (Seq(dtypes, read, widths) ++ window.map(w =>
       s"out1df = out1df.iloc[$w].reset_index(drop=True)"
     )).mkString("\n")
   }

@@ -518,6 +518,69 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The same note also says what type the frame's column labels had, and pandas
+  // casts the names back to it. A frame whose columns were numbered is written
+  // under the names "1" and "2", which is what the executor reads, and comes
+  // back out of pandas labelled 1 and 2.
+  it should "keep the names a pandas frame of numbered columns was written under" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema =
+      Schema(
+        List(new Attribute("1", AttributeType.INTEGER), new Attribute("2", AttributeType.INTEGER))
+      )
+    // What `pd.DataFrame({1: [7, 8], 2: [10, 20]}).to_feather(...)` leaves: the
+    // names are strings, and `column_indexes` is the whole of what turns them
+    // back into numbers.
+    val pandasMetadata =
+      """|{"index_columns": [{"kind": "range", "name": null, "start": 0, "stop": 2, "step": 1}],
+         | "column_indexes": [{"name": null, "field_name": null,
+         |                     "pandas_type": "int64", "numpy_type": "int64", "metadata": null}],
+         | "columns": [{"name": "1", "field_name": "1",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null},
+         |             {"name": "2", "field_name": "2",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null}],
+         | "pandas_version": "2.2.3"}""".stripMargin
+    val file = writeArrowFile(
+      schema,
+      Seq(Array[Any](7, 10), Array[Any](8, 20)),
+      Map("pandas" -> pandasMetadata)
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    d.inferSchema().getAttributeNames.toList shouldBe List("1", "2")
+
+    val workDir = Files.createTempDirectory("arrow-labels-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print([int(v) for v in out1df["2"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "['1', '2']"
+      lines(1) shouldBe "[10, 20]"
+    }
+  }
+
   // Nothing in Texera holds a value past 2^63 - 1, so the column is refused at
   // the schema rather than read as the -1 its storage counts down to.
   it should "refuse an unsigned 64-bit column, having no Texera type for it" in {
