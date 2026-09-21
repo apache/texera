@@ -117,7 +117,19 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("""body.get("answer"""")
     // #7195: chat-completions responses (third-party providers) are read from
     // choices[0].message.content, not the native {"answer": ...} shape.
-    out should include("""body["choices"][0]["message"]["content"]""")
+    out should include("""body["choices"][0].get("message", {}).get("content", json.dumps(body))""")
+  }
+
+  it should "degrade instead of raising when a chat response is malformed (#8486)" in {
+    // parsePython runs per row, so indexing straight into
+    // choices[0]["message"]["content"] turned one malformed provider response
+    // into an aborted run: an empty "choices" list raises IndexError and a
+    // choice missing "message"/"content" raises KeyError. All three chat
+    // extractions now use a truthiness guard plus .get chaining, matching the
+    // native shapes beside them, which already degrade via json.dumps(body).
+    val out = QaRankingCodegen.parsePython(makeCtx())
+    out should not include ("""["message"]["content"]""")
+    out.split("""body\.get\("choices"\)""").length - 1 shouldBe 3
   }
 
   it should "return the raw JSON body for the ranking-style tasks" in {

@@ -79,18 +79,18 @@ object QaRankingCodegen extends TaskCodegen {
       |                if isinstance(body, dict):
       |                    # Third-party chat providers answer via choices[0].message;
       |                    # hf-inference returns the native {"answer": ...} shape.
-      |                    if "choices" in body:
-      |                        return body["choices"][0]["message"]["content"]
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task == "table-question-answering":
       |                if isinstance(body, dict):
-      |                    if "choices" in body:
-      |                        return body["choices"][0]["message"]["content"]
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task in ("zero-shot-classification", "sentence-similarity", "text-ranking"):
-      |                if isinstance(body, dict) and "choices" in body:
-      |                    return body["choices"][0]["message"]["content"]
+      |                if isinstance(body, dict) and body.get("choices"):
+      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                return json.dumps(body)""".stripMargin
 }

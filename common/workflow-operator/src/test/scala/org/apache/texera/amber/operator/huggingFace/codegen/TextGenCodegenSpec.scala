@@ -74,6 +74,18 @@ class TextGenCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("content")
   }
 
+  it should "degrade instead of raising when a chat response is malformed (#8486)" in {
+    // This extraction was fully unguarded: a non-dict body, an empty "choices"
+    // list, or a choice missing "message"/"content" raised, and since parsing
+    // runs per row that aborted the whole run over one bad response. It now
+    // falls back to the raw JSON body, as the other codegens do.
+    val out = TextGenCodegen.parsePython(makeCtx())
+    out should include("""if isinstance(body, dict) and body.get("choices"):""")
+    out should include("""body["choices"][0].get("message", {}).get("content", json.dumps(body))""")
+    out should include("return json.dumps(body)")
+    out should not include ("""["message"]["content"]""")
+  }
+
   "TextGenCodegen snippets" should "never inline raw CodegenContext string values" in {
     // The snippets must reference self.* attributes — the base class decodes
     // user-supplied strings safely at runtime. Sentinel values chosen to be
