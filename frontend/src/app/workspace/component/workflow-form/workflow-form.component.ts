@@ -401,15 +401,15 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // The run clock, reusing the operator canvas's source outright rather than timing anything
     // here: the engine is the only thing that knows when the run really began, so a stopwatch
     // started at the click would drift and would be wrong after a reload.
-    this.workflowWebsocketService
-      .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(
-        tap(event => (this.executionDuration = event.duration)),
-        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.executionDuration += 1000;
+    // From the service, not from the engine's event directly: that event arrives twice in a whole
+    // run, so a timer hung off it never started for a view that mounted in between -- which is what
+    // a routed switch between this page and the canvas makes. The service anchors the clock and
+    // ticks it, and replays the current value to whoever subscribes.
+    this.executeWorkflowService
+      .getExecutionDurationStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(duration => {
+        this.executionDuration = duration;
         this.cdr.markForCheck();
       });
 
@@ -631,10 +631,6 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // path there is nothing in flight and this reads the same Uninitialized it started at.
     const retained = this.executeWorkflowService.getExecutionState();
     this.executionState = retained.state;
-    // Likewise the clock: the duration arrives as a websocket event the backend sends only when
-    // the run's start or end time changes, so a page that joined mid-run would have counted from
-    // zero -- or not at all -- until the run ended.
-    this.executionDuration = this.executeWorkflowService.getExecutionDuration();
     // The workflow is shown, not edited, from here: dragging operators around or deleting them
     // belongs to the operator canvas. Lock now, and keep it locked against anything else that
     // unlocks the graph (clampEditability). The clamp is dropped when this page is destroyed;

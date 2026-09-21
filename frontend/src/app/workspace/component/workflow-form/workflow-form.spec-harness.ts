@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { of, Subject } from "rxjs";
+import { BehaviorSubject, of, Subject } from "rxjs";
 import { vi } from "vitest";
 
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
@@ -74,6 +74,8 @@ export function setupHarness() {
   // computing-unit connection status, the workflow validity, and the websocket connection.
   const executionStateStream = new Subject<any>();
   const durationEvents = new Subject<{ duration: number; isRunning: boolean }>();
+  // Replays, as the service's does: a page that mounts mid-run gets the clock straight away.
+  const durationTicks = new BehaviorSubject<number>(0);
   const statusStream = new Subject<any>();
   // The picked computing unit (with its accessPrivilege), separate from the connection status.
   const selectedUnitStream = new Subject<any>();
@@ -290,8 +292,9 @@ export function setupHarness() {
     // current value, so this is the only way the page can learn a run is already in flight.
     // Mutable, so a test can put a run in flight before the component is built.
     getExecutionState: () => execution,
-    // The clock the backend last reported, for a page that mounted mid-run.
-    getExecutionDuration: () => execution.duration,
+    // The run clock, ticked and replayed by the service; `durationEvents` is the tests' handle on
+    // it, and its current value is what a page mounting mid-run receives on subscribe.
+    getExecutionDurationStream: () => durationTicks.asObservable(),
     executeWorkflow: vi.fn(),
     killWorkflow: vi.fn(),
     resetExecutionAndWorkers: vi.fn(),
@@ -385,6 +388,7 @@ export function setupHarness() {
     executionStateStream,
     modificationEnabled,
     durationEvents,
+    durationTicks,
     statusStream,
     selectedUnitStream,
     validationStream,

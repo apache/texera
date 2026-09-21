@@ -321,11 +321,12 @@ describe("WorkflowFormComponent", () => {
       expect(component.executionState).toBe(ExecutionState.Running);
     });
 
-    // The duration arrives as a websocket event the backend sends only when the run's start or end
-    // time changes, so a page that joined mid-run counted from zero until the run ended.
+    // The backend sends the duration event twice in a whole run, and the old per-view timer sat
+    // downstream of it, so a page that mounted in between never received one and never started
+    // counting. It reads the service's clock now, which replays where the run has got to.
     it("arrives with the clock the run is already at", () => {
       h.execution.state = ExecutionState.Running;
-      h.execution.duration = 42_000;
+      h.durationTicks.next(42_000);
 
       build(formViewWorkflow).ngOnInit();
 
@@ -1804,23 +1805,15 @@ describe("WorkflowFormComponent", () => {
       expect(h.executeWorkflowService.killWorkflow).not.toHaveBeenCalled();
     });
 
-    it("counts the run clock off the engine's duration event", () => {
+    // The clock itself lives in ExecuteWorkflowService now -- anchored and ticked there, so a page
+    // that mounts mid-run gets where the run has got to instead of starting from zero. What is left
+    // here is that this page shows what the service says.
+    it("shows the run clock the service reports", () => {
       build(formViewWorkflow).ngOnInit();
 
-      h.durationEvents.next({ duration: 5000, isRunning: false });
+      h.durationTicks.next(5000);
 
       expect(component.executionDuration).toBe(5000);
-    });
-
-    it("ticks the clock a second at a time while a run is going", () => {
-      vi.useFakeTimers();
-      build(formViewWorkflow).ngOnInit();
-
-      h.durationEvents.next({ duration: 1000, isRunning: true });
-      vi.advanceTimersByTime(1000);
-      vi.useRealTimers();
-
-      expect(component.executionDuration).toBe(2000);
     });
   });
 

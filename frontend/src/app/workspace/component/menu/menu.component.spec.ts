@@ -1207,104 +1207,24 @@ describe("MenuComponent", () => {
   // (base-duration updates, 1s cadence, restart-on-event, stop-when-idle) and,
   // crucially, that the timer is torn down with the component so it cannot keep
   // firing or leak after destroy.
-  describe("execution duration timer", () => {
-    let durationEvents$: Subject<{ type: "ExecutionDurationUpdateEvent" } & ExecutionDurationUpdateEvent>;
-    let timerFixture: ComponentFixture<MenuComponent>;
-    let timerComponent: MenuComponent;
+  // The clock itself lives in ExecuteWorkflowService now -- anchored and ticked there, so a menu
+  // that mounts mid-run gets where the run has got to instead of starting from zero, which is what
+  // a routed switch between the canvas and the Form View makes. What is left here is that the menu
+  // shows what the service says.
+  describe("execution duration", () => {
+    it("shows the run clock the service reports", () => {
+      const ticks = new BehaviorSubject<number>(7000);
+      vi.spyOn(executeWorkflowService, "getExecutionDurationStream").mockReturnValue(ticks.asObservable());
 
-    function emitDuration(duration: number, isRunning: boolean): void {
-      durationEvents$.next({ type: "ExecutionDurationUpdateEvent", duration, isRunning });
-    }
+      const f = TestBed.createComponent(MenuComponent);
+      f.detectChanges();
 
-    beforeEach(() => {
-      vi.useFakeTimers();
-      durationEvents$ = new Subject();
-      const websocket = TestBed.inject(WorkflowWebsocketService);
-      const original = websocket.subscribeToEvent.bind(websocket);
-      // Only intercept the duration event; defer every other event type to the
-      // real implementation so unrelated subscriptions keep working.
-      vi.spyOn(websocket, "subscribeToEvent").mockImplementation((type: any) =>
-        type === "ExecutionDurationUpdateEvent" ? (durationEvents$.asObservable() as any) : original(type)
-      );
+      // Replayed on subscribe: the value the run was already at when this menu mounted.
+      expect(f.componentInstance.executionDuration).toBe(7000);
 
-      timerFixture = TestBed.createComponent(MenuComponent);
-      timerComponent = timerFixture.componentInstance;
-      timerFixture.detectChanges();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("sets executionDuration to the event's base duration on each event", () => {
-      emitDuration(5000, false);
-      expect(timerComponent.executionDuration).toBe(5000);
-
-      emitDuration(8000, false);
-      expect(timerComponent.executionDuration).toBe(8000);
-    });
-
-    it("advances the duration by 1s every second while running", () => {
-      emitDuration(0, true);
-      expect(timerComponent.executionDuration).toBe(0);
-
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      vi.advanceTimersByTime(2000);
-      expect(timerComponent.executionDuration).toBe(3000);
-    });
-
-    it("does not start a timer when the execution is not running", () => {
-      emitDuration(7000, false);
-
-      vi.advanceTimersByTime(5000);
-
-      expect(timerComponent.executionDuration).toBe(7000);
-    });
-
-    it("restarts the 1s timer on each new running event, cancelling the previous one", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // A new event resets the base duration and restarts the cadence; the
-      // previous timer must be cancelled (switchMap) so it cannot double-count.
-      emitDuration(10000, true);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(11000);
-    });
-
-    it("stops the timer when a running execution transitions to not running", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      emitDuration(2000, false);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(2000);
-    });
-
-    it("tears down the timer on destroy so the duration stops advancing", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      timerFixture.destroy();
-
-      // The previously running timer must not keep firing after destroy...
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // ...nor should late events revive it (the source subscription is closed).
-      emitDuration(9999, true);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
+      ticks.next(8000);
+      expect(f.componentInstance.executionDuration).toBe(8000);
+      f.destroy();
     });
   });
 

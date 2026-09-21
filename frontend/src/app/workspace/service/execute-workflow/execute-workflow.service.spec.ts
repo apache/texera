@@ -114,6 +114,71 @@ describe("ExecuteWorkflowService", () => {
   // no current value, so it heard nothing about the run: it showed Run for a workflow that was
   // running. The lock is reapplied only when the state changes too, so a canvas that unlocked the
   // graph on arrival left a running workflow editable until the run happened to end.
+  // The backend sends ExecutionDurationUpdateEvent exactly twice in a run: once just after
+  // startTimeStamp is written, carrying a few milliseconds, and once when endTimeStamp is. So the
+  // reported number stands still for the whole run, and a view that mounted in between and hung a
+  // timer off that event never received one and never started counting. The clock is anchored and
+  // ticked here instead, and replayed to whoever subscribes.
+  describe("the run clock", () => {
+    const emitDuration = (duration: number, isRunning: boolean) =>
+      emitWsEvent({ type: "ExecutionDurationUpdateEvent", duration, isRunning } as TexeraWebsocketEvent);
+
+    it("counts on from the reported value while the run is going, rather than repeating it", () => {
+      vi.useFakeTimers();
+      try {
+        // What the backend actually sends at the start of a run: a handful of milliseconds.
+        emitDuration(3, true);
+        vi.advanceTimersByTime(60_000);
+
+        // A view mounting a minute in asks and is told a minute, not 3ms.
+        expect(service.getExecutionDuration()).toBeGreaterThanOrEqual(60_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hands a view that subscribes mid-run the clock straight away, then ticks it", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(30_000);
+
+        const seen: number[] = [];
+        service.getExecutionDurationStream().subscribe(d => seen.push(d));
+        expect(seen[0]).toBeGreaterThanOrEqual(30_000);
+
+        vi.advanceTimersByTime(1000);
+        expect(seen[seen.length - 1]).toBeGreaterThanOrEqual(31_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops counting once the run ends, and reports what the run took", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(10_000);
+        // The second and last event: the real total.
+        emitDuration(12_345, false);
+        vi.advanceTimersByTime(10_000);
+
+        expect(service.getExecutionDuration()).toBe(12_345);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Otherwise the next workflow's menu opens showing the previous run's time.
+    it("goes back to zero when the execution state is reset", () => {
+      emitDuration(9999, false);
+
+      service.resetExecutionState();
+
+      expect(service.getExecutionDuration()).toBe(0);
+    });
+  });
+
   // A view handed a session mid-run needs the lock the run implies; the lock is otherwise only
   // reapplied when the state changes, so a canvas that unlocked on arrival left a running workflow
   // editable until its run happened to end.

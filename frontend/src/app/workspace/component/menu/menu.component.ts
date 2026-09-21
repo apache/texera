@@ -198,22 +198,15 @@ export class MenuComponent implements OnInit, OnDestroy {
     private jupyterPanelService: JupyterPanelService,
     private fileSaverService: FileSaverService
   ) {
-    workflowWebsocketService
-      .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(
-        tap(event => (this.executionDuration = event.duration)),
-        // restart the 1s timer on each event, only while running
-        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.executionDuration += 1000;
-      });
+    // From the service, not from the engine's event directly: that event arrives twice in a whole
+    // run, so a timer hung off it never started for a menu that mounted in between -- which is what
+    // a routed switch between the canvas and the Form View makes. The service anchors the clock and
+    // ticks it, and replays the current value to whoever subscribes.
+    executeWorkflowService
+      .getExecutionDurationStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(duration => (this.executionDuration = duration));
     this.executionState = executeWorkflowService.getExecutionState().state;
-    // The clock, for the same reason: the backend sends the duration only when the run's start or
-    // end time changes, so a menu created mid-run -- which is what a routed switch between a
-    // workflow's two views makes -- would count from zero until the run ended.
-    this.executionDuration = executeWorkflowService.getExecutionDuration();
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     const initBehavior = this.getRunButtonBehavior();

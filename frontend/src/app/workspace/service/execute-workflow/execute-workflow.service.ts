@@ -18,7 +18,7 @@
  */
 
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { BehaviorSubject, interval, Observable, Subject, Subscription } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -95,8 +95,21 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
-  /** The last duration the backend reported for the current run; see getExecutionDuration. */
-  private executionDuration = 0;
+  /**
+   * The clock for the current run, as an anchor rather than a snapshot: the backend sends
+   * `ExecutionDurationUpdateEvent` exactly twice per run -- once just after `startTimeStamp` is
+   * written, carrying a few milliseconds, and once when `endTimeStamp` is -- so the reported number
+   * stands still for the whole run and only the local tick advances it. Anchored, any view can work
+   * out how long the run has been going whenever it mounts.
+   */
+  private durationAnchor: { reported: number; at: number; isRunning: boolean } = {
+    reported: 0,
+    at: 0,
+    isRunning: false,
+  };
+  /** Ticks while a run is going; replays the current value to a view that mounts mid-run. */
+  private readonly executionDuration = new BehaviorSubject<number>(0);
+  private durationTicker?: Subscription;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -120,10 +133,7 @@ export class ExecuteWorkflowService {
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
           break;
         case "ExecutionDurationUpdateEvent":
-          // Held for views that mount mid-run. The backend sends this only when the run's start or
-          // end time changes, so a view created afterwards -- which is what a routed switch between
-          // a workflow's two views makes -- never hears it and would count from zero.
-          this.executionDuration = event.duration;
+          this.anchorDuration(event.duration, event.isRunning);
           break;
         default:
           // workflow status related event
@@ -202,9 +212,28 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
-  /** How long the current run has been going, for a view that mounted after it started. */
+  /** How long the current run has been going, worked out from the anchor. */
   public getExecutionDuration(): number {
-    return this.executionDuration;
+    const { reported, at, isRunning } = this.durationAnchor;
+    return isRunning ? reported + (Date.now() - at) : reported;
+  }
+
+  /**
+   * The run clock, ticking while a run is going. Both views read it from here rather than each
+   * running their own timer off the backend event: that timer sat downstream of the event, so a
+   * view that mounted after the run started never received one and never began counting.
+   */
+  public getExecutionDurationStream(): Observable<number> {
+    return this.executionDuration.asObservable();
+  }
+
+  private anchorDuration(reported: number, isRunning: boolean): void {
+    this.durationAnchor = { reported, at: Date.now(), isRunning };
+    this.durationTicker?.unsubscribe();
+    this.durationTicker = isRunning
+      ? interval(1000).subscribe(() => this.executionDuration.next(this.getExecutionDuration()))
+      : undefined;
+    this.executionDuration.next(this.getExecutionDuration());
   }
 
   /**
@@ -415,6 +444,8 @@ export class ExecuteWorkflowService {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
+    // Otherwise the next workflow's menu opens showing the previous run's time.
+    this.anchorDuration(0, false);
   }
 
   /**
