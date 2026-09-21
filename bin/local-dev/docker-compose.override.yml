@@ -38,11 +38,11 @@ services:
     ports:
       - "4000:4000"
 
-  # The default .env hardcodes STORAGE_S3_ENDPOINT=http://texera-minio:9000
+  # The default .env hardcodes STORAGE_S3_ENDPOINT=http://texera-rustfs:9000
   # — only routable inside the docker compose network. lakekeeper-init bakes
   # that string into the warehouse's storage profile, which Lakekeeper then
   # both dials itself (for s3 ops) AND returns to clients. The host-native
-  # JVMs in local-dev mode can't resolve `texera-minio`.
+  # JVMs in local-dev mode can't resolve `texera-rustfs`.
   #
   # Use whatever STORAGE_S3_ENDPOINT the parent process exported. The
   # wrapper script (bin/local-dev.sh) detects the host's LAN IP at startup
