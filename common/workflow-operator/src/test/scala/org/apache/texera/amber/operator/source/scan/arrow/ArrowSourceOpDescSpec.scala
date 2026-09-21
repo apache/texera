@@ -59,11 +59,18 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
-  private def writeArrowFile(schema: Schema, rows: Seq[Array[Any]]): File = {
+  private def writeArrowFile(
+      schema: Schema,
+      rows: Seq[Array[Any]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File = {
     val file = File.createTempFile("arrow-src-", ".arrow")
     file.deleteOnExit()
     val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+    val root = VectorSchemaRoot.create(
+      new ArrowFileSchema(ArrowUtils.fromTexeraSchema(schema).getFields, schemaMetadata.asJava),
+      allocator
+    )
     val out = new FileOutputStream(file)
     val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
     try {
@@ -267,8 +274,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val script = workDir.resolve("run.py")
     Files.write(
       script,
-      s"""import pandas as pd
-         |${bindSourceFile(d)}
+      s"""${scriptHeader(d)}
          |${d.generateStandaloneCode()}
          |print(str(out1df["d"].dtype), str(out1df["i"].dtype))
          |print(repr(out1df["d"].iloc[0]), repr(out1df["d"].iloc[1]))
@@ -357,8 +363,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val script = workDir.resolve("run.py")
     Files.write(
       script,
-      s"""import pandas as pd
-         |${bindSourceFile(d)}
+      s"""${scriptHeader(d)}
          |${d.generateStandaloneCode()}
          |print([None if pd.isna(v) else int(v) for v in out1df["big"]])
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
@@ -417,8 +422,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val script = workDir.resolve("run.py")
     Files.write(
       script,
-      s"""import pandas as pd
-         |${bindSourceFile(d)}
+      s"""${scriptHeader(d)}
          |${d.generateStandaloneCode()}
          |print(" ".join(str(out1df[c].dtype) for c in out1df.columns))
          |print([float(v) for v in out1df["f"]])
@@ -443,6 +447,74 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
       lines(1) shouldBe "[16777216.0, 1.0]"
       lines(2) shouldBe "[[7, 8], [-3, 4], [255, 1], [65535, 1], [4294967295, 1]]"
       lines(3) shouldBe "16777217.0"
+    }
+  }
+
+  // pandas writes into an Arrow file's schema which of a frame's columns was its
+  // index, and reads those columns back as the frame's index rather than as
+  // columns. The executor reads the columns the file states and has no notion of
+  // an index, so a file written from a frame keyed by `customer_id` kept that
+  // column on the one side and dropped it on the other.
+  it should "keep the column a pandas index was written from" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema = Schema(
+      List(
+        new Attribute("name", AttributeType.STRING),
+        new Attribute("amt", AttributeType.DOUBLE),
+        new Attribute("customer_id", AttributeType.INTEGER)
+      )
+    )
+    // The note pandas leaves, which is the whole of what parts the two readings.
+    // Written by hand: the Java writer here has nothing to say about an index.
+    val pandasMetadata =
+      """|{"index_columns": ["customer_id"],
+         | "column_indexes": [],
+         | "columns": [{"name": "name", "field_name": "name",
+         |              "pandas_type": "unicode", "numpy_type": "object", "metadata": null},
+         |             {"name": "amt", "field_name": "amt",
+         |              "pandas_type": "float64", "numpy_type": "float64", "metadata": null},
+         |             {"name": "customer_id", "field_name": "customer_id",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null}],
+         | "pandas_version": "2.2.3"}""".stripMargin
+    val file = writeArrowFile(
+      schema,
+      Seq(Array[Any]("alice", 1.5d, 101), Array[Any]("bob", 2.5d, 102)),
+      Map("pandas" -> pandasMetadata)
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    d.inferSchema().getAttributeNames.toList shouldBe List("name", "amt", "customer_id")
+
+    val workDir = Files.createTempDirectory("arrow-index-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print([int(v) for v in out1df["customer_id"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      // The same columns, under the names the file gives them and in its order.
+      lines.head shouldBe "['name', 'amt', 'customer_id']"
+      lines(1) shouldBe "[101, 102]"
     }
   }
 
@@ -480,6 +552,10 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   private def bindSourceFile(d: ArrowSourceOpDesc): String =
     s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${d.standaloneSourceName().get}""""
 
+  /** What a script needs before the block: its imports, and the file it reads. */
+  private def scriptHeader(d: ArrowSourceOpDesc): String =
+    (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
+
   private def resolvePython(): Option[String] = {
     def fromConfig: Option[String] =
       Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
@@ -500,7 +576,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def canImportPandas(python: String): Boolean =
     Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+      new ProcessBuilder(python, "-c", "import pandas, pyarrow").redirectErrorStream(true).start()
     ).toOption.exists { p =>
       if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
       else p.exitValue() == 0

@@ -44,6 +44,10 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   fileTypeName = Option("Arrow")
 
+  // pyarrow is what pandas reads an Arrow file with; the columns the file states
+  // are asked of it directly below.
+  override def standaloneImports(): Seq[String] = Seq("import pyarrow as pa")
+
   override def standaloneSourcePath(): Option[String] = fileName
 
   override def generateStandaloneCode(): String = {
@@ -53,6 +57,22 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     // is not rounded on its way through a float.
     val read =
       s"""out1df = pd.read_feather($SourceFilePlaceholder, dtype_backend="numpy_nullable")"""
+    // A file pandas wrote from a frame keyed by one of its columns says so in its
+    // schema, and pandas reads those columns back as the frame's index rather
+    // than as columns. The executor reads the columns the file states and has no
+    // notion of an index, so a file written from a frame keyed by `customer_id`
+    // kept that column on the one side and dropped it on the other, where an
+    // operator naming it raised. Put back under the name the file gives it, which
+    // is `__index_level_0__` for an index that had none, and in the file's own
+    // order, which is where pandas wrote them: last. The Parquet source strips
+    // the same note, which its reader lets it do before the columns are read.
+    val index =
+      s"""|with pa.ipc.open_file($SourceFilePlaceholder) as _file:
+          |    _names = _file.schema.names
+          |if list(out1df.columns) != _names:
+          |    _index = out1df.index.to_frame(index=False)
+          |    _index.columns = [_name for _name in _names if _name not in out1df.columns]
+          |    out1df = pd.concat([out1df.reset_index(drop=True), _index], axis=1)[_names]""".stripMargin
     // The widths pandas keeps and Texera has no column for. A file states the
     // width and the sign of each of its numbers, and pandas reads every one of
     // them back, where a Texera column is a double or a 32-bit integer and
@@ -92,8 +112,11 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case _                  => None
     }
 
-    (Seq(read, widths) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
-      .mkString("\n")
+    // The index is put back before the widths are looked at, a column restored
+    // from one being as narrow as any other.
+    (Seq(read, index, widths) ++ window.map(w =>
+      s"out1df = out1df.iloc[$w].reset_index(drop=True)"
+    )).mkString("\n")
   }
 
   @throws[IOException]
