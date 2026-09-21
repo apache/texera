@@ -20,15 +20,19 @@
 package org.apache.texera.amber.operator.projection
 
 import com.google.common.base.Preconditions
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{ColumnarOperatorExecutor, ColumnarResult}
+import org.apache.texera.amber.core.tuple.{Attribute, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.operator.map.MapOpExec
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
 
 class ProjectionOpExec(
     descString: String
-) extends MapOpExec {
+) extends MapOpExec
+    with ColumnarOperatorExecutor {
 
   val desc: ProjectionOpDesc = objectMapper.readValue(descString, classOf[ProjectionOpDesc])
   setMapFunc(project)
@@ -64,6 +68,37 @@ class ProjectionOpExec(
     }
 
     TupleLike(fields.toSeq: _*)
+  }
+
+  // ---- Native-Arrow path: select (and rename) columns directly on the Arrow
+  // batch, no per-row Tuple decode. Streaming 1:1, so it emits the projected batch.
+  @transient private var columnarAllocator: RootAllocator = _
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+    Preconditions.checkArgument(desc.attributes.nonEmpty)
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
+      val full = ArrowUtils.toTexeraSchema(root.getSchema)
+      // (originalName, alias) in output order, matching the row `project` path.
+      val selected: List[(String, String)] =
+        if (desc.isDrop) {
+          val drop = desc.attributes.map(_.getOriginalAttribute).toSet
+          full.getAttributeNames.filterNot(drop.contains).map(a => (a, a))
+        } else desc.attributes.map(u => (u.getOriginalAttribute, u.getAlias))
+      val aliases = selected.map(_._2)
+      if (aliases.distinct.size != aliases.size) {
+        throw new RuntimeException("have duplicated attribute name/alias")
+      }
+      val outSchema = Schema(selected.map {
+        case (orig, alias) => new Attribute(alias, full.getAttribute(orig).getType)
+      })
+      val srcIdx = ArrowUtils.projectionIndices(root, selected.map(_._1))
+      ColumnarResult.Emit(ArrowUtils.selectColumns(root, srcIdx, outSchema, columnarAllocator))
+    }
+  }
+
+  override def close(): Unit = {
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
   }
 
 }

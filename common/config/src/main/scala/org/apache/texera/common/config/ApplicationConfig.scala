@@ -71,6 +71,24 @@ object ApplicationConfig {
   val enableTransactionalReconfiguration: Boolean =
     getConfSource.getBoolean("reconfiguration.enable-transactional-reconfiguration")
 
+  // Columnar execution. The COLUMNAR_WIRE env ("1"/"0") is honored for backward
+  // compatibility and overrides the config value when set.
+  val enableColumnarWire: Boolean =
+    sys.env.get("COLUMNAR_WIRE") match {
+      case Some(v) => v == "1" || v.equalsIgnoreCase("true")
+      case None    => getConfSource.getBoolean("columnar.enable-columnar-wire")
+    }
+  val enableVectorizedOperators: Boolean =
+    sys.env.get("FILTER_VECTORIZED") match {
+      case Some(v) => v == "1" || v.equalsIgnoreCase("true")
+      case None    => getConfSource.getBoolean("columnar.enable-vectorized-operators")
+    }
+  val enableVectorizedSink: Boolean =
+    sys.env.get("COLUMNAR_SINK") match {
+      case Some(v) => v == "1" || v.equalsIgnoreCase("true")
+      case None    => getConfSource.getBoolean("columnar.enable-vectorized-sink")
+    }
+
   // Fault tolerance
   val faultToleranceLogFlushIntervalInMs: Long =
     getConfSource.getLong("fault-tolerance.log-flush-interval-ms")

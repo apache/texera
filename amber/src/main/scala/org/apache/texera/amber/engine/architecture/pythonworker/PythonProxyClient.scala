@@ -124,6 +124,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
+      case ColumnarFrame(bytes, _, _, ver) =>
+        require(
+          ver == ColumnarFrame.CurrentFormatVersion,
+          s"unsupported ColumnarFrame format version $ver " +
+            s"(this worker supports ${ColumnarFrame.CurrentFormatVersion})"
+        )
+        // Columnar wire reaching the Python path: pass the Arrow batch straight
+        // to Flight (no tuple round-trip). deserializeRootFold keeps the root
+        // alive for the put and closes it after.
+        ArrowUtils.deserializeRootFold(bytes, allocator) { root =>
+          writeArrowRoot(root, from, "Data")
+        }
       case StateFrame(state, loopCounter, loopStartId) =>
         // The Arrow wire format for states IS the State row (content +
         // loop_counter + loop_start_id), so the envelope rides its own
@@ -205,6 +217,24 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     assert(!results.hasNext)
 
     result
+  }
+
+  // Send an already-built Arrow batch to the Python worker over Flight, without
+  // decoding to tuples first. Used for the columnar wire passthrough.
+  private def writeArrowRoot(
+      root: VectorSchemaRoot,
+      from: ChannelIdentity,
+      payloadType: String
+  ): Unit = {
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, payloadType).toByteArray)
+    val flightListener = new SyncPutListener
+    val writer = flightClient.startPut(descriptor, root, flightListener)
+    writer.putNext()
+    writer.completed()
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    ackMsgBuf.close()
+    flightListener.close()
   }
 
   private def writeArrowStream(

@@ -57,3 +57,17 @@ trait BufferedItemWriter[T] {
     */
   def removeOne(item: T): Unit
 }
+
+/**
+  * A writer that can ingest a whole Arrow batch (as Arrow IPC bytes) without the
+  * caller decoding it to items first. Used by the vectorized columnar sink.
+  */
+trait ArrowVectorizedSink {
+
+  /**
+    * Write one Arrow batch to the underlying storage, reading values directly
+    * from the Arrow columns (no per-row object materialization).
+    * @param arrowIpcBytes the batch encoded as an Arrow IPC stream.
+    */
+  def writeArrowBatch(arrowIpcBytes: Array[Byte]): Unit
+}
