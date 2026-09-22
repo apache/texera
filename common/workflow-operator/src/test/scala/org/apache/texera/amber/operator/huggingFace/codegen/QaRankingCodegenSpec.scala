@@ -117,7 +117,7 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("""body.get("answer"""")
     // #7195: chat-completions responses (third-party providers) are read from
     // choices[0].message.content, not the native {"answer": ...} shape.
-    out should include("""body["choices"][0].get("message", {}).get("content", json.dumps(body))""")
+    out should include("""content = self._chat_message_content(body)""")
   }
 
   it should "degrade instead of raising when a chat response is malformed (#8486)" in {
@@ -129,7 +129,7 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
     // native shapes beside them, which already degrade via json.dumps(body).
     val out = QaRankingCodegen.parsePython(makeCtx())
     out should not include ("""["message"]["content"]""")
-    out.split("""body\.get\("choices"\)""").length - 1 shouldBe 3
+    out.split("""content = self\._chat_message_content\(body\)""").length - 1 shouldBe 3
   }
 
   it should "return the raw JSON body for the ranking-style tasks" in {
@@ -208,5 +208,12 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
 
     QaRankingCodegen.payloadPython(ctxA) shouldBe QaRankingCodegen.payloadPython(ctxB)
     QaRankingCodegen.parsePython(ctxA) shouldBe QaRankingCodegen.parsePython(ctxB)
+  }
+
+  it should "read chat content through the shared type-checked helper (#8617 review)" in {
+    val out = QaRankingCodegen.parsePython(makeCtx())
+    out should include("self._chat_message_content(body)")
+    // No direct index/get chaining survives — the helper owns that logic.
+    out should not include ("""body["choices"][0]""")
   }
 }

@@ -52,7 +52,8 @@ object TextGenCodegen extends TaskCodegen {
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "text-generation":
-      |                if isinstance(body, dict) and body.get("choices"):
-      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                return json.dumps(body)""".stripMargin
 }

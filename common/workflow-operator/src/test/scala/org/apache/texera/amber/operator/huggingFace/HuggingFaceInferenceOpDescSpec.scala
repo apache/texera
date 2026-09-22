@@ -112,7 +112,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("self.TEMPERATURE")
     // Parse — text-gen pulls choices[0].message.content out of the response.
     code should include(
-      """body["choices"][0].get("message", {}).get("content", json.dumps(body))"""
+      """content = self._chat_message_content(body)"""
     )
   }
 
@@ -231,7 +231,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     )
     TextGenCodegen.payloadPython(ctx) should include("self.MODEL_ID")
     TextGenCodegen.parsePython(ctx) should include(
-      """body["choices"][0].get("message", {}).get("content", json.dumps(body))"""
+      """content = self._chat_message_content(body)"""
     )
   }
 
@@ -573,7 +573,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
     code should include("""body.get("answer", json.dumps(body))""")
     code should include(
-      """body["choices"][0].get("message", {}).get("content", json.dumps(body))"""
+      """content = self._chat_message_content(body)"""
     )
   }
 
@@ -584,7 +584,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
     code should include("""body.get("answer", json.dumps(body))""")
     code should include(
-      """body["choices"][0].get("message", {}).get("content", json.dumps(body))"""
+      """content = self._chat_message_content(body)"""
     )
   }
 
