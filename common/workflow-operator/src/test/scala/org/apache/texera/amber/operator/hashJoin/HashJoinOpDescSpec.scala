@@ -87,11 +87,13 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new HashJoinOpDesc[String]
     d.buildAttributeName = "id"
     d.probeAttributeName = "key"
-    // "key" is renamed only when the left frame has a column of that name, and
-    // the frame is not known until the script runs, so the name the rename
+    // "key" is moved aside only when something already sits where it would
+    // land, and the frames are not known until the script runs, so the name it
     // settled on is what gets dropped.
-    d.generateStandaloneCode() should include("""_probe_key = _rename.get("key", "key")""")
-    d.generateStandaloneCode() should include("drop(columns=[_probe_key])")
+    val code = d.generateStandaloneCode()
+    code should include("_probe_key = \"key\"")
+    code should include("while _probe_key in _taken:")
+    code should include("drop(columns=[_probe_key])")
   }
 
   // Both sides naming the key alike does not make it one column: the rename
@@ -103,7 +105,8 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     d.buildAttributeName = "k"
     d.probeAttributeName = "k"
     val code = d.generateStandaloneCode()
-    code should include("""_probe_key = _rename.get("k", "k")""")
+    code should include("_probe_key = \"k\"")
+    code should include("while _probe_key in _taken:")
     code should include("""if _probe_key != "k":""")
     code should include("drop(columns=[_probe_key])")
   }
@@ -244,6 +247,57 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
       // lost one too, and being the join key it is then dropped, the engine
       // emitting the key once.
       out.trim shouldBe "k,x,x#@1#@1,x#@1"
+    }
+  }
+
+  /** A right input that already went through a join carries a "#@1" name, and
+    * that name can be the key of the next one. The key leaves, so it is not a
+    * name the payload has to step around: the engine sets it aside before it
+    * renames anything, and a script that counted it pushed the payload one
+    * suffix too far, past the name the downstream operators were promised.
+    */
+  it should "not let the discarded probe key push a payload column aside" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("k", AttributeType.INTEGER))
+      .add(new Attribute("x", AttributeType.STRING))
+    val right = Schema()
+      .add(new Attribute("x#@1", AttributeType.INTEGER))
+      .add(new Attribute("x", AttributeType.STRING))
+
+    val d = new HashJoinOpDesc[Integer]
+    d.buildAttributeName = "k"
+    d.probeAttributeName = "x#@1"
+    val promised = d
+      .getExternalOutputSchemas(Map(PortIdentity() -> left, PortIdentity(1) -> right))(
+        d.operatorInfo.outputPorts.head.id
+      )
+      .getAttributeNames
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": [1], "x": ["left"]})
+         |in2df = pd.DataFrame({"x#@1": [1], "x": ["right"]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |print(",".join(map(str, out1df.iloc[0].tolist())))
+         |""".stripMargin
+
+    val script = Files.createTempFile("hashjoin-probe-key-collision-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      promised shouldBe List("k", "x", "x#@1")
+      lines.head.split(",").toList shouldBe promised
+      lines(1) shouldBe "1,left,right"
     }
   }
 

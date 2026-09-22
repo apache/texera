@@ -260,18 +260,29 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     // HashJoinProbeOpExec's rename, written out: append "#@1" until the name is
     // free. pandas' `suffixes` appends once and then refuses the duplicate it
     // just made.
+    //
+    // JoinUtils sets the probe key aside before it renames anything, so a
+    // payload column never has to step around the key that is about to leave.
+    // The key itself still rides along, because the merge joins on it, and it
+    // only has to land where nothing else already sits.
     val merge =
       s"""_left_cols = set(in1df.columns)
          |_right_cols = list(in2df.columns)
-         |_right_set = set(_right_cols)
+         |_payload = [_c for _c in _right_cols if _c != $probeKeyLit]
+         |_payload_set = set(_payload)
          |_rename = {}
-         |for _col in _right_cols:
+         |for _col in _payload:
          |    _new = _col
-         |    _others = _right_set - {_col}
+         |    _others = _payload_set - {_col}
          |    while _new in _left_cols or _new in _others:
          |        _new = _new + "#@1"
          |    _rename[_col] = _new
-         |_probe_key = _rename.get($probeKeyLit, $probeKeyLit)
+         |_probe_key = $probeKeyLit
+         |_taken = _left_cols | set(_rename.values())
+         |while _probe_key in _taken:
+         |    _probe_key = _probe_key + "#@1"
+         |if _probe_key != $probeKeyLit:
+         |    _rename[$probeKeyLit] = _probe_key
          |""".stripMargin + widening +
         s"""out1df = $leftFrame.merge(
            |    $rightFrame,
