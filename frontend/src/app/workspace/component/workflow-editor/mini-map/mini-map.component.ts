@@ -24,15 +24,15 @@ import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 import { PanelService } from "../../../service/panel/panel.service";
-
-/** The main paper's events that move or resize its viewport, which is what the navigator tracks. */
-const MAIN_PAPER_EVENTS = ["translate", "scale", "resize"] as const;
 import { CdkDrag } from "@angular/cdk/drag-drop";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+
+/** The main paper's events that move or resize its viewport, which is what the navigator tracks. */
+const MAIN_PAPER_EVENTS = ["translate", "scale", "resize"] as const;
 
 @UntilDestroy()
 @Component({

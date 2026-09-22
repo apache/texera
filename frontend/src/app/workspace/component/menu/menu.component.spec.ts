@@ -140,6 +140,29 @@ describe("MenuComponent", () => {
     expect(navigateByUrl).toHaveBeenCalledWith(workspaceFormUrl(42));
   });
 
+  // A page load left nothing behind; a route can be refused or cancelled and leaves this page in
+  // place. The hand-over flag then has to come down, or the Form View button is dead for the rest
+  // of the session with nothing logged. On success the component is destroyed, flag and all.
+  it("lowers the hand-over flag when the navigation does not go through", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(false);
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
+  });
+
+  it("lowers the hand-over flag when the navigation fails outright", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockRejectedValue(new Error("refused"));
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
+  });
+
   it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {
     // After "new workflow" the canvas holds the default workflow (wid 0); the switch's save creates
     // it, and the page to open is the created one, not /workflow/0/form.

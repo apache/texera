@@ -241,7 +241,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   private afterDrain: Array<() => void> = [];
   /** An edit has happened since the last snapshot was enqueued. The autosave behind workflowChanged
    *  is debounced, so at the moment the queue drains such an edit may not be queued yet -- and the
-   *  hand-over waiting on the drain would lose it to the full-page load. Set the moment an edit is
+   *  hand-over waiting on the drain would leave it to an autosave firing under the other view. Set the moment an edit is
    *  reported (before the debounce), cleared when a snapshot is enqueued (it carries everything up
    *  to then), and checked by the drain, which flushes one more save instead of handing over. */
   private dirtySinceLastEnqueue = false;
@@ -479,8 +479,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
 
     // Attribute boxes become dropdowns only after compilation writes the column enums into each
     // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
-    // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page reloads fresh
-    // on every Canvas<->Form switch) gets the current state at once. Held, not dropped, while
+    // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page is created anew
+    // on every Canvas<->Form switch, mid-session) gets the current state at once. Held, not dropped, while
     // someone is typing (see rebuildFormOrDefer), so it neither throws away a half-entered value
     // under the cursor nor goes missing.
     this.workflowCompilingService
@@ -1885,7 +1885,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
               this.queuedSaves--;
               if (this.queuedSaves === 0) {
                 // Hand-over is waiting, but an edit arrived after the last snapshot and its debounced
-                // autosave has not fired yet: the full-page load would kill that edit. Flush it into
+                // autosave has not fired yet: store it here rather than leave it to fire under the
+                // other view. Flush it into
                 // the queue first; this drain check runs again once the flush has gone out. (When the
                 // flush cannot be enqueued -- save()'s own guards -- fall through as save() itself
                 // would: there is nothing left this page can store.)
@@ -2022,7 +2023,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /**
    * The browser is leaving this document: save, and change nothing else.
    *
-   * The canvas switch is a full-page navigation, and the browser may keep this document in its
+   * Leaving the document -- a refresh, a closed tab, a URL typed over this one; the canvas switch
+   * used to be one, and routes now -- fires this, and the browser may keep this document in its
    * back/forward cache rather than discarding it. Coming back restores the JavaScript state as it
    * was left, and nothing re-runs, so anything torn down here would stay torn down on a page that
    * looks live. A document that really is discarded takes its websockets and its graph with it, so

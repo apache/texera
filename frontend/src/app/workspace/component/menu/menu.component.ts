@@ -132,7 +132,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
-  /** A Form View hand-over is in progress (saving, then a full-page load); a second click is a no-op. */
+  /** A Form View hand-over is in progress (saving, then the route); a second click is a no-op. */
   private handingOverToFormView = false;
   /** An edit has been reported since the hand-over's last save snapshot (see onClickOpenFormView). */
   private editedSinceSwitchSnapshot = false;
@@ -727,18 +727,18 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.openFormViewPage(wid);
       return;
     }
-    // Save first, and hand over only once the save has completed. The full-page load that
-    // follows unloads this document, and a request still in flight at that moment is aborted, so
-    // navigating right after firing the save could lose the very edit the switch is meant to carry
-    // across; the workspace's beforeunload save runs into the same unload and is no safety net. A
-    // save that fails keeps the user here with the error shown, rather than leaving with changes
-    // that were never stored. The form's own switch (openRegularCanvas) does the same.
+    // Save first, and hand over only once the save has completed. A route aborts no request, so
+    // this is no longer about losing the edit in flight; it is about where a failure lands. The
+    // switch is the moment a writer expects what they typed here to be stored, and a save that
+    // fails keeps them here, on the view they edited in, with the error in front of them -- rather
+    // than carrying changes that were never stored into a view that has no reason to say so. The
+    // form's own switch (openRegularCanvas) does the same.
     //
     // Two more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
     // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the load): workflowChanged marks it, and the drain below saves once more before handing
-    // over rather than letting the full-page load abort that edit's own debounced autosave.
+    // until the route): workflowChanged marks it, and the drain below saves once more before handing
+    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -767,7 +767,8 @@ export class MenuComponent implements OnInit, OnDestroy {
         },
         complete: () => {
           if (this.editedSinceSwitchSnapshot) {
-            // An edit landed while the save was out; the full-page load would kill its autosave.
+            // An edit landed while the save was out; store it here rather than leave it to an
+            // autosave that would fire under the other view.
             this.saveThenOpenFormView(target);
             return;
           }
@@ -784,9 +785,20 @@ export class MenuComponent implements OnInit, OnDestroy {
    * away everything that made the workflow live -- the shared document, the computing unit
    * connection, the execution state -- only to rebuild it on the other side. The canvas keeps
    * the session on its way out (see its ngOnDestroy) and the Form View attaches to it.
+   *
+   * A navigation can be refused or cancelled, and unlike a page load that leaves this page in
+   * place, with the hand-over flag still raised and the Form View button dead for the rest of the
+   * session. So the flag comes down on anything but success -- on success this component is gone.
    */
   private openFormViewPage(wid: number): void {
-    void this.router.navigateByUrl(workspaceFormUrl(wid));
+    this.router.navigateByUrl(workspaceFormUrl(wid)).then(
+      navigated => {
+        if (!navigated) {
+          this.handingOverToFormView = false;
+        }
+      },
+      () => (this.handingOverToFormView = false)
+    );
   }
 
   /**

@@ -191,9 +191,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   /**
    * The browser is leaving this document: save the workflow, and change nothing else.
    *
-   * Tearing the session down here was the cause of a page that came back dead. A full-page
-   * navigation away (the Form View switch is one) fires this, and the browser may then keep the
-   * document in its back/forward cache rather than discarding it. Coming back restores the
+   * Tearing the session down here was the cause of a page that came back dead. Leaving the
+   * document -- a refresh, a closed tab, a URL typed over this one; the Form View switch used to
+   * be one, and routes now -- fires this, and the browser may then keep the document in its
+   * back/forward cache rather than discarding it. Coming back restores the
    * JavaScript state exactly as it was left, so whatever this method had already destroyed stayed
    * destroyed: an empty graph on a canvas that answered no clicks, and a workflow id reset to the
    * default, which the share dialog then asked the backend about and got an error for. Nothing
