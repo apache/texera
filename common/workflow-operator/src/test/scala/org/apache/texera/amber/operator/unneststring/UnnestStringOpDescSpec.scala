@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.unneststring
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -80,6 +81,30 @@ class UnnestStringOpDescSpec extends AnyFlatSpec with Matchers {
     intercept[RuntimeException] {
       physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
     }
+  }
+
+  // A hole widens an integer column to float, so the split would see "6.0" where
+  // the engine splits "6". A real DOUBLE holding 6.0 looks the same and keeps its
+  // point, so only the declared type can decide.
+  "UnnestStringOpDesc.generateStandaloneCode" should
+    "narrow a column the schema declares INTEGER before rendering it" in {
+    val op = newDesc(",", "n", "piece")
+    val schemas = Map(PortIdentity(0) -> Schema().add(new Attribute("n", AttributeType.INTEGER)))
+    op.generateStandaloneCode(schemas) should include(
+      """_texera_cast_string(out1df["n"].astype("Int64"))"""
+    )
+  }
+
+  it should "leave a DOUBLE column its decimal point" in {
+    val op = newDesc(",", "n", "piece")
+    val schemas = Map(PortIdentity(0) -> Schema().add(new Attribute("n", AttributeType.DOUBLE)))
+    op.generateStandaloneCode(schemas) should include("""_texera_cast_string(out1df["n"])""")
+  }
+
+  it should "read the column as it arrives when no schema is given" in {
+    newDesc(",", "n", "piece").generateStandaloneCode() should include(
+      """_texera_cast_string(out1df["n"])"""
+    )
   }
 
   "UnnestStringOpDesc" should "round-trip its fields through the polymorphic base" in {

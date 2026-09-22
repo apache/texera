@@ -40,6 +40,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 
 /**
  * Agent settings for API (serializable format).
@@ -226,7 +227,8 @@ export class AgentService {
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService,
     private ngZone: NgZone,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService
   ) {
     // Sync local cache with backend on service initialization
     // This handles cases where the backend was restarted
@@ -869,11 +871,18 @@ export class AgentService {
       return;
     }
 
-    const wsMessage = {
+    const wsMessage: { type: string; content: string; messageSource: string; warehouseId?: number } = {
       type: "WsClientPromptCommand",
       content: message,
       messageSource,
     };
+    // Sent per message, not fixed at agent creation: an agent created before the
+    // warehouse picker loaded would otherwise never carry one, and every run it
+    // attempted would be refused (#7751).
+    const selectedWarehouseId = this.warehouseService.getSelectedWarehouseIdValue();
+    if (selectedWarehouseId !== undefined) {
+      wsMessage.warehouseId = selectedWarehouseId;
+    }
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));

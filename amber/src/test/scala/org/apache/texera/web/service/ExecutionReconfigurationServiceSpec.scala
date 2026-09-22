@@ -259,6 +259,12 @@ class ExecutionReconfigurationServiceSpec
     /** (method name, request) of every call made through `coordinatorInterface`. */
     val coordinatorCalls: mutable.ArrayBuffer[(String, Any)] = mutable.ArrayBuffer.empty
 
+    /** Event class of every Disposable handed out by `registerCallback` that was later disposed.
+      * Recorded separately from `callbacks` because disposal removes the entry, which on its own
+      * is indistinguishable from a callback that was never registered (or one dropped by `reset`).
+      */
+    val disposedCallbacks: mutable.ArrayBuffer[Class[_]] = mutable.ArrayBuffer.empty
+
     override val coordinatorInterface: CoordinatorServiceFs2Grpc[Future, Unit] =
       Proxy
         .newProxyInstance(
@@ -281,19 +287,18 @@ class ExecutionReconfigurationServiceSpec
         .asInstanceOf[CoordinatorServiceFs2Grpc[Future, Unit]]
 
     /**
-      * Honours the Disposable it hands out. Production
-      * (`ExecutionReconfigurationService.registerWorkerCompletionCallback`) currently DISCARDS
-      * it, so `unsubscribeAll()` does not release the engine callback -- the only
-      * `registerCallback` call site in this package that is not wrapped in `addSubscription`
-      * (contrast ExecutionStatsService, ExecutionConsoleService, ExecutionResultService and
-      * ExecutionRuntimeService). A fake that ignored disposal would silently absolve that line.
-      * No test below fires an engine event after `unsubscribeAll`, so the suite neither depends
-      * on the leak nor breaks when it is fixed.
+      * Honours the Disposable it hands out, the way the real client's rx subscription does:
+      * disposing it detaches the callback, so nothing is delivered to it afterwards. A fake that
+      * ignored disposal would make every `registerCallback` call site in this package look
+      * correctly scoped, including one that dropped the Disposable on the floor.
       */
     override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
       val clazz = ct.runtimeClass
       callbacks(clazz) = callback.asInstanceOf[Any => Unit]
-      Disposable.fromAction(() => callbacks.remove(clazz))
+      Disposable.fromAction(() => {
+        callbacks.remove(clazz)
+        disposedCallbacks += clazz
+      })
     }
 
     /** Delivers an engine event the way the client's observable would. */
@@ -303,10 +308,17 @@ class ExecutionReconfigurationServiceSpec
         fail(s"no callback is registered for ${ct.runtimeClass.getSimpleName}")
       )(event)
 
+    /** Same delivery as `fire`, but tolerates there being no live callback instead of failing --
+      * the only way to check that an event arriving after teardown really is inert.
+      */
+    def fireIfRegistered[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
+      callbacks.get(ct.runtimeClass).foreach(deliver => deliver(event))
+
     /** Per-test isolation for the one client the suite shares. */
     def reset(): Unit = {
       callbacks.clear()
       coordinatorCalls.clear()
+      disposedCallbacks.clear()
     }
 
     def dispose(): Unit = super.shutdown()
@@ -684,9 +696,9 @@ class ExecutionReconfigurationServiceSpec
         f.service.unsubscribeAll()
         // Driven through the service's own entry point rather than the engine event on purpose.
         // What this test is about is the diff handler's disposable reaching the
-        // SubscriptionManager; the engine callback has an independent lifetime (see
-        // TestAmberClient.registerCallback), and routing through it would make this test's
-        // verdict depend on that unrelated, currently broken, seam.
+        // SubscriptionManager; the engine callback is a separate subscription with its own
+        // disposable (covered by the test below), and routing through it would leave the empty
+        // batch explainable by either one being released.
         f.service.onWorkerReconfigured(workerB)
       }
 
@@ -698,6 +710,32 @@ class ExecutionReconfigurationServiceSpec
       batches.last shouldBe empty
       f.stateStore.reconfigurationStore.getState.completedReconfigurations shouldBe
         Set(workerA, workerB)
+    }
+  }
+
+  it should "release the engine subscription once the service is unsubscribed" in {
+    val workerA = mkWorker("opA", 0)
+    val workerB = mkWorker("opB", 0)
+    withLiveService(physicalOps = Set(mkPhysicalOp("opA"), mkPhysicalOp("opB"))) { f =>
+      // A live registration first, so a disposed one below cannot be confused with one that was
+      // never made.
+      f.client.fire(UpdateExecutorCompleted(workerA))
+      f.stateStore.reconfigurationStore.getState.completedReconfigurations shouldBe Set(workerA)
+
+      f.service.unsubscribeAll()
+
+      // The Disposable `registerCallback` handed back has to reach the SubscriptionManager, the
+      // same way the diff handler's does; this is the only thing that can release it. The
+      // client's own `shutdown` is not an alternative: it flips `isActive` and poison-pills the
+      // ClientActor but never touches `registeredObservables`, so the subject keeps the
+      // subscriber -- and with it this service, its state store and its Workflow -- attached for
+      // as long as the AmberClient is reachable, which WorkflowExecutionService keeps it.
+      f.client.disposedCallbacks should contain(classOf[UpdateExecutorCompleted])
+
+      // ...and the detached callback is inert: a late engine event does not write into the store
+      // of a finished execution.
+      f.client.fireIfRegistered(UpdateExecutorCompleted(workerB))
+      f.stateStore.reconfigurationStore.getState.completedReconfigurations shouldBe Set(workerA)
     }
   }
 }

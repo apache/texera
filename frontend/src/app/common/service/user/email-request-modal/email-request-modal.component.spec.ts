@@ -52,15 +52,16 @@ describe("EmailRequestModalComponent", () => {
     expect(component.email).toBe("");
   });
 
-  it("getValues trims the address", async () => {
+  it("getValues trims both fields", async () => {
     const component = (await createFixture({ name: "Sofia" })).componentInstance;
     component.email = "  sofia@example.com  ";
-    expect(component.getValues()).toEqual({ email: "sofia@example.com" });
+    component.code = "  123456  ";
+    expect(component.getValues()).toEqual({ email: "sofia@example.com", code: "123456" });
   });
 
   it("getValues returns an empty string for an untouched field", async () => {
     const component = (await createFixture({ name: "Sofia" })).componentInstance;
-    expect(component.getValues()).toEqual({ email: "" });
+    expect(component.getValues()).toEqual({ email: "", code: "" });
   });
 
   // `modalTitle` is an <ng-template> handed to nz-modal as its title, so nothing
@@ -111,8 +112,64 @@ describe("EmailRequestModalComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.email).toBe("hub-user@example.com");
-    expect(fixture.componentInstance.getValues()).toEqual({ email: "hub-user@example.com" });
+    expect(fixture.componentInstance.getValues()).toEqual({ email: "hub-user@example.com", code: "" });
     // The paragraph still shows the name, so the two bindings are not crossed.
     expect(host.querySelector("p")?.textContent).toContain("Sofia Garcia");
   });
+
+  // Where the deployment verifies addresses, the same dialog collects the code rather than a
+  // second one opening over it.
+  it("starts on the address step with no code field on screen", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.step).toBe("address");
+    expect(inputs(fixture)).toHaveLength(1);
+  });
+
+  it("shows a second field once the step advances, and freezes the address", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+    fixture.componentInstance.email = "sofia@example.com";
+    fixture.componentInstance.step = "code";
+    fixture.detectChanges();
+
+    const [address, code] = inputs(fixture);
+    expect(code).toBeDefined();
+    expect(address.hasAttribute("readonly")).toBe(true);
+    expect(code.getAttribute("autocomplete")).toBe("one-time-code");
+  });
+
+  /**
+   * The spec above reads the code box's rendered attributes; nothing had ever typed into it, so its
+   * [(ngModel)] write-back had never fired. That is the direction that matters: the dialog's caller
+   * reads the code out of getValues(), and a one-way binding here would hand it a blank code with
+   * no visible symptom on screen.
+   */
+  it("writes the typed verification code back through ngModel", async () => {
+    const fixture = await createFixture({ name: "Sofia" });
+    fixture.detectChanges();
+    fixture.componentInstance.email = "sofia@example.com";
+    fixture.componentInstance.step = "code";
+    fixture.detectChanges();
+
+    const [, code] = inputs(fixture);
+    code.value = "246810";
+    code.dispatchEvent(new Event("input"));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.code).toBe("246810");
+    // The two boxes are not crossed: the frozen address is still the one it was mailed to.
+    expect(fixture.componentInstance.getValues()).toEqual({ email: "sofia@example.com", code: "246810" });
+    // ...and not only in the fields. This is the one test that renders the code step with a
+    // non-empty code, so it is the only place the label naming where the code went can be told
+    // apart from the code itself; through getValues() the two are indistinguishable on screen.
+    const label = (fixture.nativeElement as HTMLElement).querySelector(".email-modal-code-label");
+    expect(label?.textContent).toContain("sofia@example.com");
+    expect(label?.textContent).not.toContain("246810");
+  });
+
+  function inputs(fixture: ComponentFixture<EmailRequestModalComponent>): HTMLInputElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll("input"));
+  }
 });

@@ -22,12 +22,13 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from "@angula
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { NzUploadComponent, NzUploadFile } from "ng-zorro-antd/upload";
 import { Observable } from "rxjs";
-import { AsyncPipe, NgIf, NgFor, NgOptimizedImage } from "@angular/common";
+import { AsyncPipe, NgIf, NgFor, NgOptimizedImage, NgTemplateOutlet } from "@angular/common";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzTabsComponent, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 
 // Passed in via nzData. requestImport resolves true to close the modal, false to keep it open
@@ -37,8 +38,12 @@ export interface NotebookImportModalData {
 }
 
 /**
- * The "AI Generate Workflow from Python Notebook" modal body: the upload form and model dropdown.
- * On Submit it hands the file and model to requestImport and shows a loading state until it resolves.
+ * The "AI Generate Workflow from Source Code" modal body: a tab per accepted input kind
+ * (Jupyter notebook, Python script), each with its own diagram, description and upload
+ * control, over a shared model dropdown and footer.
+ *
+ * On Submit it hands the file and model to requestImport and shows a loading state until
+ * it resolves; the opener dispatches on the uploaded file's extension.
  */
 @Component({
   selector: "texera-notebook-import-modal",
@@ -49,6 +54,7 @@ export interface NotebookImportModalData {
     NgFor,
     AsyncPipe,
     NgOptimizedImage,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     NzFormModule,
     NzSelectModule,
@@ -56,6 +62,9 @@ export interface NotebookImportModalData {
     NzUploadComponent,
     NzButtonComponent,
     NzIconDirective,
+    NzTabsComponent,
+    NzTabComponent,
+    NzTabDirective,
   ],
 })
 export class NotebookImportModalComponent implements OnDestroy {
@@ -72,6 +81,25 @@ export class NotebookImportModalComponent implements OnDestroy {
   // Drives the three model-dropdown states: pending (loading), a non-empty list (selectable),
   // and an empty list (no models available, e.g. the fetch failed or the feature is off).
   public readonly models$: Observable<{ name: string }[]> = this.notebookMigrationService.getAvailableModels();
+
+  // The pane cross-fade reads as a flicker on a dense form, so only the ink bar animates.
+  // Held as a field rather than an inline literal so the binding keeps a stable reference.
+  public readonly tabAnimation = { inkBar: true, tabPane: false };
+
+  // Tab order: 0 = Jupyter notebook, 1 = Python file.
+  public selectedTabIndex = 0;
+
+  /**
+   * Switching tabs drops the selected file: the two tabs accept different extensions, so
+   * carrying a selection across would leave, say, an .ipynb staged under the Python tab.
+   * The model stays selected because it applies to either input.
+   */
+  public onTabChange(index: number): void {
+    this.selectedTabIndex = index;
+    const fileControl = this.importForm.get("file");
+    fileControl?.reset(null);
+    fileControl?.updateValueAndValidity();
+  }
 
   public beforeUpload = (file: NzUploadFile) => {
     this.importForm.patchValue({ file });
