@@ -53,6 +53,7 @@ import { USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
+import { HeatmapStatsRestoreService } from "../service/heatmap/heatmap-stats-restore.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
@@ -131,7 +132,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService
   ) {}
 
   ngOnInit() {
@@ -173,19 +175,40 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
+  /**
+   * The browser is leaving this document: save the workflow, and change nothing else.
+   *
+   * Tearing the session down here was the cause of a page that came back dead. A full-page
+   * navigation away (the Form View switch is one) fires this, and the browser may then keep the
+   * document in its back/forward cache rather than discarding it. Coming back restores the
+   * JavaScript state exactly as it was left, so whatever this method had already destroyed stayed
+   * destroyed: an empty graph on a canvas that answered no clicks, and a workflow id reset to the
+   * default, which the share dialog then asked the backend about and got an error for. Nothing
+   * re-runs on a restore, because the component was never re-created.
+   *
+   * There is nothing to tear down on the way out anyway. A document that is really discarded takes
+   * its websockets and its graph with it, and a document that comes back needs them.
+   */
   @HostListener("window:beforeunload")
-  ngOnDestroy() {
-    if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
-      const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
-    }
+  onBeforeUnload(): void {
+    this.persistBeforeLeaving();
+  }
 
+  ngOnDestroy() {
+    this.persistBeforeLeaving();
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
     // Tear down the connection and all websocket-derived session state so a
     // re-entered workflow starts clean instead of reusing the previous one.
     this.computingUnitStatusService.disconnect();
     this.resetWorkflowSessionState();
+  }
+
+  private persistBeforeLeaving(): void {
+    if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
+      const workflow = this.workflowActionService.getWorkflow();
+      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
+    }
   }
 
   /**
@@ -256,6 +279,17 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           if (shouldAutoLayout) {
             this.workflowActionService.autoLayoutWorkflow();
           }
+          // Best-effort: repaint the heat-map from the last run's persisted
+          // statistics. The service itself gates on the overlay being
+          // persisted-on (and skips during a live execution), so this is a
+          // no-op for everyone else. Fetch failures are swallowed there; an
+          // error arriving here is a mapping or ingestion bug, so it is logged.
+          this.heatmapStatsRestoreService
+            .restoreLatestRunStatistics()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (err: unknown) => console.error("Failed to restore heat-map statistics:", err),
+            });
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment

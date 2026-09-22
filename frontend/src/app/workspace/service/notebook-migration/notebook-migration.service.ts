@@ -192,12 +192,12 @@ export class NotebookMigrationService {
 
     try {
       await firstValueFrom(this.http.post(jupyterAPIUrl, requestBody, { headers }));
-      this.notificationService.success("Notebook successfully sent to Jupyter");
+      this.notificationService.success("Source code successfully sent to Jupyter");
       return 1;
     } catch (error) {
       console.error("Error sending notebook to pod: ", error);
       const message = error instanceof Error ? error.message : String(error);
-      this.notificationService.error("Error sending notebook to Jupyter: " + message);
+      this.notificationService.error("Error sending source code to Jupyter: " + message);
       return 0;
     }
   }

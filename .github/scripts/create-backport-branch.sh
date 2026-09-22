@@ -16,12 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Builds and pushes the branch behind an auto-opened backport PR, used when the
-# pre-merge backport check was red so a straight cherry-pick to the release
-# branch is unsafe. The cherry-pick is committed even when it conflicts: the
-# tree carries the conflict markers, and the human resolves them in the PR
-# rather than starting the backport from scratch (the same approach the common
-# backport bots take).
+# Builds and pushes the branch behind an auto-opened backport PR. Every backport
+# goes through one now, whatever the pre-merge backport check said: a release
+# branch takes no direct push, so the check only decides whether the PR opens
+# ready for review or as a draft. The cherry-pick is committed even when it
+# conflicts: the tree carries the conflict markers, and the human resolves them
+# in the PR rather than starting the backport from scratch (the same approach
+# the common backport bots take).
 #
 # Usage: create-backport-branch.sh <merge-sha> <target-branch> <pr-number>
 # Writes to $GITHUB_OUTPUT (or stdout when unset): branch, version,
