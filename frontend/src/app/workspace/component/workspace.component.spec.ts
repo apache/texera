@@ -116,6 +116,8 @@ describe("WorkspaceComponent", () => {
       getWorkflowMetadata: vi.fn().mockReturnValue({ wid: 42, readonly: false }),
       // Off by default: most specs open a workflow that is not already live, and so load it.
       hasWorkflowOpen: vi.fn().mockReturnValue(false),
+      // The room the shared document is in; the hand-over on the way out is keyed on this.
+      getOpenWorkflowId: vi.fn().mockReturnValue(42),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
       // As the real one does: the metadata it already holds, re-announced on the same stream.
@@ -606,6 +608,21 @@ describe("WorkspaceComponent", () => {
       component.onBeforeUnload();
 
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+    });
+
+    // A workflow created in this session has an id in its metadata after the first autosave, but
+    // its shared document stayed in the private room it was seeded with. Keyed on the metadata,
+    // this side handed such a workflow over while the arriving side, keyed on the room, declined
+    // it and reloaded -- so both key on the room, and this one is rebuilt on its first switch.
+    it("tears it down when the document is in no workflow's room, even bound for this one's form", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
     });
 
     it("tears it down when the destination is another workflow's Form View", async () => {

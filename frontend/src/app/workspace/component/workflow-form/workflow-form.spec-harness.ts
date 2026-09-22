@@ -143,11 +143,14 @@ export function setupHarness() {
     // As the real one does: the metadata it already holds, re-announced on the same stream.
     republishWorkflowMetadata: vi.fn(() => workflowMetaDataChangedStream.next(undefined)),
     getWorkflow: vi.fn().mockReturnValue({ wid: 7, content: { operators: [], operatorPositions: {} } }),
-    // Carries the wid, as the real metadata does once a workflow is open: it is what tells the
-    // page, on the way out, whether the navigation is leaving this workflow or handing it over.
+    // Carries the wid, as the real metadata does once a workflow is open.
     getWorkflowMetadata: () => ({ wid: 7, name: "scGPT", lastModifiedTime: 1767225600000 }),
     // Off by default: most specs open a workflow that is not already live, and so load it.
     hasWorkflowOpen: vi.fn().mockReturnValue(false),
+    // The room the shared document is in: what tells the page, on the way out, whether the
+    // navigation is leaving this workflow or handing it over. Matches the metadata's wid above,
+    // as it does for a workflow that was loaded rather than created in this session.
+    getOpenWorkflowId: vi.fn().mockReturnValue(7),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
     setHighlightingEnabled: vi.fn(),

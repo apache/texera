@@ -90,6 +90,21 @@ describe("WorkflowActionService", () => {
       service.setNewSharedModel();
 
       expect(service.hasWorkflowOpen(42)).toBe(false);
+      // And asking about "no workflow" is never a match, even against a document in no room.
+      expect(service.hasWorkflowOpen(undefined)).toBe(false);
+      expect(service.hasWorkflowOpen(0)).toBe(false);
+    });
+
+    // Both views key the hand-over on this. A workflow created in this session has an id in its
+    // metadata after the first autosave while its document is still in the private room it was
+    // seeded with; keyed on the metadata the departing view handed it over, keyed on the room the
+    // arriving view declined it. Keyed on the room on both sides, it is simply rebuilt once.
+    it("names the room the document is in, and nothing while it is in no workflow's room", () => {
+      service.setNewSharedModel(42);
+      expect(service.getOpenWorkflowId()).toBe(42);
+
+      service.setNewSharedModel();
+      expect(service.getOpenWorkflowId()).toBeUndefined();
     });
 
     // Not local to this method: destroying the document keeps the object and its wid, and what

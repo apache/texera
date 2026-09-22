@@ -24,6 +24,9 @@ import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 import { PanelService } from "../../../service/panel/panel.service";
+
+/** The main paper's events that move or resize its viewport, which is what the navigator tracks. */
+const MAIN_PAPER_EVENTS = ["translate", "scale", "resize"] as const;
 import { CdkDrag } from "@angular/cdk/drag-drop";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -83,11 +86,16 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        // The stream replays, so the departing view -- still subscribed while its DOM is on its
+        // way out -- receives the arriving view's paper too. Whatever this component registered
+        // on the previous paper comes off before it registers on the next, and off again on
+        // destroy, so no paper is left calling into a component that is gone.
+        this.stopFollowingMainPaper();
         this.paper = mainPaper;
         this.updateNavigator();
-        mainPaper.on("translate", () => this.updateNavigator());
-        mainPaper.on("scale", () => this.updateNavigator());
-        mainPaper.on("resize", () => this.updateNavigator());
+        for (const event of MAIN_PAPER_EVENTS) {
+          mainPaper.on(event, this.followMainPaper);
+        }
       });
     this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
 
@@ -111,7 +119,17 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     // goes on listening to that graph from a detached node, and once the switch between a
     // workflow's two views routes, one is left behind on every switch (issue #8582).
     this.ownPaper?.remove();
+    this.stopFollowingMainPaper();
     this.rememberVisibility();
+  }
+
+  /** One bound reference, so what was registered on the main paper is what can be removed. */
+  private readonly followMainPaper = (): void => this.updateNavigator();
+
+  private stopFollowingMainPaper(): void {
+    for (const event of MAIN_PAPER_EVENTS) {
+      this.paper?.off(event, this.followMainPaper);
+    }
   }
 
   private rememberVisibility(): void {

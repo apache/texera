@@ -32,7 +32,7 @@ import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -40,7 +40,7 @@ import { FileSaverService } from "../../../dashboard/service/user/file/file-save
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { EMPTY, firstValueFrom, of, timer } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
@@ -708,9 +708,10 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Open the Form View -- a full page load, not a route: the two views share root-level
-   * singletons (graph, Yjs shared model), and routing left the old collaboration client
-   * alive (you appeared as your own coeditor). A fresh document is the clean handover.
+   * Open the Form View. A route, not a page load: the two views are views of one open workflow,
+   * and this canvas keeps the session -- the shared document and its room, the computing unit,
+   * the execution -- for the Form View to attach to (see WorkspaceComponent.ngOnDestroy). A
+   * writer's edits are saved first; see below for why the order matters.
    */
   public onClickOpenFormView(): void {
     const wid = this.workflowActionService.getWorkflowMetadata().wid;

@@ -32,7 +32,7 @@ import { UserIconComponent } from "../../../dashboard/component/user/user-icon/u
 import { cloneDeep } from "lodash-es";
 import { MarkdownService } from "ngx-markdown";
 import { asapScheduler, EMPTY, forkJoin, merge, Observable, Subject, timer } from "rxjs";
-import { catchError, concatMap, debounceTime, finalize, observeOn, switchMap, takeUntil, tap } from "rxjs/operators";
+import { catchError, concatMap, debounceTime, finalize, observeOn, takeUntil, tap } from "rxjs/operators";
 
 import { CdkDragDrop, DragDropModule } from "@angular/cdk/drag-drop";
 import { isLeavingWorkspace, USER_WORKFLOW, workspaceCanvasUrl } from "../../../app-routing.constant";
@@ -2048,7 +2048,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     this.persistQueue.complete();
     // Kept when this workflow's own operator canvas is taking over: that is a hand-over, not a
     // departure, and rebuilding all of it on the other side is the cost this avoids.
-    if (isLeavingWorkspace(this.router, this.workflowActionService.getWorkflowMetadata().wid)) {
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
       this.workflowActionService.clearWorkflow();
       this.computingUnitStatusService.disconnect();
       this.executeWorkflowService.resetExecutionAndWorkers();

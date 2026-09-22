@@ -214,7 +214,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
     // View of this same workflow is taking over, in which case the session is handed to it
     // rather than rebuilt, which is what used to make the switch take seconds.
-    if (isLeavingWorkspace(this.router, this.workflowActionService.getWorkflowMetadata().wid)) {
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
       this.workflowActionService.clearWorkflow();
       this.computingUnitStatusService.disconnect();
       this.resetWorkflowSessionState();

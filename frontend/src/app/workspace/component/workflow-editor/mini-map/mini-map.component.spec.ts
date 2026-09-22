@@ -69,6 +69,12 @@ class StubPaper {
     this.handlers[event] = handler;
   }
 
+  off(event: string, handler: () => void): void {
+    if (this.handlers[event] === handler) {
+      delete this.handlers[event];
+    }
+  }
+
   scale(): { sx: number; sy: number } {
     return { sx: this.sx, sy: this.sy };
   }
@@ -224,6 +230,26 @@ describe("MiniMapComponent", () => {
 
       expect(remove).not.toHaveBeenCalled();
       expect(localStorage.getItem("mini-map")).toBe("true");
+    });
+
+    // The paper stream replays, so a departing mini-map -- still subscribed while its DOM is on
+    // its way out -- receives the arriving view's paper and registers on it, then is destroyed;
+    // without the matching off() that paper went on calling into a component that was gone.
+    it("stops following the main paper on destroy, and the previous one when a new one arrives", () => {
+      sizeMiniMapContainer(912, 100);
+      mountWorkflowEditorStub(800, 600, 0, 0);
+      fixture.detectChanges();
+      const first = new StubPaper();
+      attachMainPaper(first);
+      expect(Object.keys(first.handlers).sort()).toEqual(["resize", "scale", "translate"]);
+
+      const second = new StubPaper();
+      attachMainPaper(second);
+      expect(Object.keys(first.handlers)).toEqual([]);
+      expect(Object.keys(second.handlers).sort()).toEqual(["resize", "scale", "translate"]);
+
+      fixture.destroy();
+      expect(Object.keys(second.handlers)).toEqual([]);
     });
 
     it("fits the whole main canvas into the mini-map container", () => {

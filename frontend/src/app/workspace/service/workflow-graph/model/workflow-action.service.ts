@@ -644,8 +644,23 @@ export class WorkflowActionService {
    * which seeds a fresh model with no `wid`. Were that to stop happening, a canvas re-entered from
    * the dashboard would attach to a destroyed document instead of loading. Pinned by a test.
    */
-  public hasWorkflowOpen(workflowId: number): boolean {
-    return this.texeraGraph.sharedModel.wid === workflowId;
+  public hasWorkflowOpen(workflowId: number | undefined): boolean {
+    return !!workflowId && this.texeraGraph.sharedModel.wid === workflowId;
+  }
+
+  /**
+   * The workflow whose co-editing room the shared document is in, or undefined when it is in none:
+   * a brand-new canvas, or a workflow created in this session, whose first autosave gave the
+   * metadata an id while the document stayed in the private room it was seeded with.
+   *
+   * This, and not the metadata's id, is what both views key the hand-over on. The departing view
+   * asks whether it is leaving this workflow; the arriving view asks whether this workflow is
+   * already open. Keyed on different ids, the two answered differently for a workflow created in
+   * this session -- the canvas kept the session, the Form View declined it and reloaded -- so both
+   * ask about the room, and such a workflow is simply rebuilt on its first switch, as it is today.
+   */
+  public getOpenWorkflowId(): number | undefined {
+    return this.texeraGraph.sharedModel.wid || undefined;
   }
 
   /**

@@ -290,6 +290,18 @@ describe("WorkflowFormComponent", () => {
       expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
     });
 
+    // Keyed on the room the document is in, not the metadata's id, so that both views answer the
+    // hand-over question the same way for a workflow created in this session (see the canvas).
+    it("releases them when the document is in no workflow's room, even bound for this one's canvas", () => {
+      build(formViewWorkflow).ngOnInit();
+      workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
     // Another workflow's canvas is a different workflow: nothing here belongs to it.
     it("releases them when the destination is a different workflow", () => {
       build(formViewWorkflow).ngOnInit();
