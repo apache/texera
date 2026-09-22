@@ -150,15 +150,12 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |print(row["flags"])
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-engine-answers-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    // Timestamp arithmetic goes through the zone the script runs in, the way
+    // the engine's goes through the JVM's, so the zone is named here and the
+    // numbers below can be read.
+    val out = runPython(python, driver, "aggregate-engine-answers-", "UTC")
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
       val lines = out.trim.linesIterator.toSeq
       lines.head shouldBe "-2147483648"
       // 1577836800000 + 1577923200000 milliseconds, read back as a timestamp.
@@ -197,15 +194,9 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |${report("us")}
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-timestamp-units-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val out = runPython(python, driver, "aggregate-timestamp-units-", "UTC")
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
       // Six times 1704067200000 milliseconds, read back as a timestamp: a date
       // no nanosecond count can hold, and the same one at either resolution.
       out.trim.linesIterator.toSeq shouldBe Seq(
@@ -215,6 +206,59 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
         "1704067200000.0"
       )
     }
+  }
+
+  /** `Timestamp.getTime` answers for the instant a wall clock names in the
+    * JVM's default zone, and `new Timestamp(long)` renders one back there, so a
+    * script that read the column as UTC was a whole offset out on every value
+    * it added. Checked against Java 17 in the same zone: the sum below is
+    * 2078-01-01 06:00:00 and the average 1704132000000.
+    */
+  it should "add timestamps in the zone the script runs in" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("t", AttributeType.TIMESTAMP)
+    val desc = descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
+    )
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    val driver =
+      s"""import pandas as pd
+         |in1df = pd.DataFrame({
+         |    "t": pd.to_datetime(["2024-01-01 00:00:00", "2024-01-02 00:00:00"]),
+         |})
+         |$block
+         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
+         |print(repr(float(out1df.iloc[0]["ts_avg"])))
+         |""".stripMargin
+
+    // A zone six hours behind UTC and with no daylight saving of its own, so
+    // one offset covers both dates.
+    val out = runPython(python, driver, "aggregate-timestamp-zone-", "America/Mexico_City")
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      out.trim.linesIterator.toSeq shouldBe Seq("2078-01-01T06:00:00", "1704132000000.0")
+    }
+  }
+
+  /** Runs the generated block with the zone named to the child, because a
+    * timestamp's arithmetic reads the one in force where it runs.
+    */
+  private def runPython(python: String, driver: String, prefix: String, zone: String): String = {
+    val script = Files.createTempFile(prefix, ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
+    builder.environment().put("TZ", zone)
+    val process = builder.start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver")(process.exitValue() shouldBe 0)
+    out
   }
 
   // A group keyed on a missing value and one keyed on a NaN are two groups to

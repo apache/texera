@@ -189,12 +189,35 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    total = int(series.sum())
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
+        |def _texera_agg_ts_zone():
+        |    # The engine reads and writes a timestamp in the JVM's default zone,
+        |    # so the arithmetic below has to name the same one. gettz() and not
+        |    # the current offset: the zone carries its daylight rules, and each
+        |    # instant needs the offset in force when it happened.
+        |    from dateutil.tz import gettz
+        |
+        |    return gettz()
+        |
         |def _texera_agg_ts_epoch_ms(series):
         |    # A timestamp reaches the engine as its epoch milliseconds whatever
         |    # resolution the column carries, and reading the integers out of a
         |    # microsecond column asks for a different number than a nanosecond
         |    # one, so cast to milliseconds before reading them.
-        |    return series.dropna().astype("datetime64[ms]").astype("int64")
+        |    #
+        |    # A column holds a wall clock, and `Timestamp.getTime` answers for
+        |    # the instant that wall clock names locally, so localize before
+        |    # reading the integers out: left as UTC every one of them is a whole
+        |    # offset away. The two flags are java.time's own reading of an hour
+        |    # daylight saving repeats (the later one) or skips (shifted past the
+        |    # gap).
+        |    return (
+        |        series.dropna()
+        |        .astype("datetime64[ms]")
+        |        .dt.tz_localize(
+        |            _texera_agg_ts_zone(), ambiguous=False, nonexistent=pd.Timedelta("1h")
+        |        )
+        |        .astype("int64")
+        |    )
         |
         |def _texera_agg_ts_sum(series):
         |    # SUM keeps the column's own type, so the engine adds the epoch
@@ -202,7 +225,12 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # from the total. Python integers carry the sum exactly, so the
         |    # wrap is the only place a total loses anything.
         |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
-        |    return pd.Timestamp(((total + (1 << 63)) % (1 << 64)) - (1 << 63), unit="ms")
+        |    total = ((total + (1 << 63)) % (1 << 64)) - (1 << 63)
+        |    return (
+        |        pd.Timestamp(total, unit="ms", tz="UTC")
+        |        .tz_convert(_texera_agg_ts_zone())
+        |        .tz_localize(None)
+        |    )
         |
         |def _texera_agg_ts_mean(series):
         |    # AVERAGE is declared DOUBLE whatever column it reads, so this is
