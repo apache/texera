@@ -564,8 +564,9 @@ describe("WorkspaceComponent", () => {
       expect(workflowResultService.clearResults).toHaveBeenCalled();
     });
 
-    // A full-page navigation away fires beforeunload, and the browser may then keep this document
-    // in its back/forward cache instead of discarding it. Coming back restores the JavaScript
+    // Leaving the document (a refresh, a closed tab, a URL typed over this one) fires beforeunload,
+    // and the browser may then keep the document in its back/forward cache instead of discarding
+    // it. The Form View switch used to be such a navigation and routes now. Coming back restores the JavaScript
     // state as it was left and re-runs nothing, so anything torn down here stays torn down: the
     // graph came back empty, the workflow id came back as the default, and the still-subscribed
     // autosave then wrote that default out as a new, blank workflow (issue #8599).

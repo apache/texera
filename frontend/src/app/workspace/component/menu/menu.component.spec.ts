@@ -189,8 +189,8 @@ describe("MenuComponent", () => {
 
     component.onClickOpenFormView();
 
-    // The navigation unloads the document and aborts anything still in flight, so it must wait for
-    // the save's completion rather than be fired right after the request.
+    // The switch waits for the save to complete rather than firing right after the request: a save
+    // that fails has to keep the writer here, on the view they edited in, with the error shown.
     expect(persistSpy).toHaveBeenCalled();
     expect(metadataSpy).toHaveBeenCalledWith(saved);
     expect(navigate).toHaveBeenCalledWith(7);
