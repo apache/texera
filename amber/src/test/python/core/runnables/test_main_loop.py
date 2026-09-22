@@ -2565,6 +2565,31 @@ class TestMainLoop:
         assert consumed == [(incoming, 0)]
         assert main_loop._pending_loop_state is None, "stash must be cleared"
 
+    def test_loopend_deferred_consume_registers_loop_state_first(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume calls process_state directly, bypassing
+        # DataProcessor.process_state (which registers loop_state), so it
+        # must register the stashed state itself before the user's update.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+        pending = State({"i": 7})
+        main_loop._pending_loop_state = pending
+        seen = []
+        monkeypatch.setattr(
+            executor,
+            "process_state",
+            lambda st, port: seen.append((executor.loop_state, st)),
+        )
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert seen == [(pending, pending)]
+        assert executor.loop_state is pending
+
     def test_loopend_forwards_unstamped_state_without_consuming(
         self, main_loop, monkeypatch
     ):
