@@ -20,8 +20,13 @@
 import { inject, TestBed } from "@angular/core/testing";
 import { Validation, ValidationError, ValidationWorkflowService } from "./validation-workflow.service";
 import {
+  mockLoopEndPredicate,
+  mockLoopStartPredicate,
+  mockLoopStartScalaExecutorLink,
   mockPoint,
   mockResultPredicate,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
   mockScanPredicate,
   mockScanResultLink,
   mockScanSentimentLink,
@@ -299,6 +304,141 @@ describe("ValidationWorkflowService", () => {
 
     expect(emissions.length).toBeGreaterThan(0);
     subscription.unsubscribe();
+  });
+
+  describe("loop-variable references ($name) in operator properties", () => {
+    // Loop Start (K = 2) -> body -> Loop End, where the body is an operator backed by a Scala executor,
+    // the kind on which the backend binds a reference.
+    const body = mockScalaExecutorPredicate;
+    const link = (linkID: string, from: string, to: string) => ({
+      linkID,
+      source: { operatorID: from, portID: "output-0" },
+      target: { operatorID: to, portID: "input-0" },
+    });
+    /** A second plain operator, for a body of two. */
+    const other = { ...mockScalaExecutorPredicate, operatorID: "13", operatorProperties: { limit: 1 } };
+
+    const addBlockAround = (bodyProperties: Record<string, unknown>) => {
+      workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionservice.addOperator({ ...body, operatorProperties: bodyProperties }, mockPoint);
+      workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionservice.addLink(mockLoopStartScalaExecutorLink);
+      workflowActionservice.addLink(mockScalaExecutorLoopEndLink);
+    };
+    /** What the canvas holds for an operator: its error, or undefined while it is valid. */
+    const currentError = (operatorID: string): ValidationError | undefined =>
+      validationWorkflowService.getCurrentWorkflowValidationError().errors[operatorID];
+
+    it("accepts a reference to a declared loop variable where the schema wants an integer or a number", () => {
+      addBlockAround({ limit: "$K", fraction: "$K" });
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
+    });
+
+    it("accepts a reference to a declared loop variable on a string or boolean property", () => {
+      addBlockAround({ limit: 1, prefix: "$K", caseSensitive: "$K" });
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
+    });
+
+    it("rejects a reference to a variable no enclosing block declares, naming the first one", () => {
+      addBlockAround({ limit: "$foo", prefix: "$bar" });
+      const validation = validationWorkflowService.validateOperator(body.operatorID);
+      expect(validation.isValid).toBe(false);
+      expect((validation as ValidationError).messages["loopVariable"]).toBe(
+        "$foo is not a variable of an enclosing block"
+      );
+      // the schema type error at the reference is not reported twice
+      expect((validation as ValidationError).messages["type"]).toBeUndefined();
+    });
+
+    it("still reports other schema errors next to a reference", () => {
+      // a wrong-typed plain value alongside a valid reference: only the plain value is an error
+      addBlockAround({ limit: "$K", fraction: "warm" });
+      const validation = validationWorkflowService.validateOperator(body.operatorID);
+      expect(validation.isValid).toBe(false);
+      expect((validation as ValidationError).messages["type"]).toBe("must be number");
+    });
+
+    it("does not waive the type check for a reference in an array property, which no reference can fill", () => {
+      addBlockAround({ limit: 1, columns: "$K" });
+      const validation = validationWorkflowService.validateOperator(body.operatorID);
+      expect(validation.isValid).toBe(false);
+      expect((validation as ValidationError).messages["type"]).toBe("must be array");
+    });
+
+    it("keeps rejecting a reference in an integer property outside every block (today's behavior)", () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
+      workflowActionservice.addLink(link("scan-to-body", mockScanPredicate.operatorID, body.operatorID));
+      const validation = validationWorkflowService.validateOperator(body.operatorID);
+      expect(validation.isValid).toBe(false);
+      expect((validation as ValidationError).messages["type"]).toBe("must be integer");
+      expect((validation as ValidationError).messages["loopVariable"]).toBeUndefined();
+    });
+
+    // The canvas state, which the Run button reads, follows edits to other operators.
+    describe("as the block around an operator holding a reference changes", () => {
+      it("flags the reference once the Loop Start's variable is renamed, and clears it once it is back", () => {
+        addBlockAround({ limit: "$K" });
+        expect(currentError(body.operatorID)).toBeUndefined();
+
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "i = 0",
+          output: "table.iloc[i]",
+        });
+        expect(currentError(body.operatorID)?.messages["loopVariable"]).toBe(
+          "$K is not a variable of an enclosing block"
+        );
+
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "if True:\n    K = 3",
+          output: "table.iloc[K]",
+        });
+        expect(currentError(body.operatorID)).toBeUndefined();
+      });
+
+      it("reports the type error once a link upstream is deleted and the operator leaves the block", () => {
+        // Loop Start -> other -> body -> Loop End; the deleted Loop Start -> other does not touch body
+        workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
+        workflowActionservice.addOperator(other, mockPoint);
+        workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
+        workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
+        workflowActionservice.addLink(link("s-other", mockLoopStartPredicate.operatorID, other.operatorID));
+        workflowActionservice.addLink(link("other-body", other.operatorID, body.operatorID));
+        workflowActionservice.addLink(mockScalaExecutorLoopEndLink);
+        expect(currentError(body.operatorID)).toBeUndefined();
+
+        workflowActionservice.deleteLinkWithID("s-other");
+        expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+      });
+
+      it("clears the type error once a link between two other plain operators closes the block", () => {
+        // Loop Start -> body -> other, third -> Loop End; the missing other -> third closes the block
+        const third = { ...other, operatorID: "14" };
+        workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
+        workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
+        workflowActionservice.addOperator(other, mockPoint);
+        workflowActionservice.addOperator(third, mockPoint);
+        workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
+        workflowActionservice.addLink(mockLoopStartScalaExecutorLink);
+        workflowActionservice.addLink(link("body-other", body.operatorID, other.operatorID));
+        workflowActionservice.addLink(link("third-e", third.operatorID, mockLoopEndPredicate.operatorID));
+        expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+
+        workflowActionservice.addLink(link("other-third", other.operatorID, third.operatorID));
+        expect(currentError(body.operatorID)).toBeUndefined();
+      });
+
+      it("ends valid after another operator is inserted into the body behind it", () => {
+        addBlockAround({ limit: "$K" });
+        workflowActionservice.addOperator(other, mockPoint);
+
+        workflowActionservice.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+        expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+        workflowActionservice.addLink(link("body-other", body.operatorID, other.operatorID));
+        workflowActionservice.addLink(link("other-e", other.operatorID, mockLoopEndPredicate.operatorID));
+        expect(currentError(body.operatorID)).toBeUndefined();
+      });
+    });
   });
 });
 

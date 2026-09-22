@@ -29,14 +29,19 @@ import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockHuggingFacePredicate,
+  mockLoopEndPredicate,
+  mockLoopStartPredicate,
+  mockLoopStartScalaExecutorLink,
   mockPoint,
   mockResultPredicate,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
   mockScanPredicate,
 } from "../../../service/workflow-graph/model/mock-workflow-data";
 import {
@@ -1951,6 +1956,113 @@ describe("OperatorPropertyEditFrameComponent", () => {
         properties: { code: { type: "string", description: "Input your code here" } },
       });
       expect(getField("code")?.type).toBe("codearea");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Loop-variable references ($name) for an operator inside a control block
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("loop-variable references inside a control block", () => {
+    // The body is an operator backed by a Scala executor, the kind on which the backend binds a reference.
+    const body = mockScalaExecutorPredicate;
+    const control = (value: unknown) => ({ value }) as AbstractControl;
+
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function openBody(): void {
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, body.operatorID, true),
+      });
+      fixture.detectChanges();
+    }
+
+    /** Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. */
+    function addBlockAroundBody(closed = true): void {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      if (closed) {
+        workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      }
+    }
+
+    it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
+      addBlockAroundBody();
+      openBody();
+
+      for (const key of ["limit", "fraction", "prefix", "caseSensitive"]) {
+        const field = getField(key);
+        expect(field?.type, key).toBe("loopvariableinput");
+        expect(field?.props?.["loopVariableOptions"], key).toEqual(["$K"]);
+        expect(field?.validators?.["type"].expression(control("$K"), field), key).toBe(true);
+        expect(field?.validators?.["loopVariableReference"].expression(control("$foo"), field), key).toBe(false);
+      }
+      // typed text is stored as the field's primitive; a reference stays the literal string
+      expect(getField("limit")?.parsers?.[0]("7")).toBe(7);
+      expect(getField("limit")?.parsers?.[0]("$K")).toBe("$K");
+      expect(getField("fraction")?.parsers?.[0]("0.5")).toBe(0.5);
+      expect(getField("caseSensitive")?.parsers?.[0]("true")).toBe(true);
+      // a plain wrong value is still a type error
+      expect(getField("limit")?.validators?.["type"].expression(control("abc"), getField("limit"))).toBe(false);
+      expect(getField("caseSensitive")?.validators?.["type"].expression(control("maybe"))).toBe(false);
+    });
+
+    it("keeps a custom widget, an enum and an array on their own controls inside a block", () => {
+      addBlockAroundBody();
+      openBody();
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("fileName")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("order")?.type).toBe("enum");
+      expect(getField("order")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("columns")?.type).toBe("array");
+      expect(getField("columns")?.validators?.["loopVariableReference"]).toBeUndefined();
+    });
+
+    it("keeps today's controls and validators for an operator outside every block", () => {
+      workflowActionService.addOperator(body, mockPoint);
+      openBody();
+
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("fraction")?.type).toBe("number");
+      expect(getField("prefix")?.type).toBe("string");
+      expect(getField("caseSensitive")?.type).toBe("boolean");
+      expect(getField("limit")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
+    });
+
+    it("rebuilds the open form when a link or the Loop Start's variables change its scope", () => {
+      addBlockAroundBody(false);
+      openBody();
+      expect(getField("limit")?.type).toBe("integer");
+
+      // closing the block puts the open operator inside it
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // renaming the variable changes what the field offers
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[N]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
+
+      // an edit that leaves the scope as it is does not rebuild the form
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[0]",
+      });
+      expect(rerender).not.toHaveBeenCalled();
+
+      // opening the block again takes the operator out of it
+      workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(rerender).toHaveBeenCalledTimes(1);
+      expect(getField("limit")?.type).toBe("integer");
     });
   });
 

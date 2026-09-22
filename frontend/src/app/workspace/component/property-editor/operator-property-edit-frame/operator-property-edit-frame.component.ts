@@ -22,7 +22,7 @@ import { ExposePropertyWrapperComponent } from "../../../../common/formly/expose
 import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { Subject } from "rxjs";
+import { merge, Subject } from "rxjs";
 import { AbstractControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
 import Ajv from "ajv";
@@ -39,6 +39,9 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import { applyLoopVariableField, primitiveSchemaType } from "../../../util/loop-variable-field.util";
+import { loopVariablesInScope } from "../../../util/loop-variable.util";
+import { LOOP_START_OP_TYPE } from "../../../service/workflow-graph/model/loop-block.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -239,6 +242,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
+  // The loop variables the form was last built with, undefined for an operator outside every block;
+  // see registerLoopScopeChangeHandler.
+  private loopVariableScope: string[] | undefined;
 
   readonly huggingFaceTaskPreviewSamples: Record<
     string,
@@ -569,6 +575,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
+    this.registerLoopScopeChangeHandler();
+
     this.workflowStatusSerivce
       .getStateUpdateStream()
       .pipe(untilDestroyed(this))
@@ -856,6 +864,51 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  /**
+   * The loop variables in scope of the operator being edited, or undefined when it is not inside any
+   * control block (or not in the graph at all), so that such operators keep today's form exactly.
+   */
+  private loopVariableNamesInScope(): string[] | undefined {
+    if (this.currentOperatorId === undefined) {
+      return undefined;
+    }
+    const graph = this.workflowActionService.getTexeraGraph();
+    return graph.hasOperator(this.currentOperatorId) ? loopVariablesInScope(graph, this.currentOperatorId) : undefined;
+  }
+
+  /**
+   * Which fields take a $reference, and which variables they offer, depend on the block around the
+   * operator and on its Loop Starts' variables, which other operators' links and properties decide. So
+   * on the edits that re-validate operators holding a reference (a link added or removed, a property
+   * change of another operator that is a Loop Start), rebuild the form when the operator's scope is no
+   * longer the one it was built with, rather than only when the operator is next opened.
+   */
+  private registerLoopScopeChangeHandler(): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    merge(
+      graph.getLinkAddStream(),
+      graph.getLinkDeleteStream(),
+      graph
+        .getOperatorPropertyChangeStream()
+        .pipe(
+          filter(
+            ({ operator }) =>
+              operator.operatorType === LOOP_START_OP_TYPE && operator.operatorID !== this.currentOperatorId
+          )
+        )
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (
+          this.currentOperatorId !== undefined &&
+          graph.hasOperator(this.currentOperatorId) &&
+          !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope)
+        ) {
+          this.rerenderEditorForm();
+        }
+      });
+  }
+
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -869,6 +922,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     // Read once: the rules describe the whole schema, not one field.
     const conditionalRules = conditionalRequiredRules(this.currentOperatorSchema?.jsonSchema);
+    // The loop variables the operator may refer to as $name, when it sits inside a control block;
+    // undefined outside every block, where the form keeps today's controls untouched.
+    const loopVariableNames = this.loopVariableNamesInScope();
+    this.loopVariableScope = loopVariableNames;
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -951,6 +1008,22 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
       if (customType) {
         mappedField.type = customType;
+      }
+
+      // Inside a control block a primitive property may hold a loop-variable reference ("$K"), which the
+      // backend binds at run time (issue #8635): render it as a text input that takes "$K" next to plain
+      // values, offer the variables the enclosing Loop Starts declare, and flag a name none declares.
+      // Enums and custom widgets keep their controls; `mappedField.type` still equal to the schema type
+      // is what tells a plain primitive from a field formly or a widget already resolved otherwise.
+      const loopSchemaType = primitiveSchemaType(mapSource.type);
+      if (
+        loopVariableNames !== undefined &&
+        customType === undefined &&
+        loopSchemaType !== undefined &&
+        mappedField.type === loopSchemaType &&
+        !isDefined(mapSource.enum)
+      ) {
+        applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
 
       if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
