@@ -23,7 +23,7 @@ import pytest
 from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
 from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.managers import Context
-from core.models import Schema, State, Tuple
+from core.models import Schema, State, Tuple, TupleOperatorV2
 from core.models.internal_queue import InternalQueue
 from core.models.internal_marker import EndChannel, InternalMarker, StartChannel
 from core.runnables.data_processor import DataProcessor
@@ -196,6 +196,78 @@ class TestProcessInternalMarker:
         # exit. `_set_output_tuple` exits early on an empty iterator and
         # does not switch.
         assert data_processor.switch_calls == 2
+
+
+class _LoopStateSpy(TupleOperatorV2):
+    """
+    Records what `loop_state` holds at the moment `process_state` runs, so the
+    test can pin that the runtime registers the state message BEFORE the
+    callback rather than after it.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.seen = []
+
+    def process_tuple(self, tuple_, port):
+        yield tuple_
+
+    def process_state(self, state, port):
+        self.seen.append((self.loop_state, port))
+        return super().process_state(state, port)
+
+
+class TestProcessState:
+    @pytest.mark.timeout(2)
+    def test_registers_loop_state_before_invoking_process_state(
+        self, context, data_processor
+    ):
+        executor = _LoopStateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+        assert executor.loop_state is None
+
+        state = State({"i": 2})
+        data_processor.process_state(state)
+
+        # The callback observed the state already registered, on its port...
+        assert executor.seen == [(state, 0)]
+        # ...it stays registered afterwards, and the default still forwards.
+        assert executor.loop_state is state
+        assert context.state_processing_manager.current_output_state is state
+        assert not context.exception_manager.has_exception()
+        # `_executor_session` always switches once on exit.
+        assert data_processor.switch_calls == 1
+
+    @pytest.mark.timeout(2)
+    def test_a_later_state_message_replaces_the_registered_one(
+        self, context, data_processor
+    ):
+        executor = _LoopStateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(1, False)
+
+        first, second = State({"i": 0}), State({"i": 1})
+        data_processor.process_state(first)
+        data_processor.process_state(second)
+
+        assert executor.seen == [(first, 1), (second, 1)]
+        assert executor.loop_state is second
+
+    @pytest.mark.timeout(2)
+    def test_registers_on_the_running_operator_only(self, context, data_processor):
+        # The default lives on the class, so a registration written to the
+        # class (instead of the running instance) would reach every operator.
+        target, bystander = _LoopStateSpy(), _LoopStateSpy()
+        context.executor_manager.executor = target
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        state = State({"i": 5})
+        data_processor.process_state(state)
+
+        assert target.loop_state is state
+        assert bystander.loop_state is None
+        assert _LoopStateSpy.loop_state is None
 
 
 class TestExecutorSession:
