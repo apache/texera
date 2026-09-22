@@ -101,6 +101,12 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
     import numpy as np
     import pandas as pd
 
+    # A model column holds an sklearn estimator, so the unpickling below imports
+    # sklearn anyway; asking it what kind of estimator it handed back costs
+    # nothing more. Both are function-local so a run with no model column, which
+    # is most of them, never pays for either.
+    from sklearn.base import is_regressor
+
     if probe_path is None:
         raise AssertionError("--model-cols requires --probe with a feature set")
     probe = pd.read_json(probe_path, lines=True)
@@ -174,12 +180,23 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
                     f"model column {col!r} row {i}: prediction shape differs "
                     f"({pred_a.shape} vs {pred_e.shape})"
                 )
-            numeric = np.issubdtype(pred_a.dtype, np.number) and np.issubdtype(
-                pred_e.dtype, np.number
+            # Only a regressor predicts a measurement, where the last bits are
+            # arithmetic and a tolerance belongs. Every other estimator predicts
+            # a label, a class or a cluster, and a different label is a
+            # different answer however near the two numbers sit: classes 100000
+            # and 100001 are one part in 1e5 apart, which allclose accepts. The
+            # estimator says which it is; the prediction's dtype cannot, since a
+            # numeric label is a number too. Anything sklearn does not call a
+            # regressor, including a non-sklearn pickle, is compared exactly.
+            tolerant = (
+                is_regressor(m_actual)
+                and is_regressor(m_expected)
+                and np.issubdtype(pred_a.dtype, np.number)
+                and np.issubdtype(pred_e.dtype, np.number)
             )
             ok = (
                 np.allclose(pred_a, pred_e, rtol=1e-5, atol=1e-8)
-                if numeric
+                if tolerant
                 else np.array_equal(pred_a, pred_e)
             )
             if not ok:

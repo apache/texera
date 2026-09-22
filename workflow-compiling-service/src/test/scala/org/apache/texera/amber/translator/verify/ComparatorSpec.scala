@@ -278,6 +278,80 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     }.getMessage should include("missing from actual")
   }
 
+  /** A model column holds a pickled estimator, which only Python can fit. Writes
+    * the two one-row frames the comparison reads and the probe it predicts on,
+    * each side's model fitted on its own targets.
+    */
+  private def writeFittedModels(
+      dir: Path,
+      estimator: String,
+      actualTargets: String,
+      expectedTargets: String
+  ): (Path, Path, Path) = {
+    val program =
+      s"""import base64, json, pickle
+         |import pandas as pd
+         |from sklearn.tree import $estimator as Estimator
+         |
+         |x = pd.DataFrame({"petal_length": [1.0, 2.0, 3.0]})
+         |x.to_json(r"$dir/probe.jsonl", orient="records", lines=True)
+         |for name, y in (("actual.jsonl", $actualTargets), ("expected.jsonl", $expectedTargets)):
+         |    model = base64.b64encode(pickle.dumps(Estimator().fit(x, y))).decode()
+         |    with open(rf"$dir/{name}", "w") as handle:
+         |        handle.write(json.dumps({"model": model, "score": 1.0}) + "\\n")
+         |""".stripMargin
+    val script = Files.createTempFile("comparator-spec-fit-", ".py")
+    script.toFile.deleteOnExit()
+    Files.writeString(script, program)
+
+    val python = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3")
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val said = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    require(process.exitValue() == 0, s"fitting the models failed:\n$said")
+    (dir.resolve("actual.jsonl"), dir.resolve("expected.jsonl"), dir.resolve("probe.jsonl"))
+  }
+
+  // A classifier predicts a class, and a class that changed is a different
+  // answer however near the two labels sit. Numbered classes went through the
+  // numeric tolerance, where 100000 and 100001 are one part in 1e5 apart and
+  // compared equal, so every row's class could change and the models still pass.
+  it should "catch a classifier whose predicted classes all changed" in {
+    val dir = Files.createTempDirectory("comparator-spec-model-classes-")
+    val (actual, expected, probe) =
+      writeFittedModels(dir, "DecisionTreeClassifier", "[100000] * 3", "[100001] * 3")
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(
+        actual,
+        expected,
+        modelColumns = Seq("model"),
+        probePath = Some(probe)
+      )
+    }.getMessage should include("predictions differ")
+  }
+
+  // The tolerance still has to reach what it was for: a regressor computes its
+  // answer, so the two paths can land a float's last bits apart on the same fit.
+  it should "allow a regressor's predictions to differ within tolerance" in {
+    val dir = Files.createTempDirectory("comparator-spec-model-regressor-")
+    val (actual, expected, probe) =
+      writeFittedModels(
+        dir,
+        "DecisionTreeRegressor",
+        "[1.0, 2.0, 3.0]",
+        "[1.0, 2.0, 3.0 + 1e-12]"
+      )
+
+    noException should be thrownBy Comparator.assertEqual(
+      actual,
+      expected,
+      modelColumns = Seq("model"),
+      probePath = Some(probe)
+    )
+  }
+
   // An operator that draws a chart per row writes one JSONL row per chart on the
   // runtime side and an array on the exported one. Reading a single figure from
   // each, as this did, left every chart after the first unread.
