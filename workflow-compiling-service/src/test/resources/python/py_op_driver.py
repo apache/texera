@@ -458,13 +458,10 @@ def run_config(config: Mapping[str, Any]) -> None:
     port_order: Sequence[int] = list(config.get("portOrder", []))
 
     inputs_by_port: "dict[int, List[Tuple]]" = {}
-    schemas_by_port: "dict[int, TexeraSchema]" = {}
     for entry in config.get("inputs", []):
         port = int(entry["portIndex"])
         data_path = Path(entry["dataPath"])
-        schema = _read_schema_sidecar(data_path)
-        schemas_by_port[port] = schema
-        inputs_by_port[port] = _read_tuples(data_path, schema)
+        inputs_by_port[port] = _read_tuples(data_path, _read_schema_sidecar(data_path))
 
     # Default port order: sorted by index. Matches OpExecHarness's fallback
     # when getInputPortDependencyPairs is empty.
@@ -474,10 +471,6 @@ def run_config(config: Mapping[str, Any]) -> None:
     namespace = _exec_user_code(operator_code)
     op_class = _discover_operator_class(namespace)
     op_instance = op_class()
-
-    # What DataProcessor hands the executor at EndChannel: a port that carried
-    # no rows still says what its columns were.
-    op_instance.input_schemas.update(schemas_by_port)
 
     outputs = config.get("outputs", [])
     if len(outputs) > 1:
