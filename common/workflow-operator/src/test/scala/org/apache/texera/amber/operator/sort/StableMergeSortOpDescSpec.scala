@@ -132,6 +132,46 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The sort tiers are named after nothing the input can be carrying, so a
+  // column that happens to answer to a helper's old name keeps its values.
+  it should "keep an input column named after a sort helper" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val unit = new SortCriteriaUnit
+    unit.attributeName = "x"
+    unit.sortPreference = SortPreference.ASC
+    val desc = new StableMergeSortOpDesc
+    desc.keys = ListBuffer(unit)
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({
+         |    "x": [2, 1],
+         |    "_texera_null_x": ["a", "b"],
+         |    "_texera_nan_x": ["c", "d"],
+         |})
+         |${desc.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print(list(out1df["_texera_null_x"]), list(out1df["_texera_nan_x"]))
+         |""".stripMargin
+
+    val script = Files.createTempFile("sort-helper-name-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "['x', '_texera_null_x', '_texera_nan_x']"
+      lines(1) shouldBe "['b', 'a'] ['d', 'c']"
+    }
+  }
+
   private def resolvePython(): Option[String] = {
     def fromConfig: Option[String] =
       Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption

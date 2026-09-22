@@ -94,24 +94,30 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
     // compares above every number, so it goes last ascending and first
     // descending. A column read into a numpy dtype has one slot for both, and
     // there both land in the null tier, which is where they were before.
-    s"""_texera_sorted = in1df.copy()
+    //
+    // The tiers are built in a frame of their own and named by position, so
+    // the input keeps every column it arrived with: a helper named after the
+    // key would overwrite an input column that already answers to that name,
+    // and dropping the helper afterwards would take the payload with it.
+    s"""_texera_sorted = in1df.reset_index(drop=True)
+       |_texera_keys = pd.DataFrame(index=_texera_sorted.index)
        |_texera_by = []
        |_texera_asc = []
-       |_texera_helpers = []
-       |for _texera_col, _texera_a in zip($cols, $ascending):
-       |    _texera_null = "_texera_null_" + _texera_col
-       |    _texera_nan = "_texera_nan_" + _texera_col
-       |    _texera_sorted[_texera_null] = _texera_sorted[_texera_col].isna()
-       |    _texera_sorted[_texera_nan] = (
+       |for _texera_i, (_texera_col, _texera_a) in enumerate(zip($cols, $ascending)):
+       |    _texera_null = "null_" + str(_texera_i)
+       |    _texera_nan = "nan_" + str(_texera_i)
+       |    _texera_val = "val_" + str(_texera_i)
+       |    _texera_keys[_texera_null] = _texera_sorted[_texera_col].isna()
+       |    _texera_keys[_texera_nan] = (
        |        _texera_sorted[_texera_col] != _texera_sorted[_texera_col]
        |    ).fillna(False)
-       |    _texera_helpers += [_texera_null, _texera_nan]
-       |    _texera_by += [_texera_null, _texera_nan, _texera_col]
+       |    _texera_keys[_texera_val] = _texera_sorted[_texera_col]
+       |    _texera_by += [_texera_null, _texera_nan, _texera_val]
        |    _texera_asc += [True, _texera_a, _texera_a]
-       |out1df = (
-       |    _texera_sorted.sort_values(by=_texera_by, ascending=_texera_asc, kind="mergesort")
-       |    .drop(columns=_texera_helpers)
-       |    .reset_index(drop=True)
-       |)""".stripMargin
+       |out1df = _texera_sorted.loc[
+       |    _texera_keys.sort_values(
+       |        by=_texera_by, ascending=_texera_asc, kind="mergesort"
+       |    ).index
+       |].reset_index(drop=True)""".stripMargin
   }
 }
