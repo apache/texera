@@ -35,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { getEnclosingLoopStarts as findEnclosingLoopStarts } from "./loop-block.util";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -842,6 +843,17 @@ export class WorkflowGraph {
    */
   public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
     return this.getAllLinks().filter(link => link.source.operatorID === operatorID);
+  }
+
+  /**
+   * The LoopStart operators whose control block encloses the operator, outermost first; empty for an
+   * operator outside every block, including the control operators of their own block. Computed from
+   * all operators and links, disabled ones included: a disabled operator still sits inside its block.
+   * See {@link findEnclosingLoopStarts} for the rule.
+   * @param operatorID
+   */
+  public getEnclosingLoopStarts(operatorID: string): string[] {
+    return findEnclosingLoopStarts(operatorID, this.getAllOperators(), this.getAllLinks());
   }
 
   /**
