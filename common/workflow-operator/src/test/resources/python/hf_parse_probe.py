@@ -32,7 +32,10 @@ import json
 import re
 import sys
 
-WANTED = ("_parse_response", "_chat_message_content", "_url_to_data_url", "_format_error")
+# Exactly what _parse_response can reach: itself, the chat-content helper, and
+# the data-URL helper used by the image-to-image branch. Anything else in the
+# generated class belongs to the request loop, not to parsing.
+WANTED = ("_parse_response", "_chat_message_content", "_url_to_data_url")
 
 
 def lift(source, name):
