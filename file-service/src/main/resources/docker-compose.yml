@@ -27,6 +27,7 @@ services:
     environment:
       - RUSTFS_ACCESS_KEY=texera_rustfs
       - RUSTFS_SECRET_KEY=password
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*
       # Must match the region the AWS SDK signs with: it is part of the SigV4 scope.
       - RUSTFS_REGION=us-west-2
       - RUSTFS_CONSOLE_ENABLE=true
