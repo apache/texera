@@ -144,6 +144,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
           provide: WorkflowActionService,
           useValue: {
             hasWorkflowOpen: () => false,
+            // The room the shared document is in: what the page keys the hand-over on, on its way out.
+            getOpenWorkflowId: () => 7,
             resetAsNewWorkflow: vi.fn(),
             setNewSharedModel: vi.fn(),
             reloadWorkflow: vi.fn(),
@@ -175,6 +177,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
               updateSharedModelAwareness: vi.fn(),
             }),
             getJointGraphWrapper: () => ({
+              // Reset by the page on leaving the workspace; the rendered tests leave, so it must exist.
+              setHeatmapView: () => {},
               getJointOperatorHighlightStream: () => EMPTY,
               getJointOperatorUnhighlightStream: () => EMPTY,
               getCurrentHighlightedOperatorIDs: () => [],

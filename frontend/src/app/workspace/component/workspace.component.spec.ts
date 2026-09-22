@@ -118,6 +118,8 @@ describe("WorkspaceComponent", () => {
       hasWorkflowOpen: vi.fn().mockReturnValue(false),
       // The room the shared document is in; the hand-over on the way out is keyed on this.
       getOpenWorkflowId: vi.fn().mockReturnValue(42),
+      // One stub object, so the spy on it is the same one the assertions read.
+      getJointGraphWrapper: vi.fn().mockReturnValue({ setHeatmapView: vi.fn() }),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
       // As the real one does: the metadata it already holds, re-announced on the same stream.
@@ -623,6 +625,24 @@ describe("WorkspaceComponent", () => {
       component.ngOnDestroy();
 
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
+    // The heat-map overlay's view lives in the root-provided wrapper. It used to be reset by the
+    // editor on destroy, which the switch turned into "off again on every switch", after the
+    // arriving menu had just restored it (#8552). It goes with the metrics now: reset on leaving,
+    // kept on a hand-over.
+    it("resets the heat-map view on leaving and keeps it on a hand-over", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
+
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+      component.ngOnDestroy();
+      expect(setHeatmapView).not.toHaveBeenCalled();
+
+      routerMock.getCurrentNavigation.mockReturnValue(null);
+      component.ngOnDestroy();
+      expect(setHeatmapView).toHaveBeenCalledWith(null);
     });
 
     it("tears it down when the destination is another workflow's Form View", async () => {

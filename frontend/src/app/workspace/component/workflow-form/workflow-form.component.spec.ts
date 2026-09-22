@@ -302,6 +302,23 @@ describe("WorkflowFormComponent", () => {
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
     });
 
+    // The heat-map overlay's view lives in the root-provided wrapper. The editor used to reset it on
+    // destroy, which the switch turned into "off again on every switch", after the arriving view had
+    // just restored it (#8552). It goes with the metrics now: reset on leaving, kept on a hand-over.
+    it("resets the heat-map view on leaving and keeps it on a hand-over", () => {
+      const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
+
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+      component.ngOnDestroy();
+      expect(setHeatmapView).not.toHaveBeenCalled();
+
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue(null);
+      component.ngOnDestroy();
+      expect(setHeatmapView).toHaveBeenCalledWith(null);
+    });
+
     // Another workflow's canvas is a different workflow: nothing here belongs to it.
     it("releases them when the destination is a different workflow", () => {
       build(formViewWorkflow).ngOnInit();

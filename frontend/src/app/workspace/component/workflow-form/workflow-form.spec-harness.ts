@@ -130,6 +130,14 @@ export function setupHarness() {
   // The preview centres the embedded graph once it is built; tests assert this fired.
   const triggerCenterEvent = vi.fn();
 
+  const jointGraphWrapper = {
+    getJointOperatorHighlightStream: () => highlightStream.asObservable(),
+    getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
+    getCurrentHighlightedOperatorIDs: () => highlightedIds,
+    unhighlightOperators,
+    // The heat-map overlay's view; reset by the views on leaving the workspace, kept on a hand-over.
+    setHeatmapView: vi.fn(),
+  };
   const workflowActionService = {
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
@@ -181,12 +189,8 @@ export function setupHarness() {
           })),
       updateSharedModelAwareness,
     }),
-    getJointGraphWrapper: () => ({
-      getJointOperatorHighlightStream: () => highlightStream.asObservable(),
-      getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
-      getCurrentHighlightedOperatorIDs: () => highlightedIds,
-      unhighlightOperators,
-    }),
+    // One stub object, so a spy on it is the same one a test reads back after the component acts.
+    getJointGraphWrapper: () => jointGraphWrapper,
     // Every config write announces on this stream (setFormBinding emits it); the form re-reads its
     // config on it unless the write is one of its own presentation edits. The form-binding mock's
     // writers below emit here, as the real service does, so that chain is under test.

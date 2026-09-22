@@ -224,7 +224,10 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     this.restorePersistedHeatmapOverlay();
-
+    // The export flags are reset when a menu is destroyed, which is right when the workspace is
+    // left and wrong when a workflow's two views hand over and the results are kept. Recompute
+    // from what is in hand, so a menu arriving on retained results does not offer a dead button.
+    this.workflowResultExportService.refreshExportAvailability();
     // Marks an edit for the Form View hand-over (see onClickOpenFormView): set the moment an edit is
     // reported, before the autosave debounce, cleared when the switch's save snapshots the workflow.
     this.workflowActionService

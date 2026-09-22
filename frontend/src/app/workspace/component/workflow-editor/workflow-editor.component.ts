@@ -217,6 +217,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.editorWrapper = host.querySelector("#workflow-editor-wrapper")!;
     document.addEventListener("keydown", this.keyboardActionListener);
     this.initializeJointPaper();
+    // A new paper starts at scale 1, but the zoom ratio lives in the root-provided wrapper and
+    // outlives this component. With the switch between a workflow's two views routed, this paper
+    // is new while the ratio is whatever the user last chose, and the two disagreed: the zoom
+    // buttons stepped from the wrapper's ratio, so the first "zoom in" after a switch could shrink
+    // the canvas. The paper adopts the wrapper's ratio, which also carries the user's zoom across.
+    const zoom = this.wrapper.getZoomRatio();
+    this.paper.scale(zoom, zoom);
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
@@ -268,17 +275,20 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // Harmless while every mount followed a page load; the switch between a workflow's two views
     // routes now, so a mount happens on every switch and the papers pile up. Whether the
     // undraggable operators recorded in #8580 follow from that is not settled -- #8582 tracks it.
+    // The context keeps a static reference to the attached paper for async rendering; it must not
+    // outlive the paper it points at, or a context exit would update the views of a removed one.
+    this.wrapper.detachMainJointPaper(this.paper);
     this.paper?.remove();
     // The same bound reference that was registered: `.bind()` returns a new function every call,
     // so removing a freshly bound one never matched and left the listener behind. One stale
     // listener per mount meant one Ctrl/Cmd-Z undoing several entries after a few switches.
     document.removeEventListener("keydown", this.keyboardActionListener);
-    // The overlay belongs to the canvas being viewed, but the wrapper holding
-    // the view is root-provided and outlives this component, while the menu's
-    // checkbox re-initializes to off and the metrics behind the overlay are
-    // cleared on workspace teardown. Reset the view here so all three agree
-    // when a workspace is re-entered.
-    this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
+    // The heat-map view is deliberately not reset here any more. It used to be, so that a
+    // re-entered workspace started with the overlay off; but this component is destroyed on every
+    // hand-over between a workflow's two views, and destroyed after the arriving view has mounted
+    // and restored the persisted overlay (#8552), so a reset here switched it off again on every
+    // switch. The reset belongs to leaving the workspace, and lives with the rest of that teardown
+    // in the two views' ngOnDestroy.
   }
 
   private _handleKeyboardAction(event: any) {

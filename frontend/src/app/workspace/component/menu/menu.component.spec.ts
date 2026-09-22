@@ -24,6 +24,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
 import { MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
@@ -830,6 +831,20 @@ describe("MenuComponent", () => {
       const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
       expect("defaultView" in parsed).toBe(false);
     });
+  });
+
+  // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on
+  // a hand-over between a workflow's two views, where the results are kept. A menu mounting on
+  // retained results asks for them to be recomputed rather than offering a dead button.
+  it("asks the export service to recompute its flags when it mounts", () => {
+    const exportService = TestBed.inject(WorkflowResultExportService);
+    const refresh = vi.spyOn(exportService, "refreshExportAvailability");
+
+    const fresh = TestBed.createComponent(MenuComponent);
+    fresh.detectChanges();
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    fresh.destroy();
   });
 
   describe("version history", () => {

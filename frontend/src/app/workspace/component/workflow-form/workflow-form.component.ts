@@ -2054,6 +2054,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       this.executeWorkflowService.resetExecutionAndWorkers();
       this.workflowConsoleService.clearConsoleMessages();
       this.workflowResultService.clearResults();
+      // As the canvas does: the heat-map view goes with the metrics behind it, and only on a
+      // real departure -- on a hand-over the arriving view has already restored the overlay.
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
     }
   }
 }

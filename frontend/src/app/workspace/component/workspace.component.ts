@@ -218,6 +218,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       this.workflowActionService.clearWorkflow();
       this.computingUnitStatusService.disconnect();
       this.resetWorkflowSessionState();
+      // The overlay's view lives in the root-provided wrapper; the metrics behind it are cleared
+      // just above, so the view goes with them. On a hand-over it stays: the arriving view has
+      // already restored the persisted overlay, and the metrics are kept.
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
     }
   }
 
