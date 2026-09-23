@@ -135,7 +135,12 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   override def generateStandaloneCode(): String = {
     val rLit = pyStringLiteral(r)
     val thetaLit = pyStringLiteral(theta)
-    s"""import numpy as np
+    // np.issubdtype cannot read a nullable pandas dtype such as Int64 and raises;
+    // the bool exclusion keeps what np.number refused.
+    s"""from pandas.api.types import is_bool_dtype, is_numeric_dtype
+       |
+       |def _is_number(column):
+       |    return is_numeric_dtype(column) and not is_bool_dtype(column)
        |
        |if in1df is None or in1df.empty:
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -143,7 +148,7 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |elif $rLit not in in1df.columns or $thetaLit not in in1df.columns:
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write('<h3>Selected columns not found in input table</h3>')
-       |elif not np.issubdtype(in1df[$rLit].dtype, np.number) or not np.issubdtype(in1df[$thetaLit].dtype, np.number):
+       |elif not _is_number(in1df[$rLit]) or not _is_number(in1df[$thetaLit]):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write('<h3>Selected columns must be numeric</h3>')
        |else:
