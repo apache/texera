@@ -147,7 +147,14 @@ export class AiWorkflowFixerService {
         }
         properties.code = code.replace(fix.original, fix.suggested);
       } else {
-        properties[String(fix.fieldName)] = fix.suggested;
+        const field = String(fix.fieldName);
+        // Same staleness guard as the code branch: re-reading the properties keeps the
+        // unrelated fields, but the field being replaced can itself have moved on since
+        // the suggestion was generated, and overwriting it would discard that newer value.
+        if (String(properties[field] ?? "") !== fix.original) {
+          throw new Error(`${field} changed since the suggestion was generated`);
+        }
+        properties[field] = fix.suggested;
       }
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
       this.stateSubject.next({ ...current, status: "applied" });

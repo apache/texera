@@ -186,6 +186,26 @@ describe("AiWorkflowFixerService", () => {
       service.applyFix();
 
       expect(setOperatorProperty).toHaveBeenCalledWith(OP, { model: "gpt-4-turbo", temperature: 0 });
+      expect(executeWorkflow).toHaveBeenCalledWith("");
+      expect(state().status).toEqual("applied");
+    });
+
+    it("ends in error, without re-running, when the target field changed since the analysis", async () => {
+      operatorProperties = { model: "gpt-4-turb", temperature: 0 };
+      stubModel(
+        suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
+      );
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      // A coeditor picks a different model after the suggestion was generated: applying the
+      // stale suggestion would silently discard their choice and re-run on it.
+      operatorProperties = { model: "claude-haiku-4.5", temperature: 0 };
+
+      service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
+      expect(state().status).toEqual("error");
     });
 
     it("does nothing without a ready suggestion", () => {
