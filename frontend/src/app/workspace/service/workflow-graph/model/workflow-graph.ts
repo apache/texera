@@ -78,7 +78,7 @@ export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
 export function isSink(operator: OperatorPredicate): boolean {
-  return operator.operatorType.toLocaleLowerCase().includes("sink");
+  return operator.operatorType.toLowerCase().includes("sink");
 }
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
