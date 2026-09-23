@@ -118,6 +118,70 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
           |""".stripMargin
   }
 
+  /** Reports the Python type of the BINARY cell it is handed. */
+  private class BinaryTypeOpDesc extends PythonOperatorDescriptor {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        userFriendlyName = "Binary Type",
+        operatorDescription = "reports the type of a binary cell",
+        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map(
+        operatorInfo.outputPorts.head.id -> Schema().add(
+          new Attribute("kind", AttributeType.STRING)
+        )
+      )
+
+    override def generatePythonCode(): String =
+      """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"kind": type(tuple_["blob"]).__name__}
+        |""".stripMargin
+  }
+
+  private def binaryCellKind(cell: Array[Byte]): String = {
+    val dir = Files.createTempDirectory("py-op-harness-binary-")
+    val inputSchema = Schema().add(new Attribute("blob", AttributeType.BINARY))
+    val input = dir.resolve("input_port_0.jsonl")
+    val row = Tuple.builder(inputSchema).add("blob", AttributeType.BINARY, cell).build()
+    TupleIO.writeTuples(input, Iterator(row), inputSchema)
+
+    val result = PyOpExecHarness.execute(
+      new BinaryTypeOpDesc,
+      inputs = Map(PortIdentity(0) -> input),
+      outputDir = dir.resolve("actual")
+    )
+
+    val out = result.outputs(PortIdentity(0))
+    TupleIO
+      .readTuples(out, TupleIO.readSchemaSidecar(out))
+      .map(_.getField[String]("kind"))
+      .toSeq
+      .head
+  }
+
+  // A model column arrives as the marker followed by the pickle, and the worker
+  // unpickles it before the operator sees it. This is pickle.dumps(["a"],
+  // protocol=0), which stands in for a fitted estimator.
+  "PyOpExecHarness" should "hand a pickled binary cell to the operator as the object" in {
+    val pickled = "pickle    ".getBytes("US-ASCII") ++ "(lp0\nVa\np1\na.".getBytes("US-ASCII")
+    binaryCellKind(pickled) shouldBe "list"
+  }
+
+  it should "hand any other binary cell to the operator as bytes" in {
+    binaryCellKind(Array[Byte](0, 1, 2)) shouldBe "bytes"
+  }
+
   private val someObject = "s3://a-bucket/a/large/object"
 
   // The schema sidecar names large_binary, so the harness has to carry it in as

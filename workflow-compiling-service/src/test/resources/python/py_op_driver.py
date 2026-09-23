@@ -56,6 +56,7 @@ from __future__ import annotations
 import base64
 import inspect
 import json
+import pickle
 import sys
 import traceback
 from pathlib import Path
@@ -169,8 +170,8 @@ def _write_schema_sidecar(data_path: Path, schema: TexeraSchema) -> None:
 # Tuple I/O. JSONL with sidecar — same on-disk shape as TupleIO on the JVM.
 # --------------------------------------------------------------------------
 # Prefix Tuple.cast_to_schema writes in front of an object it pickles into a
-# BINARY field. Nothing in the repo reads it back, so it is a tag, not part of
-# the value.
+# BINARY field. The worker's ArrowTableTupleProvider unpickles a cell that
+# carries it, which is how a model column reaches the next operator as a model.
 _CAST_PICKLE_MARKER = b"pickle    "
 
 
@@ -189,7 +190,12 @@ def _coerce_field(raw: Any, attr_type: AttributeType) -> Any:
     if attr_type == AttributeType.BOOL:
         return bool(raw)
     if attr_type == AttributeType.BINARY:
-        return base64.b64decode(raw)
+        # Same test and slice as ArrowTableTupleProvider, so an operator gets
+        # the object the worker would give it and any other bytes stay bytes.
+        value = base64.b64decode(raw)
+        if value[:6] == b"pickle":
+            return pickle.loads(value[len(_CAST_PICKLE_MARKER) :])
+        return value
     if attr_type == AttributeType.LARGE_BINARY:
         # The bytes live in S3; the field is the reference to them, which the
         # worker hands the operator as a largebinary. Building one from a URI
@@ -227,9 +233,10 @@ def _read_tuples(data_path: Path, schema: TexeraSchema) -> List[Tuple]:
             field_data: "dict[str, Any]" = {}
             for name, attr_type in schema.as_key_value_pairs():
                 field_data[name] = _coerce_field(obj.get(name), attr_type)
-            tup = Tuple(field_data)
-            tup.finalize(schema)
-            rows.append(tup)
+            # Built the way the worker's InputManager builds it: the schema is
+            # attached, not finalized against. A finalize would cast, and the
+            # cast pickles a decoded model straight back into bytes.
+            rows.append(Tuple(field_data, schema=schema))
     return rows
 
 
