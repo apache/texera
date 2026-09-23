@@ -106,26 +106,25 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     args += "keep_default_na=False"
 
     // Name the columns this operator inferred as timestamps, so pandas parses
-    // the same ones instead of leaving them as text. See CSVScanSourceOpDesc.
+    // the same ones instead of leaving them as text. By position, header or
+    // not, since a blank header is not yet the schema's name. See
+    // CSVScanSourceOpDesc.
     val dateColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
         _.getAttributes.zipWithIndex
           .filter(_._1.getType == AttributeType.TIMESTAMP)
-          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+          .map(_._2.toString)
       )
     if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
     // Read a LONG column as the nullable integer, so a hole does not widen it
-    // through a float and round the values it carries. See CSVScanSourceOpDesc.
+    // through a float and round the values it carries. By position, as the
+    // dates are. See CSVScanSourceOpDesc.
     val longColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
         _.getAttributes.zipWithIndex
           .filter(_._1.getType == AttributeType.LONG)
-          .map {
-            case (a, i) =>
-              val key = if (hasHeader) pyStringLiteral(a.getName) else i.toString
-              s"""$key: "Int64""""
-          }
+          .map { case (_, i) => s"""$i: "Int64"""" }
       )
     if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
 

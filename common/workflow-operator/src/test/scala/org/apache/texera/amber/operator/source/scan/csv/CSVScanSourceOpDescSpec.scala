@@ -351,10 +351,74 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(csvScanSourceOpDesc.sourceSchema().getAttribute("big").getType == AttributeType.LONG)
 
     val code = csvScanSourceOpDesc.generateStandaloneCode()
-    assert(code.contains("""dtype={"big": "Int64"}"""))
+    assert(code.contains("""dtype={1: "Int64"}"""))
     // `id` has no hole, so a float would carry it exactly. Only the column the
     // schema calls LONG is asked for.
-    assert(!code.contains(""""id": "Int64""""))
+    assert(!code.contains("""0: "Int64""""))
+  }
+
+  // The schema calls a blank header `column-2` and pandas calls it `Unnamed: 1`
+  // until the rename, so a date column asked for by the schema's name ended the
+  // read on a missing column. By position, the two agree.
+  it should "ask pandas for a date under a blank header by its position" in {
+    val tmpFile = Files.createTempFile("blank-date-header-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(tmpFile, "id,\n1,2024-01-01 00:00:00\n".getBytes(StandardCharsets.UTF_8))
+    val path = tmpFile.toString
+    csvScanSourceOpDesc.fileName = Some(path)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      csvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
+        AttributeType.TIMESTAMP
+    )
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+    assert(code.contains("parse_dates=[1]"))
+    assert(code.contains("""out1df.columns = ["id", "column-2"]"""))
+  }
+
+  it should "ask pandas for a date under a blank header by its position for old CSV" in {
+    val tmpFile = Files.createTempFile("blank-date-header-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(tmpFile, "id,\n1,2024-01-01 00:00:00\n".getBytes(StandardCharsets.UTF_8))
+    val path = tmpFile.toString
+    val oldCsvScanSourceOpDesc = new CSVOldScanSourceOpDesc()
+    oldCsvScanSourceOpDesc.fileName = Some(path)
+    oldCsvScanSourceOpDesc.customDelimiter = Some(",")
+    oldCsvScanSourceOpDesc.hasHeader = true
+    oldCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      oldCsvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
+        AttributeType.TIMESTAMP
+    )
+    assert(oldCsvScanSourceOpDesc.generateStandaloneCode().contains("parse_dates=[1]"))
+  }
+
+  // pandas raises nothing for a type asked of a name it has no column for, so
+  // under a blank header the type was dropped without a word and the column
+  // was inferred as floats, rounding 9007199254740993 to ...992.
+  it should "ask pandas for a type under a blank header by its position for parallel CSV" in {
+    val tmpFile = Files.createTempFile("blank-long-header-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,\n1,9007199254740993\n2,\n3,9007199254740995\n".getBytes(StandardCharsets.UTF_8)
+    )
+    val path = tmpFile.toString
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = true
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
+        AttributeType.STRING
+    )
+    assert(parallelCsvScanSourceOpDesc.generateStandaloneCode().contains("""dtype={1: "string"}"""))
   }
 
   // sourceSchema reads this operator's file with scala-csv, which hands a blank
@@ -385,7 +449,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       parallelCsvScanSourceOpDesc
         .generateStandaloneCode()
-        .contains("""dtype={"big": "string"}""")
+        .contains("""dtype={1: "string"}""")
     )
   }
 

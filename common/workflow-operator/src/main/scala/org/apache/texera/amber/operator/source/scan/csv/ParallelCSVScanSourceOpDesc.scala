@@ -114,7 +114,9 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     // executor nulls it and parses the rest as that STRING. pandas infers a number
     // instead, so a column of ids came back as floats, one past 2^53 rounded:
     // 9007199254740993 as ...992. A LONG needs the nullable integer for the same
-    // reason. See CSVScanSourceOpDesc.
+    // reason. By position, as in CSVScanSourceOpDesc: under a blank header the
+    // schema's `column-2` is pandas' `Unnamed: 1`, and pandas passes over a
+    // name it has no column for, so the type was never applied.
     val dtypes: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
         _.getAttributes.zipWithIndex
@@ -125,8 +127,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
                 case AttributeType.STRING => Some("string")
                 case _                    => None
               }
-              val key = if (hasHeader) pyStringLiteral(a.getName) else i.toString
-              pandasType.map(t => s"""$key: "$t"""")
+              pandasType.map(t => s"""$i: "$t"""")
           }
       )
     if (dtypes.nonEmpty) args += s"dtype={${dtypes.mkString(", ")}}"

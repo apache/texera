@@ -185,32 +185,31 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // A CSV carries no types, so both readers infer, and they do not infer
     // alike: the schema above tries TIMESTAMP and parses what it can, while
     // pd.read_csv leaves a date column as text. Name the columns this operator
-    // decided were timestamps so pandas parses the same ones — by position when
-    // there is no header, the frame's columns having no names until the rename
-    // below. A schema that cannot be read (an unresolved file) leaves the
-    // argument off rather than failing the export.
+    // decided were timestamps so pandas parses the same ones. They are named by
+    // position, header or not, because the schema's names are not pandas' until
+    // the rename below: a blank header is `column-2` here and `Unnamed: 1`
+    // there, and asking for `column-2` ended the read. pandas takes an integer
+    // here as a position even where a header spells one. A schema that cannot be
+    // read (an unresolved file) leaves the argument off rather than failing the
+    // export.
     val dateColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
         _.getAttributes.zipWithIndex
           .filter(_._1.getType == AttributeType.TIMESTAMP)
-          .map { case (a, i) => if (hasHeader) pyStringLiteral(a.getName) else i.toString }
+          .map(_._2.toString)
       )
     if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
-    // A LONG column holding a null has to be asked for by name, or pandas widens
-    // it through a float to carry the hole: 9007199254740993 comes back as
-    // ...992, a value the file never held and the executor never produced.
-    // Int64 is the nullable integer, so the hole costs the column nothing.
-    // INTEGER needs none of this — every int32 is exact in a float64.
+    // A LONG column holding a null has to be asked for, or pandas widens it
+    // through a float to carry the hole: 9007199254740993 comes back as ...992,
+    // a value the file never held and the executor never produced. Int64 is the
+    // nullable integer, so the hole costs the column nothing. INTEGER needs none
+    // of this — every int32 is exact in a float64. By position, as the dates are.
     val longColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
         _.getAttributes.zipWithIndex
           .filter(_._1.getType == AttributeType.LONG)
-          .map {
-            case (a, i) =>
-              val key = if (hasHeader) pyStringLiteral(a.getName) else i.toString
-              s"""$key: "Int64""""
-          }
+          .map { case (_, i) => s"""$i: "Int64"""" }
       )
     if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
 
