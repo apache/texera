@@ -24,6 +24,7 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{
   Float4Vector,
   SmallIntVector,
+  TimeStampMilliTZVector,
   TinyIntVector,
   UInt1Vector,
   UInt2Vector,
@@ -609,6 +610,86 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileName = Some(file.toURI.toString)
     val ex = intercept[RuntimeException](d.inferSchema())
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
+  }
+
+  // A zoned timestamp reaches the executor as the wall clock in the zone the
+  // field names, and nothing of the zone is left. pandas kept the zone on the
+  // column, and a downstream cast to a plain datetime refused it. A zone other
+  // than UTC, so that the wall clock taken is the file's and not UTC's.
+  it should "read a zoned timestamp as the wall clock the executor reads" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val fields = List(
+      new Field(
+        "ts",
+        FieldType.nullable(
+          new ArrowType.Timestamp(
+            org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
+            "Asia/Tokyo"
+          )
+        ),
+        null
+      )
+    )
+    val file = File.createTempFile("arrow-zoned-", ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(new ArrowFileSchema(fields.asJava), allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      root.allocateNew()
+      val ts = root.getVector("ts").asInstanceOf[TimeStampMilliTZVector]
+      ts.setSafe(0, 0L)
+      ts.setNull(1)
+      root.setRowCount(2)
+      writer.writeBatch()
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+
+    val exec = new ArrowSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val fromEngine =
+      try exec.produceTuple().map(_.getFields.head).toList
+      finally exec.close()
+    fromEngine shouldBe List(java.sql.Timestamp.valueOf("1970-01-01 09:00:00"), null)
+
+    val workDir = Files.createTempDirectory("arrow-zoned-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(out1df["ts"].dtype)
+         |print([None if pd.isna(v) else str(v) for v in out1df["ts"].astype("datetime64[ns]")])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val stdout = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$stdout") {
+      process.exitValue() shouldBe 0
+      val lines = stdout.trim.linesIterator.toSeq
+      lines.head shouldBe "datetime64[ms]"
+      lines(1) shouldBe "['1970-01-01 09:00:00', None]"
+    }
   }
 
   /** The block names its file by placeholder; the translator puts a name there. */

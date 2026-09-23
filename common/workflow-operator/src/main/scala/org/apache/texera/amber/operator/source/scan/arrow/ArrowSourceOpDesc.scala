@@ -98,12 +98,19 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
          |        out1df[_column] = _values.astype("Int32")
          |    elif _values.dtype == "UInt32":
          |        out1df[_column] = _values.astype("Int64")""".stripMargin
-    // A timestamp column needs nothing here. The file names UTC and holds the
-    // wall clock as UTC, so pandas and the executor read the same reading off
-    // it: no zone of the reader's own enters either side. The other scan sources
-    // have to name their date columns, CSV and JSONL carrying no types to go on,
-    // but Arrow states its own.
-    //
+    // A timestamp column may name a zone, and pandas keeps it on the column
+    // where the executor keeps only the wall clock in that zone: a Texera
+    // TIMESTAMP has none. Left zoned, the column reached a downstream `astype`
+    // that refuses to drop a zone and ended the script. pandas already holds the
+    // wall clock in the file's own zone, so the zone is taken off and the clock
+    // left as it is, which is what ArrowUtils reads. The other scan sources have
+    // to name their date columns, CSV and JSONL carrying no types to go on, but
+    // Arrow states its own.
+    val zones =
+      """|for _column, _values in out1df.items():
+         |    if isinstance(_values.dtype, pd.DatetimeTZDtype):
+         |        out1df[_column] = _values.dt.tz_localize(None)""".stripMargin
+
     // The executor drops `offset` rows and then takes `limit` of them. Feather has
     // no row-range read, so the same window is taken once the frame is in memory.
     //
@@ -120,7 +127,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       case _                  => None
     }
 
-    (Seq(dtypes, read, widths) ++ window.map(w =>
+    (Seq(dtypes, read, widths, zones) ++ window.map(w =>
       s"out1df = out1df.iloc[$w].reset_index(drop=True)"
     )).mkString("\n")
   }
