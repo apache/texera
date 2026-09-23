@@ -209,6 +209,69 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // pandas has no plain boolean with a hole, so a record missing the key widened
+  // the column to floats, and a cast to text downstream read 1.0 and 0.0 where
+  // the executor has true and false. `c` has no hole and stays the bool it was.
+  it should "keep a boolean with a missing key boolean, as the executor does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val dir = Files.createTempDirectory("jsonl-bool-")
+    dir.toFile.deleteOnExit()
+    val data = dir.resolve("input.jsonl")
+    Files.write(
+      data,
+      ("""{"b":true,"c":true}""" + "\n" +
+        """{"c":false}""" + "\n" +
+        """{"b":false,"c":true}""" + "\n").getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.sourceSchema().getAttribute("b").getType shouldBe AttributeType.BOOLEAN
+
+    val exec = new JSONLScanSourceOpExec(objectMapper.writeValueAsString(op))
+    exec.open()
+    val fromEngine =
+      try exec
+        .produceTuple()
+        .map(
+          _.asInstanceOf[SchemaEnforceable].enforceSchema(op.sourceSchema()).getField[Any]("b")
+        )
+        .toList
+      finally exec.close()
+    fromEngine shouldBe List(true, null, false)
+
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${op.standaloneImports().mkString("\n")}
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |${StandaloneCodeGenerator.SourceFilePlaceholder} = "${op.standaloneSourceName().get}"
+         |${op.generateStandaloneCode()}
+         |print(out1df["b"].dtype, out1df["c"].dtype)
+         |print([None if pd.isna(v) else str(v) for v in out1df["b"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "boolean bool"
+      lines(1) shouldBe "['True', None, 'False']"
+    }
+  }
+
   // The executor gives every element of a nested array a column of its own,
   // named for its position counted from one, so {"items":[{"id":1},{"id":2}]}
   // is items1.id and items2.id. json_normalize opens an object and leaves an

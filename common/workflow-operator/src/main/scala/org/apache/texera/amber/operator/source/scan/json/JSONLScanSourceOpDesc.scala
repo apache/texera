@@ -143,6 +143,22 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       }
     }
 
+    // pandas has no plain boolean that carries a hole, so a record missing the
+    // key widens the column to floats, and a later cast to text read 1.0 and 0.0
+    // where the executor has true and false. The nullable boolean carries both
+    // values and the hole. A column with no hole arrives as bool already and is
+    // left alone.
+    val booleanColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes
+          .filter(_.getType == AttributeType.BOOLEAN)
+          .map(a => pyStringLiteral(a.getName))
+      )
+    booleanColumns.foreach { nameLit =>
+      lines += s"""if out1df[$nameLit].dtype == "float64":"""
+      lines += s"""    out1df[$nameLit] = out1df[$nameLit].astype("boolean")"""
+    }
+
     // A JSONL file states no column order, so the schema this operator infers
     // sorts the names it found and the rows the workflow sees follow that
     // order. read_json keeps the order the first record happened to use, which
