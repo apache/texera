@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.LogicalOp
@@ -126,6 +127,8 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
     // remove operatorVersion from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorVersion")
+    // remove the loop-variable sidecar (StateReferencing.stateReferences): the backend fills it in
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove(StateReferencing.SIDECAR_PROPERTY)
     // remove inputPorts/outputPorts from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("inputPorts")
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")

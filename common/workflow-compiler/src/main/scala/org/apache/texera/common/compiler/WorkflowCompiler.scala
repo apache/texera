@@ -19,13 +19,18 @@
 
 package org.apache.texera.common.compiler
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.texera.common.compiler.WorkflowCompiler.{
   collectOutputSchemaFromPhysicalPlan,
-  convertErrorListToWorkflowFatalErrorMap
+  convertErrorListToWorkflowFatalErrorMap,
+  normalizeStateReferences,
+  unbindableStateReferences
 }
-import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.state.StateReferencing.literalReferences
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -37,6 +42,9 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.loop.LoopStartOpDesc
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
 import java.time.Instant
@@ -71,6 +79,109 @@ object WorkflowCompiler {
     }
     opIdToError.toMap
   }
+
+  /**
+    * Make `logicalOp`'s `stateReferences` sidecar final, now that its place in the plan is known.
+    * This runs before the operator's physical plan is built: the descriptor serializes the sidecar
+    * into its executor's descString there, and the worker binds exactly what it names.
+    *
+    * Inside a loop block the sidecar also gets every whole-string `$name` value of the operator's
+    * JSON (`StateReferencing.literalReferences`), next to the typed placeholders the parse put in;
+    * an entry whose pointer names no value of that JSON has nothing to bind and is dropped. An
+    * input fed from outside the block is then an error (`inputsAheadOfLoopState`).
+    *
+    * Outside every block a string such as "$AAPL" stays the literal it was before loop variables
+    * existed, and the sidecar holds only typed placeholders (the user wrote "$n" for an Int),
+    * which nothing would ever bind: each is an error naming the property and the variable. They
+    * stay in the sidecar, so compiling the same operator again reports them again.
+    */
+  def normalizeStateReferences(
+      logicalOp: LogicalOp,
+      plan: LogicalPlan,
+      insideLoopBlocks: Set[OperatorIdentity]
+  ): Option[Throwable] =
+    if (insideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
+      val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
+      logicalOp.stateReferences = (literalReferences(tree) ++ logicalOp.stateReferences).filter {
+        case (pointer, _) => tree.at(pointer).isValueNode
+      }
+      inputsAheadOfLoopState(logicalOp, plan, insideLoopBlocks)
+    } else {
+      Option.when(logicalOp.stateReferences.nonEmpty) {
+        val name = logicalOp.operatorInfo.userFriendlyName
+        new IllegalArgumentException(
+          logicalOp.stateReferences.toSeq.sorted
+            .map {
+              case (pointer, variable) =>
+                s"property $pointer refers to loop variable $variable, " +
+                  s"but $name is not inside a loop block"
+            }
+            .mkString("; ")
+        )
+      }
+    }
+
+  /**
+    * An operator inside a loop block binds its references once the loop state has arrived (see
+    * `LateBoundExecutor`), so a tuple that reaches it earlier cannot be processed. The state comes
+    * ahead of the tuples on a link from a LoopStart or from another operator inside a block, but
+    * not on one from outside every block. An input with such a link is an error, unless the
+    * operator reads it only after an input whose links all carry the state (a join's probe input).
+    */
+  private def inputsAheadOfLoopState(
+      logicalOp: LogicalOp,
+      plan: LogicalPlan,
+      insideLoopBlocks: Set[OperatorIdentity]
+  ): Option[Throwable] =
+    if (logicalOp.stateReferences.isEmpty) {
+      None
+    } else {
+      val loopStarts =
+        plan.operators.collect { case start: LoopStartOpDesc => start.operatorIdentifier }.toSet
+      def carriesState(link: LogicalLink): Boolean =
+        insideLoopBlocks.contains(link.fromOpId) || loopStarts.contains(link.fromOpId)
+      val linksByPort = plan.getUpstreamLinks(logicalOp.operatorIdentifier).groupBy(_.toPortId)
+      def carriesOnlyState(port: PortIdentity): Boolean =
+        linksByPort.get(port).exists(_.forall(carriesState))
+      val exposed = logicalOp.operatorInfo.inputPorts.filter { input =>
+        linksByPort.get(input.id).exists(!_.forall(carriesState)) &&
+        !input.dependencies.exists(carriesOnlyState)
+      }
+      Option.when(exposed.nonEmpty) {
+        val inputs = exposed.map { input =>
+          if (input.displayName.nonEmpty) s"input '${input.displayName}'"
+          else s"input port ${input.id.id}"
+        }
+        new IllegalArgumentException(
+          s"${logicalOp.operatorInfo.userFriendlyName} refers to loop variables " +
+            s"(${formatReferences(logicalOp.stateReferences)}), but its ${inputs.mkString(" and ")} " +
+            s"${if (exposed.size == 1) "is" else "are"} fed from outside the loop block, so " +
+            "tuples from there can arrive before the loop state"
+        )
+      }
+    }
+
+  /**
+    * A reference is bound by the late-bound executor that `ExecFactory` builds from the
+    * descriptor's JSON. An operator whose executor runs code instead -- a UDF, or a descriptor
+    * that generates Python from its properties, such as the sklearn operators -- never takes that
+    * path: its code is built from the placeholders before the loop runs, and nothing binds them.
+    */
+  def unbindableStateReferences(logicalOp: LogicalOp, subPlan: PhysicalPlan): Option[Throwable] =
+    Option.when(
+      logicalOp.stateReferences.nonEmpty &&
+        subPlan.operators.exists(_.opExecInitInfo.isInstanceOf[OpExecWithCode])
+    ) {
+      new UnsupportedOperationException(
+        s"${logicalOp.operatorInfo.userFriendlyName} cannot refer to loop variables yet " +
+          s"(${formatReferences(logicalOp.stateReferences)}): its code is generated before " +
+          "the loop runs"
+      )
+    }
+
+  /** A descriptor's references as the compile errors name them: `/pointer -> $name, ...`. */
+  private def formatReferences(references: Map[String, String]): String =
+    references.toSeq.sorted.map { case (pointer, name) => s"$pointer -> $$$name" }.mkString(", ")
 
   private def collectOutputSchemaFromPhysicalPlan(
       physicalPlan: PhysicalPlan,
@@ -145,13 +256,24 @@ class WorkflowCompiler(
       (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     val outputPortsNeedingStorage: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
+    val insideLoopBlocks = LoopBlockMembership.operatorsInsideLoopBlocks(logicalPlan)
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
         val upstreamLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
 
+        def report(error: Throwable): Unit =
+          errorList match {
+            case Some(list) => list.append((logicalOpId, error))
+            case None       => throw error
+          }
+        // Before the physical plan: the descriptor serializes its sidecar into its descString.
+        normalizeStateReferences(logicalOp, logicalPlan, insideLoopBlocks).foreach(report)
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+        // Before the code-generation check below: the first error per operator is reported, and
+        // code generated from a placeholder may fail on it with a less specific message.
+        unbindableStateReferences(logicalOp, subPlan).foreach(report)
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)

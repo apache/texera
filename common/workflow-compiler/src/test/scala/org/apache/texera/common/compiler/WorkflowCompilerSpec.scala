@@ -20,21 +20,27 @@
 package org.apache.texera.common.compiler
 
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.executor.{ExecFactory, LateBoundExecutor, OpExecWithClassName}
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
-  SpecializedFilterOpDesc
+  SpecializedFilterOpDesc,
+  SpecializedFilterOpExec
 }
 import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, TestOperators}
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
@@ -839,5 +845,227 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isDefined)
     assert(result.operatorIdToError.isEmpty)
+  }
+
+  // -------------------- loop-variable references --------------------
+
+  /** An operator as the frontend sends it: its properties, then its type, "$..." whatever the type. */
+  private def parsed(json: String): LogicalOp = objectMapper.readValue(json, classOf[LogicalOp])
+
+  private def linked(upstream: LogicalOp, downstream: LogicalOp, toPort: Int = 0): LogicalLink =
+    LogicalLink(
+      upstream.operatorIdentifier,
+      PortIdentity(0),
+      downstream.operatorIdentifier,
+      PortIdentity(toPort)
+    )
+
+  private def chain(operators: LogicalOp*): List[LogicalLink] =
+    operators.sliding(2).map(pair => linked(pair.head, pair.last)).toList
+
+  private def textInputOp(text: String): TextInputSourceOpDesc = {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = text
+    op
+  }
+
+  private def loopStartOp(): LoopStartOpDesc = {
+    val op = new LoopStartOpDesc()
+    op.initialization = "i = 0"
+    op.output = "table.iloc[i]"
+    op
+  }
+
+  private def loopEndOp(): LoopEndOpDesc = {
+    val op = new LoopEndOpDesc()
+    op.update = "i += 1"
+    op.condition = "i < len(table)"
+    op
+  }
+
+  /** The class name and descString the worker builds `op`'s executor from. */
+  private def executorInit(result: WorkflowCompilationResult, op: LogicalOp): (String, String) =
+    result.physicalPlan.get
+      .getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
+      .head
+      .opExecInitInfo match {
+      case OpExecWithClassName(className, descString) => (className, descString)
+      case other                                      => fail(s"unexpected opExecInitInfo: $other")
+    }
+
+  /** The `stateReferences` sidecar a descString carries to the worker. */
+  private def sidecarOf(descString: String): Map[String, String] =
+    objectMapper.convertValue(
+      objectMapper.readTree(descString).get("stateReferences"),
+      classOf[Map[String, String]]
+    )
+
+  private def row(attribute: String, value: String): Tuple = {
+    val schema = Schema().add(new Attribute(attribute, AttributeType.STRING))
+    Tuple.builder(schema).add(schema.getAttribute(attribute), value).build()
+  }
+  private def line(text: String): Tuple = row("line", text)
+
+  "WorkflowCompiler" should "late-bind a frontend '$n' in Limit's Int property inside a loop block, end to end" in {
+    // TextInput -> LoopStart -> Limit("$n") -> LoopEnd, the Limit parsed as the frontend sends it.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, start, limit, end), chain(src, start, limit, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, limit)
+    assert(sidecarOf(descString) == Map("/limit" -> "n"))
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    assert(exec.isInstanceOf[LateBoundExecutor])
+    exec.open()
+    exec.processState(State(Map("n" -> 2L)), 0)
+    val passed = (1 to 5).flatMap(i => exec.processTuple(line(i.toString), 0))
+    assert(passed.size == 2)
+  }
+
+  it should "keep a '$AAPL' on a Filter outside every loop block the literal it is on main" in {
+    val csv = csvOp(realCsvPath)
+    val filter = parsed(
+      """{"predicates":[{"attribute":"Region","condition":"=","value":"$AAPL"}],"operatorType":"Filter"}"""
+    )
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(csv, filter), List(linked(csv, filter)))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, filter)
+    assert(sidecarOf(descString).isEmpty)
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    assert(exec.isInstanceOf[SpecializedFilterOpExec])
+    exec.open()
+    assert(exec.processTuple(row("Region", "$AAPL"), 0).toList == List(row("Region", "$AAPL")))
+    assert(exec.processTuple(row("Region", "Asia"), 0).isEmpty)
+  }
+
+  it should "report a typed '$n' outside every loop block, naming the property and the variable" in {
+    val csv = csvOp(realCsvPath)
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val plan = pojo(List(csv, limit), List(linked(csv, limit)))
+    val message = "property /limit refers to loop variable n, but Limit is not inside a loop block"
+
+    val result = new WorkflowCompiler(newContext()).compile(plan)
+
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.keySet == Set(limit.operatorIdentifier))
+    assert(result.operatorIdToError(limit.operatorIdentifier).message.contains(message))
+    val ex = intercept[IllegalArgumentException] {
+      new WorkflowCompiler(newContext()).compile(plan, CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage == message)
+  }
+
+  it should "find a '$i' literal on a descriptor built in Scala inside a loop block" in {
+    // No parse step ran: the compiler finds the whole-string '$i' in the operator's own JSON.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val filter = filterOp(new FilterPredicate("line", ComparisonType.EQUAL_TO, "$i"))
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, start, filter, end), chain(src, start, filter, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, filter)
+    assert(sidecarOf(descString) == Map("/predicates/0/value" -> "i"))
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.processState(State(Map("i" -> 1L)), 0)
+    assert(exec.processTuple(line("1"), 0).toList == List(line("1")))
+    assert(exec.processTuple(line("$i"), 0).isEmpty)
+  }
+
+  it should "report a reference inside a loop block on an operator whose code is generated" in {
+    // Sort generates its Python from its properties before the loop runs; outside every block
+    // "$USD" is the column name it is on main.
+    val csv = csvOp(realCsvPath)
+    val start = loopStartOp()
+    val sortJson =
+      """{"attributes":[{"attribute":"$%s","sortPreference":"ASC"}],"operatorType":"Sort"}"""
+    val sort = parsed(sortJson.format("col"))
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(csv, start, sort, end), chain(csv, start, sort, end))
+    )
+
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.keySet == Set(sort.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(sort.operatorIdentifier)
+        .message
+        .contains("cannot refer to loop variables yet (/attributes/0/attribute -> $col)")
+    )
+
+    val outside = parsed(sortJson.format("USD"))
+    val outsideResult = new WorkflowCompiler(newContext()).compile(
+      pojo(List(csv, outside), List(linked(csv, outside)))
+    )
+    assert(
+      outsideResult.operatorIdToError.isEmpty,
+      s"unexpected: ${outsideResult.operatorIdToError}"
+    )
+  }
+
+  private def intervalJoinOp(): LogicalOp =
+    parsed(
+      """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",
+        |"includeLeftBound":true,"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin
+    )
+
+  it should "report a reference inside a loop block on an operator whose first input comes from outside the block" in {
+    // Its right input waits for the left one, so every left tuple arrives before the loop state.
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val join = intervalJoinOp()
+    val end = loopEndOp()
+    val plan = pojo(
+      List(outside, src, start, join, end),
+      List(linked(outside, join), linked(src, start), linked(start, join, 1), linked(join, end))
+    )
+
+    val result = new WorkflowCompiler(newContext()).compile(plan)
+
+    assert(result.operatorIdToError.keySet == Set(join.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(join.operatorIdentifier)
+        .message
+        .contains(
+          "Interval Join refers to loop variables (/constant -> $i), but its input 'left table' " +
+            "is fed from outside the loop block"
+        )
+    )
+  }
+
+  it should "late-bind an operator inside a loop block whose input from outside waits for one from inside" in {
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val join = intervalJoinOp()
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(outside, src, start, join, end),
+        List(linked(src, start), linked(start, join), linked(outside, join, 1), linked(join, end))
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, join)
+    assert(sidecarOf(descString) == Map("/constant" -> "i"))
   }
 }

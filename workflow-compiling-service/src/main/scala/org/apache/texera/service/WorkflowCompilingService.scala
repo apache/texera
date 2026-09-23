@@ -24,6 +24,7 @@ import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, Substituting
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.amber.core.state.StateReferenceModule
 import org.apache.texera.amber.util.ObjectMapperUtils
 import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
@@ -47,6 +48,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     )
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    // parse `$K` loop-variable references in typed operator properties (the editor compiles here)
+    bootstrap.getObjectMapper.registerModule(new StateReferenceModule())
   }
 
   override def run(
