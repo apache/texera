@@ -507,6 +507,8 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generateStandaloneCode()
     code should include("""_values.dt.tz_convert("UTC").dt.tz_localize(None)""")
     code should include("""elif _values.dtype.kind in "um":""")
+    code should include("""elif _values.dtype == object and isinstance(_first, date):""")
+    code should include("""elif _values.dtype in ("Int8", "Int16"):""")
     // Named in the nullable spelling, the read now asking for those dtypes.
     code should include("""elif _values.dtype == "Float32":""")
   }
@@ -529,6 +531,13 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.offset = Some(Int.MaxValue)
     d.limit = Some(10)
     d.generateStandaloneCode() should include(s"out1df.iloc[${Int.MaxValue}:2147483657]")
+    // A negative from the API: `drop` skips nothing and `take` keeps nothing,
+    // where `iloc` would count from the end.
+    d.offset = Some(-1)
+    d.limit = Some(-1)
+    d.generateStandaloneCode() should include("out1df.iloc[0:0]")
+    d.limit = None
+    d.generateStandaloneCode() should include("out1df.iloc[0:]")
   }
 
   "ParquetScanSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
@@ -591,6 +600,15 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
             .as(LogicalTypeAnnotation.timestampType(true, LogicalTypeAnnotation.TimeUnit.MICROS))
             .named("seen_at"),
           Types.optional(PrimitiveTypeName.INT96).named("legacy_at"),
+          Types
+            .optional(PrimitiveTypeName.INT32)
+            .as(LogicalTypeAnnotation.dateType())
+            .named("born_on"),
+          // The INTEGER the executor declares. Left at 8 bits, 120 + 10 wraps.
+          Types
+            .optional(PrimitiveTypeName.INT32)
+            .as(LogicalTypeAnnotation.intType(8, true))
+            .named("tiny"),
           Types.optional(PrimitiveTypeName.BOOLEAN).named("active")
         )
         .named("sample")
@@ -605,6 +623,8 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         row.append("big", 9007199254740993L) // past what a double counts exactly
         row.append("seen_at", 1709388309123456L)
         row.append("legacy_at", new NanoTime(2460312, 11045123456789L).toBinary)
+        row.append("born_on", 19723) // 2024-01-01
+        row.append("tiny", 120)
         row.append("active", true)
       },
       row => {
@@ -617,6 +637,8 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         row.append("big", -9007199254740993L)
         row.append("seen_at", 0L)
         row.append("legacy_at", new NanoTime(2440588, 0L).toBinary)
+        row.append("born_on", -1)
+        row.append("tiny", -128)
         row.append("active", false)
       },
       // A hole in every column, which is what costs a numpy column its type: a
@@ -639,6 +661,9 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     // The single precision the executor widens, stated as the sum it changes.
     fromScript.get("size_sum").doubleValue() shouldBe 16777217.0d
     fromScript.remove("size_sum")
+    // The width the executor reads a narrow integer at, stated as the sum it changes.
+    fromScript.get("tiny_shifted").intValue() shouldBe 130
+    fromScript.remove("tiny_shifted")
     fromScript shouldBe objectMapper.readTree(objectMapper.writeValueAsString(fromExecutor))
   }
 
@@ -740,6 +765,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
        |            _values.append(_value)
        |    _cells[_column] = _values
        |_cells["size_sum"] = float(out1df["size"].sum())
+       |_cells["tiny_shifted"] = int(out1df["tiny"].iloc[0] + 10)
        |print("JSON " + json.dumps(_cells))""".stripMargin
 
   /** Printed by the script over the indexed file: the columns it was left. */

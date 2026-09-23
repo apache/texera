@@ -51,7 +51,7 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
   // cannot then multiply by a float. pyarrow is what pandas reads a Parquet file
   // with; the footer is asked for directly here to read it the executor's way.
   override def standaloneImports(): Seq[String] =
-    Seq("from decimal import Decimal", "import pyarrow.parquet as pq")
+    Seq("from datetime import date", "from decimal import Decimal", "import pyarrow.parquet as pq")
 
   override def standaloneSourcePath(): Option[String] = fileName
 
@@ -85,23 +85,36 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     // timestamp come back as the Arrow types the writer left in the file's
     // metadata, where the executor reads what the footer alone states.
     //
+    // A DATE arrives as datetime.date, where the executor reads midnight of that
+    // day; milliseconds reach the year 9999. Only an object column, since a
+    // timestamp's values are dates too. An 8- or 16-bit integer is widened to
+    // the INTEGER the executor reads, or 120 + 10 wraps to -126.
+    //
     // Named in the nullable spelling, `Float32` and not `float32`, and widened
     // into the nullable dtype in turn, so a hole stays a hole rather than
     // becoming the NaN a numpy column would have to write it as.
     val columns =
       """|for _column, _values in out1df.items():
-         |    if isinstance(next(iter(_values.dropna()), None), Decimal):
+         |    _first = next(iter(_values.dropna()), None)
+         |    if isinstance(_first, Decimal):
          |        out1df[_column] = _values.astype("Float64")
+         |    elif _values.dtype == object and isinstance(_first, date):
+         |        out1df[_column] = _values.astype("datetime64[ms]")
          |    elif isinstance(_values.dtype, pd.DatetimeTZDtype):
          |        out1df[_column] = _values.dt.tz_convert("UTC").dt.tz_localize(None)
          |    elif _values.dtype.kind in "um":
          |        out1df[_column] = _values.astype("Int64")
+         |    elif _values.dtype in ("Int8", "Int16"):
+         |        out1df[_column] = _values.astype("Int32")
          |    elif _values.dtype == "Float32":
          |        out1df[_column] = _values.astype("Float64")""".stripMargin
     // The executor drops `offset` rows and then takes `limit` of them. Parquet
     // can skip whole row groups but not an arbitrary row range, so the same
     // window is taken once the frame is in memory, as the Arrow source does.
-    val window = (offset, limit) match {
+    //
+    // Clamped first: a plan from the API can carry a negative, which `iloc`
+    // counts from the end.
+    val window = (offset.map(_.max(0)), limit.map(_.max(0))) match {
       // The end of the window is counted in Long: two Ints the operator accepts
       // can add up past what an Int holds, and the slice would come out negative
       // and take the wrong rows.
