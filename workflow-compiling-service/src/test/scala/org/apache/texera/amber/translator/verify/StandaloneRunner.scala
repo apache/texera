@@ -264,17 +264,38 @@ object StandaloneRunner extends LazyLogging {
     // "yyyy-mm-dd hh:mm:ss.f", trailing zeros trimmed to at least one digit —
     // whereas pandas' to_json would emit epoch millis. Convert datetime columns
     // back to that exact form before writing so both paths' JSONL agree.
+    //
+    // The fraction is built from the nanoseconds and not from %f, which stops at
+    // six digits, while Timestamp.toString writes all nine.
     sb.append("def _texera_ts_str(_v):\n")
     sb.append("    if pd.isna(_v):\n")
     sb.append("        return None\n")
-    sb.append("    _s = _v.strftime('%Y-%m-%d %H:%M:%S.%f').rstrip('0')\n")
-    sb.append("    return _s + '0' if _s.endswith('.') else _s\n")
+    sb.append("    _f = f'{_v.microsecond * 1000 + _v.nanosecond:09d}'.rstrip('0') or '0'\n")
+    sb.append("    return _v.strftime('%Y-%m-%d %H:%M:%S.') + _f\n")
     sb.append("\n")
     sb.append("def _texera_encode_ts_cols(df):\n")
     sb.append("    for _c in df.columns:\n")
     sb.append("        if pd.api.types.is_datetime64_any_dtype(df[_c]):\n")
     sb.append("            df[_c] = df[_c].map(_texera_ts_str)\n")
     sb.append("    return df\n")
+    sb.append("\n")
+
+    // A TIMESTAMP is a java.sql.Timestamp on the engine side, which holds the
+    // year 2500 as readily as 2024. pandas' default nanoseconds reach only 1677
+    // to 2262, so a column outside that window is read at microseconds instead
+    // of failing before the operator runs. A column inside it keeps the
+    // nanoseconds, which Timestamp counts too.
+    //
+    // Cell by cell through dateutil and not astype: astype takes its unit from
+    // the text, so a fraction of nine digits is parsed as nanoseconds again and
+    // fails the same way. A datetime holds microseconds, so the rest is dropped.
+    sb.append("def _texera_read_ts(_s):\n")
+    sb.append("    try:\n")
+    sb.append("        return pd.to_datetime(_s)\n")
+    sb.append("    except pd.errors.OutOfBoundsDatetime:\n")
+    sb.append("        from dateutil.parser import parse as _parse_date\n")
+    sb.append("        _read = _s.map(lambda _v: None if pd.isna(_v) else _parse_date(_v))\n")
+    sb.append("        return _read.astype('datetime64[us]')\n")
     sb.append("\n")
 
     // The engine writes a tuple through the schema, so a column it declares
@@ -337,7 +358,7 @@ object StandaloneRunner extends LazyLogging {
         )
         timestampColumns(path).foreach { col =>
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
-          sb.append(s"    in${n}df[${py(col)}] = pd.to_datetime(in${n}df[${py(col)}])\n")
+          sb.append(s"    in${n}df[${py(col)}] = _texera_read_ts(in${n}df[${py(col)}])\n")
         }
         doubleColumns(path).foreach { col =>
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
