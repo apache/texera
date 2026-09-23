@@ -152,6 +152,27 @@ describe("WorkflowResultExportService", () => {
     expect(service.hasResultToExportOnAllOperators.value).toBe(false);
   });
 
+  // It used to replace the subject with a fresh one, which silently orphaned whoever was subscribed.
+  it("resetFlags tells the existing subscribers, rather than replacing the subject under them", () => {
+    const seen: boolean[] = [];
+    service.getExportOnAllOperatorsStatusStream().subscribe(v => seen.push(v));
+    service.hasResultToExportOnAllOperators.next(true);
+
+    service.resetFlags();
+
+    expect(seen).toEqual([false, true, false]);
+  });
+
+  // A menu arriving on results kept across a hand-over between a workflow's two views asks for
+  // the flags to be recomputed, since the departing menu reset them on its way out.
+  it("refreshExportAvailability recomputes the flags from what is in hand", () => {
+    const recompute = vi.spyOn(service as any, "updateExportAvailabilityFlags");
+
+    service.refreshExportAvailability();
+
+    expect(recompute).toHaveBeenCalledTimes(1);
+  });
+
   // ---- Test helpers ----------------------------------------------------------
 
   function enableExport(): void {

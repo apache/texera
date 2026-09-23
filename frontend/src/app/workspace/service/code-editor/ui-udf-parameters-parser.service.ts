@@ -51,16 +51,27 @@ const ATTRIBUTE_TYPE_RECEIVER = "AttributeType";
 const ARGUMENT_NAME = "name";
 const ARGUMENT_TYPE = "type";
 const ARGUMENT_ATTR_TYPE = "attr_type";
+const ARGUMENT_VALUE = "value";
 const POSITIONAL_ARGUMENT_KEYS = [ARGUMENT_NAME, ARGUMENT_TYPE] as const;
+
+// A resource the value names, declared as `value=Resource.X`; keep in sync with pytexera's Resource.
+const RESOURCE_RECEIVER = "Resource";
+export const MODEL_INPUT_TYPE = "model";
+export const DATASET_INPUT_TYPE = "dataset";
+const INPUT_TYPES_BY_RESOURCE_TOKEN: Readonly<Record<string, string>> = {
+  MODEL: MODEL_INPUT_TYPE,
+  DATASET: DATASET_INPUT_TYPE,
+};
 
 type ParserSyntaxNode = ReturnType<typeof parser.parse>["topNode"];
 type ParsedArgument = Readonly<{ key?: string; value: ParserSyntaxNode }>;
 type UiParameterArgument =
   | Readonly<{ kind: typeof ARGUMENT_NAME; value: string }>
-  | Readonly<{ kind: typeof ARGUMENT_TYPE; value: AttributeType }>;
+  | Readonly<{ kind: typeof ARGUMENT_TYPE; value: AttributeType }>
+  | Readonly<{ kind: typeof ARGUMENT_VALUE; value: string }>;
 
 /** UI parameter row inferred from Python code, with backend-compatible attribute metadata and an editable value. */
-export type UiUdfParameter = Readonly<{ attribute: SchemaAttribute; value: string }>;
+export type UiUdfParameter = Readonly<{ attribute: SchemaAttribute; value: string; inputType?: string }>;
 
 /** Raised when supported Python UDF code declares UI parameters that cannot be represented safely in the UI. */
 export class UiUdfParametersParseError extends Error {}
@@ -265,16 +276,20 @@ function readCall(call: ParserSyntaxNode, code: string): UiUdfParameter | undefi
 
   let attributeName: string | undefined;
   let attributeType: AttributeType | undefined;
+  let inputType: string | undefined;
   const uiParameterArguments = readUiParameterArguments(argumentList, code);
   if (!uiParameterArguments) return undefined;
 
   for (const argument of uiParameterArguments) {
     if (argument.kind === ARGUMENT_NAME && !attributeName) attributeName = argument.value;
     else if (argument.kind === ARGUMENT_TYPE && !attributeType) attributeType = argument.value;
+    else if (argument.kind === ARGUMENT_VALUE && !inputType) inputType = argument.value;
     else return undefined;
   }
 
-  return attributeName && attributeType ? { attribute: { attributeName, attributeType }, value: "" } : undefined;
+  // What a resource parameter receives is a directory path, so it has to be a string.
+  if (!attributeName || !attributeType || (inputType && attributeType !== "string")) return undefined;
+  return { attribute: { attributeName, attributeType }, value: "", ...(inputType ? { inputType } : {}) };
 }
 
 function readUiParameterArguments(argumentList: ParserSyntaxNode, code: string): UiParameterArgument[] | undefined {
@@ -307,6 +322,10 @@ function readUiParameterArgument(
   if (key === ARGUMENT_TYPE || key === ARGUMENT_ATTR_TYPE) {
     const attributeType = readType(value, code);
     return attributeType ? { kind: ARGUMENT_TYPE, value: attributeType } : undefined;
+  }
+  if (key === ARGUMENT_VALUE) {
+    const inputType = readResource(value, code);
+    return inputType ? { kind: ARGUMENT_VALUE, value: inputType } : undefined;
   }
   return undefined;
 }
@@ -349,6 +368,12 @@ function readType(value: ParserSyntaxNode, code: string): AttributeType | undefi
   if (parts?.length !== 2 || parts[0] !== ATTRIBUTE_TYPE_RECEIVER) return undefined;
   const token = parts[1].toUpperCase();
   return token ? ATTRIBUTE_TYPES_BY_TOKEN[token] : undefined;
+}
+
+function readResource(value: ParserSyntaxNode, code: string): string | undefined {
+  const parts = readMemberPath(value, code);
+  if (parts?.length !== 2 || parts[0] !== RESOURCE_RECEIVER) return undefined;
+  return INPUT_TYPES_BY_RESOURCE_TOKEN[parts[1].toUpperCase()];
 }
 
 function isMemberPath(node: ParserSyntaxNode | null, code: string, expectedParts: string[]): boolean {

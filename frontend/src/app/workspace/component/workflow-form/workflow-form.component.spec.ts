@@ -24,7 +24,7 @@ import { Workflow } from "../../../common/type/workflow";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
 import { setupHarness, formViewWorkflow, resolved } from "./workflow-form.spec-harness";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceCanvasUrl, workspaceFormUrl } from "../../../app-routing.constant";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -40,7 +40,7 @@ import { ComputingUnitState } from "../../../common/type/computing-unit-connecti
 describe("WorkflowFormComponent", () => {
   let component: WorkflowFormComponent;
   let h: ReturnType<typeof setupHarness>;
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: ReturnType<typeof setupHarness>["router"];
   let workflowActionService: any;
   let workflowPersistService: any;
   let formBindingService: any;
@@ -71,7 +71,8 @@ describe("WorkflowFormComponent", () => {
       h.datePipe as any,
       h.panelResizeService as any,
       h.validationWorkflowService as any,
-      h.config as any
+      h.config as any,
+      h.warehouseService as any
     );
     return component;
   };
@@ -123,7 +124,7 @@ describe("WorkflowFormComponent", () => {
 
       build(formViewWorkflow).ngOnInit();
 
-      expect(router.navigate).toHaveBeenCalledWith([USER_WORKSPACE, "7"], { replaceUrl: true });
+      expect(router.navigateByUrl).toHaveBeenCalledWith(workspaceCanvasUrl(7), { replaceUrl: true });
       expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
       expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
     });
@@ -254,6 +255,174 @@ describe("WorkflowFormComponent", () => {
       expect(h.executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
       expect(h.workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
       expect(h.workflowResultService.clearResults).toHaveBeenCalled();
+    });
+
+    // The switch used to be a full-page navigation, and the browser may keep this document in its
+    // back/forward cache. Coming back restores the JavaScript state as it was left and re-runs
+    // nothing, so anything torn down on the way out would stay torn down on a page that still
+    // looks live (issue #8599). The switch routes now, but leaving the app altogether still
+    // unloads, and that is what this covers.
+    it("tears nothing down on beforeunload, so a page restored from the cache still works", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      component.onBeforeUnload();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(h.executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(h.workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    // Handing the workflow to its own operator canvas is not leaving it. The session below the
+    // two views -- the shared document and its room, the computing unit, the running execution --
+    // is the same one, and dropping it here would cost the canvas a reconnect for nothing.
+    it("keeps the shared services when this workflow's operator canvas takes over", () => {
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(h.executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(h.workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(h.workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    // Keyed on the room the document is in, not the metadata's id, so that both views answer the
+    // hand-over question the same way for a workflow created in this session (see the canvas).
+    it("releases them when the document is in no workflow's room, even bound for this one's canvas", () => {
+      build(formViewWorkflow).ngOnInit();
+      workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
+    // The heat-map overlay's view lives in the root-provided wrapper. The editor used to reset it on
+    // destroy, which the switch turned into "off again on every switch", after the arriving view had
+    // just restored it (#8552). It goes with the metrics now: reset on leaving, kept on a hand-over.
+    it("resets the heat-map view on leaving and keeps it on a hand-over", () => {
+      const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
+
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(7) });
+      component.ngOnDestroy();
+      expect(setHeatmapView).not.toHaveBeenCalled();
+
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue(null);
+      component.ngOnDestroy();
+      expect(setHeatmapView).toHaveBeenCalledWith(null);
+    });
+
+    // Another workflow's canvas is a different workflow: nothing here belongs to it.
+    it("releases them when the destination is a different workflow", () => {
+      build(formViewWorkflow).ngOnInit();
+      router.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceCanvasUrl(8) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+      expect(h.computingUnitStatusService.disconnect).toHaveBeenCalled();
+    });
+  });
+
+  describe("arriving with the workflow already open", () => {
+    // The operator canvas hands this workflow over still live: the same graph, already in the
+    // same co-editing room. Loading it again would destroy the document and rejoin the room,
+    // which is the whole cost the hand-over exists to avoid.
+    beforeEach(() => {
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+    });
+
+    // The execution-state stream is a plain Subject too, so a page handed a session mid-run hears
+    // nothing about the run until it changes state: it showed Run for a workflow that was running,
+    // and the lock rule, which reads isRunning, would have let edit mode unlock a graph mid-run.
+    it("arrives knowing a run is already in flight", () => {
+      h.execution.state = ExecutionState.Running;
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.executionState).toBe(ExecutionState.Running);
+    });
+
+    // The backend sends the duration event twice in a whole run, and the old per-view timer sat
+    // downstream of it, so a page that mounted in between never received one and never started
+    // counting. It reads the service's clock now, which replays where the run has got to.
+    it("arrives with the clock the run is already at", () => {
+      h.execution.state = ExecutionState.Running;
+      h.durationTicks.next(42_000);
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.executionDuration).toBe(42_000);
+    });
+
+    // Restoring the state enum alone left the banner off: no transition follows the hand-over, so
+    // the subscriber that raises it never runs, and the form showed nothing while the canvas it
+    // came from still showed the failure.
+    it("arrives showing a failure the retained run already had", () => {
+      h.execution.state = ExecutionState.Failed;
+      h.execution.errorMessages = [{ message: "boom" }];
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.runError).toContain("boom");
+    });
+
+    it("takes what it needs from the open workflow instead of loading it", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.setNewSharedModel).not.toHaveBeenCalled();
+      expect(workflowActionService.reloadWorkflow).not.toHaveBeenCalled();
+      expect(component.workflowName).toBe("scGPT");
+      expect(component.loading).toBe(false);
+    });
+
+    it("shows it read-only all the same, since editing still belongs to the other view", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
+    });
+
+    // The fields this page reads off the open workflow are its own. Everything else it mounts
+    // that shows the workflow -- the computing unit picker under the form, which restores the
+    // unit this workflow last ran on -- learns it from a stream that does not replay, and this
+    // page never sets the metadata, because what is already open is already right.
+    it("re-announces the metadata for the subscribers it has only just mounted", () => {
+      const seen: unknown[] = [];
+      h.workflowMetaDataChangedStream.subscribe(m => seen.push(m));
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(seen).toHaveLength(1);
+    });
+  });
+
+  describe("handing over to the operator canvas", () => {
+    it("routes there rather than reloading the page", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      (component as any).openCanvasPage();
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith(workspaceCanvasUrl(7));
+    });
+
+    // save() runs its callback even for a workflow it declined to save, so this is reachable
+    // on a page that never got an id, and there is no canvas to go to.
+    it("goes nowhere when the page never got an id", () => {
+      build(formViewWorkflow).ngOnInit();
+      component.wid = undefined;
+
+      (component as any).openCanvasPage();
+
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
   });
 
@@ -1500,10 +1669,38 @@ describe("WorkflowFormComponent", () => {
       expect((component as any).selectedUnit).toEqual({ accessPrivilege: "WRITE" });
     });
 
-    it("offers Connect before a unit is chosen", () => {
+    it("names the missing computing unit before one is chosen", () => {
       build(formViewWorkflow).ngOnInit();
 
-      expect(component.runButtonState).toEqual({ label: "Connect", icon: "plus-circle", disabled: true });
+      expect(component.runButtonState).toEqual({ label: "Computing Unit", icon: "plus-circle", disabled: true });
+    });
+
+    it("names the missing warehouse instead of offering a run that would be refused (#8591)", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(undefined);
+
+      expect(component.runButtonState).toEqual({ label: "Warehouse", icon: "plus-circle", disabled: true });
+    });
+
+    it("says 'No access' before the warehouse, since picking one would not unblock a reader", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      (component as any).selectedUnit = { accessPrivilege: "READ" };
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(undefined);
+
+      expect(component.runButtonState).toEqual({ label: "No access", icon: "lock", disabled: true });
+    });
+
+    it("runs once a warehouse is picked", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(7);
+
+      expect(component.runButtonState).toEqual({ label: "Run", icon: "caret-right", disabled: false });
     });
 
     it("offers Run once a unit is up and the graph is valid", () => {
@@ -1629,7 +1826,7 @@ describe("WorkflowFormComponent", () => {
 
     it("does nothing when the button is disabled", () => {
       build(formViewWorkflow).ngOnInit();
-      // Default state is "Connect" (disabled): no unit chosen.
+      // Default state is "Computing Unit" (disabled): no unit chosen.
 
       component.onRun();
 
@@ -1637,23 +1834,15 @@ describe("WorkflowFormComponent", () => {
       expect(h.executeWorkflowService.killWorkflow).not.toHaveBeenCalled();
     });
 
-    it("counts the run clock off the engine's duration event", () => {
+    // The clock itself lives in ExecuteWorkflowService now -- anchored and ticked there, so a page
+    // that mounts mid-run gets where the run has got to instead of starting from zero. What is left
+    // here is that this page shows what the service says.
+    it("shows the run clock the service reports", () => {
       build(formViewWorkflow).ngOnInit();
 
-      h.durationEvents.next({ duration: 5000, isRunning: false });
+      h.durationTicks.next(5000);
 
       expect(component.executionDuration).toBe(5000);
-    });
-
-    it("ticks the clock a second at a time while a run is going", () => {
-      vi.useFakeTimers();
-      build(formViewWorkflow).ngOnInit();
-
-      h.durationEvents.next({ duration: 1000, isRunning: true });
-      vi.advanceTimersByTime(1000);
-      vi.useRealTimers();
-
-      expect(component.executionDuration).toBe(2000);
     });
   });
 

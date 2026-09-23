@@ -72,9 +72,15 @@ object WorkflowService {
 
   /**
     * Maps an execution's chosen warehouse (its user_warehouse row id) to its Lakekeeper
-    * warehouse name, checking that the requesting user owns it. `None` (no explicit pick) keeps the
-    * shared default warehouse. With warehouses disabled, an explicit pick is refused
-    * loudly rather than silently routed into the shared warehouse (#6930).
+    * warehouse name, checking that the requesting user owns it.
+    *
+    * With warehouses enabled a pick is **required**, the same way a computing unit is:
+    * falling back to the shared default would make "a run writes into the user's own
+    * warehouse" a UI convention rather than a system property, and would silently route
+    * any caller that forgot to pick into shared storage (#7751).
+    *
+    * With warehouses disabled, an explicit pick is refused loudly rather than silently
+    * routed into the shared warehouse, and no pick keeps the shared default (#6930).
     */
   def resolveLakekeeperWarehouseName(
       warehouseId: Option[Int],
@@ -88,6 +94,11 @@ object WorkflowService {
         )
       )
       return None
+    }
+    if (warehouseId.isEmpty) {
+      throw new IllegalArgumentException(
+        "a warehouse must be selected for this execution"
+      )
     }
     warehouseId.map(id => {
       val row = SqlServer
@@ -219,21 +230,24 @@ class WorkflowService(
       sessionUri: URI
   ): Unit = {
 
-    if (executionService.hasValue) {
-      executionService.getValue.unsubscribeAll()
-    }
-
     val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
 
+    // Validate before touching the execution already in flight: a request that is
+    // going to be refused must not take the running one's subscriptions with it.
     // uid is NOT NULL in the DB; fail early here rather than letting the insert fail downstream.
     val uid = uidOpt.getOrElse(
       throw new IllegalArgumentException(
         "Cannot start execution: a user id (uid) is required but none was provided."
       )
     )
+    val warehouseName = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
+
+    if (executionService.hasValue) {
+      executionService.getValue.unsubscribeAll()
+    }
 
     val workflowContext: WorkflowContext = createWorkflowContext()
-    workflowContext.warehouse = WorkflowService.resolveLakekeeperWarehouseName(req.warehouseId, uid)
+    workflowContext.warehouse = warehouseName
     var coordinatorConf = CoordinatorConfig.default
 
     // clean up results from previous run
