@@ -130,7 +130,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
-    public guiConfigService: GuiConfigService
+    // Read by the template only (the export button's flag); the template can see a protected member.
+    protected guiConfigService: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
