@@ -141,10 +141,11 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
     * The executor keeps the model of every row the model port hands it, each one
     * overwriting the last, so the model it predicts with is the one on the final
     * row. Reading the first row instead would answer with a different model
-    * whenever that port carries more than one.
+    * whenever that port carries more than one. With no data rows the executor
+    * never touches the model, so neither does this: both ports may be empty.
     */
   private def takeTheModelTheExecutorKeeps(modelLit: String): String =
-    s"model = in1df[$modelLit].iloc[-1]"
+    s"model = in1df[$modelLit].iloc[-1] if len(in2df) else None"
 
   override def generateStandaloneCode(): String = {
     val modelLit = pyStringLiteral(model)

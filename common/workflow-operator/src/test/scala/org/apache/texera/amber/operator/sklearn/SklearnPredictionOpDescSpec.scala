@@ -204,6 +204,18 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The executor predicts once per data row, so with none it never reads the model
+  // and an empty model port is not an error.
+  it should "not read the model when there are no data rows" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    Seq("y", "").foreach { groundTruth =>
+      d.groundTruthAttribute = groundTruth
+      d.generateStandaloneCode() should include("iloc[-1] if len(in2df) else None")
+    }
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc
