@@ -25,6 +25,7 @@ import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -63,6 +64,7 @@ describe("AgentService", () => {
   let service: AgentService;
   let httpMock: HttpTestingController;
   let selectedUnit: DashboardWorkflowComputingUnit | null;
+  let selectedWarehouseId: number | undefined;
   let notification: Record<"error" | "success" | "info" | "warning", ReturnType<typeof vi.fn>>;
   let workflowPersist: { retrieveWorkflow: ReturnType<typeof vi.fn> };
 
@@ -102,6 +104,7 @@ describe("AgentService", () => {
 
   beforeEach(() => {
     selectedUnit = null;
+    selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
     workflowPersist = { retrieveWorkflow: vi.fn().mockReturnValue(of(stubWorkflow)) };
     TestBed.configureTestingModule({
@@ -113,6 +116,10 @@ describe("AgentService", () => {
         {
           provide: ComputingUnitStatusService,
           useValue: { getSelectedComputingUnitValue: () => selectedUnit },
+        },
+        {
+          provide: WarehouseService,
+          useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
         },
         ...commonTestProviders,
       ],
@@ -639,6 +646,20 @@ describe("AgentService", () => {
         seedAgent("agent-1");
         service.sendMessage("agent-1", "hi");
         expect(notification.error).toHaveBeenCalledWith("WebSocket connection not available");
+      });
+
+      it("carries the warehouse picked right now, not the one fixed at agent creation", () => {
+        // An agent created before the picker loaded would otherwise carry no
+        // warehouse for its whole life and every run would be refused (#7751).
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        ws.readyState = FakeWebSocket.OPEN;
+        selectedWarehouseId = 42;
+
+        service.sendMessage("agent-1", "run it");
+
+        expect(JSON.parse(ws.send.mock.calls[0][0]).warehouseId).toBe(42);
       });
 
       it("sends a WsClientPromptCommand carrying the message source over an open socket", () => {
