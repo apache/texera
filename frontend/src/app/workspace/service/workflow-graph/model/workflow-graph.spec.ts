@@ -19,7 +19,9 @@
 
 import {
   mockCommentBox,
+  mockJavaUDFPredicate,
   mockMultiInputOutputPredicate,
+  mockPythonUDFPredicate,
   mockResultPredicate,
   mockScanPredicate,
   mockScanResultLink,
@@ -27,9 +29,38 @@ import {
   mockSentimentPredicate,
   mockSentimentResultLink,
 } from "./mock-workflow-data";
-import { WorkflowGraph } from "./workflow-graph";
+import {
+  DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE,
+  isPythonUdf,
+  isSink,
+  PYTHON_UDF_SOURCE_V2_OP_TYPE,
+  PYTHON_UDF_V2_OP_TYPE,
+  WorkflowGraph,
+} from "./workflow-graph";
 import { Observable } from "rxjs";
-import { Comment, OperatorLink, PortDescription, PortProperty } from "../../../types/workflow-common.interface";
+import {
+  Comment,
+  OperatorLink,
+  OperatorPredicate,
+  PortDescription,
+  PortProperty,
+} from "../../../types/workflow-common.interface";
+
+/**
+ * Builds a minimal operator whose only interesting property is its type, since
+ * isSink and isPythonUdf look at nothing else.
+ */
+function operatorOfType(operatorType: string): OperatorPredicate {
+  return {
+    operatorID: `op-${operatorType}`,
+    operatorType,
+    operatorVersion: "v1",
+    operatorProperties: {},
+    inputPorts: [],
+    outputPorts: [],
+    showAdvanced: false,
+  };
+}
 
 describe("WorkflowGraph", () => {
   let workflowGraph: WorkflowGraph;
@@ -828,5 +859,67 @@ describe("WorkflowGraph", () => {
       expect(fired).toBe(true);
       sub.unsubscribe();
     });
+  });
+});
+
+describe("isSink", () => {
+  it("should identify the view-result operator as a sink", () => {
+    expect(isSink(mockResultPredicate)).toBe(true);
+  });
+
+  it("should not treat non-sink operators as sinks", () => {
+    expect(isSink(mockScanPredicate)).toBe(false);
+    expect(isSink(mockSentimentPredicate)).toBe(false);
+    expect(isSink(mockPythonUDFPredicate)).toBe(false);
+  });
+
+  it("should match the substring regardless of case", () => {
+    for (const operatorType of ["Sink", "sink", "SINK", "CsvFileSink", "sinkOperator"]) {
+      expect(isSink(operatorOfType(operatorType))).toBe(true);
+    }
+  });
+
+  it("should match on substring, so an unrelated type containing 'sink' also counts", () => {
+    // Documents the current substring behaviour: matching is not anchored to the
+    // end of the type name, so any operator whose type merely contains "sink"
+    // is reported as a sink.
+    expect(isSink(operatorOfType("SinkholeDetector"))).toBe(true);
+  });
+
+  it("should return false for a type that only partially overlaps 'sink'", () => {
+    for (const operatorType of ["Sin", "Ink", "Snik", ""]) {
+      expect(isSink(operatorOfType(operatorType))).toBe(false);
+    }
+  });
+});
+
+describe("isPythonUdf", () => {
+  it("should identify every Python UDF operator type", () => {
+    for (const operatorType of [
+      PYTHON_UDF_V2_OP_TYPE,
+      PYTHON_UDF_SOURCE_V2_OP_TYPE,
+      DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE,
+    ]) {
+      expect(isPythonUdf(operatorOfType(operatorType))).toBe(true);
+    }
+  });
+
+  it("should not treat the legacy non-V2 PythonUDF type as a Python UDF", () => {
+    // mockPythonUDFPredicate is operatorType "PythonUDF", which is not one of the
+    // three V2 types the helper matches.
+    expect(isPythonUdf(mockPythonUDFPredicate)).toBe(false);
+  });
+
+  it("should not treat other UDF or non-UDF operators as Python UDFs", () => {
+    expect(isPythonUdf(mockJavaUDFPredicate)).toBe(false);
+    expect(isPythonUdf(mockScanPredicate)).toBe(false);
+    expect(isPythonUdf(mockResultPredicate)).toBe(false);
+  });
+
+  it("should match the operator type exactly, unlike isSink", () => {
+    // Exact membership, so neither a different case nor a superstring matches.
+    for (const operatorType of ["pythonudfv2", "PYTHONUDFV2", `My${PYTHON_UDF_V2_OP_TYPE}`, ""]) {
+      expect(isPythonUdf(operatorOfType(operatorType))).toBe(false);
+    }
   });
 });
