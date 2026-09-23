@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790084055925,
+  "lastUpdate": 1790177030747,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -15179,6 +15179,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 512.5677006924027,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Mend Renovate",
+            "username": "renovate-bot",
+            "email": "bot@renovateapp.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "915b2eecbc7dba140a5d68a303e017d2a49ffc9d",
+          "message": "fix(deps, frontend): update dependency @angular/compiler to v21.2.20 (#8493)\n\nThis PR contains the following updates:\n\n| Package | Change |\n[Age](https://docs.renovatebot.com/merge-confidence/) |\n[Confidence](https://docs.renovatebot.com/merge-confidence/) |\n|---|---|---|---|\n| [@angular/compiler](https://redirect.github.com/angular/angular)\n([source](https://redirect.github.com/angular/angular/tree/HEAD/packages/compiler))\n| [`21.2.19` →\n`21.2.20`](https://renovatebot.com/diffs/npm/@angular%2fcompiler/21.2.19/21.2.20)\n|\n![age](https://developer.mend.io/api/mc/badges/age/npm/@angular%2fcompiler/21.2.20?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/@angular%2fcompiler/21.2.19/21.2.20?slim=true)\n|\n\n---\n\n### Angular: Sanitization bypass via directive host bindings on concrete\nhost elements in @&#8203;angular/core and @&#8203;angular/compiler\n[CVE-2026-88057](https://nvd.nist.gov/vuln/detail/CVE-2026-88057) /\n[GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\n<details>\n<summary>More information</summary>\n\n#### Details\nAngular automatically sanitizes untrusted values bound to\nsecurity-sensitive DOM sinks (such as `href`, `src`, `action`,\n`xlink:href`, and `data`) to protect against Cross-Site Scripting (XSS).\n\nPrior to the fix, the Angular compiler determined the `SecurityContext`\nfor directive host bindings (`host: {'[attr.href]': 'value'}` or\n`@HostBinding('attr.href')`) based solely on the declaring directive or\ncomponent selector at compile time, rather than the concrete host\nelement that the directive was applied to.\n\nWhen a directive with a security-sensitive host binding was applied to a\ndifferent concrete host element—such as through:\n- `hostDirectives` composition,\n- Class inheritance of host bindings,\n- Dynamic component instantiation (`createComponent` with custom\n`hostElement` or dynamic directives),\n- Elements with SVG/MathML namespaces (e.g. `<svg:a>`, `<math>`), or\n- Elements using tag-neutral selectors (e.g. `:not(...)`),\n\nthe compiler either failed to associate a sanitizer with the host\nbinding or attached an incorrect security context. As a result,\nuntrusted inputs (e.g. `javascript:...` URLs) bound via the host binding\nwould be written to the DOM attribute without passing through Angular's\nbuilt-in sanitizer.\n\n##### Impact\nAn attacker capable of controlling the value bound to an affected\ndirective host binding could execute arbitrary JavaScript in the user's\nbrowser context (Cross-Site Scripting).\n\n##### Patches\nThis issue has been resolved in versions:\n- `22.1.0` \n- `21.2.20`\n- `20.3.28`\n\n##### Workarounds\nEnsure that any user-controlled values assigned to properties bound via\ndirective host bindings are explicitly sanitized using\n`DomSanitizer.sanitize(SecurityContext.URL, ...)` before assignment, or\nrestrict the input to validated safe URL schemes (e.g. `http://`,\n`https://`).\n\n#### Severity\n- CVSS Score: 5.3 / 10 (Medium)\n- Vector String:\n`CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N`\n\n#### References\n-\n[https://github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg)\n-\n[https://github.com/angular/angular/issues/69550](https://redirect.github.com/angular/angular/issues/69550)\n-\n[https://github.com/angular/angular/pull/69558](https://redirect.github.com/angular/angular/pull/69558)\n-\n[https://github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264](https://redirect.github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264)\n-\n[https://github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n-\n[https://github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b](https://redirect.github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b)\n-\n[https://github.com/angular/angular/releases/tag/v20.3.28](https://redirect.github.com/angular/angular/releases/tag/v20.3.28)\n-\n[https://github.com/angular/angular/releases/tag/v21.2.20](https://redirect.github.com/angular/angular/releases/tag/v21.2.20)\n-\n[https://github.com/angular/angular/releases/tag/v22.1.0](https://redirect.github.com/angular/angular/releases/tag/v22.1.0)\n-\n[https://github.com/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\nThis data is provided by the [GitHub Advisory\nDatabase](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n([CC-BY\n4.0](https://redirect.github.com/github/advisory-database/blob/main/LICENSE.md)).\n</details>\n\n---\n\n### Angular: Sanitization bypass via directive host bindings on concrete\nhost elements in @&#8203;angular/core and @&#8203;angular/compiler\n[CVE-2026-88057](https://nvd.nist.gov/vuln/detail/CVE-2026-88057) /\n[GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\n<details>\n<summary>More information</summary>\n\n#### Details\nAngular automatically sanitizes untrusted values bound to\nsecurity-sensitive DOM sinks (such as `href`, `src`, `action`,\n`xlink:href`, and `data`) to protect against Cross-Site Scripting (XSS).\n\nPrior to the fix, the Angular compiler determined the `SecurityContext`\nfor directive host bindings (`host: {'[attr.href]': 'value'}` or\n`@HostBinding('attr.href')`) based solely on the declaring directive or\ncomponent selector at compile time, rather than the concrete host\nelement that the directive was applied to.\n\nWhen a directive with a security-sensitive host binding was applied to a\ndifferent concrete host element—such as through:\n- `hostDirectives` composition,\n- Class inheritance of host bindings,\n- Dynamic component instantiation (`createComponent` with custom\n`hostElement` or dynamic directives),\n- Elements with SVG/MathML namespaces (e.g. `<svg:a>`, `<math>`), or\n- Elements using tag-neutral selectors (e.g. `:not(...)`),\n\nthe compiler either failed to associate a sanitizer with the host\nbinding or attached an incorrect security context. As a result,\nuntrusted inputs (e.g. `javascript:...` URLs) bound via the host binding\nwould be written to the DOM attribute without passing through Angular's\nbuilt-in sanitizer.\n\n##### Impact\nAn attacker capable of controlling the value bound to an affected\ndirective host binding could execute arbitrary JavaScript in the user's\nbrowser context (Cross-Site Scripting).\n\n##### Patches\nThis issue has been resolved in versions:\n- `22.1.0` \n- `21.2.20`\n- `20.3.28`\n\n##### Workarounds\nEnsure that any user-controlled values assigned to properties bound via\ndirective host bindings are explicitly sanitized using\n`DomSanitizer.sanitize(SecurityContext.URL, ...)` before assignment, or\nrestrict the input to validated safe URL schemes (e.g. `http://`,\n`https://`).\n\n#### Severity\n- CVSS Score: 5.3 / 10 (Medium)\n- Vector String:\n`CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N`\n\n#### References\n-\n[https://github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg)\n-\n[https://github.com/angular/angular/issues/69550](https://redirect.github.com/angular/angular/issues/69550)\n-\n[https://github.com/angular/angular/pull/69558](https://redirect.github.com/angular/angular/pull/69558)\n-\n[https://github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264](https://redirect.github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264)\n-\n[https://github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n-\n[https://github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b](https://redirect.github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b)\n-\n[https://github.com/angular/angular](https://redirect.github.com/angular/angular)\n-\n[https://github.com/angular/angular/releases/tag/v20.3.28](https://redirect.github.com/angular/angular/releases/tag/v20.3.28)\n-\n[https://github.com/angular/angular/releases/tag/v21.2.20](https://redirect.github.com/angular/angular/releases/tag/v21.2.20)\n-\n[https://github.com/angular/angular/releases/tag/v22.1.0](https://redirect.github.com/angular/angular/releases/tag/v22.1.0)\n\nThis data is provided by\n[OSV](https://osv.dev/vulnerability/GHSA-hh8m-fm6v-7cvg) and the [GitHub\nAdvisory Database](https://redirect.github.com/github/advisory-database)\n([CC-BY\n4.0](https://redirect.github.com/github/advisory-database/blob/main/LICENSE.md)).\n</details>\n\n---\n\n### Release Notes\n\n<details>\n<summary>angular/angular (@&#8203;angular/compiler)</summary>\n\n###\n[`v21.2.20`](https://redirect.github.com/angular/angular/blob/HEAD/CHANGELOG.md#21220-2026-08-12)\n\n[Compare\nSource](https://redirect.github.com/angular/angular/compare/v21.2.19...v21.2.20)\n\n##### core\n\n| Commit | Type | Description |\n|\n------------------------------------------------------------------------------------------------\n| ---- | ---------------------------------------- |\n|\n[6afe6fa781](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n| fix | sanitize host bindings on concrete hosts |\n\n##### http\n\n| Commit | Type | Description |\n|\n------------------------------------------------------------------------------------------------\n| ---- | --------------------------------------------------- |\n|\n[fec5977df4](https://redirect.github.com/angular/angular/commit/fec5977df4dda3a10d5ce2923e3e06d86ba11ee7)\n| fix | match header values exactly when deleting |\n|\n[e33d69a71c](https://redirect.github.com/angular/angular/commit/e33d69a71c5beb8fe5785b53fd6b37658334e8e0)\n| fix | preserve immutability of materialized clones |\n|\n[caf616670f](https://redirect.github.com/angular/angular/commit/caf616670fd20d528aa69e0131cc17d60f0cc27d)\n| fix | run root interceptors in the terminal request chain |\n\n<!-- CHANGELOG SPLIT MARKER -->\n\n</details>\n\n---\n\n### Configuration\n\n📅 **Schedule**: (in timezone Etc/UTC)\n\n- Branch creation\n  - At any time (no schedule defined)\n- Automerge\n  - At any time (no schedule defined)\n\n🚦 **Automerge**: Disabled by config. Please merge this manually once you\nare satisfied.\n\n♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the\nrebase/retry checkbox.\n\n🔕 **Ignore**: Close this PR and you won't be reminded about this update\nagain.\n\n---\n\n- [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check\nthis box\n\n---\n\nThis PR was generated by [Mend Renovate](https://mend.io/renovate/).\nView the [repository job\nlog](https://developer.mend.io/github/apache/texera).\n\n<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC43OS4xIiwidXBkYXRlZEluVmVyIjoiNDQuNzkuMSIsInRhcmdldEJyYW5jaCI6Im1haW4iLCJsYWJlbHMiOlsiZGVwZW5kZW5jaWVzIiwicmVsZWFzZS92MS4yIiwic2VjdXJpdHkiXX0=-->\n\nCo-authored-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Xuan Gu <162244362+xuang7@users.noreply.github.com>\nCo-authored-by: mengw15 <125719918+mengw15@users.noreply.github.com>",
+          "timestamp": "2026-09-23T07:50:18Z",
+          "url": "https://github.com/apache/texera/commit/915b2eecbc7dba140a5d68a303e017d2a49ffc9d"
+        },
+        "date": 1790177030117,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 597.1572455920924,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1179.8198383758986,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1274.9506561119485,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 818.5781745525147,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1209.3760718773822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1271.8853057092201,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 865.0596493641526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1198.0919944569655,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1262.2160209920482,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 708.820835510035,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 972.7109114140538,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1006.5692012857045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 706.8807996167744,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 954.7392421442469,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1001.0441655945416,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 710.5793695993012,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 927.6214468791441,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 954.4908481420375,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 431.48041218512594,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 518.1101730194761,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 548.7371792322621,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 461.3698709543165,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 542.9241179181588,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 550.526090968813,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 419.74968261257374,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 520.6086987058925,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 522.5618282405253,
             "unit": "tuples/sec"
           }
         ]
