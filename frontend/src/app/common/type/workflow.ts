@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
+import { DefaultView, WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
 export enum ExecutionMode {
@@ -28,6 +28,55 @@ export enum ExecutionMode {
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
   executionMode: ExecutionMode;
+}
+
+/**
+ * One input exposed on the Form View: a binding to a single operator property. That property
+ * is always the live value (filling the form is the same edit as changing it on the canvas);
+ * the rest is presentation. `id` is a stable identity so reorder/remove never use the raw key.
+ */
+export interface FormFieldBinding {
+  id: string;
+  operatorID: string;
+  /** The operator property this input writes to. */
+  propertyKey: string;
+  displayName: string;
+  helpText?: string;
+  /** Per-sub-field overrides within the property, keyed by field path (`alias`, `predicates.value`
+   *  -- array indices dropped, so one entry covers every row). Only where the author changed it. */
+  overrides?: { [path: string]: FormFieldOverride };
+}
+
+export interface FormFieldOverride {
+  /** Kept out of the reader's form. The value the author set still applies. */
+  hidden?: boolean;
+  /** Replaces the schema's label. Empty or absent keeps the schema's own. */
+  displayName?: string;
+}
+
+/**
+ * How a workflow presents itself on the Form View. Which view a workflow opens in by default
+ * lives in `workflow.default_view` (canvas or form), and nothing here affects execution.
+ */
+export interface FormBindingConfig {
+  instruction?: {
+    /** Empty title hides the heading rather than showing a placeholder. */
+    title?: string;
+    /** Markdown. */
+    body: string;
+  };
+  /** Array order is display order; the author reorders by dragging. */
+  fields: FormFieldBinding[];
+  /** Which steps' results show under the workflow after a run, for everyone. Absent until the author
+   *  chooses: then every final (terminal) step shows, as on the canvas. Once set it is exhaustive:
+   *  exactly these steps show, and [] means none. One list, so nothing can contradict it; the cost is
+   *  that a step which becomes final after the author has chosen does not appear by itself. When
+   *  displayed it is kept to steps that still have a result on the canvas. */
+  shownResultIds?: string[];
+}
+
+export function getDefaultFormBinding(): FormBindingConfig {
+  return { fields: [] };
 }
 
 /**
@@ -49,6 +98,23 @@ export interface WorkflowContent
     links: OperatorLink[];
     commentBoxes: CommentBox[];
     settings: WorkflowSettings;
+    /** Present once an author set up the Form View. Rides in the content (like `settings`),
+     *  so it is saved/cloned/versioned/published with the workflow for free. */
+    formBinding?: FormBindingConfig;
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;
+
+/**
+ * The JSON a workflow is exported as, from the dashboard download and the canvas menu alike: the
+ * content plus, when the workflow has one, the landing view as one extra top-level key next to the
+ * content's own (operators/links/...). The importer (upload) destructures it back out onto the
+ * workflow row, so a download-then-upload keeps a form-default workflow opening as a form; an
+ * older importer that reads the whole object as content simply ignores the unknown key, and an
+ * older export without it imports unchanged.
+ */
+export type ExportedWorkflow = WorkflowContent & { defaultView?: DefaultView };
+
+export function exportedWorkflow(content: WorkflowContent, defaultView: DefaultView | undefined): ExportedWorkflow {
+  return defaultView === undefined ? content : { ...content, defaultView };
+}

@@ -76,7 +76,9 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
        |
        |        # Generate an image in a FHD resolution
        |        from wordcloud import WordCloud, STOPWORDS
-       |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
+       |        # random_state seeds the layout so the same text draws the same
+       |        # picture every run; positions, angles and colours are random otherwise.
+       |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True, random_state=0).generate(text)
        |
        |        from io import BytesIO
        |        image_stream = BytesIO()

@@ -58,10 +58,42 @@ class PveResourceSpec
   private var installExit = 0
   private var uninstallExit = 0
 
+  // Kept separate from installExit so a test can let `pip freeze` print a package
+  // and *still* fail — a freeze that dies halfway is the case where "return what
+  // was collected" and "return nothing" differ.
+  private var freezeExit = 0
+
+  // When set, the mocked runner throws for a `pip uninstall` instead of returning
+  // an exit code. `Process.!` throws rather than returning non-zero when the
+  // interpreter has gone missing or is not executable, which is reachable here:
+  // nothing stops the venv directory being removed between the guard and the spawn.
+  private var uninstallThrows = false
+
+  // Every command the mocked runner is handed, in order. Lets a test assert what
+  // did *not* run, which is the only thing that separates "gave up at this step"
+  // from "ran everything and happened to produce nothing".
+  private val recordedCommands = scala.collection.mutable.ListBuffer[Seq[String]]()
+
   // What the mocked `pip freeze` reports as the resolved system set. pyarrow is
   // always a hard dependency in amber/requirements.txt, so it stands in for "a
   // system package the user may neither install nor delete".
-  private val systemFreeze = Seq("pyarrow==23.0.1")
+  //
+  // Deliberately not clean: a real `pip freeze` emits blank lines and `## FIXME:`
+  // comment lines for editable/VCS installs it cannot pin, and surrounding whitespace
+  // is not guaranteed. Those lines must not reach `systemPackages`, because they are
+  // written verbatim into the `--constraint` file every user install is pinned against,
+  // where a malformed line makes pip abort. A fixture of one already-trimmed,
+  // already-non-comment line leaves the resolver's sanitising step unconstrained.
+  //
+  // The `## FIXME:` line is indented too, which is what makes the *order* of the two
+  // sanitising steps observable: trimming and then filtering is not the same as filtering
+  // and then trimming, and an indented comment is the only line that can tell them apart —
+  // it is a comment only once the leading whitespace is gone.
+  private val systemFreeze =
+    Seq("", "  ## FIXME: could not find svn location", "  pyarrow==23.0.1  ")
+
+  // What the resolver is required to turn `systemFreeze` into.
+  private val expectedSystemPackages = Seq("pyarrow==23.0.1")
 
   private val realRunner = PveManager.runProcess
 
@@ -79,6 +111,7 @@ class PveResourceSpec
     runProcessMock
       .expects(*, *, *)
       .onCall { (command: Seq[String], _: Seq[(String, String)], logger: ProcessLogger) =>
+        recordedCommands += command
         if (command.contains("venv")) {
           if (venvExit == 0) {
             val bin = Paths.get(command.last).resolve("bin")
@@ -92,9 +125,14 @@ class PveResourceSpec
           venvExit
         } else if (command.contains("freeze")) {
           systemFreeze.foreach(line => logger.out(line))
-          0
+          freezeExit
         } else if (command.contains("uninstall")) {
+          if (uninstallThrows) throw new java.io.IOException("boom")
           logger.out("mock uninstall")
+          // A failing pip writes the reason to stderr; that is the only line telling the
+          // user *why* the delete failed, so the fixture has to produce one for the
+          // stderr arm of deletePackages' ProcessLogger to be reachable at all.
+          if (uninstallExit != 0) logger.err("ERROR: Cannot uninstall colorama")
           uninstallExit
         } else if (command.contains("install")) {
           logger.out("mock install")
@@ -123,6 +161,9 @@ class PveResourceSpec
     venvExit = 0
     installExit = 0
     uninstallExit = 0
+    freezeExit = 0
+    uninstallThrows = false
+    recordedCommands.clear()
     testPveName = s"testenv${System.currentTimeMillis()}"
     testRoot = Paths.get("/tmp/texera-pve/venvs").resolve(testCuid.toString)
     queue = new LinkedBlockingQueue[String]()
@@ -145,6 +186,40 @@ class PveResourceSpec
 
   private def queueText(): String = {
     queue.iterator().asScala.toList.mkString("\n")
+  }
+
+  /**
+    * Puts just the interpreter where PveManager looks for it, without going through
+    * `createNewPve`. The mocked venv creation fabricates a POSIX `bin/python` layout,
+    * so the create flow cannot stand a PVE up on a platform whose interpreter lives
+    * somewhere else; `pythonBinFor` asks PveManager's own question instead.
+    */
+  private def fabricatePve(pveName: String): Path = {
+    val python = pythonBinFor(pveName)
+    Files.createDirectories(python.getParent)
+    Files.write(python, Array.emptyByteArray)
+    python.toFile.setExecutable(true)
+    python
+  }
+
+  /** Where PveManager records the packages the user installed into a PVE. */
+  private def userPackagesFile(pveName: String): Path =
+    testRoot.resolve(pveName).resolve("user-packages.txt")
+
+  /**
+    * Calls `PveManager.resolveSystemPackages()` directly.
+    *
+    * Its public face is `getSystemPackages`, which reads the `systemPackages` lazy val.
+    * That val is memoised for the life of the JVM and amber's suites share one, so a test
+    * that forced it through a failing runner would fix the system package set at empty for
+    * every suite that follows — starting with this spec's own two system-package tests.
+    * Reaching the resolver directly is what makes its failure arms testable without that
+    * side effect; there is no seam that would let an ordinary call do the same.
+    */
+  private def resolveSystemPackages(): Seq[String] = {
+    val method = PveManager.getClass.getDeclaredMethod("resolveSystemPackages")
+    method.setAccessible(true)
+    method.invoke(PveManager).asInstanceOf[Seq[String]]
   }
 
   /**
@@ -637,6 +712,156 @@ class PveResourceSpec
     output should have size 1
     output.head shouldBe
       s"[PVE][ERR] Python executable not found for PVE: ${pythonBinFor(absent).toAbsolutePath}"
+  }
+
+  /*
+   * The uninstall's two unhappy endings. Both are about the same thing: the recorded package
+   * list is a claim about what is installed in the venv, so it may only change when pip
+   * actually removed something.
+   */
+  it should "report the failure and leave the recorded package list alone when pip uninstall exits non-zero" in {
+    expectProcessCalls()
+    fabricatePve(testPveName)
+    val metadata = userPackagesFile(testPveName)
+    Files.write(metadata, Seq("colorama==0.4.6").asJava)
+    uninstallExit = 1
+
+    val output = PveManager.deletePackages(testCuid, "colorama", testPveName)
+
+    output should contain("[PVE][ERR] Failed to uninstall package: colorama")
+    output should not contain "[PVE] Uninstalled colorama successfully"
+    // colorama is still in the venv, so the manifest has to keep saying so.
+    Files.readAllLines(metadata).asScala should contain("colorama==0.4.6")
+
+    // What was actually handed to pip. `PIP_NO_INPUT=1` is set in pipEnv, so an
+    // uninstall missing `-y` aborts instead of prompting — dropping it would break
+    // every user package deletion while leaving every exit-code assertion above green,
+    // because the fake runner answers on the command's *shape*, not its argv.
+    val uninstall = recordedCommands.last
+    uninstall should contain("uninstall")
+    uninstall should contain("-y")
+    uninstall.last shouldBe "colorama"
+    uninstall.head shouldBe pythonBinFor(testPveName).toAbsolutePath.toString
+
+    // pip's own output is the payload PveResource.deletePackage hands back to the UI;
+    // both streams have to survive the trip, or "report the failure" reports nothing
+    // but PveManager's own generic wrapper line.
+    output should contain("[pip] mock uninstall")
+    output should contain("[pip][ERR] ERROR: Cannot uninstall colorama")
+  }
+
+  it should "return an error list rather than throwing when the uninstall cannot be spawned" in {
+    expectProcessCalls()
+    fabricatePve(testPveName)
+    uninstallThrows = true
+
+    val output = PveManager.deletePackages(testCuid, "colorama", testPveName)
+
+    // The caller is a JAX-RS resource that turns this list into a 200/400; an escaping
+    // exception would reach it as a 500 with no message about which PVE failed.
+    output should have size 1
+    output.head should include(s"cuid=$testCuid")
+    output.head should include("boom")
+  }
+
+  /*
+   * The other half of what the resolved system set is for. Refusing to install a package
+   * whose name collides with a system one is covered above; this is the constraint file,
+   * which is how the resolved *versions* reach pip. Without it a user install is free to
+   * pull a different pyarrow in as a transitive dependency of something else and break the
+   * Python workers, and the install still reports success.
+   */
+  "PveManager.installUserPackages" should "pin the install against the resolved system versions" in {
+    expectProcessCalls()
+    fabricatePve(testPveName)
+
+    PveManager.installUserPackages(List("colorama==0.4.6"), testCuid, queue, testPveName)
+
+    val install = recordedCommands.last
+    install should contain("--constraint")
+
+    // pip reads the path as the argument of the flag, so the two travel together and in
+    // this order; handing it the package name instead is still a well-formed command line.
+    val constraintFile = Paths.get(install(install.indexOf("--constraint") + 1))
+
+    // Equality, against the same sanitised set the resolver is required to produce: this
+    // file is where those lines end up, and it is the reason the blank and `## FIXME:`
+    // lines of `systemFreeze` may not survive resolution — pip aborts the whole install
+    // on a constraint line it cannot parse.
+    Files.readAllLines(constraintFile).asScala.toSeq shouldBe expectedSystemPackages
+  }
+
+  /*
+   * `resolveSystemPackages`' three give-up arms.
+   *
+   * The resolved set is what stops a user from installing a package that shadows one the
+   * Python workers depend on, so what matters at each failure is that the resolver stops
+   * there rather than carrying a half-built answer forward: no pip install into a venv that
+   * was never created, no `pip freeze` of a venv whose install failed, and no partial freeze
+   * promoted to "the system set".
+   *
+   * These assert the giving up, not that an empty set is a good answer to give the rest of
+   * the app — an empty set is what `systemPackageNames` and `--constraint` both degrade to,
+   * which is fail-open. That is a property of the caller, and it is not pinned here.
+   */
+  "PveManager's system-package resolution" should "give up without attempting the install when the throwaway venv cannot be created" in {
+    expectProcessCalls()
+    venvExit = 1
+
+    resolveSystemPackages() shouldBe empty
+
+    recordedCommands should have size 1
+    recordedCommands.head should contain("venv")
+  }
+
+  it should "give up without freezing when the requirements install fails" in {
+    expectProcessCalls()
+    installExit = 1
+
+    resolveSystemPackages() shouldBe empty
+
+    recordedCommands should have size 2
+    recordedCommands.exists(_.contains("freeze")) shouldBe false
+
+    // The install has to go into the throwaway venv, whose directory is the last argument
+    // of the create that preceded it. Aiming it at the system interpreter instead still
+    // produces two commands in the right order and still returns empty here, so the count
+    // above cannot tell the two apart — and getting it wrong would pip-install
+    // amber/requirements.txt straight into the machine's Python.
+    recordedCommands(1).head should startWith(recordedCommands.head.last)
+
+    // The throwaway venv is a real directory tree by this point — the create step above
+    // succeeded, so it holds the interpreter the fake runner fabricated, as a real
+    // `python -m venv` would. Giving up early must still take it away with it: nothing
+    // revisits the directory afterwards, and its name is a fresh temp path each time, so
+    // whatever is left there is left for good.
+    Files.exists(Paths.get(recordedCommands.head.last)) shouldBe false
+  }
+
+  it should "discard what a failing pip freeze already printed" in {
+    expectProcessCalls()
+
+    // Control: with the freeze succeeding, this same fixture does produce a system set. Without
+    // it, the assertion below would hold just as well for a resolver that returned whatever the
+    // freeze printed, because a fixture that printed nothing would look identical.
+    //
+    // Pinned as an equality, not a `contain`: `systemFreeze` deliberately includes a blank
+    // line and a `## FIXME:` comment, and the exact answer is what says those are dropped
+    // and the surviving line is trimmed. A `contain` would pass on a resolver that handed
+    // the raw freeze output through into the `--constraint` file.
+    resolveSystemPackages() shouldBe expectedSystemPackages
+
+    // The freeze has to interrogate the throwaway venv, not whatever interpreter is on PATH:
+    // freezing the system Python would report that machine's packages as "the system set".
+    recordedCommands.last.head should startWith(recordedCommands.head.last)
+
+    recordedCommands.clear()
+    freezeExit = 1
+
+    // The mock still emits pyarrow==23.0.1 before reporting the failure, so a resolver that
+    // kept the collected lines would answer with a system set of one.
+    resolveSystemPackages() shouldBe empty
+    recordedCommands.last should contain("freeze")
   }
 
 }

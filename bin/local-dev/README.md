@@ -42,7 +42,7 @@ platform — there is nothing to configure:
 
 | Concern | macOS | Linux |
 | --- | --- | --- |
-| Host LAN IP (the MinIO endpoint) | `route get default`, `ipconfig getifaddr` | `ip route show default`, `ip -4 addr show scope global` |
+| Host LAN IP (the RustFS endpoint) | `route get default`, `ipconfig getifaddr` | `ip route show default`, `ip -4 addr show scope global` |
 | Artifact mtime (`watch`'s ARTIFACT MTIME column) | BSD `stat -f` | GNU `stat -c` |
 | Port → PID | `lsof` | `lsof`, falling back to `ss` |
 
@@ -69,6 +69,13 @@ container bridges (`docker0`, `br-*`, `veth*`) and overlay/VPN interfaces
 local IPv4 but is not reachable from inside another container's network
 namespace.
 
+Email verification is on by default in the product, and refuses to issue a code when no
+SMTP sender is configured rather than logging it. A local stack has no sender, so
+`local-dev` exports `USER_SYS_EMAIL_VERIFICATION=false` and registration works as it
+always did. To exercise the real flow, fill in the `USER_SYS_GOOGLE_SMTP_*` credentials
+and `export USER_SYS_EMAIL_VERIFICATION=true` — an explicit export always wins over the
+default set here.
+
 ## Layout
 
 ```
@@ -76,7 +83,7 @@ bin/local-dev/
 ├── main.sh                       shell engine — sbt builds, service lifecycle, port checks
 ├── tui.py                        Textual dashboard surfaced by `bin/local-dev.sh -i`
 ├── docker-compose.override.yml   overlay on top of bin/single-node/docker-compose.yml
-│                                 (host-LAN-IP MinIO endpoint, Lakekeeper warehouse, etc.)
+│                                 (host-LAN-IP RustFS endpoint, Lakekeeper warehouse, etc.)
 └── tests/
     ├── test_local_dev_sh.sh      bash smoke: license header, syntax, version, --help,
     │                             error-on-bad-input, regression guards
@@ -102,6 +109,26 @@ The script keeps logs, PIDs, build stamps, and animated phase markers under
 `/tmp/texera-local-dev/` by default (override via the `TEXERA_LOCAL_DEV_DIR`
 env var). It's safe to `rm -rf` between runs — it'll be recreated on the next
 invocation.
+
+## Rebuilding the Jupyter image
+
+`jupyter` is the only managed service that runs from a Texera-built image instead of
+natively, so edits to its customizations under
+`notebook-migration-service/src/main/resources/` (`custom.js`, `custom.css`,
+`start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI publishes it, but a
+local edit needs a local build under the same tag:
+
+```sh
+docker build -f bin/dockerfiles/jupyter.dockerfile -t ghcr.io/apache/texera-jupyter:latest .
+bin/local-dev.sh up
+```
+
+Delete that local tag when you are done, otherwise it shadows the published image and you
+keep running your old build:
+
+```sh
+docker rmi ghcr.io/apache/texera-jupyter:latest
+```
 
 ## Adding a new managed service
 
