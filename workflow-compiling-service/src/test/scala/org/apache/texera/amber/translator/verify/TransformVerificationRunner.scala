@@ -33,6 +33,7 @@ import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
+import org.apache.texera.amber.operator.sort.SortOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
@@ -444,6 +445,21 @@ object TransformVerificationRunner {
       )
     )
 
+    // A table with no rows carries no columns in the engine, so these operators
+    // raise on the first column they read. The script reads the same empty file
+    // into the same columnless frame and raises the same error.
+    val noColumnsToRead = ByDesign(
+      "a table with no rows carries no columns, so the operator's first read of a " +
+        "column raises, and both paths raise the same error"
+    )
+    val emptyTableRaises = Seq(
+      classOf[CandlestickChartOpDesc],
+      classOf[ContourPlotOpDesc],
+      classOf[ScatterMatrixChartOpDesc],
+      classOf[SortOpDesc],
+      classOf[StripChartOpDesc]
+    ).map(NotRun(_, RunKind.EmptyTable, noColumnsToRead))
+
     Seq(
       // An enum whose legal values depend on a sibling field: flipping it alone
       // builds a config the curated fixture already covers properly.
@@ -486,7 +502,7 @@ object TransformVerificationRunner {
             "spliced a\"b fails at the conversion rather than at any escaping"
         )
       )
-    ) ++ denseOnly ++ noRowsToFit
+    ) ++ denseOnly ++ noRowsToFit ++ emptyTableRaises
   }
 
   /** Every kind of run withheld from this operator, with why. One entry per kind:
