@@ -123,17 +123,105 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
-    it("should reset the heat-map view on destroy so a re-entered workspace starts with the overlay off", () => {
-      // The wrapper is root-provided and outlives the editor, while the menu's
-      // checkbox re-initializes to off on every workspace entry; without the
-      // reset the stale view repaints no-data colors and the first checkbox
-      // click re-publishes the view instead of clearing it.
+    // It used to reset the view on destroy so a re-entered workspace started with the overlay off.
+    // This component is now destroyed on every hand-over between a workflow's two views, after the
+    // arriving view has mounted and restored the persisted overlay (#8552), so a reset here switched
+    // it off again on every switch. Leaving the workspace resets it, in the views' own teardown.
+    it("leaves the heat-map view alone on destroy; leaving the workspace is what resets it", () => {
       const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
       wrapper.setHeatmapView(HeatmapView.Runtime);
+      try {
+        fixture.destroy();
+
+        expect(wrapper.getHeatmapView()).toBe(HeatmapView.Runtime);
+      } finally {
+        wrapper.setHeatmapView(null);
+      }
+    });
+
+    // Two of these editors are in the page at once for one tick when the two views of a workflow
+    // hand over: the arriving one initialises while the departing one is still being removed, and
+    // both templates carry id="workflow-editor". Searching the document found the departing view's
+    // container, so the paper was built into a div about to disappear and the arriving canvas came
+    // up blank -- nothing to pan, nothing to click, while the graph itself was untouched.
+    it("builds its paper in its own container, not whichever the document holds first", () => {
+      const decoy = document.createElement("div");
+      decoy.id = "workflow-editor";
+      // Earlier in document order than the fixture, as the departing view's container is.
+      document.body.insertBefore(decoy, document.body.firstChild);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        const host = other.nativeElement as HTMLElement;
+        expect(host.contains((other.componentInstance as any).editor)).toBe(true);
+        expect((other.componentInstance as any).editor).not.toBe(decoy);
+        expect(decoy.querySelector("svg")).toBeNull();
+        other.destroy();
+      } finally {
+        decoy.remove();
+      }
+    });
+
+    // The paper is bound to the root-provided joint graph, which outlives this component. Once the
+    // switch between a workflow's two views routes instead of reloading, a mount happens on every
+    // switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its paper on destroy, so none is left listening to the shared graph", () => {
+      const remove = vi.spyOn(component.paper, "remove");
 
       fixture.destroy();
 
-      expect(wrapper.getHeatmapView()).toBeNull();
+      expect(remove).toHaveBeenCalled();
+    });
+
+    // `.bind()` returns a new function every call, so removing a freshly bound one never matched
+    // what was added: one stale listener was left per mount, and after a few switches a single
+    // Ctrl/Cmd-Z was handled several times over.
+    it("removes the keydown listener it added, rather than a differently bound one", () => {
+      const handler = vi.spyOn(component as any, "_handleKeyboardAction");
+
+      fixture.destroy();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true }));
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    // The zoom ratio lives in the root-provided wrapper and outlives this component, while a new
+    // paper starts at scale 1. Once the switch between a workflow's two views routes, the paper is
+    // new and the ratio is whatever was last chosen; disagreeing, the first "zoom in" after a
+    // switch stepped from the wrapper's ratio and could shrink the canvas.
+    it("starts its paper at the wrapper's zoom ratio, so the two agree after a remount", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setZoomProperty(0.5);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        expect(other.componentInstance.paper.scale().sx).toBe(0.5);
+        other.destroy();
+      } finally {
+        wrapper.setZoomProperty(1);
+      }
+    });
+
+    // The context keeps a static reference to the attached paper for async rendering. It must not
+    // outlive the paper it points at, or a context exit would update the views of a removed one.
+    // It is a no-op once a newer paper has been attached, which is the usual hand-over order.
+    it("detaches its paper from the rendering context on destroy, unless a newer one has taken over", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      const context = (wrapper as any).jointGraphContext;
+      const mine = component.paper;
+      expect(context.jointPaper).toBe(mine);
+
+      fixture.destroy();
+      expect(context.jointPaper).toBeUndefined();
+
+      // A newer paper attached before the older editor goes: the older one leaves it alone.
+      const newer = TestBed.createComponent(WorkflowEditorComponent);
+      newer.detectChanges();
+      wrapper.detachMainJointPaper(mine);
+      expect(context.jointPaper).toBe(newer.componentInstance.paper);
+      newer.destroy();
     });
 
     it("should hide operator status on the canvas by default", () => {
