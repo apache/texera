@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790177030747,
+  "lastUpdate": 1790177033897,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -55478,6 +55478,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2010913.329,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Mend Renovate",
+            "username": "renovate-bot",
+            "email": "bot@renovateapp.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "915b2eecbc7dba140a5d68a303e017d2a49ffc9d",
+          "message": "fix(deps, frontend): update dependency @angular/compiler to v21.2.20 (#8493)\n\nThis PR contains the following updates:\n\n| Package | Change |\n[Age](https://docs.renovatebot.com/merge-confidence/) |\n[Confidence](https://docs.renovatebot.com/merge-confidence/) |\n|---|---|---|---|\n| [@angular/compiler](https://redirect.github.com/angular/angular)\n([source](https://redirect.github.com/angular/angular/tree/HEAD/packages/compiler))\n| [`21.2.19` →\n`21.2.20`](https://renovatebot.com/diffs/npm/@angular%2fcompiler/21.2.19/21.2.20)\n|\n![age](https://developer.mend.io/api/mc/badges/age/npm/@angular%2fcompiler/21.2.20?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/@angular%2fcompiler/21.2.19/21.2.20?slim=true)\n|\n\n---\n\n### Angular: Sanitization bypass via directive host bindings on concrete\nhost elements in @&#8203;angular/core and @&#8203;angular/compiler\n[CVE-2026-88057](https://nvd.nist.gov/vuln/detail/CVE-2026-88057) /\n[GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\n<details>\n<summary>More information</summary>\n\n#### Details\nAngular automatically sanitizes untrusted values bound to\nsecurity-sensitive DOM sinks (such as `href`, `src`, `action`,\n`xlink:href`, and `data`) to protect against Cross-Site Scripting (XSS).\n\nPrior to the fix, the Angular compiler determined the `SecurityContext`\nfor directive host bindings (`host: {'[attr.href]': 'value'}` or\n`@HostBinding('attr.href')`) based solely on the declaring directive or\ncomponent selector at compile time, rather than the concrete host\nelement that the directive was applied to.\n\nWhen a directive with a security-sensitive host binding was applied to a\ndifferent concrete host element—such as through:\n- `hostDirectives` composition,\n- Class inheritance of host bindings,\n- Dynamic component instantiation (`createComponent` with custom\n`hostElement` or dynamic directives),\n- Elements with SVG/MathML namespaces (e.g. `<svg:a>`, `<math>`), or\n- Elements using tag-neutral selectors (e.g. `:not(...)`),\n\nthe compiler either failed to associate a sanitizer with the host\nbinding or attached an incorrect security context. As a result,\nuntrusted inputs (e.g. `javascript:...` URLs) bound via the host binding\nwould be written to the DOM attribute without passing through Angular's\nbuilt-in sanitizer.\n\n##### Impact\nAn attacker capable of controlling the value bound to an affected\ndirective host binding could execute arbitrary JavaScript in the user's\nbrowser context (Cross-Site Scripting).\n\n##### Patches\nThis issue has been resolved in versions:\n- `22.1.0` \n- `21.2.20`\n- `20.3.28`\n\n##### Workarounds\nEnsure that any user-controlled values assigned to properties bound via\ndirective host bindings are explicitly sanitized using\n`DomSanitizer.sanitize(SecurityContext.URL, ...)` before assignment, or\nrestrict the input to validated safe URL schemes (e.g. `http://`,\n`https://`).\n\n#### Severity\n- CVSS Score: 5.3 / 10 (Medium)\n- Vector String:\n`CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N`\n\n#### References\n-\n[https://github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg)\n-\n[https://github.com/angular/angular/issues/69550](https://redirect.github.com/angular/angular/issues/69550)\n-\n[https://github.com/angular/angular/pull/69558](https://redirect.github.com/angular/angular/pull/69558)\n-\n[https://github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264](https://redirect.github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264)\n-\n[https://github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n-\n[https://github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b](https://redirect.github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b)\n-\n[https://github.com/angular/angular/releases/tag/v20.3.28](https://redirect.github.com/angular/angular/releases/tag/v20.3.28)\n-\n[https://github.com/angular/angular/releases/tag/v21.2.20](https://redirect.github.com/angular/angular/releases/tag/v21.2.20)\n-\n[https://github.com/angular/angular/releases/tag/v22.1.0](https://redirect.github.com/angular/angular/releases/tag/v22.1.0)\n-\n[https://github.com/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\nThis data is provided by the [GitHub Advisory\nDatabase](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n([CC-BY\n4.0](https://redirect.github.com/github/advisory-database/blob/main/LICENSE.md)).\n</details>\n\n---\n\n### Angular: Sanitization bypass via directive host bindings on concrete\nhost elements in @&#8203;angular/core and @&#8203;angular/compiler\n[CVE-2026-88057](https://nvd.nist.gov/vuln/detail/CVE-2026-88057) /\n[GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/advisories/GHSA-hh8m-fm6v-7cvg)\n\n<details>\n<summary>More information</summary>\n\n#### Details\nAngular automatically sanitizes untrusted values bound to\nsecurity-sensitive DOM sinks (such as `href`, `src`, `action`,\n`xlink:href`, and `data`) to protect against Cross-Site Scripting (XSS).\n\nPrior to the fix, the Angular compiler determined the `SecurityContext`\nfor directive host bindings (`host: {'[attr.href]': 'value'}` or\n`@HostBinding('attr.href')`) based solely on the declaring directive or\ncomponent selector at compile time, rather than the concrete host\nelement that the directive was applied to.\n\nWhen a directive with a security-sensitive host binding was applied to a\ndifferent concrete host element—such as through:\n- `hostDirectives` composition,\n- Class inheritance of host bindings,\n- Dynamic component instantiation (`createComponent` with custom\n`hostElement` or dynamic directives),\n- Elements with SVG/MathML namespaces (e.g. `<svg:a>`, `<math>`), or\n- Elements using tag-neutral selectors (e.g. `:not(...)`),\n\nthe compiler either failed to associate a sanitizer with the host\nbinding or attached an incorrect security context. As a result,\nuntrusted inputs (e.g. `javascript:...` URLs) bound via the host binding\nwould be written to the DOM attribute without passing through Angular's\nbuilt-in sanitizer.\n\n##### Impact\nAn attacker capable of controlling the value bound to an affected\ndirective host binding could execute arbitrary JavaScript in the user's\nbrowser context (Cross-Site Scripting).\n\n##### Patches\nThis issue has been resolved in versions:\n- `22.1.0` \n- `21.2.20`\n- `20.3.28`\n\n##### Workarounds\nEnsure that any user-controlled values assigned to properties bound via\ndirective host bindings are explicitly sanitized using\n`DomSanitizer.sanitize(SecurityContext.URL, ...)` before assignment, or\nrestrict the input to validated safe URL schemes (e.g. `http://`,\n`https://`).\n\n#### Severity\n- CVSS Score: 5.3 / 10 (Medium)\n- Vector String:\n`CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N`\n\n#### References\n-\n[https://github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg](https://redirect.github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg)\n-\n[https://github.com/angular/angular/issues/69550](https://redirect.github.com/angular/angular/issues/69550)\n-\n[https://github.com/angular/angular/pull/69558](https://redirect.github.com/angular/angular/pull/69558)\n-\n[https://github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264](https://redirect.github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264)\n-\n[https://github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n-\n[https://github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b](https://redirect.github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b)\n-\n[https://github.com/angular/angular](https://redirect.github.com/angular/angular)\n-\n[https://github.com/angular/angular/releases/tag/v20.3.28](https://redirect.github.com/angular/angular/releases/tag/v20.3.28)\n-\n[https://github.com/angular/angular/releases/tag/v21.2.20](https://redirect.github.com/angular/angular/releases/tag/v21.2.20)\n-\n[https://github.com/angular/angular/releases/tag/v22.1.0](https://redirect.github.com/angular/angular/releases/tag/v22.1.0)\n\nThis data is provided by\n[OSV](https://osv.dev/vulnerability/GHSA-hh8m-fm6v-7cvg) and the [GitHub\nAdvisory Database](https://redirect.github.com/github/advisory-database)\n([CC-BY\n4.0](https://redirect.github.com/github/advisory-database/blob/main/LICENSE.md)).\n</details>\n\n---\n\n### Release Notes\n\n<details>\n<summary>angular/angular (@&#8203;angular/compiler)</summary>\n\n###\n[`v21.2.20`](https://redirect.github.com/angular/angular/blob/HEAD/CHANGELOG.md#21220-2026-08-12)\n\n[Compare\nSource](https://redirect.github.com/angular/angular/compare/v21.2.19...v21.2.20)\n\n##### core\n\n| Commit | Type | Description |\n|\n------------------------------------------------------------------------------------------------\n| ---- | ---------------------------------------- |\n|\n[6afe6fa781](https://redirect.github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee)\n| fix | sanitize host bindings on concrete hosts |\n\n##### http\n\n| Commit | Type | Description |\n|\n------------------------------------------------------------------------------------------------\n| ---- | --------------------------------------------------- |\n|\n[fec5977df4](https://redirect.github.com/angular/angular/commit/fec5977df4dda3a10d5ce2923e3e06d86ba11ee7)\n| fix | match header values exactly when deleting |\n|\n[e33d69a71c](https://redirect.github.com/angular/angular/commit/e33d69a71c5beb8fe5785b53fd6b37658334e8e0)\n| fix | preserve immutability of materialized clones |\n|\n[caf616670f](https://redirect.github.com/angular/angular/commit/caf616670fd20d528aa69e0131cc17d60f0cc27d)\n| fix | run root interceptors in the terminal request chain |\n\n<!-- CHANGELOG SPLIT MARKER -->\n\n</details>\n\n---\n\n### Configuration\n\n📅 **Schedule**: (in timezone Etc/UTC)\n\n- Branch creation\n  - At any time (no schedule defined)\n- Automerge\n  - At any time (no schedule defined)\n\n🚦 **Automerge**: Disabled by config. Please merge this manually once you\nare satisfied.\n\n♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the\nrebase/retry checkbox.\n\n🔕 **Ignore**: Close this PR and you won't be reminded about this update\nagain.\n\n---\n\n- [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check\nthis box\n\n---\n\nThis PR was generated by [Mend Renovate](https://mend.io/renovate/).\nView the [repository job\nlog](https://developer.mend.io/github/apache/texera).\n\n<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC43OS4xIiwidXBkYXRlZEluVmVyIjoiNDQuNzkuMSIsInRhcmdldEJyYW5jaCI6Im1haW4iLCJsYWJlbHMiOlsiZGVwZW5kZW5jaWVzIiwicmVsZWFzZS92MS4yIiwic2VjdXJpdHkiXX0=-->\n\nCo-authored-by: Meng Wang <mengw15@uci.edu>\nCo-authored-by: Xuan Gu <162244362+xuang7@users.noreply.github.com>\nCo-authored-by: mengw15 <125719918+mengw15@users.noreply.github.com>",
+          "timestamp": "2026-09-23T07:50:18Z",
+          "url": "https://github.com/apache/texera/commit/915b2eecbc7dba140a5d68a303e017d2a49ffc9d"
+        },
+        "date": 1790177033278,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 16318.257,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 21209.171,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 26607.012,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 84308.024,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 91949.562,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 99963.388,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 781182.672,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 817592.914,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 848721.609,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11625.888,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 16959.6,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 18025.345,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 82381.201,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 89932.337,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 97709.765,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 784687.703,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 822142.151,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 856366.003,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 11203.272,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 13737.999,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 16315.35,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 83037.849,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 89486.09,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 99760.64,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 791512.042,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 829621.557,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 861988.178,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 13656.355,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 16848.86,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 22597.499,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 102223.698,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 110431.966,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 117395.924,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 991496.908,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1041609.333,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1065530.176,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13645.591,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 17833.905,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 20367.694,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 104339.863,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 112383.721,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 125312.277,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 997223.036,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1037928.233,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1072319.534,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 13636.692,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 16381.796,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 23509.883,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 106964.174,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 119700.111,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 128146.086,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1045851.435,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1113138.623,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1145736.132,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 22614.428,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 26462.405,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 34975.308,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 193575.965,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 211327.522,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 222312.73,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1814414.827,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1912699.499,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2022615.985,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21240.24,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 24651.793,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 30859.939,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 182285.227,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 200496.456,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 209899.246,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1809388.042,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1902074.072,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1976978.852,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 23250.904,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 28249.114,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 35517.339,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 190078.111,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 209568.261,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 221975.81,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1909199.053,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1982842.141,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2009492.461,
             "unit": "us"
           }
         ]
