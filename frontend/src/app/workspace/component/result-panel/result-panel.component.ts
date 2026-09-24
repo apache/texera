@@ -311,6 +311,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
           component: AiFixFrameComponent,
           componentInputs: { operatorId: this.currentOperatorId },
         });
+      } else {
+        // Mirrors the Static Error frame's teardown: once the operator no longer reports an
+        // error -- a re-run cleared the console, or the selection moved to a healthy operator
+        // -- a tab offering to fix it has nothing to act on.
+        this.frameComponentConfigs.delete("AI Fix");
       }
     }
   }

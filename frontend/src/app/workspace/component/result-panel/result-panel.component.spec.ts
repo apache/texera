@@ -453,6 +453,23 @@ describe("ResultPanelComponent", () => {
       vi.useRealTimers();
     });
 
+    it("tears down a stale AI fix frame once the operator stops reporting an error", () => {
+      // A re-run clears the console. Without the teardown the tab lingered, offering to fix
+      // an error that is no longer there.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      const messages = vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      component.rerenderResultPanel();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+
+      messages.mockReturnValue([]);
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
     it("registers no AI fix frame when the operator's console holds no ERROR", () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const consoleService = TestBed.inject(WorkflowConsoleService);
