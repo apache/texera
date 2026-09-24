@@ -1,6 +1,6 @@
 {
   "name": "gui",
-  "version": "1.2.0-incubating",
+  "version": "1.2.1-incubating",
   "engines": {
     "node": ">=24.0.0"
   },

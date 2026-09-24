@@ -19,7 +19,7 @@ texera:
   # Container image registry and tag for all Texera services
   # Override these to use a different registry or version
   imageRegistry: docker.io/apache
-  imageTag: 1.2.0-incubating
+  imageTag: 1.2.1-incubating
 
 global:
   # Required by the Bitnami postgresql sub-chart to allow custom images
