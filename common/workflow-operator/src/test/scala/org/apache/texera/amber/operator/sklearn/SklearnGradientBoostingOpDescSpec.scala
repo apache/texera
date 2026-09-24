@@ -44,7 +44,7 @@ class SklearnGradientBoostingOpDescSpec extends AnyFlatSpec with Matchers {
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnGradientBoostingOpDesc.getOutputSchemas" should

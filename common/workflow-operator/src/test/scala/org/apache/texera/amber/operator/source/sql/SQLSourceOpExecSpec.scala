@@ -47,6 +47,15 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
   )
 
+  /** `rowSchema` plus the LONG column the progressive row tests batch by. */
+  private val progressiveRowSchema = Schema(
+    List(
+      new Attribute("id", AttributeType.INTEGER),
+      new Attribute("name", AttributeType.STRING),
+      new Attribute("big", AttributeType.LONG)
+    )
+  )
+
   /**
     * Minimal concrete executor: the DB-touching hooks are stubbed out so the
     * query-building surface can be exercised on its own.
@@ -86,6 +95,7 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     def terminator: String = render(b => terminateSQL(b))
     def slidingWindow: String = render(b => addBatchSlidingWindow(b))
     def batchValue(value: Number): String = batchAttributeToString(value)
+    def boundary(side: String): Number = fetchBatchByBoundary(side)
   }
 
   private def descJson(configure: PostgreSQLSourceOpDesc => Unit = _ => ()): String = {
@@ -128,10 +138,17 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec
   }
 
-  /** A connection answering the `SELECT MIN/MAX(col) FROM tbl;` boundary probes. */
-  private def boundaryConn(column: String, stub: (ResultSet, String) => Unit): Connection = {
+  /**
+    * A connection answering the `SELECT MIN/MAX(col) FROM tbl;` boundary probes.
+    * `sides` narrows it to the probes the executor is expected to actually issue.
+    */
+  private def boundaryConn(
+      column: String,
+      stub: (ResultSet, String) => Unit,
+      sides: Seq[String] = Seq("MIN", "MAX")
+  ): Connection = {
     val conn = mock[Connection]
-    Seq("MIN", "MAX").foreach { side =>
+    sides.foreach { side =>
       val statement = mock[PreparedStatement]
       val resultSet = mock[ResultSet]
       (conn
@@ -202,7 +219,47 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec.sqlQuery shouldBe Some(BASE + ";")
   }
 
+  it should "skip the sliding window when progressive mode names no batch column" in {
+    // A progressive descriptor with no batchByColumn is degenerate but generateSqlQuery is
+    // defensive about it. open() is deliberately not called here: it would blow up on
+    // `desc.batchByColumn.get`, which is the current (unhelpful) behaviour, so this test
+    // pins only the query builder. That also means this arm of the progressive guard
+    // (progressive with no batch column) is defensive: no production caller reaches it,
+    // generateSqlQuery in this state, since open() throws first.
+    // min and max are populated on purpose: with all three of batchByColumn/min/max empty,
+    // re-pointing the guard at `desc.min` instead would be indistinguishable here.
+    val exec = new TestSQLSourceOpExec(descJson { desc =>
+      desc.progressive = Option(true)
+      desc.batchByColumn = None
+      desc.min = Option("0")
+      desc.max = Option("100")
+      desc.interval = 30L
+    })
+    exec.sqlQuery shouldBe Some(BASE + ";")
+  }
+
+  it should "ignore a leftover batch column when progressive mode is off" in {
+    // `progressive` only toggles batchByColumn/min/max/interval *hidden* in the UI
+    // (SQLSourceOpDesc's toggleHidden), it does not clear them, so a non-progressive
+    // descriptor can still carry a batch column. Neither the sliding window nor the
+    // fixed OFFSET may key off that column instead of the progressive flag.
+    val exec = new TestSQLSourceOpExec(descJson { desc =>
+      desc.batchByColumn = Option("big")
+      desc.min = Option("0")
+      desc.max = Option("100")
+      desc.interval = 30L
+    })
+    exec.curOffset = Some(5L)
+    exec.sqlQuery shouldBe Some(BASE + " OFFSET ?;")
+  }
+
   it should "walk the LONG batch column window by window until the upper bound" in {
+    // Deliberately NOT pinned: the `>=` that decides the last window (SQLSourceOpExec's
+    // `isLastBatch`, and its DOUBLE twin) is only observable when the upper bound sits
+    // exactly one interval above the current lower bound -- and on that input production
+    // emits a redundant `>= upper AND <= upper` window that re-scans the boundary row.
+    // Asserting the current behaviour there would cement that duplication, so it is
+    // reported as a defect rather than encoded here.
     val exec = openedProgressive("big", "0", "100", 30L)
 
     exec.nextQueryAvailable shouldBe true
@@ -279,11 +336,55 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec.nextQueryAvailable shouldBe false
   }
 
+  it should "offer a next query while an INTEGER batch column is below its upper bound" in {
+    val conn = boundaryConn(
+      "id",
+      (rs, side) => (rs.getInt(_: Int)).expects(1).returning(if (side == "MIN") 0 else 10)
+    )
+    val exec = openedProgressive("id", "auto", "auto", 4L, conn)
+
+    exec.nextQueryAvailable shouldBe true
+    exec.slidingWindow shouldBe " AND id >= 0 AND id < 4"
+
+    // A single-value range (min == max) must still yield exactly one window. This is the
+    // one input on which the `<=` in hasNextQuery is load-bearing, and unlike the
+    // exact-multiple case it does not exercise the duplicate-last-window defect.
+    val singleValueConn =
+      boundaryConn("id", (rs, _) => (rs.getInt(_: Int)).expects(1).returning(7))
+    val singleValue = openedProgressive("id", "auto", "auto", 4L, singleValueConn)
+    singleValue.nextQueryAvailable shouldBe true
+    singleValue.slidingWindow shouldBe " AND id >= 7 AND id <= 7"
+    singleValue.nextQueryAvailable shouldBe false
+  }
+
+  it should "refuse to decide the next query for an unsupported batch column type" in {
+    val exec = new TestSQLSourceOpExec(progressiveJson("name", Option("a"), Option("z"), 4L))
+    // DEFENSIVE-ONLY arm: no workflow can reach hasNextQuery with a STRING batch column, but
+    // this pins the type-dispatch error message without depending on open()'s failure path.
+    exec.batchByAttribute = Some(new Attribute("name", AttributeType.STRING))
+    intercept[IllegalArgumentException](exec.nextQueryAvailable).getMessage shouldBe
+      "Unexpected type: string"
+  }
+
   "SQLSourceOpExec.open" should "validate the table against the loaded table names" in {
     val exec = new TestSQLSourceOpExec(descJson(), knownTables = Seq("other"))
     val thrown = intercept[RuntimeException](exec.open())
     thrown.getMessage shouldBe "Can't find the given table `tbl`."
     exec.loadTableNamesCalls shouldBe 1
+  }
+
+  it should "validate the table before probing the batch column boundaries" in {
+    // fetchBatchByBoundary concatenates desc.table straight into the probe SQL, so the
+    // table-name check -- which this file documents as its SQL-injection defence -- has to
+    // run before any boundary probe. The strict mock with no expectations is the oracle:
+    // any probe at all is an unexpected call.
+    val conn = mock[Connection]
+    val exec = new TestSQLSourceOpExec(
+      progressiveJson("big", Option("auto"), Option("auto"), 30L),
+      conn,
+      knownTables = Seq("other")
+    )
+    intercept[RuntimeException](exec.open()).getMessage shouldBe "Can't find the given table `tbl`."
   }
 
   it should "leave batchByAttribute unset when progressive mode is disabled" in {
@@ -297,6 +398,34 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     val exec = new TestSQLSourceOpExec(progressiveJson("big", None, None, 30L))
     val thrown = intercept[IllegalArgumentException](exec.open())
     thrown.getMessage should startWith("Missing required progressive configuration")
+  }
+
+  it should "reject progressive mode with a lower but no upper boundary" in {
+    val exec = new TestSQLSourceOpExec(progressiveJson("big", Option("0"), None, 30L))
+    val thrown = intercept[IllegalArgumentException](exec.open())
+    thrown.getMessage should startWith("Missing required progressive configuration")
+  }
+
+  it should "reject progressive mode with an upper but no lower boundary" in {
+    // the mirror of the case above: without this one, dropping the min check from the
+    // configuration guard would go unnoticed and desc.min.get would raise a bare
+    // NoSuchElementException instead of this message
+    val exec = new TestSQLSourceOpExec(progressiveJson("big", None, Option("100"), 30L))
+    val thrown = intercept[IllegalArgumentException](exec.open())
+    thrown.getMessage should startWith("Missing required progressive configuration")
+  }
+
+  it should "reject a non-auto upper bound on a column that is neither LONG nor TIMESTAMP" in {
+    // the MIN side resolves through the auto probe, so the MAX side is the one that
+    // reaches the type match and rejects the DOUBLE column
+    val conn = boundaryConn(
+      "score",
+      (rs, _) => (rs.getDouble(_: Int)).expects(1).returning(1.5),
+      sides = Seq("MIN")
+    )
+    val exec =
+      new TestSQLSourceOpExec(progressiveJson("score", Option("auto"), Option("5"), 4L), conn)
+    intercept[IllegalArgumentException](exec.open()).getMessage shouldBe "Unsupported type double"
   }
 
   it should "fetch auto boundaries for every supported batch column type" in {
@@ -338,6 +467,15 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec.slidingWindow shouldBe " AND score >= 1.5 AND score < 5.5"
     exec.slidingWindow shouldBe " AND score >= 5.5 AND score <= 9.0"
     exec.nextQueryAvailable shouldBe false
+
+    // the DOUBLE mirror of the INTEGER single-value case: min == max must still yield one
+    // window, which is the only input that makes this arm's `<=` load-bearing
+    val singleValueConn =
+      boundaryConn("score", (rs, _) => (rs.getDouble(_: Int)).expects(1).returning(1.5))
+    val singleValue = openedProgressive("score", "auto", "auto", 4L, singleValueConn)
+    singleValue.nextQueryAvailable shouldBe true
+    singleValue.slidingWindow shouldBe " AND score >= 1.5 AND score <= 1.5"
+    singleValue.nextQueryAvailable shouldBe false
   }
 
   it should "reject an auto boundary probe on an unsupported column type" in {
@@ -358,6 +496,15 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     val exec =
       new TestSQLSourceOpExec(progressiveJson("name", Option("auto"), Option("auto"), 4L), conn)
     intercept[IllegalStateException](exec.open()).getMessage shouldBe "Unexpected value: string"
+  }
+
+  it should "report a zero boundary when no batch column is configured" in {
+    // DEFENSIVE-ONLY arm, not a reachable execution path: fetchBatchByBoundary is called from
+    // exactly two production sites, both inside initBatchColumnBoundaries behind
+    // `batchByAttribute.isDefined`, and AsterixDBSourceOpExec overrides the method outright.
+    // What this pins is the protected contract subclasses inherit, nothing a workflow can run.
+    // no connection is needed: without a batchByAttribute the probe never touches JDBC
+    new TestSQLSourceOpExec(descJson()).boundary("MIN").intValue shouldBe 0
   }
 
   "SQLSourceOpExec.produceTuple" should "stream every row of the single non-progressive query" in {
@@ -431,6 +578,45 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val tuples = exec.produceTuple().map(_.asInstanceOf[Tuple]).toList
     tuples.map(_.getField[Any]("id")) shouldBe List(9)
+    exec.curOffset shouldBe Some(0L)
+    exec.curLimit shouldBe Some(1L)
+  }
+
+  it should "bind no fixed offset in progressive mode" in {
+    val resultSet = mock[ResultSet]
+    val statement = mock[PreparedStatement]
+    val conn = mock[Connection]
+
+    // the limit is present so that progressive-ness and "has a limit" are distinguishable
+    // here, and so that the clause order (sliding window ahead of LIMIT) is pinned
+    (conn
+      .prepareStatement(_: String))
+      .expects(BASE + " AND big >= 0 AND big < 30 LIMIT ?;")
+      .returning(statement)
+    // only the limit is bound, at index 1: progressive mode carries its offset in the
+    // sliding window, and the strict mock rejects any further setLong, i.e. any offset
+    (statement.setLong _).expects(1, 2L)
+    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    inSequence {
+      (resultSet.next _).expects().returning(true) // consumed by the manual offset skip
+      (resultSet.next _).expects().returning(true)
+    }
+    (resultSet.getObject(_: String)).expects("id").returning(Int.box(4))
+    (resultSet.getObject(_: String)).expects("name").returning("p")
+    (resultSet.getObject(_: String)).expects("big").returning(Long.box(7L))
+
+    val exec = new TestSQLSourceOpExec(
+      progressiveJson("big", Option("0"), Option("100"), 30L),
+      conn,
+      execSchema = progressiveRowSchema
+    )
+    exec.curOffset = Some(1L)
+    exec.curLimit = Some(2L)
+    exec.open()
+
+    val first = exec.produceTuple().next().asInstanceOf[Tuple]
+    first.getField[Any]("id") shouldBe 4
+    first.getField[Any]("big") shouldBe 7L
     exec.curOffset shouldBe Some(0L)
     exec.curLimit shouldBe Some(1L)
   }

@@ -141,7 +141,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException when dropping a non-existent attribute" in {
-    // Unlike the exec, whose diff-based rewrite silently ignores unknown names,
+    // Unlike the exec, which silently ignores unknown names,
     // Schema.remove rejects them at schema-derivation time.
     projectionOpDesc.isDrop = true
     projectionOpDesc.attributes ++= List(
@@ -165,8 +165,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "match drop names case-insensitively when deriving the schema" in {
-    // Unlike the exec, whose diff-based rewrite matches names exactly and
-    // would keep field2, Schema.remove lowercases both sides.
+    // Schema.remove lowercases both sides, matching the exec's behavior.
     projectionOpDesc.isDrop = true
     projectionOpDesc.attributes ++= List(
       new AttributeUnit("FIELD2", "")
@@ -177,7 +176,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException on duplicate entries in the drop list" in {
-    // The exec's multiset diff tolerates duplicates; the schema derivation folds
+    // The exec tolerates duplicates; the schema derivation folds
     // Schema.remove one entry at a time, so the second removal of the same name
     // rejects a now non-existent attribute.
     projectionOpDesc.isDrop = true
@@ -215,6 +214,28 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "pass through partitions that are neither hash nor range" in {
     val out = projectionOpDesc.derivePartition()(List(SinglePartition()))
     assert(out == SinglePartition())
+  }
+
+  // Drop mode names the columns to remove; keep mode names the ones to hold on to,
+  // in the order the user put them in.
+  "ProjectionOpDesc.generateStandaloneCode" should "select or drop the named columns" in {
+    val keep = new ProjectionOpDesc
+    keep.attributes = List(new AttributeUnit("a", ""), new AttributeUnit("b", ""))
+    assert(keep.generateStandaloneCode().contains("""in1df[["a", "b"]]"""))
+
+    val drop = new ProjectionOpDesc
+    drop.attributes = List(new AttributeUnit("a", ""))
+    drop.isDrop = true
+    assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
+  }
+
+  // Schema propagation and the executor both refuse an empty selection, so the
+  // script stops where a run would have. Passing the frame through would answer
+  // with data a run never produces.
+  it should "stop on an empty selection rather than pass the frame through" in {
+    val code = (new ProjectionOpDesc).generateStandaloneCode()
+    assert(code.startsWith("raise ValueError("))
+    assert(code.contains("Please select at least one attribute to project."))
   }
 
 }

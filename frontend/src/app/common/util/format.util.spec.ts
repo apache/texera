@@ -96,6 +96,7 @@ describe("formatRelativeTime", () => {
   });
 
   it("formats sub-hour differences in minutes", () => {
+    expect(formatRelativeTime(NOW - 60 * 1000)).toBe("1 minute ago");
     expect(formatRelativeTime(NOW - 5 * 60 * 1000)).toBe("5 minutes ago");
     expect(formatRelativeTime(NOW - 59 * 60 * 1000)).toBe("59 minutes ago");
     // boundary: just-now floors to 0
@@ -103,17 +104,17 @@ describe("formatRelativeTime", () => {
   });
 
   it("formats sub-day differences in hours", () => {
-    expect(formatRelativeTime(NOW - 60 * 60 * 1000)).toBe("1 hours ago");
+    expect(formatRelativeTime(NOW - 60 * 60 * 1000)).toBe("1 hour ago");
     expect(formatRelativeTime(NOW - 23 * 60 * 60 * 1000)).toBe("23 hours ago");
   });
 
   it("formats sub-week differences in days", () => {
-    expect(formatRelativeTime(NOW - 24 * 60 * 60 * 1000)).toBe("1 days ago");
+    expect(formatRelativeTime(NOW - 24 * 60 * 60 * 1000)).toBe("1 day ago");
     expect(formatRelativeTime(NOW - 6 * 24 * 60 * 60 * 1000)).toBe("6 days ago");
   });
 
   it("formats sub-month differences in weeks", () => {
-    expect(formatRelativeTime(NOW - 7 * 24 * 60 * 60 * 1000)).toBe("1 weeks ago");
+    expect(formatRelativeTime(NOW - 7 * 24 * 60 * 60 * 1000)).toBe("1 week ago");
     expect(formatRelativeTime(NOW - 3 * 7 * 24 * 60 * 60 * 1000)).toBe("3 weeks ago");
   });
 

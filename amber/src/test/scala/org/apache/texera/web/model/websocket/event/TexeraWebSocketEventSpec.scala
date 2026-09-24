@@ -123,7 +123,10 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     numWorkers = 17L,
     aggregatedDataProcessingTime = 18L,
     aggregatedControlProcessingTime = 19L,
-    aggregatedIdleTime = 20L
+    aggregatedIdleTime = 20L,
+    // Non-default on purpose: the symmetric round trip below only pins this
+    // field on the wire if a drop would change the value read back.
+    reusedFromCache = true
   )
 
   private val resultRow = objectMapper.createObjectNode().put("city", "Irvine")
@@ -163,10 +166,6 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     * `ExecutionStatsService` (duration), `RegionExecutionManager` (region state),
     * `ExecutionReconfigurationService` (modify-logic completed), `ClusterListener` /
     * `WorkflowWebsocketResource` (cluster status) and `Coordinator` (region update).
-    *
-    * `WorkflowAvailableResultEvent` is the sixth unregistered subtype but is deliberately
-    * absent from this list: nothing in main constructs it, so pinning its wire shape would
-    * only cement dead code.
     */
   private val outboundOnlyEvents: List[(String, TexeraWebSocketEvent)] = List(
     "ExecutionDurationUpdateEvent" -> ExecutionDurationUpdateEvent(1234L, isRunning = true),

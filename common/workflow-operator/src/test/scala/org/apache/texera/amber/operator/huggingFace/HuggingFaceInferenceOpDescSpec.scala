@@ -567,9 +567,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("ctx_col = self.CONTEXT_COLUMN")
     code should include("Context column")
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route table-question-answering with a precomputed table payload" in {
@@ -577,9 +576,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""if task == "table-question-answering":""")
     code should include("table_dict = {}")
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
-    code should include(
-      """return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)"""
-    )
+    code should include("""body.get("answer", json.dumps(body))""")
+    code should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "route zero-shot-classification with candidate labels" in {
@@ -628,6 +626,24 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
         .generatePythonCode()
       code should include("""if task == "question-answering":""")
     }
+  }
+
+  it should
+    "reformulate structured tasks into a chat message on fallback providers (#7195)" in {
+    // On third-party chat providers the structured pipeline_payload (context /
+    // table / labels / sentences) is inlined into the chat message via the
+    // helper, instead of sending only prompt_value and dropping the rest.
+    val code = makeDesc(task = "question-answering", contextColumn = "context").generatePythonCode()
+    code should include("def _chat_content_for_task(")
+    // Every chat branch (zai-org, OpenAI-compatible, unknown-fallback) uses it.
+    code should include("self._chat_content_for_task(pipeline_payload, prompt_value)")
+    code should not include ("""messages = [{"role": "user", "content": prompt_value}]""")
+    // Per-task reformulations are present.
+    code should include("Answer the question using only the context below.")
+    code should include("Answer the question using the table below")
+    code should include("Classify the text into exactly one of these labels:")
+    code should include("Rate how semantically similar the source sentence")
+    code should include("Rank the passages below by relevance to the query")
   }
 
   "getOutputSchemas" should "add the result column as a STRING to the inherited schema" in {

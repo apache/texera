@@ -21,7 +21,14 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { ExecutionMode, Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
+import {
+  ExecutionMode,
+  getDefaultFormBinding,
+  FormBindingConfig,
+  Workflow,
+  WorkflowContent,
+  WorkflowSettings,
+} from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -97,6 +104,17 @@ export class WorkflowActionService {
 
   private workflowSettings: WorkflowSettings;
   private workflowResetSubject = new Subject<void>();
+
+  // The Form View definition. Presentation, not structure, so it stays out of the shared
+  // graph (no collaborative merge) and is handled like workflowSettings -- hydrated by
+  // reloadWorkflow, emitted by getWorkflowContent.
+  private formBinding: FormBindingConfig = getDefaultFormBinding();
+  // Whether the opened workflow's content carried a formBinding. Kept so getWorkflowContent
+  // re-emits the key only when it was there (or an author has since populated it), leaving a
+  // plain workflow's content byte-identical -- the same rule agent-service follows.
+  private formBindingLoaded = false;
+  private formBindingChangeSubject = new Subject<FormBindingConfig>();
+  public readonly formBindingChanged$: Observable<FormBindingConfig> = this.formBindingChangeSubject.asObservable();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -612,6 +630,57 @@ export class WorkflowActionService {
   }
 
   /**
+   * Whether this page already holds `workflowId` open: the shared document is in that workflow's
+   * co-editing room, so the graph, the undo history and the room membership are the live ones.
+   *
+   * The operator canvas and the Form View are two views of one open workflow and hand the session
+   * over between them rather than each building its own. The arriving view asks this before
+   * loading: seeding a second document for the same workflow would leave the room and rejoin it,
+   * which is what used to leave a ghost of yourself in the co-editor list.
+   *
+   * A workflow that was open and has since been left does not answer true here, and the reason is
+   * worth stating because it is not local: `destroyYModel` destroys the document but keeps the
+   * object, `wid` and all. What clears it is `clearWorkflow` going on to `reloadWorkflow(undefined)`,
+   * which seeds a fresh model with no `wid`. Were that to stop happening, a canvas re-entered from
+   * the dashboard would attach to a destroyed document instead of loading. Pinned by a test.
+   */
+  public hasWorkflowOpen(workflowId: number | undefined): boolean {
+    return !!workflowId && this.texeraGraph.sharedModel.wid === workflowId;
+  }
+
+  /**
+   * The workflow whose co-editing room the shared document is in, or undefined when it is in none:
+   * a brand-new canvas, or a workflow created in this session, whose first autosave gave the
+   * metadata an id while the document stayed in the private room it was seeded with.
+   *
+   * This, and not the metadata's id, is what both views key the hand-over on. The departing view
+   * asks whether it is leaving this workflow; the arriving view asks whether this workflow is
+   * already open. Keyed on different ids, the two answered differently for a workflow created in
+   * this session -- the canvas kept the session, the Form View declined it and reloaded -- so both
+   * ask about the room, and such a workflow is simply rebuilt on its first switch, as it is today.
+   */
+  public getOpenWorkflowId(): number | undefined {
+    return this.texeraGraph.sharedModel.wid || undefined;
+  }
+
+  /**
+   * Announce the metadata already in hand, unchanged, for a view that arrived on a workflow that
+   * was already open.
+   *
+   * `workflowMetaDataChanged()` is a plain Subject, so it carries no current value: a subscriber
+   * that arrives after the metadata was set hears nothing until the next change. Everything a
+   * view puts on screen about the workflow -- its name and id in the menu, the computing unit it
+   * last ran on, whether this user may write to it -- is learnt only from that stream, and a view
+   * handed an open workflow never sets the metadata, because it is already right. Without this
+   * they would each sit at their initial value until the next edit happened to save.
+   *
+   * `setWorkflowMetadata` cannot do the job: it returns early for the value it already holds.
+   */
+  public republishWorkflowMetadata(): void {
+    this.workflowMetadataChangeSubject.next(this.workflowMetadata);
+  }
+
+  /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    * This method is based on the assumption that this is on a new SharedModel.
    *
@@ -641,12 +710,16 @@ export class WorkflowActionService {
       this.jointGraphWrapper.jointGraph.clear();
 
       if (workflow === undefined) {
+        // A blank workflow carries no Form View definition; drop any left over from the
+        // previously open one so it cannot leak into this workflow's next save.
+        this.hydrateFormBinding(undefined);
         this.setNewSharedModel();
         return;
       }
 
       const workflowContent: WorkflowContent = workflow.content;
       this.workflowSettings = workflowContent.settings || this.getDefaultSettings();
+      this.hydrateFormBinding(workflowContent.formBinding);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -701,6 +774,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
+      this.formBindingChanged$,
       this.workflowResetSubject.asObservable()
     );
   }
@@ -736,6 +810,35 @@ export class WorkflowActionService {
     return this.workflowSettings;
   }
 
+  /**
+   * Load a definition without announcing an edit. Used while opening a workflow, so
+   * that merely reading one does not look like a change and trigger a save.
+   */
+  public hydrateFormBinding(formBinding: FormBindingConfig | undefined): void {
+    this.formBindingLoaded = formBinding !== undefined;
+    this.formBinding = formBinding ?? getDefaultFormBinding();
+  }
+
+  /** A form binding worth persisting: an author populated it (fields, a chosen result list -- an
+   *  empty one included, it means "none" -- or an instruction), as opposed to the empty default a
+   *  plain workflow carries. */
+  private isFormBindingNonEmpty(fb: FormBindingConfig): boolean {
+    return fb.fields.length > 0 || fb.shownResultIds !== undefined || fb.instruction !== undefined;
+  }
+
+  /**
+   * Replace the definition as an edit: announced on `formBindingChanged$`, which
+   * feeds workflowChanged() and so reaches the existing autosave.
+   */
+  public setFormBinding(formBinding: FormBindingConfig): void {
+    this.formBinding = formBinding;
+    this.formBindingChangeSubject.next(this.formBinding);
+  }
+
+  public getFormBinding(): FormBindingConfig {
+    return this.formBinding;
+  }
+
   public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
@@ -763,6 +866,12 @@ export class WorkflowActionService {
       links,
       commentBoxes,
       settings,
+      // Carry formBinding only when the workflow has one (loaded with it, or an author
+      // populated it), so a plain workflow's content is unchanged and its save cuts no
+      // needless version.
+      ...(this.formBindingLoaded || this.isFormBindingNonEmpty(this.formBinding)
+        ? { formBinding: this.formBinding }
+        : {}),
     };
   }
 

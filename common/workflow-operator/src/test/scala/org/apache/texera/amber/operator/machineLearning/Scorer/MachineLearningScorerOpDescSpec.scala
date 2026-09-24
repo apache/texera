@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.machineLearning.Scorer
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -30,6 +31,18 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
+
+  /** An EncodableString field renders as a runtime decode site in the emitted code. */
+  private val decodeSite = "self.decode_python_template"
+
+  private def b64(s: String): String =
+    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+  /** The one emitted line that assigns metric_list, isolated from the template body. */
+  private def metricListLine(code: String): String =
+    code.linesIterator
+      .find(_.contains("metric_list = ["))
+      .getOrElse(fail(s"no metric_list assignment in:\n$code"))
 
   "MachineLearningScorerOpDesc.operatorInfo" should
     "advertise the name and Machine Learning General group" in {
@@ -60,12 +73,40 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "append one DOUBLE column per selected classification metric, after Class" in {
+    // The metric columns carry numeric scores, so their type is the one schema
+    // decision this method makes. With empty metric lists the foldLeft body never
+    // runs and that type stays unpinned -- a scorer could advertise Accuracy as
+    // STRING and the suite would not notice.
+    val d = new MachineLearningScorerOpDesc
+    d.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.f1Score)
+    val port = d.operatorInfo.outputPorts.head.id
+    d.getOutputSchemas(Map.empty)(port).getAttributes.map(a => (a.getName, a.getType)) shouldBe
+      List(
+        ("Class", AttributeType.STRING),
+        ("Accuracy", AttributeType.DOUBLE),
+        ("F1 Score", AttributeType.DOUBLE)
+      )
+  }
+
   it should "produce an empty schema for regression with no metrics" in {
     val d = new MachineLearningScorerOpDesc
     d.isRegression = true
     val out = d.getOutputSchemas(Map.empty)
     out.keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
     out(d.operatorInfo.outputPorts.head.id).getAttributes shouldBe empty
+  }
+
+  it should "emit one DOUBLE column per selected regression metric and no Class column" in {
+    val d = new MachineLearningScorerOpDesc
+    d.isRegression = true
+    d.regressionMetrics = List(regressionMetricsFnc.mse, regressionMetricsFnc.r2)
+    // the classification list must be ignored entirely once the task is regression
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    val port = d.operatorInfo.outputPorts.head.id
+    d.getOutputSchemas(Map.empty)(port).getAttributes.map(a => (a.getName, a.getType)) shouldBe
+      List(("MSE", AttributeType.DOUBLE), ("R2", AttributeType.DOUBLE))
   }
 
   "MachineLearningScorerOpDesc.generatePythonCode" should "emit the scorer table operator" in {
@@ -75,9 +116,15 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("from sklearn.metrics import")
-    // actualValueColumn/predictValueColumn are EncodableString: base64-encoded into the emitted code.
-    code should include(Base64.getEncoder.encodeToString("y".getBytes(StandardCharsets.UTF_8)))
-    code should include(Base64.getEncoder.encodeToString("yhat".getBytes(StandardCharsets.UTF_8)))
+    // actualValueColumn/predictValueColumn are EncodableString: base64-encoded into
+    // the emitted code. Assert WHICH variable each payload is bound to, not just that
+    // both payloads appear somewhere: precision_score/recall_score are asymmetric in
+    // (y_true, y_pred), so a swap would silently report recall as precision.
+    code should include(s"y_true = table[$decodeSite('${b64("y")}')]")
+    code should include(s"y_pred = table[$decodeSite('${b64("yhat")}')]")
+    // isRegression defaults to false, so the emitted branch guard must read False;
+    // without this the `else "False"` arm of the flag is unpinned in both tests.
+    code should include("if False:")
   }
 
   it should "splice the selected metrics verbatim into a proper metric_list" in {
@@ -94,6 +141,38 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     val encoded =
       Base64.getEncoder.encodeToString("'Accuracy','F1 Score'".getBytes(StandardCharsets.UTF_8))
     code should not include encoded
+  }
+
+  it should "select the regression metrics and the regression branch when isRegression is set" in {
+    val d = new MachineLearningScorerOpDesc
+    d.isRegression = true
+    d.actualValueColumn = "y"
+    d.predictValueColumn = "yhat"
+    d.regressionMetrics = List(regressionMetricsFnc.mse, regressionMetricsFnc.r2)
+    // the classification list must be ignored entirely once the task is regression
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    val code = d.generatePythonCode()
+
+    metricListLine(code) should include("['MSE','R2']")
+    // isRegression also picks the branch process_table takes at runtime
+    code should include("if True:")
+    code should not include "if False:"
+  }
+
+  it should "reject an unrecognized entry in the metric list loudly" in {
+    // A saved workflow can carry a null element in the metric array. Emitting
+    // `metric_list = ['']` for it would generate silently broken Python, so the
+    // descriptor must fail while the workflow is still being compiled.
+    val node = objectMapper
+      .readTree(objectMapper.writeValueAsString(new MachineLearningScorerOpDesc))
+      .asInstanceOf[ObjectNode]
+    node.putArray("classificationFlag").addNull()
+    val d =
+      objectMapper.treeToValue(node, classOf[LogicalOp]).asInstanceOf[MachineLearningScorerOpDesc]
+    d.classificationMetrics shouldBe List(null)
+
+    val ex = intercept[IllegalArgumentException](d.generatePythonCode())
+    ex.getMessage shouldBe "Unknown metric type"
   }
 
   "MachineLearningScorerOpDesc" should "round-trip its config fields through the polymorphic base" in {

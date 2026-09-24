@@ -18,18 +18,14 @@
  */
 
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { isNonNullObject } from "../../common/util/predicate";
 
 export function isDashboardWorkflow(value: any): value is DashboardWorkflow {
   return !!value && isNonNullObject(value.workflow);
-}
-
-export function isDashboardProject(value: any): value is DashboardProject {
-  return !!value && typeof value.name === "string" && !value.workflow;
 }
 
 export function isDashboardFile(value: any): value is DashboardFile {
@@ -38,6 +34,10 @@ export function isDashboardFile(value: any): value is DashboardFile {
 
 export function isDashboardDataset(value: any): value is DashboardDataset {
   return !!value && isNonNullObject(value.dataset);
+}
+
+export function isDashboardModel(value: any): value is DashboardModel {
+  return !!value && isNonNullObject(value.model);
 }
 
 export function isDashboardWorkflowComputingUnit(value: any): value is DashboardWorkflowComputingUnit {

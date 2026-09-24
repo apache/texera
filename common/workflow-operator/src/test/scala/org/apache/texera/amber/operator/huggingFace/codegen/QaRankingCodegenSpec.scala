@@ -110,11 +110,14 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("""payload = {"inputs": prompt_value}""")
   }
 
-  "QaRankingCodegen.parsePython" should "extract the answer field for both QA variants" in {
+  "QaRankingCodegen.parsePython" should "extract the answer, including from chat-provider responses" in {
     val out = QaRankingCodegen.parsePython(makeCtx())
     out should include("""if task == "question-answering":""")
     out should include("""elif task == "table-question-answering":""")
     out should include("""body.get("answer"""")
+    // #7195: chat-completions responses (third-party providers) are read from
+    // choices[0].message.content, not the native {"answer": ...} shape.
+    out should include("""body["choices"][0]["message"]["content"]""")
   }
 
   it should "return the raw JSON body for the ranking-style tasks" in {
