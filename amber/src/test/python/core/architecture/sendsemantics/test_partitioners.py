@@ -331,6 +331,29 @@ class TestRangeBasedShufflePartitioner:
         assert partitioner.get_receiver_index(8) == 2
         assert partitioner.get_receiver_index(9) == 2
 
+    def test_finite_double_key_is_truncated_like_scala(self):
+        p = RangeBasedShufflePartitioner(
+            RangeBasedShufflePartitioning(
+                batch_size=1,
+                channels=[_channel("S", "A"), _channel("S", "B")],
+                range_attribute_names=["k"],
+                range_min=-10,
+                range_max=9,
+            )
+        )
+        out = list(p.add_tuple_to_batch(_tuple(k=-0.5)))
+        assert out[0][0] == _worker("B")
+
+    @pytest.mark.parametrize(
+        ("value", "receiver"), [(-float("inf"), "A"), (float("inf"), "C")]
+    )
+    def test_infinite_double_keys_still_route_to_range_ends(
+        self, partitioner, value, receiver
+    ):
+        partitioner.batch_size = 1
+        out = list(partitioner.add_tuple_to_batch(_tuple(k=value)))
+        assert out[0][0] == _worker(receiver)
+
     def test_add_tuple_routes_using_first_attribute(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=2)))
         list(partitioner.add_tuple_to_batch(_tuple(k=5)))
