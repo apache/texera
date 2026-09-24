@@ -96,6 +96,23 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "leave a resource parameter to the execution" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class GenerateOperator(UDFSourceOperator):
+        |    def produce(self):
+        |        yield
+        |""".stripMargin
+    val resource = new UiUDFParameter
+    resource.attribute = new Attribute("DS", AttributeType.STRING)
+    resource.inputType = "dataset"
+    resource.value = "/dataset/owner@x.com/ds/v1"
+    d.uiParameters = List(resource)
+
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+  }
+
   it should "reject a blank virtual-environment name when the default env is disabled" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield"

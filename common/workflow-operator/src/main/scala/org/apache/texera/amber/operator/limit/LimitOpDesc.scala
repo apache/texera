@@ -25,12 +25,12 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StateTransferFunc}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StateTransferFunc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.util.{Success, Try}
 
-class LimitOpDesc extends LogicalOp {
+class LimitOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Limit")
@@ -79,5 +79,12 @@ class LimitOpDesc extends LogicalOp {
       newLimitOp.count = oldLimitOp.count
     }
     Success(newPhysicalOp, Some(stateTransferFunc))
+  }
+
+  override def generateStandaloneCode(): String = {
+    // Clamped, because the two sides read a negative limit differently: the
+    // executor's `count < limit` is false from the first tuple and emits
+    // nothing, while pandas' head(-n) drops only the last n rows.
+    s"out1df = in1df.head(${math.max(0, limit)}).reset_index(drop=True)"
   }
 }

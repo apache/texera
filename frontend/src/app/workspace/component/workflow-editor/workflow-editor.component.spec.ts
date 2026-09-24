@@ -32,6 +32,7 @@ import {
   JointUIService,
   operatorAgentActionProgressClass,
   operatorNameClass,
+  operatorStateClass,
 } from "../../service/joint-ui/joint-ui.service";
 import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
@@ -56,7 +57,8 @@ import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.int
 import { tap } from "rxjs/operators";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { config as rxjsConfig, of, Subject } from "rxjs";
-import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzContextMenuService, NzDropDownModule, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
@@ -121,23 +123,127 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
-    it("should reset the heat-map view on destroy so a re-entered workspace starts with the overlay off", () => {
-      // The wrapper is root-provided and outlives the editor, while the menu's
-      // checkbox re-initializes to off on every workspace entry; without the
-      // reset the stale view repaints no-data colors and the first checkbox
-      // click re-publishes the view instead of clearing it.
+    // It used to reset the view on destroy so a re-entered workspace started with the overlay off.
+    // This component is now destroyed on every hand-over between a workflow's two views, after the
+    // arriving view has mounted and restored the persisted overlay (#8552), so a reset here switched
+    // it off again on every switch. Leaving the workspace resets it, in the views' own teardown.
+    it("leaves the heat-map view alone on destroy; leaving the workspace is what resets it", () => {
       const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
       wrapper.setHeatmapView(HeatmapView.Runtime);
+      try {
+        fixture.destroy();
+
+        expect(wrapper.getHeatmapView()).toBe(HeatmapView.Runtime);
+      } finally {
+        wrapper.setHeatmapView(null);
+      }
+    });
+
+    // Two of these editors are in the page at once for one tick when the two views of a workflow
+    // hand over: the arriving one initialises while the departing one is still being removed, and
+    // both templates carry id="workflow-editor". Searching the document found the departing view's
+    // container, so the paper was built into a div about to disappear and the arriving canvas came
+    // up blank -- nothing to pan, nothing to click, while the graph itself was untouched.
+    it("builds its paper in its own container, not whichever the document holds first", () => {
+      const decoy = document.createElement("div");
+      decoy.id = "workflow-editor";
+      // Earlier in document order than the fixture, as the departing view's container is.
+      document.body.insertBefore(decoy, document.body.firstChild);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        const host = other.nativeElement as HTMLElement;
+        expect(host.contains((other.componentInstance as any).editor)).toBe(true);
+        expect((other.componentInstance as any).editor).not.toBe(decoy);
+        expect(decoy.querySelector("svg")).toBeNull();
+        other.destroy();
+      } finally {
+        decoy.remove();
+      }
+    });
+
+    // The paper is bound to the root-provided joint graph, which outlives this component. Once the
+    // switch between a workflow's two views routes instead of reloading, a mount happens on every
+    // switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its paper on destroy, so none is left listening to the shared graph", () => {
+      const remove = vi.spyOn(component.paper, "remove");
 
       fixture.destroy();
 
-      expect(wrapper.getHeatmapView()).toBeNull();
+      expect(remove).toHaveBeenCalled();
+    });
+
+    // `.bind()` returns a new function every call, so removing a freshly bound one never matched
+    // what was added: one stale listener was left per mount, and after a few switches a single
+    // Ctrl/Cmd-Z was handled several times over.
+    it("removes the keydown listener it added, rather than a differently bound one", () => {
+      const handler = vi.spyOn(component as any, "_handleKeyboardAction");
+
+      fixture.destroy();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true }));
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    // The zoom ratio lives in the root-provided wrapper and outlives this component, while a new
+    // paper starts at scale 1. Once the switch between a workflow's two views routes, the paper is
+    // new and the ratio is whatever was last chosen; disagreeing, the first "zoom in" after a
+    // switch stepped from the wrapper's ratio and could shrink the canvas.
+    it("starts its paper at the wrapper's zoom ratio, so the two agree after a remount", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setZoomProperty(0.5);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        expect(other.componentInstance.paper.scale().sx).toBe(0.5);
+        other.destroy();
+      } finally {
+        wrapper.setZoomProperty(1);
+      }
+    });
+
+    // The context keeps a static reference to the attached paper for async rendering. It must not
+    // outlive the paper it points at, or a context exit would update the views of a removed one.
+    // It is a no-op once a newer paper has been attached, which is the usual hand-over order.
+    it("detaches its paper from the rendering context on destroy, unless a newer one has taken over", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      const context = (wrapper as any).jointGraphContext;
+      const mine = component.paper;
+      expect(context.jointPaper).toBe(mine);
+
+      fixture.destroy();
+      expect(context.jointPaper).toBeUndefined();
+
+      // A newer paper attached before the older editor goes: the older one leaves it alone.
+      const newer = TestBed.createComponent(WorkflowEditorComponent);
+      newer.detectChanges();
+      wrapper.detachMainJointPaper(mine);
+      expect(context.jointPaper).toBe(newer.componentInstance.paper);
+      newer.destroy();
     });
 
     it("should hide operator status on the canvas by default", () => {
       // keeps the Status toggle off until the user enables it
       const editor = (component as any).editor as HTMLElement;
       expect(editor.classList.contains("hide-operator-status")).toBe(true);
+    });
+
+    it("carries its structure lock into the right-click menu", () => {
+      // The Form View's edit mode re-enables workflow modification for the property panel while its
+      // preview stays structure-locked; the menu must see the lock, or right-click could still cut,
+      // paste or delete from the preview.
+      component.structureLocked = true;
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+
+      const contextMenu = fixture.debugElement.query(By.directive(ContextMenuComponent));
+      expect(contextMenu).not.toBeNull();
+      expect((contextMenu.componentInstance as ContextMenuComponent).structureLocked).toBe(true);
+      component.nzContextMenu.close();
     });
 
     // Drives the region-update stream the editor subscribes to in handleRegionEvents, creating
@@ -237,6 +343,63 @@ describe("WorkflowEditorComponent", () => {
       expect(component.paper.findViewByModel(element1.id)).toBeTruthy();
       expect(component.paper.findViewByModel(element2.id)).toBeTruthy();
       expect(component.paper.findViewByModel(link1.id)).toBeTruthy();
+    });
+
+    /** Two operators joined by one link, added the way the workflow is (through the action service, so
+     *  the wrapper's cell-add streams fire), returning the link's view on the paper. */
+    function addLinkedPair(): joint.dia.LinkView {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      workflowActionService.addLink(mockScanResultLink);
+      return component.paper.findViewByModel(mockScanResultLink.linkID) as joint.dia.LinkView;
+    }
+
+    it("offers the link tools on the operator canvas: remove appears on hover", () => {
+      const linkView = addLinkedPair();
+
+      component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
+
+      expect(linkView.hasTools()).toBe(true);
+    });
+
+    it("adds no link tools on a structure-locked preview: no remove, no breakpoint", () => {
+      // The Form View's preview cannot remove a link and has no use for breakpoints; buttons that did
+      // nothing would only suggest the preview can be edited.
+      component.structureLocked = true;
+      const linkView = addLinkedPair();
+
+      expect(linkView.hasTools()).toBe(false);
+      component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
+      expect(linkView.hasTools()).toBe(false);
+    });
+
+    /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
+    function selectScanOperator(): joint.dia.Cell {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      component.paper.trigger("element:pointerdown", view, new MouseEvent("mousedown"), 0, 0);
+      return component.paper.getModelById(mockScanPredicate.operatorID);
+    }
+
+    it("shows a selected operator's delete and chat buttons on the operator canvas", () => {
+      const model = selectScanOperator();
+
+      expect(model.attr(".delete-button/visibility")).toBe("visible");
+      expect(model.attr(".chat-button/visibility")).toBe("visible");
+    });
+
+    it("keeps a selected operator's buttons hidden on a structure-locked preview, but still shows its state", () => {
+      // The Form View's preview cannot delete an operator or change its ports, and the agent chat is
+      // a canvas tool; buttons that did nothing would only suggest the preview can be edited. The
+      // state text still unfolds, so a run's progress reads there as on the canvas.
+      component.structureLocked = true;
+      const model = selectScanOperator();
+
+      expect(model.attr(".delete-button/visibility")).toBe("hidden");
+      expect(model.attr(".chat-button/visibility")).toBe("hidden");
+      expect(model.attr(".add-input-port-button/visibility")).toBe("hidden");
+      expect(model.attr(".texera-operator-state/visibility")).toBe("visible");
     });
   });
 
@@ -898,23 +1061,17 @@ describe("WorkflowEditorComponent", () => {
      * default (gray) when the user navigates away from and back to a workflow
      * that has already finished executing. Both the operator-add stream and
      * the validation stream route their final border decision through
-     * applyOperatorBorder, which encodes the priority: invalid > cached
+     * applyOperatorStateAndBorder, which encodes the priority: invalid > cached
      * execution state > default valid. These tests assert the operator's
      * actual final rect.body/stroke on the paper, so they pin down the visible
      * outcome rather than the internal helper calls.
      */
     describe("operator border restoration after navigation", () => {
       let workflowStatusService: WorkflowStatusService;
-      const cachedStatus = (operatorState: OperatorState) => ({
-        [mockScanPredicate.operatorID]: {
-          operatorState,
-          aggregatedInputRowCount: 0,
-          inputPortMetrics: {},
-          aggregatedOutputRowCount: 0,
-          outputPortMetrics: {},
-        },
+      const cachedState = (operatorState: OperatorState) => ({
+        [mockScanPredicate.operatorID]: operatorState,
       });
-      const cachedCompleted = cachedStatus(OperatorState.Completed);
+      const cachedCompleted = cachedState(OperatorState.Completed);
       const getStroke = (operatorID: string): string =>
         component.paper.getModelById(operatorID).attr("rect.body/stroke") as string;
 
@@ -922,8 +1079,8 @@ describe("WorkflowEditorComponent", () => {
         workflowStatusService = TestBed.inject(WorkflowStatusService);
       });
 
-      it("paints the execution-state stroke (green) for a valid operator with a cached Completed status", () => {
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+      it("paints the execution-state stroke (green) for a valid operator with a cached Completed state", () => {
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -932,10 +1089,10 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("green");
       });
 
-      it("paints the execution-state stroke (orange) for a valid operator with a cached Running status", () => {
+      it("paints the execution-state stroke (orange) for a valid operator with a cached Running state", () => {
         // Navigation-return with a mid-run operator: the border must be restored
         // to the running color, not the default (see #3614).
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedStatus(OperatorState.Running));
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedState(OperatorState.Running));
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -944,8 +1101,8 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("orange");
       });
 
-      it("falls back to the default valid stroke (#CFCFCF) when no cached status exists", () => {
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+      it("falls back to the default valid stroke (#CFCFCF) when no cached state exists", () => {
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -954,8 +1111,8 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("#CFCFCF");
       });
 
-      it("paints the invalid stroke (red) for an invalid operator with no cached status", () => {
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+      it("paints the invalid stroke (red) for an invalid operator with no cached state", () => {
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -964,11 +1121,11 @@ describe("WorkflowEditorComponent", () => {
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
 
-      it("prioritizes invalid (red) over cached Completed status", () => {
+      it("prioritizes invalid (red) over cached Completed state", () => {
         // Regression case: operator is both invalid AND has a cached Completed
-        // status. applyOperatorBorder must pick red regardless of the order in
+        // state. applyOperatorStateAndBorder must pick red regardless of the order in
         // which the operator-add and validation streams fire.
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue(cachedCompleted);
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -987,7 +1144,7 @@ describe("WorkflowEditorComponent", () => {
 
         // The helper takes the Validation as a required argument and must use it
         // directly — it has no fallback path that calls validateOperator itself.
-        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: true });
+        (component as any).applyOperatorStateAndBorder(mockScanPredicate.operatorID, { isValid: true });
 
         expect(validateSpy).not.toHaveBeenCalled();
       });
@@ -995,29 +1152,70 @@ describe("WorkflowEditorComponent", () => {
       it("honors the passed-in Validation result (paints red when it is invalid)", () => {
         // Proves the passed-in value actually drives the border: an invalid
         // result must paint red.
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         fixture.detectChanges();
 
-        (component as any).applyOperatorBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
+        (component as any).applyOperatorStateAndBorder(mockScanPredicate.operatorID, { isValid: false, messages: {} });
 
         expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
       });
 
-      it("always supplies a Validation to applyOperatorBorder when an operator is added", () => {
+      it("always supplies a Validation to applyOperatorStateAndBorder when an operator is added", () => {
         // Both subscribers (operator-add and the validation stream) call
-        // applyOperatorBorder on add with identical args, so this asserts the
+        // applyOperatorStateAndBorder on add with identical args, so this asserts the
         // required-parameter contract holds through the add flow — every call
         // carries a Validation, never undefined — rather than isolating the
         // operator-add caller specifically.
-        vi.spyOn(workflowStatusService, "getCurrentStatus").mockReturnValue({});
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue({});
         vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: true });
-        const applyBorderSpy = vi.spyOn(component as any, "applyOperatorBorder");
+        const applyBorderSpy = vi.spyOn(component as any, "applyOperatorStateAndBorder");
 
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         fixture.detectChanges();
 
         expect(applyBorderSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { isValid: true });
+      });
+
+      it("restores the execution-state label for an invalid operator with a cached state", () => {
+        // The red border takes priority for the stroke, but the cached state
+        // must still be rendered (label text), matching how the operator
+        // looked before navigating away: state painted by the state stream,
+        // stroke overridden by validation.
+        vi.spyOn(workflowStatusService, "getCurrentState").mockReturnValue(cachedCompleted);
+        vi.spyOn(validationWorkflowService, "validateOperator").mockReturnValue({ isValid: false, messages: {} });
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        fixture.detectChanges();
+
+        const stateText = component.paper
+          .getModelById(mockScanPredicate.operatorID)
+          .attr(`.${operatorStateClass}/text`) as string;
+        expect(stateText).toBe(OperatorState.Completed.toString());
+        expect(getStroke(mockScanPredicate.operatorID)).toBe("red");
+      });
+    });
+
+    describe("effectiveOperatorState", () => {
+      const resolve = (reported?: OperatorState): OperatorState => (component as any).effectiveOperatorState(reported);
+
+      it("falls back to Uninitialized for an operator missing from the state map", () => {
+        expect(resolve(undefined)).toBe(OperatorState.Uninitialized);
+      });
+
+      it("returns the reported state as-is outside of recovery", () => {
+        expect(resolve(OperatorState.Running)).toBe(OperatorState.Running);
+      });
+
+      it("masks any reported state to Recovering while the execution is recovering", () => {
+        const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+        vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
+          state: ExecutionState.Recovering,
+        } as ReturnType<ExecuteWorkflowService["getExecutionState"]>);
+
+        expect(resolve(OperatorState.Running)).toBe(OperatorState.Recovering);
+        // the missing-operator fallback is not masked
+        expect(resolve(undefined)).toBe(OperatorState.Uninitialized);
       });
     });
 
@@ -1610,6 +1808,17 @@ describe("WorkflowEditorComponent link breakpoints", () => {
     return { linkID: mockScanResultLink.linkID, model, view: model.findView(component.paper) as any };
   }
 
+  it("attaches no breakpoint tool on a structure-locked preview", () => {
+    // The Form View's preview has no use for breakpoints (a canvas debugging tool), and a hover adds
+    // no remove button there either: buttons that did nothing would suggest the preview can be edited.
+    component.structureLocked = true;
+    const { view } = withLink();
+
+    expect(view.hasTools()).toBe(false);
+    component.paper.trigger("link:mouseenter", view, new MouseEvent("mouseenter"));
+    expect(view.hasTools()).toBe(false);
+  });
+
   it("attaches a breakpoint tool to every link, hidden until it is wanted", () => {
     // The tool is what the user clicks to set a breakpoint; without it the feature has no entry
     // point, and leaving it visible would put a button on every link on the canvas.
@@ -1757,16 +1966,13 @@ describe("WorkflowEditorComponent editor wiring", () => {
     (executeWorkflowService as any).regionUpdateStream.next({ regions });
   }
 
-  /** An OperatorStatistics payload in the given state. */
-  function statisticsIn(state: OperatorState) {
-    return {
-      operatorState: state,
-      aggregatedInputRowCount: 0,
-      inputPortMetrics: {},
-      aggregatedOutputRowCount: 0,
-      outputPortMetrics: {},
-    };
-  }
+  /** A metrics-only OperatorStatistics payload (operator state travels on its own stream). */
+  const emptyStatistics = {
+    aggregatedInputRowCount: 0,
+    inputPortMetrics: {},
+    aggregatedOutputRowCount: 0,
+    outputPortMetrics: {},
+  };
 
   /** Clicks the chat button of a cell, the way `.chat-button` does. */
   function clickChatButton(cellID: string): void {
@@ -1838,29 +2044,34 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("execution status streams", () => {
-    it("forwards each operator's statistics, tagging which end of the graph it sits on", () => {
-      workflowActionService.addOperator(mockScanPredicate, mockPoint); // no input ports  -> source
-      workflowActionService.addOperator(mockResultPredicate, mockPoint); // no output ports -> sink
+    it("forwards each operator's statistics from the statistics stream", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
 
-      (workflowStatusService as any).statusSubject.next({
-        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
-        [mockResultPredicate.operatorID]: statisticsIn(OperatorState.Completed),
+      (workflowStatusService as any).statisticsSubject.next({
+        [mockScanPredicate.operatorID]: emptyStatistics,
       });
 
-      expect(changeStatistics).toHaveBeenCalledWith(
-        component.paper,
-        mockScanPredicate.operatorID,
-        statisticsIn(OperatorState.Running),
-        true,
-        false
-      );
-      expect(changeStatistics).toHaveBeenCalledWith(
+      expect(changeStatistics).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, emptyStatistics);
+      // an operator missing from the payload is forwarded as undefined (a no-op render)
+      expect(changeStatistics).toHaveBeenCalledWith(component.paper, mockResultPredicate.operatorID, undefined);
+    });
+
+    it("paints each operator's reported state, defaulting missing ones to Uninitialized", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const changeState = vi.spyOn(jointUIService, "changeOperatorState");
+
+      (workflowStatusService as any).stateSubject.next({
+        [mockScanPredicate.operatorID]: OperatorState.Running,
+      });
+
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, OperatorState.Running);
+      expect(changeState).toHaveBeenCalledWith(
         component.paper,
         mockResultPredicate.operatorID,
-        statisticsIn(OperatorState.Completed),
-        false,
-        true
+        OperatorState.Uninitialized
       );
     });
 
@@ -1869,41 +2080,33 @@ describe("WorkflowEditorComponent editor wiring", () => {
       vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
         state: ExecutionState.Recovering,
       } as any);
-      const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+      const changeState = vi.spyOn(jointUIService, "changeOperatorState");
 
-      (workflowStatusService as any).statusSubject.next({
-        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
+      (workflowStatusService as any).stateSubject.next({
+        [mockScanPredicate.operatorID]: OperatorState.Running,
       });
 
-      expect(changeStatistics).toHaveBeenCalledWith(
-        component.paper,
-        mockScanPredicate.operatorID,
-        expect.objectContaining({ operatorState: OperatorState.Recovering }),
-        true,
-        false
-      );
+      expect(changeState).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, OperatorState.Recovering);
     });
 
-    it("does not invent statistics for an operator missing from the status payload", () => {
-      // The isDefined guard matters most while recovering: without it the operator would be
-      // handed a synthesized `{ operatorState: Recovering }` instead of nothing at all.
+    it("does not mask an operator missing from the state payload to Recovering", () => {
+      // Recovering overrides a *reported* state; an operator absent from the payload
+      // keeps the plain Uninitialized fallback even while the execution recovers.
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
         state: ExecutionState.Recovering,
       } as any);
-      const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+      const changeState = vi.spyOn(jointUIService, "changeOperatorState");
 
-      (workflowStatusService as any).statusSubject.next({
-        [mockScanPredicate.operatorID]: statisticsIn(OperatorState.Running),
+      (workflowStatusService as any).stateSubject.next({
+        [mockScanPredicate.operatorID]: OperatorState.Running,
       });
 
-      expect(changeStatistics).toHaveBeenCalledWith(
+      expect(changeState).toHaveBeenCalledWith(
         component.paper,
         mockResultPredicate.operatorID,
-        undefined,
-        false,
-        true
+        OperatorState.Uninitialized
       );
     });
 

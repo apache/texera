@@ -39,3 +39,7 @@ betterproto[compiler]==2.0.0b7
 
 # Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
 textual==8.2.8
+
+# Reads bin/k8s/values.yaml in bin/k8s/tests/test_helm_values.sh. That check fails
+# rather than skipping when this is missing, so the suite cannot go green by accident.
+PyYAML==6.0.2

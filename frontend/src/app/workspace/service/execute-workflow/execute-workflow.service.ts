@@ -18,7 +18,7 @@
  */
 
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { BehaviorSubject, interval, Observable, Subject, Subscription } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -48,6 +48,8 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -93,6 +95,21 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
+  /**
+   * The clock for the current run, as an anchor rather than a snapshot: the backend sends
+   * `ExecutionDurationUpdateEvent` exactly twice per run -- once just after `startTimeStamp` is
+   * written, carrying a few milliseconds, and once when `endTimeStamp` is -- so the reported number
+   * stands still for the whole run and only the local tick advances it. Anchored, any view can work
+   * out how long the run has been going whenever it mounts.
+   */
+  private durationAnchor: { reported: number; at: number; isRunning: boolean } = {
+    reported: 0,
+    at: 0,
+    isRunning: false,
+  };
+  /** Ticks while a run is going; replays the current value to a view that mounts mid-run. */
+  private readonly executionDuration = new BehaviorSubject<number>(0);
+  private durationTicker?: Subscription;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -100,7 +117,9 @@ export class ExecuteWorkflowService {
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
     @Inject(DOCUMENT) private document: Document,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService,
+    private config: GuiConfigService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -112,6 +131,9 @@ export class ExecuteWorkflowService {
           break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
+          break;
+        case "ExecutionDurationUpdateEvent":
+          this.anchorDuration(event.duration, event.isRunning);
           break;
         default:
           // workflow status related event
@@ -190,6 +212,49 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
+  /** How long the current run has been going, worked out from the anchor. */
+  public getExecutionDuration(): number {
+    const { reported, at, isRunning } = this.durationAnchor;
+    return isRunning ? reported + (Date.now() - at) : reported;
+  }
+
+  /**
+   * The run clock, ticking while a run is going. Both views read it from here rather than each
+   * running their own timer off the backend event: that timer sat downstream of the event, so a
+   * view that mounted after the run started never received one and never began counting.
+   */
+  public getExecutionDurationStream(): Observable<number> {
+    return this.executionDuration.asObservable();
+  }
+
+  private anchorDuration(reported: number, isRunning: boolean): void {
+    this.durationAnchor = { reported, at: Date.now(), isRunning };
+    this.durationTicker?.unsubscribe();
+    this.durationTicker = isRunning
+      ? interval(1000).subscribe(() => this.executionDuration.next(this.getExecutionDuration()))
+      : undefined;
+    this.executionDuration.next(this.getExecutionDuration());
+  }
+
+  /**
+   * Apply the graph lock the current execution state implies, for a view that arrived on a workflow
+   * whose run was already in flight.
+   *
+   * The lock is otherwise only reapplied when the state changes (see `updateExecutionState`), so a
+   * view that unlocked the graph on arrival left a workflow that was still running editable until
+   * its run happened to end. The rule itself stays in the one place that owns it.
+   *
+   * Deliberately silent. `executionStateStream` carries transitions, not a current value, and
+   * re-announcing the state as `previous -> current` of the same state would be a transition that
+   * never happened: the result panel would read it as a run just finishing, and the canvas editor
+   * throws outright on any event whose `previous` is `Recovering` and whose `current` is not one of
+   * the states recovery can end in. A view that needs the current state reads `getExecutionState()`
+   * -- as the menu does when it is constructed, and as the Form View does before it settles in.
+   */
+  public reapplyExecutionLock(): void {
+    this.updateWorkflowActionLock(this.currentState);
+  }
+
   public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
     if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
@@ -207,6 +272,9 @@ export class ExecuteWorkflowService {
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
@@ -219,6 +287,9 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunWithoutWarehouse()) {
+      return;
+    }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
@@ -228,6 +299,21 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * While the deployment requires a warehouse (#7817) and none is picked,
+   * refuses with a toast and returns true. Checked at every public entry
+   * point before it resets the previous execution's state — a refused click
+   * must not wipe the results already on screen (#7751 adds the backend-side
+   * rejection).
+   */
+  private refuseToRunWithoutWarehouse(): boolean {
+    if (!this.config.env.warehouseEnabled || this.warehouseService.getSelectedWarehouseIdValue() !== undefined) {
+      return false;
+    }
+    this.notificationService.error("Create or select a warehouse before running.");
+    return true;
   }
 
   public sendExecutionRequest(
@@ -240,6 +326,11 @@ export class ExecuteWorkflowService {
     // Get the current computing unit ID from the status service
     const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
     const computingUnitId = selectedUnit?.computingUnit.cuid;
+
+    // The warehouse this execution writes to (#7817); undefined serializes away,
+    // which the backend today reads as the shared default storage (#7751
+    // tightens that to a rejection while the feature is enabled).
+    const warehouseId = this.warehouseService.getSelectedWarehouseIdValue();
 
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {
@@ -254,6 +345,7 @@ export class ExecuteWorkflowService {
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
       computingUnitId: computingUnitId, // Include the computing unit ID
+      warehouseId: warehouseId,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -352,6 +444,8 @@ export class ExecuteWorkflowService {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
+    // Otherwise the next workflow's menu opens showing the previous run's time.
+    this.anchorDuration(0, false);
   }
 
   /**
@@ -362,6 +456,10 @@ export class ExecuteWorkflowService {
   public resetExecutionAndWorkers(): void {
     this.updateExecutionState({ state: ExecutionState.Uninitialized });
     this.assignedWorkerIds.clear();
+    // Leaving the workspace takes this path, not resetExecutionState, so the clock has to be
+    // stopped here as well: otherwise the next workflow opens showing the last run's time, and
+    // if that run was still going, showing it still counting up.
+    this.anchorDuration(0, false);
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {

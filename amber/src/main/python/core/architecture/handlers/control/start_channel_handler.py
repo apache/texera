@@ -25,5 +25,10 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 
 class StartChannelHandler(ControlHandler):
     async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
-        self.context.tuple_processing_manager.current_internal_marker = StartChannel()
+        port = self.context.input_manager.get_port_id(
+            self.context.current_input_channel_id
+        )
+        self.context.tuple_processing_manager.current_internal_marker = StartChannel(
+            port.id
+        )
         return EmptyReturn()

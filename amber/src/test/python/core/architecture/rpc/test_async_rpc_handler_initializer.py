@@ -70,15 +70,6 @@ UNIMPLEMENTED_RPCS = frozenset(
     }
 )
 
-# Worker replies with no slot in ControlReturn's oneof. The worker service
-# declares EvaluatedValue as EvaluatePythonExpression's reply, but the oneof
-# registers only the coordinator-side wrapper, so set_one_of() packs an EMPTY
-# ControlReturn: the answer is silently dropped (verified by hand).
-# test_async_rpc_server.py pins that swallowing mechanism with a synthetic
-# type; this names the real RPC that hits it. The fix is a .proto change in
-# its own PR -- this spec only pins the current, broken shape.
-REPLIES_MISSING_FROM_CONTROL_RETURN = frozenset({"evaluate_python_expression"})
-
 # Scanned on disk to catch handler classes the MRO cannot see.
 HANDLER_PACKAGE = "core.architecture.handlers.control"
 
@@ -218,14 +209,12 @@ class TestTransportOneofs:
         )
         assert unroutable == []
 
-    def test_reply_types_missing_from_control_return_are_exactly_the_known_hole(self):
+    def test_every_reply_type_is_a_control_return_oneof_member(self):
         members = _oneof_member_types(ControlReturn)
-        missing = {
+        unroutable = sorted(
             name for name, rpc in RPCS.items() if rpc.handler.reply_type not in members
-        }
-        # Both directions: fixing the proto without updating the constant
-        # fails, and so does padding the constant with a routable RPC.
-        assert missing == set(REPLIES_MISSING_FROM_CONTROL_RETURN)
+        )
+        assert unroutable == []
 
 
 class TestHandlerCoverage:
