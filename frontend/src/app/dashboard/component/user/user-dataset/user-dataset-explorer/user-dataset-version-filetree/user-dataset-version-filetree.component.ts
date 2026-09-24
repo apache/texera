@@ -70,6 +70,9 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   public isTreeNodeDeletable: boolean = false;
 
   @Input()
+  public isCoverSettable: boolean = false;
+
+  @Input()
   public set fileTreeNodes(nodes: DatasetFileNode[]) {
     this._fileTreeNodes = nodes ?? [];
     const newHeight = this.computeContainerHeightPx();

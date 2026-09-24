@@ -36,5 +36,7 @@ case class WorkflowExecuteRequest(
     replayFromExecution: Option[ReplayExecutionInfo], // contains execution Id, interaction Id.
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: Boolean,
-    computingUnitId: Int
+    computingUnitId: Int,
+    // The user_warehouse this run writes into; absent = the shared default warehouse.
+    warehouseId: Option[Int]
 ) extends TexeraWebSocketRequest

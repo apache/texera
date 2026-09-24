@@ -481,6 +481,9 @@ class ExecutionResultService(
       PortIdentity()
     )
 
+    // Refuse to read a per-user-warehouse result while the feature is off (#6930).
+    storageUriOption.foreach(WarehouseReadGuard.assertReadable(_))
+
     storageUriOption match {
       case Some(storageUri) =>
         val (document, schemaOption) = DocumentFactory.openDocument(storageUri)

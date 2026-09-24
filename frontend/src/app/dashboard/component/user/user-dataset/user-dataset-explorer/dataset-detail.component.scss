@@ -17,22 +17,6 @@
  * under the License.
  */
 
-.create-dataset-version-button {
-  display: flex; /* Use flexbox for centering */
-  align-items: center; /* Center vertically */
-  justify-content: center; /* Center horizontally */
-  color: white;
-  border: none;
-  padding: 12px 40px; /* Increase padding for a wider button */
-  border-radius: 25px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  margin: 18px auto 0 auto; /* Auto margins for horizontal centering */
-  width: 200px; /* Adjust width as needed */
-  font-size: 18px; /* Make text slightly bigger */
-  font-weight: bold; /* Optional: Make text bold */
-}
-
 .version-storage {
   padding: 0 15px;
   margin-bottom: 25px;
@@ -141,79 +125,6 @@ nz-select {
 
 .empty-version-indicator {
   margin-top: 15%;
-}
-
-.upload-progress-wrapper {
-  max-height: 25vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-// Rows must stay exactly PENDING_ROW_HEIGHT_PX tall for the fixed-size scroll
-// strategy. The gutter lives on the rows: padding on the viewport never
-// reaches its absolutely positioned content wrapper.
-.upload-progress-wrapper-pending {
-  .pending-file-row {
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-right: 4px;
-
-    .pending-file-name {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
-}
-
-.version-creator {
-  margin-top: 20px;
-  padding: 20px;
-}
-
-.version-input-container label {
-  font-size: 15px;
-}
-
-.version-input-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.version-input {
-  padding: 6px;
-}
-
-.upload-stats {
-  font-size: 13px;
-  margin-bottom: 20px;
-  nz-progress {
-    width: 97%;
-    display: inline-block;
-  }
-}
-
-:host ::ng-deep .upload-stats .ant-tag {
-  border: none;
-}
-
-.fixed-width-speed {
-  display: inline-block;
-  min-width: 5ch;
-  text-align: right;
-}
-
-.fixed-width-time {
-  display: inline-block;
-  min-width: 2ch;
-  text-align: right;
-}
-
-.section-divider {
-  margin: 8px 0;
 }
 
 .status-tag-row {
@@ -533,4 +444,116 @@ nz-tabs {
 
 ::ng-deep .settings-general-card button {
   border-radius: 8px;
+}
+
+.data-card-metadata {
+  margin-top: 16px;
+  // Match .data-card-columns' left inset so the box lines up with the
+  // Description card, not the page's outer edge.
+  margin-left: 16px;
+
+  .metadata-divider {
+    margin: 8px 0 12px;
+  }
+}
+
+@mixin line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.contributors-collapse ::ng-deep {
+  .ant-collapse-header {
+    padding: 0 0 8px !important;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .ant-collapse-content-box {
+    padding: 0 !important;
+  }
+}
+
+.contributor-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 220px);
+  gap: 12px;
+}
+
+.contributor-card {
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  word-break: break-word;
+
+  .contributor-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+
+  .contributor-name {
+    font-weight: 600;
+    padding-right: 24px;
+    @include line-clamp-2;
+  }
+
+  .creator-star {
+    color: #faad14;
+    font-size: 13px;
+    margin-left: 4px;
+  }
+
+  .contributor-row {
+    font-size: 13px;
+
+    .contributor-label {
+      display: block;
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 12px;
+    }
+
+    .contributor-value {
+      @include line-clamp-2;
+
+      &.empty {
+        color: rgba(0, 0, 0, 0.25);
+      }
+    }
+  }
+}
+
+.contributor-actions-menu {
+  .anticon {
+    margin-right: 8px;
+  }
+}
+
+.contributor-card-add {
+  width: 40px;
+  height: 40px;
+  align-self: center;
+  margin-left: 15px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #1890ff;
+  }
+
+  .add-icon {
+    font-size: 18px;
+  }
 }

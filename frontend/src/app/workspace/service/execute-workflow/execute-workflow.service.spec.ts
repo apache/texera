@@ -20,7 +20,7 @@
 import "zone.js/testing";
 
 import { DOCUMENT } from "@angular/core";
-import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "./execute-workflow.service";
@@ -32,14 +32,17 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { of, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
@@ -58,7 +61,6 @@ import { sessionGetObject, sessionSetObject } from "../../../common/util/storage
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
-  let mockWorkflowSnapshotService: WorkflowSnapshotService;
   let mockDocument: Document;
 
   beforeEach(() => {
@@ -89,7 +91,6 @@ describe("ExecuteWorkflowService", () => {
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
-    mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
   });
 
   afterEach(() => {
@@ -108,6 +109,133 @@ describe("ExecuteWorkflowService", () => {
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  // A view handed a session mid-run subscribes after the last state change, and the stream carries
+  // no current value, so it heard nothing about the run: it showed Run for a workflow that was
+  // running. The lock is reapplied only when the state changes too, so a canvas that unlocked the
+  // graph on arrival left a running workflow editable until the run happened to end.
+  // The backend sends ExecutionDurationUpdateEvent exactly twice in a run: once just after
+  // startTimeStamp is written, carrying a few milliseconds, and once when endTimeStamp is. So the
+  // reported number stands still for the whole run, and a view that mounted in between and hung a
+  // timer off that event never received one and never started counting. The clock is anchored and
+  // ticked here instead, and replayed to whoever subscribes.
+  describe("the run clock", () => {
+    const emitDuration = (duration: number, isRunning: boolean) =>
+      emitWsEvent({ type: "ExecutionDurationUpdateEvent", duration, isRunning } as TexeraWebsocketEvent);
+
+    it("counts on from the reported value while the run is going, rather than repeating it", () => {
+      vi.useFakeTimers();
+      try {
+        // What the backend actually sends at the start of a run: a handful of milliseconds.
+        emitDuration(3, true);
+        vi.advanceTimersByTime(60_000);
+
+        // A view mounting a minute in asks and is told a minute, not 3ms.
+        expect(service.getExecutionDuration()).toBeGreaterThanOrEqual(60_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hands a view that subscribes mid-run the clock straight away, then ticks it", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(30_000);
+
+        const seen: number[] = [];
+        service.getExecutionDurationStream().subscribe(d => seen.push(d));
+        expect(seen[0]).toBeGreaterThanOrEqual(30_000);
+
+        vi.advanceTimersByTime(1000);
+        expect(seen[seen.length - 1]).toBeGreaterThanOrEqual(31_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops counting once the run ends, and reports what the run took", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(10_000);
+        // The second and last event: the real total.
+        emitDuration(12_345, false);
+        vi.advanceTimersByTime(10_000);
+
+        expect(service.getExecutionDuration()).toBe(12_345);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Otherwise the next workflow's menu opens showing the previous run's time.
+    it("goes back to zero when the execution state is reset", () => {
+      emitDuration(9999, false);
+
+      service.resetExecutionState();
+
+      expect(service.getExecutionDuration()).toBe(0);
+    });
+
+    // Leaving the workspace takes this path, not resetExecutionState, and a run still going when
+    // it is taken would otherwise carry on counting into the next workflow.
+    it("stops a running clock when the execution and workers are reset", () => {
+      vi.useFakeTimers();
+      try {
+        emitDuration(0, true);
+        vi.advanceTimersByTime(20_000);
+
+        service.resetExecutionAndWorkers();
+        const atReset = service.getExecutionDuration();
+        vi.advanceTimersByTime(20_000);
+
+        expect(atReset).toBe(0);
+        expect(service.getExecutionDuration()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // A view handed a session mid-run needs the lock the run implies; the lock is otherwise only
+  // reapplied when the state changes, so a canvas that unlocked on arrival left a running workflow
+  // editable until its run happened to end.
+  describe("reapplyExecutionLock", () => {
+    it("reapplies the lock the current state implies, rather than unlocking outright", () => {
+      const actionService = service["workflowActionService"];
+      const enable = vi.spyOn(actionService, "enableWorkflowModification");
+      const disable = vi.spyOn(actionService, "disableWorkflowModification");
+
+      // Uninitialized: nothing is running, so the graph may be edited.
+      service.reapplyExecutionLock();
+      expect(enable).toHaveBeenCalled();
+      expect(disable).not.toHaveBeenCalled();
+
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      enable.mockClear();
+      disable.mockClear();
+
+      // Running: the graph stays locked, which is the case the canvas's hand-over got wrong.
+      service.reapplyExecutionLock();
+      expect(disable).toHaveBeenCalled();
+      expect(enable).not.toHaveBeenCalled();
+    });
+
+    // The stream carries transitions. Repeating the current state as `previous -> current` of the
+    // same state is a transition that never happened: the result panel reads one as a run just
+    // finishing, and the canvas editor throws on any event whose `previous` is Recovering and whose
+    // `current` is not a state recovery can end in -- which a Recovering -> Recovering repeat is.
+    it("says nothing on the state stream, so no transition is invented", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Recovering });
+      const seen: ExecutionStateInfo[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current));
+
+      service.reapplyExecutionLock();
+
+      expect(seen).toEqual([]);
+    });
+  });
 
   it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
     (service as any).currentState = { state: ExecutionState.Running };
@@ -397,6 +525,64 @@ describe("ExecuteWorkflowService", () => {
     expect(wsSendSpy).toHaveBeenCalledWith(
       "WorkflowExecuteRequest",
       expect.objectContaining({ computingUnitId: 99, emailNotificationEnabled: true, executionName: "exec" })
+    );
+  }));
+
+  it("a refused run leaves the previous execution's state untouched (#7817)", () => {
+    TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+    try {
+      TestBed.inject(WarehouseService).selectWarehouse(undefined);
+      const resetSpy = vi.spyOn(service, "resetExecutionState");
+      const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
+      vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+      service.executeWorkflowWithEmailNotification("exec", false);
+
+      expect(resetSpy).not.toHaveBeenCalled();
+      expect(statusResetSpy).not.toHaveBeenCalled();
+    } finally {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    }
+  });
+
+  it("refuses to run without a warehouse while the deployment requires one (#7817)", fakeAsync(() => {
+    // Paths that bypass the menu gate (form view, run-up-to, replay) all funnel
+    // through sendExecutionRequest; the shared storage must not catch them.
+    TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+    try {
+      TestBed.inject(WarehouseService).selectWarehouse(undefined);
+      const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+      service.executeWorkflowWithEmailNotification("exec", false);
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+
+      expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith("Create or select a warehouse before running.");
+    } finally {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    }
+  }));
+
+  it("sendExecutionRequest carries the picked warehouse id, and none when unset (#7817)", fakeAsync(() => {
+    const warehouseService = TestBed.inject(WarehouseService);
+    const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+    const settings = service["workflowActionService"].getWorkflowSettings();
+
+    warehouseService.selectWarehouse(7);
+    service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+    tick(FORM_DEBOUNCE_TIME_MS + 1);
+    flush();
+    expect(wsSendSpy).toHaveBeenLastCalledWith("WorkflowExecuteRequest", expect.objectContaining({ warehouseId: 7 }));
+
+    warehouseService.selectWarehouse(undefined);
+    service.sendExecutionRequest("exec", {} as LogicalPlan, settings, false, undefined);
+    tick(FORM_DEBOUNCE_TIME_MS + 1);
+    flush();
+    expect(wsSendSpy).toHaveBeenLastCalledWith(
+      "WorkflowExecuteRequest",
+      expect.objectContaining({ warehouseId: undefined })
     );
   }));
 

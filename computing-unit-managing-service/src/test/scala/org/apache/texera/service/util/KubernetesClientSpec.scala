@@ -26,17 +26,30 @@ import io.fabric8.kubernetes.api.model.metrics.v1beta1.{
   PodMetricsList,
   PodMetricsListBuilder
 }
-import io.fabric8.kubernetes.api.model.{Pod, PodBuilder, PodList, PodListBuilder, Quantity}
+import io.fabric8.kubernetes.api.model.{
+  Container,
+  ContainerBuilder,
+  Pod,
+  PodBuilder,
+  PodList,
+  PodListBuilder,
+  Quantity,
+  ResourceRequirementsBuilder
+}
 import io.fabric8.kubernetes.client.dsl.{
   MetricAPIGroupDSL,
   MixedOperation,
+  NamespaceableResource,
   NonNamespaceOperation,
   PodMetricOperation,
-  PodResource
+  PodResource,
+  Resource
 }
 import io.fabric8.kubernetes.client.{KubernetesClient => Fabric8Client}
 import org.apache.texera.common.config.KubernetesConfig
-import org.mockito.Mockito.{mock, when}
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{mock, times, verify, when}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -52,7 +65,18 @@ import scala.jdk.CollectionConverters._
 // resolution) is covered by ComputingUnitHelpersSpec.
 class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
+  private val testAccessControlServiceUrl =
+    "http://access-control-service-svc.texera.svc.cluster.local:9096"
+  private val testPodMountRoot = "/mnt/test-mounts"
+
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
+
+  // getVolumes/getVolumeMounts are null rather than empty when nothing was added.
+  private def volumeNames(pod: Pod): List[String] =
+    Option(pod.getSpec.getVolumes).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
+
+  private def mountNames(container: Container): List[String] =
+    Option(container.getVolumeMounts).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
 
   // A fabric8 client stubbed just enough to answer the namespace-wide pod-list and pod-metrics
   // calls the wrappers make. RETURNS_DEEP_STUBS can't be used: fabric8's fluent API returns type
@@ -159,5 +183,207 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     val k8s = new KubernetesClient(stubbedClient(Seq.empty, Seq(podMetrics(1, "250m", "128Mi"))))
     k8s.getPodMetrics(1) shouldBe Map("cpu" -> "250m", "memory" -> "128Mi")
     k8s.getPodMetrics(999) shouldBe empty
+  }
+  // ── single-pod lookups, creation and deletion ──
+  // These reach the rest of the fluent chain: withName(...).get() for the lookups,
+  // resource(pod).inNamespace(...).create() for creation, and .delete() for removal. Everything
+  // is driven through the constructor seam, so no cluster is involved.
+
+  /** Extends the namespace stub with the by-name pod operations `withName(...)` returns. */
+  private def clientWithNamedPod(podName: String, found: Pod): (Fabric8Client, PodResource) = {
+    val client = stubbedClient(Seq.empty, Seq.empty)
+    val podsInNamespace = client.pods().inNamespace(namespace)
+    val podResource = mock(classOf[PodResource])
+    when(podsInNamespace.withName(podName)).thenReturn(podResource)
+    when(podResource.get()).thenReturn(found)
+    (client, podResource)
+  }
+
+  /** A pod carrying one container whose resource limits are set. */
+  private def podWithLimits(cuid: Int, limits: Map[String, String]): Pod =
+    new PodBuilder()
+      .withNewMetadata()
+      .withName(KubernetesClient.generatePodName(cuid))
+      .endMetadata()
+      .withNewSpec()
+      .addToContainers(
+        new ContainerBuilder()
+          .withName("main")
+          .withResources(
+            new ResourceRequirementsBuilder()
+              .withLimits(limits.map { case (k, v) => k -> new Quantity(v) }.asJava)
+              .build()
+          )
+          .build()
+      )
+      .endSpec()
+      .build()
+
+  "generatePodURI" should "address the pod through its headless service inside the namespace" in {
+    // The URI is how a computing unit is reached once it is up, so every segment matters: a pod
+    // name alone, or the wrong namespace, resolves to nothing.
+    val uri = KubernetesClient.generatePodURI(7)
+    uri should startWith(KubernetesClient.generatePodName(7) + ".")
+    uri should include(s".${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local:")
+    uri should endWith(s":${KubernetesConfig.computeUnitPortNumber}")
+  }
+
+  "getPodByName" should "wrap a found pod and report a missing one as None" in {
+    // fabric8 returns null rather than throwing for an absent pod, so the Option() wrapper is the
+    // only thing standing between a caller and an NPE.
+    val name = KubernetesClient.generatePodName(1)
+    val (found, _) = clientWithNamedPod(name, pod(1, "Running"))
+    val (absent, _) = clientWithNamedPod(name, null)
+
+    new KubernetesClient(found).getPodByName(name).map(_.getMetadata.getName) shouldBe Some(name)
+    new KubernetesClient(absent).getPodByName(name) shouldBe None
+  }
+
+  "podExists" should "follow the by-name lookup in both directions" in {
+    val name = KubernetesClient.generatePodName(2)
+    new KubernetesClient(clientWithNamedPod(name, pod(2, "Running"))._1).podExists(2) shouldBe true
+    new KubernetesClient(clientWithNamedPod(name, null)._1).podExists(2) shouldBe false
+  }
+
+  "getPodLimits" should "read the first container's limits and fall back to an empty map" in {
+    val name = KubernetesClient.generatePodName(3)
+    val withLimits =
+      clientWithNamedPod(name, podWithLimits(3, Map("cpu" -> "2", "memory" -> "4Gi")))._1
+    val missing = clientWithNamedPod(name, null)._1
+
+    new KubernetesClient(withLimits).getPodLimits(3) shouldBe Map("cpu" -> "2", "memory" -> "4Gi")
+    new KubernetesClient(missing).getPodLimits(3) shouldBe empty
+  }
+
+  "createPod" should "refuse to overwrite a pod that already exists" in {
+    // Creating over a live unit would silently detach the running one from its owner.
+    val name = KubernetesClient.generatePodName(4)
+    val k8s = new KubernetesClient(clientWithNamedPod(name, pod(4, "Running"))._1)
+
+    val thrown = intercept[Exception] {
+      k8s.createPod(4, "1", "2Gi", "0", Map.empty)
+    }
+    thrown.getMessage should include("already exists")
+  }
+
+  it should "build the pod from the requested limits and env, and create it in the namespace" in {
+    val name = KubernetesClient.generatePodName(5)
+    val (client, _) = clientWithNamedPod(name, null)
+    val namespaceable = mock(classOf[NamespaceableResource[Pod]])
+    val resource = mock(classOf[Resource[Pod]])
+    val captor = ArgumentCaptor.forClass(classOf[Pod])
+    when(client.resource(any(classOf[Pod]))).thenReturn(namespaceable)
+    when(namespaceable.inNamespace(namespace)).thenReturn(resource)
+    // create()'s return value is not asserted; the pod is inspected through the captor below.
+    when(resource.create()).thenReturn(null)
+
+    new KubernetesClient(client).createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
+
+    verify(client).resource(captor.capture())
+    val built = captor.getValue
+    built.getSpec.getHostname shouldBe name
+    built.getSpec.getSubdomain shouldBe KubernetesConfig.computeUnitServiceName
+    val container = built.getSpec.getContainers.asScala.head
+    val limits = container.getResources.getLimits.asScala.map { case (k, v) => k -> v.toString }
+    limits("cpu") shouldBe "2"
+    limits("memory") shouldBe "4Gi"
+    // Env values arrive as Any and reach the container as strings.
+    container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap shouldBe
+      Map("UID" -> "9", "MODE" -> "batch")
+
+    // The PodSecurity-safe default: no hostPath, so a cluster enforcing `baseline` or
+    // `restricted` on the pool namespace still admits the pod.
+    volumeNames(built) should not contain "texera-mounts"
+    mountNames(container) should not contain "texera-mounts"
+  }
+
+  it should "wire the mount contract into the pod only when mounting is enabled" in {
+    val name = KubernetesClient.generatePodName(5)
+    val (client, _) = clientWithNamedPod(name, null)
+    val namespaceable = mock(classOf[NamespaceableResource[Pod]])
+    val resource = mock(classOf[Resource[Pod]])
+    val captor = ArgumentCaptor.forClass(classOf[Pod])
+    when(client.resource(any(classOf[Pod]))).thenReturn(namespaceable)
+    when(namespaceable.inNamespace(namespace)).thenReturn(resource)
+    when(resource.create()).thenReturn(null)
+
+    new KubernetesClient(
+      client,
+      mountingEnabled = true,
+      testAccessControlServiceUrl,
+      testPodMountRoot
+    )
+      .createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
+
+    verify(client).resource(captor.capture())
+    val built = captor.getValue
+    val container = built.getSpec.getContainers.asScala.head
+
+    // The host directory is scoped to this CU, so one unit can never see another's mounts.
+    val volume = built.getSpec.getVolumes.asScala.find(_.getName == "texera-mounts")
+    volume shouldBe defined
+    volume.get.getHostPath.getPath shouldBe s"${KubernetesConfig.mounterHostRoot}/5"
+    // DirectoryOrCreate: the mounter mounts into a path the kubelet has already created.
+    volume.get.getHostPath.getType shouldBe "DirectoryOrCreate"
+
+    // HostToContainer, not Bidirectional: the pod receives the mount the privileged mounter
+    // makes and must not be able to propagate one back out to the node.
+    val mount = container.getVolumeMounts.asScala.find(_.getName == "texera-mounts")
+    mount shouldBe defined
+    mount.get.getMountPath shouldBe testPodMountRoot
+    mount.get.getMountPropagation shouldBe "HostToContainer"
+
+    // The pod is told which CU it is and where its mounts appear -- and deliberately not
+    // how to reach the mounter.
+    val env = container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap
+    env should contain("TEXERA_CU_ID" -> "5")
+    env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> testPodMountRoot)
+    // Who the pod asks for a mount. Without it the engine cannot request one, and the pod
+    // has no other way to reach a mounter -- which is the point.
+    env should contain(
+      "ACCESS_CONTROL_SERVICE_URL" -> testAccessControlServiceUrl
+    )
+
+    // Still unprivileged: the whole point of mounting out of pod.
+    val privileged = Option(container.getSecurityContext).flatMap(c => Option(c.getPrivileged))
+    privileged.contains(true) shouldBe false
+  }
+
+  it should "mount a shared-memory volume only when a size is asked for" in {
+    // /dev/shm defaults to 64Mi in Kubernetes, which is too small for the Python workers, so the
+    // volume is the fix — but it must not appear when no size was requested.
+    def build(shm: Option[String]): Pod = {
+      val name = KubernetesClient.generatePodName(6)
+      val (client, _) = clientWithNamedPod(name, null)
+      val namespaceable = mock(classOf[NamespaceableResource[Pod]])
+      val resource = mock(classOf[Resource[Pod]])
+      val captor = ArgumentCaptor.forClass(classOf[Pod])
+      when(client.resource(any(classOf[Pod]))).thenReturn(namespaceable)
+      when(namespaceable.inNamespace(namespace)).thenReturn(resource)
+      // create()'s return value is not asserted; the pod is inspected through the captor below.
+      when(resource.create()).thenReturn(null)
+      new KubernetesClient(client).createPod(6, "1", "2Gi", "0", Map.empty, shm)
+      verify(client).resource(captor.capture())
+      captor.getValue
+    }
+
+    val withShm = build(Some("1Gi"))
+    withShm.getSpec.getVolumes.asScala.map(_.getName) should contain("dshm")
+    withShm.getSpec.getVolumes.asScala
+      .find(_.getName == "dshm")
+      .flatMap(v => Option(v.getEmptyDir))
+      .map(_.getSizeLimit.toString) shouldBe Some("1Gi")
+
+    Option(build(None).getSpec.getVolumes).map(_.asScala.map(_.getName)).getOrElse(Nil) should
+      not contain "dshm"
+  }
+
+  "deletePod" should "delete the pod for the cuid inside the namespace" in {
+    val name = KubernetesClient.generatePodName(8)
+    val (client, podResource) = clientWithNamedPod(name, pod(8, "Running"))
+
+    new KubernetesClient(client).deletePod(8)
+
+    verify(podResource, times(1)).delete()
   }
 }

@@ -48,7 +48,6 @@ class ComputingUnitAccessSharingDisabledSpec
   private val user: User = {
     val u = new User
     u.setName("cu_user")
-    u.setPassword("123")
     u.setEmail("cu_user@test.com")
     u.setRole(UserRoleEnum.REGULAR)
     u

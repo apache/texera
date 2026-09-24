@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 
@@ -429,6 +430,231 @@ describe("ContextMenuComponent", () => {
 
       highlightedCommentBoxesSubject.next([]);
       expect(component.highlightedCommentBoxIds).toEqual([]);
+    });
+  });
+  // ── Template menu-item (click) wiring ──
+  // The class methods are covered above; these render the menu and click each
+  // item so the template's *ngIf-gated (click) bindings are exercised too.
+  describe("menu item click bindings", () => {
+    const norm = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+    /** Click the rendered <li nz-menu-item> whose text matches `label` exactly. */
+    function clickItem(label: string): void {
+      const items = fixture.debugElement.queryAll(By.css("li[nz-menu-item]"));
+      const item = items.find(li => norm(li.nativeElement.textContent) === norm(label));
+      if (!item) {
+        throw new Error(
+          `menu item "${label}" not rendered; present: [${items.map(i => norm(i.nativeElement.textContent)).join(" | ")}]`
+        );
+      }
+      item.triggerEventHandler("click", null);
+    }
+
+    it("copy invokes onCopy", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onCopy").mockImplementation(() => {});
+
+      clickItem("copy");
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("cut invokes onCut", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onCut").mockImplementation(() => {});
+
+      clickItem("cut");
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("paste invokes onPaste", () => {
+      highlightedOperatorsSubject.next([]);
+      highlightedCommentBoxesSubject.next([]);
+      component.isWorkflowModifiable = true;
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onPaste").mockImplementation(() => {});
+
+      clickItem("paste");
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("disable invokes operatorMenuService.disableHighlightedOperators", () => {
+      operatorMenuService.isDisableOperator = true;
+      operatorMenuService.isDisableOperatorClickable = true;
+      fixture.detectChanges();
+
+      clickItem("disable");
+
+      expect(operatorMenuService.disableHighlightedOperators).toHaveBeenCalledTimes(1);
+    });
+
+    it("enable invokes operatorMenuService.disableHighlightedOperators", () => {
+      operatorMenuService.isDisableOperator = false;
+      operatorMenuService.isDisableOperatorClickable = true;
+      fixture.detectChanges();
+
+      clickItem("enable");
+
+      expect(operatorMenuService.disableHighlightedOperators).toHaveBeenCalledTimes(1);
+    });
+
+    it("view result invokes operatorMenuService.viewResultHighlightedOperators", () => {
+      operatorMenuService.isToViewResult = true;
+      operatorMenuService.isToViewResultClickable = true;
+      fixture.detectChanges();
+
+      clickItem("view result");
+
+      expect(operatorMenuService.viewResultHighlightedOperators).toHaveBeenCalledTimes(1);
+    });
+
+    it("remove view result invokes operatorMenuService.viewResultHighlightedOperators", () => {
+      operatorMenuService.isToViewResult = false;
+      operatorMenuService.isToViewResultClickable = true;
+      fixture.detectChanges();
+
+      clickItem("remove view result");
+
+      expect(operatorMenuService.viewResultHighlightedOperators).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders the reuse result item (disabled) when marked for reuse", () => {
+      // This entry is hardcoded `nzDisabled`, so it can't be clicked; assert it renders.
+      // Its (click) handler is the same as "remove reusing result", covered by the next test.
+      operatorMenuService.isMarkForReuse = true;
+      operatorMenuService.isReuseResultClickable = true;
+      fixture.detectChanges();
+
+      const rendered = fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .some(li => norm(li.nativeElement.textContent) === "reuse result");
+      expect(rendered).toBe(true);
+    });
+
+    it("remove reusing result invokes operatorMenuService.reuseResultHighlightedOperator", () => {
+      operatorMenuService.isMarkForReuse = false;
+      operatorMenuService.isReuseResultClickable = true;
+      fixture.detectChanges();
+
+      clickItem("remove reusing result");
+
+      expect(operatorMenuService.reuseResultHighlightedOperator).toHaveBeenCalledTimes(1);
+    });
+
+    it("delete invokes onDelete when operators are highlighted", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onDelete").mockImplementation(() => {});
+
+      clickItem("delete");
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("delete invokes onDelete for a links-only selection", () => {
+      highlightedOperatorsSubject.next([]);
+      highlightedCommentBoxesSubject.next([]);
+      jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.mockReturnValue(["link1"]);
+      component.isWorkflowModifiable = true;
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onDelete").mockImplementation(() => {});
+
+      clickItem("delete");
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    // The Form View's edit mode turns modification on for the property panel while its embedded
+    // preview stays structure-locked; the lock has to reach the menu, or right-click on the preview
+    // could still re-shape the graph.
+    describe("under a structure lock", () => {
+      const renderedLabels = () =>
+        fixture.debugElement.queryAll(By.css("li[nz-menu-item]")).map(li => norm(li.nativeElement.textContent));
+
+      it("keeps cut, delete, disable and enable off even with modification enabled", () => {
+        highlightedOperatorsSubject.next(["op1"]);
+        component.isWorkflowModifiable = true;
+        component.structureLocked = true;
+        operatorMenuService.isDisableOperator = true;
+        operatorMenuService.isDisableOperatorClickable = true;
+        operatorMenuService.isToViewResult = true;
+        operatorMenuService.isToViewResultClickable = true;
+        fixture.detectChanges();
+
+        const labels = renderedLabels();
+        expect(labels).not.toContain("cut");
+        expect(labels).not.toContain("delete");
+        expect(labels).not.toContain("disable");
+        // Copying and the result toggle do not re-shape the graph, so they stay.
+        expect(labels).toContain("copy");
+        expect(labels).toContain("view result");
+
+        operatorMenuService.isDisableOperator = false;
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("enable");
+      });
+
+      it("keeps paste and link deletion off", () => {
+        component.isWorkflowModifiable = true;
+        component.structureLocked = true;
+        highlightedOperatorsSubject.next([]);
+        highlightedCommentBoxesSubject.next([]);
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("paste");
+
+        jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.mockReturnValue(["link1"]);
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("delete");
+      });
+
+      it("canModify needs modification on and no structure lock", () => {
+        component.isWorkflowModifiable = true;
+        component.structureLocked = false;
+        expect(component.canModify).toBe(true);
+
+        component.structureLocked = true;
+        expect(component.canModify).toBe(false);
+
+        component.structureLocked = false;
+        component.isWorkflowModifiable = false;
+        expect(component.canModify).toBe(false);
+      });
+    });
+
+    it("execute to this operator invokes executeUpToOperator", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      (workflowActionService.getTexeraGraph() as unknown as Mocked<WorkflowGraph>).isOperatorDisabled.mockReturnValue(
+        false
+      );
+      fixture.detectChanges();
+      expect(component.canExecuteOperator()).toBe(true); // item is enabled
+
+      clickItem("execute to this operator");
+
+      expect(operatorMenuService.executeUpToOperator).toHaveBeenCalledTimes(1);
+    });
+
+    it("Export result invokes onClickExportHighlightedExecutionResult", () => {
+      (
+        workflowResultExportService as unknown as { hasResultToExportOnHighlightedOperators: boolean }
+      ).hasResultToExportOnHighlightedOperators = true;
+      (component as unknown as { config: { env: Record<string, unknown> } }).config.env.exportExecutionResultEnabled =
+        true;
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, "onClickExportHighlightedExecutionResult").mockImplementation(() => {});
+
+      clickItem("export result");
+
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 });

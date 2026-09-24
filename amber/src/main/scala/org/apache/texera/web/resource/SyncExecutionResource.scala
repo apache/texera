@@ -50,6 +50,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
+import org.apache.texera.web.service.{WarehouseReadGuard, WarehouseUnavailableException}
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -72,7 +73,12 @@ case class SyncExecutionRequest(
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
     maxOperatorResultCharLimit: Int,
-    maxOperatorResultCellCharLimit: Int
+    maxOperatorResultCellCharLimit: Int,
+    // The user_warehouse this run writes into. Carried from the caller the same way
+    // computingUnitId is: the agent forwards what the user picked in the UI. Required
+    // while per-user warehouses are enabled; absent keeps the shared default when the
+    // feature is off (#7751).
+    warehouseId: Option[Int] = None
 )
 
 case class ConsoleMessageInfo(
@@ -151,6 +157,13 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId
       )
 
+      // Same rule as initExecutionService: check the pick before anything
+      // destructive, or an agent request that is going to be refused takes the
+      // execution in flight down with it. Resolved again inside the init call —
+      // one indexed single-row read, against a request that already writes
+      // several rows.
+      WorkflowService.resolveLakekeeperWarehouseName(request.warehouseId, user.getUser.getUid)
+
       shutdownPreviousExecution(workflowService)
 
       // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
@@ -167,7 +180,8 @@ class SyncExecutionResource extends LazyLogging {
             WorkflowSettings(dataTransferBatchSize = ApplicationConfig.defaultDataTransferBatchSize)
           ),
         emailNotificationEnabled = false,
-        computingUnitId = computingUnitId
+        computingUnitId = computingUnitId,
+        warehouseId = request.warehouseId
       )
 
       workflowService.initExecutionService(
@@ -535,6 +549,8 @@ class SyncExecutionResource extends LazyLogging {
 
       storageUriOption match {
         case Some(storageUri) =>
+          // Refuse to read a per-user-warehouse result while the feature is off (#6930).
+          WarehouseReadGuard.assertReadable(storageUri)
           val document = DocumentFactory
             .openDocument(storageUri)
             ._1
@@ -694,6 +710,9 @@ class SyncExecutionResource extends LazyLogging {
           ("table", None, None, None, None)
       }
     } catch {
+      // A kill-switch refusal must reach the caller instead of degrading into an
+      // empty result (#6930); every other failure keeps the existing behavior.
+      case e: WarehouseUnavailableException => throw e
       case e: Exception =>
         logger.warn(s"Error collecting result for operator $opId: ${e.getMessage}", e)
         ("table", None, None, None, None)
@@ -769,6 +788,8 @@ class SyncExecutionResource extends LazyLogging {
       val uriOption = getConsoleMessageUri(executionId, OperatorIdentity(opId))
 
       uriOption.flatMap { uri =>
+        // Refuse to read per-user-warehouse console messages while the feature is off (#6930).
+        WarehouseReadGuard.assertReadable(uri)
         val document = DocumentFactory
           .openDocument(uri)
           ._1
@@ -793,7 +814,10 @@ class SyncExecutionResource extends LazyLogging {
         if (messages.nonEmpty) Some(messages) else None
       }
     } catch {
-      case _: Exception => None
+      // A kill-switch refusal must reach the caller instead of degrading into an
+      // empty result (#6930); every other failure keeps the existing behavior.
+      case e: WarehouseUnavailableException => throw e
+      case _: Exception                     => None
     }
   }
 

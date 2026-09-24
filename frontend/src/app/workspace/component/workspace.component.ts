@@ -49,10 +49,11 @@ import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.inter
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
-import { USER_WORKSPACE } from "../../app-routing.constant";
+import { isLeavingWorkspace, USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
+import { HeatmapStatsRestoreService } from "../service/heatmap/heatmap-stats-restore.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
@@ -90,7 +91,6 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
@@ -108,6 +108,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
    * before the actual workflow is loaded from backend.
    */
   private autoPersistRegistered = false;
+
+  /**
+   * Whether this page opened onto a workflow that was already live, handed over by its Form View
+   * rather than loaded from scratch. Decided once, in ngAfterViewInit, before anything can change
+   * what it is read from.
+   */
+  private resumedSession = false;
 
   constructor(
     private userService: UserService,
@@ -132,23 +139,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService
   ) {}
 
   ngOnInit() {
-    /**
-     * On initialization of the workspace, there are two possibilities regarding which component has
-     * routed to this component:
-     *
-     * 1. Routed to this component from within UserProjectSection component
-     *    - track the pid identifying that project
-     *    - upon persisting of a workflow, must also ensure it is also added to the project
-     *
-     * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project, parseInt will return NaN.
-     *    - NaN || undefined will result in undefined.
-     */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -173,13 +168,19 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      * WorkflowActionService is the single source of the workflow representation. WorkflowPersistService reflects
      * changes from WorkflowActionService.
      */
-    // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
-    this.workflowActionService.resetAsNewWorkflow();
-    // if a workflow id is present in the route, display loading spinner immediately while loading
     const widInRoute = this.route.snapshot.params.id;
-    if (widInRoute) {
-      this.isLoading = true;
-      this.workflowActionService.disableWorkflowModification();
+    // Arriving from the Form View of this same workflow, which kept its session for us (see its
+    // ngOnDestroy). The graph is already here and already in its co-editing room, so clearing it
+    // and fetching it again would undo exactly what was kept.
+    this.resumedSession = widInRoute !== undefined && this.workflowActionService.hasWorkflowOpen(Number(widInRoute));
+    if (!this.resumedSession) {
+      // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
+      this.workflowActionService.resetAsNewWorkflow();
+      // if a workflow id is present in the route, display loading spinner immediately while loading
+      if (widInRoute) {
+        this.isLoading = true;
+        this.workflowActionService.disableWorkflowModification();
+      }
     }
     this.onWIDChange();
     this.updateViewCount();
@@ -187,19 +188,49 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
+  /**
+   * The browser is leaving this document: save the workflow, and change nothing else.
+   *
+   * Tearing the session down here was the cause of a page that came back dead. Leaving the
+   * document -- a refresh, a closed tab, a URL typed over this one; the Form View switch used to
+   * be one, and routes now -- fires this, and the browser may then keep the document in its
+   * back/forward cache rather than discarding it. Coming back restores the
+   * JavaScript state exactly as it was left, so whatever this method had already destroyed stayed
+   * destroyed: an empty graph on a canvas that answered no clicks, and a workflow id reset to the
+   * default, which the share dialog then asked the backend about and got an error for. Nothing
+   * re-runs on a restore, because the component was never re-created.
+   *
+   * There is nothing to tear down on the way out anyway. A document that is really discarded takes
+   * its websockets and its graph with it, and a document that comes back needs them.
+   */
   @HostListener("window:beforeunload")
+  onBeforeUnload(): void {
+    this.persistBeforeLeaving();
+  }
+
   ngOnDestroy() {
+    this.persistBeforeLeaving();
+    this.codeEditorViewRef.clear();
+    // Tear down the connection and all websocket-derived session state so a
+    // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
+    // View of this same workflow is taking over, in which case the session is handed to it
+    // rather than rebuilt, which is what used to make the switch take seconds.
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
+      this.workflowActionService.clearWorkflow();
+      this.computingUnitStatusService.disconnect();
+      this.resetWorkflowSessionState();
+      // The overlay's view lives in the root-provided wrapper; the metrics behind it are cleared
+      // just above, so the view goes with them. On a hand-over it stays: the arriving view has
+      // already restored the persisted overlay, and the metrics are kept.
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
+    }
+  }
+
+  private persistBeforeLeaving(): void {
     if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
       this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
     }
-
-    this.codeEditorViewRef.clear();
-    this.workflowActionService.clearWorkflow();
-    // Tear down the connection and all websocket-derived session state so a
-    // re-entered workflow starts clean instead of reusing the previous one.
-    this.computingUnitStatusService.disconnect();
-    this.resetWorkflowSessionState();
   }
 
   /**
@@ -259,9 +290,28 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
+          // An AI-generated workflow arrives with autolayout=1. Render synchronously
+          // (asyncRendering = false) so the operators exist before the one-shot layout runs.
+          const shouldAutoLayout = this.route.snapshot.queryParams.autolayout === "1";
+          this.workflowActionService.reloadWorkflow(workflow, shouldAutoLayout ? false : undefined);
           this.workflowActionService.enableWorkflowModification();
+          // Register before autoLayoutWorkflow(): workflowChanged() streams are hot, so subscribing
+          // afterward would drop the layout's position events and the tidied layout would never save.
+          this.registerAutoPersistWorkflow();
+          if (shouldAutoLayout) {
+            this.workflowActionService.autoLayoutWorkflow();
+          }
+          // Best-effort: repaint the heat-map from the last run's persisted
+          // statistics. The service itself gates on the overlay being
+          // persisted-on (and skips during a live execution), so this is a
+          // no-op for everyone else. Fetch failures are swallowed there; an
+          // error arriving here is a mapping or ingestion bug, so it is logged.
+          this.heatmapStatsRestoreService
+            .restoreLatestRunStatistics()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              error: (err: unknown) => console.error("Failed to restore heat-map statistics:", err),
+            });
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -284,7 +334,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.setLoadingState(false);
-          this.registerAutoPersistWorkflow();
           this.triggerCenter();
         },
         () => {
@@ -302,6 +351,28 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   registerLoadOperatorMetadata() {
     const wid = this.route.snapshot.params.id;
+    // The Form View handed this workflow over still open: the graph, its co-editing room and the
+    // computing unit connection are the ones it was using. Nothing to fetch, nothing to rebuild.
+    // The lock the Form View put on the graph is lifted, since editing is what the canvas is for,
+    // and the view is centred because this canvas's paper is a new one, at its default offset.
+    if (this.resumedSession) {
+      // Not an unconditional unlock: a run may still be in flight. The execute service owns the
+      // state-to-lock rule and reapplies it only when the state changes, so ask it to apply that
+      // rule again rather than restating it here. Unlocking outright left a workflow that was
+      // still running editable until its run happened to end. Nothing is announced: the menu
+      // reads the current state when it is constructed, and the rest of this page's subscribers
+      // want transitions, not a repeat of one that already happened.
+      this.executeWorkflowService.reapplyExecutionLock();
+      this.registerAutoPersistWorkflow();
+      this.triggerCenter();
+      // This page and everything on it is new, and the metadata it needs was set by the view that
+      // was here before: the stream that carries it does not replay, so say it again now that
+      // this page's own subscribers are listening. Without it the menu shows no workflow name
+      // and no id, the computing unit picker does not restore the unit this workflow last ran
+      // on, and this page believes the user cannot write to the workflow.
+      this.workflowActionService.republishWorkflowMetadata();
+      return;
+    }
     // load workflow with wid if presented in the URL
     if (wid) {
       // show loading spinner right away while waiting for workflow to load
@@ -320,6 +391,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.registerAutoPersistWorkflow();
       });
   }
+
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -333,6 +405,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
+
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -342,6 +415,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
+
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }

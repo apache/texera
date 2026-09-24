@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { ReplaySubject } from "rxjs";
 import * as joint from "jointjs";
@@ -45,6 +46,12 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
  * instead, and records the calls the component makes against it.
  */
 class StubPaper {
+  /**
+   * The container the paper was built into. The mini-map measures the main canvas's viewport
+   * through this, rather than looking `#workflow-editor` up in the document: both views of a
+   * workflow mount an editor, and they overlap for a tick when the switch routes between them.
+   */
+  public el: HTMLElement | undefined;
   public readonly handlers: Record<string, () => void> = {};
   public readonly pageToLocalPointArgs: { x: number; y: number }[] = [];
   public readonly translateArgs: [number, number][] = [];
@@ -60,6 +67,12 @@ class StubPaper {
 
   on(event: string, handler: () => void): void {
     this.handlers[event] = handler;
+  }
+
+  off(event: string, handler: () => void): void {
+    if (this.handlers[event] === handler) {
+      delete this.handlers[event];
+    }
   }
 
   scale(): { sx: number; sy: number } {
@@ -161,8 +174,9 @@ describe("MiniMapComponent", () => {
   }
 
   /**
-   * The mini-map reads the main editor's element out of the document by id, so
-   * mount a stand-in with an explicit size and viewport rect.
+   * A stand-in for the main canvas's container, with an explicit size and viewport rect. The
+   * mini-map reaches it through the main paper's own `el` (see StubPaper), so tests that need it
+   * measured also hand it to the paper they attach.
    */
   function mountWorkflowEditorStub(width: number, height: number, left: number, top: number): HTMLDivElement {
     const editor = document.createElement("div");
@@ -175,8 +189,12 @@ describe("MiniMapComponent", () => {
     return editor;
   }
 
-  /** Publishes `paper` on the stream the mini-map subscribes to in ngAfterViewInit. */
+  /**
+   * Publishes `paper` on the stream the mini-map subscribes to in ngAfterViewInit, standing it in
+   * the editor container the test mounted, as a real main paper is built into one.
+   */
   function attachMainPaper(paper: StubPaper): void {
+    paper.el = paper.el ?? editorStub;
     mainPaper$.next(paper as unknown as joint.dia.Paper);
   }
 
@@ -186,6 +204,54 @@ describe("MiniMapComponent", () => {
   });
 
   describe("mini-map paper", () => {
+    // Bound to the root-provided joint graph, which outlives this component. Once the switch
+    // between a workflow's two views routes instead of reloading, this component is mounted on
+    // every switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its own paper on destroy, so none is left listening to the shared graph", () => {
+      sizeMiniMapContainer(912, 100);
+      fixture.detectChanges();
+      const remove = vi.spyOn((component as any).ownPaper, "remove");
+
+      fixture.destroy();
+
+      expect(remove).toHaveBeenCalled();
+    });
+
+    // Not on the way out of the browser, though: the document may be kept in the back/forward
+    // cache and restored with its JavaScript state as it was left, re-running nothing, so a paper
+    // disposed there would stay disposed on a page that looks live (#8599).
+    it("keeps its paper when the browser unloads, and still remembers whether it was hidden", () => {
+      sizeMiniMapContainer(912, 100);
+      fixture.detectChanges();
+      const remove = vi.spyOn((component as any).ownPaper, "remove");
+      component.hidden = true;
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(remove).not.toHaveBeenCalled();
+      expect(localStorage.getItem("mini-map")).toBe("true");
+    });
+
+    // The paper stream replays, so a departing mini-map -- still subscribed while its DOM is on
+    // its way out -- receives the arriving view's paper and registers on it, then is destroyed;
+    // without the matching off() that paper went on calling into a component that was gone.
+    it("stops following the main paper on destroy, and the previous one when a new one arrives", () => {
+      sizeMiniMapContainer(912, 100);
+      mountWorkflowEditorStub(800, 600, 0, 0);
+      fixture.detectChanges();
+      const first = new StubPaper();
+      attachMainPaper(first);
+      expect(Object.keys(first.handlers).sort()).toEqual(["resize", "scale", "translate"]);
+
+      const second = new StubPaper();
+      attachMainPaper(second);
+      expect(Object.keys(first.handlers)).toEqual([]);
+      expect(Object.keys(second.handlers).sort()).toEqual(["resize", "scale", "translate"]);
+
+      fixture.destroy();
+      expect(Object.keys(second.handlers)).toEqual([]);
+    });
+
     it("fits the whole main canvas into the mini-map container", () => {
       // 912 / (2688 - -960) == 0.25; the height (100) is deliberately different
       // so a width/height mix-up in the scale formula cannot pass.
@@ -410,6 +476,119 @@ describe("MiniMapComponent", () => {
       // Without the reset the navigator keeps the cdkDrag transform from the
       // previous drag and lands off-centre.
       expect(reset).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * Everything above drives the component's methods directly, so the template's
+   * own wiring — which toolbar button calls which method, and which cdkDrag
+   * output feeds onDrag / the `dragging` flag — was never executed. These tests
+   * go through the rendered DOM instead, so re-pointing a (click) at the wrong
+   * handler, or dropping one of the cdkDrag bindings, fails here.
+   */
+  describe("toolbar and drag wiring", () => {
+    const button = (id: string): HTMLButtonElement =>
+      fixture.nativeElement.querySelector(`#${id}`) as HTMLButtonElement;
+
+    /** The mini-map surface, whose visibility the toggle button drives. */
+    const container = (): HTMLElement => fixture.nativeElement.querySelector("#mini-map-container") as HTMLElement;
+
+    /** ng-zorro renders <span nz-icon nzType="x"> as class "anticon-x". */
+    const toggleIconType = (): string | undefined =>
+      Array.from(button("minimap-button").querySelector("span[nz-icon]")!.classList)
+        .find(name => name.startsWith("anticon-"))
+        ?.slice("anticon-".length);
+
+    it("collapses and re-opens the mini-map from the toolbar toggle", () => {
+      fixture.detectChanges();
+      expect(container().hidden).toBe(false);
+      expect(toggleIconType()).toBe("minus");
+
+      button("minimap-button").click();
+      fixture.detectChanges();
+
+      expect(container().hidden).toBe(true);
+      // The glyph flips to the "show me" affordance while the map is folded away.
+      expect(toggleIconType()).toBe("global");
+
+      button("minimap-button").click();
+      fixture.detectChanges();
+
+      expect(container().hidden).toBe(false);
+      expect(toggleIconType()).toBe("minus");
+    });
+
+    it("broadcasts a center event from the center button only", () => {
+      fixture.detectChanges();
+      const centerEvents: void[] = [];
+      workflowActionService
+        .getTexeraGraph()
+        .getCenterEventStream()
+        .subscribe(event => centerEvents.push(event));
+
+      // The three other toolbar buttons sit next to it and must not centre.
+      button("minimap-button").click();
+      button("minimap-zoom-in-button").click();
+      button("minimap-zoom-out-button").click();
+      expect(centerEvents).toHaveLength(0);
+
+      button("minimap-center-button").click();
+
+      expect(centerEvents).toHaveLength(1);
+    });
+
+    it("zooms out and in from their own toolbar buttons", () => {
+      fixture.detectChanges();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      jointGraphWrapper.setZoomProperty(1);
+
+      button("minimap-zoom-out-button").click();
+      expect(jointGraphWrapper.getZoomRatio()).toBeCloseTo(1 - JointGraphWrapper.ZOOM_CLICK_DIFF, 10);
+
+      // Two zoom-ins from here land one step *above* the starting ratio, so the
+      // two buttons cannot be swapped without breaking this.
+      button("minimap-zoom-in-button").click();
+      button("minimap-zoom-in-button").click();
+      expect(jointGraphWrapper.getZoomRatio()).toBeCloseTo(1 + JointGraphWrapper.ZOOM_CLICK_DIFF, 10);
+    });
+
+    it("pans the main paper from the navigator's cdkDragMoved output", () => {
+      fixture.detectChanges();
+      const paper = new StubPaper();
+      paper.offset = { tx: 100, ty: 50 };
+      component.paper = paper as unknown as joint.dia.Paper;
+      component.scale = 0.25;
+
+      fixture.debugElement
+        .query(By.css("#mini-map-navigator"))
+        .triggerEventHandler("cdkDragMoved", { event: { movementX: 10, movementY: -20 } });
+
+      expect(paper.translateArgs).toEqual([[100 - 40, 50 + 80]]);
+    });
+
+    it("freezes the navigator between cdkDragStarted and cdkDragEnded", () => {
+      mountWorkflowEditorStub(800, 600, 30, 40);
+      fixture.detectChanges();
+      component.scale = 0.25;
+      const paper = new StubPaper(2, 4);
+      paper.localPoint = { x: -160, y: -140 };
+      attachMainPaper(paper);
+
+      const navigator = document.getElementById("mini-map-navigator") as HTMLElement;
+      const navigatorDebugElement = fixture.debugElement.query(By.css("#mini-map-navigator"));
+      expect(navigator.style.left).toBe("200px");
+
+      // While the pointer owns the navigator, echoes of the paper's own translate
+      // must not fight it.
+      navigatorDebugElement.triggerEventHandler("cdkDragStarted", {});
+      paper.localPoint = { x: -560, y: -140 };
+      paper.handlers["translate"]();
+      expect(navigator.style.left).toBe("200px");
+
+      // Once the drag ends the navigator tracks the paper again.
+      navigatorDebugElement.triggerEventHandler("cdkDragEnded", {});
+      paper.handlers["translate"]();
+      expect(navigator.style.left).toBe("100px");
     });
   });
 });

@@ -28,6 +28,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError, Subject } from "rxjs";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { By } from "@angular/platform-browser";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../../common/service/user/user.service";
@@ -38,11 +39,12 @@ import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_WORKFLOW_RESULT_DETAIL,
   USER_DATASET,
-  USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../../app-routing.constant";
 import { WorkflowCoverService } from "src/app/dashboard/service/user/workflow-cover/workflow-cover.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { DefaultView } from "src/app/dashboard/type/workflow-metadata.interface";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
@@ -86,7 +88,11 @@ describe("CardItemComponent", () => {
   let datasetService: Mocked<DatasetService>;
 
   beforeEach(async () => {
-    const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    const workflowPersistServiceSpy = {
+      updateWorkflowName: vi.fn(),
+      updateWorkflowDescription: vi.fn(),
+      setDefaultView: vi.fn(),
+    };
     const workflowCoverServiceSpy = {
       getCover: vi.fn().mockReturnValue(of(undefined)),
       setCoverFromFile: vi.fn(),
@@ -438,25 +444,6 @@ describe("CardItemComponent", () => {
     expect(component.isLiked).toBe(true);
   });
 
-  it("initializeEntry sets the project link and container icon and resets the cover for a project entry", () => {
-    component.coverImageSrc = "stale-value";
-    component.entry = {
-      id: 3,
-      name: "proj",
-      type: "project",
-      likeCount: 2,
-      viewCount: 1,
-      isLiked: false,
-    } as unknown as DashboardEntry;
-
-    component.initializeEntry();
-
-    expect(component.entryLink).toEqual([USER_PROJECT, "3"]);
-    expect(component.iconType).toBe("container");
-    expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE); // reset at method start
-    expect(component.likeCount).toBe(2);
-  });
-
   it("initializeEntry uses the folder-open icon for a file entry", () => {
     component.entry = {
       id: 8,
@@ -688,7 +675,7 @@ describe("CardItemComponent", () => {
     it("onClickDownload downloads a workflow via the download service", () => {
       const downloadService = TestBed.inject(DownloadService);
       const downloadWorkflowSpy = vi.spyOn(downloadService, "downloadWorkflow").mockReturnValue(of({} as any));
-      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, workflow: { name: "myflow" } } } as any);
+      component.entry = makeWorkflowEntry({ id: 7, name: "myflow" });
 
       component.onClickDownload();
 
@@ -724,7 +711,7 @@ describe("CardItemComponent", () => {
         .spyOn(modalService, "create")
         .mockReturnValue({ componentInstance: { refresh: refresh$ } } as any);
       (workflowPersistService as any).retrieveOwners = vi.fn().mockReturnValue(of(["alice", "bob"]));
-      component.entry = makeWorkflowEntry({ id: 7, workflow: { isOwner: true, accessLevel: "WRITE" } } as any);
+      component.entry = makeWorkflowEntry({ id: 7, accessLevel: "WRITE", workflow: { isOwner: true } } as any);
 
       await component.onClickOpenShareAccess();
 
@@ -763,6 +750,7 @@ describe("CardItemComponent", () => {
         type: "dataset",
         id: 5,
         allOwners: ["carol"],
+        inWorkspace: false,
       });
       expect(cfg.nzTitle).toBe("Share this dataset with others");
     });
@@ -772,8 +760,8 @@ describe("CardItemComponent", () => {
       const createSpy = vi.spyOn(modalService, "create");
       component.entry = {
         id: 3,
-        name: "proj",
-        type: "project",
+        name: "f",
+        type: "file",
         likeCount: 0,
         viewCount: 0,
         isLiked: false,
@@ -892,6 +880,497 @@ describe("CardItemComponent", () => {
 
       expect(component.isLiked).toBe(false);
       expect(component.likeCount).toBe(0);
+    });
+  });
+
+  describe("template rendering", () => {
+    // Query, assert the element is present, then dispatch the event — a real
+    // MouseEvent for clicks so handlers calling stopPropagation()/preventDefault() work.
+    const fire = (css: string, event: string, payload: unknown): void => {
+      const el = fixture.debugElement.query(By.css(css));
+      expect(el).toBeTruthy();
+      el.triggerEventHandler(event, payload);
+    };
+
+    it("renders the full private-search action set for an owned workflow (and no like button)", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.currentUid = 1;
+      component.initializeEntry(); // the Download button reads a per-kind capability off the entry
+      fixture.detectChanges();
+
+      const de = fixture.debugElement;
+      expect(de.query(By.css(".card-checkbox"))).toBeTruthy();
+      expect(de.query(By.css(".edit-btn"))).toBeTruthy();
+      expect(de.query(By.css('button[title="Detail"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Share"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Copy"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Download"]'))).toBeTruthy();
+      expect(de.query(By.css(".delete-btn"))).toBeTruthy();
+      // the like button is only rendered in non-private mode
+      expect(de.query(By.css(".like-btn"))).toBeNull();
+    });
+
+    it("wires each private-search action click to its handler / output", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.currentUid = 1;
+      component.initializeEntry();
+      fixture.detectChanges();
+
+      const detailSpy = vi.spyOn(component, "openDetailModal").mockImplementation(() => {});
+      const shareSpy = vi.spyOn(component, "onClickOpenShareAccess").mockImplementation(async () => {});
+      const downloadSpy = vi.spyOn(component, "onClickDownload").mockImplementation(async () => {});
+      let duplicated = false;
+      component.duplicated.subscribe(() => (duplicated = true));
+      let deleted = false;
+      component.deleted.subscribe(() => (deleted = true));
+
+      fire('button[title="Detail"]', "click", new MouseEvent("click"));
+      fire('button[title="Share"]', "click", new MouseEvent("click"));
+      fire('button[title="Download"]', "click", new MouseEvent("click"));
+      fire('button[title="Copy"]', "click", new MouseEvent("click"));
+      fire(".delete-btn", "nzOnConfirm", undefined);
+
+      expect(detailSpy).toHaveBeenCalled();
+      expect(shareSpy).toHaveBeenCalled();
+      expect(downloadSpy).toHaveBeenCalled();
+      expect(duplicated).toBe(true);
+      expect(deleted).toBe(true);
+    });
+
+    it("enters name-editing mode from the edit button and swaps the display for the input", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      fixture.detectChanges();
+
+      // Trigger via the DOM; onEditName sets editingName synchronously (its setTimeout
+      // focus callback never runs in this synchronous test — no fake timers needed).
+      fire(".edit-btn", "click", new MouseEvent("click"));
+      expect(component.editingName).toBe(true);
+
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css(".resource-name-edit-input"))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css(".resource-name"))).toBeNull();
+
+      // pressing Enter in the edit input confirms the rename (real key event so the
+      // Angular keydown.enter binding fires through its event plugin)
+      const confirmSpy = vi.spyOn(component, "confirmUpdateCustomName").mockImplementation(() => {});
+      const editInput = fixture.debugElement.query(By.css(".resource-name-edit-input"))
+        .nativeElement as HTMLInputElement;
+      editInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+
+    it("renders and wires the cover-image controls when the cover is editable", () => {
+      // A workflow entry with a cover url makes the component compute hasCustomImage = true
+      // through its public entry input, so we don't reach into the private customImage field.
+      component.entry = makeWorkflowEntry({ coverImageUrl: "http://example.com/cover.png" });
+      component.isPrivateSearch = true;
+      component.initializeEntry(); // process the entry input (mirrors the ngOnChanges path)
+      fixture.detectChanges();
+      expect(component.canEditCover).toBe(true);
+      expect(component.hasCustomImage).toBe(true);
+
+      const cameraSpy = vi.spyOn(component, "openImagePicker").mockImplementation(() => {});
+      const resetSpy = vi.spyOn(component, "resetImage").mockImplementation(() => {});
+      fire('button[title="Change cover image"]', "click", new MouseEvent("click"));
+      fire('button[title="Reset to default image"]', "click", new MouseEvent("click"));
+
+      expect(cameraSpy).toHaveBeenCalled();
+      expect(resetSpy).toHaveBeenCalled();
+
+      // selecting a file fires the hidden input's (change) handler
+      const imageSelectedSpy = vi.spyOn(component, "onImageSelected").mockImplementation(async () => {});
+      fire('input[type="file"]', "change", { target: { files: [] } });
+      expect(imageSelectedSpy).toHaveBeenCalled();
+    });
+
+    it("renders the like button in non-private mode and toggles like on click", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = false;
+      component.currentUid = 1;
+      component.isLiked = false;
+      fixture.detectChanges();
+
+      const likeBtn = fixture.debugElement.query(By.css(".like-btn"));
+      expect(likeBtn).toBeTruthy();
+      expect(fixture.debugElement.query(By.css(".card-checkbox"))).toBeNull();
+      expect(fixture.debugElement.query(By.css(".private-actions"))).toBeNull();
+
+      const toggleSpy = vi.spyOn(component, "toggleLike").mockImplementation(() => {});
+      likeBtn.triggerEventHandler("click", new MouseEvent("click"));
+      expect(toggleSpy).toHaveBeenCalled();
+    });
+
+    it("reflects liked state and disables the like button without a current user", () => {
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = false;
+      component.isLiked = true;
+      component.currentUid = undefined;
+      fixture.detectChanges();
+
+      const likeBtn = fixture.debugElement.query(By.css(".like-btn")).nativeElement as HTMLButtonElement;
+      expect(likeBtn.classList.contains("liked")).toBe(true);
+      expect(likeBtn.disabled).toBe(true);
+    });
+
+    it("shows Download but hides Detail/Copy/checkbox for a dataset in private mode", () => {
+      component.entry = makeDatasetEntry();
+      component.isPrivateSearch = true;
+      component.initializeEntry();
+      fixture.detectChanges();
+
+      const de = fixture.debugElement;
+      expect(de.query(By.css('button[title="Download"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Share"]'))).toBeTruthy();
+      expect(de.query(By.css('button[title="Detail"]'))).toBeNull();
+      expect(de.query(By.css('button[title="Copy"]'))).toBeNull();
+      expect(de.query(By.css(".card-checkbox"))).toBeNull();
+    });
+
+    it("renders the size row when a size is set and handles a cover-image load error", () => {
+      component.entry = makeWorkflowEntry();
+      component.size = 2048;
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('span[title="Size"]'))).toBeTruthy();
+
+      const errorSpy = vi.spyOn(component, "onCoverError").mockImplementation(() => {});
+      fire(".card-preview-image", "error", {});
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it("still reports an empty resource's size, so card and list view agree", () => {
+      component.entry = makeWorkflowEntry();
+      component.size = 0;
+      fixture.detectChanges();
+
+      const row = fixture.debugElement.query(By.css('span[title="Size"]'));
+      expect(row).toBeTruthy();
+      expect((row.nativeElement as HTMLElement).textContent).toContain("0 B");
+    });
+
+    it("writes what was typed in the name editor back onto the entry", () => {
+      // The editor is seeded from entry.name; with a one-way binding it would look right on screen
+      // while the confirmed rename kept sending the name the card started with.
+      const entry = makeWorkflowEntry({ name: "before" });
+      component.entry = entry;
+      component.isPrivateSearch = true;
+      component.editingName = true;
+      fixture.detectChanges();
+
+      const input = fixture.debugElement.query(By.css(".resource-name-edit-input"));
+      expect(input).toBeTruthy();
+      input.triggerEventHandler("ngModelChange", "after");
+
+      expect(entry.name).toBe("after");
+    });
+
+    it("keeps a click inside the name editor from opening the card", () => {
+      // The whole header is a routerLink, so without stopPropagation every click meant for the
+      // caret would navigate away mid-rename.
+      component.entry = makeWorkflowEntry();
+      component.isPrivateSearch = true;
+      component.editingName = true;
+      fixture.detectChanges();
+
+      const header = fixture.debugElement.query(By.css(".card-header")).nativeElement as HTMLElement;
+      const reachedHeader = vi.fn();
+      header.addEventListener("click", reachedHeader);
+
+      const input = fixture.debugElement.query(By.css(".resource-name-edit-input")).nativeElement as HTMLInputElement;
+      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(reachedHeader).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("guard paths", () => {
+    /** Files are the one registered kind with neither a rename nor a description endpoint. */
+    function makeFileEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
+      return {
+        id: 3,
+        name: "notes.txt",
+        description: "",
+        type: EntityType.File,
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+        ...overrides,
+      } as unknown as DashboardEntry;
+    }
+
+    it("ngOnChanges ignores a change set that does not carry the entry", () => {
+      // initializeEntry resets the cover and the counters; re-running it on an unrelated input
+      // change would discard a cover that had just finished loading.
+      const initialize = vi.spyOn(component, "initializeEntry");
+
+      component.ngOnChanges({ currentUid: { currentValue: 3 } as any });
+
+      expect(initialize).not.toHaveBeenCalled();
+    });
+
+    it("onEditDescription tolerates a textarea that has not rendered yet", fakeAsync(() => {
+      // The caret is placed in a timer callback, which can outlive the element it was queued for.
+      component.entry = makeWorkflowEntry({ description: "some text" });
+      component.descriptionInput = undefined as any;
+
+      component.onEditDescription();
+
+      expect(component.editingDescription).toBe(true);
+      expect(() => tick(0)).not.toThrow();
+    }));
+
+    it("does not attempt a rename for a kind that has no rename endpoint", () => {
+      // Whatever the fixture types stays typed no matter which branch runs, so the editor state is
+      // what separates this early return from the two that close the editor. The rename endpoint is
+      // mocked so a regression fails on the assertion rather than on a TypeError out of
+      // updateProperty.
+      workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
+      component.entry = makeFileEntry({ name: "typed" });
+      component.originalName = "notes.txt";
+      component.editingName = true;
+
+      component.confirmUpdateCustomName("typed");
+
+      expect(workflowPersistService.updateWorkflowName).not.toHaveBeenCalled();
+      expect(datasetService.updateDatasetName).not.toHaveBeenCalled();
+      expect(component.editingName).toBe(true);
+    });
+
+    it("does not attempt a description update for a kind that has no description endpoint", () => {
+      // Mocked so that a regression here fails on the assertion below rather than on a TypeError
+      // thrown out of updateProperty.
+      workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
+      component.entry = makeFileEntry({ description: "typed" });
+      component.originalDescription = "";
+      component.editingDescription = true;
+
+      component.confirmUpdateCustomDescription("typed");
+
+      expect(workflowPersistService.updateWorkflowDescription).not.toHaveBeenCalled();
+      expect(component.editingDescription).toBe(true);
+    });
+
+    it("toggleLike leaves the liked state and the count alone when the unlike reports failure", () => {
+      const hubService = TestBed.inject(HubService);
+      vi.spyOn(hubService, "postUnlike").mockReturnValue(of(false));
+      const getCountsSpy = vi.spyOn(hubService, "getCounts");
+
+      component.currentUid = 42;
+      component.entry = makeWorkflowEntry({ id: 7 });
+      component.isLiked = true;
+      component.likeCount = 5;
+
+      component.toggleLike();
+
+      expect(component.isLiked).toBe(true);
+      expect(component.likeCount).toBe(5);
+      expect(getCountsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The card is the second renderer of the same dashboard entries as the list row, so it follows
+   * the same default-view rule (default-view-landing.ts): mark, deep-link and toggle, all gated on
+   * the Form View flag.
+   */
+  describe("default view", () => {
+    const enableFormView = () =>
+      (TestBed.inject(GuiConfigService) as unknown as { setConfig: (c: object) => void }).setConfig({
+        formViewEnabled: true,
+      });
+    const formEntry = (defaultView: DefaultView | undefined, accessLevel = "WRITE", accessibleUserIds = [42]) =>
+      makeWorkflowEntry({
+        id: 7,
+        accessibleUserIds,
+        accessLevel,
+        workflow: { isOwner: true, workflow: defaultView === undefined ? undefined : { defaultView } },
+      } as any);
+
+    beforeEach(() => {
+      component.currentUid = 42;
+      component.isPrivateSearch = true;
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(of(undefined));
+    });
+
+    it("opens a form-default workflow in its form and marks it with the Form View icon", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7", "form"]);
+    });
+
+    it("leaves a canvas-default workflow as the descriptor set it", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+    });
+
+    // Behind the flag the dashboard must look exactly as it does today.
+    it("ignores default_view entirely while the flag is off", () => {
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+      expect(component.canToggleDefaultView).toBe(false);
+    });
+
+    // The mark is the owner's entry point; a hub visitor still lands on the detail page.
+    it("marks a form-default hub card but does not repoint its link", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM, "READ", [99]);
+      component.initializeEntry();
+
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "7"]);
+    });
+
+    it("offers the toggle only in private search, for a workflow the user can write", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      expect(component.canToggleDefaultView).toBe(true);
+
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      expect(component.canToggleDefaultView).toBe(false);
+
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      component.isPrivateSearch = false;
+      expect(component.canToggleDefaultView).toBe(false);
+
+      component.isPrivateSearch = true;
+      component.entry = makeDatasetEntry({ accessLevel: "WRITE" } as any);
+      expect(component.canToggleDefaultView).toBe(false);
+    });
+
+    // A collaborator with write access but no ownership has no cover-image controls, yet still gets
+    // the toggle: it lives in the action footer, not among the owner's cover controls.
+    it("offers the toggle to a writer who does not own the card, without the owner's cover controls", () => {
+      enableFormView();
+      component.entry = makeWorkflowEntry({
+        id: 7,
+        accessibleUserIds: [42],
+        accessLevel: "WRITE",
+        workflow: { isOwner: false },
+      } as any);
+      component.initializeEntry();
+
+      expect(component.canEditCover).toBe(false);
+      expect(component.canToggleDefaultView).toBe(true);
+    });
+
+    it("turns the default view on, marking the card and repointing it", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.FORM);
+      expect(component.entry.workflow?.workflow?.defaultView).toBe(DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7", "form"]);
+    });
+
+    it("turns it back off, restoring the plain card", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.CANVAS);
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+    });
+
+    // A failed call must not leave the card claiming a state the server never took.
+    it("keeps the previous state and reports it when the request fails", () => {
+      enableFormView();
+      const notify = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(throwError(() => new Error("nope")));
+
+      component.onToggleDefaultView();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "7"]);
+      expect(notify).toHaveBeenCalledWith("nope");
+    });
+
+    // A card without the cached workflow row must still record the toggle, not crash.
+    it("still persists the toggle when the entry has no cached workflow row", () => {
+      enableFormView();
+      component.entry = formEntry(undefined);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(7, DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(false);
+    });
+
+    // The permission lives in the method, not only in the button's *ngIf: setting the default view
+    // writes the workflow row, which needs WRITE access whoever calls.
+    it("refuses to toggle for a collaborator without write access", () => {
+      enableFormView();
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).not.toHaveBeenCalled();
+    });
+
+    it("renders the toggle for a writer and routes its click, but not for a reader", () => {
+      enableFormView();
+      const toggle = vi.spyOn(component, "onToggleDefaultView").mockImplementation(() => {});
+      component.entry = formEntry(DefaultView.CANVAS, "WRITE");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+
+      // In the always-visible action footer, in the list row's slot (right after Detail), not among the
+      // hover-only cover controls.
+      const button = fixture.debugElement.query(By.css(".private-actions button.default-view-toggle"));
+      expect(button).not.toBeNull();
+      expect(fixture.debugElement.query(By.css(".card-image-controls button.default-view-toggle"))).toBeNull();
+      const footerTitles = fixture.debugElement
+        .queryAll(By.css(".private-actions button"))
+        .map(b => b.nativeElement.getAttribute("title") ?? b.nativeElement.getAttribute("aria-label"));
+      expect(footerTitles.slice(0, 2)).toEqual(["Detail", "Open in the Form View by default"]);
+      // A toggle: constant name, state in aria-pressed.
+      expect(button.nativeElement.getAttribute("aria-label")).toBe("Open in the Form View by default");
+      expect(button.nativeElement.getAttribute("aria-pressed")).toBe("false");
+      button.triggerEventHandler("click", new MouseEvent("click"));
+      expect(toggle).toHaveBeenCalledTimes(1);
+
+      component.entry = formEntry(DefaultView.FORM, "WRITE");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+      expect(
+        fixture.debugElement.query(By.css("button.default-view-toggle")).nativeElement.getAttribute("aria-pressed")
+      ).toBe("true");
+
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      component.ngOnChanges({ entry: {} as any });
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css("button.default-view-toggle"))).toBeNull();
     });
   });
 });

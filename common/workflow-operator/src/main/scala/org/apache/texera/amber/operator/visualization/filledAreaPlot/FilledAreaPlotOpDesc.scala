@@ -114,18 +114,20 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
        |            grouped = table.groupby($lineGroup)
        |            x_values = None
        |
-       |            tolerance = (len(grouped) // 100) * 5
+       |            tolerance = (len(grouped) * 5) // 100
        |            count = 0
        |
        |            for _, group in grouped:
-       |                if x_values == None:
-       |                    x_values = set(group[$x].unique())
-       |                elif set(group[$x].unique()).intersection(x_values):
-       |                    x_values = x_values.union(set(group[$x].unique()))
-       |                elif not set(group[$x].unique()).intersection(x_values):
+       |                group_x_values = set(group[$x].unique())
+       |                if x_values is None:
+       |                    x_values = group_x_values
+       |                elif group_x_values.intersection(x_values):
+       |                    x_values = x_values.union(group_x_values)
+       |                else:
        |                    count += 1
        |                    if count > tolerance:
        |                        error = "X attributes not shared across groups"
+       |                        break
        |"""
   }
 

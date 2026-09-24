@@ -22,13 +22,22 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { By } from "@angular/platform-browser";
+import { CdkDrag, CdkDragHandle, CdkDragStart } from "@angular/cdk/drag-drop";
+import { NzResizableDirective } from "ng-zorro-antd/resizable";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { MarkdownModule } from "ngx-markdown";
 import { Observable, Subject, of, throwError } from "rxjs";
 import { AgentPanelComponent } from "./agent-panel.component";
 import { AgentRegistrationComponent } from "./agent-registration/agent-registration.component";
 import { AgentChatComponent } from "./agent-chat/agent-chat.component";
-import { AgentInfo, AgentService } from "../../../service/agent/agent.service";
+import { AgentInfo, AgentService, ModelType } from "../../../service/agent/agent.service";
+import { AgentState, ReActStep } from "../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
+import { Workflow } from "../../../../common/type/workflow";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 const CURRENT_WID = 42;
@@ -672,6 +681,237 @@ describe("AgentPanelComponent", () => {
       expect(localStorage.getItem("agent-panel-width")).toBe("0");
       expect(localStorage.getItem("agent-panel-docked")).toBe("true");
       expect(localStorage.getItem("agent-panel-style")).toBeNull();
+    });
+  });
+
+  /**
+   * The blocks above stub the children with TestBed.overrideComponent. Any override
+   * makes Angular re-JIT the panel from its decorator metadata, and the recompiled
+   * template loses the source mapping back to agent-panel.component.html — the
+   * bindings still run but none of them are attributed (issue #7458). This block
+   * configures its own TestBed with no override, renders the real children, and
+   * asserts on the DOM the panel template produces, so the stubbed tests above and
+   * their assertions stay as they are.
+   */
+  describe("rendered template", () => {
+    const MODEL: ModelType = { id: "gpt", name: "GPT", description: "desc", icon: "robot" };
+
+    /**
+     * Superset of MockAgentService covering the calls the real agent-chat and
+     * agent-registration children make while initializing; the panel and both
+     * children resolve the same AgentService token.
+     */
+    class FullMockAgentService extends MockAgentService {
+      public scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
+      public scrollToStep$ = this.scrollToStepSubject.asObservable();
+
+      // agent-chat
+      public ensureWorkflowPolling = vi.fn();
+      public getAgentState = vi.fn((): Observable<AgentState> => of(AgentState.AVAILABLE));
+      public getAgentStateObservable = vi.fn((): Observable<AgentState> => of(AgentState.AVAILABLE));
+      public getReActStepsObservable = vi.fn((): Observable<ReActStep[]> => of([]));
+      public getHeadIdObservable = vi.fn((): Observable<string | null> => of(null));
+      public getWorkflowObservable = vi.fn((): Observable<Workflow | null> => of(null));
+      public setHoveredMessage = vi.fn();
+
+      // agent-registration
+      public fetchModelTypes = vi.fn((): Observable<ModelType[]> => of([MODEL]));
+      public createAgent = vi.fn();
+    }
+
+    let service: FullMockAgentService;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      service = new FullMockAgentService();
+
+      await TestBed.configureTestingModule({
+        // MarkdownModule.forRoot() backs the <markdown> elements inside agent-chat and
+        // NzModalService backs its declarative <nz-modal> (same wiring as its own spec).
+        imports: [AgentPanelComponent, HttpClientTestingModule, NoopAnimationsModule, MarkdownModule.forRoot()],
+        providers: [
+          NzModalService,
+          { provide: AgentService, useValue: service },
+          { provide: WorkflowActionService, useValue: { ...workflowAction, reloadWorkflow: vi.fn() } },
+          { provide: NotificationService, useValue: notification },
+          { provide: WorkflowPersistService, useValue: { setWorkflowPersistFlag: vi.fn() } },
+          { provide: ComputingUnitStatusService, useValue: { getStatus: () => of(ComputingUnitState.Running) } },
+          ...commonTestProviders,
+        ],
+      }).compileComponents();
+    });
+
+    function container(): HTMLElement {
+      return fixture.nativeElement.querySelector("#agent-container") as HTMLElement;
+    }
+
+    // A header click does not reach the panel in the same turn: NzTabSetComponent
+    // queues the nzSelectedIndexChange emit as a microtask from its own
+    // ngAfterContentChecked, so onTabSelectChange can run a turn after
+    // detectChanges(). Yielding a macrotask turn drains it — Angular's whenStable()
+    // is not an option here, since this fixture never reaches stability.
+    const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+    function tabHeaders(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll(".ant-tabs-tab"));
+    }
+
+    function chats(): AgentChatComponent[] {
+      return fixture.debugElement.queryAll(By.directive(AgentChatComponent)).map(d => d.componentInstance);
+    }
+
+    it("reveals the body and sizes it from the bound width and height when opened", () => {
+      createComponent();
+      const content = fixture.nativeElement.querySelector("#content") as HTMLElement;
+      expect(content.hidden).toBe(true);
+      expect(container().style.width).toBe("0px");
+
+      (fixture.nativeElement.querySelector("#agent-docked-button") as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(content.hidden).toBe(false);
+      expect(container().style.width).toBe("400px");
+      expect(container().style.height).toBe(`${component.height}px`);
+      expect((fixture.nativeElement.querySelector("#title") as HTMLElement).textContent?.trim()).toBe("AI Agents");
+
+      (fixture.nativeElement.querySelector("#return-button li") as HTMLElement).click();
+      fixture.detectChanges();
+
+      expect(content.hidden).toBe(true);
+      expect(container().style.width).toBe("0px");
+    });
+
+    it("bounds the resizable box by the configured minimum and a fraction of the window", () => {
+      createComponent();
+      const resizable = fixture.debugElement
+        .query(By.directive(NzResizableDirective))
+        .injector.get(NzResizableDirective);
+
+      expect(resizable.nzMinWidth).toBe(400);
+      expect(resizable.nzMinHeight).toBe(450);
+      expect(resizable.nzMaxWidth).toBe(window.innerWidth * 0.9);
+      expect(resizable.nzMaxHeight).toBe(window.innerHeight * 0.85);
+    });
+
+    it("applies a resize reported by the resizable directive to the rendered box", () => {
+      createComponent();
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation(cb => {
+        cb(0);
+        return 1;
+      });
+      const resizable = fixture.debugElement
+        .query(By.directive(NzResizableDirective))
+        .injector.get(NzResizableDirective);
+
+      resizable.nzResize.emit({ width: 640, height: 520 });
+      fixture.detectChanges();
+
+      expect(container().style.width).toBe("640px");
+      expect(container().style.height).toBe("520px");
+    });
+
+    it("drags from the title bar within the workspace and undocks on drag start", () => {
+      createComponent();
+      component.dragPosition = { x: 11, y: 22 };
+      fixture.detectChanges();
+      const dragDebug = fixture.debugElement.query(By.directive(CdkDrag));
+      const drag = dragDebug.injector.get(CdkDrag);
+
+      expect(dragDebug.nativeElement).toBe(container());
+      expect(drag.boundaryElement).toBe("texera-workspace");
+      expect(drag.freeDragPosition).toEqual({ x: 11, y: 22 });
+      // The whole box is draggable but only the <h4> title is a handle.
+      expect(fixture.debugElement.query(By.directive(CdkDragHandle)).nativeElement.id).toBe("title");
+
+      expect(component.isDocked).toBe(true);
+      drag.started.emit({ source: drag } as CdkDragStart);
+      expect(component.isDocked).toBe(false);
+    });
+
+    it("force-renders every tab body: the registration form and one chat per agent", () => {
+      service.agentList = [makeAgent("a"), makeAgent("b")];
+      createComponent();
+
+      // The agent tabs are unselected here, so their bodies exist only because they are
+      // force-rendered.
+      const rendered = fixture.nativeElement.querySelectorAll("texera-agent-chat .agent-chat-container");
+      expect(rendered.length).toBe(2);
+      expect(chats().map(c => c.agentInfo?.id)).toEqual(["a", "b"]);
+
+      // The registration form needs the mirror case: while tab 0 is selected it renders whether or
+      // not it is force-rendered, so asserting it there pins nothing. Move off it first.
+      component.selectedTabIndex = 1;
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll("texera-agent-registration .model-card").length).toBe(1);
+    });
+
+    it("clicking an agent's tab header activates that agent and marks only its chat active", async () => {
+      service.agentList = [makeAgent("a"), makeAgent("b")];
+      createComponent();
+      expect(chats().map(c => c.isActive)).toEqual([false, false]);
+
+      // Header 0 is the registration tab, so agent "b" sits behind header 2.
+      (tabHeaders()[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+      await settle();
+      fixture.detectChanges();
+
+      expect(service.activateAgent).toHaveBeenCalledWith("b");
+      expect(chats().map(c => c.isActive)).toEqual([false, true]);
+    });
+
+    it("disables the tab of an agent bound to another workflow so a click cannot select it", () => {
+      service.agentList = [makeAgent("local"), makeDelegateAgent("foreign", 99)];
+      createComponent();
+
+      const headers = tabHeaders();
+      expect(headers[1].classList.contains("ant-tabs-tab-disabled")).toBe(false);
+      expect(headers[2].classList.contains("ant-tabs-tab-disabled")).toBe(true);
+
+      (headers[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+
+      // Disabled by the template, so onTabSelectChange never runs and never warns.
+      expect(notification.warning).not.toHaveBeenCalled();
+      expect(service.activateAgent).not.toHaveBeenCalled();
+      expect(chats().map(c => c.isActive)).toEqual([false, false]);
+    });
+
+    it("the close button on a tab header deletes that agent without selecting its tab", () => {
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      service.agentList = [makeAgent("a"), makeAgent("b")];
+      createComponent();
+
+      const closeButtons = fixture.nativeElement.querySelectorAll(".agent-tab-close");
+      expect(closeButtons.length).toBe(2);
+      // Start on the FIRST agent's tab. Asserting from tab 0 with activateAgent never called
+      // proves nothing: both hold with the stopPropagation deleted, because neither value moves.
+      // From here, a click that propagated would activate agent "b".
+      component.selectedTabIndex = 1;
+      fixture.detectChanges();
+      (service.activateAgent as unknown as { mock: { calls: unknown[] } }).mock.calls.length = 0;
+
+      (closeButtons[1] as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(service.deleteAgent).toHaveBeenCalledWith("b");
+      // The click is stopped, so the tab underneath it never activates its agent.
+      expect(service.activateAgent).not.toHaveBeenCalledWith("b");
+    });
+
+    it("offers resize handles on the left and bottom edges only", () => {
+      createComponent();
+      const handles = Array.from(
+        fixture.nativeElement.querySelectorAll("nz-resize-handles .nz-resizable-handle") as NodeListOf<HTMLElement>
+      ).map(el =>
+        // Each handle also carries a cursor-type class; keep only the direction one.
+        Array.from(el.classList)
+          .filter(name => name.startsWith("nz-resizable-handle-") && !name.includes("cursor-type"))
+          .map(name => name.replace("nz-resizable-handle-", ""))
+          .join()
+      );
+
+      expect(handles).toEqual(["left", "bottom", "bottomLeft"]);
     });
   });
 });

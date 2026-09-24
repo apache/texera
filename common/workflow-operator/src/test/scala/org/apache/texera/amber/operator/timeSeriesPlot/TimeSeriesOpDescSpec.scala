@@ -22,13 +22,14 @@ package org.apache.texera.amber.operator.timeSeriesPlot
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import scala.jdk.CollectionConverters._
 
 class TimeSeriesOpDescSpec extends AnyFunSuite {
 
@@ -186,6 +187,20 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
     assert(!new TimeSeriesOpDesc().showRangeSlider)
   }
 
+  test("the generated schema offers Plot Type as exactly the two values the code reads") {
+    // The property is declared under the name "line", which is what saved workflows carry.
+    val plotType = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[TimeSeriesOpDesc])
+      .path("properties")
+      .path("line")
+
+    assert(plotType.path("enum").elements().asScala.map(_.asText()).toList == List("line", "area"))
+    // the schema default is what the descriptor itself starts at, so an untouched form
+    // and an untouched descriptor draw the same chart
+    assert(plotType.path("default").asText() == "line")
+    assert(plotType.path("default").asText() == new TimeSeriesOpDesc().plotType)
+  }
+
   // --- generated code shape ----------------------------------------------------
 
   test("generated code coerces the time column, sorts by it, and guards both empty cases") {
@@ -200,6 +215,41 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
     assert(py.contains("plotly.io.to_html(fig, include_plotlyjs='cdn', full_html=False)"))
     // column names are encoded, never spliced raw
     assert(py.contains(b64("date")) && py.contains(b64("value")))
+  }
+
+  // --- column type rules --------------------------------------------------------
+
+  /** The rule the property editor reads to decide which columns a picker offers. */
+  private def attributeTypeRule(property: String): Set[String] =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[TimeSeriesOpDesc])
+      .path("attributeTypeRules")
+      .path(property)
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet
+
+  test("the time column accepts a date column stored as text, not only a timestamp") {
+    // A CSV source hands its dates over as STRING, and pd.to_datetime parses them,
+    // so rejecting the type would invalidate workflows that plot today.
+    assert(attributeTypeRule("timeColumn") == Set("timestamp", "string"))
+  }
+
+  test("the value column is restricted to the numeric types") {
+    assert(attributeTypeRule("valueColumn") == Set("integer", "long", "double"))
+  }
+
+  test("text the parser cannot read is dropped and reported rather than raised") {
+    // The type rule admits any string, so unparseable text still reaches the
+    // generated code; coercion turns it into NaT, dropna removes the row, and an
+    // input whose every row goes that way ends in a message instead of a traceback.
+    val py = minimalOp().generatePythonCode()
+
+    assert(py.contains("errors='coerce'"))
+    assert(dropnaSubset(py).contains(b64("date")))
+    assert(py.contains("Table became empty after filtering."))
   }
 
   // --- JSON round-trip ---------------------------------------------------------

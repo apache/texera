@@ -50,7 +50,6 @@ class FeedbackResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    user.setPassword("password")
     user.setRole(UserRoleEnum.REGULAR)
     user
   }

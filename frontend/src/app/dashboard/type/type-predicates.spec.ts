@@ -20,12 +20,10 @@
 import {
   isDashboardDataset,
   isDashboardFile,
-  isDashboardProject,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
 } from "./type-predicates";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
@@ -53,20 +51,9 @@ const workflowFixture: DashboardWorkflow = {
     isPublished: 0,
     readonly: false,
   },
-  projectIDs: [1, 2],
   accessLevel: "WRITE",
   ownerId: 10,
   coverImage: null,
-};
-
-const projectFixture: DashboardProject = {
-  pid: 5,
-  name: "My Project",
-  description: "A sample project",
-  ownerId: 10,
-  creationTime: 1700000000000,
-  color: "#ff0000",
-  accessLevel: "WRITE",
 };
 
 const fileFixture: DashboardFile = {
@@ -126,7 +113,7 @@ const computingUnitFixture: DashboardWorkflowComputingUnit = {
   },
   isOwner: true,
   accessPrivilege: "WRITE",
-  ownerGoogleAvatar: "",
+  ownerAvatar: "",
   ownerName: "Alice",
 };
 
@@ -151,35 +138,6 @@ describe("isDashboardWorkflow", () => {
   it("should return false when workflow is null", () => {
     // A null payload must be rejected even though typeof null === "object".
     expect(isDashboardWorkflow({ workflow: null })).toBe(false);
-  });
-});
-
-describe("isDashboardProject", () => {
-  it("should return true for a realistic DashboardProject", () => {
-    expect(isDashboardProject(projectFixture)).toBe(true);
-  });
-
-  it("should return false for null and undefined", () => {
-    expect(isDashboardProject(null)).toBe(false);
-    expect(isDashboardProject(undefined)).toBe(false);
-  });
-
-  it("should return false for an object without a name field", () => {
-    expect(isDashboardProject({})).toBe(false);
-  });
-
-  it("should return false when name is not a string", () => {
-    expect(isDashboardProject({ name: 42 })).toBe(false);
-  });
-
-  it("should return false when a workflow field is also present", () => {
-    expect(isDashboardProject({ name: "x", workflow: workflowFixture.workflow })).toBe(false);
-  });
-
-  it("should return true when name is a string and workflow is null", () => {
-    // Intentional: a null workflow field is treated as "no workflow", so the
-    // exclusion branch `!value.workflow` still classifies the object as a project.
-    expect(isDashboardProject({ name: "x", workflow: null })).toBe(true);
   });
 });
 
@@ -269,7 +227,6 @@ describe("isDashboardWorkflowComputingUnit", () => {
 describe("type predicate cross-classification", () => {
   const fixtures: ReadonlyArray<[string, unknown, string]> = [
     ["DashboardWorkflow fixture", workflowFixture, "isDashboardWorkflow"],
-    ["DashboardProject fixture", projectFixture, "isDashboardProject"],
     ["DashboardFile fixture", fileFixture, "isDashboardFile"],
     ["DashboardDataset fixture", datasetFixture, "isDashboardDataset"],
     ["DashboardWorkflowComputingUnit fixture", computingUnitFixture, "isDashboardWorkflowComputingUnit"],
@@ -277,7 +234,6 @@ describe("type predicate cross-classification", () => {
 
   const predicates: ReadonlyArray<[string, (value: unknown) => boolean]> = [
     ["isDashboardWorkflow", isDashboardWorkflow],
-    ["isDashboardProject", isDashboardProject],
     ["isDashboardFile", isDashboardFile],
     ["isDashboardDataset", isDashboardDataset],
     ["isDashboardWorkflowComputingUnit", isDashboardWorkflowComputingUnit],

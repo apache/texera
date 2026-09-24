@@ -24,7 +24,6 @@ import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { SocialAuthService, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
@@ -33,15 +32,18 @@ import {
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
   ADMIN_SETTINGS,
+  ADMIN_CU_IMAGE,
   ADMIN_USER,
   USER_COMPUTING_UNIT,
   USER_DATASET,
+  USER_MODEL,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_PYTHON_VENV,
   USER_QUOTA,
+  USER_WAREHOUSE,
   USER_WORKFLOW,
   USER_FEEDBACK,
+  LOGIN,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -53,8 +55,10 @@ import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { SearchBarComponent } from "./user/search-bar/search-bar.component";
 import { UserIconComponent } from "./user/user-icon/user-icon.component";
+import { MODEL_ICON } from "../../common/icon/model-icon";
 
 @Component({
   selector: "texera-dashboard",
@@ -72,9 +76,9 @@ import { UserIconComponent } from "./user/user-icon/user-icon.component";
     NzTooltipDirective,
     RouterLink,
     NzIconDirective,
+    NzButtonComponent,
     SearchBarComponent,
     UserIconComponent,
-    GoogleSigninButtonModule,
     NzContentComponent,
     RouterOutlet,
   ],
@@ -101,20 +105,24 @@ export class DashboardComponent implements OnInit {
     home_enabled: false,
     workflow_enabled: false,
     dataset_enabled: false,
+    model_enabled: false,
     your_work_enabled: false,
-    projects_enabled: false,
     workflows_enabled: false,
     datasets_enabled: false,
+    models_enabled: false,
     compute_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
   };
 
-  protected readonly USER_PROJECT = USER_PROJECT;
+  protected readonly LOGIN = LOGIN;
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
   protected readonly USER_DATASET = USER_DATASET;
+  protected readonly USER_MODEL = USER_MODEL;
+  protected readonly MODEL_ICON = MODEL_ICON;
   protected readonly USER_COMPUTING_UNIT = USER_COMPUTING_UNIT;
+  protected readonly USER_WAREHOUSE = USER_WAREHOUSE;
   protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
   protected readonly USER_DISCUSSION = USER_DISCUSSION;
@@ -123,6 +131,7 @@ export class DashboardComponent implements OnInit {
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
   protected readonly ADMIN_EXECUTION = ADMIN_EXECUTION;
   protected readonly ADMIN_SETTINGS = ADMIN_SETTINGS;
+  protected readonly ADMIN_CU_IMAGE = ADMIN_CU_IMAGE;
   protected readonly ABOUT = ABOUT;
   protected readonly String = String;
 
@@ -131,7 +140,6 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private ngZone: NgZone,
-    private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService
@@ -161,17 +169,6 @@ export class DashboardComponent implements OnInit {
           this.forumLogin();
         });
       });
-
-    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
-      this.userService
-        .googleLogin(user.idToken)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || USER_WORKFLOW);
-          });
-        });
-    });
 
     this.loadLogos();
 

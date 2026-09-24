@@ -86,7 +86,6 @@ class StagedFileCleanupJobSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("cleanup_test_user")
-    user.setPassword("123")
     user.setEmail("cleanup_test_user@test.com")
     user.setRole(UserRoleEnum.ADMIN)
     user

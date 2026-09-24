@@ -88,4 +88,15 @@ class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     )
     code should not include "')','"
   }
+
+  it should "define the render_error the empty-table branches call" in {
+    // Both empty-table branches call self.render_error; without the definition they
+    // raised AttributeError instead of rendering the message.
+    opDesc.includedColumns = List(column("col_one"), column("col_two"))
+    val code = opDesc.generatePythonCode()
+    code should include("def render_error(self, error_msg) -> str:")
+    code should include(
+      """return f"<h1>Tables Plot is not available.</h1><p>Reason is: {error_msg}</p>""""
+    )
+  }
 }

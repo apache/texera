@@ -31,11 +31,16 @@ import org.apache.texera.amber.operator.{LogicalOp, PortDescription, StateTransf
 
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends LogicalOp {
+class PythonUDFOpDescV2 extends LogicalOp with PythonUdfUiParameterSupport {
   @JsonProperty(
     required = true,
     defaultValue =
       "# Choose from the following templates:\n" +
+        "# \n" +
+        "# Define UiParameter inside open() of ProcessTupleOperator, ProcessBatchOperator, or ProcessTableOperator.\n" +
+        "# Example: self.count = self.UiParameter(\"count\", AttributeType.INT).value\n" +
+        "# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.\n" +
+        "# See the Python UDF operator documentation for supported types and behavior.\n" +
         "# \n" +
         "# from pytexera import *\n" +
         "# \n" +
@@ -102,6 +107,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     } else {
       opInfo.inputPorts.map(_ => None)
     }
+    val codeWithParameters = injectUiParameters(code)
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
@@ -130,7 +136,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, "python")
+          OpExecWithCode(codeWithParameters, "python")
         )
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
@@ -140,7 +146,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, "python")
+          OpExecWithCode(codeWithParameters, "python")
         )
         .withParallelizable(false)
     }
@@ -164,6 +170,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
       .withPveName(pveName)
+      .withExecutionTimeBinding(executionBinding(code))
   }
 
   override def operatorInfo: OperatorInfo = {

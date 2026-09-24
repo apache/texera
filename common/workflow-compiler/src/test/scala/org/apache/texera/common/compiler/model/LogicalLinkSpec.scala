@@ -20,7 +20,7 @@
 package org.apache.texera.common.compiler.model
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.exc.{MismatchedInputException, ValueInstantiationException}
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -131,10 +131,10 @@ class LogicalLinkSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // Secondary @JsonCreator constructor (string opId variant)
+  // Secondary string opId constructor
   // ---------------------------------------------------------------------------
 
-  "LogicalLink secondary @JsonCreator constructor" should "wrap raw String op ids in OperatorIdentity" in {
+  "LogicalLink secondary String constructor" should "wrap raw String op ids in OperatorIdentity" in {
     val link = new LogicalLink(
       fromOpId = "op-A",
       fromPortId = PortIdentity(0),
@@ -160,7 +160,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(link.toOpId == OperatorIdentity("my.op-2"))
   }
 
-  it should "reject the empty string as an op id via the @JsonCreator constructor" in {
+  it should "reject the empty string as an op id via the secondary String constructor" in {
     intercept[IllegalArgumentException] {
       new LogicalLink("", PortIdentity(0), "op-B", PortIdentity(1))
     }
@@ -169,7 +169,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     }
   }
 
-  it should "reject a null string op id via the @JsonCreator constructor" in {
+  it should "reject a null string op id via the secondary String constructor" in {
     intercept[IllegalArgumentException] {
       new LogicalLink(null: String, PortIdentity(0), "op-B", PortIdentity(1))
     }
@@ -178,7 +178,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     }
   }
 
-  it should "reject a self-loop via the @JsonCreator constructor (same string op id)" in {
+  it should "reject a self-loop via the secondary String constructor (same string op id)" in {
     val ex = intercept[IllegalArgumentException] {
       new LogicalLink("op-A", PortIdentity(0), "op-A", PortIdentity(1))
     }
@@ -194,12 +194,11 @@ class LogicalLinkSpec extends AnyFlatSpec {
   // wiring (annotations, default-Scala-module config) surfaces here.
 
   "LogicalLink Jackson deserialization" should
-    "deserialize fromOpId / toOpId from raw String values via the secondary @JsonCreator constructor" in {
+    "deserialize fromOpId / toOpId from raw String values via the Jackson creator" in {
     // Build the JSON by hand to mimic a user-saved workflow file where
     // `fromOpId` and `toOpId` are written as plain strings (the only shape
     // production actually receives, since the frontend emits them as
-    // strings). Jackson dispatches to the @JsonCreator string-overload
-    // constructor.
+    // strings). Jackson dispatches to the @JsonCreator constructor.
     val node = objectMapper.createObjectNode()
     node.put("fromOpId", "op-A")
     node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
@@ -245,17 +244,7 @@ class LogicalLinkSpec extends AnyFlatSpec {
     assert(tree.has("toPortId"))
   }
 
-  it should "NOT round-trip through writeValueAsString (the @JsonCreator string overload is incompatible with the object-shape OperatorIdentity that writeValueAsString emits)" in {
-    // Characterization of a real asymmetry tracked by
-    // https://github.com/apache/texera/issues/5042. Production reads
-    // user-saved workflow JSON where `fromOpId`/`toOpId` are plain
-    // strings, but `objectMapper.writeValueAsString` writes
-    // OperatorIdentity as `{"id":"op-A"}` (the case-class object form).
-    // Re-reading the emitted JSON fails because Jackson dispatches on the
-    // @JsonCreator string overload, which can't accept an object for
-    // fromOpId. When the issue is fixed (additional @JsonCreator object
-    // overload or a custom @JsonDeserialize), this test must flip to a
-    // passing round-trip assertion alongside the fix.
+  it should "round-trip through writeValueAsString when OperatorIdentity fields use object shape" in {
     val original = LogicalLink(
       OperatorIdentity("op-A"),
       PortIdentity(0),
@@ -269,22 +258,100 @@ class LogicalLinkSpec extends AnyFlatSpec {
     val tree = objectMapper.readTree(json)
     assert(tree.path("fromOpId").isObject, s"expected fromOpId to be an object: $json")
     assert(tree.path("fromOpId").path("id").asText() == "op-A")
-    // Re-reading the just-emitted JSON fails because the @JsonCreator
-    // String overload can't accept the object-shape fromOpId.
-    intercept[MismatchedInputException] {
-      objectMapper.readValue(json, classOf[LogicalLink])
-    }
+
+    val roundTripped = objectMapper.readValue(json, classOf[LogicalLink])
+    assert(roundTripped == original)
   }
 
-  it should "reject missing string op-id fields when deserializing via Jackson" in {
+  it should "reject missing op-id fields when deserializing via Jackson" in {
     // When `fromOpId` / `toOpId` are omitted, Jackson invokes the
-    // @JsonCreator with `null` for the missing String args. The primary
+    // @JsonCreator with `null` for the missing args. The primary
     // constructor's `require` on non-null/non-empty ids then throws, and
     // Jackson wraps it in `ValueInstantiationException` with the original
     // `IllegalArgumentException` as the cause.
     val empty = objectMapper.createObjectNode()
     val ex = intercept[ValueInstantiationException] {
       objectMapper.treeToValue(empty, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+  }
+
+  it should "reject an object-shape op id with no `id` field (null id fails the require guard)" in {
+    // An object-shape fromOpId lacking an `id` field resolves to
+    // OperatorIdentity(null), which the primary constructor's `require`
+    // rejects — surfaced as ValueInstantiationException.
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", objectMapper.createObjectNode()) // {} — no "id"
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId must be non-null"))
+  }
+
+  it should "reject an object-shape op id whose `id` field is non-textual" in {
+    // `{"id": 123}` is malformed: `id` must be a string (or null). The
+    // helper throws rather than silently coercing 123 -> "123"; Jackson
+    // wraps the IllegalArgumentException in a ValueInstantiationException.
+    val node = objectMapper.createObjectNode()
+    val badOpId = objectMapper.createObjectNode()
+    badOpId.put("id", 123)
+    node.set("fromOpId", badOpId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId.id must be a string"))
+  }
+
+  it should "reject an op id that is neither a string nor an object (e.g. a number)" in {
+    // A top-level numeric fromOpId hits the final else branch of
+    // readOperatorIdentity, which throws; Jackson wraps it.
+    val node = objectMapper.createObjectNode()
+    node.put("fromOpId", 12345)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+    assert(ex.getCause.getMessage.contains("fromOpId must be a string or an object"))
+  }
+
+  it should "reject an explicit JSON null op id (exercises the node.isNull branch)" in {
+    // An explicit `"fromOpId": null` arrives as a NullNode (an absent field
+    // arrives as Java null), exercising the `node.isNull` branch; require
+    // then rejects the null id.
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", objectMapper.nullNode())
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
+    }
+    assert(ex.getCause.isInstanceOf[IllegalArgumentException])
+  }
+
+  it should "reject an object-shape op id with an explicit null `id` (exercises the idNode.isNull branch)" in {
+    // `{"id": null}` makes idNode a NullNode, exercising the `idNode.isNull`
+    // branch; require then rejects the resulting OperatorIdentity(null).
+    val opId = objectMapper.createObjectNode()
+    opId.set("id", objectMapper.nullNode())
+    val node = objectMapper.createObjectNode()
+    node.set("fromOpId", opId)
+    node.set("fromPortId", objectMapper.valueToTree[JsonNode](PortIdentity(0)))
+    node.put("toOpId", "op-B")
+    node.set("toPortId", objectMapper.valueToTree[JsonNode](PortIdentity(1)))
+    val ex = intercept[ValueInstantiationException] {
+      objectMapper.treeToValue(node, classOf[LogicalLink])
     }
     assert(ex.getCause.isInstanceOf[IllegalArgumentException])
   }

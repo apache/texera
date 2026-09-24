@@ -59,8 +59,7 @@ class ComputingUnitHelpersSpec
     u.setName(name)
     u.setEmail(email)
     u.setRole(UserRoleEnum.REGULAR)
-    u.setPassword("password")
-    u.setGoogleAvatar(avatar)
+    u.setAvatar(avatar)
     u
   }
 
@@ -224,7 +223,7 @@ class ComputingUnitHelpersSpec
     row.accessPrivilege shouldBe PrivilegeEnum.READ
     row.status shouldBe "Running"
     row.metrics shouldBe WorkflowComputingUnitMetrics("100m", "64Mi")
-    row.ownerGoogleAvatar shouldBe "avatar"
+    row.ownerAvatar shouldBe "avatar"
     row.ownerName shouldBe "owner"
   }
 
@@ -238,7 +237,7 @@ class ComputingUnitHelpersSpec
       podMetrics = Map.empty
     )
 
-    row.ownerGoogleAvatar shouldBe null
+    row.ownerAvatar shouldBe null
     row.ownerName shouldBe null
     row.status shouldBe "Running"
     row.metrics shouldBe WorkflowComputingUnitMetrics("NaN", "NaN")

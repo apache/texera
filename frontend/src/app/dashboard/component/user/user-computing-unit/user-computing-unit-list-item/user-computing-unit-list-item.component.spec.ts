@@ -22,6 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { By } from "@angular/platform-browser";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { of, throwError } from "rxjs";
 import type { Mocked } from "vitest";
 import { UserComputingUnitListItemComponent } from "./user-computing-unit-list-item.component";
@@ -31,6 +32,7 @@ import { ComputingUnitStatusService } from "../../../../../common/service/comput
 import { MockComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { ComputingUnitActionsService } from "../../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../../common/type/workflow-computing-unit";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { ComputingUnitMetadataComponent } from "../../../../../common/util/computing-unit.util";
 
@@ -71,7 +73,7 @@ function makeEntry(overrides: Partial<DashboardWorkflowComputingUnit> = {}): Das
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner: true,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "owner",
     ...overrides,
   };
@@ -488,6 +490,144 @@ describe("UserComputingUnitListItemComponent", () => {
     it("shows the selection when the single option is a non-zero value", () => {
       component.gpuOptions = ["2"];
       expect(component.showGpuSelection()).toBe(true);
+    });
+  });
+
+  // ── Rendered-template interactions (the row's bindings) ──
+
+  describe("template interactions", () => {
+    /** The handlers that call `$event.stopPropagation()` need a real-ish event. */
+    const clickEvent = () => ({ stopPropagation: vi.fn() }) as unknown as MouseEvent;
+
+    /** Show the metrics popover synchronously and return its overlay text. */
+    function openMetricsPopover(): { popover: NzPopoverDirective; text: string } {
+      const popover = fixture.debugElement.query(By.css(".metrics-container")).injector.get(NzPopoverDirective);
+      popover.show();
+      fixture.detectChanges();
+      return { popover, text: document.querySelector(".cdk-overlay-container")?.textContent ?? "" };
+    }
+
+    afterEach(() => {
+      // Clear the overlay contents rather than removing the container element itself:
+      // CDK's OverlayContainer caches that element, so removing it would make later
+      // overlays render into a detached node.
+      document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
+    });
+
+    it("the rename button starts inline editing", () => {
+      const renameButton = fixture.debugElement.query(By.css(".edit-button button"));
+      expect(renameButton).toBeTruthy();
+
+      renameButton.triggerEventHandler("click", clickEvent());
+
+      expect(component.editingNameOfUnit).toBe(1);
+      expect(component.editingUnitName).toBe("unit-1");
+    });
+
+    it("clicking the unit name opens the metadata modal", () => {
+      const createSpy = vi
+        .spyOn(TestBed.inject(NzModalService), "create")
+        .mockReturnValue({} as ReturnType<NzModalService["create"]>);
+
+      fixture.debugElement.query(By.css(".resource-name")).triggerEventHandler("click", null);
+
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ nzData: component.entry }));
+    });
+
+    it("escape on the rename input cancels editing", () => {
+      component.editingNameOfUnit = 1;
+      fixture.detectChanges();
+
+      const input = fixture.debugElement.query(By.css("input.unit-name-edit-input"));
+      expect(input).toBeTruthy();
+      input.nativeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(component.editingNameOfUnit).toBeNull();
+    });
+
+    it("enter on the rename input confirms with the typed value", () => {
+      computingUnitService.renameComputingUnit.mockReturnValue(of({} as Response));
+      component.editingNameOfUnit = 1;
+      fixture.detectChanges();
+
+      const input = fixture.debugElement.query(By.css("input.unit-name-edit-input"));
+      input.nativeElement.value = "  renamed  ";
+      input.nativeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(computingUnitService.renameComputingUnit).toHaveBeenCalledExactlyOnceWith(1, "renamed");
+    });
+
+    it("a click inside the rename input does not bubble to the row", () => {
+      component.editingNameOfUnit = 1;
+      fixture.detectChanges();
+      const stopPropagation = vi.fn();
+
+      fixture.debugElement
+        .query(By.css("input.unit-name-edit-input"))
+        .triggerEventHandler("click", { stopPropagation } as unknown as MouseEvent);
+
+      expect(stopPropagation).toHaveBeenCalledTimes(1);
+    });
+
+    it("the delete button emits the deleted output", () => {
+      const deletedSpy = vi.fn();
+      component.deleted.subscribe(deletedSpy);
+      const deleteButton = fixture.debugElement.query(By.css(".button-group button[title='Delete']"));
+      expect(deleteButton).toBeTruthy();
+
+      deleteButton.triggerEventHandler("click", null);
+
+      expect(deletedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("omits the share button while sharing is disabled", () => {
+      expect(fixture.debugElement.query(By.css("button[aria-label='Share computing unit']"))).toBeNull();
+    });
+
+    it("the share button opens the share-access modal when sharing is enabled", () => {
+      // same DI instance the component holds
+      TestBed.inject(GuiConfigService).env.sharingComputingUnitEnabled = true;
+      fixture.detectChanges();
+
+      const shareButton = fixture.debugElement.query(By.css("button[aria-label='Share computing unit']"));
+      expect(shareButton).toBeTruthy();
+      shareButton.triggerEventHandler("click", clickEvent());
+
+      expect(actionsService.openShareAccessModal).toHaveBeenCalledWith(1, false);
+    });
+
+    it("the metrics popover renders the CPU and RAM rows", () => {
+      const { popover, text } = openMetricsPopover();
+
+      expect(text).toContain("CPU");
+      expect(text).toContain("RAM");
+      // the default entry has no GPU / JVM / shared-memory limits
+      expect(text).not.toContain("GPU(s)");
+      expect(text).not.toContain("JVM Memory Size");
+      expect(text).not.toContain("Shared Memory Size");
+
+      popover.hide();
+      fixture.detectChanges();
+    });
+
+    it("the metrics popover adds the GPU, JVM and shared-memory rows when those limits are set", () => {
+      const base = makeEntry();
+      component.entry = makeEntry({
+        computingUnit: {
+          ...base.computingUnit,
+          resource: { ...base.computingUnit.resource, gpuLimit: "2", jvmMemorySize: "2Gi", shmSize: "1Gi" },
+        },
+      });
+      fixture.detectChanges();
+
+      const { popover, text } = openMetricsPopover();
+
+      expect(text).toContain("2 GPU(s)");
+      expect(text).toContain("JVM Memory Size");
+      expect(text).toContain("Shared Memory Size");
+
+      popover.hide();
+      fixture.detectChanges();
     });
   });
 });

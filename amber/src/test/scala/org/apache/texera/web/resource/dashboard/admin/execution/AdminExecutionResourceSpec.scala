@@ -93,7 +93,6 @@ class AdminExecutionResourceSpec
     testUser.setUid(testUid)
     testUser.setName("test_user")
     testUser.setEmail("admin_exec_test@example.com")
-    testUser.setPassword("password")
 
     testWorkflow = new Workflow
     testWorkflow.setWid(testWid)

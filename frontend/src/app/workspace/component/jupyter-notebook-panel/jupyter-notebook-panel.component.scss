@@ -19,9 +19,8 @@
 
 .draggable-panel {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  margin-top: 200px;
+  top: 100px;
+  left: 200px;
   width: 660px;
   height: 400px;
   background-color: #fff;
@@ -30,7 +29,8 @@
   border-radius: 5px;
   z-index: 1000;
   resize: both;
-  overflow: auto;
+  // The iframe scrolls its own content; the wrapper must not add a second scrollbar.
+  overflow: hidden;
 }
 
 .panel-header {
@@ -74,4 +74,6 @@
   width: 100%;
   height: 100%;
   border: none;
+  // Block removes the inline-element baseline gap that would otherwise overflow the wrapper.
+  display: block;
 }

@@ -21,8 +21,9 @@ package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
   UserDao,
   WorkflowDao,
   WorkflowExecutionsDao,
@@ -31,6 +32,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
   User,
   Workflow,
   WorkflowExecutions,
@@ -44,7 +46,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
 import java.util.UUID
-import javax.ws.rs.WebApplicationException
+import javax.ws.rs.{BadRequestException, WebApplicationException}
 import scala.jdk.CollectionConverters._
 
 class AdminUserResourceSpec
@@ -59,6 +61,7 @@ class AdminUserResourceSpec
   private val testWid = 90000 + scala.util.Random.nextInt(5000)
 
   private var userDao: UserDao = _
+  private var datasetDao: DatasetDao = _
   private var workflowDao: WorkflowDao = _
   private var workflowVersionDao: WorkflowVersionDao = _
   private var workflowExecutionsDao: WorkflowExecutionsDao = _
@@ -70,6 +73,7 @@ class AdminUserResourceSpec
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
     userDao = new UserDao(getDSLContext.configuration())
+    datasetDao = new DatasetDao(getDSLContext.configuration())
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
     workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
@@ -92,8 +96,11 @@ class AdminUserResourceSpec
       .execute()
     getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.WID.eq(testWid)).execute()
     getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
+    getDSLContext
+      .deleteFrom(DATASET)
+      .where(DATASET.OWNER_UID.in(primaryUid, secondaryUid))
+      .execute()
     getDSLContext.deleteFrom(USER).where(USER.UID.in(primaryUid, secondaryUid)).execute()
-    // addUser() inserts an INACTIVE user with an auto-generated uid and a "User<millis>" name.
     getDSLContext
       .deleteFrom(USER)
       .where(USER.ROLE.eq(UserRoleEnum.INACTIVE).and(USER.NAME.like("User%")))
@@ -107,10 +114,28 @@ class AdminUserResourceSpec
     user.setEmail(
       s"admin_user_spec_${uid}_${UUID.randomUUID().toString.substring(0, 8)}@example.com"
     )
-    user.setPassword("password")
     user.setRole(role)
     user
   }
+
+  /**
+    * Seed a credential row. `password` is left null for external providers because
+    * ck_provider_credential requires a password for LOCAL and only for LOCAL. The
+    * auth_provider FK is ON DELETE CASCADE, so `cleanup`'s user delete clears these.
+    */
+  private def seedProvider(
+      uid: Int,
+      providerType: ProviderTypeEnum,
+      providerId: String,
+      password: String = null
+  ): Unit =
+    getDSLContext
+      .insertInto(AUTH_PROVIDER)
+      .set(AUTH_PROVIDER.UID, Integer.valueOf(uid))
+      .set(AUTH_PROVIDER.PROVIDER_TYPE, providerType)
+      .set(AUTH_PROVIDER.PROVIDER_ID, providerId)
+      .set(AUTH_PROVIDER.PASSWORD, password)
+      .execute()
 
   private def seedWorkflow(): Workflow = {
     val workflow = new Workflow
@@ -122,6 +147,19 @@ class AdminUserResourceSpec
     workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
     workflowDao.insert(workflow)
     workflow
+  }
+
+  private def seedDataset(uid: Int): Dataset = {
+    val dataset = new Dataset
+    dataset.setOwnerUid(uid)
+    dataset.setName("admin_user_spec_ds_" + UUID.randomUUID().toString.substring(0, 8))
+    dataset.setRepositoryName("repo-" + UUID.randomUUID().toString.substring(0, 8))
+    dataset.setIsPublic(false)
+    dataset.setIsDownloadable(true)
+    dataset.setDescription("")
+    dataset.setCreationTime(new Timestamp(System.currentTimeMillis()))
+    datasetDao.insert(dataset)
+    dataset
   }
 
   private def seedExecution(uid: Int): WorkflowExecutions = {
@@ -170,17 +208,72 @@ class AdminUserResourceSpec
     resource.list().asScala.exists(_.uid == primaryUid) shouldBe false
   }
 
+  // The projection maps onto UserInfo positionally, so a column landing on the wrong field is
+  // silent. Nothing else observes it — pin it here for a user holding both credential kinds,
+  // which also proves the LOCAL row does not leak into the GOOGLE-joined column.
+  it should "report the google id and the avatar for a user with LOCAL and GOOGLE rows" in {
+    val user = makeUser(primaryUid, "dual")
+    user.setAvatar("avatar-blob")
+    userDao.insert(user)
+    seedProvider(primaryUid, ProviderTypeEnum.LOCAL, "dual-handle", password = "hashed")
+    seedProvider(primaryUid, ProviderTypeEnum.GOOGLE, "google-sub-dual")
+
+    val listed = resource.list().asScala.find(_.uid == primaryUid)
+
+    listed.map(u => (u.name, u.googleId, u.avatar)) shouldBe Some(
+      ("dual", "google-sub-dual", "avatar-blob")
+    )
+  }
+
+  it should "leave the google id null for a user with no auth_provider rows" in {
+    userDao.insert(makeUser(primaryUid, "credential-less"))
+
+    resource.list().asScala.find(_.uid == primaryUid).map(_.googleId) shouldBe Some(null)
+  }
+
   // ─── addUser ────────────────────────────────────────────────────────────
 
-  "addUser" should "persist a new INACTIVE user" in {
+  "addUser" should "persist a new INACTIVE user with a generated name" in {
     val before = userDao.fetchByRole(UserRoleEnum.INACTIVE).size()
 
     resource.addUser()
 
     val after = userDao.fetchByRole(UserRoleEnum.INACTIVE)
     after.size() shouldBe before + 1
-    // The newly added user has a generated non-empty name and no password left blank.
-    after.asScala.exists(u => u.getName.startsWith("User") && u.getPassword != null) shouldBe true
+    after.asScala.exists(_.getName.startsWith("User")) shouldBe true
+  }
+
+  // The point of the change: this endpoint was the only one that produced an account holding a
+  // credential with no email address on file. The credential was unusable anyway — a generated
+  // password the method discarded, which no endpoint resets or reveals — so dropping it costs
+  // nothing and is what keeps "every account holding a credential has an address" true.
+  it should "not give the new row a credential" in {
+    resource.addUser()
+
+    val added = userDao
+      .fetchByRole(UserRoleEnum.INACTIVE)
+      .asScala
+      .filter(_.getName.startsWith("User"))
+
+    added should not be empty
+    added.foreach { u =>
+      u.getEmail shouldBe null
+      getDSLContext.fetchExists(
+        getDSLContext.selectFrom(AUTH_PROVIDER).where(AUTH_PROVIDER.UID.eq(u.getUid))
+      ) shouldBe false
+    }
+  }
+
+  // Left as an ordinary row on purpose: marking it a placeholder would stop an admin pre-sharing
+  // with the address before its owner first signs in (DatasetAccessResource refuses placeholders).
+  it should "not mark the new row a placeholder" in {
+    resource.addUser()
+
+    userDao
+      .fetchByRole(UserRoleEnum.INACTIVE)
+      .asScala
+      .filter(_.getName.startsWith("User"))
+      .foreach(_.getIsPlaceholder shouldBe false)
   }
 
   // ─── updateUser ─────────────────────────────────────────────────────────
@@ -216,6 +309,80 @@ class AdminUserResourceSpec
     edit.setRole(UserRoleEnum.REGULAR)
 
     a[WebApplicationException] should be thrownBy resource.updateUser(edit)
+  }
+
+  // ─── updateUser: the email safeguard ──────────────────────────────────────
+
+  // An unclaimed stub has no address, and the admin table renders that as a blank cell beside a
+  // role dropdown. Past INACTIVE the address stops being cosmetic — dataset paths are built from
+  // it, and the role-change notification is sent to it.
+  it should "refuse to activate an account that has no email address" in {
+    val emailless = makeUser(primaryUid, "no_address", UserRoleEnum.INACTIVE)
+    emailless.setEmail(null)
+    userDao.insert(emailless)
+
+    val edit = new User
+    edit.setUid(primaryUid)
+    edit.setName("no_address")
+    edit.setEmail(null)
+    edit.setRole(UserRoleEnum.REGULAR)
+
+    a[WebApplicationException] should be thrownBy resource.updateUser(edit)
+    userDao.fetchOneByUid(primaryUid).getRole shouldBe UserRoleEnum.INACTIVE
+  }
+
+  // The other half of the guarantee: closing `addUser` stops emailless credentialed accounts being
+  // created, and this stops one being made by taking an address back off an account that has one.
+  it should "refuse to remove an address an account already has" in {
+    val user = makeUser(primaryUid, "has_address", UserRoleEnum.REGULAR)
+    userDao.insert(user)
+
+    val edit = new User
+    edit.setUid(primaryUid)
+    edit.setName("has_address")
+    edit.setEmail("   ")
+    edit.setRole(UserRoleEnum.INACTIVE)
+
+    a[WebApplicationException] should be thrownBy resource.updateUser(edit)
+    userDao.fetchOneByUid(primaryUid).getEmail shouldBe user.getEmail
+  }
+
+  it should "allow editing an emailless account that stays inactive" in {
+    val emailless = makeUser(primaryUid, "no_address", UserRoleEnum.INACTIVE)
+    emailless.setEmail(null)
+    userDao.insert(emailless)
+
+    val edit = new User
+    edit.setUid(primaryUid)
+    edit.setName("renamed")
+    edit.setEmail(null)
+    edit.setRole(UserRoleEnum.INACTIVE)
+    edit.setComment("waiting on an address")
+    resource.updateUser(edit)
+
+    userDao.fetchOneByUid(primaryUid).getName shouldBe "renamed"
+  }
+
+  // ─── getCreatedDatasets ───────────────────────────────────────────────────
+
+  "getCreatedDatasets" should "return an empty list for a user with no datasets" in {
+    userDao.insert(makeUser(primaryUid, "dataset_user"))
+    resource.getCreatedDatasets(primaryUid) shouldBe empty
+  }
+
+  it should "reject a missing user_id with a BadRequestException" in {
+    assertThrows[BadRequestException](resource.getCreatedDatasets(null))
+  }
+
+  it should "return only the datasets owned by the queried user" in {
+    userDao.insert(makeUser(primaryUid, "dataset_owner"))
+    userDao.insert(makeUser(secondaryUid, "other_owner"))
+    val owned = seedDataset(primaryUid)
+    seedDataset(secondaryUid)
+
+    val created = resource.getCreatedDatasets(primaryUid)
+    created.map(_.name) shouldBe List(owned.getName)
+    created.head.size shouldBe 0L
   }
 
   // ─── getCreatedWorkflow ───────────────────────────────────────────────────

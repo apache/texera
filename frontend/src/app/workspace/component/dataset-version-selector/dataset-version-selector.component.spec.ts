@@ -82,4 +82,45 @@ describe("DatasetVersionSelectorComponent", () => {
 
     expect(formControl.value).toBe("/existing/v2");
   });
+
+  /**
+   * The tests above call onClickOpenDatasetSelectionModal directly, so the
+   * template never rendered: the read-only box that shows the current selection
+   * and the button that opens the picker were both unexercised.
+   */
+  describe("rendered field", () => {
+    const selectionBox = (): HTMLInputElement | null => fixture.nativeElement.querySelector("input[nz-input]");
+    const openButton = (): HTMLButtonElement => fixture.nativeElement.querySelector("button[nz-button]");
+
+    it("shows nothing but the picker button until a dataset has been chosen", () => {
+      setFormControl("");
+      fixture.detectChanges();
+
+      expect(selectionBox()).toBeNull();
+      expect(openButton().textContent!.trim()).toBe("Select Dataset");
+    });
+
+    it("shows the chosen path in a read-only box", () => {
+      setFormControl("/dataset/owner@x.com/myds/v1");
+      fixture.detectChanges();
+
+      const box = selectionBox()!;
+      expect(box.value).toBe("/dataset/owner@x.com/myds/v1");
+      // The path is only editable through the picker, never by typing.
+      expect(box.readOnly).toBe(true);
+      expect(box.required).toBe(true);
+    });
+
+    it("opens the picker from the button and shows whatever it returns", () => {
+      setFormControl("");
+      fixture.detectChanges();
+      modalServiceSpy.create.mockReturnValue({ afterClose: of("/dataset/owner@x.com/myds/v2") });
+
+      openButton().click();
+      fixture.detectChanges();
+
+      expect(modalServiceSpy.create).toHaveBeenCalledTimes(1);
+      expect(selectionBox()!.value).toBe("/dataset/owner@x.com/myds/v2");
+    });
+  });
 });

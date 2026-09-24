@@ -25,6 +25,7 @@ import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
 import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao,
@@ -88,7 +89,6 @@ class ExecutionsMetadataPersistServiceSpec
     user.setUid(testUid)
     user.setName("metadata_persist_spec_user")
     user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    user.setPassword("password")
     userDao.insert(user)
 
     val workflow = new Workflow
@@ -221,6 +221,60 @@ class ExecutionsMetadataPersistServiceSpec
 
     // The failed insert must not have persisted a row.
     workflowExecutionsDao.fetchByVid(seededVid).size() shouldBe before
+  }
+
+  it should "record the chosen warehouse and leave it null when none is picked" in {
+    val row = getDSLContext.newRecord(USER_WAREHOUSE)
+    row.setUid(testUid)
+    row.setName("exec-spec-warehouse")
+    row.setLakekeeperWarehouseName(s"user-$testUid-exec-spec-warehouse")
+    row.setLakekeeperWarehouseId(UUID.randomUUID())
+    row.setFlavor(UserWarehouseFlavorEnum.local)
+    row.store()
+
+    val withWarehouse = ExecutionsMetadataPersistService.insertNewExecution(
+      WorkflowIdentity(testWid.toLong),
+      testUid,
+      executionName = "warehouse-run",
+      environmentVersion = "env-4",
+      computingUnitId = seededCuid,
+      warehouseId = Some(row.getWhid)
+    )
+    workflowExecutionsDao.fetchOneByEid(withWarehouse.id.toInt).getWhid shouldBe row.getWhid
+
+    val withoutWarehouse = ExecutionsMetadataPersistService.insertNewExecution(
+      WorkflowIdentity(testWid.toLong),
+      testUid,
+      executionName = "default-run",
+      environmentVersion = "env-4",
+      computingUnitId = seededCuid
+    )
+    workflowExecutionsDao.fetchOneByEid(withoutWarehouse.id.toInt).getWhid shouldBe null
+  }
+
+  it should "keep execution history when its warehouse is deleted (whid SET NULL)" in {
+    val row = getDSLContext.newRecord(USER_WAREHOUSE)
+    row.setUid(testUid)
+    row.setName("doomed-warehouse")
+    row.setLakekeeperWarehouseName(s"user-$testUid-doomed-warehouse")
+    row.setLakekeeperWarehouseId(UUID.randomUUID())
+    row.setFlavor(UserWarehouseFlavorEnum.local)
+    row.store()
+
+    val id = ExecutionsMetadataPersistService.insertNewExecution(
+      WorkflowIdentity(testWid.toLong),
+      testUid,
+      executionName = "history-run",
+      environmentVersion = "env-5",
+      computingUnitId = seededCuid,
+      warehouseId = Some(row.getWhid)
+    )
+
+    getDSLContext.deleteFrom(USER_WAREHOUSE).where(USER_WAREHOUSE.WHID.eq(row.getWhid)).execute()
+
+    val stored = workflowExecutionsDao.fetchOneByEid(id.id.toInt)
+    stored should not be null
+    stored.getWhid shouldBe null
   }
 
   // -- tryGetExistingExecution ------------------------------------------------

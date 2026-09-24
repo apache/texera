@@ -158,4 +158,105 @@ describe("ErrorFrameComponent", () => {
       expect(highlight).toHaveBeenCalledWith(false, "op-42");
     });
   });
+  /**
+   * The frame's template decides what an error list looks like: the all-operators banner, the empty
+   * state, the grouping into categories, and — the part with real teeth — whether a "focus operator"
+   * shortcut is offered at all. The suite above builds the category map and never renders it.
+   */
+  describe("rendered errors", () => {
+    /** Renders the frame for the given errors, optionally scoped to one operator. */
+    function render(errors: WorkflowFatalError[], scopedTo?: string): HTMLElement {
+      component.operatorId = scopedTo;
+      component.categoryToErrorMapping = errors.reduce((acc, e) => {
+        const key = e.type.name;
+        acc.set(key, [...(acc.get(key) ?? []), e]);
+        return acc;
+      }, new Map<string, WorkflowFatalError[]>());
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function gotoIcons(): HTMLElement[] {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".goto-operator-icon"));
+    }
+
+    it("announces that it is showing every operator's errors", () => {
+      const el = render([fatalError()]);
+
+      expect(el.querySelector(".all-errors-notification")).not.toBeNull();
+    });
+
+    it("drops that banner once the frame is scoped to one operator", () => {
+      const el = render([fatalError()], "op1");
+
+      expect(el.querySelector(".all-errors-notification")).toBeNull();
+    });
+
+    it("says so when there is nothing to report, and only then", () => {
+      const el = render([]);
+      expect(el.textContent).toContain("No error to display.");
+
+      render([fatalError()]);
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("No error to display.");
+    });
+
+    it("groups the errors under their category headings", () => {
+      const el = render([fatalError({ type: { name: "COMPILATION" } }), fatalError({ type: { name: "EXECUTION" } })]);
+
+      const headings = Array.from(el.querySelectorAll(".error-category")).map(h => h.textContent?.trim());
+      expect(headings).toEqual(["COMPILATION:", "EXECUTION:"]);
+    });
+
+    it("shows each error's message as the heading and its details in the body", () => {
+      const el = render([fatalError({ message: "boom", details: "stack trace here" })]);
+
+      expect(el.querySelector(".ant-collapse-header")?.textContent).toContain("boom");
+      expect(el.querySelector(".error-message")?.textContent).toContain("stack trace here");
+    });
+
+    it("offers a jump to the operator that failed", () => {
+      render([fatalError({ operatorId: "op-broken" })]);
+
+      expect(gotoIcons().length).toBe(1);
+    });
+
+    it("offers no jump for an error with no operator behind it", () => {
+      // "unknown operator" is the sentinel the backend sends for errors that belong to no operator;
+      // offering the shortcut would navigate the canvas to nothing.
+      render([fatalError({ operatorId: "unknown operator" })]);
+
+      expect(gotoIcons()).toEqual([]);
+    });
+
+    it("offers no jump to the operator already being shown", () => {
+      // Scoped to op1 and the error is op1's: the shortcut would be a no-op.
+      render([fatalError({ operatorId: "op1" })], "op1");
+
+      expect(gotoIcons()).toEqual([]);
+    });
+
+    it("jumps to the operator the error names", () => {
+      const spy = vi.spyOn(component, "onClickGotoButton").mockImplementation(() => {});
+      render([fatalError({ operatorId: "op-broken" })]);
+
+      gotoIcons()[0].click();
+
+      expect(spy).toHaveBeenCalledWith("op-broken");
+    });
+
+    it("does not toggle the panel when the jump is clicked", () => {
+      // The icon lives in the collapse header, so without stopPropagation the panel would open or
+      // close underneath the user on the way to another operator.
+      vi.spyOn(component, "onClickGotoButton").mockImplementation(() => {});
+      const el = render([fatalError({ operatorId: "op-broken" })]);
+      const panelBefore = el.querySelectorAll(".ant-collapse-item-active").length;
+
+      gotoIcons()[0].click();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll(".ant-collapse-item-active").length).toBe(
+        panelBefore
+      );
+    });
+  });
 });

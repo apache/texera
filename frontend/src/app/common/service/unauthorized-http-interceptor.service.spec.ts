@@ -21,7 +21,7 @@ import { HTTP_INTERCEPTORS, HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { Router } from "@angular/router";
-import { ABOUT } from "../../app-routing.constant";
+import { LOGIN } from "../../app-routing.constant";
 import { NotificationService } from "./notification/notification.service";
 import { UserService } from "./user/user.service";
 import { UnauthorizedHttpInterceptor } from "./unauthorized-http-interceptor.service";
@@ -60,7 +60,7 @@ describe("UnauthorizedHttpInterceptor", () => {
     return http.get(url, { headers: { Authorization: "Bearer stale-token" } });
   }
 
-  it("logs out, notifies, and redirects to ABOUT on 401 for an authenticated request", () => {
+  it("logs out, notifies, and redirects to LOGIN on 401 for an authenticated request", () => {
     // The decision to log out hinges on whether *this* request was authenticated.
     // A 401 from an anonymous request is the server saying "you need to log in",
     // not "your session is invalid" — clearing the session there would wipe a
@@ -71,7 +71,7 @@ describe("UnauthorizedHttpInterceptor", () => {
     expect(userServiceSpy.logout).toHaveBeenCalledTimes(1);
     expect(notificationSpy.error).toHaveBeenCalledTimes(1);
     expect(notificationSpy.error.mock.calls[0][0]).toMatch(/session.*expired|log in/i);
-    expect(routerSpy.navigate).toHaveBeenCalledWith([ABOUT], {
+    expect(routerSpy.navigate).toHaveBeenCalledWith([LOGIN], {
       queryParams: { returnUrl: "/user/workflow/42" },
     });
   });
@@ -102,7 +102,7 @@ describe("UnauthorizedHttpInterceptor", () => {
     authedGet("/api/secret").subscribe({ error: () => {} });
     httpMock.expectOne("/api/secret").flush(null, { status: 401, statusText: "Unauthorized" });
 
-    expect(routerSpy.navigate).toHaveBeenCalledWith([ABOUT], { queryParams: { returnUrl: null } });
+    expect(routerSpy.navigate).toHaveBeenCalledWith([LOGIN], { queryParams: { returnUrl: null } });
   });
 
   // Adversarial-review fix #1: a stale token gets auto-attached to /auth/login

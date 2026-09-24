@@ -67,7 +67,6 @@ class UserConfigResourceSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(email)
-    user.setPassword("password")
     userDao.insert(user)
     user
   }
