@@ -21,7 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
@@ -92,6 +92,47 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
 
     override def generateStandaloneCode(): String =
       s"out1df = pd.read_json(${StandaloneCodeGenerator.SourceFilePlaceholder}, lines=True)"
+  }
+
+  /** Reports the Python type of each cell of its `blob` column. */
+  private class BlobTypeOp extends LogicalOp with StandaloneCodeGenerator {
+    override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp =
+      throw new UnsupportedOperationException("the harness never builds a physical op")
+
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "BlobType",
+        "Reports the type of each binary cell",
+        OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def generateStandaloneCode(): String =
+      """out1df = pd.DataFrame({"kind": [type(_v).__name__ for _v in in1df["blob"]]})"""
+  }
+
+  private def blobKind(cell: Array[Byte]): String = {
+    val blobOnly = new Schema(new Attribute("blob", AttributeType.BINARY))
+    val dir = Files.createTempDirectory("harness-spec-blob-kind-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(
+      input,
+      Iterator(Tuple.builder(blobOnly).add(blobOnly.getAttribute("blob"), cell).build()),
+      blobOnly
+    )
+    val result = StandaloneRunner.run(
+      opDesc = new BlobTypeOp,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = dir
+    )
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 1
+    lines.get(0)
   }
 
   "TupleIO" should "read back the rows and the schema it wrote" in {
@@ -292,5 +333,17 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     lines should have size 2
     lines.get(0) should include("\"blob\":\"aGk=\"")
     lines.get(1) should include("\"blob\":null")
+  }
+
+  // A model column arrives as the marker followed by the pickle, and the worker
+  // unpickles it before the operator sees it. This is pickle.dumps(["a"],
+  // protocol=0), which stands in for a fitted estimator.
+  it should "hand a pickled binary cell to the script as the object" taggedAs NeedsPython in {
+    val pickled = "pickle    ".getBytes("US-ASCII") ++ "(lp0\nVa\np1\na.".getBytes("US-ASCII")
+    blobKind(pickled) should include("\"kind\":\"list\"")
+  }
+
+  it should "hand any other binary cell to the script as bytes" taggedAs NeedsPython in {
+    blobKind(Array[Byte](0, 1, 2)) should include("\"kind\":\"bytes\"")
   }
 }

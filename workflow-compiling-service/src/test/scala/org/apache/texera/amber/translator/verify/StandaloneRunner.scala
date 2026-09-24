@@ -237,6 +237,17 @@ object StandaloneRunner extends LazyLogging {
     sb.append("    return df\n")
     sb.append("\n")
 
+    // A model column arrives as the cast's pickle marker followed by the pickle,
+    // and the worker's ArrowTableTupleProvider unpickles such a cell before the
+    // operator sees it. Same test and slice, so the script is handed the model
+    // the run was handed and any other bytes stay bytes.
+    sb.append("def _texera_read_binary(_v):\n")
+    sb.append("    if pd.isna(_v):\n")
+    sb.append("        return None\n")
+    sb.append("    _b = base64.b64decode(_v)\n")
+    sb.append("    return pickle.loads(_b[10:]) if _b[:6] == b'pickle' else _b\n")
+    sb.append("\n")
+
     // Both paths have to be handed the same numbers. `read_json` parses a column
     // holding a null through float64, so a LONG of 9007199254740993 arrives as
     // 9007199254740992 while the engine still has the tuple. Python's json reads
@@ -397,9 +408,7 @@ object StandaloneRunner extends LazyLogging {
         binaryColumns(path).foreach { col =>
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
           sb.append(
-            s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].map(\n" +
-              s"        lambda _v: None if pd.isna(_v) else base64.b64decode(_v)\n" +
-              s"    )\n"
+            s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].map(_texera_read_binary)\n"
           )
         }
         // Only where the reader lost the value: a column with no holes already
