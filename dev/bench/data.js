@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790177033897,
+  "lastUpdate": 1790255328647,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -15336,6 +15336,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 522.5618282405253,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "f24dab0030bf4ee0620562ff0d186b3b04de7d51",
+          "message": "chore(frontend): remove the unused UserWorkflowListItemComponent (#8463)\n\n### What changes were proposed in this PR?\n\nDeletes `UserWorkflowListItemComponent`, which is declared in\n`AppModule` but whose selector `texera-user-workflow-list-item` appears\nin no template — so it is never rendered. `HighlightSearchTermsPipe`\ngoes with it, because the component's own template is the pipe's last\nremaining consumer. So does the CSS that only that template ever\nmatched. Pure deletion, no behaviour change: **−1,201 lines**.\n\n### History\n\n| | |\n| --- | --- |\n| **Introduced by** | #1937 (2023-05-30) — \"Refactored each workflow\nlist item into its own component\" |\n| **Usage removed by** | #2793 (2024-08-20) — \"Generalize List Item\"\nreplaced it with the generic `ListItemComponent`, deleting the last two\n`texera-user-workflow-list-item` uses from\n`search-results.component.html` |\n\nDead for about two years.\n\n> Reviewer note — why the pipe is in the same PR.\n`HighlightSearchTermsPipe` arrived in #2386 and kept a second consumer\nuntil #7463 (2026-08-29, \"remove the deprecated project feature\")\ndropped `entry.name | highlightSearchTerms` from that template. Since\nthen its only use is this dead component's template (L43/L106). Removing\nthe component alone would leave the pipe dead in the same commit, so\nthey ship together; splitting them would just create a second PR for\ncode this one already orphans.\n\n> Reviewer note — the CSS. The component's stylesheet `@use`d\n`section-style.scss`, and its template was the only one producing\n`.workflow-list-item` (plus every class nested under it) and\n`.metadata-container`. Those rules go, along with a second\n`.metadata-container` copy in `search-results.component.scss` that no\ntemplate ever matched. The pipe was the only producer of the global\n`.highlight-search-terms` rule in `styles.scss`, so that goes too. The\n`itemSize` comment in `search-results.component.html` cited\n`.workflow-list-item`, and now cites `.list-item-card`, the rule that\nsizes each row today.\n\n> Nothing else needs cleaning: `WorkflowExecutionHistoryComponent`,\n`ShareAccessComponent`, `DownloadService`, `GuiConfigService` and\n`WorkflowPersistService` all keep other consumers.\n\n### Any related issues, documentation, discussions?\n\nCloses #8460\n\n### How was this PR tested?\n\nExisting tests only — this PR removes a component, a pipe, their two\nspecs, and CSS that no remaining template matches.\n\nFrom `frontend/`:\n\n- `npx ng build` — **success**. This is the gate that matters here:\nremoving an `AppModule` declaration can only be proven safe by an AOT\nbuild, since template diagnostics are AOT-only. A leftover use of either\nselector, or an `@extend` of a removed CSS rule, would fail it.\n- `npx ng test --watch=false\n--include='**/search-results.component.spec.ts'\n--include='**/user-workflow.component.spec.ts'` — 107 tests pass (2\nfiles).\n- `yarn --cwd frontend format:ci` — clean.\n\nVerification, re-runnable by a reviewer (all three return nothing):\n\n```\ngit grep -n \"texera-user-workflow-list-item\\|UserWorkflowListItemComponent\"\ngit grep -n \"highlightSearchTerms\\|HighlightSearchTermsPipe\"\ngit grep -n \"workflow-list-item\\|metadata-container\\|highlight-search-terms\"\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)",
+          "timestamp": "2026-09-24T04:00:11Z",
+          "url": "https://github.com/apache/texera/commit/f24dab0030bf4ee0620562ff0d186b3b04de7d51"
+        },
+        "date": 1790255327836,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 585.2901480052842,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1064.615380400818,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1163.2339027221885,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 846.4847270711842,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1130.261330778516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1166.2051964627874,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 818.5681397037998,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1107.7084002618133,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1143.5968407152593,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 669.9489881646373,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 890.5063735574627,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 923.1933002732801,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 664.6852938667205,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 880.1391559432542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 916.1153416602968,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 721.3683066971513,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 892.2039079591464,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 922.1454103871941,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 438.59255813006865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 511.22113863864087,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 516.3440536521771,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 435.29689522789647,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 510.2212873487462,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 518.4530606311275,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 406.19680663047103,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 484.8719608795217,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 492.33147508582687,
             "unit": "tuples/sec"
           }
         ]
