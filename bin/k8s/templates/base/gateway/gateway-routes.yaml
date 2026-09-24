@@ -35,6 +35,15 @@ spec:
       backendRefs:
         - name: workflow-computing-unit-manager-svc
           port: 8888
+    # The curated-image catalogue lives on the computing-unit manager, not the webserver.
+    # Without its own rule it falls through to the /api catch-all and every request 404s.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/cu-image
+      backendRefs:
+        - name: workflow-computing-unit-manager-svc
+          port: 8888
     - matches:
         - path:
             type: PathPrefix
