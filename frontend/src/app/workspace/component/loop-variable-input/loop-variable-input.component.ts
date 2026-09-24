@@ -27,6 +27,7 @@ import {
   NzAutocompleteOptionComponent,
   NzAutocompleteTriggerDirective,
 } from "ng-zorro-antd/auto-complete";
+import { matchingValueRule } from "../../../common/formly/formly-utils";
 
 /**
  * The control of a primitive property (string, integer, number, boolean) of an operator inside a control
@@ -34,7 +35,9 @@ import {
  * control (a number box, a check box) could not take it, with an autocomplete offering "$" + name for
  * every variable the enclosing Loop Starts declare (`props.loopVariableOptions`). The field's parser,
  * set by applyLoopVariableField, stores numeric or true/false text as the property's primitive and a
- * reference as the literal string, which the backend binds to the loop variable at run time.
+ * reference as the literal string, which the backend binds to the loop variable at run time. A field with
+ * value rules (`props.valueRules`) keeps its text as typed, and the autocomplete also offers the values
+ * accepted by the branch of the rules its row selects, which the rules' own dropdown would have listed.
  */
 @Component({
   templateUrl: "loop-variable-input.component.html",
@@ -50,19 +53,19 @@ import {
 })
 export class LoopVariableInputComponent extends FieldType<FieldTypeConfig> {
   /**
-   * The "$name" options to offer: all of them while the box is empty, those matching the typed prefix
-   * once it starts with "$", and none while a plain value is being typed.
+   * The options to offer: every "$name" option and then every value the field's rules accept while the
+   * box is empty, the "$name" options matching the typed prefix once it starts with "$", and the accepted
+   * values matching it, ignoring case, while a plain value is typed (none for a field without rules).
    */
-  get referenceOptions(): string[] {
-    const all: string[] = this.props["loopVariableOptions"] ?? [];
+  get suggestions(): string[] {
+    const references: ReadonlyArray<string> = this.props["loopVariableOptions"] ?? [];
+    const accepted: ReadonlyArray<string> =
+      matchingValueRule(this.props["valueRules"], this.field.parent?.model)?.enum ?? [];
     const text = String(this.formControl.value ?? "");
     if (text === "") {
-      return all;
-    }
-    if (!text.startsWith("$")) {
-      return [];
+      return [...references, ...accepted];
     }
     const prefix = text.toLowerCase();
-    return all.filter(option => option.toLowerCase().startsWith(prefix));
+    return (text.startsWith("$") ? references : accepted).filter(option => option.toLowerCase().startsWith(prefix));
   }
 }

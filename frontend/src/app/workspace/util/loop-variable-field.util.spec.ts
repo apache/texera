@@ -31,6 +31,8 @@ import {
   referenceValidator,
   valueAtPointer,
 } from "./loop-variable-field.util";
+import { setValueRules } from "../../common/formly/formly-utils";
+import { ValueRuleSet } from "../types/custom-json-schema.interface";
 
 describe("isReference / referenceName", () => {
   it("accepts a dollar sign followed by an identifier, as the whole value", () => {
@@ -224,6 +226,16 @@ describe("applyLoopVariableField", () => {
     expect(field.props?.label).toBe("limit");
   });
 
+  it("writes the options into the field's own props, which templateOptions also names", () => {
+    // the JSON-schema mapper hands over a field whose `props` and `templateOptions` are one object
+    const props = { label: "limit" };
+    const field: FormlyFieldConfig = { key: "limit", type: "integer", props, templateOptions: props };
+    applyLoopVariableField(field, "integer", ["K"]);
+    expect(field.props).toBe(props);
+    expect(field.templateOptions).toBe(props);
+    expect(props).toEqual({ label: "limit", loopVariableOptions: ["$K"] });
+  });
+
   it("parses typed text into the field's primitive or keeps a reference", () => {
     const field: FormlyFieldConfig = { key: "limit", type: "integer" };
     applyLoopVariableField(field, "integer", ["K"]);
@@ -322,5 +334,95 @@ describe("applyLoopVariableField", () => {
       expect(type.expression(control(undefined), field)).toBe(true);
       expect(type.message).toBe("should be true or false or a $variable of an enclosing block");
     }
+  });
+});
+
+describe("applyLoopVariableField on a field with value rules", () => {
+  // a sklearn trainer's hyperparameter row: the value's rules follow the `parameter` chosen beside it
+  const rules: ValueRuleSet = {
+    allOf: [
+      { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", exclusiveMinimum: 0, examples: ["1.0"] } },
+      {
+        if: { parameter: { valEnum: ["kernel"] } },
+        then: { enum: ["rbf", "linear", "poly", "sigmoid", "precomputed"] },
+      },
+    ],
+  };
+  /** The `type` validator formly's JSON-schema mapper attaches to a string field. */
+  const stringTypeValidator = () => ({
+    schemaType: ["string"],
+    expression: ({ value }: AbstractControl) => value === undefined || typeof value === "string",
+  });
+  const control = (value: unknown) => ({ value }) as AbstractControl;
+
+  let field: FormlyFieldConfig;
+  let onInit: NonNullable<FormlyFieldConfig["hooks"]>["onInit"];
+  /** The field as formly hands it to a validator in a row whose parameter is the one given. */
+  const inRow = (parameter: string): FormlyFieldConfig => ({ ...field, parent: { model: { parameter } } });
+
+  beforeEach(() => {
+    // the row's value field as the property panel maps it: the JSON-schema mapper's output, then the
+    // rules' own control and validator, then the loop variables
+    const props = { label: "value" };
+    field = {
+      key: "value",
+      type: "string",
+      props,
+      templateOptions: props,
+      validators: { type: stringTypeValidator() },
+    };
+    setValueRules(field, rules);
+    onInit = field.hooks?.onInit;
+    applyLoopVariableField(field, "string", ["K"]);
+  });
+
+  it("renders as the loop-variable input, keeping the rules on the one props object", () => {
+    expect(field.type).toBe(LOOP_VARIABLE_INPUT_TYPE);
+    expect(field.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    expect(field.props?.["valueRules"]).toBe(rules);
+    // the rules' message reads them from `props`, and formly may reach the object by either name
+    expect(field.templateOptions).toBe(field.props);
+  });
+
+  it("lets a declared reference through every validator", () => {
+    for (const [name, validator] of Object.entries(field.validators ?? {})) {
+      expect(validator.expression(control("$K"), inRow("C")), name).toBe(true);
+      expect(validator.expression(control("$K"), inRow("kernel")), name).toBe(true);
+    }
+    expect(Object.keys(field.validators ?? {}).sort()).toEqual(["loopVariableReference", "type", "valueRules"]);
+  });
+
+  it("still holds every other value to the rules the row's parameter selects, with the rules' message", () => {
+    const valueRules = field.validators?.valueRules;
+    expect(valueRules.expression(control("-1"), inRow("C"))).toBe(false);
+    expect(valueRules.expression(control("abc"), inRow("C"))).toBe(false);
+    expect(valueRules.expression(control("1.0"), inRow("C"))).toBe(true);
+    expect(valueRules.expression(control("rbf"), inRow("kernel"))).toBe(true);
+    expect(valueRules.expression(control("uniform"), inRow("kernel"))).toBe(false);
+    expect(valueRules.expression(control(""), inRow("C"))).toBe(true);
+    // text that only resembles a reference is not one, so the rules judge it
+    expect(valueRules.expression(control(" $K"), inRow("C"))).toBe(false);
+    expect(valueRules.message(null, inRow("C"))).toBe("must be a number greater than 0");
+  });
+
+  it("flags a reference to a variable no enclosing block declares, which the rules leave alone", () => {
+    expect(field.validators?.loopVariableReference.expression(control("$foo"), inRow("C"))).toBe(false);
+    expect(field.validators?.loopVariableReference.message(undefined, { ...field, formControl: control("$foo") })).toBe(
+      "$foo is not a variable of an enclosing block"
+    );
+    // one error for one mistake: the rules do not also call "$foo" a bad number
+    expect(field.validators?.valueRules.expression(control("$foo"), inRow("C"))).toBe(true);
+  });
+
+  it("keeps the hook that re-judges the value when the parameter beside it changes", () => {
+    expect(onInit).toBeDefined();
+    expect(field.hooks?.onInit).toBe(onInit);
+  });
+
+  it("stores the text as typed, with no default that the rules' own control lacks", () => {
+    // a string field keeps the mapper's parsers (none here), so "1.0" and "$K" stay the text typed
+    expect(field.parsers).toBeUndefined();
+    // the empty-string default belongs to the plain "string" control, which this field never had
+    expect(field.defaultValue).toBeUndefined();
   });
 });

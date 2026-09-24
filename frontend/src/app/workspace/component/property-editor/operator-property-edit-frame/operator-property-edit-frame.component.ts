@@ -1021,13 +1021,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       // backend binds at run time (issue #8635): render it as a text input that takes "$K" next to plain
       // values, offer the variables the enclosing Loop Starts declare, and flag a name none declares.
       // Enums and custom widgets keep their controls; `mappedField.type` still equal to the schema type
-      // is what tells a plain primitive from a field formly or a widget already resolved otherwise.
+      // is what tells a plain primitive from a field formly or a widget already resolved otherwise. A
+      // field with value rules is a primitive too, on the rules' control (setValueRules above): the text
+      // input replaces that control, keeps its rules for every value but a reference, and offers the
+      // values they accept next to the variables.
       const loopSchemaType = primitiveSchemaType(mapSource.type);
       if (
         loopVariableNames !== undefined &&
         customType === undefined &&
         loopSchemaType !== undefined &&
-        mappedField.type === loopSchemaType &&
+        (mappedField.type === loopSchemaType || isDefined(mapSource.valueRules)) &&
         !isDefined(mapSource.enum)
       ) {
         applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
