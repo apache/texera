@@ -476,6 +476,22 @@ class TestTuple:
         with pytest.raises(TypeError, match="Unmatched type"):
             tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
 
+    @pytest.mark.parametrize(
+        ("uri", "java_hash"),
+        [
+            ("s3://bucket/object", -46745592),
+            ("s3://bucket/\U0001f600", 1443831724),
+        ],
+    )
+    def test_hash_supports_large_binary(self, uri, java_hash):
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(raw_schema={"blob": "LARGE_BINARY"})
+        blob = Tuple({"blob": largebinary(uri)}, schema)
+
+        assert hash(blob) == java_hash
+        assert hash(Tuple({"blob": None}, schema)) == 31
+
     def test_hash(self):
         schema = Schema(
             raw_schema={
