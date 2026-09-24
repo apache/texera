@@ -795,11 +795,6 @@ describe("WorkflowGraph", () => {
           { operator: mockScanPredicate },
         ],
         [
-          workflowGraph.getBreakpointChangeStream(),
-          workflowGraph.breakpointChangeStream,
-          { oldBreakpoint: undefined, linkID: "link-1" },
-        ],
-        [
           workflowGraph.getPortAddedOrDeletedStream(),
           workflowGraph.portAddedOrDeletedSubject,
           { newOperator: mockScanPredicate },

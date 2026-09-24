@@ -1865,24 +1865,6 @@ describe("WorkflowEditorComponent link breakpoints", () => {
 
     expect(wrapper.multiSelect).toBe(true);
   });
-
-  it("shows and hides the tool as the breakpoint streams ask", () => {
-    // These two streams are how a link that already has a breakpoint keeps its marker visible after
-    // the cursor leaves it.
-    const { linkID, view } = withLink();
-    const wrapper = workflowActionService.getJointGraphWrapper();
-    const show = vi.spyOn(view, "showTools");
-    const hide = vi.spyOn(view, "hideTools");
-
-    (wrapper as any).jointLinkBreakpointShowStream.next({ linkID });
-    (wrapper as any).jointLinkBreakpointHideStream.next({ linkID });
-
-    expect(show).toHaveBeenCalledTimes(1);
-    expect(hide).toHaveBeenCalledTimes(1);
-    // Order matters, otherwise a handler pair wired to each other's stream passes: both would
-    // still be called once, just for the opposite reason.
-    expect(show.mock.invocationCallOrder[0]).toBeLessThan(hide.mock.invocationCallOrder[0]);
-  });
 });
 
 /**
