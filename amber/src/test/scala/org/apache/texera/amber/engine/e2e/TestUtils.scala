@@ -249,20 +249,26 @@ object TestUtils {
     val physicalOps = targetOps.flatMap(op =>
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
     )
-    Await.result(
-      client.controllerInterface.reconfigureWorkflow(
-        WorkflowReconfigureRequest(
-          reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
-          reconfigurationId = "test-reconfigure-1"
-        ),
-        ()
+    // Production dispatches the reconfiguration without awaiting its ack and it
+    // only takes effect on resume (see ExecutionReconfigurationService), so the
+    // harness must not await the ack while still paused — that await is what
+    // used to deadlock for the full 30s command timeout. The reconfigure ack is
+    // awaited only after the resume ack, which ResumeHandler completes once
+    // every worker has acknowledged the resume. (There is no RUNNING event to
+    // wait for: the engine only pushes ExecutionStateUpdate to the client for
+    // PAUSED and terminal states.)
+    val reconfigured = client.controllerInterface.reconfigureWorkflow(
+      WorkflowReconfigureRequest(
+        reconfiguration = physicalOps.map(op => UpdateExecutorRequest(op.id, newOpExecInitInfo)),
+        reconfigurationId = "test-reconfigure-1"
       ),
-      Duration.fromSeconds(5)
+      ()
     )
     Await.result(
       client.controllerInterface.resumeWorkflow(EmptyRequest(), ()),
       Duration.fromSeconds(5)
     )
+    Await.result(reconfigured, Duration.fromSeconds(5))
     Await.result(completion, Duration.fromMinutes(1))
     result
   }
