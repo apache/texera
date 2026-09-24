@@ -56,6 +56,21 @@ const waitUntil = async (condition: () => boolean): Promise<void> => {
   throw new Error("condition was not met");
 };
 
+/** A picked file, with the relative path the browser sets when a folder was chosen. */
+const pickedFile = (name: string, relativePath = ""): File => {
+  const file = new File(["x"], name);
+  Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+  return file;
+};
+
+/** Fires a change event carrying `files`, as the picker does. */
+const pick = (component: FilesUploaderComponent, files: File[]): void => {
+  const input = document.createElement("input");
+  input.type = "file";
+  Object.defineProperty(input, "files", { value: files, writable: true });
+  component.filesPicked({ target: input } as unknown as Event);
+};
+
 const droppedFile = (relativePath: string, file: File): NgxFileDropEntry =>
   ({
     relativePath,
@@ -283,6 +298,25 @@ describe("FilesUploaderComponent", () => {
     // Distinguishes the two latches: resumeAll must NOT set the flag restartAll sets.
     expect(items.every(item => !item.restart)).toBe(true);
     expect(modals).toHaveLength(1);
+  });
+
+  it("reconciles a picked folder's files by their full path, not their bare name", async () => {
+    // Two files share a name and differ only by folder, so a bare-name lookup would confuse them.
+    uploadService.listMultipartUploads.mockReturnValue(of([]));
+    uploadService.findExistingUploadFiles.mockReturnValue(of([]));
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    pick(component, [pickedFile("jan.csv", "telemetry/2026/jan.csv"), pickedFile("jan.csv", "telemetry/2025/jan.csv")]);
+
+    expect((await emitted).map(item => item.name)).toEqual(["telemetry/2026/jan.csv", "telemetry/2025/jan.csv"]);
+    expect(uploadService.findExistingUploadFiles).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({ path: "telemetry/2026/jan.csv" }),
+        expect.objectContaining({ path: "telemetry/2025/jan.csv" }),
+      ])
+    );
   });
 
   it("passes a non-conflicting file straight through without prompting", async () => {
@@ -644,20 +678,63 @@ describe("FilesUploaderComponent rendered", () => {
     expect(alert()).toBeNull();
   });
 
-  it("opens the file selector from the drop-zone button", () => {
-    // ngx-file-drop hands its `openFileSelector` to the content template by reference,
-    // so spying on the component's property after render would not be seen. Assert its
-    // effect instead: it clicks the hidden file input.
+  it("keeps a picked folder's structure, the same as dropping it", async () => {
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    pick(component, [pickedFile("a.csv", "readings/2026/a.csv"), pickedFile("b.csv", "readings/2026/b.csv")]);
+
+    // The path, not the bare name: the backend lays the version out from these.
+    expect((await emitted).map(item => item.name)).toEqual(["readings/2026/a.csv", "readings/2026/b.csv"]);
+  });
+
+  it("does nothing when the picker is dismissed without choosing", async () => {
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    pick(component, []);
+
+    expect(await emitted).toEqual([]);
+  });
+
+  it("uses the bare name for a picked file, which carries no relative path", async () => {
+    const emitted = new Promise<FileUploadItem[]>(resolve => component.uploadedFiles.subscribe(resolve));
+
+    pick(component, [pickedFile("loose.csv")]);
+
+    expect((await emitted).map(item => item.name)).toEqual(["loose.csv"]);
+  });
+
+  /** The panel's own pickers, in template order: files first, then folder. */
+  const pickers = (): HTMLInputElement[] => {
     const host = fixture.nativeElement as HTMLElement;
-    const fileInput: HTMLInputElement = host.querySelector("input.ngx-file-drop__file-input")!;
-    expect(fileInput).not.toBeNull();
-    const openDialog = vi.spyOn(fileInput, "click").mockImplementation(() => {});
+    return Array.from(host.querySelectorAll<HTMLInputElement>("input[type=file]")).filter(
+      input => !input.classList.contains("ngx-file-drop__file-input")
+    );
+  };
 
-    const button: HTMLButtonElement = host.querySelector(".upload-file-button")!;
-    expect(button).not.toBeNull();
-    button.click();
+  it("offers one picker per mode, since webkitdirectory makes an input folder-only", () => {
+    const [filePicker, folderPicker] = pickers();
 
-    expect(openDialog).toHaveBeenCalled();
+    expect(filePicker.hasAttribute("webkitdirectory")).toBe(false);
+    expect(folderPicker.hasAttribute("webkitdirectory")).toBe(true);
+    expect(filePicker.multiple).toBe(true);
+    expect(folderPicker.multiple).toBe(true);
+  });
+
+  it("opens the matching picker from each button", () => {
+    const [filePicker, folderPicker] = pickers();
+    const openFiles = vi.spyOn(filePicker, "click").mockImplementation(() => {});
+    const openFolder = vi.spyOn(folderPicker, "click").mockImplementation(() => {});
+    const host = fixture.nativeElement as HTMLElement;
+    const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>(".upload-file-button"));
+
+    expect(buttons.map(b => (b.textContent ?? "").trim())).toEqual(["Upload Files", "Upload Folder"]);
+
+    buttons[0].click();
+    expect(openFiles).toHaveBeenCalled();
+    expect(openFolder).not.toHaveBeenCalled();
+
+    buttons[1].click();
+    expect(openFolder).toHaveBeenCalled();
   });
 
   it("routes a drop on the zone into fileDropped", () => {

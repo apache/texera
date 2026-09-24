@@ -33,6 +33,10 @@ export const MODEL_UPDATE_NAME_URL = MODEL_UPDATE_BASE_URL + "/name";
 export const MODEL_UPDATE_DESCRIPTION_URL = MODEL_UPDATE_BASE_URL + "/description";
 export const MODEL_UPDATE_FRAMEWORK_URL = MODEL_UPDATE_BASE_URL + "/framework";
 export const MODEL_UPDATE_FORMAT_URL = MODEL_UPDATE_BASE_URL + "/format";
+export const MODEL_UPDATE_PUBLICITY_URL = "update/publicity";
+export const MODEL_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
+export const MODEL_UPDATE_COVER_URL = "update/cover";
+export const MODEL_GET_OWNERS_URL = MODEL_BASE_URL + "/user-model-owners";
 export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
 
 export const MODEL_VERSION_BASE_URL = "version";
@@ -89,10 +93,6 @@ export class ModelService {
     return this.http.get<DashboardModel>(apiUrl);
   }
 
-  public retrieveAccessibleModels(): Observable<DashboardModel[]> {
-    return this.http.get<DashboardModel[]>(`${AppSettings.getApiEndpoint()}/${MODEL_LIST_URL}`);
-  }
-
   public deleteModel(mid: number): Observable<Response> {
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}`);
   }
@@ -145,6 +145,11 @@ export class ModelService {
       );
   }
 
+  /** The models the caller owns or has been granted. */
+  public retrieveAccessibleModels(): Observable<DashboardModel[]> {
+    return this.http.get<DashboardModel[]>(`${AppSettings.getApiEndpoint()}/${MODEL_LIST_URL}`);
+  }
+
   /** A model's versions, newest first; an anonymous caller gets the public-only endpoint. */
   public retrieveModelVersionList(mid: number, isLogin: boolean = true): Observable<ModelVersion[]> {
     const listUrl = isLogin ? MODEL_VERSION_RETRIEVE_LIST_URL : MODEL_PUBLIC_VERSION_RETRIEVE_LIST_URL;
@@ -187,6 +192,35 @@ export class ModelService {
     return this.http
       .get<{ presignedUrl: string }>(endpoint)
       .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+  }
+
+  /** Flips the model between public and private; the endpoint toggles rather than taking a value. */
+  public updateModelPublicity(mid: number): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_UPDATE_PUBLICITY_URL}`,
+      {}
+    );
+  }
+
+  public updateModelDownloadable(mid: number): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_UPDATE_DOWNLOADABLE_URL}`,
+      {}
+    );
+  }
+
+  public retrieveOwners(): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${MODEL_GET_OWNERS_URL}`);
+  }
+
+  /** Points the model card at a committed image, given as "<version>/<path>". */
+  public updateModelCoverImage(mid: number, coverImage: string): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${mid}/${MODEL_UPDATE_COVER_URL}`,
+      {
+        coverImage: coverImage,
+      }
+    );
   }
 
   public getModelCoverUrl(mid: number): Observable<{ url: string | null }> {

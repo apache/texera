@@ -20,8 +20,8 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { switchMap } from "rxjs/operators";
-import { Observable } from "rxjs";
+import { catchError, map, switchMap } from "rxjs/operators";
+import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -40,6 +40,7 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -52,11 +53,11 @@ import { StagedFileService } from "../../../../service/user/file-resource/staged
 import { MODEL_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { EntityType } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { extractErrorMessage } from "../../../../../common/util/error";
 import { formatCount } from "src/app/common/util/format.util";
 import { formatSize } from "src/app/common/util/size-formatter.util";
-import { ModelVersion } from "../../../../../common/type/model";
+import { Model, ModelVersion } from "../../../../../common/type/model";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
@@ -98,6 +99,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzTabComponent,
     NzDividerComponent,
     NzInputDirective,
+    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionUploaderComponent,
     UserDatasetFileRendererComponent,
@@ -136,10 +138,9 @@ export class ModelDetailComponent implements OnInit {
   // Path within the version, which survives a rename — unlike currentDisplayedFileName.
   private openFileRelativePath: string = "";
 
-  // Placeholders until models reach the hub. The hub backend has no model entity type
-  // (`hub/EntityType.scala` is Workflow and Dataset only), so nothing can populate these yet.
-  public readonly viewCount: number = 0;
-  public readonly likeCount: number = 0;
+  public viewCount: number = 0;
+  public likeCount: number = 0;
+  public isLiked: boolean = false;
 
   public isRightBarCollapsed = false;
   public isMaximized = false;
@@ -167,7 +168,8 @@ export class ModelDetailComponent implements OnInit {
     private downloadService: DownloadService,
     private stagedFileService: StagedFileService,
     private notificationService: NotificationService,
-    private userService: UserService
+    private userService: UserService,
+    private hubService: HubService
   ) {
     this.userService
       .userChanged()
@@ -205,11 +207,50 @@ export class ModelDetailComponent implements OnInit {
           }
           this.retrieveModelInfo();
           this.retrieveModelVersionList();
+          this.loadHubActivity();
           return this.route.data;
         }),
         untilDestroyed(this)
       )
       .subscribe();
+  }
+
+  /** Opening the page counts as a view; the like state needs a signed-in viewer. */
+  private loadHubActivity(): void {
+    if (!this.mid) {
+      return;
+    }
+    const mid = this.mid;
+    this.hubService
+      .postView(mid, this.currentUid ?? 0, EntityType.Model)
+      .pipe(untilDestroyed(this))
+      .subscribe(count => (this.viewCount = count));
+
+    this.hubService
+      .getCounts([EntityType.Model], [mid], [ActionType.Like])
+      .pipe(untilDestroyed(this))
+      .subscribe(counts => (this.likeCount = counts[0]?.counts.like ?? 0));
+
+    if (this.currentUid === undefined) {
+      return;
+    }
+    this.hubService
+      .isLiked([mid], [EntityType.Model])
+      .pipe(untilDestroyed(this))
+      .subscribe(statuses => (this.isLiked = statuses[0]?.isLiked ?? false));
+  }
+
+  toggleLike(): void {
+    if (!this.mid || this.currentUid === undefined) {
+      return;
+    }
+    this.hubService
+      .toggleLike(this.mid, EntityType.Model, this.isLiked)
+      .pipe(untilDestroyed(this))
+      .subscribe(({ liked, likeCount }) => {
+        this.isLiked = liked;
+        this.likeCount = likeCount;
+      });
   }
 
   retrieveModelInfo(): void {
@@ -543,6 +584,89 @@ export class ModelDetailComponent implements OnInit {
           this.modelFramework = previous;
           this.notificationService.error(extractErrorMessage(err));
         },
+      });
+  }
+
+  onPublicStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    const previous = this.modelIsPublic;
+    // Written before the request so the confirmed value below can differ from it: with one-way
+    // `[ngModel]`, storing the value the field already holds never reaches the switch, which would
+    // then keep the clicked position while the hint and the toast said the opposite.
+    this.modelIsPublic = checked;
+    this.confirmToggle(this.modelService.updateModelPublicity(this.mid))
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: model => {
+          this.modelIsPublic = model?.isPublic ?? checked;
+          const state = this.modelIsPublic ? "public" : "private";
+          this.notificationService.success(`Model ${this.modelName} is now ${state}`);
+        },
+        error: (err: unknown) => {
+          this.modelIsPublic = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  onDownloadableStatusChange(checked: boolean): void {
+    if (!this.mid) {
+      return;
+    }
+    const previous = this.modelIsDownloadable;
+    this.modelIsDownloadable = checked;
+    this.confirmToggle(this.modelService.updateModelDownloadable(this.mid))
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: model => {
+          this.modelIsDownloadable = model?.isDownloadable ?? checked;
+          const state = this.modelIsDownloadable ? "allowed" : "not allowed";
+          this.notificationService.success(`Model downloads are now ${state}`);
+        },
+        error: (err: unknown) => {
+          this.modelIsDownloadable = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
+  }
+
+  /**
+   * Both visibility flags sit behind toggle endpoints, which cannot be told which way to go, so the
+   * model is re-read to find out where it landed. A failed re-read yields undefined rather than an
+   * error: the toggle itself already succeeded, and reporting a failure would invite a retry that
+   * toggles it straight back.
+   */
+  private confirmToggle(toggle: Observable<unknown>): Observable<Model | undefined> {
+    const mid = this.mid;
+    return toggle.pipe(
+      switchMap(() =>
+        mid === undefined
+          ? of(undefined)
+          : this.modelService.getModel(mid).pipe(
+              map(dashboardModel => dashboardModel.model),
+              catchError(() => of(undefined))
+            )
+      )
+    );
+  }
+
+  /** The backend stores the cover relative to the model root, so the version name has to lead. */
+  onSetCoverImage(filePath: string): void {
+    if (!this.mid || !this.selectedVersion) {
+      return;
+    }
+    const mid = this.mid;
+    this.modelService
+      .updateModelCoverImage(mid, `${this.selectedVersion.name}/${filePath}`)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.loadCoverImageUrl(mid);
+          this.notificationService.success("Cover image updated.");
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
       });
   }
 

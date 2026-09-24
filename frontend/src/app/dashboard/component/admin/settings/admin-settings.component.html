@@ -147,6 +147,15 @@
           [nzDisabled]="!sidebarTabs.hub_enabled">
         </nz-switch>
       </div>
+
+      <div class="submenu-item">
+        <span>Models</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.model_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled">
+        </nz-switch>
+      </div>
     </details>
 
     <details>

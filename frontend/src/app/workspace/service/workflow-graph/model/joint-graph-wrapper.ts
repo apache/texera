@@ -212,6 +212,16 @@ export class JointGraphWrapper {
     return paper;
   }
 
+  /**
+   * Forget `paper` as the context's attached paper, if it still is. Called by the editor that
+   * built it, on destroy, before removing it. A no-op when a newer paper has already been attached,
+   * which is the usual order when the two views of a workflow hand over: the arriving editor
+   * attaches its paper before the departing one is destroyed.
+   */
+  public detachMainJointPaper(paper: joint.dia.Paper | undefined): void {
+    this.jointGraphContext.detachPaper(paper);
+  }
+
   public getMainJointPaper(): joint.dia.Paper {
     return this.mainPaper;
   }
@@ -898,6 +908,13 @@ export class JointGraphWrapper {
       public static attachPaper(jointPaper: joint.dia.Paper) {
         this.jointPaper = jointPaper;
         this.jointPaper.options.async = this.async();
+      }
+
+      /** Forget `jointPaper` if it is the attached one; `exit()` must never update a removed paper. */
+      public static detachPaper(jointPaper: joint.dia.Paper | undefined) {
+        if (jointPaper !== undefined && this.jointPaper === jointPaper) {
+          this.jointPaper = undefined;
+        }
       }
 
       protected static enter(context: JointGraphContextType): void {

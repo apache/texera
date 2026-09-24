@@ -114,6 +114,22 @@ nz-select {
   gap: 5px;
 }
 
+.like-tag {
+  cursor: pointer;
+}
+
+.like-tag.liked {
+  i {
+    color: #ef4444;
+    background: #fef2f2;
+  }
+}
+
+.like-tag.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .status-tag {
   padding: 3px 10px 3px 3px;
   font-size: 13px;

@@ -111,16 +111,21 @@ import scala.jdk.CollectionConverters._
   * `WorkflowExecutionService` a test->test dependency on `DAO` and `Auth` only, so workflow-core's
   * test tree is not on this module's test classpath.
   *
-  * The keyword tests RENDER a full-text predicate (they do not fetch one), which does read the
-  * JVM-global `FulltextSearchQueryUtils.usePgroonga` and emits whichever arm it currently selects:
-  * `pgroonga_condition(...)` when this suite runs alone, the `to_tsvector`/`to_tsquery` arm if
-  * `DatasetResourceSpec` or `WorkflowResourceSpec` ran earlier in this JVM and left the global
-  * `false` (both set it and neither restores it; amber has no `Test / fork`). This suite therefore
-  * neither touches nor restores that global, and every keyword assertion here is deliberately
-  * branch-independent: the tokens themselves and the `coalesce(...) || ' ' || coalesce(...)`
-  * expression are built at `FulltextSearchQueryUtils:49-51`, *before* the `if (usePgroonga)`.
-  * Anything added here must keep that property — an assertion on `pgroonga_condition` would pass
-  * solo and fail in a full-module run.
+  * The keyword tests RENDER a full-text predicate (they do not fetch one), and rendering reads the
+  * JVM-global `FulltextSearchQueryUtils.usePgroonga`: the `pgroonga_condition(...)` arm while it
+  * holds `true`, the `to_tsvector`/`to_tsquery` arm while it holds `false`. That flag is a plain
+  * mutable `var` and amber has no `Test / fork`, so its value here is whatever the suites sharing
+  * this JVM have left it at — not something this spec controls or should assume. This suite
+  * therefore neither touches nor restores it, and every keyword assertion here is deliberately
+  * branch-independent. Two things reach both arms: the `coalesce(...) || ' ' || coalesce(...)`
+  * expression, built in `FulltextSearchQueryUtils` as `combinedFields` before the `if (usePgroonga)`
+  * branch and embedded verbatim by either arm, and each INDIVIDUAL keyword token. Their JOINING does
+  * not — the `true` arm space-joins the full keyword list into one literal (rendering
+  * `pgroonga_condition('alpha beta', ...)`), while the `false` arm emits one predicate per keyword
+  * and joins the words *inside* a keyword with ` & ` (rendering `to_tsquery('english', 'alpha & beta')`).
+  * `to_tsquery('english', 'alpha & beta')`). So assert on individual tokens — never on a joined
+  * multi-token string, and never on one arm's own output; either would tie this spec's result to
+  * whichever other suites wrote the flag first.
   *
   * The `record.into(USER).into(classOf[User]).getEmail` in `VersionedResourceTables.hydrate` used to
   * be executed but unobservable: the dataset schema left `UnifiedResourceSchema`'s `userEmail` at its
@@ -153,8 +158,8 @@ import scala.jdk.CollectionConverters._
   *
   * Covered but unconstrainable, so no reviewer should count it as pinned behaviour:
   *   - the `.filter(_.nonEmpty)` after the keyword split. `getFullTextSearchFilter` re-applies
-  *     `keywords.filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so dropping it here is
-  *     an equivalent mutation — no observable differs.
+  *     `keywords.map(_.trim).filter(_.nonEmpty)` itself (`FulltextSearchQueryUtils:43`), so
+  *     dropping it here is an equivalent mutation — no observable differs.
   */
 class DatasetSearchQueryBuilderSpec
     extends AnyFlatSpec
@@ -542,23 +547,23 @@ class DatasetSearchQueryBuilderSpec
     sql should include("user.email as email")
   }
 
-  it should "stay union-compatible with the workflow and project branches" in {
+  it should "stay union-compatible with the workflow branch" in {
     // `DashboardResource.searchAllResources` stacks the three builders with `unionAll` for a
     // resourceType of "" — the dashboard's default view — so every branch must project the same
     // aliases in the same order with types Postgres will unify. A `varchar`-vs-`''` mix in one slot
     // is not itself new: `userName` already has exactly this shape (only the workflow branch
-    // projects a real column; dataset and project both project `DSL.inline("")`) and that union
-    // runs in production today. What the test buys is that the contract is invisible from inside a
-    // single builder — nothing fails to compile, and a genuine mismatch would surface only as a
-    // failed query at runtime. This is the only test that executes the union; every other test here
-    // renders one branch, or fetches from one.
+    // projects a real column; dataset and model both project `DSL.inline("")`) and that union runs
+    // in production
+    // today. What the test buys is that the contract is invisible from inside a single builder —
+    // nothing fails to compile, and a genuine mismatch would surface only as a failed query at
+    // runtime. This is the only test that executes the union; every other test here renders one
+    // branch, or fetches from one.
     val union = WorkflowSearchQueryBuilder
       .constructQuery(uid, params(), includePublic = true)
-      .unionAll(ProjectSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
       .unionAll(DatasetSearchQueryBuilder.constructQuery(uid, params(), includePublic = true))
 
-    // Both seeded datasets are public, so both reach `uid`; no workflow or project rows are seeded.
-    // Derived from the fixture rather than hard-coded, since the count is incidental — that Postgres
+    // Both seeded datasets are public, so both reach `uid`; no workflow rows are seeded. Derived
+    // from the fixture rather than hard-coded, since the count is incidental — that Postgres
     // accepts the union at all is what is under test.
     getDSLContext.fetch(union).size() shouldBe seededDids.size
   }
@@ -647,10 +652,10 @@ class DatasetSearchQueryBuilderSpec
   }
 
   it should "tag the entry as a dataset and fill the dataset payload slot" in {
-    // `entry.workflow shouldBe None` / `entry.project shouldBe None` used to sit here and were
-    // vacuous: `DashboardClickableFileEntry` declares both `= None` (DashboardResource:40-41) and
-    // this file passes neither, so no mutation of `toEntryImpl` can falsify them — they assert
-    // another file's case-class defaults. Only `resourceType` and `dataset` are this file's to set.
+    // `entry.workflow shouldBe None` used to sit here and was vacuous:
+    // `DashboardClickableFileEntry` declares it `= None` and this file does not pass it, so no
+    // mutation of `toEntryImpl` can falsify it — it asserts another file's case-class default.
+    // Only `resourceType` and `dataset` are this file's to set.
     //
     // `resourceType` here has the production constant on the right-hand side, so retargeting the
     // constant's *value* moves both sides together; the inlined-literal assertion in
