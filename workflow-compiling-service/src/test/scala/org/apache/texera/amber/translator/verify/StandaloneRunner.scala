@@ -356,6 +356,18 @@ object StandaloneRunner extends LazyLogging {
           s"in${n}df = pd.read_json(${py(path.toString)}, lines=True, " +
             s"convert_dates=False, precise_float=True$dtype)\n"
         )
+        // read_json finds no column names in a file with no rows, so it produces a
+        // frame of no columns. In an exported script an empty frame keeps its
+        // columns, since a filter that matches nothing and a header-only CSV both
+        // leave them in place. Rebuild them from the sidecar so the script is
+        // handed the table it would get in a real run.
+        emptyFrameColumns(path) match {
+          case Seq() => ()
+          case cols =>
+            val fields = cols.map { case (c, d) => s"${py(c)}: pd.Series(dtype=${py(d)})" }
+            sb.append(s"if in${n}df.empty:\n")
+            sb.append(s"    in${n}df = pd.DataFrame({${fields.mkString(", ")}})\n")
+        }
         timestampColumns(path).foreach { col =>
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
           sb.append(s"    in${n}df[${py(col)}] = _texera_read_ts(in${n}df[${py(col)}])\n")
@@ -489,6 +501,27 @@ object StandaloneRunner extends LazyLogging {
           .toOption
           .map(schema => PortIdentity(port - 1) -> schema)
     }
+
+  /** Each declared column with the pandas dtype it holds when it has values in it.
+    * Only the types a fixture can hold are named; anything else falls back to
+    * object, the dtype an inferred column of unknown content would have had anyway.
+    */
+  private def emptyFrameColumns(input: Path): Seq[(String, String)] =
+    scala.util
+      .Try(TupleIO.readSchemaSidecar(input))
+      .toOption
+      .toSeq
+      .flatMap(_.getAttributes.map { attr =>
+        val dtype = attr.getType match {
+          case AttributeType.INTEGER   => "int32"
+          case AttributeType.LONG      => "int64"
+          case AttributeType.DOUBLE    => "float64"
+          case AttributeType.BOOLEAN   => "bool"
+          case AttributeType.TIMESTAMP => "datetime64[us]"
+          case _                       => "object"
+        }
+        attr.getName -> dtype
+      })
 
   /** The columns the sidecar declares integral, both widths: the loss is the same
     * for either.
