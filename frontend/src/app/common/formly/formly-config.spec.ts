@@ -29,7 +29,9 @@ import {
   minlengthValidationMessage,
   minValidationMessage,
   multipleOfValidationMessage,
+  TEXERA_FORMLY_CONFIG,
 } from "./formly-config";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
 
 // the `err` argument is unused by every message builder, so any value is fine
 const err = {} as any;
@@ -79,5 +81,17 @@ describe("formly validation messages", () => {
   it("renders the literal 'undefined' when the relevant prop is missing", () => {
     expect(minValidationMessage(err, field({}))).toBe("should be >= undefined");
     expect(constValidationMessage(err, field({}))).toBe('should be equal to constant "undefined"');
+  });
+});
+
+describe("formly enum type", () => {
+  it("uses the searchable select component for schema-backed dropdowns", () => {
+    const enumType = TEXERA_FORMLY_CONFIG.types.find(type => type.name === "enum");
+
+    expect(enumType).toEqual({
+      name: "enum",
+      extends: "select",
+      component: SearchableSelectTypeComponent,
+    });
   });
 });
