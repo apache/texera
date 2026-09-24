@@ -106,7 +106,7 @@ class EmptyReplayLogManagerImpl(
 class ReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit)
     extends ReplayLogManager {
 
-  private val replayLogger = new ReplayLoggerImpl()
+  private val replayLogger = new ReplayLogger()
 
   private var writer: AsyncReplayLogWriter = _
 

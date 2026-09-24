@@ -72,7 +72,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   private val lock = new ReentrantReadWriteLock()
 
-  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
+  // Resolved per use, never held: the catalog cache is bounded and closes evicted
+  // entries (#7290), so a pinned reference could outlive its catalog. A public def
+  // (not a lazy val) also means a replaced/rebuilt catalog is picked up immediately.
+  def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   /**
     * Returns the URI of the table location.
@@ -94,8 +97,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def clear(): Unit =
     withWriteLock(lock) {
       val identifier = TableIdentifier.of(tableNamespace, tableName)
-      if (catalog.tableExists(identifier)) {
-        catalog.dropTable(identifier)
+      // One resolve for the whole check-then-drop: both steps must address the same
+      // catalog even if the cache entry is replaced between them (#7290).
+      val currentCatalog = catalog
+      if (currentCatalog.tableExists(identifier)) {
+        currentCatalog.dropTable(identifier)
       }
     }
 
@@ -141,7 +147,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new IcebergTableWriter[T](
       writerIdentifier,
-      catalog,
+      warehouse,
       tableNamespace,
       tableName,
       tableSchema,
@@ -164,8 +170,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
-        // Load the table instance, initially the table instance may not exist
-        private var table: Option[Table] = loadTableMetadata()
+        // No eager load: the constructor-time seekToUsableFile() below resolves the
+        // table, so loading here would be an immediately-overwritten REST round trip.
+        private var table: Option[Table] = None
 
         // Last seen snapshot id(logically it's like a version number). While reading, new snapshots may be created
         private var lastSnapshotId: Option[Long] = None
@@ -203,11 +210,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
               throw new RuntimeException("seek operation should not be called")
             }
 
-            // refresh the table's snapshots
-            if (table.isEmpty) {
-              table = loadTableMetadata()
-            }
-            table.foreach(_.refresh())
+            // Re-resolve the table from the current catalog instead of refreshing a
+            // pinned one (#7290): a Table held across polls keeps its REST operations
+            // bound to a catalog the bounded cache may have closed, and re-resolving
+            // also keeps this warehouse's cache entry live for as long as the reader
+            // polls. Snapshot continuity lives in lastSnapshotId, not in the Table.
+            table = loadTableMetadata()
 
             // Retrieve and sort the file scan tasks by file sequence number.
             // Materialize inside `Using.resource` so the `planFiles()`

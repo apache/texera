@@ -32,7 +32,7 @@ export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
 
 /**
  * Returns the relative path of a DatasetFileNode by stripping the first four segments
- * (datasets/ownerEmail/datasetName/versionName).
+ * (dataset/ownerEmail/datasetName/versionName).
  * @param node The DatasetFileNode whose relative path is needed.
  * @returns The relative path (without the first four segments and without a leading slash).
  */

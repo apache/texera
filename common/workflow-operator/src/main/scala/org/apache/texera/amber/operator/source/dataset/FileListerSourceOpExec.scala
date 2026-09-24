@@ -32,7 +32,7 @@ import org.apache.texera.dao.jooq.generated.tables.User.USER
 object FileListerSourceOpExec {
 
   /**
-    * Parses a dataset version path (/datasets/ownerEmail/datasetName/versionName) into its
+    * Parses a dataset version path (/dataset/ownerEmail/datasetName/versionName) into its
     * (resourceTypePrefix, ownerEmail, datasetName, versionName) components.
     *
     * @throws IllegalArgumentException if the path is not a well-formed dataset version path
@@ -41,12 +41,16 @@ object FileListerSourceOpExec {
       datasetVersionPath: String
   ): (String, String, String, String) = {
     val segments = datasetVersionPath.split("/").filter(_.nonEmpty)
-    require(
-      segments.length >= 4 && ResourceType.isValidPrefix(segments.head),
-      s"Invalid dataset version path '$datasetVersionPath'; " +
-        "expected /datasets/ownerEmail/datasetName/versionName"
-    )
-    (segments(0), segments(1), segments(2), segments(3))
+    val invalidPath = s"Invalid dataset version path '$datasetVersionPath'; " +
+      "expected /dataset/ownerEmail/datasetName/versionName"
+
+    if (segments.headOption.exists(ResourceType.isValidPrefix)) {
+      require(segments.length >= 4, invalidPath)
+      (segments(0), segments(1), segments(2), segments(3))
+    } else {
+      require(segments.length >= 3, invalidPath)
+      (ResourceType.Dataset.toString, segments(0), segments(1), segments(2))
+    }
   }
 
   private[dataset] def canonicalVersionPath(

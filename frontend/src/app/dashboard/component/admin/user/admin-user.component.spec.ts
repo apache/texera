@@ -30,6 +30,7 @@ import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { FeedbackComponent } from "../../user/feedback/feedback.component";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { FormsModule } from "@angular/forms";
+import { By } from "@angular/platform-browser";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -609,6 +610,159 @@ describe("AdminUserComponent", () => {
     it("does not match when the user role is absent from the selected list", () => {
       expect(component.filterByRole([Role.ADMIN], mk({ role: Role.REGULAR }))).toBe(false);
       expect(component.filterByRole([], mk({ role: Role.ADMIN }))).toBe(false);
+    });
+  });
+
+  /**
+   * The tests above call the component's methods; these drive the table itself — the
+   * per-column search dropdowns, the click-to-edit cells and the row actions — so a control
+   * that loses its handler fails here.
+   */
+  describe("rendered table", () => {
+    /** Seeds both lists, as loading the users does, and renders the rows. */
+    function renderUsers(users: User[]): void {
+      component.userList = [...users];
+      component.listOfDisplayUser = [...users];
+      fixture.detectChanges();
+    }
+
+    it("swaps a cell for an input when it is clicked, and saves on enter", () => {
+      const saveSpy = vi.spyOn(component, "saveEdit").mockImplementation(() => {});
+      renderUsers([userA]);
+
+      const nameCell = fixture.nativeElement.querySelectorAll("tbody tr td")[2].querySelector(".container");
+      nameCell.click();
+      fixture.detectChanges();
+
+      expect(component.editUid).toBe(userA.uid);
+      expect(component.editAttribute).toBe("name");
+      const input = fixture.nativeElement.querySelectorAll("tbody tr td")[2].querySelector("input");
+      expect(input).not.toBeNull();
+
+      input.value = "Alicia";
+      input.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editName).toBe("Alicia");
+
+      // Only Enter commits; other keys leave the edit open.
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+      expect(saveSpy).not.toHaveBeenCalled();
+
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      expect(saveSpy).toHaveBeenCalled();
+
+      // Clicking away saves too, so a half-typed edit is not silently dropped.
+      saveSpy.mockClear();
+      fixture.nativeElement
+        .querySelectorAll("tbody tr td")[2]
+        .querySelector("div")
+        .dispatchEvent(new Event("focusout", { bubbles: true }));
+
+      expect(saveSpy).toHaveBeenCalled();
+    });
+
+    it("does the same for the email and comment cells, and saves when the cell loses focus", () => {
+      const saveSpy = vi.spyOn(component, "saveEdit").mockImplementation(() => {});
+      renderUsers([userA]);
+
+      const cells = () => fixture.nativeElement.querySelectorAll("tbody tr td");
+      cells()[3].querySelector(".container").click();
+      fixture.detectChanges();
+      expect(component.editAttribute).toBe("email");
+      const emailInput = cells()[3].querySelector("input[type=email]");
+      expect(emailInput).not.toBeNull();
+      emailInput.value = "alicia@example.com";
+      emailInput.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editEmail).toBe("alicia@example.com");
+      emailInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      expect(saveSpy).toHaveBeenCalled();
+
+      // Cleared between the two so each binding is what its own assertion proves.
+      saveSpy.mockClear();
+      cells()[3]
+        .querySelector("div")
+        .dispatchEvent(new Event("focusout", { bubbles: true }));
+      expect(saveSpy).toHaveBeenCalled();
+
+      saveSpy.mockClear();
+      cells()[6].querySelector(".container").click();
+      fixture.detectChanges();
+      expect(component.editAttribute).toBe("comment");
+      const textarea = cells()[6].querySelector("textarea");
+      expect(textarea).not.toBeNull();
+      textarea.value = "reviewed";
+      textarea.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+      expect(component.editComment).toBe("reviewed");
+
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      expect(saveSpy).toHaveBeenCalled();
+
+      saveSpy.mockClear();
+      cells()[6]
+        .querySelector("div")
+        .dispatchEvent(new Event("focusout", { bubbles: true }));
+
+      expect(saveSpy).toHaveBeenCalled();
+    });
+
+    it("updates the role through the row's select", () => {
+      const updateSpy = vi.spyOn(component, "updateRole").mockImplementation(() => {});
+      renderUsers([userA]);
+
+      fixture.debugElement.query(By.css("nz-select")).triggerEventHandler("ngModelChange", Role.ADMIN);
+
+      expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ uid: userA.uid }), Role.ADMIN);
+    });
+
+    it("opens the quota and feedback views from the row actions", () => {
+      const quotaSpy = vi.spyOn(component, "clickToViewQuota").mockImplementation(() => {});
+      const feedbackSpy = vi.spyOn(component, "clickToViewFeedbacks").mockImplementation(() => {});
+      feedbackServiceSpy.getFeedbackCounts.mockReturnValue(of([{ uid: userA.uid, count: 3 }]));
+      component.ngOnInit();
+      renderUsers([userA]);
+
+      const cells = fixture.nativeElement.querySelectorAll("tbody tr td");
+      cells[8].querySelector("button").click();
+      const feedbackButton = cells[9].querySelector("button");
+      expect(feedbackButton.disabled).toBe(false);
+      feedbackButton.click();
+
+      expect(quotaSpy).toHaveBeenCalledWith(userA.uid);
+      expect(feedbackSpy).toHaveBeenCalledWith(userA.uid);
+    });
+
+    it("disables the feedback button for a user with none", () => {
+      renderUsers([userA]);
+
+      const cells = fixture.nativeElement.querySelectorAll("tbody tr td");
+      expect(cells[9].querySelector("button").disabled).toBe(true);
+    });
+
+    it("shows a creation date when there is one and a dash when there is not", () => {
+      renderUsers([userA, { ...userB, accountCreation: undefined } as User]);
+
+      const cells = fixture.nativeElement.querySelectorAll("tbody tr");
+      // The date is rendered through a pipe in the runner's timezone, so only its presence
+      // is asserted here, not the formatted value.
+      const withDate = (cells[0].querySelectorAll("td")[10].textContent ?? "").trim();
+      const withoutDate = (cells[1].querySelectorAll("td")[10].textContent ?? "").trim();
+      expect(withDate).not.toBe("");
+      expect(withDate).not.toBe("—");
+      expect(withoutDate).toBe("—");
+    });
+
+    it("adds a user from the Add button", () => {
+      const addSpy = vi.spyOn(component, "addUser").mockImplementation(() => {});
+      renderUsers([userA]);
+
+      const addButton = Array.from(fixture.nativeElement.querySelectorAll("button")).find(
+        button => ((button as HTMLElement).textContent ?? "").trim() === "Add"
+      ) as HTMLButtonElement;
+      addButton.click();
+
+      expect(addSpy).toHaveBeenCalled();
     });
   });
 });

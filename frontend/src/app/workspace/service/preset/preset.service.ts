@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import Ajv from "ajv";
-import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
+import { cloneDeep, has, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
@@ -154,39 +154,6 @@ export class PresetService {
           throw new Error("attempting to create preset that already exists");
         }
         presets.push(preset);
-        this.savePresets(type, target, presets, displayMessage, messageType);
-      });
-  }
-
-  /**
-   * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
-   * @param type string, usually "operator"
-   * @param target string, usualy operatorType
-   * @param presets Preset[]
-   * @param displayMessage message to display when saving presets
-   * @param messageType see AlertMessageType, determines icon used in popup message
-   */
-  public updatePreset(
-    type: string,
-    target: string,
-    originalPreset: Preset,
-    replacementPreset: Preset,
-    displayMessage?: string | null,
-    messageType: AlertMessageType = "success"
-  ) {
-    this.userConfigService
-      .fetchKey(`${type}-${target}`)
-      .pipe(first())
-      .subscribe(presetsString => {
-        let presets = JSON.parse(presetsString ?? "[]") as Preset[];
-        if (!contains(presets, originalPreset)) {
-          throw new Error("attempting to update preset that doesn't exist");
-        } else if (contains(presets, replacementPreset)) {
-          // implicit deletion by replacing original with existing preset
-          presets.splice(indexOf(presets, originalPreset), 1);
-        } else {
-          presets[indexOf(presets, originalPreset)] = replacementPreset;
-        }
         this.savePresets(type, target, presets, displayMessage, messageType);
       });
   }

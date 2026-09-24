@@ -21,4 +21,4 @@ from enum import Enum
 class ResourceType(str, Enum):
     """The leading segment of a logical file path, identifying the resource kind"""
 
-    DATASETS = "datasets"
+    DATASET = "dataset"

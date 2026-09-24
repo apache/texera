@@ -42,6 +42,7 @@ import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.i
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { ExecutionMode, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -73,6 +74,73 @@ describe("WorkflowActionService", () => {
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  // The operator canvas and the Form View hand one open workflow between them; the arriving view
+  // asks this before loading, because seeding a second document for the same workflow would leave
+  // the co-editing room and rejoin it.
+  describe("hasWorkflowOpen", () => {
+    it("is true only for the workflow whose room the shared document is in", () => {
+      service.setNewSharedModel(42);
+
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+      expect(service.hasWorkflowOpen(43)).toBe(false);
+    });
+
+    it("is false for every workflow while none is open", () => {
+      service.setNewSharedModel();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+      // And asking about "no workflow" is never a match, even against a document in no room.
+      expect(service.hasWorkflowOpen(undefined)).toBe(false);
+      expect(service.hasWorkflowOpen(0)).toBe(false);
+    });
+
+    // Both views key the hand-over on this. A workflow created in this session has an id in its
+    // metadata after the first autosave while its document is still in the private room it was
+    // seeded with; keyed on the metadata the departing view handed it over, keyed on the room the
+    // arriving view declined it. Keyed on the room on both sides, it is simply rebuilt once.
+    it("names the room the document is in, and nothing while it is in no workflow's room", () => {
+      service.setNewSharedModel(42);
+      expect(service.getOpenWorkflowId()).toBe(42);
+
+      service.setNewSharedModel();
+      expect(service.getOpenWorkflowId()).toBeUndefined();
+    });
+
+    // Not local to this method: destroying the document keeps the object and its wid, and what
+    // clears it is clearWorkflow going on to reloadWorkflow(undefined), which seeds a fresh model
+    // with none. Were that to stop happening, a canvas re-entered from the dashboard would attach
+    // to a destroyed document instead of loading the workflow.
+    it("is false for a workflow that has been left, not only for one never opened", () => {
+      service.setNewSharedModel(42);
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+
+      service.clearWorkflow();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+  });
+
+  // The stream is a plain Subject and carries no current value, so a view that attaches to an
+  // already-open workflow -- and therefore never sets the metadata, because it is already right --
+  // has to say it again for the subscribers it has just mounted: the menu's name and id, the
+  // computing unit picker, the workspace's write access.
+  describe("republishWorkflowMetadata", () => {
+    it("re-announces the metadata it already holds, which setWorkflowMetadata will not", () => {
+      const metadata: WorkflowMetadata = { ...DEFAULT_WORKFLOW, wid: 42, name: "kept open" };
+      service.setWorkflowMetadata(metadata);
+      const seen: WorkflowMetadata[] = [];
+      service.workflowMetaDataChanged().subscribe(m => seen.push(m));
+
+      // The same value a view would read back and hand straight to the setter: it returns early.
+      service.setWorkflowMetadata(service.getWorkflowMetadata());
+      expect(seen).toEqual([]);
+
+      service.republishWorkflowMetadata();
+
+      expect(seen).toEqual([metadata]);
+    });
+  });
 
   it("should add an operator to both jointjs and texera graph correctly", () => {
     service.addOperator(mockScanPredicate, mockPoint);
@@ -794,6 +862,126 @@ describe("WorkflowActionService", () => {
     expect(workflow.content.links.length).toEqual(1);
   });
 
+  describe("formBinding (Form View definition)", () => {
+    const config = {
+      instruction: { title: "How to use this", body: "Pick a file, then Run." },
+      fields: [
+        {
+          id: "f1",
+          operatorID: mockScanPredicate.operatorID,
+          propertyKey: "tableName",
+          displayName: "Input table",
+          helpText: "Which table to read.",
+        },
+      ],
+      shownResultIds: [mockResultPredicate.operatorID],
+    };
+
+    it("should start empty for a workflow that was never set up", () => {
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    it("should round-trip through workflow content", () => {
+      service.addOperator(mockScanPredicate, { x: 10, y: 20 });
+      service.setFormBinding(config);
+
+      expect(service.getWorkflowContent().formBinding).toEqual(config);
+    });
+
+    // The definition must survive being saved and opened again, which is what makes it
+    // travel with clone, version and publish for free.
+    it("should be restored when a workflow carrying one is reloaded", () => {
+      const workflow: Workflow = {
+        ...DEFAULT_WORKFLOW,
+        content: {
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          links: [],
+          commentBoxes: [],
+          settings: undefined as any,
+          formBinding: config,
+        },
+      };
+
+      service.reloadWorkflow(workflow, false, false);
+
+      expect(service.getFormBinding()).toEqual(config);
+    });
+
+    it("should fall back to an empty definition for a workflow without one", () => {
+      service.setFormBinding(config);
+
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [],
+            operatorPositions: {},
+            links: [],
+            commentBoxes: [],
+            settings: undefined as any,
+          },
+        },
+        false,
+        false
+      );
+
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    // Starting a blank workflow must not carry the previous one's definition, or it would
+    // leak into the new workflow's first save.
+    it("should clear a leftover definition when reset to a blank workflow", () => {
+      service.setFormBinding(config);
+      expect(service.getFormBinding()).toEqual(config);
+
+      service.reloadWorkflow(undefined, false, false);
+
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    // A plain workflow must not stamp an empty formBinding into its content, or every existing
+    // workflow's first save would diff and cut a needless version. Mirrors the agent-service rule.
+    it("should omit formBinding from content for a workflow that never had one", () => {
+      service.reloadWorkflow(undefined, false, false);
+
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    it("should carry a definition whose only content is an empty result list", () => {
+      // "Show no results" is a real choice: fields and instruction stay empty and the list is [], so
+      // the definition must still be saved, or the choice would be lost on reload and every final step
+      // would show again.
+      service.reloadWorkflow(undefined, false, false);
+      service.setFormBinding({ fields: [], shownResultIds: [] });
+
+      expect(service.getWorkflowContent().formBinding).toEqual({ fields: [], shownResultIds: [] });
+    });
+
+    // Editing the form has to reach the same autosave that canvas edits use.
+    it("should report an edit through workflowChanged", () => {
+      const seen: unknown[] = [];
+      const sub = service.workflowChanged().subscribe(v => seen.push(v));
+
+      service.setFormBinding(config);
+
+      expect(seen.length).toEqual(1);
+      sub.unsubscribe();
+    });
+
+    // Opening a workflow is not an edit; announcing it would save on every open.
+    it("should stay silent while a workflow is being opened", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.hydrateFormBinding(config);
+
+      expect(seen.length).toEqual(0);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+  });
+
   it("should clear pre-existing comment boxes and fall back to default settings when reloading", () => {
     service.addCommentBox({ ...mockCommentBox, commentBoxID: "commentBox-old" });
     expect(texeraGraph.hasCommentBox("commentBox-old")).toBeTruthy();
@@ -859,5 +1047,62 @@ describe("WorkflowActionService", () => {
       x: sentimentBefore.x + offset.x,
       y: sentimentBefore.y + offset.y,
     });
+  });
+
+  /*
+   * The remaining half-taken arms on this service: an optional argument left out, a guard whose
+   * "already in that state" side never ran, and the comparisons in the top-left calculation.
+   */
+  it("adds operators without links or comment boxes when neither is supplied", () => {
+    service.addOperatorsAndLinks([
+      { op: mockScanPredicate, pos: { x: 10, y: 20 } },
+      { op: mockResultPredicate, pos: { x: 30, y: 40 } },
+    ]);
+
+    expect(
+      texeraGraph
+        .getAllOperators()
+        .map(o => o.operatorID)
+        .sort()
+    ).toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID].sort());
+    expect(texeraGraph.getAllLinks()).toEqual([]);
+    expect(texeraGraph.getAllCommentBoxes()).toEqual([]);
+  });
+
+  it("does nothing when modification is enabled again while already enabled", () => {
+    const emitted: boolean[] = [];
+    service.getWorkflowModificationEnabledStream().subscribe(v => emitted.push(v));
+    // Starts enabled, so this call has nothing to do and must not re-announce it.
+    service.enableWorkflowModification();
+
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+    expect(emitted).toEqual([true]);
+  });
+
+  it("takes the smaller of each coordinate independently when computing the top-left", () => {
+    // The x guard is false for the second operator and the y guard is true, so each
+    // comparison decides the result once in both directions.
+    service.addOperator(mockScanPredicate, { x: 100, y: 400 });
+    service.addOperator(mockResultPredicate, { x: 300, y: 250 });
+    service.addOperator(mockSentimentPredicate, { x: 50, y: 500 });
+
+    service.calculateTopLeftOperatorPosition();
+
+    // x comes from the third operator and y from the second, so neither comparison
+    // decides both coordinates.
+    expect(service.getCenterPoint()).toEqual({ x: 50, y: 250 });
+  });
+
+  it("disconnects the shared-editing provider only when it is meant to be connected", () => {
+    const disconnect = vi.spyOn(texeraGraph.sharedModel.wsProvider, "disconnect").mockImplementation(() => {});
+    const workflow = service.getWorkflow();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = false;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).not.toHaveBeenCalled();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = true;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 });

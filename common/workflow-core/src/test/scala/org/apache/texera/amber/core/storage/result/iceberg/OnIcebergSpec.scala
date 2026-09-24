@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.IcebergGenerics
@@ -56,9 +57,14 @@ class OnIcebergSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   private val icebergSchema: IcebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
 
+  // The writer resolves its catalog from the shared cache per use (#7290), so the
+  // spec's local catalog is registered under a spec-unique warehouse name.
+  private val specWarehouse = "on-iceberg-spec"
+
   override def beforeAll(): Unit = {
     warehouseDir = Files.createTempDirectory("on-iceberg-spec")
     catalog = IcebergUtil.createHadoopCatalog("on-iceberg-spec", warehouseDir)
+    IcebergCatalogInstance.replaceInstance(catalog, Some(specWarehouse))
   }
 
   override def afterAll(): Unit = {
@@ -88,7 +94,7 @@ class OnIcebergSpec extends AnyFlatSpec with BeforeAndAfterAll {
   private def appendSnapshot(tableName: String, ids: Seq[Int]): Unit = {
     val writer = new IcebergTableWriter[Tuple](
       s"writer_${UUID.randomUUID().toString.replace("-", "")}",
-      catalog,
+      Some(specWarehouse),
       tableNamespace,
       tableName,
       icebergSchema,

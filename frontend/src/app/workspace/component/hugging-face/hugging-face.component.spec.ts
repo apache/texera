@@ -22,12 +22,14 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { By } from "@angular/platform-browser";
 import { FormControl, FormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
+import { Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import {
   HuggingFaceComponent,
   HuggingFaceModelOption,
   HuggingFaceTaskOption,
   STATIC_TASK_OPTIONS,
+  SUPPORTED_TASK_TAGS,
   invalidateHuggingFaceModelCache,
 } from "./hugging-face.component";
 
@@ -47,6 +49,15 @@ function buildTaskResponse(): HuggingFaceTaskOption[] {
     { tag: "text-generation", label: "Text Generation" },
     { tag: "image-classification", label: "Image Classification" },
   ];
+}
+
+/**
+ * Build the `options` that Formly attaches to every field at runtime: `FormlyForm`
+ * always fills in `showError` (from `FormlyConfig.extras.showError`) and `fieldChanges`,
+ * which `FieldType.showError` and `formly-validation-message` respectively rely on.
+ */
+function buildFormlyOptions(showError = false) {
+  return { detectChanges: vi.fn(), showError: () => showError, fieldChanges: new Subject() };
 }
 
 /**
@@ -82,7 +93,7 @@ function buildFieldWithFormGroup(taskValue = "", modelIdValue = ""): { field: Fi
     model,
     props: {},
     parent: { fieldGroup: [] },
-    options: { detectChanges: vi.fn() },
+    options: buildFormlyOptions(),
   } as unknown as FieldTypeConfig;
 
   return { field, formGroup };
@@ -134,6 +145,32 @@ describe("HuggingFaceComponent (unit)", () => {
     const tags = STATIC_TASK_OPTIONS.map(t => t.tag);
     const uniqueTags = new Set(tags);
     expect(uniqueTags.size).toBe(tags.length);
+  });
+
+  it("should not list tasks that have no operator codegen", () => {
+    // These tasks were previously offered but have no TaskCodegen, so they
+    // silently fell back to text-generation and emitted raw JSON.
+    const unsupported = [
+      "text-classification",
+      "token-classification",
+      "translation",
+      "summarization",
+      "feature-extraction",
+      "fill-mask",
+    ];
+    const tags = STATIC_TASK_OPTIONS.map(t => t.tag);
+    unsupported.forEach(tag => expect(tags).not.toContain(tag));
+  });
+
+  it("should list the supported media/image tasks that have a codegen", () => {
+    const tags = STATIC_TASK_OPTIONS.map(t => t.tag);
+    ["image-to-image", "image-text-to-text", "text-to-image", "text-to-video"].forEach(tag =>
+      expect(tags).toContain(tag)
+    );
+  });
+
+  it("SUPPORTED_TASK_TAGS should exactly mirror the static task tags", () => {
+    expect([...SUPPORTED_TASK_TAGS].sort()).toEqual(STATIC_TASK_OPTIONS.map(t => t.tag).sort());
   });
 });
 
@@ -240,6 +277,37 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(component.taskOptions).toEqual(STATIC_TASK_OPTIONS);
       expect(component.tasksError).toBeTruthy();
       expect(component.tasksLoading).toBe(false);
+    });
+
+    it("should drop unsupported tasks from the dynamic API response", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      // HF returns a mix of supported and unsupported tasks.
+      http.expectOne(`${API}/huggingface/tasks`).flush([
+        { tag: "text-generation", label: "Text Generation" },
+        { tag: "summarization", label: "Summarization" }, // no codegen
+        { tag: "image-classification", label: "Image Classification" },
+        { tag: "fill-mask", label: "Fill-Mask" }, // no codegen
+      ]);
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      expect(component.taskOptions.map(t => t.tag)).toEqual(["text-generation", "image-classification"]);
+    });
+
+    it("should fall back to STATIC_TASK_OPTIONS when the API returns only unsupported tasks", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush([
+        { tag: "translation", label: "Translation" },
+        { tag: "fill-mask", label: "Fill-Mask" },
+      ]);
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      expect(component.taskOptions).toEqual(STATIC_TASK_OPTIONS);
     });
 
     it("retryTasksLoad should clear error and re-fetch tasks", fakeAsync(() => {
@@ -1239,7 +1307,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: { task: "" },
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1268,7 +1336,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: { task: "" },
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1318,7 +1386,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model,
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1353,7 +1421,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         model: null,
         props: {},
         parent: { fieldGroup: [] },
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig;
 
       component.field = field;
@@ -1559,7 +1627,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
         form: formGroup,
         model: { modelId: "" } as Record<string, unknown>,
         props: {},
-        options: { detectChanges: vi.fn() },
+        options: buildFormlyOptions(),
       } as unknown as FieldTypeConfig; // no `parent` -> the `field.parent ?? field` fallback
       component.field = field;
       fixture.detectChanges();
@@ -1571,6 +1639,89 @@ describe("HuggingFaceComponent (TestBed)", () => {
 
       http.expectOne(`${API}/huggingface/models?task=translation`).flush(buildModels(1));
       expect(component.selectedTaskTag).toBe("translation");
+    });
+  });
+
+  // ── Validation message ──
+
+  describe("validation message", () => {
+    /** Initialize the component with the `showError` predicate that Formly delegates to. */
+    function initWithShowError(showError: boolean) {
+      const { field } = buildFieldWithFormGroup();
+      Object.assign(field.options!, { showError: () => showError });
+      component.field = field;
+
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      // Set the error after init: ngOnInit re-runs updateValueAndValidity, which would clear it.
+      component.formControl.setErrors({ required: true });
+      fixture.detectChanges();
+      flushIconRequests();
+    }
+
+    it("renders the validation message when the field is in an error state", () => {
+      initWithShowError(true);
+
+      expect(component.showError).toBe(true);
+      expect(fixture.debugElement.query(By.css("div.alert-danger formly-validation-message"))).toBeTruthy();
+    });
+
+    it("does not render the validation message when showError is false", () => {
+      initWithShowError(false);
+
+      expect(component.showError).toBe(false);
+      expect(fixture.debugElement.query(By.css("div.alert-danger"))).toBeNull();
+    });
+  });
+
+  /*
+   * The half-taken arms left on this component: a teardown with nothing pending, the fallback
+   * used when the form has no task selected, and a snapshot that does not carry every key.
+   */
+  describe("remaining guards", () => {
+    // This suite's shared afterEach does not restore mocks, and one test below spies on a
+    // global, so the block cleans up after itself rather than leaving it installed for the
+    // rest of the file.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("clears no timeout when initialization already finished", () => {
+      const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+      (component as any).initTimeout = null;
+
+      component.ngOnDestroy();
+
+      // The interval teardown may still call clearInterval; only the timeout arm is asserted.
+      expect(clearSpy).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the last selected task when the form carries none", () => {
+      const snapshot = vi.spyOn(component as any, "snapshotTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "getCurrentTaskTag").mockReturnValue(null);
+      // Only the fallback is under test; what the selection then does is covered elsewhere.
+      vi.spyOn(component as any, "syncTaskSelection").mockImplementation(() => {});
+      vi.spyOn(component as any, "restoreTaskState").mockImplementation(() => {});
+      vi.spyOn(component as any, "loadAllModels").mockImplementation(() => {});
+      (component as any).selectedTaskTag = "text-generation";
+
+      component.onTaskSelected("image-classification");
+
+      // The task being snapshotted is the fallback, not the (absent) form value.
+      expect(snapshot).toHaveBeenCalledWith("text-generation");
+    });
+
+    it("restores only the keys a snapshot actually carries", () => {
+      const write = vi.spyOn(component as any, "writeFieldValue").mockImplementation(() => {});
+      (component as any).taskStateByTag.set("image-classification", { modelId: "m1" });
+
+      (component as any).restoreTaskState("image-classification");
+
+      const writtenKeys = write.mock.calls.map(call => call[0]);
+      expect(writtenKeys).toEqual(["modelId"]);
     });
   });
 });

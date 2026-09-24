@@ -37,6 +37,8 @@ import { ComputingUnitActionsService } from "../../../../common/service/computin
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { of } from "rxjs";
 import type { Mocked } from "vitest";
+import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
+import { UserComputingUnitListItemComponent } from "./user-computing-unit-list-item/user-computing-unit-list-item.component";
 describe("UserComputingUnitComponent", () => {
   let component: UserComputingUnitComponent;
   let fixture: ComponentFixture<UserComputingUnitComponent>;
@@ -199,6 +201,96 @@ describe("UserComputingUnitComponent", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("Invalid computing unit.");
       expect(terminateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Everything above reaches the component through its methods, so the template's own wiring — the
+   * toolbar button and the row bindings inside the virtual-scroll list — never ran. jsdom performs
+   * no layout, which is why the list looked empty: the viewport measures 0px and renders no rows.
+   */
+  describe("rendered page", () => {
+    function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
+      return {
+        computingUnit: {
+          cuid,
+          uid: 1,
+          name: `unit-${cuid}`,
+          creationTime: 0,
+          terminateTime: undefined,
+          type: "kubernetes",
+          uri: `uri-${cuid}`,
+          resource: {
+            cpuLimit: "1",
+            memoryLimit: "1Gi",
+            gpuLimit: "0",
+            jvmMemorySize: "1Gi",
+            shmSize: "64Mi",
+            nodeAddresses: [],
+          },
+        },
+        status: "Running",
+        metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
+        isOwner: true,
+        accessPrivilege: "WRITE",
+        ownerAvatar: "",
+        ownerName: "owner",
+      } as DashboardWorkflowComputingUnit;
+    }
+
+    /** Renders the page with the given units and forces the virtual list to materialize its rows. */
+    function renderUnits(units: DashboardWorkflowComputingUnit[]): void {
+      const statusService = TestBed.inject(ComputingUnitStatusService);
+      vi.spyOn(statusService, "getAllComputingUnits").mockReturnValue(of(units));
+      fixture.detectChanges();
+
+      const viewport = fixture.debugElement.query(By.css("cdk-virtual-scroll-viewport"))
+        .componentInstance as CdkVirtualScrollViewport;
+      viewport.setRenderedRange({ start: 0, end: units.length });
+      fixture.detectChanges();
+    }
+
+    afterEach(() => {
+      // ngOnInit starts a 1s poll; destroying the fixture unsubscribes it.
+      fixture.destroy();
+    });
+
+    it("opens the create-unit modal from its toolbar button", () => {
+      fixture.detectChanges();
+      const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent))
+        .componentInstance as ComputingUnitCreateModalComponent;
+      expect(modal.visible).toBe(false);
+
+      fixture.nativeElement.querySelector(".create-btn").click();
+      fixture.detectChanges();
+
+      expect(modal.visible).toBe(true);
+    });
+
+    it("renders one row per computing unit, in the order the service reported them", () => {
+      renderUnits([makeUnit(7), makeUnit(9)]);
+
+      const rendered = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(".unit-id")).map(
+        el => el.textContent?.trim()
+      );
+      expect(rendered).toEqual(["#7", "#9"]);
+    });
+
+    it("terminates the unit belonging to the row that asked, not the first one", () => {
+      const actions = TestBed.inject(ComputingUnitActionsService);
+      const terminateSpy = vi.spyOn(actions, "confirmAndTerminate").mockImplementation(() => {});
+      renderUnits([makeUnit(7), makeUnit(9)]);
+
+      const rows = fixture.debugElement.queryAll(By.directive(UserComputingUnitListItemComponent));
+      expect(rows.length).toBe(2);
+      // the second row's delete must reach unit 9; two rows are rendered so a binding that always
+      // resolved to the first entry could not pass.
+      (rows[1].componentInstance as UserComputingUnitListItemComponent).deleted.emit();
+
+      expect(terminateSpy).toHaveBeenCalledTimes(1);
+      const [cuid, unit] = terminateSpy.mock.calls[0];
+      expect(cuid).toBe(9);
+      expect(unit.computingUnit.cuid).toBe(9);
     });
   });
 });

@@ -163,6 +163,26 @@ class PhysicalOpSpec extends AnyFlatSpec {
     assert(newOp("a").withPveName("my-pve").pveName == "my-pve")
   }
 
+  "PhysicalOp.executableOpExecInitInfo" should
+    "be the compile-time info when the operator deferred nothing" in {
+    val op = newOp("a")
+    assert(op.executionTimeBinding.isEmpty)
+    assert(op.executableOpExecInitInfo == op.opExecInitInfo)
+    assert(op.mountLocators.isEmpty)
+  }
+
+  it should "come from the execution-time binding when there is one" in {
+    val bound = OpExecWithCode("bound", "python")
+    val binding = new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = bound
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }
+    val op = newOp("a").withExecutionTimeBinding(Some(binding))
+    assert(op.opExecInitInfo == OpExecInitInfo.Empty)
+    assert(op.executableOpExecInitInfo == bound)
+    assert(op.mountLocators == Set("dataset-1:abc123"))
+  }
+
   // ----- propagateSchema -----
 
   "PhysicalOp.propagateSchema" should "wait for all input schemas before running propagation" in {
