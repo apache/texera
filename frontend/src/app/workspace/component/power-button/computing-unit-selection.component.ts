@@ -33,6 +33,7 @@ import { WarehouseActionsService } from "../../../common/service/warehouse/wareh
 import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
@@ -210,7 +211,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone,
     private warehouseService: WarehouseService,
-    private warehouseActionsService: WarehouseActionsService
+    private warehouseActionsService: WarehouseActionsService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
   ngOnInit(): void {
@@ -310,7 +312,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
-          this.workflowActionService.enableWorkflowModification();
+          // "No execution someone else started" is not "nothing is running here". This asks only
+          // about Running and Initializing, and the answer arrives asynchronously, after whatever
+          // the page set on arrival, so unlocking outright undid the lock a run in flight had just
+          // been given -- a handed-over Paused or Recovering run, say, which this query does not
+          // look for. Defer to the state-to-lock rule the execute service owns.
+          this.executeWorkflowService.reapplyExecutionLock();
         }
       });
   }
