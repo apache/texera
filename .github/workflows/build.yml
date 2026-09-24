@@ -171,7 +171,8 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./frontend/coverage-browser/**/lcov.info
+          files: ./frontend/coverage-browser/lcov.info
+          disable_search: true
           flags: frontend
           fail_ci_if_error: false
       - name: Upload frontend browser-mode test results to Codecov
