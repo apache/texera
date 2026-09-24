@@ -230,7 +230,7 @@ object HuggingFaceCodegenBase {
        |                            "role": "user",
        |                            "content": [
        |                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}} if img_b64 else None,
-       |                                {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                                {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
        |                            ],
        |                        }],
        |                    }
@@ -322,6 +322,19 @@ object HuggingFaceCodegenBase {
        |                    f"Table:\n{json.dumps(table)}\n\nQuestion: {query}"
        |                )
        |            return query or prompt_value
+       |        if task == "zero-shot-image-classification":
+       |            # Kept separate from zero-shot-classification below: there `inputs`
+       |            # is the text being classified, here it is the base64 image, which
+       |            # must never be spliced into the prompt. The image travels as its
+       |            # own content part; this is only the instruction beside it.
+       |            params = pipeline_payload.get("parameters") if isinstance(pipeline_payload, dict) else None
+       |            labels = params.get("candidate_labels", []) if isinstance(params, dict) else []
+       |            if labels:
+       |                return (
+       |                    "Classify the image into exactly one of these labels: "
+       |                    f"{', '.join(str(l) for l in labels)}. Respond with only the chosen label."
+       |                )
+       |            return prompt_value
        |        if task == "zero-shot-classification":
        |            params = pipeline_payload.get("parameters") if isinstance(pipeline_payload, dict) else None
        |            labels = params.get("candidate_labels", []) if isinstance(params, dict) else []
@@ -399,7 +412,7 @@ object HuggingFaceCodegenBase {
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
        |                ]}]
        |            return requests.post(url, headers=zai_headers, json={"model": provider_id, "messages": messages}, timeout=120)
        |
@@ -541,7 +554,7 @@ object HuggingFaceCodegenBase {
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": prompt_value if prompt_value else "What is in this image?"},
+       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
        |                ]}]
        |            return requests.post(
        |                url,
@@ -562,7 +575,7 @@ object HuggingFaceCodegenBase {
        |            if img_b64:
        |                messages = [{"role": "user", "content": [
        |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": prompt_value if prompt_value else "Describe this image."},
+       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "Describe this image."},
        |                ]}]
        |            resp2 = requests.post(
        |                url,

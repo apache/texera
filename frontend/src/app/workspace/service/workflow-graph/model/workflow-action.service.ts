@@ -630,6 +630,57 @@ export class WorkflowActionService {
   }
 
   /**
+   * Whether this page already holds `workflowId` open: the shared document is in that workflow's
+   * co-editing room, so the graph, the undo history and the room membership are the live ones.
+   *
+   * The operator canvas and the Form View are two views of one open workflow and hand the session
+   * over between them rather than each building its own. The arriving view asks this before
+   * loading: seeding a second document for the same workflow would leave the room and rejoin it,
+   * which is what used to leave a ghost of yourself in the co-editor list.
+   *
+   * A workflow that was open and has since been left does not answer true here, and the reason is
+   * worth stating because it is not local: `destroyYModel` destroys the document but keeps the
+   * object, `wid` and all. What clears it is `clearWorkflow` going on to `reloadWorkflow(undefined)`,
+   * which seeds a fresh model with no `wid`. Were that to stop happening, a canvas re-entered from
+   * the dashboard would attach to a destroyed document instead of loading. Pinned by a test.
+   */
+  public hasWorkflowOpen(workflowId: number | undefined): boolean {
+    return !!workflowId && this.texeraGraph.sharedModel.wid === workflowId;
+  }
+
+  /**
+   * The workflow whose co-editing room the shared document is in, or undefined when it is in none:
+   * a brand-new canvas, or a workflow created in this session, whose first autosave gave the
+   * metadata an id while the document stayed in the private room it was seeded with.
+   *
+   * This, and not the metadata's id, is what both views key the hand-over on. The departing view
+   * asks whether it is leaving this workflow; the arriving view asks whether this workflow is
+   * already open. Keyed on different ids, the two answered differently for a workflow created in
+   * this session -- the canvas kept the session, the Form View declined it and reloaded -- so both
+   * ask about the room, and such a workflow is simply rebuilt on its first switch, as it is today.
+   */
+  public getOpenWorkflowId(): number | undefined {
+    return this.texeraGraph.sharedModel.wid || undefined;
+  }
+
+  /**
+   * Announce the metadata already in hand, unchanged, for a view that arrived on a workflow that
+   * was already open.
+   *
+   * `workflowMetaDataChanged()` is a plain Subject, so it carries no current value: a subscriber
+   * that arrives after the metadata was set hears nothing until the next change. Everything a
+   * view puts on screen about the workflow -- its name and id in the menu, the computing unit it
+   * last ran on, whether this user may write to it -- is learnt only from that stream, and a view
+   * handed an open workflow never sets the metadata, because it is already right. Without this
+   * they would each sit at their initial value until the next edit happened to save.
+   *
+   * `setWorkflowMetadata` cannot do the job: it returns early for the value it already holds.
+   */
+  public republishWorkflowMetadata(): void {
+    this.workflowMetadataChangeSubject.next(this.workflowMetadata);
+  }
+
+  /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    * This method is based on the assumption that this is on a new SharedModel.
    *
@@ -709,7 +760,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getLinkDeleteStream(),
       this.getTexeraGraph().getPortAddedOrDeletedStream(),
       this.getTexeraGraph().getOperatorPropertyChangeStream(),
-      this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent(),
       this.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.getTexeraGraph().getCommentBoxAddStream(),

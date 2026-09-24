@@ -134,7 +134,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private panelService: PanelService,
     private formBindingService: FormBindingService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private elementRef: ElementRef
   ) {
     const width = localStorage.getItem("right-panel-width");
     if (width) this.width = Number(width);
@@ -161,10 +162,13 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
     // canvas layout. The Form View mounts this panel with persistPlacement=false, where that element
     // is absent, so skip the restore there (it would throw on the missing element).
     if (this.persistPlacement) {
+      // This panel's own container, not whichever the document holds first: both views of a
+      // workflow mount this panel, and they overlap for a tick when the switch routes between
+      // them, so a document-wide lookup could restore the placement onto the departing view's.
+      const container = this.rightContainer()!;
       const style = localStorage.getItem("right-panel-style");
-      if (style) document.getElementById("right-container")!.style.cssText = style;
-      const translates = document.getElementById("right-container")!.style.transform;
-      const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
+      if (style) container.style.cssText = style;
+      const [xOffset, yOffset, _] = calculateTotalTranslate3d(container.style.transform);
       this.returnPosition = { x: -xOffset, y: -yOffset };
     }
     this.registerHighlightEventsHandler();
@@ -241,11 +245,15 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
       localStorage.setItem("right-panel-width", String(this.width));
       localStorage.setItem("right-panel-height", String(this.height));
 
-      const rightContainer = document.getElementById("right-container");
+      const rightContainer = this.rightContainer();
       if (rightContainer) {
         localStorage.setItem("right-panel-style", rightContainer.style.cssText);
       }
     }
+  }
+
+  private rightContainer(): HTMLElement | null {
+    return (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>("#right-container");
   }
 
   /**

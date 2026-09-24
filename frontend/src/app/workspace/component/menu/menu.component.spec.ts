@@ -24,6 +24,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
 import { MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
@@ -52,7 +53,7 @@ import type { ComputingUnitSelectionComponent } from "../power-button/computing-
 import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
@@ -122,11 +123,44 @@ describe("MenuComponent", () => {
 
   it("does not open the Form View for a workflow that has not been saved yet", () => {
     vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: undefined } as any);
-    const href = window.location.href;
+    const navigate = vi.spyOn(component as any, "openFormViewPage");
 
     component.onClickOpenFormView();
 
-    expect(window.location.href).toBe(href);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  // A route, not a page load: the workflow stays open across the switch, so the shared document,
+  // the computing unit connection and a running execution are handed over rather than rebuilt.
+  it("routes to the Form View rather than reloading the page", () => {
+    const navigateByUrl = vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(true);
+
+    (component as any).openFormViewPage(42);
+
+    expect(navigateByUrl).toHaveBeenCalledWith(workspaceFormUrl(42));
+  });
+
+  // A page load left nothing behind; a route can be refused or cancelled and leaves this page in
+  // place. The hand-over flag then has to come down, or the Form View button is dead for the rest
+  // of the session with nothing logged. On success the component is destroyed, flag and all.
+  it("lowers the hand-over flag when the navigation does not go through", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(false);
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
+  });
+
+  it("lowers the hand-over flag when the navigation fails outright", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockRejectedValue(new Error("refused"));
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
   });
 
   it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {
@@ -155,8 +189,8 @@ describe("MenuComponent", () => {
 
     component.onClickOpenFormView();
 
-    // The navigation unloads the document and aborts anything still in flight, so it must wait for
-    // the save's completion rather than be fired right after the request.
+    // The switch waits for the save to complete rather than firing right after the request: a save
+    // that fails has to keep the writer here, on the view they edited in, with the error shown.
     expect(persistSpy).toHaveBeenCalled();
     expect(metadataSpy).toHaveBeenCalledWith(saved);
     expect(navigate).toHaveBeenCalledWith(7);
@@ -822,6 +856,20 @@ describe("MenuComponent", () => {
     });
   });
 
+  // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on
+  // a hand-over between a workflow's two views, where the results are kept. A menu mounting on
+  // retained results asks for them to be recomputed rather than offering a dead button.
+  it("asks the export service to recompute its flags when it mounts", () => {
+    const exportService = TestBed.inject(WorkflowResultExportService);
+    const refresh = vi.spyOn(exportService, "refreshExportAvailability");
+
+    const fresh = TestBed.createComponent(MenuComponent);
+    fresh.detectChanges();
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    fresh.destroy();
+  });
+
   describe("version history", () => {
     it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
       const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
@@ -1197,104 +1245,24 @@ describe("MenuComponent", () => {
   // (base-duration updates, 1s cadence, restart-on-event, stop-when-idle) and,
   // crucially, that the timer is torn down with the component so it cannot keep
   // firing or leak after destroy.
-  describe("execution duration timer", () => {
-    let durationEvents$: Subject<{ type: "ExecutionDurationUpdateEvent" } & ExecutionDurationUpdateEvent>;
-    let timerFixture: ComponentFixture<MenuComponent>;
-    let timerComponent: MenuComponent;
+  // The clock itself lives in ExecuteWorkflowService now -- anchored and ticked there, so a menu
+  // that mounts mid-run gets where the run has got to instead of starting from zero, which is what
+  // a routed switch between the canvas and the Form View makes. What is left here is that the menu
+  // shows what the service says.
+  describe("execution duration", () => {
+    it("shows the run clock the service reports", () => {
+      const ticks = new BehaviorSubject<number>(7000);
+      vi.spyOn(executeWorkflowService, "getExecutionDurationStream").mockReturnValue(ticks.asObservable());
 
-    function emitDuration(duration: number, isRunning: boolean): void {
-      durationEvents$.next({ type: "ExecutionDurationUpdateEvent", duration, isRunning });
-    }
+      const f = TestBed.createComponent(MenuComponent);
+      f.detectChanges();
 
-    beforeEach(() => {
-      vi.useFakeTimers();
-      durationEvents$ = new Subject();
-      const websocket = TestBed.inject(WorkflowWebsocketService);
-      const original = websocket.subscribeToEvent.bind(websocket);
-      // Only intercept the duration event; defer every other event type to the
-      // real implementation so unrelated subscriptions keep working.
-      vi.spyOn(websocket, "subscribeToEvent").mockImplementation((type: any) =>
-        type === "ExecutionDurationUpdateEvent" ? (durationEvents$.asObservable() as any) : original(type)
-      );
+      // Replayed on subscribe: the value the run was already at when this menu mounted.
+      expect(f.componentInstance.executionDuration).toBe(7000);
 
-      timerFixture = TestBed.createComponent(MenuComponent);
-      timerComponent = timerFixture.componentInstance;
-      timerFixture.detectChanges();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("sets executionDuration to the event's base duration on each event", () => {
-      emitDuration(5000, false);
-      expect(timerComponent.executionDuration).toBe(5000);
-
-      emitDuration(8000, false);
-      expect(timerComponent.executionDuration).toBe(8000);
-    });
-
-    it("advances the duration by 1s every second while running", () => {
-      emitDuration(0, true);
-      expect(timerComponent.executionDuration).toBe(0);
-
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      vi.advanceTimersByTime(2000);
-      expect(timerComponent.executionDuration).toBe(3000);
-    });
-
-    it("does not start a timer when the execution is not running", () => {
-      emitDuration(7000, false);
-
-      vi.advanceTimersByTime(5000);
-
-      expect(timerComponent.executionDuration).toBe(7000);
-    });
-
-    it("restarts the 1s timer on each new running event, cancelling the previous one", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // A new event resets the base duration and restarts the cadence; the
-      // previous timer must be cancelled (switchMap) so it cannot double-count.
-      emitDuration(10000, true);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(11000);
-    });
-
-    it("stops the timer when a running execution transitions to not running", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      emitDuration(2000, false);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(2000);
-    });
-
-    it("tears down the timer on destroy so the duration stops advancing", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      timerFixture.destroy();
-
-      // The previously running timer must not keep firing after destroy...
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // ...nor should late events revive it (the source subscription is closed).
-      emitDuration(9999, true);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
+      ticks.next(8000);
+      expect(f.componentInstance.executionDuration).toBe(8000);
+      f.destroy();
     });
   });
 
