@@ -55,12 +55,11 @@ class FileScanSourceOpDesc
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
-  // The charset the panel offers, and the one the executor decodes with. The
-  // inherited `fileEncoding` is named in this class's @JsonIgnoreProperties, so
-  // it never survives the trip into the executor: reading that one there left
-  // every file decoded as UTF-8 whatever was chosen. The name is kept as the
-  // panel spells it, a saved workflow carrying `encoding` and not the other.
-  val encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
+  // Re-declared here rather than inherited so the field can carry the hide
+  // annotation above; `fileEncoding` from ScanSourceOpDesc is suppressed by the
+  // @JsonIgnoreProperties on this class, so this is the only charset that
+  // survives into the executor.
+  var encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Extract")

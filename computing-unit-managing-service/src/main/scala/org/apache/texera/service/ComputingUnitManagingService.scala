@@ -30,6 +30,7 @@ import org.apache.texera.service.resource.{
   AdminComputingUnitResource,
   ComputingUnitAccessResource,
   ComputingUnitManagingResource,
+  CuratedImageResource,
   HealthCheckResource
 }
 import java.nio.file.Path
@@ -68,6 +69,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     environment.jersey().register(new ComputingUnitManagingResource)
     environment.jersey().register(new ComputingUnitAccessResource)
     environment.jersey().register(new AdminComputingUnitResource)
+    environment.jersey().register(new CuratedImageResource)
 
     RoleAnnotationEnforcer.enforce(
       environment.jersey.getResourceConfig,

@@ -81,7 +81,9 @@ describe("ComputingUnitActionsService", () => {
         "4G",
         "1",
         "1G",
-        "64M"
+        "64M",
+        // No curated image chosen, so the unit runs the deployment's own.
+        undefined
       );
       expect(computingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
     });

@@ -24,6 +24,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
 import { MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
@@ -43,6 +44,7 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
@@ -51,11 +53,14 @@ import type { ComputingUnitSelectionComponent } from "../power-button/computing-
 import { WorkflowContent } from "../../../common/type/workflow";
 import { Router } from "@angular/router";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import type { Mocked } from "vitest";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -118,11 +123,44 @@ describe("MenuComponent", () => {
 
   it("does not open the Form View for a workflow that has not been saved yet", () => {
     vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: undefined } as any);
-    const href = window.location.href;
+    const navigate = vi.spyOn(component as any, "openFormViewPage");
 
     component.onClickOpenFormView();
 
-    expect(window.location.href).toBe(href);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  // A route, not a page load: the workflow stays open across the switch, so the shared document,
+  // the computing unit connection and a running execution are handed over rather than rebuilt.
+  it("routes to the Form View rather than reloading the page", () => {
+    const navigateByUrl = vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(true);
+
+    (component as any).openFormViewPage(42);
+
+    expect(navigateByUrl).toHaveBeenCalledWith(workspaceFormUrl(42));
+  });
+
+  // A page load left nothing behind; a route can be refused or cancelled and leaves this page in
+  // place. The hand-over flag then has to come down, or the Form View button is dead for the rest
+  // of the session with nothing logged. On success the component is destroyed, flag and all.
+  it("lowers the hand-over flag when the navigation does not go through", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockResolvedValue(false);
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
+  });
+
+  it("lowers the hand-over flag when the navigation fails outright", async () => {
+    vi.spyOn(TestBed.inject(Router), "navigateByUrl").mockRejectedValue(new Error("refused"));
+    (component as any).handingOverToFormView = true;
+
+    (component as any).openFormViewPage(42);
+    await Promise.resolve();
+
+    expect((component as any).handingOverToFormView).toBe(false);
   });
 
   it("hands over to the id the save assigned when the canvas held a workflow never saved yet", () => {
@@ -151,8 +189,8 @@ describe("MenuComponent", () => {
 
     component.onClickOpenFormView();
 
-    // The navigation unloads the document and aborts anything still in flight, so it must wait for
-    // the save's completion rather than be fired right after the request.
+    // The switch waits for the save to complete rather than firing right after the request: a save
+    // that fails has to keep the writer here, on the view they edited in, with the error shown.
     expect(persistSpy).toHaveBeenCalled();
     expect(metadataSpy).toHaveBeenCalledWith(saved);
     expect(navigate).toHaveBeenCalledWith(7);
@@ -228,6 +266,49 @@ describe("MenuComponent", () => {
     expect(navigate).toHaveBeenCalledWith(7);
   });
 
+  describe("run button enablement (#8587)", () => {
+    const runButton = () => fixture.nativeElement.querySelector("#run-button") as HTMLButtonElement;
+
+    const render = () => {
+      component.applyRunButtonBehavior(component.getRunButtonBehavior());
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+    });
+
+    it("leaves the no-unit button clickable, since that is the state it exists to fix", () => {
+      // The privilege check asks a unit that does not exist; with no unit
+      // selected it used to be permanently true, so the button offered to
+      // connect and refused every click, leaving runWorkflow's create-unit
+      // branch unreachable.
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      component.selectedComputingUnit = null;
+
+      render();
+
+      expect(runButton().textContent?.trim()).toBe("Computing Unit");
+      expect(runButton().disabled).toBe(false);
+    });
+
+    it("still refuses to run on a unit the user may only read", () => {
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.selectedComputingUnit = {
+        computingUnit: { cuid: 1, name: "theirs" },
+        status: "Running",
+        accessPrivilege: Privilege.READ,
+      } as unknown as DashboardWorkflowComputingUnit;
+
+      render();
+
+      expect(runButton().disabled).toBe(true);
+    });
+  });
+
   describe("getRunButtonBehavior", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
@@ -251,14 +332,14 @@ describe("MenuComponent", () => {
       expect(behavior.disable).toBe(true);
     });
 
-    it("returns 'Connect' when no computing unit is attached", () => {
+    it("returns 'Computing Unit' when no computing unit is attached", () => {
       component.isWorkflowValid = true;
       component.isWorkflowEmpty = false;
       component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
 
       const behavior = component.getRunButtonBehavior();
 
-      expect(behavior.text).toBe("Connect");
+      expect(behavior.text).toBe("Computing Unit");
       expect(behavior.icon).toBe("plus-circle");
       expect(behavior.disable).toBe(false);
     });
@@ -409,6 +490,42 @@ describe("MenuComponent", () => {
       expect(behavior.icon).toBe("play-circle");
       expect(behavior.disable).toBe(false);
       expect(runSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps Pause in control of a running execution even when the warehouse disappears", () => {
+      // Deleting the last warehouse mid-run flips warehouseRequiredButMissing;
+      // the primary button must stay Pause/Kill, not become the warehouse prompt.
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Running;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Pause");
+    });
+
+    it("offers to create a warehouse when one is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
+      component.executionState = ExecutionState.Uninitialized;
+      component.computingUnitSelectionComponent = {
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+
+      const behavior = component.getRunButtonBehavior();
+
+      // Same word the picker's own empty state shows, as the computing-unit
+      // flow repeats its own; it also has to fit the run button's fixed width.
+      expect(behavior.text).toBe("Warehouse");
+      expect(behavior.icon).toBe("plus-circle");
+      expect(behavior.disable).toBe(false);
     });
   });
 
@@ -591,6 +708,51 @@ describe("MenuComponent", () => {
 
       expect(executeSpy).toHaveBeenCalledWith("Untitled Execution", false);
     });
+
+    it("leads to the create-warehouse modal when a warehouse is required but missing", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddComputeUnitModalVisible: vi.fn(),
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: true,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).toHaveBeenCalledTimes(1);
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("recomputes the Run button snapshot when the warehouse pick changes", () => {
+      // The button text is a stored snapshot; without the subscription it
+      // would keep saying "Run" after the warehouse load leaves none.
+      const applySpy = vi.spyOn(component, "applyRunButtonBehavior");
+
+      TestBed.inject(WarehouseService).selectWarehouse(7);
+
+      expect(applySpy).toHaveBeenCalled();
+    });
+
+    it("submits the execution when a warehouse is selected", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.computingUnitSelectionComponent = {
+        showAddWarehouseModalVisible: vi.fn(),
+        warehouseRequiredButMissing: false,
+      } as unknown as Mocked<ComputingUnitSelectionComponent>;
+      const executeSpy = vi
+        .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
+        .mockImplementation(() => {});
+
+      component.runWorkflow();
+
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(component.computingUnitSelectionComponent.showAddWarehouseModalVisible).not.toHaveBeenCalled();
+    });
   });
 
   it("onWorkflowNameChange forwards the new name to the workflow action service", () => {
@@ -694,6 +856,20 @@ describe("MenuComponent", () => {
     });
   });
 
+  // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on
+  // a hand-over between a workflow's two views, where the results are kept. A menu mounting on
+  // retained results asks for them to be recomputed rather than offering a dead button.
+  it("asks the export service to recompute its flags when it mounts", () => {
+    const exportService = TestBed.inject(WorkflowResultExportService);
+    const refresh = vi.spyOn(exportService, "refreshExportAvailability");
+
+    const fresh = TestBed.createComponent(MenuComponent);
+    fresh.detectChanges();
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    fresh.destroy();
+  });
+
   describe("version history", () => {
     it("onClickGetAllVersions delegates to workflowVersionService.displayWorkflowVersions", () => {
       const displaySpy = vi.spyOn(workflowVersionService, "displayWorkflowVersions").mockImplementation(() => {});
@@ -779,6 +955,7 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
@@ -792,10 +969,29 @@ describe("MenuComponent", () => {
       vi.spyOn(modalService, "create").mockReturnValue(fakeModalRef);
       const router = TestBed.inject(Router);
       const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
+      component.workflowId = 7;
 
       await component.onClickOpenShareAccess();
 
       expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    // The canvas resets to DEFAULT_WORKFLOW (wid 0) on every load and the real id only arrives with
+    // the workflow, so a click landing in that window used to open a dialog that asked the backend
+    // about workflow 0 and came back without a Private/Public choice (issue #8599).
+    it.each([
+      ["the workflow has not loaded yet (wid 0)", 0],
+      ["there is no workflow id at all", undefined],
+    ])("does not open the share dialog while %s", async (_case, wid) => {
+      vi.spyOn(workflowPersistService, "retrieveOwners").mockReturnValue(of([]));
+      const createSpy = vi
+        .spyOn(modalService, "create")
+        .mockReturnValue({ afterClose: of(undefined) } as unknown as NzModalRef);
+      component.workflowId = wid;
+
+      await component.onClickOpenShareAccess();
+
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -941,6 +1137,71 @@ describe("MenuComponent", () => {
       });
     });
 
+    describe("heat-map overlay persistence", () => {
+      beforeEach(() => localStorage.clear());
+      afterEach(() => localStorage.clear());
+
+      it("restores a persisted view on init: checkbox on, selector set, view pushed", () => {
+        savePersistedHeatmapView(HeatmapView.IoImbalance);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(true);
+        expect(component.heatmapView).toBe(HeatmapView.IoImbalance);
+        expect(setSpy).toHaveBeenCalledWith(HeatmapView.IoImbalance);
+      });
+
+      it("leaves the overlay off when nothing is persisted", () => {
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("leaves the overlay off for a persisted null view", () => {
+        savePersistedHeatmapView(null);
+        const setSpy = vi.spyOn(workflowActionService.getJointGraphWrapper(), "setHeatmapView");
+
+        component.restorePersistedHeatmapOverlay();
+
+        expect(component.showHeatmap).toBe(false);
+        expect(setSpy).not.toHaveBeenCalled();
+      });
+
+      it("persists the view when the overlay is toggled on, and null when toggled off", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.TimePerRow;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.TimePerRow);
+
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+        expect(loadPersistedHeatmapView()).toBeNull();
+      });
+
+      it("persists a view change made while the overlay is on", () => {
+        component.showHeatmap = true;
+        component.heatmapView = HeatmapView.Runtime;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBe(HeatmapView.IoImbalance);
+      });
+
+      it("does not persist a view browsed while the overlay is off", () => {
+        component.showHeatmap = false;
+        component.toggleHeatmap();
+
+        component.setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(loadPersistedHeatmapView()).toBeNull();
+      });
+    });
+
     describe("toggleStatus", () => {
       it("removes hide-operator-status when enabled and repositions the status label", () => {
         const operator = fakeElement("operator");
@@ -984,104 +1245,24 @@ describe("MenuComponent", () => {
   // (base-duration updates, 1s cadence, restart-on-event, stop-when-idle) and,
   // crucially, that the timer is torn down with the component so it cannot keep
   // firing or leak after destroy.
-  describe("execution duration timer", () => {
-    let durationEvents$: Subject<{ type: "ExecutionDurationUpdateEvent" } & ExecutionDurationUpdateEvent>;
-    let timerFixture: ComponentFixture<MenuComponent>;
-    let timerComponent: MenuComponent;
+  // The clock itself lives in ExecuteWorkflowService now -- anchored and ticked there, so a menu
+  // that mounts mid-run gets where the run has got to instead of starting from zero, which is what
+  // a routed switch between the canvas and the Form View makes. What is left here is that the menu
+  // shows what the service says.
+  describe("execution duration", () => {
+    it("shows the run clock the service reports", () => {
+      const ticks = new BehaviorSubject<number>(7000);
+      vi.spyOn(executeWorkflowService, "getExecutionDurationStream").mockReturnValue(ticks.asObservable());
 
-    function emitDuration(duration: number, isRunning: boolean): void {
-      durationEvents$.next({ type: "ExecutionDurationUpdateEvent", duration, isRunning });
-    }
+      const f = TestBed.createComponent(MenuComponent);
+      f.detectChanges();
 
-    beforeEach(() => {
-      vi.useFakeTimers();
-      durationEvents$ = new Subject();
-      const websocket = TestBed.inject(WorkflowWebsocketService);
-      const original = websocket.subscribeToEvent.bind(websocket);
-      // Only intercept the duration event; defer every other event type to the
-      // real implementation so unrelated subscriptions keep working.
-      vi.spyOn(websocket, "subscribeToEvent").mockImplementation((type: any) =>
-        type === "ExecutionDurationUpdateEvent" ? (durationEvents$.asObservable() as any) : original(type)
-      );
+      // Replayed on subscribe: the value the run was already at when this menu mounted.
+      expect(f.componentInstance.executionDuration).toBe(7000);
 
-      timerFixture = TestBed.createComponent(MenuComponent);
-      timerComponent = timerFixture.componentInstance;
-      timerFixture.detectChanges();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("sets executionDuration to the event's base duration on each event", () => {
-      emitDuration(5000, false);
-      expect(timerComponent.executionDuration).toBe(5000);
-
-      emitDuration(8000, false);
-      expect(timerComponent.executionDuration).toBe(8000);
-    });
-
-    it("advances the duration by 1s every second while running", () => {
-      emitDuration(0, true);
-      expect(timerComponent.executionDuration).toBe(0);
-
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      vi.advanceTimersByTime(2000);
-      expect(timerComponent.executionDuration).toBe(3000);
-    });
-
-    it("does not start a timer when the execution is not running", () => {
-      emitDuration(7000, false);
-
-      vi.advanceTimersByTime(5000);
-
-      expect(timerComponent.executionDuration).toBe(7000);
-    });
-
-    it("restarts the 1s timer on each new running event, cancelling the previous one", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // A new event resets the base duration and restarts the cadence; the
-      // previous timer must be cancelled (switchMap) so it cannot double-count.
-      emitDuration(10000, true);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(10000);
-
-      vi.advanceTimersByTime(500);
-      expect(timerComponent.executionDuration).toBe(11000);
-    });
-
-    it("stops the timer when a running execution transitions to not running", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      emitDuration(2000, false);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(2000);
-    });
-
-    it("tears down the timer on destroy so the duration stops advancing", () => {
-      emitDuration(0, true);
-      vi.advanceTimersByTime(1000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      timerFixture.destroy();
-
-      // The previously running timer must not keep firing after destroy...
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
-
-      // ...nor should late events revive it (the source subscription is closed).
-      emitDuration(9999, true);
-      vi.advanceTimersByTime(5000);
-      expect(timerComponent.executionDuration).toBe(1000);
+      ticks.next(8000);
+      expect(f.componentInstance.executionDuration).toBe(8000);
+      f.destroy();
     });
   });
 
@@ -1208,7 +1389,7 @@ describe("MenuComponent", () => {
     });
 
     it("shows the expand-jupyter button only when the flag is on and a notebook exists", () => {
-      const button = () => fixture.nativeElement.querySelector('button[title="expand Jupyter notebook"]');
+      const button = () => fixture.nativeElement.querySelector('button[title="expand uploaded source code"]');
       // commonTestProviders' MockGuiConfigService defaults the flag to false, and no notebook exists.
       expect(button()).toBeNull();
 
@@ -1236,7 +1417,7 @@ describe("MenuComponent", () => {
       fixture.detectChanges();
 
       const button = fixture.nativeElement.querySelector(
-        'button[title="expand Jupyter notebook"]'
+        'button[title="expand uploaded source code"]'
       ) as HTMLButtonElement;
       button.click();
 
@@ -1316,6 +1497,22 @@ describe("MenuComponent", () => {
     afterEach(() => {
       fixture.destroy();
       vi.restoreAllMocks();
+    });
+
+    // Until the workflow arrives the id is DEFAULT_WORKFLOW's, and the dialog opened on it asks the
+    // backend about workflow 0 and comes back without a Private/Public choice (issue #8599).
+    it("disables the Share button until the workflow id arrives", () => {
+      component.workflowId = undefined;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 0;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(true);
+
+      component.workflowId = 7;
+      fixture.detectChanges();
+      expect(q("#share-button").nativeElement.disabled).toBe(false);
     });
 
     describe("view switch", () => {
