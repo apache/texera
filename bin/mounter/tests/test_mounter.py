@@ -155,6 +155,8 @@ def test_do_mount_asks_for_no_cache_by_default(mounter):
 
 
 def test_do_mount_caches_by_repository_and_commit_when_a_cache_root_is_set(mounter, tmp_path, monkeypatch):
+    # The chart mounts CACHE_ROOT as a volume, so it is already there.
+    (tmp_path / "cache").mkdir()
     monkeypatch.setattr(mounter, "CACHE_ROOT", str(tmp_path / "cache"))
 
     mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
@@ -165,6 +167,18 @@ def test_do_mount_caches_by_repository_and_commit_when_a_cache_root_is_set(mount
     # unit on this node reuses the first one's cache instead of starting cold.
     assert cache_dir == str(tmp_path / "cache" / "dataset-1" / "abc")
     assert os.path.isdir(cache_dir)
+
+
+def test_do_mount_refuses_a_cache_root_that_is_not_there(mounter, tmp_path, monkeypatch):
+    absent = tmp_path / "not-mounted"
+    monkeypatch.setattr(mounter, "CACHE_ROOT", str(absent))
+
+    # Creating it would cache into the container's own filesystem instead of the volume.
+    with pytest.raises(RuntimeError):
+        mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    assert not absent.exists()
+    assert mounter.runs == []
 
 
 def test_do_mount_is_idempotent_for_a_live_mount(mounter, cu_dir):

@@ -242,8 +242,17 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
         "-o", "ro,allow_other",
     ]
     if CACHE_ROOT:
+        # CACHE_ROOT itself is never created here, only the two levels under it. The chart
+        # mounts it as a volume, so if it is missing the volume is missing -- and creating
+        # it would put the cache in the container's own writable layer, where it is lost on
+        # restart and can fill the node's disk with hundreds of GB nobody is watching.
+        if not os.path.isdir(CACHE_ROOT):
+            raise RuntimeError(
+                f"CACHE_ROOT {CACHE_ROOT!r} is not a directory; is the cache volume mounted?"
+            )
         # Keyed by repository and commit, not by computing unit: a commit is immutable, so
         # every unit on this node reads one cache rather than each new unit starting cold.
+        # Both are already validated as single path segments above.
         cache_dir = os.path.join(CACHE_ROOT, repo, commit)
         os.makedirs(cache_dir, exist_ok=True)
         cmd += ["--cache", cache_dir]
