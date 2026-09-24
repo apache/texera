@@ -1122,6 +1122,54 @@ describe("WorkflowActionService", () => {
       }
     });
 
+    // A document that is not connecting to a room has no sync to wait for, and one that has
+    // already synced (a version reloaded into the open document) has nothing more to learn from
+    // it: the seed goes in at once, so the value is in the document and not only held here.
+    it("seeds at once into a document that is not connecting to a room", () => {
+      texeraGraph.sharedModel.wsProvider.shouldConnect = false;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    it("seeds at once into a document that has already synced", () => {
+      texeraGraph.sharedModel.wsProvider.synced = true;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // A second open before the first seed has landed (a version reloaded into the document while
+    // it was still syncing) supersedes it: only the later copy may go in, or the earlier one would
+    // take the key first and the later one, finding it present, would leave it there.
+    it("lets a later open supersede a seed still waiting for the sync", () => {
+      const earlier: FormBindingConfig = { fields: [], instruction: { title: "earlier", body: "superseded" } };
+      service.hydrateFormBinding(earlier);
+      service.hydrateFormBinding(config);
+
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // The graph observers stay quiet while a workflow is being opened, and this one does the same:
+    // a map write made under the reloading flag is part of the open, not an edit to announce.
+    it("does not announce a map change made while a workflow is reloading", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+      service.getJointGraphWrapper().setReloadingWorkflow(true);
+      try {
+        texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+      } finally {
+        service.getJointGraphWrapper().setReloadingWorkflow(false);
+      }
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
     // Setting the same value again must not write, or every collaborator gets a redundant Yjs
     // update and the observer re-fires for a change that is not one.
     it("does not re-announce a form binding that is unchanged", () => {
