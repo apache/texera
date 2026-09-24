@@ -55,9 +55,9 @@ final class EncodableInspector[C <: blackbox.Context](val c: C) {
     *
     * The hop is conditional because it is not always possible. A trait member has no backing field
     * of its own, so its accessor's `accessed` is `NoSymbol`, and hopping there unconditionally
-    * would throw the annotation away: `@EncodableStringAnnotation` also targets `METHOD`, and for a
-    * trait `val`/`var` scalac leaves it on the accessor itself. Fall back to the accessor so those
-    * members are still recognised as Encodable.
+    * would throw the annotation away: with no field to carry them, a trait `val`/`var` keeps its
+    * annotations on the accessor itself, whatever the annotation's `@Target`. Fall back to the
+    * accessor so those members are still recognised as Encodable.
     *
     * (Only `TermSymbol` is matched: `MethodSymbol` is a subtype of it, so a getter - which is both -
     * is already covered here.)

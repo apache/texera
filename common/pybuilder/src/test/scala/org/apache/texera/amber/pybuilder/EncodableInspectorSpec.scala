@@ -549,10 +549,10 @@ class EncodableInspectorSpec extends AnyFunSuite {
   // `safeAccessed` hops from an accessor to the field it accesses, because a class
   // `val` parks its annotations on that field. A trait member has no field of its
   // own, so the hop lands on `NoSymbol`, and scalac leaves the marker on the
-  // accessor instead (`@EncodableStringAnnotation` targets `METHOD` as well as
-  // `FIELD`). Losing it fails *open* - the string is emitted raw rather than
-  // encoded, with no diagnostic - so the fallback is a safety property, not a
-  // convenience.
+  // accessor instead - for any annotation, whatever its `@Target` (a `FIELD`-only
+  // one stays there too). Losing it fails *open* - the string is emitted raw
+  // rather than encoded, with no diagnostic - so the fallback is a safety
+  // property, not a convenience.
   // ========================================================================
 
   test("a trait's marked val is Encodable even though its accessor has no backing field") {
