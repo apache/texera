@@ -46,6 +46,10 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
   private def carries(output: String, name: String): Boolean =
     output.contains(b64(name))
 
+  /** The exact runtime decode expression an EncodableString column renders into. */
+  private def decodeSite(name: String): String =
+    s"self.decode_python_template('${b64(name)}')"
+
   private def configured(): HuggingFaceSentimentAnalysisOpDesc = {
     val d = new HuggingFaceSentimentAnalysisOpDesc
     d.attribute = "text"
@@ -82,6 +86,48 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
   }
 
+  it should "return null when a result column is set but blank" in {
+    // Each of the three guards has a null half and a whitespace half. The whitespace
+    // half is the one a user actually hits: a cleared-out text box arrives as "   ",
+    // not as null, and a schema whose column name is blank is not a usable schema.
+    val in = Schema().add("text", AttributeType.STRING)
+    val blanks = Seq("", "   ", "\t")
+    blanks.foreach { blank =>
+      val d = configured()
+      d.resultAttributePositive = blank
+      withClue(s"positive = [$blank]: ") {
+        d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
+      }
+    }
+  }
+
+  it should "return null when only the neutral result column is unset" in {
+    // Split out per column: a copy-pasted guard that re-tests `resultAttributePositive`
+    // in the neutral clause passes the "all three unset" case and this one is what
+    // catches it.
+    val in = Schema().add("text", AttributeType.STRING)
+
+    val nulled = configured()
+    nulled.resultAttributeNeutral = null
+    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
+
+    val blanked = configured()
+    blanked.resultAttributeNeutral = "   "
+    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
+  }
+
+  it should "return null when only the negative result column is unset" in {
+    val in = Schema().add("text", AttributeType.STRING)
+
+    val nulled = configured()
+    nulled.resultAttributeNegative = null
+    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
+
+    val blanked = configured()
+    blanked.resultAttributeNegative = "   "
+    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
+  }
+
   it should "append the three sentiment columns as DOUBLE, keyed by the declared output port" in {
     val d = configured()
     val in = Schema().add("text", AttributeType.STRING)
@@ -105,6 +151,17 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     carries(code, "pos") shouldBe true
     // EncodableString columns are base64-encoded, not embedded raw.
     code should not include "\"text\"]"
+
+    // `carries` is a bare substring probe, so it stays true no matter which model label
+    // a column is attached to. The label -> column map is the whole point of this
+    // operator: `labels[self.config.id2label[...]]` is what decides whether a negative
+    // score lands in the negative column, so pin the PAIRING, not just the presence.
+    val labelsLine = code.linesIterator
+      .find(_.contains("labels = {"))
+      .getOrElse(fail("generated code no longer builds the label->column map"))
+    labelsLine should include("\"positive\": " + decodeSite("pos"))
+    labelsLine should include("\"neutral\": " + decodeSite("neu"))
+    labelsLine should include("\"negative\": " + decodeSite("neg"))
   }
 
   it should "guard an empty text cell before it reaches the tokenizer" in {
@@ -118,6 +175,18 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
       .getOrElse(fail("generated code no longer guards an empty text cell"))
     guard should include("strip()")
     code.indexOf("text is None") should be < code.indexOf("self.tokenizer(")
+
+    // getOutputSchemas advertises all three score columns on the output port, so the
+    // row this path yields has to carry all three keys -- a fill loop that blanks only
+    // two of them emits a tuple that does not match the schema the operator declared.
+    val fill = code.linesIterator
+      .find(_.contains("for label in ("))
+      .getOrElse(fail("generated code no longer blanks the score columns for an empty cell"))
+    Seq("pos", "neu", "neg").foreach { column =>
+      withClue(s"$column missing from the empty-cell fill: ") {
+        fill should include(decodeSite(column))
+      }
+    }
   }
 
   "HuggingFaceSentimentAnalysisOpDesc.getPhysicalOp" should

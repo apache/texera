@@ -354,7 +354,18 @@ export class WorkflowResultExportService {
    */
   public resetFlags(): void {
     this.hasResultToExportOnHighlightedOperators = false;
-    this.hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+    // The same subject, not a fresh one: replacing it silently orphaned whoever was subscribed.
+    this.hasResultToExportOnAllOperators.next(false);
+  }
+
+  /**
+   * Recompute the export flags from what is in hand. The menu resets them on destroy, which is
+   * right when the workspace is left and its results cleared, and wrong when a workflow's two
+   * views hand over and the results are kept: the arriving menu would otherwise read `false` for
+   * results that are still there, until the next execution or result event happened to recompute.
+   */
+  public refreshExportAvailability(): void {
+    this.updateExportAvailabilityFlags();
   }
 
   getExportOnAllOperatorsStatusStream(): Observable<boolean> {

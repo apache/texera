@@ -280,6 +280,56 @@ class FileResolverSpec
     assert(FileResolver.parseDatasetOwnerAndName(null).isEmpty)
   }
 
+  "resolveRepositoryVersion" should "resolve a dataset version path to its repository and commit" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset/v2")
+        == ((testDataset.getRepositoryName, testDatasetVersion2.getVersionHash))
+    )
+  }
+
+  it should "resolve a model version path to its repository and commit" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/model/test_user@test.com/test_model/v1")
+        == ((testModel.getRepositoryName, testModelVersion1.getVersionHash))
+    )
+  }
+
+  it should "resolve a legacy unprefixed dataset version path" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/test_user@test.com/test_dataset/v1")
+        == ((testDataset.getRepositoryName, testDatasetVersion1.getVersionHash))
+    )
+  }
+
+  it should "reject a path that names a file rather than a version" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion(dataset1TxtFilePath)
+    }
+  }
+
+  it should "reject a path that stops short of a version" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset")
+    }
+  }
+
+  it should "reject an empty or null path" in {
+    assertThrows[FileNotFoundException](FileResolver.resolveRepositoryVersion(""))
+    assertThrows[FileNotFoundException](FileResolver.resolveRepositoryVersion(null))
+  }
+
+  it should "reject a version that does not exist" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset/v99")
+    }
+  }
+
+  it should "not resolve a model under the dataset prefix" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_model/v1")
+    }
+  }
+
   override protected def afterAll(): Unit = {
     closeConnectionPool()
   }

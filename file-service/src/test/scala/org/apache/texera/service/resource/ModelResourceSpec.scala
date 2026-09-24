@@ -492,7 +492,7 @@ class ModelResourceSpec
     }
   }
 
-  "listModels" should "include public models owned by another user" in {
+  "listModels" should "omit public models owned by another user" in {
     val othersPublic = modelResource.createModel(
       ModelResource.CreateModelRequest(
         modelName = "others-public-model",
@@ -505,10 +505,14 @@ class ModelResourceSpec
       sessionUser2
     )
 
-    val listed = modelResource.listModels(sessionUser)
-    val entry = listed.find(_.model.getMid == othersPublic.model.getMid)
-    entry should not be empty
-    entry.get.isOwner shouldBe false
-    entry.get.accessPrivilege shouldEqual PrivilegeEnum.READ
+    // /model/list backs the "Your Work" page, so it lists only what the caller was granted.
+    // Public models are discovered through the hub and fetched with getPublicModel.
+    modelResource
+      .listModels(sessionUser)
+      .find(_.model.getMid == othersPublic.model.getMid) shouldBe empty
+    modelResource
+      .getPublicModel(othersPublic.model.getMid)
+      .model
+      .getMid shouldEqual othersPublic.model.getMid
   }
 }

@@ -87,7 +87,7 @@ class LakekeeperClient(
 
   /**
     * Creates a warehouse backed by this deployment's own object store (the Local flavor):
-    * the storage profile points at the configured MinIO/S3 endpoint and bucket, with the
+    * the storage profile points at the configured S3 endpoint and bucket, with the
     * platform's static credentials and STS off.
     *
     * @return the Lakekeeper-assigned warehouse id.

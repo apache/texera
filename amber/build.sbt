@@ -35,10 +35,6 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
-// to turn on, use: INFO
-// to turn off, use: WARNING
-scalacOptions ++= Seq("-Xelide-below", "WARNING")
-
 // to check feature warnings
 scalacOptions += "-feature"
 // to check deprecation warnings
@@ -82,7 +78,7 @@ PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Pekko related
-val pekkoVersion = "1.6.0"
+val pekkoVersion = "1.7.0"
 val pekkoDependencies = Seq(
   "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
   "org.apache.pekko" %% "pekko-remote" % pekkoVersion,

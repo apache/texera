@@ -244,7 +244,7 @@ export class JupyterPanelService {
       error: (err: unknown) => {
         // Keep the panel open on failure so the user sees the notebook wasn't removed.
         console.error("Failed to delete Jupyter notebook:", err);
-        this.notificationService.error("Failed to delete the Jupyter notebook.");
+        this.notificationService.error("Failed to delete the uploaded source code.");
       },
     });
   }
@@ -290,7 +290,7 @@ export class JupyterPanelService {
     const mappingKey = notebookMappingKey(wid);
     // Check if there is corresponding mapping data
     if (wid === undefined || !this.notebookMigrationService.hasMapping(mappingKey)) {
-      this.notificationService.warning("No Jupyter notebook associated with this workflow.");
+      this.notificationService.warning("No source code associated with this workflow.");
       return;
     }
 

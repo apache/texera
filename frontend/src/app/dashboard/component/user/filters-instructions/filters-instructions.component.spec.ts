@@ -89,7 +89,6 @@ describe("FiltersInstructionsComponent", () => {
         "Search by Workflow Owner: owner: John",
         "Search by Workflow Id: id: workflowId",
         "Search by Workflows' Operators: operator: operatorName",
-        "Search by User Projects: project: projectName",
       ]);
     });
 

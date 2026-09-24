@@ -108,6 +108,24 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
+  it should "produce no rows when the attribute is empty" in {
+    opDesc.attribute = "field1"
+    opDesc.delimiter = "-"
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
+    // A blank CSV cell arrives as null. This used to throw a NullPointerException on
+    // the toString instead of unnesting to nothing.
+    val tuple: Tuple = Tuple
+      .builder(tupleSchema)
+      .add(new Attribute("field1", AttributeType.STRING), null)
+      .add(new Attribute("field2", AttributeType.INTEGER), 1)
+      .add(new Attribute("field3", AttributeType.STRING), "a")
+      .build()
+
+    opExec.open()
+    assert(opExec.processTuple(tuple, 0).isEmpty)
+    opExec.close()
+  }
+
   it should "split by regex delimiter" in {
     opDesc.attribute = "field1"
     opDesc.delimiter = "<\\d*>"

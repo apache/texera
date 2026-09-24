@@ -130,6 +130,83 @@ describe("BreakpointConditionInputComponent", () => {
       expect(component.topPosition).toBe("55px");
       expect(component.leftPosition).toBe("-120px");
     });
+
+    it("substitutes zero offsets when the editor has no dom node and no glyph margin", () => {
+      // Monaco reports no DOM node until the editor is attached, and a hidden
+      // glyph margin reports 0. The remaining terms stay non-zero (line bottom
+      // 40, scrollTop 5), so a stub that simply returned 0 everywhere would not
+      // produce the numbers asserted below.
+      mockUdfDebugService.getCondition.mockReturnValue("x > 1");
+      component.monacoEditor = {
+        getLayoutInfo: () => ({ glyphMarginLeft: 0 }),
+        getDomNode: () => undefined,
+        getBottomForLineNumber: () => 40,
+        getScrollTop: () => 5,
+        getScrollLeft: () => 0,
+        dispose: vi.fn(),
+      } as unknown as editor.IStandaloneCodeEditor;
+      component.lineNum = 3;
+      const changes: SimpleChanges = {
+        lineNum: { currentValue: 3, previousValue: 1, firstChange: false, isFirstChange: () => false },
+      };
+
+      component.ngOnChanges(changes);
+
+      // top: 0 (no rect) + 40 (line bottom) - 5 (scrollTop)
+      expect(component.topPosition).toBe("35px");
+      // left: 0 (no rect) + 0 (glyph margin) - 160 (popup width)
+      expect(component.leftPosition).toBe("-160px");
+      // top() reaches the same missing rect through its own fallback.
+      expect(component.top()).toBe(35);
+    });
+
+    it("defaults the condition to empty when the debugger holds none for that line", () => {
+      mockUdfDebugService.getCondition.mockReturnValue(undefined as unknown as string);
+      component.lineNum = 4;
+      const changes: SimpleChanges = {
+        lineNum: { currentValue: 4, previousValue: 1, firstChange: false, isFirstChange: () => false },
+      };
+      // Seed a stale value first. `condition` initialises to "" on the class, so
+      // without this the assertion below would also hold if ngOnChanges never
+      // assigned anything at all -- it has to observe an overwrite.
+      component.condition = "stale from the previous line";
+
+      component.ngOnChanges(changes);
+
+      // An unset breakpoint yields an empty box, not "undefined" in the input.
+      expect(component.condition).toBe("");
+    });
+  });
+
+  describe("the condition textarea", () => {
+    const textarea = (): HTMLTextAreaElement => fixture.nativeElement.querySelector("textarea.condition-textarea");
+
+    it("carries the current condition into the textarea", async () => {
+      component.condition = "x > 1";
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(textarea().value).toBe("x > 1");
+    });
+
+    it("saves what the user types, not what the class was holding", async () => {
+      // Every other test in this file writes `condition` from the class side, so the *inbound*
+      // half of the two-way binding is all that is pinned: downgrade the template to a one-way
+      // [ngModel] and the whole suite stays green while the popup silently discards every
+      // keystroke. Drive a real input event and then let the save path read it back.
+      component.condition = "stale";
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      textarea().value = " y != 2 ";
+      textarea().dispatchEvent(new Event("input"));
+
+      expect(component.condition).toBe(" y != 2 ");
+
+      component.handleEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(mockUdfDebugService.doUpdateBreakpointCondition).toHaveBeenCalledWith("test-operator", 1, "y != 2");
+    });
   });
 
   describe("visibility", () => {
@@ -201,6 +278,46 @@ describe("BreakpointConditionInputComponent", () => {
 
     component.handleEvent(); // Simulate focusout
 
+    expect(emitSpy).toHaveBeenCalled();
+  });
+
+  it("saves the condition when Enter is pressed anywhere in the window", () => {
+    // Every other test in this file calls handleEvent() directly, which leaves
+    // the @HostListener("window:keydown") wiring itself unexercised: deleting
+    // that decorator keeps the whole suite green. Drive a real window event.
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
+    component.condition = " x > 1 ";
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+
+    expect(mockUdfDebugService.doUpdateBreakpointCondition).toHaveBeenCalledWith("test-operator", 1, "x > 1");
+    expect(emitSpy).toHaveBeenCalled();
+  });
+
+  it("ignores an ordinary keystroke arriving at the window", () => {
+    // The negative half of the same host binding, and the only test that pins
+    // its ["$event"] argument list: without the argument, Angular calls
+    // handleEvent() with no event, the key filter reads as focus-out, and every
+    // keystroke anywhere in the window saves the condition and closes the popup.
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a", cancelable: true }));
+
+    expect(mockUdfDebugService.doUpdateBreakpointCondition).not.toHaveBeenCalled();
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
+  it("saves and closes when the host element emits focusout", () => {
+    // The twin of the keydown binding, and it has the same gap: the pre-existing
+    // focusout test calls handleEvent() directly, so removing
+    // @HostListener("focusout") leaves the whole suite green while the popup
+    // silently stops saving on blur.
+    const emitSpy = vi.spyOn(component.closeEmitter, "emit");
+    component.condition = " y > 2 ";
+
+    fixture.nativeElement.dispatchEvent(new Event("focusout"));
+
+    expect(mockUdfDebugService.doUpdateBreakpointCondition).toHaveBeenCalledWith("test-operator", 1, "y > 2");
     expect(emitSpy).toHaveBeenCalled();
   });
 });

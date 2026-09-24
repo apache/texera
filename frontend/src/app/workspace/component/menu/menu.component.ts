@@ -22,32 +22,33 @@ import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@ang
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { Workflow, WorkflowContent } from "../../../common/type/workflow";
+import { exportedWorkflow, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, filter, mergeMap, switchMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
-import { saveAs } from "file-saver";
+import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { EMPTY, firstValueFrom, of, timer } from "rxjs";
-import { isDefined } from "../../../common/util/predicate";
+import { firstValueFrom, of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
-import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -66,6 +67,7 @@ import { UserIconComponent } from "../../../dashboard/component/user/user-icon/u
 import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
+import { NzRadioComponent, NzRadioGroupComponent } from "ng-zorro-antd/radio";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
@@ -110,6 +112,8 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
     NzMenuDirective,
     NzMenuItemComponent,
     NzCheckboxComponent,
+    NzRadioComponent,
+    NzRadioGroupComponent,
     NgTemplateOutlet,
     ComputingUnitSelectionComponent,
     NzPopoverDirective,
@@ -128,6 +132,10 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
+  /** A Form View hand-over is in progress (saving, then the route); a second click is a no-op. */
+  private handingOverToFormView = false;
+  /** An edit has been reported since the hand-over's last save snapshot (see onClickOpenFormView). */
+  private editedSinceSwitchSnapshot = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
@@ -135,10 +143,12 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
+  public showHeatmap: boolean = false;
+  public heatmapView: HeatmapView = HeatmapView.Runtime;
+  public HeatmapView = HeatmapView; // make Angular HTML access enum definition
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
-  @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -175,7 +185,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
     public workflowUtilService: WorkflowUtilService,
-    private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
@@ -183,21 +192,20 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
+    private warehouseService: WarehouseService,
     protected config: GuiConfigService,
     private router: Router,
-    private jupyterPanelService: JupyterPanelService
+    private jupyterPanelService: JupyterPanelService,
+    private fileSaverService: FileSaverService
   ) {
-    workflowWebsocketService
-      .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(
-        tap(event => (this.executionDuration = event.duration)),
-        // restart the 1s timer on each event, only while running
-        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.executionDuration += 1000;
-      });
+    // From the service, not from the engine's event directly: that event arrives twice in a whole
+    // run, so a timer hung off it never started for a menu that mounted in between -- which is what
+    // a routed switch between the canvas and the Form View makes. The service anchors the clock and
+    // ticks it, and replays the current value to whoever subscribes.
+    executeWorkflowService
+      .getExecutionDurationStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(duration => (this.executionDuration = duration));
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -215,6 +223,18 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public ngOnInit(): void {
+    this.restorePersistedHeatmapOverlay();
+    // The export flags are reset when a menu is destroyed, which is right when the workspace is
+    // left and wrong when a workflow's two views hand over and the results are kept. Recompute
+    // from what is in hand, so a menu arriving on retained results does not offer a dead button.
+    this.workflowResultExportService.refreshExportAvailability();
+    // Marks an edit for the Form View hand-over (see onClickOpenFormView): set the moment an edit is
+    // reported, before the autosave debounce, cleared when the switch's save snapshots the workflow.
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => (this.editedSinceSwitchSnapshot = true));
+
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
@@ -270,6 +290,17 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.computingUnitStatus = status;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
+
+    // The warehouse pick also feeds getRunButtonBehavior (#7817); without this
+    // the snapshot keeps saying "Run" after the load leaves no warehouse, and
+    // "Create Warehouse" after one is created. Every relevant transition ends
+    // in a selectWarehouse call, so the pick stream covers them all.
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
   }
 
   /**
@@ -316,7 +347,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The workflow id only arrives with the workflow: the canvas resets to `DEFAULT_WORKFLOW` (wid 0)
+   * on every load, so until the fetch lands there is nothing to share. Opening the dialog in that
+   * window asked the backend about workflow 0 and came back without a Private/Public choice, which
+   * is the gesture issue #8599 reports. The button is disabled for the same window.
+   */
   public async onClickOpenShareAccess(): Promise<void> {
+    if (!this.workflowId) {
+      return;
+    }
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
@@ -383,10 +423,35 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // no computing unit, show "Connect" button
+    // No computing unit: name the thing that is missing, the way the warehouse
+    // gate below does, and let the click open the create dialog.
     if (this.computingUnitStatus === ComputingUnitState.NoComputingUnit) {
       return {
-        text: "Connect",
+        text: "Computing Unit",
+        icon: "plus-circle",
+        disable: false,
+        onClick: () => this.runWorkflow(),
+      };
+    }
+
+    // Per-user warehouses enabled but none to write to (#7817): mirror the
+    // Connect state above — same word as the picker's own empty state, and
+    // runWorkflow() routes
+    // the click into the create-warehouse modal. Only in the states whose
+    // button would start a run: mid-execution the button is Pause/Resume/Kill,
+    // and losing the last warehouse must not take that control away.
+    if (
+      this.computingUnitSelectionComponent?.warehouseRequiredButMissing &&
+      [
+        ExecutionState.Uninitialized,
+        ExecutionState.Completed,
+        ExecutionState.Terminated,
+        ExecutionState.Killed,
+        ExecutionState.Failed,
+      ].includes(this.executionState)
+    ) {
+      return {
+        text: "Warehouse",
         icon: "plus-circle",
         disable: false,
         onClick: () => this.runWorkflow(),
@@ -537,6 +602,37 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.getJointGraphWrapper().setRegionsDisplayed(this.showRegion);
   }
 
+  public toggleHeatmap(): void {
+    // The editor subscribes to this stream and colors operator fills (canvas + mini-map).
+    // A null view turns the overlay off; a view enables it.
+    const view = this.showHeatmap ? this.heatmapView : null;
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+    savePersistedHeatmapView(view);
+  }
+
+  public setHeatmapView(view: HeatmapView): void {
+    this.heatmapView = view;
+    if (this.showHeatmap) {
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+      savePersistedHeatmapView(view);
+    }
+  }
+
+  /**
+   * Restores the persisted heat-map overlay state (Layers > Performance) on
+   * workspace entry. Only the Performance layer persists; the other canvas
+   * layers stay session-only.
+   */
+  public restorePersistedHeatmapOverlay(): void {
+    const view = loadPersistedHeatmapView();
+    if (view === null) {
+      return;
+    }
+    this.showHeatmap = true;
+    this.heatmapView = view;
+    this.workflowActionService.getJointGraphWrapper().setHeatmapView(view);
+  }
+
   /**
    * This method will run the autoLayout function
    *
@@ -600,10 +696,109 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public onClickExportWorkflow(): void {
-    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent, null, 2);
+    // The same shape the dashboard download produces (see exportedWorkflow): the content plus the
+    // landing view as a sibling key, so a file exported here uploads as a form-default workflow too.
+    const exported = exportedWorkflow(
+      this.workflowActionService.getWorkflowContent(),
+      this.workflowActionService.getWorkflowMetadata().defaultView
+    );
+    const workflowContentJson = JSON.stringify(exported, null, 2);
     const fileName = this.currentWorkflowName + ".json";
-    saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+    // Through the injectable wrapper (as the dashboard downloads already do), so a spec stubs it
+    // with TestBed instead of module-mocking the CommonJS file-saver package, which the unit-test
+    // builder cannot hoist reliably.
+    this.fileSaverService.saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  /**
+   * Open the Form View. A route, not a page load: the two views are views of one open workflow,
+   * and this canvas keeps the session -- the shared document and its room, the computing unit,
+   * the execution -- for the Form View to attach to (see WorkspaceComponent.ngOnDestroy). A
+   * writer's edits are saved first; see below for why the order matters.
+   */
+  public onClickOpenFormView(): void {
+    const wid = this.workflowActionService.getWorkflowMetadata().wid;
+    if (wid === undefined || this.handingOverToFormView) {
+      return;
+    }
+    // A reader has nothing to save, and every save of theirs is a guaranteed 403 that would keep
+    // them here with an error: straight over, as the form's own switch does for a reader.
+    if (!this.writeAccess) {
+      this.openFormViewPage(wid);
+      return;
+    }
+    // Save first, and hand over only once the save has completed. A route aborts no request, so
+    // this is no longer about losing the edit in flight; it is about where a failure lands. The
+    // switch is the moment a writer expects what they typed here to be stored, and a save that
+    // fails keeps them here, on the view they edited in, with the error in front of them -- rather
+    // than carrying changes that were never stored into a view that has no reason to say so. The
+    // form's own switch (openRegularCanvas) does the same.
+    //
+    // Two more things the hand-over must not lose. An autosave already in flight when the switch
+    // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
+    // it and completes after it. And an edit made while our save is out (the page stays editable
+    // until the route): workflowChanged marks it, and the drain below saves once more before handing
+    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
+    this.handingOverToFormView = true;
+    this.isSaving = true;
+    this.saveThenOpenFormView(wid);
+  }
+
+  private saveThenOpenFormView(wid: number): void {
+    // The snapshot below carries everything reported up to now.
+    this.editedSinceSwitchSnapshot = false;
+    // A workflow the canvas holds but has never saved carries the default id (0); the save creates
+    // it and answers with the id it was given, which is the one to open -- as the autosave, which
+    // moves the URL to the answered id, already does.
+    let target = wid;
+    this.workflowPersistService
+      .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (updatedWorkflow: Workflow) => {
+          target = updatedWorkflow.wid ?? wid;
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+        },
+        error: () => {
+          this.isSaving = false;
+          this.handingOverToFormView = false;
+          // The same wording as the form's own save, so the two switches read alike.
+          this.notificationService.error("Could not save. Your latest changes are not stored yet.");
+        },
+        complete: () => {
+          if (this.editedSinceSwitchSnapshot) {
+            // An edit landed while the save was out; store it here rather than leave it to an
+            // autosave that would fire under the other view.
+            this.saveThenOpenFormView(target);
+            return;
+          }
+          this.isSaving = false;
+          this.openFormViewPage(target);
+        },
+      });
+  }
+
+  /**
+   * The hand-over to the Form View, apart from the save so the order is testable.
+   *
+   * A route, not a page load: the two views are views of one open workflow, and reloading threw
+   * away everything that made the workflow live -- the shared document, the computing unit
+   * connection, the execution state -- only to rebuild it on the other side. The canvas keeps
+   * the session on its way out (see its ngOnDestroy) and the Form View attaches to it.
+   *
+   * A navigation can be refused or cancelled, and unlike a page load that leaves this page in
+   * place, with the hand-over flag still raised and the Form View button dead for the rest of the
+   * session. So the flag comes down on anything but success -- on success this component is gone.
+   */
+  private openFormViewPage(wid: number): void {
+    this.router.navigateByUrl(workspaceFormUrl(wid)).then(
+      navigated => {
+        if (!navigated) {
+          this.handingOverToFormView = false;
+        }
+      },
+      () => (this.handingOverToFormView = false)
+    );
   }
 
   /**
@@ -653,15 +848,12 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    let localPid = this.pid;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(
         tap((updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
         }),
-        filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
-        mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
         untilDestroyed(this)
       )
       .subscribe({
@@ -797,6 +989,14 @@ export class MenuComponent implements OnInit, OnDestroy {
 
       // Show the modal in the ComputingUnitSelectionComponent, seeding the name field
       this.computingUnitSelectionComponent.showAddComputeUnitModalVisible(defaultName);
+      return;
+    }
+
+    // Per-user warehouses enabled but none to write to (#7817): an execution
+    // must have a warehouse, so lead to the create-warehouse modal instead of
+    // running — the same shape as the Connect flow above.
+    if (this.computingUnitSelectionComponent.warehouseRequiredButMissing) {
+      this.computingUnitSelectionComponent.showAddWarehouseModalVisible();
       return;
     }
 

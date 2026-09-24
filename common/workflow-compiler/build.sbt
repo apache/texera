@@ -26,8 +26,6 @@ scalacOptions += "-Ymacro-annotations"
 // Scala compiler options (mirrors the other common modules; `-Ywarn-unused:imports`
 // is required by the scalafix RemoveUnused rule that CI runs via scalafixAll).
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below",
-  "WARNING",
   "-feature",
   "-deprecation",
   "-Ywarn-unused:imports"
