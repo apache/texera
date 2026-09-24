@@ -20,9 +20,9 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
-import com.twitter.util.{Future, JavaTimer, Return, Throw, Timer}
+import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{DocumentFactory, RepositoryMountManager, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
@@ -116,7 +116,9 @@ class RegionExecutionManager(
     // Loop bookkeeping addresses (Loop Start logical op id -> its input
     // port's BASE materialization URI), shipped to every worker in
     // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
-    loopStartPortUris: Map[String, String] = Map.empty
+    loopStartPortUris: Map[String, String] = Map.empty,
+    // Mounts the repositories a region's operators name; a parameter so a test can observe it.
+    ensureMounted: Set[String] => Unit = RepositoryMountManager.ensureAllMounted
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -131,6 +133,9 @@ class RegionExecutionManager(
     Unexecuted
   )
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
+  // Both launch phases pass through launchPhaseExecutionInternal; the second must await the
+  // first's mount rather than repeat it or race past it, hence a shared future, not a flag.
+  private val mountFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
 
   /**
     * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
@@ -353,6 +358,23 @@ class RegionExecutionManager(
   }
 
   /**
+    * Mount every repository this region's operators name before any of them receives its code,
+    * which already refers to the mount paths. It happens here rather than in a worker because
+    * workers are created before either phase launches. Operators carry no mount code: they only
+    * name what they need, through `PhysicalOp.mountLocators`.
+    */
+  private def mountRegionRepositories(): Future[Unit] = {
+    val mount = Promise[Unit]()
+    if (mountFutureRef.compareAndSet(null, mount)) {
+      mount.become(Future {
+        val locators = region.getOperators.flatMap(_.mountLocators)
+        if (locators.nonEmpty) ensureMounted(locators)
+      })
+    }
+    mountFutureRef.get
+  }
+
+  /**
     * Unified logic for launching either of the two phases asynchronously.
     */
   private def launchPhaseExecutionInternal(
@@ -383,6 +405,7 @@ class RegionExecutionManager(
       )
     )
     Future(())
+      .flatMap(_ => mountRegionRepositories())
       .flatMap(_ => initExecutors(operatorsToRun, resourceConfig))
       .flatMap(_ => assignPortsLogic())
       .flatMap(_ => connectChannelsLogic())
@@ -446,11 +469,12 @@ class RegionExecutionManager(
         operators
           .flatMap(physicalOp => {
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
+            val opExecInitInfo = physicalOp.executableOpExecInitInfo
             workerConfigs.map(_.workerId).map { workerId =>
               asyncRPCClient.workerInterface.initializeExecutor(
                 InitializeExecutorRequest(
                   workerConfigs.length,
-                  physicalOp.opExecInitInfo,
+                  opExecInitInfo,
                   physicalOp.isSourceOperator,
                   loopStartPortUris
                 ),

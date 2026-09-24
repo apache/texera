@@ -64,6 +64,20 @@ export class WorkflowResultService {
     return this.hasResult(operatorID) || this.hasPaginatedResult(operatorID);
   }
 
+  /**
+   * Whether the operator produced an actual, non-empty result. A step marked view-result still
+   * registers a (paginated) result service with zero tuples -- e.g. a UDF that only writes a file
+   * or logs -- so hasAnyResult alone is true for those. This checks the tuple count / snapshot
+   * length so an empty result reads as "no result".
+   */
+  public hasNonEmptyResult(operatorID: string): boolean {
+    const paginated = this.getPaginatedResultService(operatorID);
+    if (paginated) {
+      return paginated.getCurrentTotalNumTuples() > 0;
+    }
+    return (this.getResultService(operatorID)?.getCurrentResultSnapshot()?.length ?? 0) > 0;
+  }
+
   public hasResult(operatorID: string): boolean {
     return isDefined(this.getResultService(operatorID));
   }

@@ -60,6 +60,7 @@ export class AuthService {
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
   public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
+  public static readonly APPLE_LOGIN_ENDPOINT = "auth/apple/login";
   public static readonly SET_EMAIL_ENDPOINT = "auth/email";
   public static readonly SET_EMAIL_CODE_ENDPOINT = "auth/email/code";
   public static readonly REGISTER_VERIFY_ENDPOINT = "auth/register/verify";
@@ -137,6 +138,20 @@ export class AuthService {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.ORCID_LOGIN_ENDPOINT}`,
       code,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  /** Exchanges an Apple identity token for a Texera access token. */
+  public appleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.APPLE_LOGIN_ENDPOINT}`,
+      credential,
       {
         headers: {
           "Content-Type": "text/plain",
