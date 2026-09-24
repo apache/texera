@@ -82,10 +82,6 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, MapHasAsJava, SeqHasA
   *     then rethrows so the container sees it too. Both halves are asserted: dropping either the
   *     send or the rethrow would leave the other silently missing.
   *
-  * Worth knowing, and the reason there is no malformed-frame test here: `objectMapper.readValue`
-  * sits OUTSIDE the try, so an unparseable frame escapes un-mapped and the client is told nothing.
-  * That looks like an oversight, but pinning today's behaviour would cement it.
-  *
   * Everything here drives a mocked `javax.websocket.Session` (the pattern `CollaborationResourceSpec`
   * established) and registers a `SessionState` directly, so no real workflow is created.
   *
@@ -381,6 +377,18 @@ class WorkflowWebsocketResourceSpec
     resource.myOnMsg(session, frameOf(HeartBeatRequest()))
 
     sentTypes(sent) shouldBe Seq("HeartBeatResponse")
+  }
+
+  it should "report a malformed frame to the client" in {
+    val (session, sent) = mockSession()
+    registerState(session, PrivilegeEnum.WRITE)
+
+    intercept[Exception] {
+      resource.myOnMsg(session, "{")
+    }
+
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    fatalErrorMessages(sent).head should include("Unexpected end-of-input")
   }
 
   // -- the write-access gate ----------------------------------------------------
