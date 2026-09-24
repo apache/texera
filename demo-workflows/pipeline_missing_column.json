@@ -1,0 +1,200 @@
+{
+  "operators": [
+    {
+      "operatorID": "TextInput-demo-pipeline",
+      "operatorType": "TextInput",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "textInput": "Ad Astra\nThe Irishman\nJoker\nParasite\nKnives Out\nMarriage Story\n1917\nJojo Rabbit",
+        "attributeName": "line",
+        "attributeType": "string"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Movie titles",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "PythonUDFV2-demo-pipeline",
+      "operatorType": "PythonUDFV2",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "code": "from pytexera import *\n\n\nclass ProcessTupleOperator(UDFOperatorV2):\n\n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        # BROKEN ON PURPOSE: the input column is \"line\", not \"lines\".\n        # Raises: KeyError: 'lines'\n        title = tuple_[\"lines\"]\n\n        tuple_[\"title_length\"] = len(title)\n        yield tuple_\n",
+        "workers": 1,
+        "retainInputColumns": true,
+        "defaultEnv": true,
+        "envName": "",
+        "outputColumns": [
+          {
+            "attributeName": "title_length",
+            "attributeType": "integer"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Title length (missing column)",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true,
+      "viewResult": false
+    },
+    {
+      "operatorID": "Filter-demo-pipeline",
+      "operatorType": "Filter",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "predicates": [
+          {
+            "attribute": "title_length",
+            "condition": ">",
+            "value": "5"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Keep longer titles",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "Sort-demo-pipeline",
+      "operatorType": "Sort",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "attributes": [
+          {
+            "attribute": "title_length",
+            "sortPreference": "DESC"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Longest first",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": true
+    }
+  ],
+  "operatorPositions": {
+    "TextInput-demo-pipeline": {
+      "x": 80,
+      "y": 220
+    },
+    "PythonUDFV2-demo-pipeline": {
+      "x": 320,
+      "y": 220
+    },
+    "Filter-demo-pipeline": {
+      "x": 560,
+      "y": 220
+    },
+    "Sort-demo-pipeline": {
+      "x": 800,
+      "y": 220
+    }
+  },
+  "links": [
+    {
+      "linkID": "link-demo-pipeline-0",
+      "source": {
+        "operatorID": "TextInput-demo-pipeline",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "PythonUDFV2-demo-pipeline",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-demo-pipeline-1",
+      "source": {
+        "operatorID": "PythonUDFV2-demo-pipeline",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Filter-demo-pipeline",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-demo-pipeline-2",
+      "source": {
+        "operatorID": "Filter-demo-pipeline",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Sort-demo-pipeline",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}
