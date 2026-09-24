@@ -48,14 +48,12 @@ type restrictedMethods =
   | "setOperatorProperty"
   | "addPort"
   | "removePort"
-  | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
   | "operatorDisplayNameChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
   | "operatorPropertyChangeSubject"
-  | "breakpointChangeStream"
   | "commentBoxAddSubject"
   | "commentBoxDeleteSubject"
   | "commentBoxAddCommentSubject"
@@ -129,10 +127,6 @@ export class WorkflowGraph {
   }>();
   public readonly operatorPropertyChangeSubject = new Subject<{
     operator: OperatorPredicate;
-  }>();
-  public readonly breakpointChangeStream = new Subject<{
-    oldBreakpoint: object | undefined;
-    linkID: string;
   }>();
   public readonly portAddedOrDeletedSubject = new Subject<{
     newOperator: OperatorPredicate;
@@ -982,16 +976,6 @@ export class WorkflowGraph {
     operator: OperatorPredicate;
   }> {
     return this.operatorPropertyChangeSubject.asObservable();
-  }
-
-  /**
-   * Gets the observable event stream of a link breakpoint is changed.
-   */
-  public getBreakpointChangeStream(): Observable<{
-    oldBreakpoint: object | undefined;
-    linkID: string;
-  }> {
-    return this.breakpointChangeStream.asObservable();
   }
 
   public getPortAddedOrDeletedStream(): Observable<{
