@@ -28,6 +28,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Files
+import java.util.Base64
+import scala.sys.process._
 
 /** The reference path's own behaviour, where it can differ from the worker's.
   *
@@ -149,7 +151,36 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
         |""".stripMargin
   }
 
-  private def binaryCellKind(cell: Array[Byte]): String = {
+  /** Calls predict on the BINARY cell it is handed, as a model's consumer does. */
+  private class ModelPredictOpDesc extends BinaryTypeOpDesc {
+    override def generatePythonCode(): String =
+      """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"kind": str(tuple_["blob"].predict([[1.0]])[0])}
+        |""".stripMargin
+  }
+
+  // A fitted DecisionTreeClassifier behind the marker the cast writes, pickled
+  // by the interpreter the harness runs so the two share a sklearn.
+  private def fittedTreeCell(): Array[Byte] = {
+    val script =
+      """import base64, pickle, sys
+        |from sklearn.tree import DecisionTreeClassifier
+        |model = DecisionTreeClassifier(random_state=0).fit([[0.0], [1.0]], [0, 1])
+        |sys.stdout.write(base64.b64encode(b"pickle    " + pickle.dumps(model)).decode("ascii"))
+        |""".stripMargin
+    val encoded = Process(Seq(PyOpExecHarness.resolvePython(), "-c", script)).!!
+    Base64.getDecoder.decode(encoded.trim)
+  }
+
+  private def binaryCellKind(
+      cell: Array[Byte],
+      opDesc: PythonOperatorDescriptor = new BinaryTypeOpDesc
+  ): String = {
     val dir = Files.createTempDirectory("py-op-harness-binary-")
     val inputSchema = Schema().add(new Attribute("blob", AttributeType.BINARY))
     val input = dir.resolve("input_port_0.jsonl")
@@ -157,7 +188,7 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
     TupleIO.writeTuples(input, Iterator(row), inputSchema)
 
     val result = PyOpExecHarness.execute(
-      new BinaryTypeOpDesc,
+      opDesc,
       inputs = Map(PortIdentity(0) -> input),
       outputDir = dir.resolve("actual")
     )
@@ -171,11 +202,9 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
   }
 
   // A model column arrives as the marker followed by the pickle, and the worker
-  // unpickles it before the operator sees it. This is pickle.dumps(["a"],
-  // protocol=0), which stands in for a fitted estimator.
-  "PyOpExecHarness" should "hand a pickled binary cell to the operator as the object" in {
-    val pickled = "pickle    ".getBytes("US-ASCII") ++ "(lp0\nVa\np1\na.".getBytes("US-ASCII")
-    binaryCellKind(pickled) shouldBe "list"
+  // unpickles it before the operator sees it, so predict works on it.
+  "PyOpExecHarness" should "hand a pickled model cell to the operator as the model" in {
+    binaryCellKind(fittedTreeCell(), new ModelPredictOpDesc) shouldBe "1"
   }
 
   it should "hand any other binary cell to the operator as bytes" in {

@@ -299,7 +299,7 @@ object PyOpExecHarness extends LazyLogging {
   // --------------------------------------------------------------------------
   // Resolution helpers.
   // --------------------------------------------------------------------------
-  private def resolvePython(): String =
+  private[verify] def resolvePython(): String =
     sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3.12")
 
   /**
