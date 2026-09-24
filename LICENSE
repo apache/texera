@@ -232,9 +232,37 @@ This product bundles code derived from TypeFox monaco-languageclient:
   Source: https://github.com/TypeFox/monaco-languageclient
   License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
 
+This product includes an icon from Google's Material Symbols:
+  - frontend/src/app/common/icon/model-icon.ts ("hub")
+  Copyright (c) Google LLC
+  Source: https://github.com/google/material-design-icons
+  License: Apache License 2.0 (this LICENSE file)
+
+This product includes the ORCID iD icon from ORCID, Inc.:
+  - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
+  Source: https://info.orcid.org/brand-guidelines/
+          https://doi.org/10.23640/07243.5008697 (ORCID iD Icons, ORCID Brand Library)
+  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
+  Note: ORCID(TM), the ORCID logo and the iD logo are trademarks of ORCID, Inc. The icon is
+        bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
+        guidelines; CC0 covers the graphic, not the mark.
+
 This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
   - frontend/src/assets/svg/operator-reuse-cache-valid.svg
   - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
+
+Trademarks
+--------------------------------------
+
+This product includes the Apple logo, a trademark of Apple Inc.:
+  - frontend/src/assets/logos/apple-logo-white.svg
+  Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S.
+  and other countries. The mark is included solely to render the "Continue with
+  Apple" button, which Apple's guidelines require to carry their own artwork.
+  Source: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple
+  Use governed by Apple's Sign in with Apple usage guidelines, not by an
+  open-source license:
+  https://developer.apple.com/sign-in-with-apple/usage-guidelines-for-websites-and-other-platforms/

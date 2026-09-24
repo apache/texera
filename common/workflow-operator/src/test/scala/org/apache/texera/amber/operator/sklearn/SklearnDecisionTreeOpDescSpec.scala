@@ -44,7 +44,18 @@ class SklearnDecisionTreeOpDescSpec extends AnyFlatSpec with Matchers {
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
+  }
+
+  // A split compares, and a comparison can ask whether the value is there before it
+  // asks how large it is, so the row is worth keeping and the count is worth saying.
+  it should "keep a row with a blank feature and say how many it kept" in {
+    val d = new SklearnDecisionTreeOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should not include "table.dropna() "
+    code should include("dropna(subset=[")
+    code should include("rows_with_gaps")
   }
 
   "SklearnDecisionTreeOpDesc.getOutputSchemas" should

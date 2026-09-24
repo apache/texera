@@ -44,7 +44,7 @@ class SklearnTrainingComplementNaiveBayesOpDescSpec extends AnyFlatSpec with Mat
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingComplementNaiveBayesOpDesc.getOutputSchemas" should

@@ -60,19 +60,6 @@
         nzOpen="true">
         <ul>
           <li
-            *ngIf="sidebarTabs.projects_enabled"
-            nz-menu-item
-            nz-tooltip="Look up the user projects"
-            nzMatchRouter="true"
-            nzTooltipPlacement="right"
-            [routerLink]="USER_PROJECT">
-            <span
-              nz-icon
-              nzType="container"></span>
-            <span>Projects</span>
-          </li>
-
-          <li
             *ngIf="sidebarTabs.workflows_enabled"
             nz-menu-item
             nz-tooltip="Open the saved workflows"
@@ -98,6 +85,18 @@
             <span>Datasets</span>
           </li>
           <li
+            *ngIf="sidebarTabs.models_enabled"
+            nz-menu-item
+            nz-tooltip="Look up for models"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="USER_MODEL">
+            <span
+              nz-icon
+              [nzType]="MODEL_ICON"></span>
+            <span>Models</span>
+          </li>
+          <li
             *ngIf="sidebarTabs.compute_enabled"
             nz-menu-item
             nz-tooltip="Manage computing units"
@@ -108,6 +107,18 @@
               nz-icon
               nzType="deployment-unit"></span>
             <span>Compute</span>
+          </li>
+          <li
+            *ngIf="config.env.warehouseEnabled"
+            nz-menu-item
+            nz-tooltip="Manage warehouses"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="USER_WAREHOUSE">
+            <span
+              nz-icon
+              nzType="cloud-server"></span>
+            <span>Warehouses</span>
           </li>
           <li
             nz-menu-item
@@ -196,6 +207,17 @@
               nz-icon
               nzType="edit"></span>
             <span>Settings</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Images a computing unit can be started from"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="ADMIN_CU_IMAGE">
+            <span
+              nz-icon
+              nzType="appstore"></span>
+            <span>CU Images</span>
           </li>
         </ul>
       </li>
