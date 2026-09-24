@@ -90,6 +90,13 @@ class TestState:
         with pytest.raises(TypeError):
             State({"bad": Custom()}).to_json()
 
+    @pytest.mark.parametrize(
+        "state", [State({1: "value"}), State({"nested": {1: "value"}})]
+    )
+    def test_to_json_rejects_non_string_keys(self, state):
+        with pytest.raises(TypeError, match="keys must be strings"):
+            state.to_json()
+
     def test_tuple_round_trip(self):
         original = State({"i": 3, "label": "outer", "blob": b"\x01\x02"})
         decoded = State.from_tuple(original.to_tuple())
