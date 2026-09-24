@@ -50,6 +50,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 MOUNT_ROOT = os.environ.get("MOUNT_ROOT", "/var/lib/texera-mounts")
+# Where geesefs keeps its on-disk page cache, if a deployment gives it one. Empty means
+# no cache, which is geesefs's own default: every read goes back to the object store.
+CACHE_ROOT = os.environ.get("CACHE_ROOT", "").strip()
 MOUNTER_PORT = int(os.environ.get("MOUNTER_PORT", "8100"))
 POOL_NAMESPACE = os.environ.get("POOL_NAMESPACE", "texera-workflow-computing-unit-pool")
 MOUNT_SECRET_PLACEHOLDER = "texera-jwt-mount"
@@ -237,6 +240,14 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
         "--endpoint", file_service_base,
         "--memory-limit", "512",
         "-o", "ro,allow_other",
+    ]
+    if CACHE_ROOT:
+        # Keyed by repository and commit, not by computing unit: a commit is immutable, so
+        # every unit on this node reads one cache rather than each new unit starting cold.
+        cache_dir = os.path.join(CACHE_ROOT, repo, commit)
+        os.makedirs(cache_dir, exist_ok=True)
+        cmd += ["--cache", cache_dir]
+    cmd += [
         f"{repo}:{commit}",
         target,
     ]

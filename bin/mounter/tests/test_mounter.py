@@ -146,6 +146,27 @@ def test_do_mount_passes_the_jwt_as_the_s3_access_key(mounter):
     assert kwargs["env"]["AWS_ACCESS_KEY_ID"] == "the-user-jwt"
 
 
+def test_do_mount_asks_for_no_cache_by_default(mounter):
+    mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    cmd, _ = mounter.runs[0]
+    # geesefs's own default is no disk cache, and an unconfigured deployment keeps it.
+    assert "--cache" not in cmd
+
+
+def test_do_mount_caches_by_repository_and_commit_when_a_cache_root_is_set(mounter, tmp_path, monkeypatch):
+    monkeypatch.setattr(mounter, "CACHE_ROOT", str(tmp_path / "cache"))
+
+    mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    cmd, _ = mounter.runs[0]
+    cache_dir = cmd[cmd.index("--cache") + 1]
+    # Keyed by repo and commit, never by cuid: a commit is immutable, so a second computing
+    # unit on this node reuses the first one's cache instead of starting cold.
+    assert cache_dir == str(tmp_path / "cache" / "dataset-1" / "abc")
+    assert os.path.isdir(cache_dir)
+
+
 def test_do_mount_is_idempotent_for_a_live_mount(mounter, cu_dir):
     _, target = cu_dir("7", commit="abc")
     mounter.set_mounts(target)
