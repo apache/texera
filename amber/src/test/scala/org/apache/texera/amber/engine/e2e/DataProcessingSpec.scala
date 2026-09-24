@@ -302,6 +302,65 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
+  /**
+    * csv -> join(build), csv -> join(probe) -> Python UDF. The UDF shares a region with the join's
+    * probe side, which has a dependee input port, so the UDF is only launched in the region's
+    * second (non-dependee) phase.
+    */
+  private def joinThenPythonUdfWorkflow(udfCode: String): Workflow = {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val pythonOpDesc = TestOperators.pythonOpDesc()
+    pythonOpDesc.code = udfCode
+    buildWorkflow(
+      List(headerlessCsvOpDesc1, headerlessCsvOpDesc2, joinOpDesc, pythonOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc2.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          pythonOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      workflowContext
+    )
+  }
+
+  private val tableUdfBody =
+    """
+      |class ProcessTableOperator(UDFTableOperator):
+      |
+      |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+      |        yield table
+      |""".stripMargin
+
+  "Engine" should "execute csv->(csv->)->join->python-udf workflow normally" in {
+    executeWorkflow(joinThenPythonUdfWorkflow("from pytexera import *\n" + tableUdfBody))
+  }
+
+  "Engine" should "fail, not hang, when a python udf after a join fails to initialize" in {
+    // Missing `from pytexera import *`, so `UDFTableOperator` is undefined when the worker
+    // loads the code. Before the fix, the execution stayed RUNNING forever with every
+    // operator of the region at 0 tuples.
+    val error = intercept[Throwable] {
+      executeWorkflow(joinThenPythonUdfWorkflow(tableUdfBody))
+    }
+    assert(error.getMessage.contains("UDFTableOperator"))
+  }
+
   "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
