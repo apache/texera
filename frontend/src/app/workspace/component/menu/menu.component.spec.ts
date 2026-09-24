@@ -24,6 +24,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { take } from "rxjs/operators";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
 import { MenuComponent } from "./menu.component";
@@ -257,6 +258,36 @@ describe("MenuComponent", () => {
 
     expect(navigate).not.toHaveBeenCalled(); // its own save is done, another is still queued
     drained$.next();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("saves once more when an edit lands while the hand-over waits for the queue to drain", () => {
+    // Waiting for a queued save is a second window the page stays editable in, after the one the
+    // switch's own save opened; an edit made in it is stored before leaving, like one made in the first.
+    const edits = new Subject<unknown>();
+    vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+    component.ngOnInit();
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const persistSpy = vi
+      .spyOn(workflowPersistService, "persistWorkflow")
+      .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    const drained$ = new Subject<void>();
+    // One emission per call, as the service's whenSavesDrained gives.
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockImplementation(() => drained$.pipe(take(1)));
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    edits.next(undefined); // an edit while a queued save is still being waited for
+    drained$.next();
+
+    expect(persistSpy).toHaveBeenCalledTimes(2); // saved once more instead of leaving
+    expect(navigate).not.toHaveBeenCalled();
+    drained$.next(); // nothing queued behind the second save
+    expect(navigate).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith(7);
     expect(component.isSaving).toBe(false);
   });

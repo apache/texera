@@ -771,12 +771,6 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.notificationService.error("Could not save. Your latest changes are not stored yet.");
         },
         complete: () => {
-          if (this.editedSinceSwitchSnapshot) {
-            // An edit landed while the save was out; store it here rather than leave it to an
-            // autosave that would fire under the other view.
-            this.saveThenOpenFormView(target);
-            return;
-          }
           // A save queued behind ours (a rename's, a description's: those save through the menu
           // itself, not the autosave) answers to this component: its error is shown here, its
           // response fed back here, and neither reaches a component the route has destroyed. Leave
@@ -786,6 +780,14 @@ export class MenuComponent implements OnInit, OnDestroy {
             .whenSavesDrained()
             .pipe(untilDestroyed(this))
             .subscribe(() => {
+              // The page stayed editable while our save was out and while the queue drained. An
+              // edit landed in either window is stored here rather than left to an autosave that
+              // would fire under the other view -- checked after the drain, so the two windows
+              // are one.
+              if (this.editedSinceSwitchSnapshot) {
+                this.saveThenOpenFormView(target);
+                return;
+              }
               this.isSaving = false;
               this.openFormViewPage(target);
             });
