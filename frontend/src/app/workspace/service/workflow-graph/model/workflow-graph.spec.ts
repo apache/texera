@@ -32,9 +32,15 @@ import {
   mockSentimentPredicate,
   mockSentimentResultLink,
 } from "./mock-workflow-data";
-import { WorkflowGraph } from "./workflow-graph";
+import { WorkflowGraph, isSink } from "./workflow-graph";
 import { Observable } from "rxjs";
-import { Comment, OperatorLink, PortDescription, PortProperty } from "../../../types/workflow-common.interface";
+import {
+  Comment,
+  OperatorLink,
+  OperatorPredicate,
+  PortDescription,
+  PortProperty,
+} from "../../../types/workflow-common.interface";
 
 describe("WorkflowGraph", () => {
   let workflowGraph: WorkflowGraph;
@@ -856,6 +862,44 @@ describe("WorkflowGraph", () => {
       ]);
       workflowGraph.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
       expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([]);
+    });
+  });
+
+  describe("isSink", () => {
+    const buildPredicate = (operatorType: string): OperatorPredicate => ({
+      operatorID: "testOperator",
+      operatorType,
+      operatorVersion: "v1",
+      operatorProperties: {},
+      inputPorts: [{ portID: "input-0" }],
+      outputPorts: [],
+      showAdvanced: true,
+      isDisabled: false,
+    });
+
+    it("should match an operator type that contains sink in any casing", () => {
+      expect(isSink(buildPredicate("sink"))).toBe(true);
+      expect(isSink(buildPredicate("SINK"))).toBe(true);
+      expect(isSink(buildPredicate("SimpleSink"))).toBe(true);
+      expect(isSink(buildPredicate("dvdpowSinkExec"))).toBe(true);
+    });
+
+    it("should not match an operator type without sink", () => {
+      expect(isSink(buildPredicate("NlpSentiment"))).toBe(false);
+      expect(isSink(buildPredicate("scanSource"))).toBe(false);
+    });
+
+    it("should match a sink type even when the runtime locale folds uppercase I to dotless ı", () => {
+      const turkishFolding = vi.spyOn(String.prototype, "toLocaleLowerCase").mockImplementation(function (
+        this: string
+      ) {
+        return this.replace(/I/g, "ı").toLowerCase();
+      });
+      try {
+        expect(isSink(buildPredicate("SINK"))).toBe(true);
+      } finally {
+        turkishFolding.mockRestore();
+      }
     });
   });
 });
