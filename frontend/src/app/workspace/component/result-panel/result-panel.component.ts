@@ -35,7 +35,7 @@ import { ResultTableFrameComponent } from "./result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
-import { filter } from "rxjs/operators";
+import { debounceTime, filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -244,7 +244,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.workflowCompilingService.getCompilationStateInfoChangedStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowResultService.getResultInitiateStream()
+      this.workflowResultService.getResultInitiateStream(),
+      // A Python UDF that raises while its operator is already selected changes nothing in
+      // the streams above: the execution stays Running and the highlight never moves, so
+      // without this the AI Fix tab would not appear until the user clicked away and back.
+      // Debounced because a chatty UDF's prints share this stream.
+      this.workflowConsoleService.getConsoleMessageUpdateStream().pipe(debounceTime(200))
     )
       .pipe(untilDestroyed(this))
       .subscribe(_ => {

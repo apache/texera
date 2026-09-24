@@ -433,6 +433,26 @@ describe("ResultPanelComponent", () => {
       expect(aiConfig?.componentInputs).toEqual({ operatorId: "3" });
     });
 
+    it("registers the AI fix frame when the traceback arrives while the operator is already selected", () => {
+      // The common case: the user is watching the operator that fails. The highlight never
+      // moves and the execution stays Running, so the console update is the only signal the
+      // panel gets. Driving the stream instead of calling rerenderResultPanel() is the point
+      // of this test -- the wiring, not the branch, was what was missing.
+      vi.useFakeTimers();
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      consoleService.clearConsoleMessages();
+      vi.advanceTimersByTime(300);
+
+      expect(component.frameComponentConfigs.get("AI Fix")?.component).toBe(AiFixFrameComponent);
+      vi.useRealTimers();
+    });
+
     it("registers no AI fix frame when the operator's console holds no ERROR", () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const consoleService = TestBed.inject(WorkflowConsoleService);
