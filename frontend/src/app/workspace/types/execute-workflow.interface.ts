@@ -80,22 +80,36 @@ export enum OperatorState {
 
 export interface OperatorStatistics
   extends Readonly<{
-    operatorState: OperatorState;
+    // Provenance: the operator completed by reusing cached results (no workers ran).
+    reusedFromCache?: boolean;
     aggregatedInputRowCount: number;
     aggregatedInputSize?: number;
-    inputPortMetrics: Record<string, number>;
+    /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */
+    inputPortMetrics?: Record<string, number>;
     aggregatedOutputRowCount: number;
     aggregatedOutputSize?: number;
-    outputPortMetrics: Record<string, number>;
+    outputPortMetrics?: Record<string, number>;
     numWorkers?: number;
     aggregatedDataProcessingTime?: number;
     aggregatedControlProcessingTime?: number;
     aggregatedIdleTime?: number;
   }> {}
 
+/**
+ * Wire shape of one operator's entry in OperatorStatisticsUpdateEvent. The
+ * engine streams the operator's execution state and its statistics bundled in
+ * one object; WorkflowStatusService splits them into the two separate
+ * sub-concepts (state and statistics).
+ */
+export interface OperatorRuntimeStatus
+  extends OperatorStatistics,
+    Readonly<{
+      operatorState: OperatorState;
+    }> {}
+
 export interface OperatorStatsUpdate
   extends Readonly<{
-    operatorStatistics: Record<string, OperatorStatistics>;
+    operatorStatistics: Record<string, OperatorRuntimeStatus>;
   }> {}
 
 export type PaginationMode = { type: "PaginationMode" };

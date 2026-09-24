@@ -22,14 +22,17 @@ package org.apache.texera.amber.operator.regex
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class RegexOpDesc extends FilterOpDesc {
+class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to search regex on")
@@ -72,4 +75,27 @@ class RegexOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    // JVM uses Java Pattern.matcher(v).find — partial match. pandas str.contains
+    // is also partial by default. Java-only regex syntax (\Q\E, possessive
+    // quantifiers, etc.) may behave differently in Python's re engine.
+    val pyLiteral = pyStringLiteral(Option(regex).getOrElse(""))
+    val caseArg = if (caseInsensitive) "False" else "True"
+    val attrLit = pyStringLiteral(attribute)
+    // The rows with nothing in the column are dropped before the match rather than
+    // left to `na=False`, which by then has no null to see.
+    //
+    // The pattern is matched against the text the engine would have matched, not
+    // against whatever pandas made of the column. See [[renderedAsText]].
+    val declared = inputSchemas.values.headOption
+      .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
+      .map(_.getType)
+    val column = renderedAsText(s"in1df[$attrLit]", declared)
+    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }

@@ -46,7 +46,6 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
-import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
@@ -110,6 +109,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
+  /** One bound reference, so the listener that is added is the one that can be removed. */
+  private readonly keyboardActionListener = (event: KeyboardEvent) => this._handleKeyboardAction(event);
   // Heat-map hover tooltip (shown while the Performance overlay is on). Null when hidden.
   public heatmapTooltip: {
     x: number;
@@ -128,10 +129,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * Set by a view that shows the graph but must never re-shape it. Separate from the
    * workflow-modification lock (which also gates property editing, so reusing that alone would
    * disable the property panel a later authoring mode needs). It locks the paper's own
-   * interactions -- dragging, linking, and the keyboard delete/cut/port commands. The right-click
-   * menu's structural commands follow the modification lock instead, so a read-only view like the
-   * Form View, which also disables modification, is fully locked; an authoring view that re-enables
-   * modification will need to carry this lock into the menu too.
+   * interactions -- dragging, linking, and the keyboard delete/cut/port commands -- and is passed on
+   * to the right-click menu, whose re-shaping commands otherwise follow the modification lock alone:
+   * the Form View's edit mode re-enables modification for the property panel, and without the
+   * hand-off the preview's menu would cut, paste and delete again.
    */
   @Input() structureLocked = false;
 
@@ -206,10 +207,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngAfterViewInit() {
-    this.editor = document.getElementById("workflow-editor")!;
-    this.editorWrapper = document.getElementById("workflow-editor-wrapper")!;
-    document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
+    // This component's own elements, not whichever the document happens to hold first. Two of
+    // these editors are briefly in the page at once when the two views of a workflow hand over:
+    // the arriving one initialises while the departing one is still being removed. Searching the
+    // document returned the departing view's container, so the paper was built into a div about
+    // to disappear and the arriving canvas stayed blank, with nothing to pan and nothing to click.
+    const host = this.elementRef.nativeElement as HTMLElement;
+    this.editor = host.querySelector("#workflow-editor")!;
+    this.editorWrapper = host.querySelector("#workflow-editor-wrapper")!;
+    document.addEventListener("keydown", this.keyboardActionListener);
     this.initializeJointPaper();
+    // A new paper starts at scale 1, but the zoom ratio lives in the root-provided wrapper and
+    // outlives this component. With the switch between a workflow's two views routed, this paper
+    // is new while the ratio is whatever the user last chose, and the two disagreed: the zoom
+    // buttons stepped from the wrapper's ratio, so the first "zoom in" after a switch could shrink
+    // the canvas. The paper adopts the wrapper's ratio, which also carries the user's zoom across.
+    const zoom = this.wrapper.getZoomRatio();
+    this.paper.scale(zoom, zoom);
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
@@ -232,7 +246,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorSelectionEvents();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
-    this.handleOperatorStatisticsUpdate();
+    this.handleOperatorStatusUpdate();
     this.handleHeatmapOverlay();
     this.handleHeatmapHover();
     this.handleRegionEvents();
@@ -256,13 +270,25 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     this.paperResizeObserver?.disconnect();
-    document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
-    // The overlay belongs to the canvas being viewed, but the wrapper holding
-    // the view is root-provided and outlives this component, while the menu's
-    // checkbox re-initializes to off and the metrics behind the overlay are
-    // cleared on workspace teardown. Reset the view here so all three agree
-    // when a workspace is re-entered.
-    this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
+    // The paper is bound to the joint graph, which is root-provided and outlives this component,
+    // so an undisposed one goes on listening to that graph from a DOM node no longer on the page.
+    // Harmless while every mount followed a page load; the switch between a workflow's two views
+    // routes now, so a mount happens on every switch and the papers pile up. Whether the
+    // undraggable operators recorded in #8580 follow from that is not settled -- #8582 tracks it.
+    // The context keeps a static reference to the attached paper for async rendering; it must not
+    // outlive the paper it points at, or a context exit would update the views of a removed one.
+    this.wrapper.detachMainJointPaper(this.paper);
+    this.paper?.remove();
+    // The same bound reference that was registered: `.bind()` returns a new function every call,
+    // so removing a freshly bound one never matched and left the listener behind. One stale
+    // listener per mount meant one Ctrl/Cmd-Z undoing several entries after a few switches.
+    document.removeEventListener("keydown", this.keyboardActionListener);
+    // The heat-map view is deliberately not reset here any more. It used to be, so that a
+    // re-entered workspace started with the overlay off; but this component is destroyed on every
+    // hand-over between a workflow's two views, and destroyed after the arriving view has mounted
+    // and restored the persisted overlay (#8552), so a reset here switched it off again on every
+    // switch. The reset belongs to leaving the workspace, and lives with the rest of that teardown
+    // in the two views' ngOnDestroy.
   }
 
   private _handleKeyboardAction(event: any) {
@@ -344,44 +370,38 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * This method subscribe to workflowStatusService's status stream
-   * for Each processStatus that has been emitted
-   *    1. enable operatorStatusTooltipDisplay because tooltip will not be empty
-   *    2. for each operator in current texeraGraph:
-   *        - find its Statistics in processStatus, thrown an error if not found
-   *        - generate its corresponding tooltip's id
-   *        - pass the tooltip id and Statistics to jointUIService
-   *          the specific tooltip content will be updated
-   *          - if operator is in a group, save statistics in group's operatorInfo
-   *    3. Whenever a group is expanded
-   *        - for each operatorInfo, display statistics if there are some saved.
+   * Renders WorkflowStatusService's two separate sub-concepts on the paper:
+   *    - the state stream drives each operator's execution-state rendering
+   *      (see {@link effectiveOperatorState} for the fallback/override rules)
+   *    - the statistics stream drives each operator's port row-count labels
+   *      and worker count.
    */
-  private handleOperatorStatisticsUpdate(): void {
+  private handleOperatorStatusUpdate(): void {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(status => {
+      .subscribe(state => {
         this.workflowActionService
           .getTexeraGraph()
-          .getAllOperators()
-          .forEach(op => {
-            if (
-              isDefined(status[op.operatorID]) &&
-              this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering
-            ) {
-              status[op.operatorID] = {
-                ...status[op.operatorID],
-                operatorState: OperatorState.Recovering,
-              };
-            }
-
-            this.jointUIService.changeOperatorStatistics(
+          .getAllOperatorIDs()
+          .forEach(operatorID => {
+            this.jointUIService.changeOperatorState(
               this.paper,
-              op.operatorID,
-              status[op.operatorID],
-              this.isSource(op.operatorID),
-              this.isSink(op.operatorID)
+              operatorID,
+              this.effectiveOperatorState(state[operatorID])
             );
+          });
+      });
+
+    this.workflowStatusService
+      .getStatisticsUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(statistics => {
+        this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperatorIDs()
+          .forEach(operatorID => {
+            this.jointUIService.changeOperatorStatistics(this.paper, operatorID, statistics[operatorID]);
           });
       });
 
@@ -402,9 +422,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
           this.workflowActionService
             .getTexeraGraph()
-            .getAllOperators()
-            .forEach(op => {
-              this.jointUIService.changeOperatorState(this.paper, op.operatorID, operatorState);
+            .getAllOperatorIDs()
+            .forEach(operatorID => {
+              this.jointUIService.changeOperatorState(this.paper, operatorID, operatorState);
             });
         }
       });
@@ -414,24 +434,19 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // operators are recreated from the workflow JSON — restore their visual
     // state from the cached status so completed runs don't appear to reset.
     // Restores port labels / worker count via changeOperatorStatistics, then
-    // delegates the final border color to applyOperatorBorder so the same
-    // priority rules apply as for the validation pass.
+    // delegates the execution-state rendering and the final border color to
+    // applyOperatorStateAndBorder so the same priority rules apply as for the
+    // validation pass.
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorAddStream()
       .pipe(untilDestroyed(this))
       .subscribe(operator => {
-        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+        const statistics = this.workflowStatusService.getCurrentStatistics()[operator.operatorID];
         if (statistics) {
-          this.jointUIService.changeOperatorStatistics(
-            this.paper,
-            operator.operatorID,
-            statistics,
-            this.isSource(operator.operatorID),
-            this.isSink(operator.operatorID)
-          );
+          this.jointUIService.changeOperatorStatistics(this.paper, operator.operatorID, statistics);
         }
-        this.applyOperatorBorder(
+        this.applyOperatorStateAndBorder(
           operator.operatorID,
           this.validationWorkflowService.validateOperator(operator.operatorID)
         );
@@ -576,16 +591,34 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Single source of truth for the operator's border color. Both the
-   * validation stream and the operator-add stream route through here so
-   * the priority order is consistent regardless of which event fires last:
-   *   1. Invalid operator → red (validation takes priority).
-   *   2. Valid operator with a cached execution status → execution-state color.
-   *   3. Valid operator with no cached status → default valid (gray).
+   * Resolves the execution state to render for an operator: an operator the
+   * state map does not know falls back to Uninitialized, and a reported state
+   * is masked to Recovering while the workflow execution is recovering.
+   */
+  private effectiveOperatorState(reportedState?: OperatorState): OperatorState {
+    if (reportedState === undefined) {
+      return OperatorState.Uninitialized;
+    }
+    if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
+      return OperatorState.Recovering;
+    }
+    return reportedState;
+  }
+
+  /**
+   * Single source of truth for the operator's state rendering and border
+   * color. Both the validation stream and the operator-add stream route
+   * through here so the priority order is consistent regardless of which
+   * event fires last:
+   *   1. A cached execution state repaints the full state rendering first
+   *      (state label, fills), so it survives navigating away and back.
+   *   2. Invalid operator → red stroke on top (validation takes priority).
+   *   3. Valid operator with a cached execution state keeps its state stroke.
+   *   4. Valid operator with no cached state → default valid (gray).
    *
    * Centralizing this here avoids the race where the validation pass
    * overwrites a state-derived stroke (or vice versa) for an operator that
-   * is both invalid and has a cached execution status.
+   * is both invalid and has a cached execution state.
    *
    * Both callers obtain the Validation themselves and pass it in: the
    * validation-stream subscriber forwards the result the stream just emitted,
@@ -593,15 +626,16 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
    * the parameter required means the color decision never silently depends on
    * a recompute hidden inside this helper.
    */
-  private applyOperatorBorder(operatorID: string, validation: Validation): void {
+  private applyOperatorStateAndBorder(operatorID: string, validation: Validation): void {
+    const operatorState = this.workflowStatusService.getCurrentState()[operatorID];
+    if (operatorState) {
+      this.jointUIService.changeOperatorState(this.paper, operatorID, this.effectiveOperatorState(operatorState));
+    }
     if (!validation.isValid) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, false);
       return;
     }
-    const statistics = this.workflowStatusService.getCurrentStatus()[operatorID];
-    if (statistics) {
-      this.jointUIService.changeOperatorState(this.paper, operatorID, statistics.operatorState);
-    } else {
+    if (!operatorState) {
       this.jointUIService.changeOperatorColor(this.paper, operatorID, true);
     }
   }
@@ -1200,7 +1234,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        // A structure-locked preview (the Form View's) unfolds the state and port counts only: its
+        // delete, chat and port buttons could not act there, and would only suggest it can be edited.
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
@@ -1213,7 +1249,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         this.currentOpenedOperatorID = operatorID;
-        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID, !this.structureLocked);
       });
 
     // Handle right-click on links
@@ -1257,14 +1293,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Applies the validation result to the operator's border. Delegates to
-   * applyOperatorBorder so validation, cached-execution-status, and the
+   * applyOperatorStateAndBorder so validation, cached-execution-state, and the
    * default-valid case are decided in one place.
    */
   private handleOperatorValidation(): void {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.applyOperatorBorder(value.operatorID, value.validation));
+      .subscribe(value => this.applyOperatorStateAndBorder(value.operatorID, value.validation));
 
     // Operators already in the graph when this editor mounts produced no add event and won't hit
     // the validation stream until they change, so nothing corrects the border they were drawn
@@ -1283,22 +1319,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private paintCurrentOperatorState(): void {
     this.workflowActionService
       .getTexeraGraph()
-      .getAllOperators()
-      .forEach(operator => {
-        const statistics = this.workflowStatusService.getCurrentStatus()[operator.operatorID];
+      .getAllOperatorIDs()
+      .forEach(operatorID => {
+        const statistics = this.workflowStatusService.getCurrentStatistics()[operatorID];
         if (statistics) {
-          this.jointUIService.changeOperatorStatistics(
-            this.paper,
-            operator.operatorID,
-            statistics,
-            this.isSource(operator.operatorID),
-            this.isSink(operator.operatorID)
-          );
+          this.jointUIService.changeOperatorStatistics(this.paper, operatorID, statistics);
         }
-        this.applyOperatorBorder(
-          operator.operatorID,
-          this.validationWorkflowService.validateOperator(operator.operatorID)
-        );
+        this.applyOperatorStateAndBorder(operatorID, this.validationWorkflowService.validateOperator(operatorID));
       });
   }
   /* v8 ignore stop */
@@ -1533,6 +1560,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(linkView => {
+        // A structure-locked preview (the Form View's) offers neither: the link cannot be removed
+        // there, and a breakpoint is a canvas debugging tool. Buttons that do nothing would only
+        // suggest the preview can be edited.
+        if (this.structureLocked) {
+          return;
+        }
         // Create an array to hold the tools
         const tools: joint.dia.ToolView[] = [new this.removeButton()];
 
@@ -1547,8 +1580,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
     /**
      * When the cursor leaves a link, the delete button disappears.
-     * If there is no breakpoint present on that link, the breakpoint button also disappears,
-     * otherwise, the breakpoint button is not changed.
      */
     fromJointPaperEvent(this.paper, "link:mouseleave")
       .pipe(map(value => value[0]))
@@ -1556,10 +1587,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(elementView => {
         // ensure that the link element exists
         if (this.paper.getModelById(elementView.model.id)) {
-          const LinksWithBreakpoint = this.wrapper.getLinkIDsWithBreakpoint();
-          if (!LinksWithBreakpoint.includes(elementView.model.id.toString())) {
-            this.paper.getModelById(elementView.model.id).findView(this.paper).hideTools();
-          }
+          this.paper.getModelById(elementView.model.id).findView(this.paper).hideTools();
           this.paper.getModelById(elementView.model.id).attr({
             ".tool-remove": { display: "none" },
           });
@@ -1574,7 +1602,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
     this.handleLinkBreakpointHighlightEvents();
-    this.handleLinkBreakpointToggleEvents();
   }
 
   // when a link is added, append a breakpoint link-tool to its LinkView
@@ -1583,6 +1610,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getJointLinkCellAddStream()
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
+        // No breakpoint tool on a structure-locked preview either (see handleLinkCursorHover).
+        if (this.structureLocked) {
+          return;
+        }
         const linkView = link.findView(this.paper);
         const breakpointButtonTool = this.breakpointButton;
         const breakpointButton = new breakpointButtonTool();
@@ -1657,33 +1688,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
         });
       });
-  }
-
-  /**
-   * show/hide the breakpoint button according to the observable value received
-   */
-  private handleLinkBreakpointToggleEvents(): void {
-    this.wrapper
-      .getLinkBreakpointShowStream()
-      .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
-      .subscribe(linkID => {
-        this.paper.getModelById(linkID.linkID).findView(this.paper).showTools();
-      });
-
-    this.wrapper
-      .getLinkBreakpointHideStream()
-      .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
-      .subscribe(linkID => {
-        this.paper.getModelById(linkID.linkID).findView(this.paper).hideTools();
-      });
-  }
-
-  private isSource(operatorID: string): boolean {
-    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
-  }
-
-  private isSink(operatorID: string): boolean {
-    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
   }
 
   /**
