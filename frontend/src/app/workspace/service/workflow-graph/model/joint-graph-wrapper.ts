@@ -31,8 +31,6 @@ import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
 
-type linkIDType = { linkID: string };
-
 type JointModelEventInfo = {
   add: boolean;
   merge: boolean;
@@ -152,17 +150,10 @@ export class JointGraphWrapper {
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
 
-  // event stream of showing the breakpoint button of a link
-  private jointLinkBreakpointShowStream = new Subject<linkIDType>();
-  // event stream of hiding the breakpoint button of a link
-  private jointLinkBreakpointHideStream = new Subject<linkIDType>();
   // the currently highlighted links' ids
   private currentHighlightedLinks: string[] = [];
-  // the linkIDs of those links with a breakpoint
-
   private currentHighlightedPorts: LogicalPort[] = [];
   // the IDs of ports currently being edited
-  private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -490,13 +481,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * get the ids of all the links that have a breakpoint
-   */
-  public getLinkIDsWithBreakpoint(): readonly string[] {
-    return this.linksWithBreakpoints;
-  }
-
-  /**
    * get the event stream of a link being highlighted.
    */
   public getLinkHighlightStream(): Observable<readonly string[]> {
@@ -508,20 +492,6 @@ export class JointGraphWrapper {
    */
   public getLinkUnhighlightStream(): Observable<readonly string[]> {
     return this.jointLinkUnhighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
-  }
-
-  /**
-   * get the event stream of showing the breakpoint button of a link
-   */
-  public getLinkBreakpointShowStream(): Observable<linkIDType> {
-    return this.jointLinkBreakpointShowStream.asObservable();
-  }
-
-  /**
-   * get the event stream of hiding the breakpoint button of a link
-   */
-  public getLinkBreakpointHideStream(): Observable<linkIDType> {
-    return this.jointLinkBreakpointHideStream.asObservable();
   }
 
   /**
