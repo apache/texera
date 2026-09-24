@@ -52,10 +52,13 @@ class IcebergRestCatalogIntegrationSpec extends AnyFlatSpec with BeforeAndAfterA
     // S3FileIO instances it created for table operations. Left unclosed,
     // the finalizer reclaims them and logs "Unclosed S3FileIO instance"
     // warnings with full stack traces after the spec finishes.
-    if (restCatalog != null) {
-      restCatalog.close()
+    try {
+      if (restCatalog != null) {
+        restCatalog.close()
+      }
+    } finally {
+      super.afterAll()
     }
-    super.afterAll()
   }
 
   behavior of "Iceberg REST catalog"

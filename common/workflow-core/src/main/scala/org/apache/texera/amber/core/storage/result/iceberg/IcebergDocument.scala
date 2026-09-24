@@ -27,6 +27,7 @@ import org.apache.commons.io.IOUtils
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
+import org.apache.iceberg.io.CloseableIterator
 import org.apache.iceberg.types.{Conversions, Types}
 import org.apache.iceberg.{FileScanTask, Table}
 
@@ -148,6 +149,18 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   }
 
   /**
+    * Opens a Parquet reader over one data file. The iterators returned by the
+    * read methods call this only from `next()`, never from `hasNext`, and close
+    * each reader exactly once. Overridden in tests to count opens and closes.
+    */
+  protected def openDataFile(
+      task: FileScanTask,
+      schema: org.apache.iceberg.Schema,
+      table: Table
+  ): CloseableIterator[Record] =
+    IcebergUtil.readDataFileAsIterator(task.file(), schema, table)
+
+  /**
     * Util iterator to get T in certain range
     *
     * @param from  start from which record inclusively, if 0 means start from the first
@@ -197,9 +210,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         // beneath it). Also resets the record iterator so a closed reader is
         // never polled again.
         private def closeCurrentReader(): Unit = {
-          currentRecordIteratorCloser.close()
+          val closer = currentRecordIteratorCloser
           currentRecordIteratorCloser = () => ()
           currentRecordIterator = Iterator.empty
+          closer.close()
         }
 
         // Open the file claimed by hasNext and point currentRecordIterator at
@@ -217,11 +231,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
           }
           // Release the prior file's reader before opening the next.
           closeCurrentReader()
-          val nextIter = IcebergUtil.readDataFileAsIterator(
-            task.file(),
-            schemaToUse,
-            table.get
-          )
+          val nextIter = openDataFile(task, schemaToUse, table.get)
           currentRecordIteratorCloser = nextIter
           currentRecordIterator = nextIter.asScala
 
