@@ -28,7 +28,12 @@
   <!-- Nothing has been analysed yet (or the user discarded the last suggestion). -->
   <div
     class="ai-fix-start"
-    *ngIf="state.status === 'idle' || state.status === 'applied' || state.status === 'error'">
+    *ngIf="
+      state.status === 'idle' ||
+      state.status === 'applied' ||
+      state.status === 'applied_without_run' ||
+      state.status === 'error'
+    ">
     <button
       nz-button
       nzType="primary"
@@ -51,6 +56,11 @@
     *ngIf="state.status === 'applied'"
     nzType="success"
     nzMessage="Fix applied — workflow re-running..."></nz-alert>
+
+  <nz-alert
+    *ngIf="state.status === 'applied_without_run'"
+    nzType="warning"
+    nzMessage="Fix applied. Select a warehouse to run the workflow."></nz-alert>
 
   <nz-alert
     *ngIf="state.status === 'error'"

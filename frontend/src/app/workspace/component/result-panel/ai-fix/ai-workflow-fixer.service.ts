@@ -25,6 +25,8 @@ import { AppSettings } from "../../../../common/app-setting";
 import { AuthService } from "../../../../common/service/user/auth.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PortSchema } from "../../../types/workflow-compiling.interface";
 import { buildFixPrompt } from "./ai-fix-prompt";
 
@@ -49,7 +51,9 @@ export interface FixState {
   originalCode?: string;
   originalProperties?: object;
   suggestedFix?: SuggestedFix;
-  status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "error";
+  // `applied_without_run`: the fix was written but the deployment refused to start a
+  // run (a warehouse is required and none is selected), so the panel must not claim one.
+  status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "applied_without_run" | "error";
 }
 
 // Model id as LiteLLM exposes it (bin/single-node/litellm-config.yaml), not the provider's id.
@@ -85,7 +89,9 @@ export class AiWorkflowFixerService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private executeWorkflowService: ExecuteWorkflowService,
+    private warehouseService: WarehouseService,
+    private config: GuiConfigService
   ) {}
 
   public getState$(): Observable<FixState> {
@@ -157,6 +163,12 @@ export class AiWorkflowFixerService {
         properties[field] = fix.suggested;
       }
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
+      if (!this.canStartRun()) {
+        // ExecuteWorkflowService refuses the run and shows its own toast; reporting
+        // "re-running" here would contradict it.
+        this.stateSubject.next({ ...current, status: "applied_without_run" });
+        return;
+      }
       this.stateSubject.next({ ...current, status: "applied" });
       // Same empty execution name the operator menu uses for an ad-hoc run.
       this.executeWorkflowService.executeWorkflow("");
@@ -164,6 +176,14 @@ export class AiWorkflowFixerService {
       console.error("AI workflow fixer: apply failed", err);
       this.stateSubject.next({ ...current, status: "error" });
     }
+  }
+
+  /**
+   * Mirrors ExecuteWorkflowService's own entry guard: while the deployment requires a
+   * warehouse and none is selected, a run request is refused before it starts.
+   */
+  private canStartRun(): boolean {
+    return !this.config.env.warehouseEnabled || this.warehouseService.getSelectedWarehouseIdValue() !== undefined;
   }
 
   public discardFix(): void {

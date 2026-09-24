@@ -22,6 +22,8 @@ import { firstValueFrom } from "rxjs";
 import { AiWorkflowFixerService, classifyError, FixState } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { PortSchema } from "../../../types/workflow-compiling.interface";
 
@@ -42,6 +44,7 @@ describe("AiWorkflowFixerService", () => {
   let setOperatorProperty: ReturnType<typeof vi.fn>;
   let executeWorkflow: ReturnType<typeof vi.fn>;
   let operatorProperties: Record<string, unknown>;
+  let selectedWarehouseId: number | undefined;
 
   // Stub the transport at the class seam (callModel), as migration-llm.spec.ts does:
   // mocking the "ai" module leaks across specs sharing the import and hits the network.
@@ -62,6 +65,7 @@ describe("AiWorkflowFixerService", () => {
     setOperatorProperty = vi.fn();
     executeWorkflow = vi.fn();
     operatorProperties = { code: CODE, workers: 1 };
+    selectedWarehouseId = undefined;
 
     TestBed.configureTestingModule({
       providers: [
@@ -74,6 +78,10 @@ describe("AiWorkflowFixerService", () => {
           },
         },
         { provide: ExecuteWorkflowService, useValue: { executeWorkflow } },
+        {
+          provide: WarehouseService,
+          useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
+        },
         ...commonTestProviders,
       ],
     });
@@ -224,6 +232,32 @@ describe("AiWorkflowFixerService", () => {
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
       expect(state().status).toEqual("error");
+    });
+
+    it("applies without claiming a re-run when a warehouse is required but none is selected", async () => {
+      // MockGuiConfigService ships warehouseEnabled=false; turn the feature on for this case.
+      (TestBed.inject(GuiConfigService).env as any).warehouseEnabled = true;
+      selectedWarehouseId = undefined;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      service.applyFix();
+
+      expect(setOperatorProperty).toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
+      expect(state().status).toEqual("applied_without_run");
+    });
+
+    it("re-runs once a warehouse is selected", async () => {
+      (TestBed.inject(GuiConfigService).env as any).warehouseEnabled = true;
+      selectedWarehouseId = 7;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      service.applyFix();
+
+      expect(executeWorkflow).toHaveBeenCalledWith("");
+      expect(state().status).toEqual("applied");
     });
 
     it("ends in error when the graph rejects the change", async () => {
