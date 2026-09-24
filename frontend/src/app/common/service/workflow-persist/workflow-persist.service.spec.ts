@@ -335,6 +335,44 @@ describe("WorkflowPersistService", () => {
         expect(emitted).toBe(true);
       });
 
+      it("answers a caller asking from its own save's complete callback once the save queued behind has too", () => {
+        // How the Form View hand-over uses it: its save completes, it asks there, and a rename's save
+        // queued behind must have answered before it is told the queue is drained.
+        let emitted = false;
+        service.persistWorkflow(wf("switch")).subscribe({
+          complete: () => service.whenSavesDrained().subscribe(() => (emitted = true)),
+        });
+        service.persistWorkflow(wf("rename")).subscribe();
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "switch", content: "{}" });
+        expect(emitted).toBe(false); // asked, and the rename's save is still out
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "rename", content: "{}" });
+        expect(emitted).toBe(true);
+      });
+
+      it("answers a call once: a later drain does not reach a caller answered already", () => {
+        // The hand-over's subscription outlives a refused navigation; a drain caused by some later
+        // save must not run its callback again and route without a click.
+        let emissions = 0;
+        service.persistWorkflow(wf("first")).subscribe();
+        service.whenSavesDrained().subscribe(() => emissions++);
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "first", content: "{}" });
+        expect(emissions).toBe(1);
+
+        service.persistWorkflow(wf("second")).subscribe();
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "second", content: "{}" });
+        expect(emissions).toBe(1);
+      });
+
       it("counts a failed save as done, so a failure does not hold the drain forever", () => {
         service.persistWorkflow(wf("first")).subscribe({ error: () => {} });
         let emitted = false;
