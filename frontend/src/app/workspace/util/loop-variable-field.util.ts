@@ -180,16 +180,25 @@ export function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
  * default of its plain control), the schema's type validator lets a reference through, and a reference
  * to an undeclared name is flagged with "$name is not a variable of an enclosing block". Errors show at
  * once rather than after a first edit.
+ *
+ * A field given value rules first (setValueRules) keeps them: its rules' validator lets a reference
+ * through and judges every other value as before, its hooks stay, and the input offers the values its
+ * rules accept next to the variables.
  */
 export function applyLoopVariableField(
   field: FormlyFieldConfig,
   schemaType: PrimitiveSchemaType,
   names: ReadonlyArray<string>
 ): void {
+  const replacedType = field.type;
   field.type = LOOP_VARIABLE_INPUT_TYPE;
-  field.props = { ...field.props, loopVariableOptions: loopVariableOptions(names) };
-  if (schemaType === "string" && field.defaultValue === undefined) {
-    // what the "string" formly type's defaultOptions give its plain control, lost with the type
+  // written into the existing object rather than over it: `props` and `templateOptions` are two names
+  // for one object, and replacing it leaves them pointing at different ones
+  field.props = field.props ?? {};
+  field.props["loopVariableOptions"] = loopVariableOptions(names);
+  if (replacedType === "string" && field.defaultValue === undefined) {
+    // what the "string" formly type's defaultOptions give its plain control, lost with the type; a field
+    // on the value rules' control had no such default and gets none
     field.defaultValue = "";
   }
   if (schemaType !== "string") {
@@ -225,6 +234,17 @@ export function applyLoopVariableField(
       isReference(control.value) || holdsSchemaType(control, fieldConfig),
     message: typeMismatchMessage(schemaType),
   };
+  // What a reference stands for is known only at run time, so the value rules let it through and judge
+  // every other value as they did; a reference to an undeclared name is the next validator's to flag.
+  const valueRulesCheck = validators["valueRules"];
+  if (valueRulesCheck !== undefined) {
+    const judgeByRules = typeof valueRulesCheck === "function" ? valueRulesCheck : valueRulesCheck.expression;
+    validators["valueRules"] = {
+      ...(typeof valueRulesCheck === "object" ? valueRulesCheck : {}),
+      expression: (control: AbstractControl, fieldConfig: FormlyFieldConfig) =>
+        isReference(control.value) || Boolean(judgeByRules(control, fieldConfig)),
+    };
+  }
   const validate = referenceValidator(names);
   validators["loopVariableReference"] = {
     expression: (control: AbstractControl) => validate(control.value) === undefined,

@@ -22,7 +22,7 @@ import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
@@ -45,6 +45,7 @@ import {
   mockScanPredicate,
 } from "../../../service/workflow-graph/model/mock-workflow-data";
 import {
+  mockScalaExecutorSchema,
   mockScanSourceSchema,
   mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
@@ -2149,6 +2150,117 @@ describe("OperatorPropertyEditFrameComponent", () => {
       workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
       expect(rerender).toHaveBeenCalledTimes(1);
       expect(getField("limit")?.type).toBe("integer");
+    });
+
+    describe("a field with value rules", () => {
+      // the body given a sklearn trainer's hyperparameter rows, whose value's rules follow the parameter
+      const valueRules: ValueRuleSet = {
+        allOf: [
+          { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", exclusiveMinimum: 0 } },
+          { if: { parameter: { valEnum: ["kernel"] } }, then: { enum: ["rbf", "linear"] } },
+        ],
+      };
+      const trainerSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            paraList: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  parameter: { type: "string", enum: ["C", "kernel"] },
+                  value: { type: "string", valueRules },
+                },
+              },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      /** Opens the body with the trainer's schema (or the one given); every other operator keeps its own. */
+      function openBodyAsTrainer(schema = trainerSchema): void {
+        const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+        const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
+        vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
+          operatorID === body.operatorID ? schema : ownSchema(operatorID)
+        );
+        openBody();
+      }
+
+      /** A field of a hyperparameter row, which formly builds only when asked for a row. */
+      function rowField(key: string): FormlyFieldConfig | undefined {
+        const arrayField = getField("paraList")!;
+        const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+        return row.fieldGroup?.find(f => f.key === key);
+      }
+
+      /** The field as formly hands it to a validator in a row whose parameter is the one given. */
+      const inRow = (field: FormlyFieldConfig | undefined, parameter: string) =>
+        ({ ...field, parent: { model: { parameter } } }) as FormlyFieldConfig;
+
+      it("takes a $reference inside a block and still holds every other value to the rules", () => {
+        addBlockAroundBody();
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("loopvariableinput");
+        expect(value?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(value?.props?.["valueRules"]).toEqual(valueRules);
+        for (const name of ["type", "valueRules", "loopVariableReference"]) {
+          expect(value?.validators?.[name].expression(control("$K"), inRow(value, "C")), name).toBe(true);
+        }
+        expect(value?.validators?.["loopVariableReference"].expression(control("$foo"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("-1"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+        expect(value?.validators?.["valueRules"].expression(control("poly"), inRow(value, "kernel"))).toBe(false);
+        // the row's parameter, chosen from a set, keeps its dropdown
+        expect(rowField("parameter")?.type).toBe("enum");
+      });
+
+      it("leaves a field with value rules and a schema enum, or a custom widget, on its own control inside a block", () => {
+        const withOwnControls = {
+          ...trainerSchema,
+          jsonSchema: {
+            ...trainerSchema.jsonSchema,
+            properties: {
+              ...trainerSchema.jsonSchema.properties,
+              paraList: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    parameter: { type: "string", enum: ["C", "kernel"] },
+                    value: { type: "string", enum: ["rbf", "linear"], valueRules },
+                    fileName: { type: "string", valueRules },
+                  },
+                },
+              },
+            },
+          } as CustomJSONSchema7,
+        };
+        addBlockAroundBody();
+        openBodyAsTrainer(withOwnControls);
+
+        expect(rowField("value")?.type).toBe("constrainedvalue");
+        expect(rowField("value")?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(rowField("fileName")?.type).toBe("inputautocomplete");
+        expect(rowField("fileName")?.props?.["loopVariableOptions"]).toBeUndefined();
+      });
+
+      it("keeps the rules' own control and validator outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("constrainedvalue");
+        expect(value?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(value?.validators?.["loopVariableReference"]).toBeUndefined();
+        expect(value?.validators?.["valueRules"].expression(control("$K"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+      });
     });
   });
 
