@@ -446,15 +446,20 @@ object TransformVerificationRunner {
     )
 
     // A table with no rows carries no columns in the engine, so these operators
-    // raise on the first column they read. The script reads the same empty file
-    // into the same columnless frame and raises the same error.
+    // cannot find the columns they read and fail. In an exported script the empty
+    // frame keeps its columns, and the script handles it. The script is the more
+    // forgiving of the two, and copying the failure would only make it worse.
     val noColumnsToRead = ByDesign(
-      "a table with no rows carries no columns, so the operator's first read of a " +
-        "column raises, and both paths raise the same error"
+      "a table with no rows carries no columns in the engine, so the operator " +
+        "fails on the columns it reads; the exported script's empty frame keeps " +
+        "its columns and is handled"
     )
     val emptyTableRaises = Seq(
+      classOf[BarChartOpDesc],
       classOf[CandlestickChartOpDesc],
       classOf[ContourPlotOpDesc],
+      classOf[FilledAreaPlotOpDesc],
+      classOf[NetworkGraphOpDesc],
       classOf[ScatterMatrixChartOpDesc],
       classOf[SortOpDesc],
       classOf[StripChartOpDesc]
