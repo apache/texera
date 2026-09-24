@@ -33,9 +33,15 @@ import {
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
-import { NgFor, NgTemplateOutlet } from "@angular/common";
+import { NgFor, NgIf, NgTemplateOutlet } from "@angular/common";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { SemanticOperatorSearchService } from "../../../service/semantic-search/semantic-operator-search.service";
+
+// Enough ranked candidates to fill the list once the exact matches are in, and
+// a ceiling so the dropdown stays scannable.
+const SEMANTIC_LIMIT = 6;
+const MAX_RESULTS = 6;
 
 @UntilDestroy()
 @Component({
@@ -49,6 +55,7 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
     NzAutocompleteTriggerDirective,
     NzAutocompleteComponent,
     NgFor,
+    NgIf,
     NzAutocompleteOptionComponent,
     OperatorLabelComponent,
     NgTemplateOutlet,
@@ -67,6 +74,17 @@ export class OperatorMenuComponent {
 
   public canModify = true;
 
+  // True while the embedding model is downloading on first use.
+  public semanticLoading = false;
+  // Relevance per suggested operator, so the palette can show why it ranked.
+  public semanticScores = new Map<string, number>();
+
+  // Every operator the palette can offer, kept for the semantic ranker.
+  private searchableOperators: ReadonlyArray<OperatorSchema> = [];
+  // Monotonic id of the newest query, so a slow response for an older
+  // keystroke cannot overwrite the results of a newer one.
+  private latestQueryId = 0;
+
   // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
   public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
     shouldSort: true,
@@ -81,7 +99,8 @@ export class OperatorMenuComponent {
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private semanticSearchService: SemanticOperatorSearchService
   ) {
     // clear the search box if an operator is dropped from operator search box
     this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
@@ -112,21 +131,68 @@ export class OperatorMenuComponent {
           value.sort((a, b) => a.operatorType.localeCompare(b.operatorType));
         });
         this.fuse.setCollection(ops);
+        this.searchableOperators = ops;
       });
   }
 
   /**
-   * create the search results observable
-   * whenever the search box text is changed, perform the search using fuse.js
+   * Runs a search whenever the box changes.
    */
   onInput(e: Event): void {
-    const v = (e.target as HTMLInputElement).value;
-    if (v === null || v.trim().length === 0) {
+    this.runSearch((e.target as HTMLInputElement).value);
+  }
+
+  /** Relevance of a suggestion, formatted for display, or undefined if ranked by keyword. */
+  public scoreLabel(operator: OperatorSchema): string | undefined {
+    const score = this.semanticScores.get(operator.operatorType);
+    return score === undefined ? undefined : score.toFixed(2);
+  }
+
+  private runSearch(query: string): void {
+    const queryId = ++this.latestQueryId;
+
+    if (query === null || query.trim().length === 0) {
       this.autocompleteOptions = [];
+      this.semanticScores.clear();
+      return;
     }
-    this.autocompleteOptions = this.fuse.search(v).map(item => {
-      return item.item;
-    });
+
+    // One box, two rankers, no choice to make. The keyword search answers
+    // instantly and exactly, so its results go up straight away and the box
+    // never waits on a model to load.
+    const keywordHits = this.fuse.search(query).map(item => item.item);
+    this.autocompleteOptions = keywordHits.slice(0, MAX_RESULTS);
+    this.semanticScores.clear();
+
+    this.semanticLoading = !this.semanticSearchService.isReady();
+
+    this.semanticSearchService
+      .search(query, this.searchableOperators, SEMANTIC_LIMIT)
+      .then(hits => {
+        // A newer keystroke already answered — drop this stale result.
+        if (queryId !== this.latestQueryId) {
+          return;
+        }
+        this.semanticScores = new Map(hits.map(hit => [hit.schema.operatorType, hit.score]));
+        // Naming an operator must still put that operator first, so keyword
+        // hits keep their places and the ranked ones fill what is left. A query
+        // phrased as an intent matches no name, so it lands entirely on the
+        // second list — which is the case the palette could not serve before.
+        const alreadyShown = new Set(keywordHits.map(schema => schema.operatorType));
+        this.autocompleteOptions = [
+          ...keywordHits,
+          ...hits.map(hit => hit.schema).filter(schema => !alreadyShown.has(schema.operatorType)),
+        ].slice(0, MAX_RESULTS);
+        this.semanticLoading = false;
+      })
+      .catch(() => {
+        if (queryId !== this.latestQueryId) {
+          return;
+        }
+        // A failed model download or a corrupt index leaves the keyword results
+        // standing, which is exactly the palette's previous behaviour.
+        this.semanticLoading = false;
+      });
   }
 
   /**

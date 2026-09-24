@@ -18,8 +18,10 @@
  */
 
 import {
+  mockAggregationSchema,
   mockOperatorGroup,
   mockScanSourceSchema,
+  mockUnionSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
@@ -38,6 +40,26 @@ import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import type { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 import type * as joint from "jointjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import {
+  SemanticHit,
+  SemanticOperatorSearchService,
+} from "../../../service/semantic-search/semantic-operator-search.service";
+
+/**
+ * Stands in for the embedding ranker so the palette can be tested without downloading a model. Each
+ * search waits until the test settles it, which is what lets a test answer keystrokes out of order.
+ */
+class StubSemanticOperatorSearchService {
+  public pending: { resolve: (hits: SemanticHit[]) => void; reject: (error: unknown) => void }[] = [];
+
+  public isReady(): boolean {
+    return true;
+  }
+
+  public search(): Promise<SemanticHit[]> {
+    return new Promise((resolve, reject) => this.pending.push({ resolve, reject }));
+  }
+}
 
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
@@ -55,6 +77,7 @@ describe("OperatorPanelComponent", () => {
         UndoRedoService,
         WorkflowUtilService,
         JointUIService,
+        { provide: SemanticOperatorSearchService, useClass: StubSemanticOperatorSearchService },
         ...commonTestProviders,
       ],
       imports: [
@@ -92,6 +115,73 @@ describe("OperatorPanelComponent", () => {
 
     expect(component.autocompleteOptions.length).toBe(1);
     expect(component.autocompleteOptions[0]).toBe(mockScanSourceSchema);
+  });
+
+  /**
+   * One box answers every query through both rankers: the keyword matches render at once and keep
+   * their places, and the ranked matches fill in beneath them when the model answers. A phrase that
+   * names no operator matches nothing by keyword, so it is served by the ranker alone.
+   */
+  describe("merging the keyword and semantic rankers", () => {
+    let ranker: StubSemanticOperatorSearchService;
+
+    beforeEach(() => {
+      ranker = TestBed.inject(SemanticOperatorSearchService) as unknown as StubSemanticOperatorSearchService;
+    });
+
+    function type(query: string): void {
+      component.searchInputValue = query;
+      component.onInput({ target: { value: query } } as unknown as Event);
+    }
+
+    const settle = () => new Promise(resolve => setTimeout(resolve));
+
+    it("shows the keyword matches before the ranker answers", () => {
+      type("scan");
+
+      expect(component.autocompleteOptions).toEqual([mockScanSourceSchema]);
+    });
+
+    it("keeps the keyword matches first and fills in the ranked ones beneath, once each", async () => {
+      type("scan");
+      ranker.pending[0].resolve([
+        { schema: mockAggregationSchema, score: 0.6 },
+        { schema: mockScanSourceSchema, score: 0.5 },
+      ]);
+      await settle();
+
+      expect(component.autocompleteOptions).toEqual([mockScanSourceSchema, mockAggregationSchema]);
+    });
+
+    it("serves a phrase that names no operator entirely from the ranker", async () => {
+      type("remove repeated rows");
+      expect(component.autocompleteOptions).toEqual([]);
+
+      ranker.pending[0].resolve([{ schema: mockUnionSchema, score: 0.7 }]);
+      await settle();
+
+      expect(component.autocompleteOptions).toEqual([mockUnionSchema]);
+      expect(component.scoreLabel(mockUnionSchema)).toBe("0.70");
+    });
+
+    it("drops a slow answer to an earlier keystroke", async () => {
+      type("remove");
+      type("remove repeated rows");
+      ranker.pending[1].resolve([{ schema: mockUnionSchema, score: 0.7 }]);
+      ranker.pending[0].resolve([{ schema: mockAggregationSchema, score: 0.9 }]);
+      await settle();
+
+      expect(component.autocompleteOptions).toEqual([mockUnionSchema]);
+    });
+
+    it("leaves the keyword matches standing when the ranker fails", async () => {
+      type("scan");
+      ranker.pending[0].reject(new Error("model unavailable"));
+      await settle();
+
+      expect(component.autocompleteOptions).toEqual([mockScanSourceSchema]);
+      expect(component.semanticLoading).toBe(false);
+    });
   });
 
   /**

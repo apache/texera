@@ -56,3 +56,48 @@
 #spacer {
   margin-top: 32px;
 }
+
+// Overlays the list rather than displacing it: the notice is brief and only
+// appears on the first query of a session.
+.semantic-loading {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  padding: 4px 9px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+// A suggestion is two stacked lines, so the fixed option height has to go.
+.suggestion {
+  height: auto !important;
+  line-height: 1.4 !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.suggestion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+// The operator's own description, so a ranked hit says why it is relevant.
+.suggestion-description {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.45);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.semantic-score {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.45);
+}
