@@ -28,6 +28,7 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph, isSink } from "./workflow-graph";
+import { Observable } from "rxjs";
 import {
   Comment,
   OperatorLink,
@@ -35,7 +36,6 @@ import {
   PortDescription,
   PortProperty,
 } from "../../../types/workflow-common.interface";
-import { Observable } from "rxjs";
 
 describe("WorkflowGraph", () => {
   let workflowGraph: WorkflowGraph;
