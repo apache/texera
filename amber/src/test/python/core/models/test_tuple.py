@@ -42,6 +42,16 @@ class TestTuple:
     def test_tuple_from_series(self, target_tuple):
         assert Tuple(pandas.Series({"x": 1, "y": "a"})) == target_tuple
 
+    def test_tuple_copy_has_independent_field_storage(self, target_tuple):
+        copied = Tuple(target_tuple)
+        assert copied == target_tuple
+
+        copied["x"] = 2
+        target_tuple["y"] = "b"
+
+        assert target_tuple["x"] == 1
+        assert copied["y"] == "a"
+
     def test_tuple_as_key_value_pairs(self, target_tuple):
         assert target_tuple.as_key_value_pairs() == [("x", 1), ("y", "a")]
 
