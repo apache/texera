@@ -23,10 +23,19 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
-import { map } from "rxjs/operators";
+import { filter, map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
+import {
+  collectReferences,
+  isReference,
+  primitiveSchemaType,
+  referenceValidator,
+  valueAtPointer,
+} from "../../util/loop-variable-field.util";
+import { loopVariablesInScope } from "../../util/loop-variable.util";
+import { LOOP_START_OP_TYPE } from "../workflow-graph/model/loop-block.util";
 
 export type ValidationError = {
   isValid: false;
@@ -157,6 +166,21 @@ export class ValidationWorkflowService {
     }
   }
 
+  /**
+   * Re-validates every operator whose properties hold a loop-variable reference; see initializeValidation.
+   * An operator whose dynamic schema is not set yet is left for the schema-change event that sets it.
+   */
+  private revalidateOperatorsWithReferences(): void {
+    const dynamicSchemas = this.dynamicSchemaService.getDynamicSchemaMap();
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .filter(
+        operator => dynamicSchemas.has(operator.operatorID) && collectReferences(operator.operatorProperties).length > 0
+      )
+      .forEach(operator => this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID)));
+  }
+
   private updateValidationStateOnDelete(operatorID: string) {
     this.checkIfWorkflowEmpty();
     delete this.workflowErrors[operatorID];
@@ -227,6 +251,21 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
+    // An operator holding a loop-variable reference is judged against the block around it and the
+    // variables its Loop Starts declare, which other operators' links and properties decide: a link two
+    // hops away can close or open its block, and renaming a Loop Start's variable can orphan "$K". So
+    // after every link added or removed, and every property change of a Loop Start, re-validate each
+    // operator holding a reference. Those are the only ones affected: without a reference, an operator
+    // validates the same inside a block and outside every block.
+    merge(
+      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorPropertyChangeStream()
+        .pipe(filter(value => value.operator.operatorType === LOOP_START_OP_TYPE))
+    ).subscribe(() => this.revalidateOperatorsWithReferences());
+
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
       .getTexeraGraph()
@@ -280,15 +319,39 @@ export class ValidationWorkflowService {
       throw new Error("operatorSchema doesn't exist");
     }
 
-    const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
-    if (isValid) {
-      return { isValid: true };
+    const properties = operator.operatorProperties;
+    const isValid = this.ajv.validate(operatorSchema.jsonSchema, properties);
+    let errors = isValid ? [] : this.ajv.errors ?? [];
+    const validationError: Record<string, string> = {};
+
+    // Inside a control block a primitive property may hold a loop-variable reference ("$K") that the
+    // backend binds at run time (issue #8635), so the schema type check is waived exactly where a
+    // reference sits in a property whose schema type is a primitive (the fields the property panel lets
+    // take one), and every reference must name a variable an enclosing Loop Start declares. Outside every
+    // block nothing is waived: a "$K" in an integer property stays a type error, and so does one in an
+    // array or object property anywhere.
+    const namesInScope = loopVariablesInScope(this.workflowActionService.getTexeraGraph(), operatorID);
+    if (namesInScope !== undefined) {
+      errors = errors.filter(
+        error =>
+          !(
+            error.keyword === "type" &&
+            primitiveSchemaType(error.params["type"]) !== undefined &&
+            isReference(valueAtPointer(properties, error.instancePath))
+          )
+      );
+      const validateReference = referenceValidator(namesInScope);
+      const undeclared = collectReferences(properties)
+        .map(reference => validateReference(`$${reference.name}`))
+        .find(message => message !== undefined);
+      if (undeclared !== undefined) {
+        validationError["loopVariable"] = undeclared;
+      }
     }
 
-    const errors = this.ajv.errors;
-    const validationError: Record<string, string> = {};
-    if (errors) {
-      errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
+    errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
+    if (Object.keys(validationError).length === 0) {
+      return { isValid: true };
     }
     return { isValid: false, messages: validationError };
   }

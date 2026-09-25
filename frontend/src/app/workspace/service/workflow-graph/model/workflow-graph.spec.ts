@@ -19,6 +19,11 @@
 
 import {
   mockCommentBox,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
+  mockLoopEndPredicate,
+  mockLoopStartScalaExecutorLink,
+  mockLoopStartPredicate,
   mockMultiInputOutputPredicate,
   mockResultPredicate,
   mockScanPredicate,
@@ -828,6 +833,35 @@ describe("WorkflowGraph", () => {
       workflowGraph.triggerCenterEvent();
       expect(fired).toBe(true);
       sub.unsubscribe();
+    });
+  });
+
+  describe("getEnclosingLoopStarts", () => {
+    it("names the LoopStart of the block an operator sits in, from the graph's own operators and links", () => {
+      workflowGraph = new WorkflowGraph(
+        [mockLoopStartPredicate, mockScalaExecutorPredicate, mockLoopEndPredicate],
+        [mockLoopStartScalaExecutorLink, mockScalaExecutorLoopEndLink]
+      );
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([
+        mockLoopStartPredicate.operatorID,
+      ]);
+      // the control operators are not inside their own block
+      expect(workflowGraph.getEnclosingLoopStarts(mockLoopStartPredicate.operatorID)).toEqual([]);
+      expect(workflowGraph.getEnclosingLoopStarts(mockLoopEndPredicate.operatorID)).toEqual([]);
+    });
+
+    it("follows the graph as it changes", () => {
+      workflowGraph.addOperator(mockLoopStartPredicate);
+      workflowGraph.addOperator(mockScalaExecutorPredicate);
+      workflowGraph.addOperator(mockLoopEndPredicate);
+      workflowGraph.addLink(mockLoopStartScalaExecutorLink);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([]);
+      workflowGraph.addLink(mockScalaExecutorLoopEndLink);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([
+        mockLoopStartPredicate.operatorID,
+      ]);
+      workflowGraph.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([]);
     });
   });
 
