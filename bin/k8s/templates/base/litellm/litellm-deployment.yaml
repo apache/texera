@@ -33,6 +33,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.litellm.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}
       containers:
         - name: {{ .Values.litellm.name }}
           image: {{ .Values.litellm.image }}

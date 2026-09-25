@@ -26,6 +26,9 @@ spec:
     metadata:
       name: {{ .Release.Name }}-lakefs-setup-job
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       restartPolicy: Never
       containers:
         - name: setup-lakefs
