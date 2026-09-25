@@ -37,11 +37,17 @@ import {
 } from "./mock-workflow-data";
 import { inject, TestBed } from "@angular/core/testing";
 
-import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
+import * as Y from "yjs";
+import {
+  CONTENT_META_SEED_TIMEOUT_MS,
+  DEFAULT_WORKFLOW,
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowActionService,
+} from "./workflow-action.service";
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { ExecutionMode, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
+import { ExecutionMode, FormBindingConfig, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
@@ -70,6 +76,16 @@ describe("WorkflowActionService", () => {
     texeraGraph = (service as any).texeraGraph;
     jointGraph = (service as any).jointGraph;
   });
+
+  /**
+   * The shared document has finished its first sync with the room. A seed of the workflow's
+   * settings or form definition waits for this, so that a co-editor's newer value is already in
+   * the map and is not overwritten by the copy the database handed us (see seedContentMeta).
+   * No y-websocket server answers in a unit test, so the tests say when the sync lands.
+   */
+  function syncSharedDoc(): void {
+    texeraGraph.sharedModel.wsProvider.emit("sync", [true]);
+  }
 
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
@@ -832,12 +848,47 @@ describe("WorkflowActionService", () => {
     expect(events).toEqual([true, false]);
   });
 
-  it("should not replace the workflow settings object when given the same reference", () => {
-    const current = service.getWorkflowSettings();
+  it("does not write a redundant shared-model update when the settings value is unchanged", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
+    const stored = texeraGraph.sharedModel.contentMetaMap.get("settings");
 
-    service.setWorkflowSettings(current);
+    // An equal value (a different object) must be skipped, or every collaborator gets a redundant
+    // Yjs update; the stored object is therefore left in place.
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
 
-    expect(service.getWorkflowSettings()).toBe(current);
+    expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toBe(stored);
+  });
+
+  // A co-editor's settings change has to reach this client's settings panel, which refreshes from
+  // workflowChanged, and this client's autosave. Writing to the shared map stands in for the
+  // remote update, as it does for the form binding.
+  it("announces a settings change from the shared model on workflowChanged", () => {
+    const changed: unknown[] = [];
+    const settings: WorkflowSettings = { dataTransferBatchSize: 77, executionMode: ExecutionMode.MATERIALIZED };
+    const settingsSeen: unknown[] = [];
+    const subA = service.workflowChanged().subscribe(v => changed.push(v));
+    const subB = service.workflowSettingsChanged$.subscribe(v => settingsSeen.push(v));
+
+    texeraGraph.sharedModel.contentMetaMap.set("settings", settings);
+
+    expect(settingsSeen).toEqual([settings]);
+    expect(changed.length).toEqual(1);
+    expect(service.getWorkflowSettings()).toEqual(settings);
+    subA.unsubscribe();
+    subB.unsubscribe();
+  });
+
+  it("clears the settings key when a workflow with no settings is opened, not overwriting a co-editor's", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 99, executionMode: ExecutionMode.PIPELINED });
+
+    service.hydrateSettings(undefined);
+    syncSharedDoc();
+
+    // Absent -> delete (not set-to-defaults), mirroring hydrateFormBinding, so opening a workflow
+    // that never saved settings does not write over another editor's; getWorkflowSettings then
+    // falls back to defaults on the absent key.
+    expect(texeraGraph.sharedModel.contentMetaMap.has("settings")).toBe(false);
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
   });
 
   it("should assemble workflow content and the full workflow from graph state", () => {
@@ -904,6 +955,7 @@ describe("WorkflowActionService", () => {
       };
 
       service.reloadWorkflow(workflow, false, false);
+      syncSharedDoc();
 
       expect(service.getFormBinding()).toEqual(config);
     });
@@ -925,6 +977,7 @@ describe("WorkflowActionService", () => {
         false,
         false
       );
+      syncSharedDoc();
 
       expect(service.getFormBinding()).toEqual({ fields: [] });
     });
@@ -969,12 +1022,188 @@ describe("WorkflowActionService", () => {
       sub.unsubscribe();
     });
 
-    // Opening a workflow is not an edit; announcing it would save on every open.
+    // The definition lives in the shared model (#8315), so a change to the shared map -- a local
+    // edit and a co-editor's remote update flow through the same observer -- is picked up and
+    // republished, and this client's next autosave carries the current value instead of a stale
+    // private copy. Writing to the map directly here stands in for either source.
+    it("should pick up a change to the shared model", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+
+      expect(seen).toEqual([config]);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+
+    // The seed a workflow opens with must not overwrite what the room already holds: the document
+    // is connected a moment before, so a write that goes in before the first sync is concurrent
+    // with the co-editor's, and Yjs settles that by client id, not by which is newer. The value
+    // the room sends is the authoritative one.
+    it("leaves a co-editor's definition alone instead of seeding the database copy over it", () => {
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      // The room's state reaches this client as a remote update, exactly as the first sync delivers it.
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(config);
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual(live);
+    });
+
+    // Opening a workflow that carries no definition must not take the room's away either: the
+    // clear is for the document this client is reusing, not for a co-editor's live value.
+    it("leaves a co-editor's definition alone when the workflow being opened has none", () => {
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(undefined);
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual(live);
+    });
+
+    // The seed lands after the open has finished (it waits for the sync), so the reloading flag is
+    // no longer up: it has to keep itself quiet, or every open would announce an edit and save.
+    it("does not announce the seed that lands once the document syncs", () => {
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [],
+            operatorPositions: {},
+            links: [],
+            commentBoxes: [],
+            settings: undefined as any,
+            formBinding: config,
+          },
+        },
+        false,
+        false
+      );
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      syncSharedDoc();
+
+      expect(seen).toEqual([]);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+
+    // Until the sync says whether the room holds one, the database copy still has to be the
+    // workflow's: the page renders it, and an autosave that fires meanwhile carries it rather
+    // than an empty definition that would wipe the author's setup.
+    it("reads the database copy while the seed waits for the first sync", () => {
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+      expect(service.getFormBinding()).toEqual(config);
+      expect(service.getWorkflowContent().formBinding).toEqual(config);
+    });
+
+    // A y-websocket that never answers must not leave the workflow without its definition.
+    it("seeds anyway when the document never syncs", () => {
+      vi.useFakeTimers();
+      try {
+        service.hydrateFormBinding(config);
+        expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+
+        vi.advanceTimersByTime(CONTENT_META_SEED_TIMEOUT_MS);
+
+        expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // A document that is not connecting to a room has no sync to wait for, and one that has
+    // already synced (a version reloaded into the open document) has nothing more to learn from
+    // it: the seed goes in at once, so the value is in the document and not only held here.
+    it("seeds at once into a document that is not connecting to a room", () => {
+      texeraGraph.sharedModel.wsProvider.shouldConnect = false;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    it("seeds at once into a document that has already synced", () => {
+      texeraGraph.sharedModel.wsProvider.synced = true;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // A second open before the first seed has landed (a version reloaded into the document while
+    // it was still syncing) supersedes it: only the later copy may go in, or the earlier one would
+    // take the key first and the later one, finding it present, would leave it there.
+    it("lets a later open supersede a seed still waiting for the sync", () => {
+      const earlier: FormBindingConfig = { fields: [], instruction: { title: "earlier", body: "superseded" } };
+      service.hydrateFormBinding(earlier);
+      service.hydrateFormBinding(config);
+
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // The graph observers stay quiet while a workflow is being opened, and this one does the same:
+    // a map write made under the reloading flag is part of the open, not an edit to announce.
+    it("does not announce a map change made while a workflow is reloading", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+      service.getJointGraphWrapper().setReloadingWorkflow(true);
+      try {
+        texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+      } finally {
+        service.getJointGraphWrapper().setReloadingWorkflow(false);
+      }
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
+    // Setting the same value again must not write, or every collaborator gets a redundant Yjs
+    // update and the observer re-fires for a change that is not one.
+    it("does not re-announce a form binding that is unchanged", () => {
+      service.setFormBinding(config);
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.setFormBinding({ ...config });
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
+    // Opening a workflow is not an edit; announcing it would save on every open. The seed
+    // runs under the reloading flag, so the shared-map observer skips it.
     it("should stay silent while a workflow is being opened", () => {
       const seen: unknown[] = [];
       const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
 
-      service.hydrateFormBinding(config);
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [mockScanPredicate],
+            operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+            links: [],
+            commentBoxes: [],
+            settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
+            formBinding: config,
+          },
+        },
+        false,
+        false
+      );
 
       expect(seen.length).toEqual(0);
       expect(service.getFormBinding()).toEqual(config);
@@ -1002,6 +1231,7 @@ describe("WorkflowActionService", () => {
     };
 
     service.reloadWorkflow(workflow, false, false);
+    syncSharedDoc();
 
     expect(texeraGraph.hasCommentBox("commentBox-old")).toBeFalsy();
     expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
