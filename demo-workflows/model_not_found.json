@@ -1,0 +1,87 @@
+{
+  "operators": [
+    {
+      "operatorID": "CSVFileScan-operator-demo-model-not-found",
+      "operatorType": "CSVFileScan",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "fileEncoding": "UTF_8",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "fileName": "/dataset/texera/popular-movies-of-imdb/v1/TMDb_updated.csv"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Read Movies",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "HuggingFace-operator-demo-model-not-found",
+      "operatorType": "HuggingFace",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "hfApiToken": "",
+        "task": "text-generation",
+        "modelId": "Qwen/Qwen2.5-72B-Instrukt",
+        "promptColumn": "overview",
+        "systemPrompt": "Summarize the movie plot in one sentence.",
+        "resultColumn": "summary"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Summarize plots (model typo)",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": true
+    }
+  ],
+  "operatorPositions": {
+    "CSVFileScan-operator-demo-model-not-found": { "x": 80, "y": 200 },
+    "HuggingFace-operator-demo-model-not-found": { "x": 340, "y": 200 }
+  },
+  "links": [
+    {
+      "linkID": "link-demo-model-not-found",
+      "source": {
+        "operatorID": "CSVFileScan-operator-demo-model-not-found",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "HuggingFace-operator-demo-model-not-found",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}
