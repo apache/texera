@@ -76,6 +76,14 @@ class Operator(ABC):
 
     __internal_is_source: bool = False
 
+    # The state message most recently handed to this operator -- inside a
+    # control block, the iteration's loop variables. The runtime registers it
+    # right before ``process_state`` runs (see ``DataProcessor.process_state``),
+    # so the callback and every call after it can consult it. A class-level
+    # default rather than an ``__init__`` assignment: a subclass ``__init__``
+    # that skips ``super()`` still reads ``None`` until a state arrives.
+    loop_state: Optional[State] = None
+
     @property
     @overrides.final
     def is_source(self) -> bool:

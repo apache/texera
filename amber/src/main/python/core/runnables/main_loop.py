@@ -200,6 +200,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         with replace_print(
             self.context.worker_id, self.context.console_message_manager.print_buf
         ):
+            # This deferred consume bypasses DataProcessor.process_state, so
+            # register the state here too, before the callback runs.
+            executor.loop_state = pending
             executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
