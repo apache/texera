@@ -48,8 +48,6 @@ class MockAgentService {
   public stepsSubject = new BehaviorSubject<ReActStep[]>([]);
   public headIdSubject = new BehaviorSubject<string | null>(null);
   public workflowSubject = new BehaviorSubject<Workflow | null>(null);
-  public scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
-  public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
   public ensureWorkflowPolling = vi.fn();
   public getAgentState = vi.fn((): Observable<AgentState> => of(this.stateSubject.getValue()));
@@ -719,33 +717,6 @@ describe("AgentChatComponent", () => {
 
       expect(notification.error).toHaveBeenCalledWith("Failed to export ReAct steps");
       expect(createObjectURL).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("scroll-to-step requests", () => {
-    it("scrolls to and highlights the requested step of this agent", () => {
-      createComponent();
-      const s0 = makeStep({ messageId: "m1", stepId: 0 });
-      const s1 = makeStep({ messageId: "m1", stepId: 1 });
-      agentService.stepsSubject.next([s0, s1]);
-      fixture.detectChanges();
-      agentService.setHoveredMessage.mockClear();
-
-      agentService.scrollToStepSubject.next({ agentId: AGENT_ID, messageId: "m1", stepId: 0 });
-
-      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-      expect(component.hoveredMessageIndex).toBe(0);
-      expect(agentService.setHoveredMessage).toHaveBeenCalledWith(AGENT_ID, s0);
-    });
-
-    it("ignores scroll requests addressed to other agents", () => {
-      createComponent();
-      agentService.stepsSubject.next([makeStep()]);
-      fixture.detectChanges();
-
-      agentService.scrollToStepSubject.next({ agentId: "someone-else", messageId: "m1", stepId: 0 });
-
-      expect(scrollIntoViewMock).not.toHaveBeenCalled();
     });
   });
 

@@ -185,6 +185,20 @@ describe("FormlyRepeatDndComponent", () => {
       expect(spy).toHaveBeenCalledWith(1);
     });
 
+    it("locks every remove button for a disabled section", () => {
+      render({ disabled: true });
+
+      expect(removeButtons()).toHaveLength(3);
+      expect(removeButtons().every(button => button.getAttribute("disabled") !== null)).toBe(true);
+    });
+
+    it("leaves every remove button available otherwise", () => {
+      render({ disabled: false });
+
+      expect(removeButtons()).toHaveLength(3);
+      expect(removeButtons().every(button => button.getAttribute("disabled") === null)).toBe(true);
+    });
+
     it("appends a row from the add button", () => {
       const spy = vi.spyOn(component, "add").mockImplementation(() => {});
       render();

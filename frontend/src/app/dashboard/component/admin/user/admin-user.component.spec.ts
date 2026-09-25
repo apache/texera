@@ -512,39 +512,41 @@ describe("AdminUserComponent", () => {
     });
   });
 
+  /**
+   * Every comparator here has to order its column *ascending*, because nz-table applies the
+   * comparator's result as-is for 'ascend' and negates it for 'descend'. A comparator with
+   * reversed operands therefore lights the up caret while rendering the column backwards. The
+   * rendered-header tests further down pin the caret and the row order together per column.
+   */
   describe("column sort comparators", () => {
-    it("sortByID orders by descending uid", () => {
-      expect(component.sortByID(mk({ uid: 1 }), mk({ uid: 2 }))).toBe(1);
-      expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(-3);
+    it("sortByID orders by ascending uid", () => {
+      expect(component.sortByID(mk({ uid: 1 }), mk({ uid: 2 }))).toBe(-1);
+      expect(component.sortByID(mk({ uid: 5 }), mk({ uid: 2 }))).toBe(3);
     });
 
     it("sortByName compares names and falls back to uid on a tie", () => {
-      expect(component.sortByName(mk({ uid: 1, name: "Alice" }), mk({ uid: 2, name: "Bob" }))).toBeGreaterThan(0);
+      expect(component.sortByName(mk({ uid: 1, name: "Alice" }), mk({ uid: 2, name: "Bob" }))).toBeLessThan(0);
       // equal names (both empty via null coalescing) -> uid tiebreak
       expect(component.sortByName(mk({ uid: 1, name: null as any }), mk({ uid: 2, name: null as any }))).toBe(-1);
     });
 
     it("sortByEmail compares emails and falls back to uid on a tie", () => {
-      expect(component.sortByEmail(mk({ uid: 1, email: "a@x.com" }), mk({ uid: 2, email: "b@x.com" }))).toBeGreaterThan(
-        0
-      );
+      expect(component.sortByEmail(mk({ uid: 1, email: "a@x.com" }), mk({ uid: 2, email: "b@x.com" }))).toBeLessThan(0);
       expect(component.sortByEmail(mk({ uid: 1, email: null as any }), mk({ uid: 2, email: null as any }))).toBe(-1);
     });
 
     it("sortByComment compares comments and falls back to uid on a tie", () => {
-      expect(component.sortByComment(mk({ uid: 1, comment: "aaa" }), mk({ uid: 2, comment: "bbb" }))).toBeGreaterThan(
-        0
-      );
+      expect(component.sortByComment(mk({ uid: 1, comment: "aaa" }), mk({ uid: 2, comment: "bbb" }))).toBeLessThan(0);
       expect(component.sortByComment(mk({ uid: 1, comment: null as any }), mk({ uid: 2, comment: null as any }))).toBe(
         -1
       );
     });
 
     it("sortByRole compares roles and falls back to uid on a tie", () => {
-      // "ADMIN".localeCompare("REGULAR") is negative
-      expect(component.sortByRole(mk({ uid: 1, role: Role.REGULAR }), mk({ uid: 2, role: Role.ADMIN }))).toBeLessThan(
-        0
-      );
+      // "REGULAR".localeCompare("ADMIN") is positive, so REGULAR sorts after ADMIN
+      expect(
+        component.sortByRole(mk({ uid: 1, role: Role.REGULAR }), mk({ uid: 2, role: Role.ADMIN }))
+      ).toBeGreaterThan(0);
       expect(component.sortByRole(mk({ uid: 1, role: Role.ADMIN }), mk({ uid: 2, role: Role.ADMIN }))).toBe(-1);
     });
 
@@ -564,7 +566,7 @@ describe("AdminUserComponent", () => {
     it("sortByAffiliation compares affiliations and falls back to uid on a tie", () => {
       expect(
         component.sortByAffiliation(mk({ uid: 1, affiliation: "MIT" }), mk({ uid: 2, affiliation: "UCLA" }))
-      ).toBeGreaterThan(0);
+      ).toBeLessThan(0);
       expect(
         component.sortByAffiliation(mk({ uid: 1, affiliation: undefined }), mk({ uid: 2, affiliation: undefined }))
       ).toBe(-1);
@@ -576,7 +578,7 @@ describe("AdminUserComponent", () => {
           mk({ uid: 1, joiningReason: "research" }),
           mk({ uid: 2, joiningReason: "teaching" })
         )
-      ).toBeGreaterThan(0);
+      ).toBeLessThan(0);
       expect(
         component.sortByJoiningReason(
           mk({ uid: 1, joiningReason: null as any }),
@@ -763,6 +765,104 @@ describe("AdminUserComponent", () => {
       addButton.click();
 
       expect(addSpy).toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Drives the real sortable headers so that the caret nz-table lights and the order it renders are
+   * observed together. Asserting only the row order would still pass against a comparator inverted
+   * the other way — nz-table uses the comparator's result as-is for 'ascend' and negates it for
+   * 'descend', so reversed operands produce a Z-to-A up caret. Every column below therefore pins
+   * both halves in both directions.
+   *
+   * The four rows carry a distinct value in every sorted field, so no comparator ever reaches its
+   * uid tiebreak and swapping any two rows is visible. The per-field orders are chosen so that each
+   * column's ascending and descending sequence is unique across the whole table and differs from the
+   * order the rows are supplied in — no column's expectation can be satisfied by another column's
+   * sort, or by the table not sorting at all.
+   */
+  describe("sorted columns (rendered header)", () => {
+    // The supplied order is deliberately none of the sequences asserted below - not uid order (which
+    // would make the ID column's ascending leg pass without sorting anything) and not any other
+    // column's ascending or descending order either. Reshuffling this needs the same check.
+    const SORT_USERS: ReadonlyArray<User> = [
+      mk({ uid: 4, name: "Cyd", email: "d@x.com", affiliation: "Aff-C", joiningReason: "reason-b", comment: "note-c", role: Role.ADMIN }), // prettier-ignore
+      mk({ uid: 2, name: "Dov", email: "c@x.com", affiliation: "Aff-A", joiningReason: "reason-c", comment: "note-a", role: Role.REGULAR }), // prettier-ignore
+      mk({ uid: 1, name: "Bea", email: "a@x.com", affiliation: "Aff-B", joiningReason: "reason-a", comment: "note-d", role: Role.INACTIVE }), // prettier-ignore
+      mk({ uid: 3, name: "Ada", email: "b@x.com", affiliation: "Aff-D", joiningReason: "reason-d", comment: "note-b", role: Role.RESTRICTED }), // prettier-ignore
+    ];
+    const SUPPLIED_ORDER = [4, 2, 1, 3];
+
+    /** Column header label -> the uids it must render top-to-bottom under the up (ascend) caret. */
+    const ASCENDING_BY_COLUMN: ReadonlyArray<[label: string, ascendingUids: number[]]> = [
+      ["ID", [1, 2, 3, 4]], // lowest uid (oldest account) first, like every other ascending column
+      ["Name", [3, 1, 4, 2]], // Ada, Bea, Cyd, Dov
+      ["Email", [1, 3, 2, 4]], // a@, b@, c@, d@
+      ["Affiliation", [2, 1, 4, 3]], // Aff-A, Aff-B, Aff-C, Aff-D
+      ["Joining Reason", [1, 4, 2, 3]], // reason-a, reason-b, reason-c, reason-d
+      ["Comment", [2, 3, 4, 1]], // note-a, note-b, note-c, note-d
+      ["User Role", [4, 1, 2, 3]], // ADMIN, INACTIVE, REGULAR, RESTRICTED
+    ];
+
+    /** `fixture.nativeElement` is `any`, so narrow it once for the DOM queries below. */
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+
+    /** The uid cell of each rendered row, top to bottom. */
+    function renderedUids(): number[] {
+      return Array.from(host().querySelectorAll<HTMLElement>("tbody tr")).map(row =>
+        Number((row.querySelectorAll("td")[1].textContent ?? "").trim())
+      );
+    }
+
+    function sortableHeader(label: string): HTMLElement {
+      const header = Array.from(host().querySelectorAll<HTMLElement>("thead th")).find(
+        th => (th.querySelector(".ant-table-column-title")?.textContent ?? "").replace(/\s+/g, " ").trim() === label
+      );
+      if (!header) {
+        throw new Error(`no sortable header titled "${label}"`);
+      }
+      return header;
+    }
+
+    function caretActive(header: HTMLElement, direction: "up" | "down"): boolean {
+      const caret = header.querySelector(`.ant-table-column-sorter-${direction}`);
+      if (!caret) {
+        throw new Error(`header has no ${direction} caret`);
+      }
+      return caret.classList.contains("active");
+    }
+
+    async function clickSort(header: HTMLElement): Promise<void> {
+      header.click();
+      // nz-table republishes its sort operators on a macrotask (`delay(0)`), so a bare
+      // detectChanges() would still read the previous ordering.
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fixture.detectChanges();
+    }
+
+    ASCENDING_BY_COLUMN.forEach(([label, ascendingUids]) => {
+      const descendingUids = [...ascendingUids].reverse();
+
+      it(`sorts ${label} A-to-Z under the up caret and Z-to-A under the down caret`, async () => {
+        component.userList = [...SORT_USERS];
+        component.listOfDisplayUser = [...SORT_USERS];
+        fixture.detectChanges();
+        expect(renderedUids()).toEqual(SUPPLIED_ORDER);
+
+        const header = sortableHeader(label);
+
+        // nzSortDirections is ['ascend', 'descend'] on all of these headers, so the first click
+        // selects 'ascend' and lights the up caret: the column must read A-to-Z.
+        await clickSort(header);
+        expect(caretActive(header, "up")).toBe(true);
+        expect(caretActive(header, "down")).toBe(false);
+        expect(renderedUids()).toEqual(ascendingUids);
+
+        await clickSort(header);
+        expect(caretActive(header, "down")).toBe(true);
+        expect(caretActive(header, "up")).toBe(false);
+        expect(renderedUids()).toEqual(descendingUids);
+      });
     });
   });
 });
