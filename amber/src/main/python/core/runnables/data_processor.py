@@ -87,7 +87,7 @@ class DataProcessor(Runnable, Stoppable):
             # Register the state message before the callback runs, so
             # process_state (and every call after it) can consult self.state,
             # and read every loop variable the messages so far carried.
-            executor.register_loop_state(state)
+            executor.register_state(state)
             self._set_output_state(executor.process_state(state, port_id))
 
     def process_tuple(self) -> None:

@@ -170,10 +170,10 @@ class Operator(ABC):
             raise not_a(description)
         return int(numeral)
 
-    def register_loop_state(self, state: State) -> None:
+    def register_state(self, state: State) -> None:
         """
         Register ``state`` as the latest state message handed to this operator.
-        It becomes ``state``, and its values join the loop variables
+        It becomes ``self.state``, and its values join the loop variables
         ``loop_variable_text`` and ``loop_variable_value`` read, replacing
         those of the same name. The runtime calls this right before
         ``process_state``.
@@ -187,7 +187,7 @@ class Operator(ABC):
 
     # The state message most recently handed to this operator -- inside a
     # control block, the iteration's loop variables. The runtime registers it
-    # (``register_loop_state``) right before ``process_state`` runs (see
+    # (``register_state``) right before ``process_state`` runs (see
     # ``DataProcessor.process_state``), so the callback and every call after
     # it can consult it. A class-level default rather than an ``__init__``
     # assignment: a subclass ``__init__`` that skips ``super()`` still reads

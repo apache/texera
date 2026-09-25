@@ -333,7 +333,7 @@ class ProcessTableOperator(UDFTableOperator):
 class TestLoopVariableText:
     def test_returns_the_text_of_an_int_a_float_and_a_string(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"n": 3, "rate": 0.5, "ticker": "AAPL"}))
+        op.register_state(State({"n": 3, "rate": 0.5, "ticker": "AAPL"}))
         assert op.loop_variable_text("n") == "3"
         assert op.loop_variable_text("rate") == "0.5"
         assert op.loop_variable_text("ticker") == "AAPL"
@@ -342,7 +342,7 @@ class TestLoopVariableText:
         # A JVM operator's text property takes a boolean as true / false
         # (LateBoundExecutor), and so does this, not Python's True / False.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"on": True, "off": False}))
+        op.register_state(State({"on": True, "off": False}))
         assert op.loop_variable_text("on") == "true"
         assert op.loop_variable_text("off") == "false"
 
@@ -350,7 +350,7 @@ class TestLoopVariableText:
         # Zero, False and the empty string are values the state carried, not
         # absent ones: none of them may fall into the missing-name error.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"n": 0, "flag": False, "note": ""}))
+        op.register_state(State({"n": 0, "flag": False, "note": ""}))
         assert op.loop_variable_text("n") == "0"
         assert op.loop_variable_text("flag") == "false"
         assert op.loop_variable_text("note") == ""
@@ -360,7 +360,7 @@ class TestLoopVariableText:
         # The JVM rejects a non-scalar for a text property too, rather than
         # pass on a spelling of its own, such as Python's repr.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"m": value}))
+        op.register_state(State({"m": value}))
         with pytest.raises(RuntimeError) as excinfo:
             op.loop_variable_text("m")
         assert str(excinfo.value) == (
@@ -371,24 +371,24 @@ class TestLoopVariableText:
     def test_a_value_that_looks_like_a_reference_is_returned_verbatim(self):
         # The text is the value itself; it is never resolved again.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"ticker": "$AAPL", "AAPL": "not me"}))
+        op.register_state(State({"ticker": "$AAPL", "AAPL": "not me"}))
         assert op.loop_variable_text("ticker") == "$AAPL"
 
     def test_a_later_state_message_replaces_a_value_it_carries(self):
         # Every iteration delivers a fresh state message; the text is read
         # from the latest one that carried the name, never cached.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"i": 1}))
+        op.register_state(State({"i": 1}))
         assert op.loop_variable_text("i") == "1"
-        op.register_loop_state(State({"i": 2}))
+        op.register_state(State({"i": 2}))
         assert op.loop_variable_text("i") == "2"
 
     def test_a_later_state_message_without_the_name_keeps_its_value(self):
         # A loop body operator's own state (here a UDF publishing centroids)
         # reaches the operator after the loop's: it must not hide `i`.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"i": 1}))
-        op.register_loop_state(State({"centroids": 3}))
+        op.register_state(State({"i": 1}))
+        op.register_state(State({"centroids": 3}))
         assert op.loop_variable_text("i") == "1"
         assert op.loop_variable_text("centroids") == "3"
 
@@ -396,16 +396,16 @@ class TestLoopVariableText:
         # A nested loop's body receives the outer loop's state first, then the
         # inner Loop Start's, as a JVM operator does.
         op = _ConcreteOperator()
-        op.register_loop_state(State({"j": 5, "i": "outer"}))
-        op.register_loop_state(State({"i": 0}))
+        op.register_state(State({"j": 5, "i": "outer"}))
+        op.register_state(State({"i": 0}))
         assert op.loop_variable_text("j") == "5"
         assert op.loop_variable_text("i") == "0"
 
     def test_registering_makes_the_message_the_state_and_changes_no_message(self):
         op = _ConcreteOperator()
         first, second = State({"i": 1}), State({"j": 2})
-        op.register_loop_state(first)
-        op.register_loop_state(second)
+        op.register_state(first)
+        op.register_state(second)
         assert op.state is second
         # The merge is the operator's own: neither message gains a key.
         assert first == State({"i": 1})
@@ -415,7 +415,7 @@ class TestLoopVariableText:
         # The defaults live on the class, so a registration written there
         # would reach every operator.
         target, bystander = _ConcreteOperator(), _ConcreteOperator()
-        target.register_loop_state(State({"i": 1}))
+        target.register_state(State({"i": 1}))
         assert target.loop_variable_text("i") == "1"
         with pytest.raises(RuntimeError, match="read before the iteration's state"):
             bystander.loop_variable_text("i")
@@ -432,8 +432,8 @@ class TestLoopVariableText:
 
     def test_raises_for_a_name_no_state_message_carried(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"i": 1}))
-        op.register_loop_state(State({"k": 2}))
+        op.register_state(State({"i": 1}))
+        op.register_state(State({"k": 2}))
         with pytest.raises(RuntimeError) as excinfo:
             op.loop_variable_text("j")
         assert str(excinfo.value) == (
@@ -444,25 +444,25 @@ class TestLoopVariableText:
         # An empty state is a state that arrived: the missing-name error, not
         # the not-yet-arrived one.
         op = _ConcreteOperator()
-        op.register_loop_state(State())
+        op.register_state(State())
         with pytest.raises(RuntimeError, match="no state message carried it"):
             op.loop_variable_text("i")
 
     def test_a_prefix_of_a_declared_name_is_not_matched(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"items": 3}))
+        op.register_state(State({"items": 3}))
         with pytest.raises(RuntimeError, match=r"\$item, but no state message"):
             op.loop_variable_text("item")
 
     def test_an_extension_of_a_declared_name_is_not_matched(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"item": 3}))
+        op.register_state(State({"item": 3}))
         with pytest.raises(RuntimeError, match=r"\$items, but no state message"):
             op.loop_variable_text("items")
 
     def test_names_are_case_sensitive(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"i": 1}))
+        op.register_state(State({"i": 1}))
         with pytest.raises(RuntimeError, match=r"\$I, but no state message"):
             op.loop_variable_text("I")
 
@@ -478,12 +478,12 @@ class TestLoopVariableText:
         with pytest.raises(RuntimeError, match="read before the iteration's state"):
             list(op.process_table(Table([Tuple({"a": 1})]), 0))
 
-        op.register_loop_state(State({"c": 2, "kernel": "rbf", "p": True}))
+        op.register_state(State({"c": 2, "kernel": "rbf", "p": True}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"C": 2.0, "kernel": "rbf", "probability": True}
 
         # The next iteration's state reaches the same operator instance.
-        op.register_loop_state(State({"c": 0.25, "kernel": "linear", "p": False}))
+        op.register_state(State({"c": 0.25, "kernel": "linear", "p": False}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"C": 0.25, "kernel": "linear", "probability": False}
 
@@ -512,13 +512,13 @@ class TestLoopVariableValue:
     @staticmethod
     def _read(value, kind):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"v": value}))
+        op.register_state(State({"v": value}))
         return op.loop_variable_value("v", kind)
 
     @staticmethod
     def _rejection(value, kind):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"v": value}))
+        op.register_state(State({"v": value}))
         with pytest.raises(RuntimeError) as excinfo:
             op.loop_variable_value("v", kind)
         return str(excinfo.value)
@@ -661,7 +661,7 @@ class TestLoopVariableValue:
     @pytest.mark.parametrize("kind", ["string", "Integer", "int", "double", ""])
     def test_raises_for_a_kind_the_backend_never_writes(self, kind):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"v": 3}))
+        op.register_state(State({"v": 3}))
         with pytest.raises(ValueError, match="cannot be read as"):
             op.loop_variable_value("v", kind)
 
@@ -682,7 +682,7 @@ class TestLoopVariableValue:
     @pytest.mark.parametrize("kind", ["integer", "number", "boolean"])
     def test_raises_for_a_name_no_state_message_carried(self, kind):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"i": 1}))
+        op.register_state(State({"i": 1}))
         with pytest.raises(RuntimeError) as excinfo:
             op.loop_variable_value("n", kind)
         assert str(excinfo.value) == (
@@ -691,8 +691,8 @@ class TestLoopVariableValue:
 
     def test_a_later_state_message_wins_and_an_earlier_name_is_kept(self):
         op = _ConcreteOperator()
-        op.register_loop_state(State({"n": 3, "on": True, "rate": 0.5}))
-        op.register_loop_state(State({"n": 5, "centroids": "2"}))
+        op.register_state(State({"n": 3, "on": True, "rate": 0.5}))
+        op.register_state(State({"n": 5, "centroids": "2"}))
         assert op.loop_variable_value("n", "integer") == 5
         assert op.loop_variable_value("on", "boolean") is True
         assert op.loop_variable_value("rate", "number") == 0.5
@@ -710,13 +710,13 @@ class TestLoopVariableValue:
         with pytest.raises(RuntimeError, match="read before the iteration's state"):
             list(op.process_table(Table([Tuple({"a": 1})]), 0))
 
-        op.register_loop_state(State({"n": 3, "alpha": 0.25, "labels": True}))
+        op.register_state(State({"n": 3, "alpha": 0.25, "labels": True}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"nbinsx": 3, "nbinsy": 3, "opacity": 0.25, "text_auto": True}
 
         # The next iteration's state reaches the same operator instance, and
         # its values are converted to the kind the code asks for.
-        op.register_loop_state(State({"n": "90", "alpha": 2, "labels": "false"}))
+        op.register_state(State({"n": "90", "alpha": 2, "labels": "false"}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {
             "nbinsx": 90,

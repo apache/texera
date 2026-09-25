@@ -202,7 +202,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         ):
             # This deferred consume bypasses DataProcessor.process_state, so
             # register the state here too, before the callback runs.
-            executor.register_loop_state(pending)
+            executor.register_state(pending)
             executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
