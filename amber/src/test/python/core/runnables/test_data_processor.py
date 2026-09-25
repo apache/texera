@@ -255,6 +255,22 @@ class TestProcessState:
         assert executor.loop_state is second
 
     @pytest.mark.timeout(2)
+    def test_a_later_state_message_keeps_the_loop_variables_of_the_earlier_one(
+        self, context, data_processor
+    ):
+        # A body operator's own state replays after the loop's: the loop
+        # variable the first one carried must still be read.
+        executor = _LoopStateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 3}))
+        data_processor.process_state(State({"centroids": [1, 2]}))
+
+        assert executor.loop_variable_text("i") == "3"
+        assert not context.exception_manager.has_exception()
+
+    @pytest.mark.timeout(2)
     def test_registers_on_the_running_operator_only(self, context, data_processor):
         # The default lives on the class, so a registration written to the
         # class (instead of the running instance) would reach every operator.

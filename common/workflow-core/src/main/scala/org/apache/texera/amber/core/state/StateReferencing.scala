@@ -83,4 +83,17 @@ object StateReferencing {
       .flatMap(entry => scan(entry.getValue, "/" + escapePointerSegment(entry.getKey)))
       .toMap
   }
+
+  /**
+    * The entries of `references` whose value in `tree` is the text `$name` itself: a String
+    * property, which keeps the literal. Every other entry holds a typed placeholder
+    * (`StateReferenceModule`), so code generated from the descriptor has the placeholder's value
+    * in it rather than the reference.
+    */
+  def textReferences(tree: ObjectNode, references: Map[String, String]): Map[String, String] =
+    references.filter {
+      case (pointer, name) =>
+        val value = tree.at(pointer)
+        value.isTextual && value.asText() == "$" + name
+    }
 }

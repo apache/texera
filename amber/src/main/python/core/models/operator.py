@@ -20,7 +20,16 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+)
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
@@ -74,15 +83,67 @@ class Operator(ABC):
     def decode_python_template(self, data: Union[str, bytes]) -> str:
         return self._get_template_decoder().decode(data)
 
+    def loop_variable_text(self, name: str) -> str:
+        """
+        The text of loop variable ``name`` in the state messages handed to this
+        operator, the latest one that carried it winning. Inside a control
+        block, the code generated for an operator calls this where a text
+        property holds ``$name``, in place of decoding the literal, so the
+        value is read when the code runs. It is spelled as a JVM operator's
+        text property binds it (``LateBoundExecutor``): a boolean as ``true``
+        or ``false``, and only a scalar at all.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :return: str, the variable's value, as text.
+        """
+        if self._loop_variables is None:
+            raise RuntimeError(
+                f"loop variable ${name} is read before the iteration's state arrived"
+            )
+        if name not in self._loop_variables:
+            raise RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                "but no state message carried it"
+            )
+        value = self._loop_variables[name]
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (str, int, float)):
+            return str(value)
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            f"but its value {value!r} is not a scalar"
+        )
+
+    def register_loop_state(self, state: State) -> None:
+        """
+        Register ``state`` as the latest state message handed to this operator.
+        It becomes ``loop_state``, and its values join the loop variables
+        ``loop_variable_text`` reads, replacing those of the same name. The
+        runtime calls this right before ``process_state``.
+
+        :param state: State, the state message that arrived.
+        """
+        self.loop_state = state
+        self._loop_variables = {**(self._loop_variables or {}), **state}
+
     __internal_is_source: bool = False
 
     # The state message most recently handed to this operator -- inside a
     # control block, the iteration's loop variables. The runtime registers it
-    # right before ``process_state`` runs (see ``DataProcessor.process_state``),
-    # so the callback and every call after it can consult it. A class-level
-    # default rather than an ``__init__`` assignment: a subclass ``__init__``
-    # that skips ``super()`` still reads ``None`` until a state arrives.
+    # (``register_loop_state``) right before ``process_state`` runs (see
+    # ``DataProcessor.process_state``), so the callback and every call after
+    # it can consult it. A class-level default rather than an ``__init__``
+    # assignment: a subclass ``__init__`` that skips ``super()`` still reads
+    # ``None`` until a state arrives.
     loop_state: Optional[State] = None
+
+    # The values of every state message registered so far, a later message's
+    # winning, as the JVM's LateBoundExecutor merges them: a loop body
+    # operator's own state, or a nested loop's inner one, arrives after the
+    # loop's and must not hide its variables. ``None`` until the first; a
+    # class-level default for the same reason as ``loop_state``.
+    _loop_variables: Optional[Mapping[str, Any]] = None
 
     @property
     @overrides.final

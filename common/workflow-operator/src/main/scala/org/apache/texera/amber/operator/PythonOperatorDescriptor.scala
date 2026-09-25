@@ -19,15 +19,38 @@
 
 package org.apache.texera.amber.operator
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.state.StateReferencing.textReferences
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor.loopVariableLookup
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.decoderExpression
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
     s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
   }
+
+  /**
+    * `code` with every loop variable that one of this descriptor's String properties refers to
+    * read from the iteration's state. The code is generated before the loop runs, from the
+    * literal `$name` the property holds; pyb renders that text as a decode expression the
+    * operator evaluates when it runs, which becomes `loopVariableLookup(name)` instead. A typed
+    * placeholder (0 / 0.0 / false) is already a value in the code, so it stays (the compiler
+    * rejects it), and outside every loop block the sidecar is empty and the code is untouched.
+    */
+  private def withLoopVariableLookups(code: String): String =
+    if (stateReferences.isEmpty) {
+      code
+    } else {
+      textReferences(objectMapper.valueToTree[ObjectNode](this), stateReferences).values.toSet
+        .foldLeft(code) { (rewritten, name) =>
+          rewritten.replace(decoderExpression("$" + name), loopVariableLookup(name))
+        }
+    }
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -35,7 +58,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
   ): PhysicalOp = {
     val pythonCode =
       try {
-        generatePythonCode()
+        withLoopVariableLookups(generatePythonCode())
       } catch {
         case ex: Throwable =>
           // instead of throwing error directly, we embed the error in the code
@@ -79,4 +102,13 @@ trait PythonOperatorDescriptor extends LogicalOp {
 
   def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema]
 
+}
+
+object PythonOperatorDescriptor {
+
+  /**
+    * The call through which generated code reads loop variable `name` as text: pyamber's
+    * `Operator.loop_variable_text` answers it from the iteration's state message.
+    */
+  def loopVariableLookup(name: String): String = s"self.loop_variable_text('$name')"
 }

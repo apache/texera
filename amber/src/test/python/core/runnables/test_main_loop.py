@@ -213,8 +213,9 @@ class TestMainLoop:
         # In-process executor for the state-pipeline tests. Tags processed
         # states with `processed_marker` and emits a finish-marker state
         # from `produce_state_on_finish` so EndChannel handling can be
-        # observed.
-        class StateProcessingExecutor:
+        # observed. An Operator, as every executor the worker loads is: the
+        # runtime registers each state message on it before process_state.
+        class StateProcessingExecutor(UDFOperatorV2):
             @staticmethod
             def process_tuple(tuple_, port):
                 yield tuple_
@@ -2589,6 +2590,7 @@ class TestMainLoop:
 
         assert seen == [(pending, pending)]
         assert executor.loop_state is pending
+        assert executor.loop_variable_text("i") == "7"
 
     def test_loopend_forwards_unstamped_state_without_consuming(
         self, main_loop, monkeypatch
