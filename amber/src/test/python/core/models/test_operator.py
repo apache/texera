@@ -272,11 +272,11 @@ class TestOperatorDefaultMethods:
         state = State()
         assert op.process_state(state, port=0) is state
 
-    def test_loop_state_is_none_until_the_runtime_registers_a_state(self):
+    def test_state_is_none_until_the_runtime_registers_a_state(self):
         # Inside a control block the iteration's loop variables reach the
         # operator as a state message; the runtime registers it on
-        # `loop_state` before `process_state` runs. Nothing has arrived yet.
-        assert _ConcreteOperator().loop_state is None
+        # `state` before `process_state` runs. Nothing has arrived yet.
+        assert _ConcreteOperator().state is None
 
     def test_produce_state_on_start_returns_none_by_default(self):
         assert _ConcreteOperator().produce_state_on_start(port=0) is None
