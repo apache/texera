@@ -838,10 +838,11 @@ private object FittedModelFixture {
          |fitted = $estimator(random_state=0).fit(X, table[sys.argv[2]])
          |print(base64.b64encode(b"pickle    " + pickle.dumps(fitted)).decode("ascii"))
          |""".stripMargin
-    val python = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3.12")
     val out = new java.io.ByteArrayOutputStream()
-    val exit =
-      scala.sys.process.Process(Seq(python, "-c", fit, data.toString, target)).#>(out).!
+    val exit = scala.sys.process
+      .Process(Seq(PyOpExecHarness.resolvePython(), "-c", fit, data.toString, target))
+      .#>(out)
+      .!
     require(exit == 0, s"fitting the fixture's $estimator exited with $exit")
     val cell = java.util.Base64.getDecoder.decode(out.toString("US-ASCII").trim)
 
