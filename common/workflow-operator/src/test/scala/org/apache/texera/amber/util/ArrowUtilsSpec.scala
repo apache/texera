@@ -70,10 +70,13 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "convert to AttributeTypes correctly" in {
     assert(ArrowUtils.toAttributeType(unsignedShortInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedShortInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedLongInt) == AttributeType.LONG)
     assert(ArrowUtils.toAttributeType(signedLongInt) == AttributeType.LONG)
+    // An unsigned column needs the width above its own: read at its own width it
+    // would hand back the storage, and the largest unsigned 32-bit value is
+    // stored as -1. Past 64 bits there is no width above to read it as.
+    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.LONG)
+    assertThrows[AttributeTypeException](ArrowUtils.toAttributeType(unsignedLongInt))
 
     assert(ArrowUtils.toAttributeType(boolean) == AttributeType.BOOLEAN)
 

@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.source.scan.csvOld
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -27,6 +29,9 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -94,5 +99,36 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.fileEncoding shouldBe FileDecodingMethod.UTF_16
     r.limit shouldBe Some(10)
     r.offset shouldBe Some(5)
+  }
+
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from. The types came
+  // back empty while the header still asked each column for one, and the
+  // operator threw before a row was read. A file's columns do not depend on how
+  // many of its rows were asked for.
+  "CSVOldScanSourceOpDesc.generateStandaloneCode" should "keep the file's columns when the window asks for no rows" in {
+    val d = describing(writeCsv("id,name\n1,alice\n2,bob\n"))
+    d.limit = Some(0)
+
+    val schema = d.sourceSchema()
+    schema.getAttributeNames shouldBe List("id", "name")
+    schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
+    schema.getAttribute("name").getType shouldBe AttributeType.STRING
+  }
+
+  private def writeCsv(content: String): String = {
+    val file = Files.createTempFile("csv-old-", ".csv")
+    file.toFile.deleteOnExit()
+    Files.write(file, content.getBytes(StandardCharsets.UTF_8))
+    file.toString
+  }
+
+  private def describing(path: String): CSVOldScanSourceOpDesc = {
+    val d = new CSVOldScanSourceOpDesc
+    d.fileName = Some(path)
+    d.customDelimiter = Some(",")
+    d.hasHeader = true
+    d.setResolvedFileName(FileResolver.resolve(path))
+    d
   }
 }

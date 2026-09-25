@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.source.scan.json
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -27,6 +29,9 @@ import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -85,5 +90,29 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.fileEncoding shouldBe FileDecodingMethod.UTF_16
     r.limit shouldBe Some(10)
     r.offset shouldBe Some(5)
+  }
+
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from and the operator
+  // declared a schema of no columns at all. A file's columns do not depend on
+  // how many of its rows were asked for.
+  "JSONLScanSourceOpDesc.generateStandaloneCode" should "keep the file's columns when the window asks for no rows" in {
+    val data = Files.createTempFile("jsonl-zero-window-", ".jsonl")
+    data.toFile.deleteOnExit()
+    Files.write(
+      data,
+      "{\"id\":1,\"name\":\"alice\"}\n{\"id\":2,\"name\":\"bob\"}\n".getBytes(
+        StandardCharsets.UTF_8
+      )
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.limit = Some(0)
+
+    val schema = op.sourceSchema()
+    schema.getAttributeNames shouldBe List("id", "name")
+    schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
   }
 }

@@ -19,13 +19,15 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
+import com.typesafe.config.ConfigFactory
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{UInt8Vector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowFileSchema}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.ArrowUtils
@@ -35,18 +37,30 @@ import org.scalatest.matchers.should.Matchers
 
 import java.io.{File, FileOutputStream}
 import java.nio.channels.Channels
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
-  private def writeArrowFile(schema: Schema, rows: Seq[Array[Any]]): File = {
+  private def writeArrowFile(
+      schema: Schema,
+      rows: Seq[Array[Any]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File = {
     val file = File.createTempFile("arrow-src-", ".arrow")
     file.deleteOnExit()
     val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+    val root = VectorSchemaRoot.create(
+      new ArrowFileSchema(ArrowUtils.fromTexeraSchema(schema).getFields, schemaMetadata.asJava),
+      allocator
+    )
     val out = new FileOutputStream(file)
     val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
     try {
@@ -153,6 +167,61 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.inferSchema() shouldBe schema
   }
 
+  // A missing double and a stored NaN are two different values to the engine,
+  // and a numpy column has one slot for both. A holed integer column loses its
+  // type the same way.
+  "ArrowSourceOpDesc.generateStandaloneCode" should
+    "keep a missing value apart from a NaN, and an integer integral" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema = Schema(
+      List(new Attribute("d", AttributeType.DOUBLE), new Attribute("i", AttributeType.INTEGER))
+    )
+    val file = writeArrowFile(
+      schema,
+      Seq(
+        Array[Any](null, null),
+        Array[Any](Double.box(Double.NaN), Int.box(7))
+      )
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    // The block reads the file from the script's own directory, so run there.
+    val workDir = Files.createTempDirectory("arrow-standalone-")
+    workDir.toFile.deleteOnExit()
+    val beside = workDir.resolve(file.getName)
+    Files.copy(file.toPath, beside)
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(str(out1df["d"].dtype), str(out1df["i"].dtype))
+         |print(repr(out1df["d"].iloc[0]), repr(out1df["d"].iloc[1]))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "Float64 Int32"
+      // The first is the value that was missing, the second the NaN that was
+      // stored. Under numpy dtypes both printed as nan.
+      lines(1) should include("<NA>")
+      lines(1) should include("nan")
+    }
+  }
+
   it should "throw a friendly error when the file is not a valid Arrow file" in {
     val bogus = File.createTempFile("not-arrow-", ".arrow")
     bogus.deleteOnExit()
@@ -162,4 +231,131 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[RuntimeException](d.inferSchema())
     ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
   }
+
+  // pandas notes in an Arrow file's schema what type the frame's column labels
+  // had, and casts the names back to it. A frame whose columns were numbered is written
+  // under the names "1" and "2", which is what the executor reads, and comes
+  // back out of pandas labelled 1 and 2.
+  it should "keep the names a pandas frame of numbered columns was written under" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val schema =
+      Schema(
+        List(new Attribute("1", AttributeType.INTEGER), new Attribute("2", AttributeType.INTEGER))
+      )
+    // What `pd.DataFrame({1: [7, 8], 2: [10, 20]}).to_feather(...)` leaves: the
+    // names are strings, and `column_indexes` is the whole of what turns them
+    // back into numbers.
+    val pandasMetadata =
+      """|{"index_columns": [{"kind": "range", "name": null, "start": 0, "stop": 2, "step": 1}],
+         | "column_indexes": [{"name": null, "field_name": null,
+         |                     "pandas_type": "int64", "numpy_type": "int64", "metadata": null}],
+         | "columns": [{"name": "1", "field_name": "1",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null},
+         |             {"name": "2", "field_name": "2",
+         |              "pandas_type": "int32", "numpy_type": "int32", "metadata": null}],
+         | "pandas_version": "2.2.3"}""".stripMargin
+    val file = writeArrowFile(
+      schema,
+      Seq(Array[Any](7, 10), Array[Any](8, 20)),
+      Map("pandas" -> pandasMetadata)
+    )
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    d.inferSchema().getAttributeNames.toList shouldBe List("1", "2")
+
+    val workDir = Files.createTempDirectory("arrow-labels-")
+    workDir.toFile.deleteOnExit()
+    Files.copy(file.toPath, workDir.resolve(file.getName))
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(d)}
+         |${d.generateStandaloneCode()}
+         |print(list(out1df.columns))
+         |print([int(v) for v in out1df["2"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(workDir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head shouldBe "['1', '2']"
+      lines(1) shouldBe "[10, 20]"
+    }
+  }
+
+  // Nothing in Texera holds a value past 2^63 - 1, so the column is refused at
+  // the schema rather than read as the -1 its storage counts down to.
+  it should "refuse an unsigned 64-bit column, having no Texera type for it" in {
+    val fields = List(new Field("u", FieldType.nullable(new ArrowType.Int(64, false)), null))
+    val file = File.createTempFile("arrow-u64-", ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(new ArrowFileSchema(fields.asJava), allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      root.allocateNew()
+      root.getVector("u").asInstanceOf[UInt8Vector].setSafe(0, -1L)
+      root.setRowCount(1)
+      writer.writeBatch()
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(file.toURI.toString)
+    val ex = intercept[RuntimeException](d.inferSchema())
+    ex.getMessage shouldBe "Failed to read the .arrow file. Please ensure it is a valid Arrow file."
+  }
+
+  /** The block names its file by placeholder; the translator puts a name there. */
+  private def bindSourceFile(d: ArrowSourceOpDesc): String =
+    s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${d.standaloneSourceName().get}""""
+
+  /** What a script needs before the block: its imports, and the file it reads. */
+  private def scriptHeader(d: ArrowSourceOpDesc): String =
+    (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, pyarrow").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }

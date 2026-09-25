@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
+import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -143,5 +144,169 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outPortId = fileScanOpDesc.operatorInfo.outputPorts.head.id
     val out = physical.propagateSchema.func(Map.empty)
     assert(out(outPortId) == fileScanOpDesc.sourceSchema())
+  }
+
+  "FileScanOpDesc.generateStandaloneCode" should
+    "read every line as text with the configured encoding by default" in {
+    assert(
+      fileScanOpDesc.generateStandaloneCode() ==
+        """def _texera_file_name(row):
+          |    for _v in row:
+          |        if isinstance(_v, str):
+          |            return _v
+          |    raise ValueError(f"no file name in row: {row!r}")
+          |
+          |_rows = []
+          |for _fn in (_texera_file_name(r) for r in in1df.itertuples(index=False)):
+          |    with open(_fn, "r", encoding="utf-8") as _f:
+          |        _rows.extend(l.rstrip("\n") for l in _f)
+          |out1df = pd.DataFrame({"line": _rows})""".stripMargin
+    )
+  }
+
+  // FileScanOpExec takes `tuple.getFields.collectFirst { case s: String => s }`, so a row
+  // carrying an id ahead of the path still finds the path. Reading column 0 opened the id.
+  it should "take the row's first string field as the file name, not its first column" in {
+    val code = fileScanOpDesc.generateStandaloneCode()
+    assert(code.contains("isinstance(_v, str)"))
+    assert(!code.contains("in1df.iloc[:, 0]"))
+  }
+
+  // The enum name is "US_ASCII", not a Python codec name.
+  it should "render the encoding as a Python codec name" in {
+    fileScanOpDesc.fileEncoding = FileDecodingMethod.ASCII
+    assert(fileScanOpDesc.generateStandaloneCode().contains("""encoding="us-ascii""""))
+  }
+
+  it should "read the whole file in single-value mode, keeping the filename only when asked" in {
+    fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+
+    fileScanOpDesc.outputFileName = true
+    val withName = fileScanOpDesc.generateStandaloneCode()
+    assert(withName.contains("        _rows.append((_fn, _f.read()))"))
+    assert(withName.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+
+    fileScanOpDesc.outputFileName = false
+    val withoutName = fileScanOpDesc.generateStandaloneCode()
+    assert(withoutName.contains("        _rows.append(_f.read())"))
+    assert(withoutName.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
+
+    // A line carries the name of the file it came from, as the whole file does,
+    // which is what the platform's line-by-line branch now emits and what the
+    // schema declares either way. It used to emit the value alone, leaving a
+    // one-field row against a two-column schema.
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    fileScanOpDesc.outputFileName = true
+    val lines = fileScanOpDesc.generateStandaloneCode()
+    assert(lines.contains("""        _rows.extend((_fn, l.rstrip("\n")) for l in _f)"""))
+    assert(lines.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+
+    fileScanOpDesc.outputFileName = false
+    val bareLines = fileScanOpDesc.generateStandaloneCode()
+    assert(bareLines.contains("""        _rows.extend(l.rstrip("\n") for l in _f)"""))
+    assert(bareLines.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
+  }
+
+  it should "open binary attribute types in binary mode" in {
+    Seq(FileAttributeType.BINARY, FileAttributeType.LARGE_BINARY).foreach { attrType =>
+      fileScanOpDesc.attributeType = attrType
+      val code = fileScanOpDesc.generateStandaloneCode()
+      assert(code.contains("""    with open(_fn, "rb") as _f:"""))
+      assert(!code.contains("encoding="))
+      assert(code.contains("        _rows.append(_f.read())"))
+    }
+  }
+
+  it should "cast each line to the configured attribute type" in {
+    val castByType = Seq(
+      FileAttributeType.INTEGER -> "int(l.rstrip())",
+      FileAttributeType.LONG -> "int(l.rstrip())",
+      FileAttributeType.DOUBLE -> "float(l.rstrip())",
+      FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
+      FileAttributeType.TIMESTAMP -> "pd.Timestamp(l.rstrip())",
+      FileAttributeType.STRING -> """l.rstrip("\n")"""
+    )
+    castByType.foreach {
+      case (attrType, cast) =>
+        fileScanOpDesc.attributeType = attrType
+        assert(
+          fileScanOpDesc
+            .generateStandaloneCode()
+            .contains(s"        _rows.extend($cast for l in _f)")
+        )
+    }
+    // The boolean cast is the one that calls out of the body, so the script has
+    // to carry the definition.
+    fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    assert(fileScanOpDesc.standaloneHelpers().isEmpty)
+  }
+
+  it should "slice the raw lines before converting them when a limit or offset is set" in {
+    fileScanOpDesc.attributeType = FileAttributeType.INTEGER
+
+    fileScanOpDesc.fileScanOffset = Option(3)
+    fileScanOpDesc.fileScanLimit = None
+    assert(
+      fileScanOpDesc
+        .generateStandaloneCode()
+        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[3:])")
+    )
+
+    fileScanOpDesc.fileScanOffset = None
+    fileScanOpDesc.fileScanLimit = Option(5)
+    assert(
+      fileScanOpDesc
+        .generateStandaloneCode()
+        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[:5])")
+    )
+
+    fileScanOpDesc.fileScanOffset = Option(3)
+    fileScanOpDesc.fileScanLimit = Option(5)
+    assert(
+      fileScanOpDesc
+        .generateStandaloneCode()
+        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[3:][:5])")
+    )
+  }
+
+  // With extract on, FileScanUtils opens the file as a zip and emits a tuple per
+  // entry. Reading the archive itself as text was the export's answer before, and
+  // it produced whichever bytes the compression happened to leave readable.
+  it should "read the entries inside the archive when extract is on" in {
+    // `extract` and `outputFileName` are vals, so they are set by deserialization.
+    val desc = objectMapper.readValue(
+      """{"operatorType":"FileScanOp","extract":true}""",
+      classOf[FileScanOpDesc]
+    )
+    val code = desc.generateStandaloneCode()
+
+    assert(code.contains("    with zipfile.ZipFile(_fn) as _z:"))
+    assert(code.contains("        for _name in _z.namelist():"))
+    assert(code.contains("""            if _name.startswith("__MACOSX"):"""))
+    assert(code.contains("            with _z.open(_name) as _f:"))
+    // A zip entry opens binary whatever the column holds, so a text line is
+    // decoded rather than read through a text-mode handle.
+    assert(
+      code.contains(
+        """                _rows.extend(l.rstrip("\n") for l in io.TextIOWrapper(_f, encoding="utf-8"))"""
+      )
+    )
+    assert(desc.standaloneImports() == Seq("import io", "import zipfile"))
+    assert(!code.contains("WARNING"))
+  }
+
+  it should "name the entry, not the archive, in the filename column" in {
+    val desc = objectMapper.readValue(
+      """{"operatorType":"FileScanOp","extract":true,"outputFileName":true,
+        |"attributeType":"single string"}""".stripMargin,
+      classOf[FileScanOpDesc]
+    )
+    val code = desc.generateStandaloneCode()
+
+    assert(code.contains("""                _rows.append((_name, _f.read().decode("utf-8")))"""))
+    assert(code.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
+    assert(desc.standaloneImports() == Seq("import zipfile"))
   }
 }

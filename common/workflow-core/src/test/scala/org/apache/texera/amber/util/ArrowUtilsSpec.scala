@@ -50,15 +50,27 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.toAttributeType(new ArrowType.Int(64, true)) shouldBe AttributeType.LONG
   }
 
-  it should "throw AttributeTypeException for non-standard Int bit-widths" in {
-    // Only 16/32 (INTEGER) and 64 (LONG) are supported. Other widths used to
-    // be silently coerced to LONG by a `case 64 | _` catch-all; they now
-    // raise rather than masquerade as Int64.
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Int(8, true))
-    }
+  it should "map every integer to the narrowest Texera type that holds it" in {
+    // Texera has no column shorter than a 32-bit integer, so a narrower width
+    // reads as one. An unsigned column needs the width above its own, counting
+    // up where its storage counts down: the largest unsigned 32-bit value is
+    // past what an INTEGER holds.
+    ArrowUtils.toAttributeType(new ArrowType.Int(8, true)) shouldBe AttributeType.INTEGER
+    ArrowUtils.toAttributeType(new ArrowType.Int(8, false)) shouldBe AttributeType.INTEGER
+    ArrowUtils.toAttributeType(new ArrowType.Int(16, false)) shouldBe AttributeType.INTEGER
+    ArrowUtils.toAttributeType(new ArrowType.Int(32, false)) shouldBe AttributeType.LONG
+  }
+
+  it should "throw AttributeTypeException for an integer no Texera type holds" in {
+    // A width above 64 used to be silently coerced to LONG by a `case 64 | _`
+    // catch-all; it raises rather than masquerade as Int64. An unsigned 64-bit
+    // column raises for the same reason, there being no width above it to read
+    // it as.
     assertThrows[AttributeTypeException] {
       ArrowUtils.toAttributeType(new ArrowType.Int(128, true))
+    }
+    assertThrows[AttributeTypeException] {
+      ArrowUtils.toAttributeType(new ArrowType.Int(64, false))
     }
   }
 

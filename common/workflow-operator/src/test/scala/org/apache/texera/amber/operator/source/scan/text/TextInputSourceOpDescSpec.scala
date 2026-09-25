@@ -19,8 +19,15 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.texera.amber.core.tuple.{
+  AttributeType,
+  AttributeTypeUtils,
+  Schema,
+  SchemaEnforceable,
+  Tuple
+}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
@@ -30,6 +37,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var textInputSourceOpDesc: TextInputSourceOpDesc = _
@@ -275,6 +285,99 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val path: Path = Paths.get(filePath)
     new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
   }
+
+  // `parseField` reads a BOOLEAN line as "true" or "false" in any case, then as an
+  // integer that is true only at 1, and refuses anything else, which the export
+  // has to refuse too rather than pass off as a row of false.
+  "TextInputSourceOpDesc.generateStandaloneCode" should "refuse a boolean line the engine refuses" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    textInputSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
+    textInputSourceOpDesc.textInput = "true\nyes"
+
+    assertThrows[AttributeTypeUtils.AttributeTypeException](booleansFromEngine())
+    val (exitCode, out) = runStandalone(python)
+    withClue(s"python said:\n$out\n") {
+      assert(exitCode != 0)
+      assert(out.contains("ValueError"))
+    }
+  }
+
+  /** The configured text read as booleans by the executor the engine runs. */
+  private def booleansFromEngine(): Seq[Boolean] = {
+    val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
+    exec.open()
+    try {
+      exec
+        .produceTuple()
+        .map(
+          _.asInstanceOf[SchemaEnforceable]
+            .enforceSchema(textInputSourceOpDesc.sourceSchema())
+            .getField[Boolean]("line")
+        )
+        .toSeq
+    } finally exec.close()
+  }
+
+  /**
+    * The configured operator's exported script, run, printing its one column.
+    *
+    * `bool` on each value because a numpy scalar does not repr as Python's own
+    * True and False.
+    */
+  private def runStandalone(python: String): (Int, String) = {
+    val dir = Files.createTempDirectory("text-input-standalone-")
+    dir.toFile.deleteOnExit()
+    val script = dir.resolve("run.py")
+    Files.write(
+      script,
+      s"""import pandas as pd
+         |${textInputSourceOpDesc.standaloneHelpers().mkString("\n\n")}
+         |${textInputSourceOpDesc.generateStandaloneCode()}
+         |print([bool(v) for v in out1df["line"]])
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val process = new ProcessBuilder(python, script.toString)
+      .directory(dir.toFile)
+      .redirectErrorStream(true)
+      .start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    (process.exitValue(), out)
+  }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 
   "TextInputSourceOpDesc.getPhysicalOp" should
     "wire the TextInputSourceOpExec class as a source op with one output port" in {
