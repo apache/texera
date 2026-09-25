@@ -42,6 +42,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -304,18 +305,21 @@ class DataProcessingSpec
   }
 
   /**
-    * csv -> join(build), csv -> join(probe) -> Python UDF. The UDF shares a region with the join's
+    * csv -> join(build), csv -> join(probe) -> Java UDF. The UDF shares a region with the join's
     * probe side, which has a dependee input port, so the UDF is only launched in the region's
-    * second (non-dependee) phase.
+    * second (non-dependee) phase. A Java UDF compiles its code when the worker initializes its
+    * executor, so code that does not compile fails at the same point as a Python UDF with an
+    * import error, without needing a Python environment.
     */
-  private def joinThenPythonUdfWorkflow(udfCode: String): Workflow = {
+  private def joinThenJavaUdfWorkflow(udfCode: String): Workflow = {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val pythonOpDesc = TestOperators.pythonOpDesc()
-    pythonOpDesc.code = udfCode
+    val javaUdfOpDesc = new JavaUDFOpDesc()
+    javaUdfOpDesc.retainInputColumns = true
+    javaUdfOpDesc.code = udfCode
     buildWorkflow(
-      List(headerlessCsvOpDesc1, headerlessCsvOpDesc2, joinOpDesc, pythonOpDesc),
+      List(headerlessCsvOpDesc1, headerlessCsvOpDesc2, joinOpDesc, javaUdfOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc1.operatorIdentifier,
@@ -332,7 +336,7 @@ class DataProcessingSpec
         LogicalLink(
           joinOpDesc.operatorIdentifier,
           PortIdentity(),
-          pythonOpDesc.operatorIdentifier,
+          javaUdfOpDesc.operatorIdentifier,
           PortIdentity()
         )
       ),
@@ -340,28 +344,15 @@ class DataProcessingSpec
     )
   }
 
-  private val tableUdfBody =
-    """
-      |class ProcessTableOperator(UDFTableOperator):
-      |
-      |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-      |        yield table
-      |""".stripMargin
-
-  "Engine" should "execute csv->(csv->)->join->python-udf workflow normally" in {
-    executeWorkflow(joinThenPythonUdfWorkflow("from pytexera import *\n" + tableUdfBody))
-  }
-
-  "Engine" should "fail, not hang, when a python udf after a join fails to initialize" in {
-    // Missing `from pytexera import *`, so `UDFTableOperator` is undefined when the worker
-    // loads the code. Before the fix, the execution stayed RUNNING forever with every
-    // operator of the region at 0 tuples.
+  "Engine" should "fail, not hang, when a udf after a join fails to initialize" in {
+    // The UDF code does not compile, so the worker fails to initialize its executor. The
+    // execution must fail with the compile error instead of hanging.
     val error = intercept[WorkflowRuntimeException] {
-      executeWorkflow(joinThenPythonUdfWorkflow(tableUdfBody))
+      executeWorkflow(joinThenJavaUdfWorkflow("public class JavaUDFOpExec { not valid java }"))
     }
-    assert(error.getMessage.contains("UDFTableOperator"))
-    // The failing Python UDF worker is carried so the UI can attribute the error to it.
-    assert(error.relatedWorkerId.exists(_.name.contains("PythonUDFOpDescV2")))
+    assert(error.getMessage.contains("Error at line"))
+    // The failing UDF worker is carried so the UI can attribute the error to it.
+    assert(error.relatedWorkerId.exists(_.name.contains("JavaUDFOpDesc")))
   }
 
   "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {
