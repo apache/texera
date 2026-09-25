@@ -331,6 +331,30 @@ class TestRangeBasedShufflePartitioner:
         assert partitioner.get_receiver_index(8) == 2
         assert partitioner.get_receiver_index(9) == 2
 
+    @pytest.mark.parametrize(
+        "key, receiver",
+        [
+            (float("nan"), "B"),
+            (-0.5, "B"),
+            (-1.5, "A"),
+            (0.5, "B"),
+            (float("-inf"), "A"),
+            (float("inf"), "B"),
+        ],
+    )
+    def test_double_key_routes_like_scala_long(self, key, receiver):
+        p = RangeBasedShufflePartitioner(
+            RangeBasedShufflePartitioning(
+                batch_size=1,
+                channels=[_channel("S", "A"), _channel("S", "B")],
+                range_attribute_names=["k"],
+                range_min=-10,
+                range_max=9,
+            )
+        )
+        out = list(p.add_tuple_to_batch(_tuple(k=key)))
+        assert out[0][0] == _worker(receiver)
+
     def test_add_tuple_routes_using_first_attribute(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=2)))
         list(partitioner.add_tuple_to_batch(_tuple(k=5)))
