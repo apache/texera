@@ -453,11 +453,14 @@ def _run_comparison(
 
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
+    # Two outputs without a row hold no model to ask, and read back from an
+    # empty file they hold no column either.
     if model_cols:
-        try:
-            _compare_model_predictions(actual, expected, model_cols, probe_path)
-        except AssertionError as exc:
-            return str(exc)
+        if len(actual) or len(expected):
+            try:
+                _compare_model_predictions(actual, expected, model_cols, probe_path)
+            except AssertionError as exc:
+                return str(exc)
         actual = actual.drop(columns=model_cols, errors="ignore")
         expected = expected.drop(columns=model_cols, errors="ignore")
 
