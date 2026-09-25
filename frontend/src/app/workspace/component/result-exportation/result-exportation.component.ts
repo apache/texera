@@ -81,17 +81,20 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
   ],
 })
 export class ResultExportationComponent implements OnInit {
-  /* Two sources can trigger this dialog, one from context-menu
-   which only export highlighted operators
-   and second is menu which wants to export all operators
+  /* Three sources can trigger this dialog: the context-menu, which exports the highlighted
+   operators; the menu, which wants to export all of them; and a result cell, which names the
+   one operator whose results it shows in operatorIds below and sends no trigger of its own.
    */
-  sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
+  sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered ?? "";
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
   inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
   exportType: string = inject(NZ_MODAL_DATA).exportType ?? "";
+  // The operators this export covers, when the caller knows them. Empty leaves the scope to
+  // the rule below: the whole workflow for the menu, the canvas selection for the rest.
+  operatorIds: readonly string[] = inject(NZ_MODAL_DATA).operatorIds ?? [];
   isTableOutput: boolean = false;
   isVisualizationOutput: boolean = false;
   containsBinaryData: boolean = false;
@@ -103,15 +106,21 @@ export class ResultExportationComponent implements OnInit {
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
 
   /**
-   * Gets the operator IDs to check for restrictions based on the source trigger.
-   * Menu: all operators, Context menu: highlighted operators only
+   * The operators this export covers, which everything below reads: what may be exported, what
+   * a blocking dataset blocks, and what kind of output the dialog is offering.
+   *
+   * A caller that named them wins. The two fallbacks each belong to a caller reading the
+   * canvas -- the menu exports the whole workflow, the context menu exports the selection --
+   * and a result cell is neither: it belongs to one operator, whoever is selected. On the Form
+   * View nothing is selected until the user clicks a step, so this answered "no operators", and
+   * with nothing in scope a blocked operator went unreported.
    */
   private getOperatorIdsToCheck(): readonly string[] {
+    if (this.operatorIds.length > 0) {
+      return this.operatorIds;
+    }
     if (this.sourceTriggered === "menu") {
-      return this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(op => op.operatorID);
+      return this.workflowActionService.getTexeraGraph().getAllOperatorIDs();
     } else {
       return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     }
@@ -199,7 +208,7 @@ export class ResultExportationComponent implements OnInit {
     const operatorIds = this.getOperatorIdsToCheck();
 
     if (operatorIds.length === 0) {
-      // No operators highlighted
+      // No operators in scope
       this.isTableOutput = false;
       this.isVisualizationOutput = false;
       this.containsBinaryData = false;
@@ -261,9 +270,11 @@ export class ResultExportationComponent implements OnInit {
       this.rowIndex,
       this.columnIndex,
       this.inputFileName,
-      this.sourceTriggered === "menu",
       destination,
-      this.selectedComputingUnit
+      this.selectedComputingUnit,
+      // The same scope the dialog reported on, so what is exported is what the dialog said it
+      // would export.
+      this.getOperatorIdsToCheck()
     );
     this.modalRef.close();
   }
