@@ -40,7 +40,7 @@
   * The second row contains the search bar.
   * The third row contains the saved workflow/files list.
   *
-  * This layout is shared between workflows and files section.
+  * This layout is shared by the user dashboard's resource sections.
   *
   *              ******************
   *              *                *
@@ -73,22 +73,6 @@ $dashboard-navigation-height: 76px;
 
   .page-title {
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-
-  .management-panel {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  // .utility-button-group {
-  //   float: left;
-  // }
-
-  .go-back-button {
-    position: absolute;
-    left: 20px;
-    top: 20px;
   }
 }
 
