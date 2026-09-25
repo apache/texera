@@ -47,6 +47,8 @@ import org.apache.texera.amber.operator.visualization.dumbbellPlot.{
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnLinearRegressionOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
+import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import java.nio.file.{Files, Path}
@@ -148,7 +150,9 @@ object CuratedHandlers {
     DumbbellPlotVisualizationHandler,
     ImageVisualizerVisualizationHandler,
     IfTransformHandler,
-    RegexTransformHandler
+    RegexTransformHandler,
+    SklearnPredictionTransformHandler,
+    SklearnTestingTransformHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -781,5 +785,132 @@ object IfTransformHandler extends TransformHandler {
     val desc = new IfOpDesc()
     desc.conditionName = "cond"
     (desc, Map(PortIdentity(0) -> condition, PortIdentity(1) -> data))
+  }
+}
+
+/** A model port holding one fitted estimator, and the table it is scored on.
+  *
+  * The model is fitted in Python, since no JVM value is an sklearn model, and
+  * written the way Tuple.cast_to_schema writes one into a BINARY field: the
+  * pickle marker, then the pickle. Both paths unpickle a cell carrying the
+  * marker before the operator sees it, as the worker does.
+  *
+  * The label comes first because the operators' optional label knobs are filled
+  * with port 1's first column, and a feature in that place would drop a column
+  * the model was fitted on.
+  */
+private object FittedModelFixture {
+  val label = "a\"b\\c_species"
+  val model = "a\"b\\c_model"
+  val columns: Seq[(String, AttributeType)] = Seq(
+    label -> AttributeType.STRING,
+    "petal_length" -> AttributeType.DOUBLE,
+    "petal_width" -> AttributeType.DOUBLE
+  )
+  val rows: Seq[Seq[Any]] = Seq(
+    Seq("setosa", 1.4, 0.2),
+    Seq("setosa", 1.3, 0.2),
+    Seq("versicolor", 4.7, 1.4),
+    Seq("versicolor", 4.5, 1.5),
+    Seq("virginica", 6.0, 2.5),
+    Seq("virginica", 5.1, 1.9),
+    // Held out of the fit, and on virginica's side of both features, so the
+    // model gets it wrong and no score is perfect. A perfect score reads the
+    // same whatever averaging computed it.
+    Seq("versicolor", 5.0, 1.8)
+  )
+
+  /** Writes the table to port 1 and a model fitted on all but its last row to
+    * port 0.
+    *
+    * @param estimator a DecisionTree class from `sklearn.tree`
+    * @param target    the column the model predicts; every other numeric column
+    *                  is a feature
+    */
+  def write(dir: Path, estimator: String, target: String): Map[PortIdentity, Path] = {
+    val data = CuratedHandlers.writeFixture(dir.resolve("input_port_1.jsonl"), columns, rows)
+    val fit =
+      s"""import base64, pickle, sys
+         |import pandas as pd
+         |from sklearn.tree import $estimator
+         |table = pd.read_json(sys.argv[1], lines=True).iloc[:-1]
+         |X = table.drop(sys.argv[2], axis=1).select_dtypes("number")
+         |fitted = $estimator(random_state=0).fit(X, table[sys.argv[2]])
+         |print(base64.b64encode(b"pickle    " + pickle.dumps(fitted)).decode("ascii"))
+         |""".stripMargin
+    val python = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3.12")
+    val out = new java.io.ByteArrayOutputStream()
+    val exit =
+      scala.sys.process.Process(Seq(python, "-c", fit, data.toString, target)).#>(out).!
+    require(exit == 0, s"fitting the fixture's $estimator exited with $exit")
+    val cell = java.util.Base64.getDecoder.decode(out.toString("US-ASCII").trim)
+
+    val modelSchema = new Schema(new Attribute(model, AttributeType.BINARY))
+    val modelPath = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(
+      modelPath,
+      Iterator(Tuple.builder(modelSchema).add(modelSchema.getAttribute(model), cell).build()),
+      modelSchema
+    )
+    Map(PortIdentity(0) -> modelPath, PortIdentity(1) -> data)
+  }
+}
+
+/** Prediction needs a fitted model on its model port, which no auto fixture can
+  * hold. The model cell stays filled under the nulls case: without it there is
+  * no model to predict with, which asks nothing about a null in the data.
+  */
+object SklearnPredictionTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnPredictionOpDesc]
+
+  override def nullsKeepFilled: Option[Set[String]] = Some(Set(FittedModelFixture.model))
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val desc = new SklearnPredictionOpDesc()
+    desc.model = FittedModelFixture.model
+    desc.resultAttribute = "prediction"
+    (
+      desc,
+      FittedModelFixture.write(testRoot, "DecisionTreeClassifier", FittedModelFixture.label)
+    )
+  }
+}
+
+/** Testing scores a fitted model on its model port. `isRegression` has to match
+  * the model the port carries, so the classifier fixture is not swept to it
+  * (see [[TransformVerificationRunner.variantsNotRun]]) and a regressor fitted on
+  * a numeric target covers the other branch.
+  */
+object SklearnTestingTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[SklearnTestingOpDesc]
+
+  override def nullsKeepFilled: Option[Set[String]] = Some(Set(FittedModelFixture.model))
+
+  private def testing(target: String, isRegression: Boolean): SklearnTestingOpDesc = {
+    val desc = new SklearnTestingOpDesc()
+    desc.model = FittedModelFixture.model
+    desc.target = target
+    desc.isRegression = isRegression
+    desc
+  }
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) =
+    (
+      testing(FittedModelFixture.label, isRegression = false),
+      FittedModelFixture.write(testRoot, "DecisionTreeClassifier", FittedModelFixture.label)
+    )
+
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    val dir = testRoot.resolve("regression")
+    Files.createDirectories(dir)
+    Seq(
+      (
+        "regression",
+        testing("petal_width", isRegression = true),
+        FittedModelFixture.write(dir, "DecisionTreeRegressor", "petal_width")
+      )
+    )
   }
 }
