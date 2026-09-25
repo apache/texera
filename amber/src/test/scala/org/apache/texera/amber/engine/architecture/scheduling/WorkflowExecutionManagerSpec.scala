@@ -21,6 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import org.apache.pekko.actor.ActorSystem
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.virtualidentity.{
@@ -252,8 +253,10 @@ class WorkflowExecutionManagerSpec
   it should "fail coordination when a worker fails to initialize in a later region phase" in {
     val (round2, rpcProbe, udfWorkerId) = runTwoPhaseRegion(udfInitFails = true)
 
-    val error = intercept[Throwable](await(round2))
+    val error = intercept[WorkflowRuntimeException](await(round2))
     assert(error.getMessage.contains(udfInitError))
+    // The failing worker is carried so the surfaced FatalError can point at it.
+    assert(error.relatedWorkerId.contains(udfWorkerId))
     assert(rpcProbe.initializedWorkers.contains(udfWorkerId))
     assert(!rpcProbe.startedWorkers.contains(udfWorkerId))
   }

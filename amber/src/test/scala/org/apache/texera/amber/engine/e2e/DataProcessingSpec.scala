@@ -23,6 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -355,10 +356,12 @@ class DataProcessingSpec
     // Missing `from pytexera import *`, so `UDFTableOperator` is undefined when the worker
     // loads the code. Before the fix, the execution stayed RUNNING forever with every
     // operator of the region at 0 tuples.
-    val error = intercept[Throwable] {
+    val error = intercept[WorkflowRuntimeException] {
       executeWorkflow(joinThenPythonUdfWorkflow(tableUdfBody))
     }
     assert(error.getMessage.contains("UDFTableOperator"))
+    // The failing Python UDF worker is carried so the UI can attribute the error to it.
+    assert(error.relatedWorkerId.exists(_.name.contains("PythonUDFOpDescV2")))
   }
 
   "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {
