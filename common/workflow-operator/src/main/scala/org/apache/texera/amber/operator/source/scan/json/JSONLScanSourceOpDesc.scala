@@ -68,10 +68,20 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
         _.getAttributes.filter(_.getType == AttributeType.LONG).map(_.getName)
       )
 
+    // The executor reads every value as the text Jackson gives it, so a column
+    // this operator types STRING holds that text whatever the JSON held: 35.0 is
+    // "35.0", true is "true", and a null is "null", which is also why one null
+    // makes its column STRING. read_json keeps the values typed and the null a
+    // null. These columns are rebuilt from the lines the way LONG ones are.
+    val stringColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.filter(_.getType == AttributeType.STRING).map(_.getName)
+      )
+
     // The lines are read into the script whenever something below needs them,
     // and read_json is then fed from those rather than from the file, so the
     // file is opened once either way.
-    val readsLines = windowed || longColumns.nonEmpty
+    val readsLines = windowed || longColumns.nonEmpty || stringColumns.nonEmpty
     val dropped = offset.filter(_ > 0).fold("_lines")(o => s"_lines[$o:]")
     val taken = limit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
 
@@ -122,8 +132,11 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       lines += "    _lines = _f.readlines()"
     }
     lines += s"out1df = $baseExpr"
+    Try(sourceSchema()).toOption.foreach { schema =>
+      lines += StandaloneCodeGenerator.typeAnEmptyRead("out1df", schema)
+    }
 
-    if (longColumns.nonEmpty) {
+    if (longColumns.nonEmpty || stringColumns.nonEmpty) {
       // Flattened or not, a column's name is a key of the record the lookup
       // below reads, because a flattened record is flattened first.
       val parsed = if (flatten) "_texera_json_flatten(json.loads(_l))" else "json.loads(_l)"
@@ -131,6 +144,11 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       longColumns.foreach { name =>
         val nameLit = pyStringLiteral(name)
         lines += s"""out1df[$nameLit] = pd.array([_r.get($nameLit) for _r in _records], dtype="Int64")"""
+      }
+      // A missing key is the executor's null. A key holding null is its "null".
+      stringColumns.foreach { name =>
+        val nameLit = pyStringLiteral(name)
+        lines += s"""out1df[$nameLit] = pd.Series([_texera_json_text(_r[$nameLit]) if $nameLit in _r else None for _r in _records], index=out1df.index, dtype="object")"""
       }
     }
 
@@ -159,30 +177,59 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       lines += s"""    out1df[$nameLit] = out1df[$nameLit].astype("boolean")"""
     }
 
+    // read_json infers each column's type from its values, which is not how this
+    // operator types it: a DOUBLE whose values are all whole, 3.0 among them, is
+    // read as int64, and an INTEGER missing a key is widened to float. Both reach
+    // the next operator as the other type, where 3 and 3.0 print differently. The
+    // schema's type is asked for, the INTEGER in the nullable width that keeps a
+    // hole.
+    Try(sourceSchema()).toOption.toSeq.flatMap(_.getAttributes).foreach { attribute =>
+      val nameLit = pyStringLiteral(attribute.getName)
+      attribute.getType match {
+        case AttributeType.DOUBLE =>
+          lines += s"""out1df[$nameLit] = out1df[$nameLit].astype("float64")"""
+        case AttributeType.INTEGER =>
+          lines += s"""out1df[$nameLit] = out1df[$nameLit].astype("Int32")"""
+        case _ =>
+      }
+    }
+
     // A JSONL file states no column order, so the schema this operator infers
     // sorts the names it found and the rows the workflow sees follow that
     // order. read_json keeps the order the first record happened to use, which
     // is the same columns in a different order, and column order is what a
     // positional read downstream and a file export both go by.
-    lines += "out1df = out1df[sorted(out1df.columns)]"
+    //
+    // Unflattened, the executor also passes over a nested object or array, so
+    // the key is no column of its own, where read_json keeps it as one holding
+    // the dict or the list. The schema names the columns the executor has.
+    val columns =
+      Try(sourceSchema()).toOption.map(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+    lines += columns.fold("out1df = out1df[sorted(out1df.columns)]")(names =>
+      s"out1df = out1df[[${names.mkString(", ")}]]"
+    )
 
     lines.mkString("\n")
   }
 
   override def standaloneHelpers(): Seq[String] =
-    if (flatten) Seq(JSONLScanSourceOpDesc.JsonFlatten) else Seq.empty
+    (if (flatten) Seq(JSONLScanSourceOpDesc.JsonFlatten) else Seq.empty) ++
+      (if (columnCount(AttributeType.STRING) > 0) Seq(JSONLScanSourceOpDesc.JsonText)
+       else Seq.empty)
 
   override def standaloneImports(): Seq[String] = {
     val windowed = offset.exists(_ > 0) || limit.isDefined
-    val longs = longColumnCount
-    (if (windowed || longs > 0) Seq("import io") else Seq.empty) ++
-      (if (longs > 0) Seq("import json") else Seq.empty)
+    val longs = columnCount(AttributeType.LONG)
+    val strings = columnCount(AttributeType.STRING)
+    (if (windowed || longs > 0 || strings > 0) Seq("import io") else Seq.empty) ++
+      (if (longs > 0 || strings > 0) Seq("import json") else Seq.empty) ++
+      (if (strings > 0) Seq("import decimal") else Seq.empty)
   }
 
-  /** How many columns the schema types LONG, or none when it cannot be read. */
-  private def longColumnCount: Int =
+  /** How many columns the schema gives this type, or none when it cannot be read. */
+  private def columnCount(attributeType: AttributeType): Int =
     Try(sourceSchema()).toOption
-      .map(_.getAttributes.count(_.getType == AttributeType.LONG))
+      .map(_.getAttributes.count(_.getType == attributeType))
       .getOrElse(0)
 
   @throws[IOException]
@@ -301,4 +348,34 @@ object JSONLScanSourceOpDesc {
       |        elif parent:
       |            flat[parent] = node
       |    return flat""".stripMargin
+
+  /**
+    * One JSON value as the text Jackson's `asText` gives it, which is what the
+    * executor reads every value as: `null` for a null, `true` and `false` in
+    * lower case, and a float the way Java prints a double, in E notation outside
+    * 10^-3 to 10^7. An object or an array is skipped by the executor, so it is
+    * no value here either.
+    */
+  val JsonText: String =
+    """def _texera_json_text(value):
+      |    if value is None:
+      |        return "null"
+      |    if isinstance(value, bool):
+      |        return "true" if value else "false"
+      |    if isinstance(value, int):
+      |        return str(value)
+      |    if isinstance(value, float):
+      |        if value != value:
+      |            return "NaN"
+      |        if value in (float("inf"), float("-inf")):
+      |            return "Infinity" if value > 0 else "-Infinity"
+      |        if value == 0 or 1e-3 <= abs(value) < 1e7:
+      |            return repr(value)
+      |        sign, digits, exponent = decimal.Decimal(repr(value)).as_tuple()
+      |        power = len(digits) + exponent - 1
+      |        kept = "".join(map(str, digits)).rstrip("0") or "0"
+      |        return ("-" if sign else "") + kept[0] + "." + (kept[1:] or "0") + "E" + str(power)
+      |    if isinstance(value, str):
+      |        return value
+      |    return None""".stripMargin
 }

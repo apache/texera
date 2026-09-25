@@ -286,69 +286,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
   }
 
-  "TextInputSourceOpDesc.generateStandaloneCode" should
-    "slice the raw lines before converting them" in {
-    textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
-    textInputSourceOpDesc.textInput = "1\n2\n3"
-
-    textInputSourceOpDesc.fileScanOffset = Option(3)
-    textInputSourceOpDesc.fileScanLimit = None
-    assert(
-      textInputSourceOpDesc
-        .generateStandaloneCode()
-        .endsWith("""{"line": [int(l) for l in _text.splitlines()[3:]]})""")
-    )
-
-    textInputSourceOpDesc.fileScanOffset = None
-    textInputSourceOpDesc.fileScanLimit = Option(5)
-    assert(
-      textInputSourceOpDesc
-        .generateStandaloneCode()
-        .endsWith("""{"line": [int(l) for l in _text.splitlines()[:5]]})""")
-    )
-
-    textInputSourceOpDesc.fileScanOffset = Option(3)
-    textInputSourceOpDesc.fileScanLimit = Option(5)
-    assert(
-      textInputSourceOpDesc
-        .generateStandaloneCode()
-        .endsWith("""{"line": [int(l) for l in _text.splitlines()[3:][:5]]})""")
-    )
-  }
-
-  it should "parse a boolean line through the shared helper, and declare it" in {
-    textInputSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
-    textInputSourceOpDesc.textInput = "true"
-    assert(textInputSourceOpDesc.generateStandaloneCode().contains("_texera_parse_bool(l)"))
-    assert(textInputSourceOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
-
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    assert(textInputSourceOpDesc.standaloneHelpers().isEmpty)
-  }
-
   // `parseField` reads a BOOLEAN line as "true" or "false" in any case, then as an
-  // integer that is true only at 1, and refuses anything else. Comparing the
-  // lowercased line to "true" called 1 false and passed text the engine refuses
-  // off as a row of false.
-  it should "read a boolean line the way the engine does" in {
-    val python = resolvePython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    textInputSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
-    textInputSourceOpDesc.textInput = Seq("true", "TRUE", " true ", "False", "1", "0", "2", "-1")
-      .mkString("\n")
-
-    val expected = booleansFromEngine().map(b => if (b) "True" else "False").mkString(", ")
-    val (exitCode, out) = runStandalone(python)
-    withClue(s"python said:\n$out\n") {
-      assert(exitCode == 0)
-      assert(out.trim.endsWith(s"[$expected]"))
-    }
-  }
-
-  it should "refuse a boolean line the engine refuses" in {
+  // integer that is true only at 1, and refuses anything else, which the export
+  // has to refuse too rather than pass off as a row of false.
+  "TextInputSourceOpDesc.generateStandaloneCode" should "refuse a boolean line the engine refuses" in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

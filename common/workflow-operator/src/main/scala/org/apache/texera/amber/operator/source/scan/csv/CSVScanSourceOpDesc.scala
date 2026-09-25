@@ -200,28 +200,36 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
       )
     if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
 
-    // A LONG column holding a null has to be asked for, or pandas widens it
-    // through a float to carry the hole: 9007199254740993 comes back as ...992,
-    // a value the file never held and the executor never produced. Int64 is the
-    // nullable integer, so the hole costs the column nothing. INTEGER needs none
-    // of this — every int32 is exact in a float64. By position, as the dates are.
-    val longColumns: Seq[String] =
+    // A column holding a null has to be asked for, or pandas widens it to carry
+    // the hole: an integer through a float, where a LONG past 2^53 comes back
+    // rounded (9007199254740993 as ...992) and every INTEGER is left a float
+    // that prints 3 as 3.0, and a boolean to an object column. The nullable
+    // dtypes carry the hole and keep the type the schema declared. By position,
+    // as the dates are.
+    val nullableDtypes = Map(
+      AttributeType.INTEGER -> "Int32",
+      AttributeType.LONG -> "Int64",
+      AttributeType.BOOLEAN -> "boolean"
+    )
+    val typedColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.zipWithIndex
-          .filter(_._1.getType == AttributeType.LONG)
-          .map { case (_, i) => s"""$i: "Int64"""" }
+        _.getAttributes.zipWithIndex.flatMap {
+          case (attribute, i) => nullableDtypes.get(attribute.getType).map(d => s"""$i: "$d"""")
+        }
       )
-    if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
+    if (typedColumns.nonEmpty) args += s"dtype={${typedColumns.mkString(", ")}}"
 
     // Clamped: the property editor refuses a negative, but a plan posted to the API
     // can still carry one, and pandas rejects a negative `nrows` outright where the
     // executor's `take` simply keeps no rows.
     offset.map(_.max(0)).foreach { o =>
       // With a header, skip offset rows after row 0; without, skip offset rows from the start.
-      // The end of the range is counted in Long: the largest offset the operator
-      // accepts overflows an Int on the way past the header, and the range came
-      // out empty, skipping nothing where the executor's `drop` keeps no rows.
-      if (hasHeader) args += s"skiprows=range(1, ${o.toLong + 1})"
+      // The end is counted in Long: the largest offset the operator accepts
+      // overflows an Int on the way past the header, and the range came out
+      // empty, skipping nothing where the executor's `drop` keeps no rows. Asked
+      // of each line rather than listed, since pandas makes a set of a list of
+      // rows to skip, and one of two billion ran the script out of memory.
+      if (hasHeader) args += s"skiprows=lambda _i: 0 < _i <= ${o.toLong}"
       else args += s"skiprows=$o"
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
@@ -240,7 +248,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
     if (schemaNames.nonEmpty)
       s"""$readCall
-         |out1df.columns = [${schemaNames.mkString(", ")}]""".stripMargin
+         |out1df.columns = [${schemaNames.mkString(", ")}]
+         |${StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())}""".stripMargin
     else if (hasHeader) readCall
     else {
       // Unresolved file: fall back to Texera's headerless naming.

@@ -131,8 +131,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // Clamped, as in the newer CSV scan: pandas rejects a negative `nrows` where
     // the executor's `take` keeps no rows, and only the editor refuses one.
     offset.map(_.max(0)).foreach { o =>
-      // Counted in Long past the header, as in the newer CSV scan.
-      if (hasHeader) args += s"skiprows=range(1, ${o.toLong + 1})"
+      // Counted in Long past the header and asked of each line, as in the newer
+      // CSV scan.
+      if (hasHeader) args += s"skiprows=lambda _i: 0 < _i <= ${o.toLong}"
       else args += s"skiprows=$o"
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
@@ -149,7 +150,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
 
     if (schemaNames.nonEmpty)
       s"""$readCall
-         |out1df.columns = [${schemaNames.mkString(", ")}]""".stripMargin
+         |out1df.columns = [${schemaNames.mkString(", ")}]
+         |${StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())}""".stripMargin
     else if (hasHeader) readCall
     else
       // Unresolved file: fall back to Texera's headerless naming.
@@ -183,20 +185,34 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // reopen the file to read from the beginning
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
-    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    val header = if (hasHeader) 1 else 0
     // A window of no rows is still a window on this file, and the file's columns
     // do not depend on how many of its rows were asked for. Reading the sample
     // through the limit left a Limit of 0 nothing to infer from, and the types
     // came back empty while the header below still asked each column for one.
-    val endOffset =
-      startOffset + limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
-    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader.iterator
-        .slice(startOffset, endOffset)
-        .map(seq => seq.toArray)
-    )
-
+    // The header and the offset are dropped one after the other, as the executor
+    // drops them, since their sum is past what an Int holds at the largest offset.
+    val sampleSize = limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val windowRows = reader.iterator
+      .drop(header)
+      .drop(offset.getOrElse(0))
+      .take(sampleSize)
+      .map(_.toArray[Any])
+      .toSeq
     reader.close()
+    // The same holds for an offset past the last row: the window is empty, and
+    // the types came back empty too, so the header below asked a column for a
+    // type that was never there and the operator threw. The sample is then taken
+    // from the first row, and a file holding no row at all types every column
+    // as text.
+    val sampleRows =
+      if (windowRows.nonEmpty) windowRows
+      else {
+        val fromStart = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
+        try fromStart.iterator.drop(header).take(INFER_READ_LIMIT).map(_.toArray[Any]).toSeq
+        finally fromStart.close()
+      }
+    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(sampleRows.iterator)
 
     // build schema based on inferred AttributeTypes.
     // Auto-rename blank header positions to `column-N` so empty CSV headers
@@ -205,7 +221,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     Schema().add(firstRow.indices.map { i =>
       new Attribute(
         if (hasHeader && firstRow(i).nonEmpty) firstRow(i) else s"column-${i + 1}",
-        attributeTypeList(i)
+        attributeTypeList.lift(i).getOrElse(AttributeType.STRING)
       )
     })
 

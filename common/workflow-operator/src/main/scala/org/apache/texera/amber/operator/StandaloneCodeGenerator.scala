@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -133,4 +134,30 @@ object StandaloneCodeGenerator {
     * rewrites the code parts of a body and leaves literals and comments alone.
     */
   val SourceFilePlaceholder: String = "sourceFile"
+
+  /** Python that gives an empty read the columns and types its schema declares.
+    *
+    * With no row there is nothing to infer a type from, so pandas leaves every
+    * column an object, and a JSONL read of no lines has no columns at all. The
+    * executor still declares the schema it inferred from the file, so the next
+    * step looks for those columns in those types. A read with rows is left alone.
+    */
+  def typeAnEmptyRead(frame: String, schema: Schema): String = {
+    val names = schema.getAttributes.map(a => pyStringLiteral(a.getName))
+    val dtypes = schema.getAttributes.flatMap { a =>
+      emptyDtypes.get(a.getType).map(d => s"""${pyStringLiteral(a.getName)}: "$d"""")
+    }
+    s"""if $frame.empty:
+       |    $frame = $frame.reindex(columns=[${names.mkString(", ")}]).astype({${dtypes
+      .mkString(", ")}})""".stripMargin
+  }
+
+  private val emptyDtypes: Map[AttributeType, String] = Map(
+    AttributeType.INTEGER -> "Int32",
+    AttributeType.LONG -> "Int64",
+    AttributeType.DOUBLE -> "float64",
+    AttributeType.BOOLEAN -> "boolean",
+    AttributeType.TIMESTAMP -> "datetime64[ns]",
+    AttributeType.STRING -> "object"
+  )
 }

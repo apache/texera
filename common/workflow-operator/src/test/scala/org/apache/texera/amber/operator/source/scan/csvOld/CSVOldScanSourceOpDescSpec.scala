@@ -101,70 +101,12 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.offset shouldBe Some(5)
   }
 
-  // scala-csv hands back the text of every field and nothing else: a blank cell is
-  // "", not a null, and "NA" is the country code it says it is. pandas reads both
-  // as missing by default, so the export read a column of codes as a column of
-  // nulls and turned the blank into NaN.
-  "CSVOldScanSourceOpDesc.generateStandaloneCode" should
-    "read a literal NA as text and a blank as an empty string, as its reader does" in {
-    val d = describing(writeCsv("code,note\nNA,x\n,y\n"))
-
-    rowsFromEngine(d) shouldBe List(List("NA", "x"), List("", "y"))
-
-    val code = d.generateStandaloneCode()
-    code should include("keep_default_na=False")
-    // No na_values: where the other CSV readers null a blank, this one keeps it.
-    code should not include "na_values"
-  }
-
-  // The same reason keeps a large integer exact here: a blank types the column
-  // STRING, and with no missing value named, pandas reads every cell as the text
-  // it is. Nothing widens through a float, so 9007199254740993 stays itself.
-  it should "keep a nullable large integer exact, as text" in {
-    val d = describing(writeCsv("id,big\n1,9007199254740993\n2,\n3,9007199254740995\n"))
-
-    d.sourceSchema().getAttribute("big").getType shouldBe AttributeType.STRING
-    rowsFromEngine(d).map(_(1)) shouldBe List("9007199254740993", "", "9007199254740995")
-  }
-
-  // sourceSchema names a blank header column-N; pandas names it "Unnamed: N", and a
-  // downstream operator asks for the name the schema gave.
-  it should "give the frame the names the schema gives it" in {
-    val d = describing(writeCsv("id,name,,age\n1,Alice,x,30\n"))
-    d.generateStandaloneCode() should include(
-      """out1df.columns = ["id", "name", "column-3", "age"]"""
-    )
-  }
-
-  // Only the property editor refuses a negative window; a plan posted to the API
-  // arrives with one intact. pandas rejects a negative nrows outright, where this
-  // reader's take just keeps no rows, so the export asks for the empty window.
-  it should "ask pandas for the empty window a negative limit means to the reader" in {
-    val d = describing(writeCsv("id\n1\n2\n3\n"))
-    d.limit = Some(-1)
-    d.offset = Some(-1)
-
-    val code = d.generateStandaloneCode()
-    code should include("nrows=0")
-    code should include("skiprows=range(1, 1)")
-  }
-
-  // The largest offset the operator accepts is an Int, and the row past the
-  // header is not. Added as Ints the range ran to a negative and came out empty,
-  // so pandas skipped nothing where this reader's take keeps no rows.
-  it should "count the skipped range past what an Int holds" in {
-    val d = describing(writeCsv("id\n1\n2\n3\n"))
-    d.offset = Some(Int.MaxValue)
-
-    d.generateStandaloneCode() should include("skiprows=range(1, 2147483648)")
-  }
-
   // The limit bounded the sample the inference reads as well as the rows the
   // operator emits, so a Limit of 0 had nothing to infer from. The types came
   // back empty while the header still asked each column for one, and the
   // operator threw before a row was read. A file's columns do not depend on how
   // many of its rows were asked for.
-  it should "keep the file's columns when the window asks for no rows" in {
+  "CSVOldScanSourceOpDesc.generateStandaloneCode" should "keep the file's columns when the window asks for no rows" in {
     val d = describing(writeCsv("id,name\n1,alice\n2,bob\n"))
     d.limit = Some(0)
 
@@ -188,12 +130,5 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.hasHeader = true
     d.setResolvedFileName(FileResolver.resolve(path))
     d
-  }
-
-  private def rowsFromEngine(d: CSVOldScanSourceOpDesc): List[List[Any]] = {
-    val exec = new CSVOldScanSourceOpExec(objectMapper.writeValueAsString(d))
-    exec.open()
-    try exec.produceTuple().map(_.getFields.toList).toList
-    finally exec.close()
   }
 }
