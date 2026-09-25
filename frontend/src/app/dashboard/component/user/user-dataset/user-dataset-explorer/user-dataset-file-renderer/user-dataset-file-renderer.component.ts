@@ -362,26 +362,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.tableDataHeader = data[0];
 
       // Process the rest of the rows
-      this.tableContent = data
-        .slice(1)
-        .map(row => {
-          // Normalize the row length to match the header length
-          while (row.length < this.tableDataHeader.length) {
-            row.push("");
-          }
-          return row;
-        })
-        .filter(row => {
-          // filter out all empty row
-          let areCellAllEmpty = true;
-          for (const cell in row) {
-            if (cell != "") {
-              areCellAllEmpty = false;
-              break;
-            }
-          }
-          return !areCellAllEmpty;
-        });
+      this.tableContent = data.slice(1).map(row => {
+        // Normalize the row length to match the header length
+        while (row.length < this.tableDataHeader.length) {
+          row.push("");
+        }
+        return row;
+      });
     }
   }
 }
