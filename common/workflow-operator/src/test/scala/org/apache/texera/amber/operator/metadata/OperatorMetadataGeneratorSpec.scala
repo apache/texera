@@ -19,9 +19,13 @@
 
 package org.apache.texera.amber.operator.metadata
 
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
 
@@ -36,5 +40,18 @@ class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
     }
     ex.getMessage should include(classOf[LogicalOp].toString)
     ex.getMessage should include("is not registered")
+  }
+
+  "OperatorMetadataGenerator.generateOperatorJsonSchema" should
+    "hide the loop-variable sidecar from the property panel, like operatorVersion" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[SpecializedFilterOpDesc])
+    val properties = schema.get("properties")
+    properties.has("predicates") shouldBe true
+    properties.has(StateReferencing.SIDECAR_PROPERTY) shouldBe false
+    properties.has("operatorVersion") shouldBe false
+    val required = schema.get("required").elements().asScala.map(_.asText()).toList
+    required should not contain StateReferencing.SIDECAR_PROPERTY
+    required should not contain "operatorType"
   }
 }

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import org.apache.texera.amber.core.state.StateReferenceModule
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 
@@ -77,6 +78,9 @@ object JSONUtils {
         .addKeyDeserializer(classOf[PortIdentity], new PortIdentityKeyDeserializer())
     )
     .addMixIn(classOf[scalapb.GeneratedSealedOneof], classOf[GeneratedSealedOneofMixin])
+    // Parses a `$K` loop-variable reference in a typed property of a StateReferencing descriptor
+    // (every LogicalOp) into a placeholder, recorded in the descriptor's `stateReferences`.
+    .registerModule(new StateReferenceModule())
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))

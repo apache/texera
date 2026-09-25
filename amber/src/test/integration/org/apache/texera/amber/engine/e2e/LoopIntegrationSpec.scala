@@ -41,9 +41,20 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   workflowContext
 }
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.{
+  SklearnAdvancedSVRParameters,
+  SklearnAdvancedSVRTrainerOpDesc
+}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.HyperParameters
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.tags.IntegrationTest
@@ -188,6 +199,29 @@ class LoopIntegrationSpec
     op
   }
 
+  /**
+    * An SVM regressor fitting `line` on itself, with one hyperparameter row: `C = c`. A Python
+    * operator whose code the descriptor generates before the loop runs; its `Parameters` output
+    * column records each fit's hyperparameters as text ("C = 2.0,").
+    */
+  private def svrTrainer(c: String): SklearnAdvancedSVRTrainerOpDesc = {
+    val op = new SklearnAdvancedSVRTrainerOpDesc()
+    val row = new HyperParameters[SklearnAdvancedSVRParameters]()
+    row.parameter = SklearnAdvancedSVRParameters.C
+    row.value = c
+    op.paraList = List(row)
+    op.selectedFeatures = List("line")
+    op.groundTruthAttribute = "line"
+    op
+  }
+
+  /** `attribute = value`; a `$name` value refers to a loop variable (bound at the worker). */
+  private def filterEquals(attribute: String, value: String): SpecializedFilterOpDesc = {
+    val op = new SpecializedFilterOpDesc()
+    op.predicates = List(new FilterPredicate(attribute, ComparisonType.EQUAL_TO, value))
+    op
+  }
+
   // NOTE: a JavaUDF (runtime-compiled Java) case cannot run in this suite.
   // The integration tests run forkless under sbt (fork := false), where
   // `javax.tools` sees only the sbt launcher on `java.class.path` -- the
@@ -314,6 +348,78 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a Scala operator in the " +
         s"loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "bind a $i loop-variable reference in a JVM operator's property on every iteration" in {
+    // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Filter(line = $i) -> LoopEnd.
+    //
+    // The Filter's predicate value is the literal string "$i". The Filter sits inside the
+    // block, so the compiler records "$i" in its sidecar, and ExecFactory hands the
+    // worker a LateBoundExecutor, which binds "$i" to the iteration's `i` when the LoopStart's
+    // state message arrives -- the region's input reader replays states before tuples -- and
+    // only then instantiates the real Filter. Iteration i emits the single row
+    // "i" and the Filter compares it against i, so every iteration's row passes and the
+    // LoopEnd accumulates 3 rows. A constant "0" instead of "$i" would pass only the first
+    // iteration's row and give 1; a reference that never rebinds to the new i would too.
+    val src = textInput("0\n1\n2")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = filterEquals("line", "$i")
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"Filter(line = $$i) must pass its own iteration's row on all 3 iterations: " +
+        s"expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a $i loop-variable reference in a Python-generated operator's property on every iteration" in {
+    // TextInput(1.0, 2.0, 3.0) -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd.
+    //
+    // The trainer's Python is generated before the loop runs. pyb renders the C value "$i" as an
+    // expression the operator evaluates when it trains, and because the trainer sits inside the
+    // block, the compiler had that expression read `i` from the iteration's state message
+    // (self.loop_variable_text('i')), which the region's input reader replays before the tuples.
+    // LoopStart hands the whole table to both inputs (training, then parameter) every iteration,
+    // so each iteration fits once and the LoopEnd accumulates one row per iteration, its
+    // Parameters naming the C that fit used. The literal "$i" would fail float("$i") and fail
+    // the run; a reference that never rebinds to the new i would repeat one C.
+    val src = textInput("1\n2\n3")
+    src.attributeType = FileAttributeType.DOUBLE
+    val start = loopStart("i = 1", "table")
+    val trainer = svrTrainer("$i")
+    val end = loopEnd("i += 1", "i <= len(table)")
+    val results = runWorkflowAndReadResults(
+      system,
+      buildWorkflow(
+        List(src, start, trainer, end),
+        List(
+          link(src, start),
+          link(start, trainer),
+          LogicalLink(
+            start.operatorIdentifier,
+            PortIdentity(),
+            trainer.operatorIdentifier,
+            PortIdentity(1)
+          ),
+          link(trainer, end)
+        ),
+        materializedContext()
+      ),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    )
+    val parameters =
+      results.getOrElse(end.operatorIdentifier, Nil).map(_.getField[String]("Parameters")).sorted
+    assert(
+      parameters == List("C = 1.0,", "C = 2.0,", "C = 3.0,"),
+      s"each iteration's fit must use its own i as C: got $parameters"
     )
   }
 

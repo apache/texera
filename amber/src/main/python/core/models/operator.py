@@ -20,7 +20,17 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from decimal import Decimal, InvalidOperation
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+)
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
@@ -74,7 +84,123 @@ class Operator(ABC):
     def decode_python_template(self, data: Union[str, bytes]) -> str:
         return self._get_template_decoder().decode(data)
 
+    def loop_variable_text(self, name: str) -> str:
+        """
+        The text of loop variable ``name`` in the state messages handed to this
+        operator, the latest one that carried it winning. Inside a control
+        block, the code generated for an operator calls this where a text
+        property holds ``$name``, in place of decoding the literal, so the
+        value is read when the code runs. It is spelled as a JVM operator's
+        text property binds it (``LateBoundExecutor``): a boolean as ``true``
+        or ``false``, and only a scalar at all.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :return: str, the variable's value, as text.
+        """
+        if self._loop_variables is None:
+            raise RuntimeError(
+                f"loop variable ${name} is read before the iteration's state arrived"
+            )
+        if name not in self._loop_variables:
+            raise RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                "but no state message carried it"
+            )
+        value = self._loop_variables[name]
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (str, int, float)):
+            return str(value)
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            f"but its value {value!r} is not a scalar"
+        )
+
+    def loop_variable_value(self, name: str, kind: str) -> Union[int, float, bool]:
+        """
+        The value of loop variable ``name``, its text (``loop_variable_text``)
+        converted to ``kind``. Inside a control block, the code generated for
+        an operator calls this where a numeric or boolean property holds
+        ``$name``, in place of the value written into the code, so the value is
+        read when the code runs. It is converted as a JVM operator's numeric or
+        boolean property binds it (``LateBoundExecutor``), from its text: an
+        integer must be integral and fit a signed 64-bit long, a number is any
+        numeral, and a boolean is ``true`` or ``false`` in any case, never ``1``
+        or ``0``.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :param kind: str, ``integer``, ``number`` or ``boolean``: the JSON type
+            of the property that holds ``$name``.
+        :return: int, float or bool, the variable's value as ``kind``.
+        """
+        if kind not in ("integer", "number", "boolean"):
+            raise ValueError(
+                f"loop variable ${name} cannot be read as {kind!r}: "
+                "the kind is one of 'integer', 'number' and 'boolean'"
+            )
+        text = self.loop_variable_text(name).strip()
+        value = self._loop_variables[name]
+
+        def not_a(description: str) -> RuntimeError:
+            return RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                f"but its value {value!r} is not {description}"
+            )
+
+        if kind == "boolean":
+            if text.lower() not in ("true", "false"):
+                raise not_a("a boolean")
+            return text.lower() == "true"
+        description = "a number" if kind == "number" else "an integer"
+        try:
+            numeral = Decimal(text)
+        except InvalidOperation:
+            raise not_a(description) from None
+        if kind == "number":
+            try:
+                return float(numeral)
+            except ValueError:  # a signalling NaN
+                raise not_a(description) from None
+        # BigDecimal.longValueExact: integral and within a signed 64-bit long.
+        if (
+            not numeral.is_finite()
+            or numeral != numeral.to_integral_value()
+            or not -(2**63) <= numeral < 2**63
+        ):
+            raise not_a(description)
+        return int(numeral)
+
+    def register_state(self, state: State) -> None:
+        """
+        Register ``state`` as the latest state message handed to this operator.
+        It becomes ``self.state``, and its values join the loop variables
+        ``loop_variable_text`` and ``loop_variable_value`` read, replacing
+        those of the same name. The runtime calls this right before
+        ``process_state``.
+
+        :param state: State, the state message that arrived.
+        """
+        self.state = state
+        self._loop_variables = {**(self._loop_variables or {}), **state}
+
     __internal_is_source: bool = False
+
+    # The state message most recently handed to this operator -- inside a
+    # control block, the iteration's loop variables. The runtime registers it
+    # (``register_state``) right before ``process_state`` runs (see
+    # ``DataProcessor.process_state``), so the callback and every call after
+    # it can consult it. A class-level default rather than an ``__init__``
+    # assignment: a subclass ``__init__`` that skips ``super()`` still reads
+    # ``None`` until a state arrives. The loop operators keep their own loop
+    # variables apart, on ``variables``.
+    state: Optional[State] = None
+
+    # The values of every state message registered so far, a later message's
+    # winning, as the JVM's LateBoundExecutor merges them: a loop body
+    # operator's own state, or a nested loop's inner one, arrives after the
+    # loop's and must not hide its variables. ``None`` until the first; a
+    # class-level default for the same reason as ``state``.
+    _loop_variables: Optional[Mapping[str, Any]] = None
 
     @property
     @overrides.final
@@ -349,7 +475,7 @@ class LoopStartOperator(TableOperator):
     user-supplied ``initialization`` and ``output`` expressions into
     ``open()`` and ``process_table()``; all substantive logic lives here.
 
-    ``open()`` seeds ``self.state`` with the user's loop variables;
+    ``open()`` seeds ``self.variables`` with the user's loop variables;
     ``process_state`` merges upstream state in; ``produce_state_on_finish``
     emits those variables to the matching LoopEnd. The input table does NOT
     ride the state: the LoopEnd runtime reads it from this operator's
@@ -359,25 +485,25 @@ class LoopStartOperator(TableOperator):
 
     Subclass contract: the generated subclass overrides ``open()`` and
     ``process_table()`` only; all other methods are ``@overrides.final``. After
-    ``open()`` returns ``self.state`` holds only the user's loop variables --
+    ``open()`` returns ``self.variables`` holds only the user's loop variables --
     not the reserved ``table``; see the ``_RESERVED_STATE_KEYS`` module comment
     for the ``table`` vs envelope-borne counter/id split.
     """
 
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
-        # First-entry only: merge upstream state into self.state. The nested
+        # First-entry only: merge upstream state into self.variables. The nested
         # pass-through (a frame already stamped with a LoopStartId) and all
         # loop_counter bookkeeping are owned by the worker runtime
         # (main_loop._process_state_frame), so this operator never sees the
         # counter and never mutates the State it is handed.
-        self.state.update(state)
+        self.variables.update(state)
         return None
 
     @overrides.final
     def run_initialization(self, initialization_code: str) -> None:
         # Run the user's `initialization` to seed the loop variables, then keep
-        # them as self.state. The namespace is passed as exec globals (not a
+        # them as self.variables. The namespace is passed as exec globals (not a
         # locals-only mapping) so a comprehension / generator expression /
         # lambda in the init resolves its free variables -- a locals-only
         # namespace raises NameError on otherwise-valid init code. exec injects
@@ -389,11 +515,11 @@ class LoopStartOperator(TableOperator):
         namespace: dict = {}
         exec(initialization_code, namespace)
         namespace.pop("__builtins__", None)
-        self.state = State(namespace)
+        self.variables = State(namespace)
 
     @overrides.final
     def eval_output(self, output_expr: str, table: Table) -> TableLike:
-        return _eval_loop_expr(output_expr, self.state, table)
+        return _eval_loop_expr(output_expr, self.variables, table)
 
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
@@ -403,9 +529,9 @@ class LoopStartOperator(TableOperator):
         # (loopStartPortUris). A user loop variable named `table` would be
         # silently shadowed by that injected table in the LoopEnd's
         # update/condition namespaces, so flag the collision here.
-        if _TABLE_KEY in self.state:
+        if _TABLE_KEY in self.variables:
             raise _reserved_name_error(_TABLE_KEY)
-        return State(self.state)
+        return State(self.variables)
 
 
 class LoopEndOperator(TableOperator):
@@ -420,12 +546,12 @@ class LoopEndOperator(TableOperator):
     ``process_table`` yields each input table through as-is; ``process_state``
     runs the user's ``update`` (against the table the runtime attached via
     ``attach_loop_table``) and persists only user variables back into
-    ``self.state``; ``condition()`` decides whether ``MainLoop.complete()``
+    ``self.variables``; ``condition()`` decides whether ``MainLoop.complete()``
     fires the back-edge.
 
     Subclass contract: the generated subclass overrides ``process_state()`` and
     ``condition()`` only; all other methods are ``@overrides.final``.
-    ``self.state`` / ``self._loop_table`` start empty and are populated only by
+    ``self.variables`` / ``self._loop_table`` start empty and are populated only by
     ``run_update`` on the matching-loop consume, so ``condition()`` returns
     ``False`` until that first consume -- a LoopEnd that never consumed a
     matching state (e.g. an inner LoopEnd that only forwarded outer-loop
@@ -439,10 +565,10 @@ class LoopEndOperator(TableOperator):
         # that never consumed a matching state (an inner LoopEnd that only
         # forwarded outer-loop pass-through state, or a loop that completed
         # without a matching-branch consume). run_update is what populates
-        # self.state / self._loop_table, so initialize them here to avoid
+        # self.variables / self._loop_table, so initialize them here to avoid
         # AttributeError; a None _loop_table means "nothing consumed yet" and
         # condition() short-circuits to False (see eval_condition).
-        self.state: State = State()
+        self.variables: State = State()
         # Set by the runtime (attach_loop_table) right before the matching
         # consume and taken (cleared) by run_update. The clear is defensive
         # rather than load-bearing today -- a worker instance handles a single
@@ -471,7 +597,7 @@ class LoopEndOperator(TableOperator):
     def run_update(self, update_code: str, state: State) -> None:
         # Run the user's `update` in a throwaway namespace seeded with the
         # incoming loop variables and the input table, then persist the user
-        # variables back into self.state. The table is attached by the runtime
+        # variables back into self.variables. The table is attached by the runtime
         # (attach_loop_table) from the Loop Start's input materialization; on
         # a successful update it is kept on self._loop_table so condition()
         # can read it afterwards.
@@ -489,7 +615,7 @@ class LoopEndOperator(TableOperator):
         # comprehension / generator expression / lambda in the user's `update`
         # resolves its free variables -- a locals-only namespace raises
         # NameError on otherwise-valid update code. exec injects `__builtins__`
-        # into that globals dict; drop it so it does not leak into self.state.
+        # into that globals dict; drop it so it does not leak into self.variables.
         exec(update_code, namespace)
         namespace.pop("__builtins__", None)
         # `table` is runtime-owned; a user `update` that rebinds (or deletes)
@@ -498,7 +624,7 @@ class LoopEndOperator(TableOperator):
         if namespace.get(_TABLE_KEY) is not input_table:
             raise _reserved_name_error(_TABLE_KEY)
         self._loop_table = input_table
-        self.state = _strip_reserved(namespace)
+        self.variables = _strip_reserved(namespace)
 
     @overrides.final
     def eval_condition(self, condition_expr: str) -> bool:
@@ -508,7 +634,7 @@ class LoopEndOperator(TableOperator):
         # loop variables that don't exist yet (which would raise NameError).
         if self._loop_table is None:
             return False
-        return _eval_loop_expr(condition_expr, self.state, self._loop_table)
+        return _eval_loop_expr(condition_expr, self.variables, self._loop_table)
 
     @abstractmethod
     def condition(self) -> bool:

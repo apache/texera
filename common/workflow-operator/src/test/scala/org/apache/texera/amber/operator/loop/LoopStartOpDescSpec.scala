@@ -70,7 +70,7 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
   }
 
   it should "place the decoded initialization expression inside open() and the decoded output expression inside process_table()" in {
-    // The user's `initialization` is run in open() to seed self.state;
+    // The user's `initialization` is run in open() to seed self.variables;
     // the user's `output` is run in process_table() against the buffered
     // table. Pin both call sites so a future refactor that swaps the two
     // does not silently produce a runnable-looking class that loops over

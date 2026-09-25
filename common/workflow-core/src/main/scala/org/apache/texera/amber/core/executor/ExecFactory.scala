@@ -29,11 +29,28 @@ object ExecFactory {
       .asInstanceOf[OperatorExecutor]
   }
 
+  /**
+    * A descriptor whose `stateReferences` sidecar names loop variables gets a `LateBoundExecutor`,
+    * which builds the executor once the loop state has arrived. The compiler fills the sidecar in
+    * only inside a loop block, so a `$name` string anywhere else is the literal it looks like.
+    */
   def newExecFromJavaClassName[K](
       className: String,
       descString: String = "",
       idx: Int = 0,
       workerCount: Int = 1
+  ): OperatorExecutor =
+    if (LateBoundExecutor.refersToLoopVariables(descString)) {
+      new LateBoundExecutor(className, descString, idx, workerCount)
+    } else {
+      instantiate[K](className, descString, idx, workerCount)
+    }
+
+  private def instantiate[K](
+      className: String,
+      descString: String,
+      idx: Int,
+      workerCount: Int
   ): OperatorExecutor = {
     val clazz = Class.forName(className).asInstanceOf[Class[K]]
     try {
