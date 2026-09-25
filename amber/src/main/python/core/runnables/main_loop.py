@@ -220,7 +220,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(executor.state.to_tuple(0))
+        # It carries the loop variables the update produced (``variables``),
+        # not the state message registered before it ran (``state``).
+        writer.put_one(executor.variables.to_tuple(0))
         writer.close()
 
     def _check_loop_state_arrived(self) -> None:

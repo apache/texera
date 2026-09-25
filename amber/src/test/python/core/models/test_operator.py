@@ -273,11 +273,11 @@ class TestOperatorDefaultMethods:
         state = State()
         assert op.process_state(state, port=0) is state
 
-    def test_loop_state_is_none_until_the_runtime_registers_a_state(self):
+    def test_state_is_none_until_the_runtime_registers_a_state(self):
         # Inside a control block the iteration's loop variables reach the
         # operator as a state message; the runtime registers it on
-        # `loop_state` before `process_state` runs. Nothing has arrived yet.
-        assert _ConcreteOperator().loop_state is None
+        # `state` before `process_state` runs. Nothing has arrived yet.
+        assert _ConcreteOperator().state is None
 
     def test_produce_state_on_start_returns_none_by_default(self):
         assert _ConcreteOperator().produce_state_on_start(port=0) is None
@@ -401,12 +401,12 @@ class TestLoopVariableText:
         assert op.loop_variable_text("j") == "5"
         assert op.loop_variable_text("i") == "0"
 
-    def test_registering_makes_the_message_loop_state_and_changes_no_message(self):
+    def test_registering_makes_the_message_the_state_and_changes_no_message(self):
         op = _ConcreteOperator()
         first, second = State({"i": 1}), State({"j": 2})
         op.register_loop_state(first)
         op.register_loop_state(second)
-        assert op.loop_state is second
+        assert op.state is second
         # The merge is the operator's own: neither message gains a key.
         assert first == State({"i": 1})
         assert second == State({"j": 2})
@@ -419,8 +419,8 @@ class TestLoopVariableText:
         assert target.loop_variable_text("i") == "1"
         with pytest.raises(RuntimeError, match="read before the iteration's state"):
             bystander.loop_variable_text("i")
-        assert bystander.loop_state is None
-        assert _ConcreteOperator.loop_state is None
+        assert bystander.state is None
+        assert _ConcreteOperator.state is None
 
     def test_raises_when_read_before_the_iterations_state_arrived(self):
         op = _ConcreteOperator()
