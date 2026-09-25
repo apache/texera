@@ -288,6 +288,17 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  it should "render the delimiter as the single-character delimiter picker" in {
+    delimiterOwners.foreach {
+      case (name, opDescClass) =>
+        withClue(s"$name: ") {
+          val formlyConfig = delimiterSchema(opDescClass).path("widget").path("formlyConfig")
+          assert(formlyConfig.path("type").asText() == "delimiter")
+          assert(formlyConfig.path("props").path("delimiterMode").asText() == "char")
+        }
+    }
+  }
+
   it should "validate an empty or one-character delimiter and refuse a longer one" in {
     delimiterOwners.foreach {
       case (name, opDescClass) =>
@@ -301,6 +312,85 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
           assert(!schemaValidates(propertySchema, ",;"))
           assert(!schemaValidates(propertySchema, ";abc"))
         }
+    }
+  }
+
+  // The presets the delimiter picker offers for a CSV scan, exactly as it stores them.
+  private val pickerPresets: List[(String, String)] = List(
+    "comma" -> ",",
+    "tab" -> "\t",
+    "semicolon" -> ";",
+    "pipe" -> "|",
+    "space" -> " "
+  )
+
+  private def writeCsv(delimiter: String, body: String): String = {
+    val tmpFile = Files.createTempFile("delimited-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(tmpFile, body.replace(",", delimiter).getBytes(StandardCharsets.UTF_8))
+    tmpFile.toString
+  }
+
+  private def allReaders(delimiter: String): List[ScanSourceOpDesc] = {
+    val csv = new CSVScanSourceOpDesc()
+    csv.customDelimiter = Some(delimiter)
+    val parallelCsv = new ParallelCSVScanSourceOpDesc()
+    parallelCsv.customDelimiter = Some(delimiter)
+    val oldCsv = new CSVOldScanSourceOpDesc()
+    oldCsv.customDelimiter = Some(delimiter)
+    List(csv, parallelCsv, oldCsv)
+  }
+
+  it should "read a file separated by each delimiter the picker offers" in {
+    pickerPresets.foreach {
+      case (name, delimiter) =>
+        val path = writeCsv(delimiter, "id,name,age\n1,Alice,30\n2,Bob,25\n")
+        allReaders(delimiter).foreach { reader =>
+          withClue(s"$name, ${reader.getClass.getSimpleName}: ") {
+            assert(columnNames(reader, path) == List("id", "name", "age"))
+          }
+        }
+    }
+  }
+
+  it should "accept each preset against the schema's one-character bound" in {
+    delimiterOwners.foreach {
+      case (owner, opDescClass) =>
+        pickerPresets.foreach {
+          case (name, delimiter) =>
+            withClue(s"$owner, $name: ") {
+              assert(schemaValidates(delimiterSchema(opDescClass), delimiter))
+            }
+        }
+    }
+  }
+
+  it should "read a custom non-ASCII delimiter" in {
+    val path = writeCsv("§", "id,name,age\n1,Alice,30\n")
+    allReaders("§").foreach { reader =>
+      withClue(s"${reader.getClass.getSimpleName}: ") {
+        assert(columnNames(reader, path) == List("id", "name", "age"))
+      }
+    }
+  }
+
+  it should "keep a quoted field whole when it contains the delimiter" in {
+    val tmpFile = Files.createTempFile("quoted-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(tmpFile, "id;name\n1;\"Smith; J\"\n".getBytes(StandardCharsets.UTF_8))
+    allReaders(";").foreach { reader =>
+      withClue(s"${reader.getClass.getSimpleName}: ") {
+        assert(columnNames(reader, tmpFile.toString) == List("id", "name"))
+      }
+    }
+  }
+
+  it should "fall back to a comma when the delimiter is cleared" in {
+    val path = writeCsv(",", "id,name,age\n1,Alice,30\n")
+    allReaders("").foreach { reader =>
+      withClue(s"${reader.getClass.getSimpleName}: ") {
+        assert(columnNames(reader, path) == List("id", "name", "age"))
+      }
     }
   }
 

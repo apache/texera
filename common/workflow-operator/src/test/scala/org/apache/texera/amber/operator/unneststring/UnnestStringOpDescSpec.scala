@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -81,6 +81,113 @@ class UnnestStringOpDescSpec extends AnyFlatSpec with Matchers {
     intercept[RuntimeException] {
       physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
     }
+  }
+
+  it should "report a delimiter that is not a valid regular expression" in {
+    val op = newDesc("(", "tags", "tag")
+    val physical = op.getPhysicalOp(workflowId, executionId)
+    val input = Schema().add(new Attribute("tags", AttributeType.STRING))
+    val ex = intercept[RuntimeException] {
+      physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
+    }
+    ex.getMessage should startWith("Delimiter is not a valid regular expression")
+  }
+
+  it should "name the problem for each common regex mistake" in {
+    val input = Schema().add(new Attribute("tags", AttributeType.STRING))
+    // unclosed group, unclosed class, nothing to repeat, reversed range, trailing escape
+    List("(", "[", "*", "a{2,1}", "\\").foreach { bad =>
+      withClue(s"pattern '$bad': ") {
+        val op = newDesc(bad, "tags", "tag")
+        val physical = op.getPhysicalOp(workflowId, executionId)
+        val ex = intercept[RuntimeException] {
+          physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
+        }
+        ex.getMessage should startWith("Delimiter is not a valid regular expression")
+        ex.getMessage should include("near index")
+      }
+    }
+  }
+
+  private def compileError(delimiter: String): Option[String] = {
+    val op = newDesc(delimiter, "tags", "tag")
+    val input = Schema().add(new Attribute("tags", AttributeType.STRING))
+    try {
+      op.getPhysicalOp(workflowId, executionId)
+        .propagateSchema
+        .func(Map(op.operatorInfo.inputPorts.head.id -> input))
+      None
+    } catch { case e: RuntimeException => Some(e.getMessage) }
+  }
+
+  // Checked with Java's engine, so patterns the browser can't parse (inline flags) or reads
+  // differently (\p{..}) are judged by what the operator actually runs.
+  it should "reject a pattern that matches the empty string, which splits every character apart" in {
+    List("|", "\\s*", "(?i)", "(?s).*", "\\z", "\\Q\\E").foreach { pattern =>
+      withClue(s"pattern '$pattern': ") {
+        compileError(pattern).getOrElse("") should include("matches an empty string")
+      }
+    }
+  }
+
+  it should "reject a pattern that matches every character, line breaks included" in {
+    List("(?s).", "[\\s\\S]").foreach { pattern =>
+      withClue(s"pattern '$pattern': ") {
+        compileError(pattern).getOrElse("") should include(
+          "matches every character, so nothing would be left"
+        )
+      }
+    }
+  }
+
+  // Line breaks are what's left (see UnnestStringOpExecSpec), so the message says so rather
+  // than claiming nothing is.
+  it should "reject a pattern that matches every character but line breaks, naming what's left" in {
+    List(".", "[^\\n]", ".+").foreach { pattern =>
+      withClue(s"pattern '$pattern': ") {
+        compileError(pattern).getOrElse("") should include(
+          "matches every character except line breaks, so only line breaks would be left"
+        )
+      }
+    }
+  }
+
+  it should "suggest the escape for a lone metacharacter that matches everything" in {
+    compileError(".").getOrElse("") should include("\\.")
+  }
+
+  it should "reject an empty delimiter" in {
+    compileError("").getOrElse("") should include("cannot be empty")
+  }
+
+  it should "accept useful patterns that use Java-only syntax" in {
+    List("\\p{L}+", "(?i)and", ",++", "\\h*,\\h*", "\\Q|\\E", "\\s+").foreach { pattern =>
+      withClue(s"pattern '$pattern': ") {
+        compileError(pattern) shouldBe None
+      }
+    }
+  }
+
+  it should "accept every preset the delimiter picker offers" in {
+    val input = Schema().add(new Attribute("tags", AttributeType.STRING))
+    List(",", "\\t", "\t", ";", "\\|", "\\s+", "\\n").foreach { preset =>
+      withClue(s"preset '$preset': ") {
+        val op = newDesc(preset, "tags", "tag")
+        val physical = op.getPhysicalOp(workflowId, executionId)
+        physical.propagateSchema.func(Map(op.operatorInfo.inputPorts.head.id -> input))
+      }
+    }
+  }
+
+  "UnnestStringOpDesc json schema" should "render the delimiter as the regex delimiter picker" in {
+    val formlyConfig = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[UnnestStringOpDesc])
+      .path("properties")
+      .path("Delimiter")
+      .path("widget")
+      .path("formlyConfig")
+    formlyConfig.path("type").asText() shouldBe "delimiter"
+    formlyConfig.path("props").path("delimiterMode").asText() shouldBe "regex"
   }
 
   // A hole widens an integer column to float, so the split would see "6.0" where
