@@ -42,6 +42,7 @@ import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.i
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { ExecutionMode, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -73,6 +74,73 @@ describe("WorkflowActionService", () => {
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  // The operator canvas and the Form View hand one open workflow between them; the arriving view
+  // asks this before loading, because seeding a second document for the same workflow would leave
+  // the co-editing room and rejoin it.
+  describe("hasWorkflowOpen", () => {
+    it("is true only for the workflow whose room the shared document is in", () => {
+      service.setNewSharedModel(42);
+
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+      expect(service.hasWorkflowOpen(43)).toBe(false);
+    });
+
+    it("is false for every workflow while none is open", () => {
+      service.setNewSharedModel();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+      // And asking about "no workflow" is never a match, even against a document in no room.
+      expect(service.hasWorkflowOpen(undefined)).toBe(false);
+      expect(service.hasWorkflowOpen(0)).toBe(false);
+    });
+
+    // Both views key the hand-over on this. A workflow created in this session has an id in its
+    // metadata after the first autosave while its document is still in the private room it was
+    // seeded with; keyed on the metadata the departing view handed it over, keyed on the room the
+    // arriving view declined it. Keyed on the room on both sides, it is simply rebuilt once.
+    it("names the room the document is in, and nothing while it is in no workflow's room", () => {
+      service.setNewSharedModel(42);
+      expect(service.getOpenWorkflowId()).toBe(42);
+
+      service.setNewSharedModel();
+      expect(service.getOpenWorkflowId()).toBeUndefined();
+    });
+
+    // Not local to this method: destroying the document keeps the object and its wid, and what
+    // clears it is clearWorkflow going on to reloadWorkflow(undefined), which seeds a fresh model
+    // with none. Were that to stop happening, a canvas re-entered from the dashboard would attach
+    // to a destroyed document instead of loading the workflow.
+    it("is false for a workflow that has been left, not only for one never opened", () => {
+      service.setNewSharedModel(42);
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+
+      service.clearWorkflow();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+  });
+
+  // The stream is a plain Subject and carries no current value, so a view that attaches to an
+  // already-open workflow -- and therefore never sets the metadata, because it is already right --
+  // has to say it again for the subscribers it has just mounted: the menu's name and id, the
+  // computing unit picker, the workspace's write access.
+  describe("republishWorkflowMetadata", () => {
+    it("re-announces the metadata it already holds, which setWorkflowMetadata will not", () => {
+      const metadata: WorkflowMetadata = { ...DEFAULT_WORKFLOW, wid: 42, name: "kept open" };
+      service.setWorkflowMetadata(metadata);
+      const seen: WorkflowMetadata[] = [];
+      service.workflowMetaDataChanged().subscribe(m => seen.push(m));
+
+      // The same value a view would read back and hand straight to the setter: it returns early.
+      service.setWorkflowMetadata(service.getWorkflowMetadata());
+      expect(seen).toEqual([]);
+
+      service.republishWorkflowMetadata();
+
+      expect(seen).toEqual([metadata]);
+    });
+  });
 
   it("should add an operator to both jointjs and texera graph correctly", () => {
     service.addOperator(mockScanPredicate, mockPoint);

@@ -32,7 +32,7 @@ import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, switchMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -40,13 +40,13 @@ import { FileSaverService } from "../../../dashboard/service/user/file/file-save
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { EMPTY, firstValueFrom, of, timer } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
@@ -132,7 +132,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
-  /** A Form View hand-over is in progress (saving, then a full-page load); a second click is a no-op. */
+  /** A Form View hand-over is in progress (saving, then the route); a second click is a no-op. */
   private handingOverToFormView = false;
   /** An edit has been reported since the hand-over's last save snapshot (see onClickOpenFormView). */
   private editedSinceSwitchSnapshot = false;
@@ -198,17 +198,14 @@ export class MenuComponent implements OnInit, OnDestroy {
     private jupyterPanelService: JupyterPanelService,
     private fileSaverService: FileSaverService
   ) {
-    workflowWebsocketService
-      .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(
-        tap(event => (this.executionDuration = event.duration)),
-        // restart the 1s timer on each event, only while running
-        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.executionDuration += 1000;
-      });
+    // From the service, not from the engine's event directly: that event arrives twice in a whole
+    // run, so a timer hung off it never started for a menu that mounted in between -- which is what
+    // a routed switch between the canvas and the Form View makes. The service anchors the clock and
+    // ticks it, and replays the current value to whoever subscribes.
+    executeWorkflowService
+      .getExecutionDurationStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(duration => (this.executionDuration = duration));
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -227,7 +224,10 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     this.restorePersistedHeatmapOverlay();
-
+    // The export flags are reset when a menu is destroyed, which is right when the workspace is
+    // left and wrong when a workflow's two views hand over and the results are kept. Recompute
+    // from what is in hand, so a menu arriving on retained results does not offer a dead button.
+    this.workflowResultExportService.refreshExportAvailability();
     // Marks an edit for the Form View hand-over (see onClickOpenFormView): set the moment an edit is
     // reported, before the autosave debounce, cleared when the switch's save snapshots the workflow.
     this.workflowActionService
@@ -711,9 +711,10 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Open the Form View -- a full page load, not a route: the two views share root-level
-   * singletons (graph, Yjs shared model), and routing left the old collaboration client
-   * alive (you appeared as your own coeditor). A fresh document is the clean handover.
+   * Open the Form View. A route, not a page load: the two views are views of one open workflow,
+   * and this canvas keeps the session -- the shared document and its room, the computing unit,
+   * the execution -- for the Form View to attach to (see WorkspaceComponent.ngOnDestroy). A
+   * writer's edits are saved first; see below for why the order matters.
    */
   public onClickOpenFormView(): void {
     const wid = this.workflowActionService.getWorkflowMetadata().wid;
@@ -726,18 +727,18 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.openFormViewPage(wid);
       return;
     }
-    // Save first, and hand over only once the save has completed. The full-page load that
-    // follows unloads this document, and a request still in flight at that moment is aborted, so
-    // navigating right after firing the save could lose the very edit the switch is meant to carry
-    // across; the workspace's beforeunload save runs into the same unload and is no safety net. A
-    // save that fails keeps the user here with the error shown, rather than leaving with changes
-    // that were never stored. The form's own switch (openRegularCanvas) does the same.
+    // Save first, and hand over only once the save has completed. A route aborts no request, so
+    // this is no longer about losing the edit in flight; it is about where a failure lands. The
+    // switch is the moment a writer expects what they typed here to be stored, and a save that
+    // fails keeps them here, on the view they edited in, with the error in front of them -- rather
+    // than carrying changes that were never stored into a view that has no reason to say so. The
+    // form's own switch (openRegularCanvas) does the same.
     //
     // Two more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
     // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the load): workflowChanged marks it, and the drain below saves once more before handing
-    // over rather than letting the full-page load abort that edit's own debounced autosave.
+    // until the route): workflowChanged marks it, and the drain below saves once more before handing
+    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -766,7 +767,8 @@ export class MenuComponent implements OnInit, OnDestroy {
         },
         complete: () => {
           if (this.editedSinceSwitchSnapshot) {
-            // An edit landed while the save was out; the full-page load would kill its autosave.
+            // An edit landed while the save was out; store it here rather than leave it to an
+            // autosave that would fire under the other view.
             this.saveThenOpenFormView(target);
             return;
           }
@@ -777,15 +779,27 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The full-page handover to the Form View, apart from the save so the order is testable.
-   * Excluded from coverage as a whole: jsdom cannot navigate, so the specs stub this method and
-   * assert when it is called rather than what it does.
+   * The hand-over to the Form View, apart from the save so the order is testable.
+   *
+   * A route, not a page load: the two views are views of one open workflow, and reloading threw
+   * away everything that made the workflow live -- the shared document, the computing unit
+   * connection, the execution state -- only to rebuild it on the other side. The canvas keeps
+   * the session on its way out (see its ngOnDestroy) and the Form View attaches to it.
+   *
+   * A navigation can be refused or cancelled, and unlike a page load that leaves this page in
+   * place, with the hand-over flag still raised and the Form View button dead for the rest of the
+   * session. So the flag comes down on anything but success -- on success this component is gone.
    */
-  /* v8 ignore start */
   private openFormViewPage(wid: number): void {
-    window.location.href = `${USER_WORKSPACE}/${wid}/form`;
+    this.router.navigateByUrl(workspaceFormUrl(wid)).then(
+      navigated => {
+        if (!navigated) {
+          this.handingOverToFormView = false;
+        }
+      },
+      () => (this.handingOverToFormView = false)
+    );
   }
-  /* v8 ignore stop */
 
   /**
    * Calls Markdown Description Component

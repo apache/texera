@@ -130,7 +130,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
-    private guiConfigService: GuiConfigService
+    // Read by the template only (the export button's flag); the template can see a protected member.
+    protected guiConfigService: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -464,6 +465,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
+    // A cell belongs to the operator whose results this frame is showing. Without one there is
+    // nothing to scope an export to, and the dialog would open only to export nothing.
+    if (!this.operatorId) {
+      return;
+    }
     const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
     const defaultFileName = `${columnName}_${realRowNumber}`;
     const modal = this.modalService.create({
@@ -471,10 +477,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: "data",
-        workflowName: this.workflowActionService.getWorkflowMetadata.name,
+        workflowName: this.workflowActionService.getWorkflowMetadata()?.name,
         defaultFileName: defaultFileName,
         rowIndex: realRowNumber,
         columnIndex: columnIndex,
+        // Named rather than left to the canvas selection, which answers a different question:
+        // what the user has selected. This frame also mounts on the Form View, where nothing is
+        // selected until the user clicks a step, so the export found an empty scope and the
+        // button did nothing.
+        operatorIds: [this.operatorId],
       },
       nzFooter: null,
     });
