@@ -67,18 +67,18 @@ class TransformVerificationRunnerSpec extends AnyFlatSpec with Matchers {
   import TransformVerificationRunner._
 
   "disposition" should "flag knownIssues operators with the triage reason" in {
-    // The prediction op consumes a trained model on its input port, which a
-    // JVM-written JSONL fixture can't carry; triaged as a known issue, not run.
-    disposition(classOf[SklearnPredictionOpDesc]) match {
-      case Flagged(reason) => reason should include("trained-model")
-      case other           => fail(s"expected Flagged, got $other")
-    }
-    // The other kind of row: a placeholder with no physical execution, so the
-    // harness has nothing to run either path against.
+    // A placeholder with no physical execution, so the harness has nothing to
+    // run either path against.
     disposition(classOf[DummyOpDesc]) match {
       case Flagged(reason) => reason should include("known issue")
       case other           => fail(s"expected Flagged, got $other")
     }
+  }
+
+  // It was withheld because a JSONL fixture could not carry a fitted model. Both
+  // paths now unpickle a model cell the way the worker does, so its fixture can.
+  it should "run the prediction op on a fitted model its fixture carries" in {
+    disposition(classOf[SklearnPredictionOpDesc]) shouldBe Runnable("curated")
   }
 
   it should "run the union now that its code names every upstream" in {

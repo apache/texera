@@ -35,7 +35,6 @@ import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.sort.SortOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
-import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 import org.apache.texera.amber.operator.sklearn.SklearnGaussianNaiveBayesOpDesc
@@ -478,6 +477,15 @@ object TransformVerificationRunner {
         )
       ),
       NotRun(
+        classOf[SklearnTestingOpDesc],
+        RunKind.EnumSweep,
+        ByDesign(
+          "isRegression has to match the model the model port carries, and the " +
+            "fixture's is a classifier; a regressor on a numeric target covers " +
+            "the other branch in its own scenario"
+        )
+      ),
+      NotRun(
         classOf[AggregateOpDesc],
         RunKind.EnumSweep,
         ByDesign(
@@ -601,15 +609,7 @@ object TransformVerificationRunner {
   val knownIssues: Map[Class[_], String] = Map(
     classOf[DummyOpDesc] ->
       ("harness gap: placeholder operator with no physical execution — " +
-        "LogicalOp.getPhysicalOp throws NotImplementedError"),
-    classOf[SklearnPredictionOpDesc] ->
-      ("trained-model input: the operator consumes a fitted sklearn model on " +
-        "its model port; a JSONL fixture written from the JVM cannot carry a " +
-        "live model object, so the operator cannot be run in isolation here"),
-    classOf[SklearnTestingOpDesc] ->
-      ("trained-model input: scores a fitted sklearn model read from its model " +
-        "port; a JVM-written JSONL fixture cannot carry a live model object, so " +
-        "the operator cannot be run in isolation here")
+        "LogicalOp.getPhysicalOp throws NotImplementedError")
   )
 
   sealed trait Disposition
@@ -1015,8 +1015,22 @@ object TransformVerificationRunner {
         .get(PortIdentity(port))
         .map(_.getAttributes.filter(_.getType == AttributeType.BINARY).map(_.getName))
         .getOrElse(Seq.empty)
+      // The features are on the first port without a BINARY column. An operator
+      // that reads a model on port 0 has its table on port 1, and a probe of
+      // model cells has no feature to predict on.
       val probePath: Option[Path] =
-        if (modelColumns.nonEmpty) inputs.toSeq.sortBy(_._1.id).headOption.map(_._2) else None
+        if (modelColumns.isEmpty) None
+        else {
+          val byPort = inputs.toSeq.sortBy(_._1.id).map(_._2)
+          byPort
+            .find(path =>
+              !TupleIO
+                .readSchemaSidecar(path)
+                .getAttributes
+                .exists(_.getType == AttributeType.BINARY)
+            )
+            .orElse(byPort.headOption)
+        }
       Comparator.assertEqual(
         actual,
         expected,
