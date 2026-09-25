@@ -475,6 +475,14 @@ object StandaloneRunner extends LazyLogging {
           case Seq() => s"out${n}df"
           case cols  => s"_texera_int_cols(out${n}df, [${cols.map(py).mkString(", ")}])"
         }
+        // The dtype each column is left in, which the JSONL cannot carry: a
+        // float32 and a float64 write the same text, and a zoned timestamp loses
+        // its zone on the way to one. Taken before the encoding below rewrites
+        // the frame.
+        sb.append(
+          s"json.dump({str(_c): str(_t) for _c, _t in out${n}df.dtypes.items()}, " +
+            s"open(${py(path.toString + ".dtypes.json")}, 'w'))\n"
+        )
         sb.append(
           s"_texera_encode_obj_cols(_texera_encode_ts_cols($frame))" +
             s".to_json(${py(path.toString)}, orient='records', lines=True)\n"
