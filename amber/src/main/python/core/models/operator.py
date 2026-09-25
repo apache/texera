@@ -76,6 +76,15 @@ class Operator(ABC):
 
     __internal_is_source: bool = False
 
+    # The state message most recently handed to this operator -- inside a
+    # control block, the iteration's loop variables. The runtime registers it
+    # right before ``process_state`` runs (see ``DataProcessor.process_state``),
+    # so the callback and every call after it can consult it. A class-level
+    # default rather than an ``__init__`` assignment: a subclass ``__init__``
+    # that skips ``super()`` still reads ``None`` until a state arrives. The
+    # loop operators keep their own loop variables apart, on ``variables``.
+    state: Optional[State] = None
+
     @property
     @overrides.final
     def is_source(self) -> bool:
@@ -349,7 +358,7 @@ class LoopStartOperator(TableOperator):
     user-supplied ``initialization`` and ``output`` expressions into
     ``open()`` and ``process_table()``; all substantive logic lives here.
 
-    ``open()`` seeds ``self.state`` with the user's loop variables;
+    ``open()`` seeds ``self.variables`` with the user's loop variables;
     ``process_state`` merges upstream state in; ``produce_state_on_finish``
     emits those variables to the matching LoopEnd. The input table does NOT
     ride the state: the LoopEnd runtime reads it from this operator's
@@ -359,25 +368,25 @@ class LoopStartOperator(TableOperator):
 
     Subclass contract: the generated subclass overrides ``open()`` and
     ``process_table()`` only; all other methods are ``@overrides.final``. After
-    ``open()`` returns ``self.state`` holds only the user's loop variables --
+    ``open()`` returns ``self.variables`` holds only the user's loop variables --
     not the reserved ``table``; see the ``_RESERVED_STATE_KEYS`` module comment
     for the ``table`` vs envelope-borne counter/id split.
     """
 
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
-        # First-entry only: merge upstream state into self.state. The nested
+        # First-entry only: merge upstream state into self.variables. The nested
         # pass-through (a frame already stamped with a LoopStartId) and all
         # loop_counter bookkeeping are owned by the worker runtime
         # (main_loop._process_state_frame), so this operator never sees the
         # counter and never mutates the State it is handed.
-        self.state.update(state)
+        self.variables.update(state)
         return None
 
     @overrides.final
     def run_initialization(self, initialization_code: str) -> None:
         # Run the user's `initialization` to seed the loop variables, then keep
-        # them as self.state. The namespace is passed as exec globals (not a
+        # them as self.variables. The namespace is passed as exec globals (not a
         # locals-only mapping) so a comprehension / generator expression /
         # lambda in the init resolves its free variables -- a locals-only
         # namespace raises NameError on otherwise-valid init code. exec injects
@@ -389,11 +398,11 @@ class LoopStartOperator(TableOperator):
         namespace: dict = {}
         exec(initialization_code, namespace)
         namespace.pop("__builtins__", None)
-        self.state = State(namespace)
+        self.variables = State(namespace)
 
     @overrides.final
     def eval_output(self, output_expr: str, table: Table) -> TableLike:
-        return _eval_loop_expr(output_expr, self.state, table)
+        return _eval_loop_expr(output_expr, self.variables, table)
 
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
@@ -403,9 +412,9 @@ class LoopStartOperator(TableOperator):
         # (loopStartPortUris). A user loop variable named `table` would be
         # silently shadowed by that injected table in the LoopEnd's
         # update/condition namespaces, so flag the collision here.
-        if _TABLE_KEY in self.state:
+        if _TABLE_KEY in self.variables:
             raise _reserved_name_error(_TABLE_KEY)
-        return State(self.state)
+        return State(self.variables)
 
 
 class LoopEndOperator(TableOperator):
@@ -420,12 +429,12 @@ class LoopEndOperator(TableOperator):
     ``process_table`` yields each input table through as-is; ``process_state``
     runs the user's ``update`` (against the table the runtime attached via
     ``attach_loop_table``) and persists only user variables back into
-    ``self.state``; ``condition()`` decides whether ``MainLoop.complete()``
+    ``self.variables``; ``condition()`` decides whether ``MainLoop.complete()``
     fires the back-edge.
 
     Subclass contract: the generated subclass overrides ``process_state()`` and
     ``condition()`` only; all other methods are ``@overrides.final``.
-    ``self.state`` / ``self._loop_table`` start empty and are populated only by
+    ``self.variables`` / ``self._loop_table`` start empty and are populated only by
     ``run_update`` on the matching-loop consume, so ``condition()`` returns
     ``False`` until that first consume -- a LoopEnd that never consumed a
     matching state (e.g. an inner LoopEnd that only forwarded outer-loop
@@ -439,10 +448,10 @@ class LoopEndOperator(TableOperator):
         # that never consumed a matching state (an inner LoopEnd that only
         # forwarded outer-loop pass-through state, or a loop that completed
         # without a matching-branch consume). run_update is what populates
-        # self.state / self._loop_table, so initialize them here to avoid
+        # self.variables / self._loop_table, so initialize them here to avoid
         # AttributeError; a None _loop_table means "nothing consumed yet" and
         # condition() short-circuits to False (see eval_condition).
-        self.state: State = State()
+        self.variables: State = State()
         # Set by the runtime (attach_loop_table) right before the matching
         # consume and taken (cleared) by run_update. The clear is defensive
         # rather than load-bearing today -- a worker instance handles a single
@@ -471,7 +480,7 @@ class LoopEndOperator(TableOperator):
     def run_update(self, update_code: str, state: State) -> None:
         # Run the user's `update` in a throwaway namespace seeded with the
         # incoming loop variables and the input table, then persist the user
-        # variables back into self.state. The table is attached by the runtime
+        # variables back into self.variables. The table is attached by the runtime
         # (attach_loop_table) from the Loop Start's input materialization; on
         # a successful update it is kept on self._loop_table so condition()
         # can read it afterwards.
@@ -489,7 +498,7 @@ class LoopEndOperator(TableOperator):
         # comprehension / generator expression / lambda in the user's `update`
         # resolves its free variables -- a locals-only namespace raises
         # NameError on otherwise-valid update code. exec injects `__builtins__`
-        # into that globals dict; drop it so it does not leak into self.state.
+        # into that globals dict; drop it so it does not leak into self.variables.
         exec(update_code, namespace)
         namespace.pop("__builtins__", None)
         # `table` is runtime-owned; a user `update` that rebinds (or deletes)
@@ -498,7 +507,7 @@ class LoopEndOperator(TableOperator):
         if namespace.get(_TABLE_KEY) is not input_table:
             raise _reserved_name_error(_TABLE_KEY)
         self._loop_table = input_table
-        self.state = _strip_reserved(namespace)
+        self.variables = _strip_reserved(namespace)
 
     @overrides.final
     def eval_condition(self, condition_expr: str) -> bool:
@@ -508,7 +517,7 @@ class LoopEndOperator(TableOperator):
         # loop variables that don't exist yet (which would raise NameError).
         if self._loop_table is None:
             return False
-        return _eval_loop_expr(condition_expr, self.state, self._loop_table)
+        return _eval_loop_expr(condition_expr, self.variables, self._loop_table)
 
     @abstractmethod
     def condition(self) -> bool:

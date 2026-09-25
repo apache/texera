@@ -2211,7 +2211,7 @@ class TestMainLoop:
                 self.closed = True
 
         executor = _JumpingLoopEnd()
-        executor.state = State({"i": 1})
+        executor.variables = State({"i": 1})
         main_loop.context.executor_manager.executor = executor
         main_loop._loop_start_id = "loop-start-1"
         main_loop.context.loop_start_port_uris = {"loop-start-1": "vfs:///x"}
@@ -2453,7 +2453,7 @@ class TestMainLoop:
         assert switched == [True], "it reaches the operator, which merges it"
         assert reset_calls == []
         # It is handed to the operator as the current input state, so
-        # LoopStartOperator.process_state merges it into self.state.
+        # LoopStartOperator.process_state merges it into self.variables.
         passed = main_loop.context.state_processing_manager.current_input_state
         assert passed == State({"seed": 7})
 
@@ -2564,6 +2564,69 @@ class TestMainLoop:
         assert executor._attached_table is loop_table
         assert consumed == [(incoming, 0)]
         assert main_loop._pending_loop_state is None, "stash must be cleared"
+
+    def test_loopend_deferred_consume_registers_state_first(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume calls process_state directly, bypassing
+        # DataProcessor.process_state (which registers state), so it must
+        # register the stashed state itself before the user's update.
+        executor = _FalseLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+        pending = State({"i": 7})
+        main_loop._pending_loop_state = pending
+        seen = []
+        monkeypatch.setattr(
+            executor,
+            "process_state",
+            lambda st, port: seen.append((executor.state, st)),
+        )
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert seen == [(pending, pending)]
+        assert executor.state is pending
+
+    def test_loopend_back_edge_writes_the_updated_variables_not_the_state(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume registers the stashed message on `state`; the
+        # user's update writes the next iteration's loop variables to
+        # `variables`. The back-edge must carry the latter.
+        class _IncrementingLoopEnd(LoopEndOperator):
+            def process_state(self, state, port):
+                self.run_update("i += 1", state)
+                return None
+
+            def condition(self):
+                return True
+
+        executor = _IncrementingLoopEnd()
+        main_loop.context.executor_manager.executor = executor
+        monkeypatch.setattr(
+            main_loop, "_read_loop_input_table", lambda: Table([Tuple({"v": 1})])
+        )
+        pending = State({"i": 7})
+        main_loop._pending_loop_state = pending
+
+        main_loop._consume_pending_loop_state(executor)
+
+        assert executor.state is pending
+        assert pending == State({"i": 7}), "the registered message is unchanged"
+        assert executor.variables == State({"i": 8})
+
+        main_loop._loop_start_id = "outer-loop"
+        main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
+        events = []
+        self._patch_create_document(monkeypatch, events)
+
+        main_loop._jump_to_loop_start(executor, self._stub_coordinator([]))
+
+        puts = [event for event in events if event[0] == "put_one"]
+        assert puts == [("put_one", State({"i": 8}).to_tuple(0))]
 
     def test_loopend_forwards_unstamped_state_without_consuming(
         self, main_loop, monkeypatch
@@ -3042,7 +3105,7 @@ class TestMainLoop:
                 events.append(("jump", request))
 
         class _Executor:
-            state = State({"i": 7})
+            variables = State({"i": 7})
 
         main_loop._jump_to_loop_start(_Executor(), _Coordinator())
 
@@ -3086,7 +3149,7 @@ class TestMainLoop:
         self._patch_create_document(monkeypatch, write_log)
 
         class _Executor:
-            state = State({"i": 7})
+            variables = State({"i": 7})
 
         with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
             main_loop._jump_to_loop_start(
