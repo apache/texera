@@ -26,7 +26,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.texera.amber.core.state.StateReferencing.{literalReferences, referencedVariable}
+import org.apache.texera.amber.core.state.StateReferencing.{
+  literalReferences,
+  referencedVariable,
+  textReferences
+}
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -218,6 +222,33 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
       literalReferences(tree) ==
         Map("/name" -> "i", "/tags/1" -> "t", "/a~1b~0c/deep/0/v" -> "z")
     )
+  }
+
+  "StateReferencing.textReferences" should "keep the references whose value is the '$name' text itself" in {
+    val tree = objectMapper
+      .readTree(
+        """{"name":"$i","limit":0,"ratio":0.0,"flag":false,"tags":["a","$t"],"other":"$j",
+          |"note":"rbf","count":"0"}""".stripMargin
+      )
+      .asInstanceOf[ObjectNode]
+    val references = Map(
+      "/name" -> "i",
+      "/tags/1" -> "t",
+      // Typed placeholders: the parse put a value of the property's own type there.
+      "/limit" -> "n",
+      "/ratio" -> "r",
+      "/flag" -> "f",
+      // Text, but not this reference's text: another name, a plain word, a placeholder-looking "0".
+      "/other" -> "i",
+      "/note" -> "k",
+      "/count" -> "c",
+      // Nothing there at all.
+      "/missing" -> "m",
+      "/tags/5" -> "t"
+    )
+    assert(textReferences(tree, references) == Map("/name" -> "i", "/tags/1" -> "t"))
+    assert(textReferences(tree, Map.empty).isEmpty)
+    assert(textReferences(objectMapper.createObjectNode(), references).isEmpty)
   }
 }
 

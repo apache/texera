@@ -20,7 +20,17 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from decimal import Decimal, InvalidOperation
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+)
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
@@ -74,16 +84,123 @@ class Operator(ABC):
     def decode_python_template(self, data: Union[str, bytes]) -> str:
         return self._get_template_decoder().decode(data)
 
+    def loop_variable_text(self, name: str) -> str:
+        """
+        The text of loop variable ``name`` in the state messages handed to this
+        operator, the latest one that carried it winning. Inside a control
+        block, the code generated for an operator calls this where a text
+        property holds ``$name``, in place of decoding the literal, so the
+        value is read when the code runs. It is spelled as a JVM operator's
+        text property binds it (``LateBoundExecutor``): a boolean as ``true``
+        or ``false``, and only a scalar at all.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :return: str, the variable's value, as text.
+        """
+        if self._loop_variables is None:
+            raise RuntimeError(
+                f"loop variable ${name} is read before the iteration's state arrived"
+            )
+        if name not in self._loop_variables:
+            raise RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                "but no state message carried it"
+            )
+        value = self._loop_variables[name]
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (str, int, float)):
+            return str(value)
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            f"but its value {value!r} is not a scalar"
+        )
+
+    def loop_variable_value(self, name: str, kind: str) -> Union[int, float, bool]:
+        """
+        The value of loop variable ``name``, its text (``loop_variable_text``)
+        converted to ``kind``. Inside a control block, the code generated for
+        an operator calls this where a numeric or boolean property holds
+        ``$name``, in place of the value written into the code, so the value is
+        read when the code runs. It is converted as a JVM operator's numeric or
+        boolean property binds it (``LateBoundExecutor``), from its text: an
+        integer must be integral and fit a signed 64-bit long, a number is any
+        numeral, and a boolean is ``true`` or ``false`` in any case, never ``1``
+        or ``0``.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :param kind: str, ``integer``, ``number`` or ``boolean``: the JSON type
+            of the property that holds ``$name``.
+        :return: int, float or bool, the variable's value as ``kind``.
+        """
+        if kind not in ("integer", "number", "boolean"):
+            raise ValueError(
+                f"loop variable ${name} cannot be read as {kind!r}: "
+                "the kind is one of 'integer', 'number' and 'boolean'"
+            )
+        text = self.loop_variable_text(name).strip()
+        value = self._loop_variables[name]
+
+        def not_a(description: str) -> RuntimeError:
+            return RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                f"but its value {value!r} is not {description}"
+            )
+
+        if kind == "boolean":
+            if text.lower() not in ("true", "false"):
+                raise not_a("a boolean")
+            return text.lower() == "true"
+        description = "a number" if kind == "number" else "an integer"
+        try:
+            numeral = Decimal(text)
+        except InvalidOperation:
+            raise not_a(description) from None
+        if kind == "number":
+            try:
+                return float(numeral)
+            except ValueError:  # a signalling NaN
+                raise not_a(description) from None
+        # BigDecimal.longValueExact: integral and within a signed 64-bit long.
+        if (
+            not numeral.is_finite()
+            or numeral != numeral.to_integral_value()
+            or not -(2**63) <= numeral < 2**63
+        ):
+            raise not_a(description)
+        return int(numeral)
+
+    def register_state(self, state: State) -> None:
+        """
+        Register ``state`` as the latest state message handed to this operator.
+        It becomes ``self.state``, and its values join the loop variables
+        ``loop_variable_text`` and ``loop_variable_value`` read, replacing
+        those of the same name. The runtime calls this right before
+        ``process_state``.
+
+        :param state: State, the state message that arrived.
+        """
+        self.state = state
+        self._loop_variables = {**(self._loop_variables or {}), **state}
+
     __internal_is_source: bool = False
 
     # The state message most recently handed to this operator -- inside a
     # control block, the iteration's loop variables. The runtime registers it
-    # right before ``process_state`` runs (see ``DataProcessor.process_state``),
-    # so the callback and every call after it can consult it. A class-level
-    # default rather than an ``__init__`` assignment: a subclass ``__init__``
-    # that skips ``super()`` still reads ``None`` until a state arrives. The
-    # loop operators keep their own loop variables apart, on ``variables``.
+    # (``register_state``) right before ``process_state`` runs (see
+    # ``DataProcessor.process_state``), so the callback and every call after
+    # it can consult it. A class-level default rather than an ``__init__``
+    # assignment: a subclass ``__init__`` that skips ``super()`` still reads
+    # ``None`` until a state arrives. The loop operators keep their own loop
+    # variables apart, on ``variables``.
     state: Optional[State] = None
+
+    # The values of every state message registered so far, a later message's
+    # winning, as the JVM's LateBoundExecutor merges them: a loop body
+    # operator's own state, or a nested loop's inner one, arrives after the
+    # loop's and must not hide its variables. ``None`` until the first; a
+    # class-level default for the same reason as ``state``.
+    _loop_variables: Optional[Mapping[str, Any]] = None
 
     @property
     @overrides.final
