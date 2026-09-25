@@ -37,6 +37,55 @@
   color: red;
 }
 
+.console-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  // Plus each button's own padding, this leaves ~12px between the glyphs.
+  gap: 2px;
+  margin-bottom: 8px;
+
+  // Center icons within a 24px minimum pointer target.
+  > button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    height: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  // Enlarge the filter glyph to visually match the settings icon.
+  .filter-icon {
+    font-size: 16px;
+  }
+}
+
+// Unshrinkable, so let it clip rather than wrap and eat the list's height.
+.hidden-count-notice {
+  flex: 0 0 auto;
+  font-family: monaco, serif;
+  font-size: 11px;
+  line-height: 14px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The overlay renders outside this component, so it is only reachable through
+// nzOverlayClassName. Items here are .ant-dropdown-menu-item, which the
+// .ant-menu-item rule in styles.scss does not cover.
+::ng-deep .console-type-filter {
+  li[nz-menu-item] {
+    user-select: none;
+  }
+}
+
 .console-list-container {
   flex: 1 1 auto;
   min-height: 0;
