@@ -20,8 +20,10 @@
 import { TestBed, ComponentFixture } from "@angular/core/testing";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import type { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
+import { ComputingUnitState } from "../type/computing-unit-connection.interface";
 import {
   ComputingUnitMetadataComponent,
+  unavailableComputingUnitReason,
   parseResourceUnit,
   parseResourceNumber,
   cpuResourceConversion,
@@ -203,6 +205,34 @@ describe("getComputingUnitBadgeColor", () => {
   });
 });
 
+describe("unavailableComputingUnitReason", () => {
+  it("names a shutting-down unit separately from a dead one", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Terminating)).toBe("terminating");
+  });
+
+  it("reports a unit that can never come back as unavailable", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Failed)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(ComputingUnitState.Unknown)).toBe("unavailable");
+  });
+
+  it("reports no reason for a unit that can still accept work, or for no unit at all", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Running)).toBeUndefined();
+    // Pending is still starting up, so it must not be blocked.
+    expect(unavailableComputingUnitReason(ComputingUnitState.Pending)).toBeUndefined();
+    expect(unavailableComputingUnitReason(ComputingUnitState.NoComputingUnit)).toBeUndefined();
+    expect(unavailableComputingUnitReason(undefined)).toBeUndefined();
+  });
+
+  it("reads a dashboard unit's own status field, not only the connection enum", () => {
+    // The enum and the DTO string share the same values, so one helper serves both.
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Terminating" }).status)).toBe("terminating");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Failed" }).status)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Unknown" }).status)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Running" }).status)).toBeUndefined();
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Pending" }).status)).toBeUndefined();
+  });
+});
+
 describe("getComputingUnitStatusTooltip", () => {
   it("should map statuses to tooltip text", () => {
     expect(getComputingUnitStatusTooltip({ status: "Running" } as unknown as DashboardWorkflowComputingUnit)).toBe(
@@ -256,6 +286,16 @@ describe("getComputingUnitStatusTooltip", () => {
     ).toBe("This computing unit is unavailable.");
   });
 
+  it("should fall back to the canned text when the backend sends a null status reason", () => {
+    // The backend sends a missing reason as null, which must fall back just like undefined.
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Failed", statusReason: null }))).toBe(
+      "This computing unit is unavailable."
+    );
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Pending", statusReason: null }))).toBe(
+      "Computing unit is starting up"
+    );
+  });
+
   it("should fall back to the raw status for unknown statuses", () => {
     expect(getComputingUnitStatusTooltip({ status: "Terminated" } as unknown as DashboardWorkflowComputingUnit)).toBe(
       "Terminated"
@@ -285,6 +325,12 @@ describe("getComputingUnitRowTooltip", () => {
     );
     expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed", statusReason: "Crash loop detected." }))).toBe(
       "Crash loop detected. Cannot select."
+    );
+  });
+
+  it("should fall back to the canned text when the backend sends a null status reason", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed", statusReason: null }))).toBe(
+      "This computing unit is unavailable. Cannot select."
     );
   });
 });

@@ -47,9 +47,8 @@ export interface WorkflowComputingUnitMetrics {
 export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
   status: "Running" | "Pending" | "Failed" | "Unknown" | "Terminating";
-  // User-friendly explanation of a failing/degraded status for authorized viewers. The backend
-  // omits it for ordinary shared users, so the UI falls back to generic "unavailable" text.
-  statusReason?: string;
+  // Explanation of a failing or degraded status. Sent only to authorized viewers; null otherwise.
+  statusReason?: string | null;
   metrics: WorkflowComputingUnitMetrics;
   isOwner: boolean;
   accessPrivilege: "READ" | "WRITE" | "NONE";

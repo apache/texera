@@ -50,6 +50,7 @@ import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
@@ -413,9 +414,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // A terminating unit is deliberately disconnecting, so distinguish it from a unit
-    // that is still starting up before checking websocket connectivity.
-    if (this.computingUnitStatus === ComputingUnitState.Terminating) {
+    // Checked before the "Connecting" branch below, which would otherwise spin forever:
+    // these units are not coming back.
+    const unavailableReason = unavailableComputingUnitReason(this.computingUnitStatus);
+    if (unavailableReason === "terminating") {
       return {
         text: "Shutting Down",
         icon: "loading",
@@ -423,13 +425,7 @@ export class MenuComponent implements OnInit, OnDestroy {
         onClick: () => {},
       };
     }
-
-    // A Failed/Unknown unit can never become connected, so surface that before the
-    // websocket-disconnected branch below would show an endless "Connecting" spinner.
-    if (
-      this.computingUnitStatus === ComputingUnitState.Failed ||
-      this.computingUnitStatus === ComputingUnitState.Unknown
-    ) {
+    if (unavailableReason === "unavailable") {
       return {
         text: "Unit Unavailable",
         icon: "warning",

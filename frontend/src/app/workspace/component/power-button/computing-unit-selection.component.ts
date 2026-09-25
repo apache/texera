@@ -452,6 +452,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
+   * Click handler for a dropdown row. nzDisabled only greys the row out; it does not stop this
+   * (click) on the same <li>, so without this check a disabled unit could still be selected.
+   *
+   * Not inside onPickComputingUnit on purpose: creating a unit also calls that, and a new unit is
+   * Pending, so a guard there would stop new units from being selected.
+   */
+  public onClickComputingUnitRow(unit: DashboardWorkflowComputingUnit): void {
+    if (this.cannotSelectUnit(unit)) {
+      return;
+    }
+    this.onPickComputingUnit(unit);
+  }
+
+  /**
    * The live selection lives only in ComputingUnitStatusService, re-derived on load from the
    * last execution -- but that only exists once the workflow has run (pick a unit, reload
    * before running, and it is gone). Canvas<->Form View switches reload, so we remember the

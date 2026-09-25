@@ -20,6 +20,7 @@
 import { Component, inject } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
+import { ComputingUnitState } from "../type/computing-unit-connection.interface";
 
 @Component({
   template: `
@@ -191,6 +192,29 @@ export function validateName(trimmedName: string): string | null {
   if (!trimmedName) return "Computing unit name cannot be empty";
   if (trimmedName.length > 128) return "Computing unit name cannot exceed 128 characters";
   return null;
+}
+
+/** Reason returned by unavailableComputingUnitReason. */
+export type UnavailableComputingUnitReason = "terminating" | "unavailable";
+
+/**
+ * Returns the reason a computing unit cannot accept work: "terminating" for Terminating,
+ * "unavailable" for Failed or Unknown, and undefined for any other status or no status.
+ *
+ * Accepts either a ComputingUnitState or the status string of a DashboardWorkflowComputingUnit.
+ */
+export function unavailableComputingUnitReason(
+  status: ComputingUnitState | DashboardWorkflowComputingUnit["status"] | undefined
+): UnavailableComputingUnitReason | undefined {
+  switch (status) {
+    case ComputingUnitState.Terminating:
+      return "terminating";
+    case ComputingUnitState.Failed:
+    case ComputingUnitState.Unknown:
+      return "unavailable";
+    default:
+      return undefined;
+  }
 }
 
 export function getComputingUnitBadgeColor(status: string): string {

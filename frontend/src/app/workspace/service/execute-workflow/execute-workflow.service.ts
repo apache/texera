@@ -48,6 +48,7 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
@@ -211,6 +212,9 @@ export class ExecuteWorkflowService {
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunOnUnavailableUnit()) {
+      return;
+    }
     if (this.refuseToRunWithoutWarehouse()) {
       return;
     }
@@ -226,6 +230,9 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunOnUnavailableUnit()) {
+      return;
+    }
     if (this.refuseToRunWithoutWarehouse()) {
       return;
     }
@@ -238,6 +245,29 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * Refuses to run on a unit that cannot accept work: shows a toast and returns true. The run
+   * buttons already disable themselves, but run-up-to and Time Travel replay call this service
+   * directly.
+   *
+   * Checked before resetExecutionState(), so a refused click keeps the results on screen, and
+   * before the warehouse check, since a warehouse cannot fix a dead unit.
+   */
+  private refuseToRunOnUnavailableUnit(): boolean {
+    const reason = unavailableComputingUnitReason(
+      this.computingUnitStatusService.getSelectedComputingUnitValue()?.status
+    );
+    if (reason === undefined) {
+      return false;
+    }
+    this.notificationService.error(
+      reason === "terminating"
+        ? "The selected computing unit is shutting down. Wait for it to finish, then select or create another one."
+        : "The selected computing unit is unavailable. Select a running unit or create a new one."
+    );
+    return true;
   }
 
   /**

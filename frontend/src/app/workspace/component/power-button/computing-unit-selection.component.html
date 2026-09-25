@@ -199,7 +199,7 @@
           'unit-connecting': unit.status === 'Pending',
         }"
         [nz-tooltip]="getRowTooltip(unit)"
-        (click)="onPickComputingUnit(unit)">
+        (click)="onClickComputingUnitRow(unit)">
         <div class="computing-unit-row">
           <texera-user-avatar
             [avatar]="unit.ownerAvatar"
