@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -431,7 +432,7 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
   )
 )
-abstract class LogicalOp extends PortDescriptor with Serializable {
+abstract class LogicalOp extends PortDescriptor with StateReferencing with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
