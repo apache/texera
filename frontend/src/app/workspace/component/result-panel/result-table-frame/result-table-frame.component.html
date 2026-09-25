@@ -193,7 +193,11 @@
                 <ng-container *ngSwitchDefault>{{ column.getCell(row) }}</ng-container>
               </ng-container>
             </span>
+            <!-- Not rendered when result export is switched off for the deployment: every action
+                 behind it returns without sending a request, so the button would be there and do
+                 nothing. The top menu and the context menu already honour the same switch. -->
             <button
+              *ngIf="guiConfigService.env.exportExecutionResultEnabled"
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button
               nzType="link"
