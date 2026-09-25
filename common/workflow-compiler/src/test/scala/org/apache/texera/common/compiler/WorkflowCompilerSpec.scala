@@ -20,6 +20,11 @@
 package org.apache.texera.common.compiler
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.apache.texera.common.compiler.WorkflowCompilerSpec.{
+  FlagWritingPyOp,
+  IntWritingPyOp,
+  RatioWritingPyOp
+}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.executor.{
   ExecFactory,
@@ -1022,8 +1027,17 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(ex.getMessage == message)
   }
 
-  private val numericPropertiesReason = "numeric and boolean properties are written into its " +
-    "generated code before the loop runs"
+  private def valueLookup(name: String, kind: String): String =
+    s"self.loop_variable_value('$name', '$kind')"
+
+  private val generatedFromValueReason = "its code is generated from the value before the loop runs"
+
+  private val unreadValueReason = "its code does not read the value when the loop runs"
+
+  private val valueInTextReason =
+    "its value lands inside a text or a comment of the generated code"
+
+  private val checkedValueReason = "it checks or adjusts the value before the loop runs"
 
   private val embeddedTextReason = "its code embeds the text before the loop runs"
 
@@ -1102,14 +1116,16 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "report a typed reference on an operator whose code is generated, naming its pointer" in {
-    // The Boolean `parametersSource` holds the placeholder false: its code is generated from it.
-    // The text "$c" next to it is read from the loop state, so the error does not name it.
+    // The Boolean `parametersSource` picks the code's shape: generated with true, the row reads its
+    // parameter from the second input, and with false from its value, so no one place in the code
+    // is the value. Whether the code reads the text "$c" depends on it too, so the error does not
+    // judge the text: the code it was generated with, from true, does not.
     val trainer = svrTrainerOp("$c", "\"$fromPort\"")
     assertOnlyError(
       twoInputLoop(trainer),
       trainer,
       s"SVM Regressor cannot refer to loop variables in /paraList/0/parametersSource yet: " +
-        numericPropertiesReason
+        generatedFromValueReason
     )
   }
 
@@ -1145,18 +1161,55 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     pojo(List(src, start, body, end), chain(src, start, body, end))
   }
 
-  it should "report a typed reference ahead of the code generation it breaks, and no text reference" in {
-    // The placeholder 0 fails Histogram2D's "X Bins must be > 0": the loop-variable error is the
-    // one reported. The generation failed, so there is no code to read "$col" from; nothing says
-    // it could not be read either.
+  it should "read a typed reference and a text one of Radar Chart inside a loop block from the loop state" in {
+    // Its code is generated from probe values, and each place a probe landed reads the variable.
+    val radar = parsed(
+      """{"nameColumn":"$col","valueColumns":["line"],"fillOpacity":"$r",
+        |"operatorType":"RadarChart"}""".stripMargin
+    )
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(radar))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val code = codeOf(result, radar)
+    assert(code.contains(s"opacity=${valueLookup("r", "number")}\n"), code)
+    assert(code.contains(s"name=str(row[${lookup("col")}])"), code)
+    assert(!code.contains("EXCEPTION DURING CODE GENERATION"), code)
+  }
+
+  it should "report the bins of Histogram2D inside a loop block, which it checks before the loop runs" in {
+    // "X Bins must be > 0" never sees the loop's value: were it read from the loop state, a 0
+    // would reach plotly unchecked. The "$col" text is judged once they are bound.
     val histogram = parsed(
-      """{"xColumn":"$col","yColumn":"line","xBins":"$n","operatorType":"Histogram2D"}"""
+      """{"xColumn":"$col","yColumn":"line","xBins":"$n","yBins":"$m",
+        |"operatorType":"Histogram2D"}""".stripMargin
     )
     assertOnlyError(
       oneInputLoop(histogram),
       histogram,
-      s"Histogram2D cannot refer to loop variables in /xBins yet: $numericPropertiesReason"
+      s"Histogram2D cannot refer to loop variables in /xBins, /yBins yet: $checkedValueReason"
     )
+  }
+
+  it should "report why the code generation failed, not a typed reference, when no probe value helps" in {
+    // Y Bins is 0, which Histogram2D rejects whatever $n is: that is the error, and neither the
+    // "$n" nor the "$col" is said to be the problem.
+    val histogram = parsed(
+      """{"xColumn":"$col","yColumn":"line","xBins":"$n","yBins":0,
+        |"operatorType":"Histogram2D"}""".stripMargin
+    )
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(histogram))
+
+    assert(result.operatorIdToError.keySet == Set(histogram.operatorIdentifier))
+    val message = result.operatorIdToError(histogram.operatorIdentifier).message
+    assert(
+      message.contains(
+        "Operator is not configured properly: assertion failed: Y Bins must be > 0, but got 0"
+      ),
+      s"unexpected message: $message"
+    )
+    assert(!message.contains("loop variables"), s"unexpected message: $message")
   }
 
   it should "report why the code generation failed, not a text reference in it" in {
@@ -1413,6 +1466,275 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(codeOf(result, body).contains(lookup("col")))
   }
 
+  /**
+    * An `IntWritingPyOp` whose `n` refers to `n`, as parsed: the placeholder 0, recorded. Its
+    * generation rejects every `n` in `rejected`.
+    */
+  private def intWriting(template: String, rejected: Int*): IntWritingPyOp = {
+    val op = new IntWritingPyOp
+    op.n = 0
+    op.template = template
+    op.rejected = rejected.toList
+    op.stateReferences = Map("/n" -> "n")
+    op
+  }
+
+  /** Code whose process_tuple yields each tuple's line and `expression` next to it. */
+  private def yielding(expression: String): String =
+    s"""class ProcessTupleOperator(UDFOperatorV2):
+       |    @overrides
+       |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+       |        yield {"line": tuple_["line"], "v": $expression}
+       |""".stripMargin
+
+  it should "read an integer that generated code holds from the loop state" in {
+    val body = intWriting(yielding("<n>"))
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body) == yielding(valueLookup("n", "integer")))
+  }
+
+  it should "report an integer reference whose descriptor rejects a value it is generated with" in {
+    // A probe (3, 5, then 70, 90) or an edge value (0, 1, -1, 1000000) rejected is a check the
+    // iteration's value would skip: rejecting 3 fails the code every variant is compared with,
+    // rejecting 5 one variant, and either way the next pair generates, but the check remains.
+    Seq(Seq(3), Seq(5), Seq(70), Seq(0), Seq(1), Seq(-1), Seq(1000000)).foreach { rejected =>
+      val body = intWriting(yielding("<n>"), rejected: _*)
+      assertOnlyError(
+        oneInputLoop(body),
+        body,
+        s"Int writing cannot refer to loop variables in /n yet: $checkedValueReason"
+      )
+    }
+  }
+
+  it should "report an integer reference whose descriptor adjusts the value before it lands" in {
+    // At most 10: the probes land as they are, 1000000 does not.
+    val body = intWriting(yielding("<n min 10>"))
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /n yet: $checkedValueReason"
+    )
+  }
+
+  it should "report why the code generation failed when it fails for every probe value" in {
+    // No code is generated from any probe, so whether the failure is the value's cannot be told:
+    // the descriptor's own reason, for the first probe, is the error.
+    val body = intWriting(yielding("<n>"), 0, 3, 70)
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.keySet == Set(body.operatorIdentifier))
+    val message = result.operatorIdToError(body.operatorIdentifier).message
+    assert(
+      message.contains("Operator is not configured properly: requirement failed: n cannot be 3"),
+      s"unexpected message: $message"
+    )
+    assert(!message.contains("loop variables"), s"unexpected message: $message")
+  }
+
+  it should "report an integer reference that generated code computes with before the loop runs" in {
+    val body = intWriting(yielding("<2n>"))
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /n yet: $generatedFromValueReason"
+    )
+  }
+
+  it should "report an integer reference that lands in a text, a comment or next to a name" in {
+    Seq(
+      yielding("\"bins=<n>\""),
+      yielding("f'{<n>}'"),
+      yielding("1  # at most <n>"),
+      yielding("bins<n>"),
+      yielding("<n>j"),
+      yielding("<n>.0"),
+      yielding("1.<n>"),
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    '''
+        |    Writes at most <n> bins.
+        |    '''
+        |""".stripMargin
+    ).foreach { template =>
+      val body = intWriting(template)
+      assertOnlyError(
+        oneInputLoop(body),
+        body,
+        s"Int writing cannot refer to loop variables in /n yet: $valueInTextReason"
+      )
+    }
+  }
+
+  it should "report an integer reference that generated code does not hold" in {
+    val body = intWriting(yielding("1"))
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /n yet: $unreadValueReason"
+    )
+  }
+
+  /** `intWriting`, with `m` referring to `m` as well, and rejecting every `m` in `rejectedM`. */
+  private def intsWriting(template: String, rejected: Int*)(rejectedM: Int*): IntWritingPyOp = {
+    val op = intWriting(template, rejected: _*)
+    op.m = 0
+    op.rejectedM = rejectedM.toList
+    op.stateReferences += "/m" -> "m"
+    op
+  }
+
+  it should "bind the references it can when every variant of another one is rejected" in {
+    // Rejecting 5 and 90 fails n's variant in either pair, never the baseline, so the first
+    // baseline is the code: m is read from the loop state, and n keeps the probe it was generated
+    // with, reported (the operator never runs).
+    val body = intsWriting(yielding("(<n>, <m>)"), 5, 90)()
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /n yet: $checkedValueReason"
+    )
+    assert(body.loopVariableBinding.unbound == Map("/n" -> checkedValueReason))
+    assert(body.loopVariableBinding.code == yielding(s"(3, ${valueLookup("m", "integer")})"))
+  }
+
+  it should "bind a reference with the next probe pair when another one rejects the first" in {
+    // m rejects 3, so no code is generated with both at 3: both are generated from the next pair,
+    // 70 and 90, and n is read from the loop state. m, which rejects a value, is reported.
+    val body = intsWriting(yielding("(<n>, <m>)"))(3)
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /m yet: $checkedValueReason"
+    )
+    assert(body.loopVariableBinding.code == yielding(s"(${valueLookup("n", "integer")}, 70)"))
+  }
+
+  it should "report two references whose values seem to land in one place" in {
+    // n + m - 3 lands as either one alone, the other one at its first probe, 3: it is neither.
+    val body = intsWriting(yielding("<n+m-3>"))()
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /m, /n yet: $generatedFromValueReason"
+    )
+    assert(body.loopVariableBinding.code == yielding("3"))
+  }
+
+  it should "report two references whose values the descriptor adjusts with each other" in {
+    // The larger of n and m is at least the other one's probe: 0 and -1 do not land as they are.
+    val body = intsWriting(yielding("<max>"))()
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Int writing cannot refer to loop variables in /m, /n yet: $checkedValueReason"
+    )
+  }
+
+  it should "leave generated code as it is when none of its properties refers to a loop variable" in {
+    // Outside every loop block, and inside one: the code holds the value itself.
+    def writingFour(): IntWritingPyOp = {
+      val op = new IntWritingPyOp
+      op.n = 4
+      op.template = yielding("<n>")
+      op
+    }
+    val src = textInputOp("1\n2")
+    val outside = writingFour()
+    val inside = writingFour()
+
+    val outsideResult = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, outside), List(linked(src, outside)))
+    )
+    val insideResult = new WorkflowCompiler(newContext()).compile(oneInputLoop(inside))
+
+    Seq(outsideResult -> outside, insideResult -> inside).foreach {
+      case (result, op) =>
+        assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+        assert(op.stateReferences.isEmpty)
+        assert(codeOf(result, op) == yielding("4"))
+    }
+  }
+
+  it should "read a boolean that generated code holds as a Python literal from the loop state" in {
+    def flagWriting(template: String): FlagWritingPyOp = {
+      val op = new FlagWritingPyOp
+      op.flag = false
+      op.template = template
+      op.stateReferences = Map("/flag" -> "f")
+      op
+    }
+    val body = flagWriting(yielding("<Flag>"))
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body) == yielding(valueLookup("f", "boolean")))
+
+    // As Scala writes it, "true" is no Python boolean.
+    val scala = flagWriting(yielding("<flag>"))
+    assertOnlyError(
+      oneInputLoop(scala),
+      scala,
+      s"Flag writing cannot refer to loop variables in /flag yet: $generatedFromValueReason"
+    )
+  }
+
+  private def ratioWriting(namesColumn: Boolean, rejected: Double*): RatioWritingPyOp = {
+    val op = new RatioWritingPyOp
+    op.ratio = 0.0
+    op.namesColumn = namesColumn
+    op.rejected = rejected.toList
+    op.stateReferences = Map("/ratio" -> "r")
+    op
+  }
+
+  it should "generate a number's code from its next probe pair, and report the value rejected" in {
+    // 0.25 rejected, the code is generated from the next pair, 2.5 and 7.5: they land as they
+    // are, but the check that rejects 0.25 remains.
+    val body = ratioWriting(namesColumn = false, 0.25)
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Ratio writing cannot refer to loop variables in /ratio yet: $checkedValueReason"
+    )
+    assert(body.loopVariableBinding.code.contains("""float(tuple_["line"]) * 2.5}"""))
+  }
+
+  it should "read a number that generated code holds from the loop state, its schema from a probe" in {
+    // The placeholder 0.0 would fail the schema's "ratio must be > 0"; the probes pass it.
+    val body = ratioWriting(namesColumn = false)
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val code = codeOf(result, body)
+    assert(code.contains(s"""float(tuple_["line"]) * ${valueLookup("r", "number")}"""), code)
+    assert(
+      result.operatorIdToOutputSchemas(body.operatorIdentifier)(PortIdentity()).get ==
+        Schema().add(new Attribute("line", AttributeType.STRING))
+    )
+  }
+
+  it should "report a number reference that decides the output schema" in {
+    val body = ratioWriting(namesColumn = true)
+
+    val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+
+    assert(result.physicalPlan.isEmpty)
+    val message = result.operatorIdToError(body.operatorIdentifier).message
+    assert(
+      message.contains(
+        "Ratio writing cannot refer to loop variables in /ratio yet: the value decides its " +
+          "output schema"
+      ),
+      s"unexpected message: $message"
+    )
+  }
+
   private def intervalJoinOp(): LogicalOp =
     parsed(
       """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",
@@ -1462,5 +1784,109 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
     val (_, descString) = executorInit(result, join)
     assert(sidecarOf(descString) == Map("/constant" -> "i"))
+  }
+}
+
+/**
+  * Test-only generated operators whose numeric or boolean properties refer to loop variables.
+  * The descriptor generates their code from copies it parses from their JSON, and Jackson builds
+  * no inner class, so these live here rather than in the spec class.
+  */
+object WorkflowCompilerSpec {
+
+  /**
+    * A test-only generated operator that writes its Ints `n` and `m` into its code where
+    * `template` says: each `<n>` / `<m>` as Scala writes it, each `<2n>` twice `n`, each
+    * `<n min 10>` `n`, at most 10, each `<max>` the larger of the two, each `<n+m-3>` their sum
+    * less 3. Generating rejects every `n` in `rejected` and every `m` in `rejectedM`, as a
+    * descriptor's own validation would.
+    */
+  private class IntWritingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var n: Int = 1
+    @JsonProperty var m: Int = 1
+    @JsonProperty var template: String = ""
+    @JsonProperty var rejected: List[Int] = List.empty
+    @JsonProperty var rejectedM: List[Int] = List.empty
+    override def generatePythonCode(): String = {
+      require(!rejected.contains(n), s"n cannot be $n")
+      require(!rejectedM.contains(m), s"m cannot be $m")
+      template
+        .replace("<2n>", (2 * n).toString)
+        .replace("<n min 10>", n.min(10).toString)
+        .replace("<max>", n.max(m).toString)
+        .replace("<n+m-3>", (n + m - 3).toString)
+        .replace("<n>", n.toString)
+        .replace("<m>", m.toString)
+    }
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> inputSchemas.values.head)
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Int writing",
+        "writes its n into its code where its template says",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  /**
+    * A test-only generated operator that writes its Boolean `flag` into its code where `template`
+    * says: each `<Flag>` as Python writes it (True / False), each `<flag>` as Scala does.
+    */
+  private class FlagWritingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var flag: Boolean = true
+    @JsonProperty var template: String = ""
+    override def generatePythonCode(): String =
+      template.replace("<Flag>", if (flag) "True" else "False").replace("<flag>", flag.toString)
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> inputSchemas.values.head)
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Flag writing",
+        "writes its flag into its code where its template says",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  /**
+    * A test-only generated operator that scales each line by its Double `ratio`, which must be
+    * positive; with `namesColumn` its output adds a column named after the ratio. Generating
+    * rejects every `ratio` in `rejected`.
+    */
+  private class RatioWritingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var ratio: Double = 1.0
+    @JsonProperty var namesColumn: Boolean = false
+    @JsonProperty var rejected: List[Double] = List.empty
+    override def generatePythonCode(): String = {
+      require(!rejected.contains(ratio), s"ratio cannot be $ratio")
+      s"""class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        yield {"line": tuple_["line"], "v": float(tuple_["line"]) * $ratio}
+         |""".stripMargin
+    }
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = {
+      require(ratio > 0, s"ratio must be > 0, but got $ratio")
+      val input = inputSchemas.values.head
+      Map(
+        PortIdentity() ->
+          (if (namesColumn) input.add(s"times $ratio", AttributeType.DOUBLE) else input)
+      )
+    }
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Ratio writing",
+        "scales each line by its ratio",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
   }
 }

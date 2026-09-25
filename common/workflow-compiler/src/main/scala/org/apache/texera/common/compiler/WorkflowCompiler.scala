@@ -169,14 +169,19 @@ object WorkflowCompiler {
     * descriptor's JSON. An operator whose executor runs code instead -- a UDF, or a descriptor
     * that generates Python from its properties, such as the sklearn operators -- never takes that
     * path: its code is built before the loop runs. A UDF's code and properties are the user's, and
-    * nothing binds them. In generated code a typed placeholder is a value, so nothing binds it
-    * either. A String property's `$name` is bound only where pyb's decoder rendered it, which
+    * nothing binds them. A numeric or boolean property's value is read from the loop state where
+    * the descriptor finds it written into its code, and `PythonOperatorDescriptor`'s
+    * `loopVariableBinding` says why when it cannot be. A String property's `$name` is bound only
+    * where pyb's decoder rendered it, which
     * `PythonOperatorDescriptor` turned into a read of the loop state, `loopVariableLookup(name)`,
     * and then only if the code holds the text `$name` nowhere (where it does, the code pastes it
     * in as it is) and no output column the operator adds holds the text (its schema is computed
     * from the literal). A lookup the code runs before the iteration's state arrives, such as one
-    * in `open`, fails when it runs, with a message that says so.
-    * When the generation failed there is no code to read either way, and the code-generation
+    * in `open`, fails when it runs, with a message that says so. The texts are judged once every
+    * numeric or boolean reference is bound: until then the code holds a probe value in its place,
+    * which may decide what the code reads.
+    * When the generation failed (with every probe value, where a numeric or boolean property
+    * refers to a loop variable) there is no code to read either way, and the code-generation
     * check reports why it failed instead.
     *
     * @param physicalOps the operator's own physical operators, their schemas propagated.
@@ -191,12 +196,8 @@ object WorkflowCompiler {
     if (logicalOp.stateReferences.isEmpty || codes.isEmpty) {
       None
     } else {
-      val generated =
-        logicalOp.isInstanceOf[PythonOperatorDescriptor] && codes.forall(_._2 == "python")
-      val unbound: Seq[(Iterable[String], String)] =
-        if (!generated) {
-          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
-        } else {
+      val unbound: Seq[(Iterable[String], String)] = logicalOp match {
+        case generator: PythonOperatorDescriptor if codes.forall(_._2 == "python") =>
           val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
           val text = textReferences(tree, logicalOp.stateReferences)
           val scripts = codes.map(_._1)
@@ -208,14 +209,27 @@ object WorkflowCompiler {
             else if (added.exists(_.contains("$" + name))) Some(namesOutputColumn)
             else None
           }
+          val typedUnbound = generator.loopVariableBinding.unbound
           val textReasons: Map[String, String] =
-            if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) Map.empty
-            else text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
-          ((logicalOp.stateReferences -- text.keys).keys -> writtenIntoCode) +:
-            Seq(pastedIntoCode, unreadByCode, namesOutputColumn).map { why =>
-              textReasons.collect { case (pointer, `why`) => pointer } -> why
+            if (
+              typedUnbound.nonEmpty ||
+              scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)
+            ) {
+              Map.empty
+            } else {
+              text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
             }
-        }
+          val typedReasons = typedUnbound
+            .groupMap(_._2)(_._1)
+            .toSeq
+            .sortBy { case (_, pointers) => pointers.min }
+            .map(_.swap)
+          typedReasons ++ Seq(pastedIntoCode, unreadByCode, namesOutputColumn).map { why =>
+            textReasons.collect { case (pointer, `why`) => pointer } -> why
+          }
+        case _ =>
+          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
+      }
       val operator = logicalOp.operatorInfo.userFriendlyName
       val reasons = unbound.collect {
         case (pointers, why) if pointers.nonEmpty =>
@@ -228,8 +242,6 @@ object WorkflowCompiler {
 
   // Why a reference of an operator whose executor runs code is not bound, as the error says it.
   private val fixedInUdf = "its code and properties are fixed before the loop runs"
-  private val writtenIntoCode =
-    "numeric and boolean properties are written into its generated code before the loop runs"
   private val pastedIntoCode = "its code embeds the text before the loop runs"
   private val unreadByCode = "its code does not read the text when the loop runs"
   private val namesOutputColumn =

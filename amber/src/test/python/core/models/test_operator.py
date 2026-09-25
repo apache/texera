@@ -16,6 +16,7 @@
 # under the License.
 
 import base64
+import math
 
 import pandas
 import pytest
@@ -485,6 +486,245 @@ class TestLoopVariableText:
         op.register_loop_state(State({"c": 0.25, "kernel": "linear", "p": False}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"C": 0.25, "kernel": "linear", "probability": False}
+
+
+# The shape the backend gives a Python-generated operator's code inside a
+# control block where a numeric or boolean property holds `$name`: the value
+# it wrote into the code is replaced by
+# `self.loop_variable_value('<name>', '<kind>')`. Mirrors the 2D histogram's
+# `nbinsx=$xBins,` rendering, with a number and a boolean keyword beside it.
+_GENERATED_HISTOGRAM_TEMPLATE = """from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+
+    @overrides
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield dict(
+            nbinsx=self.loop_variable_value('n', 'integer'),
+            nbinsy=self.loop_variable_value('n', 'integer'),
+            opacity=self.loop_variable_value('alpha', 'number'),
+            text_auto=self.loop_variable_value('labels', 'boolean')
+        )
+"""
+
+
+class TestLoopVariableValue:
+    @staticmethod
+    def _read(value, kind):
+        op = _ConcreteOperator()
+        op.register_loop_state(State({"v": value}))
+        return op.loop_variable_value("v", kind)
+
+    @staticmethod
+    def _rejection(value, kind):
+        op = _ConcreteOperator()
+        op.register_loop_state(State({"v": value}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_value("v", kind)
+        return str(excinfo.value)
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (3, 3),
+            (-7, -7),
+            (0, 0),
+            # An integral float, as BigDecimal("3.0").longValueExact() takes it,
+            # including one Python spells with an exponent (1e+16).
+            (3.0, 3),
+            (1e16, 10**16),
+            ("42", 42),
+            (" 42 ", 42),
+            ("-5", -5),
+            ("+5", 5),
+            ("4.2e1", 42),
+            (2**63 - 1, 2**63 - 1),
+            (-(2**63), -(2**63)),
+        ],
+        ids=repr,
+    )
+    def test_an_integer_is_read_from_every_scalar_that_holds_one(self, value, expected):
+        result = self._read(value, "integer")
+        assert result == expected
+        assert type(result) is int
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            # Not integral.
+            3.5,
+            "2.5",
+            # Outside a signed 64-bit long, which longValueExact rejects.
+            2**63,
+            -(2**63) - 1,
+            1e20,
+            # Not a number at all, or not a finite one.
+            "abc",
+            "",
+            "inf",
+            "nan",
+            "snan",
+            "Infinity",
+            float("inf"),
+            # A boolean is spelled true / false first, as the JVM spells it,
+            # so it is no integer even though Python's bool is an int.
+            True,
+            False,
+        ],
+        ids=repr,
+    )
+    def test_an_integer_rejects_what_the_jvm_rejects(self, value):
+        assert self._rejection(value, "integer") == (
+            f"the operator refers to loop variable $v, but its value {value!r} "
+            "is not an integer"
+        )
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (0.25, 0.25),
+            (0.0, 0.0),
+            (3, 3.0),
+            ("2.5", 2.5),
+            (" 7.5 ", 7.5),
+            ("1e-3", 0.001),
+            ("-.5", -0.5),
+            ("1.", 1.0),
+            ("Infinity", math.inf),
+            ("-Infinity", -math.inf),
+            (float("inf"), math.inf),
+            (2**63, float(2**63)),
+        ],
+        ids=repr,
+    )
+    def test_a_number_is_read_from_every_scalar_that_holds_one(self, value, expected):
+        result = self._read(value, "number")
+        assert result == expected
+        assert type(result) is float
+
+    @pytest.mark.parametrize("value", ["NaN", "+NaN", float("nan")], ids=repr)
+    def test_a_number_is_nan_where_the_jvm_reads_nan(self, value):
+        assert math.isnan(self._read(value, "number"))
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "abc",
+            "",
+            "1.2.3",
+            True,
+            False,
+        ],
+        ids=repr,
+    )
+    def test_a_number_rejects_what_the_jvm_rejects(self, value):
+        assert self._rejection(value, "number") == (
+            f"the operator refers to loop variable $v, but its value {value!r} "
+            "is not a number"
+        )
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (True, True),
+            (False, False),
+            ("true", True),
+            ("false", False),
+            # Any case, around any whitespace, as Scala's toBooleanOption.
+            ("TRUE", True),
+            ("False", False),
+            ("tRuE", True),
+            (" true ", True),
+        ],
+        ids=repr,
+    )
+    def test_a_boolean_is_read_from_every_scalar_that_holds_one(self, value, expected):
+        assert self._read(value, "boolean") is expected
+
+    @pytest.mark.parametrize("value", [1, 0, 1.0, "1", "0", "yes", "t", ""], ids=repr)
+    def test_a_boolean_rejects_what_the_jvm_rejects(self, value):
+        # 1 and 0 are no booleans to the JVM's toBooleanOption, so neither
+        # are they here.
+        assert self._rejection(value, "boolean") == (
+            f"the operator refers to loop variable $v, but its value {value!r} "
+            "is not a boolean"
+        )
+
+    @pytest.mark.parametrize("kind", ["integer", "number", "boolean"])
+    @pytest.mark.parametrize("value", [None, [1, 2], {"p": 2}, b"raw"], ids=repr)
+    def test_raises_for_a_value_that_is_not_a_scalar(self, value, kind):
+        assert self._rejection(value, kind) == (
+            f"the operator refers to loop variable $v, but its value {value!r} "
+            "is not a scalar"
+        )
+
+    @pytest.mark.parametrize("kind", ["string", "Integer", "int", "double", ""])
+    def test_raises_for_a_kind_the_backend_never_writes(self, kind):
+        op = _ConcreteOperator()
+        op.register_loop_state(State({"v": 3}))
+        with pytest.raises(ValueError, match="cannot be read as"):
+            op.loop_variable_value("v", kind)
+
+    def test_an_unknown_kind_is_reported_before_the_state_is_read(self):
+        # The kind is the generated code's own mistake, so it is reported
+        # whether or not a state has arrived.
+        with pytest.raises(ValueError, match="cannot be read as 'int'"):
+            _ConcreteOperator().loop_variable_value("v", "int")
+
+    @pytest.mark.parametrize("kind", ["integer", "number", "boolean"])
+    def test_raises_when_read_before_the_iterations_state_arrived(self, kind):
+        with pytest.raises(RuntimeError) as excinfo:
+            _ConcreteOperator().loop_variable_value("n", kind)
+        assert str(excinfo.value) == (
+            "loop variable $n is read before the iteration's state arrived"
+        )
+
+    @pytest.mark.parametrize("kind", ["integer", "number", "boolean"])
+    def test_raises_for_a_name_no_state_message_carried(self, kind):
+        op = _ConcreteOperator()
+        op.register_loop_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_value("n", kind)
+        assert str(excinfo.value) == (
+            "the operator refers to loop variable $n, but no state message carried it"
+        )
+
+    def test_a_later_state_message_wins_and_an_earlier_name_is_kept(self):
+        op = _ConcreteOperator()
+        op.register_loop_state(State({"n": 3, "on": True, "rate": 0.5}))
+        op.register_loop_state(State({"n": 5, "centroids": "2"}))
+        assert op.loop_variable_value("n", "integer") == 5
+        assert op.loop_variable_value("on", "boolean") is True
+        assert op.loop_variable_value("rate", "number") == 0.5
+        assert op.loop_variable_value("centroids", "integer") == 2
+
+    def test_generated_code_reads_the_iterations_value_at_run_time(self):
+        # __name__ so the exec'd class's methods get a real __module__ (the
+        # @overrides decorator on the generated methods inspects it).
+        namespace: dict = {"__name__": "generated_histogram_operator"}
+        exec(_GENERATED_HISTOGRAM_TEMPLATE, namespace)
+        op = namespace["ProcessTableOperator"]()
+
+        # Before the iteration's state arrives, the generated call fails loud
+        # instead of running on the value the backend generated the code with.
+        with pytest.raises(RuntimeError, match="read before the iteration's state"):
+            list(op.process_table(Table([Tuple({"a": 1})]), 0))
+
+        op.register_loop_state(State({"n": 3, "alpha": 0.25, "labels": True}))
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {"nbinsx": 3, "nbinsy": 3, "opacity": 0.25, "text_auto": True}
+
+        # The next iteration's state reaches the same operator instance, and
+        # its values are converted to the kind the code asks for.
+        op.register_loop_state(State({"n": "90", "alpha": 2, "labels": "false"}))
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {
+            "nbinsx": 90,
+            "nbinsy": 90,
+            "opacity": 2.0,
+            "text_auto": False,
+        }
+        assert [type(v) for v in params.values()] == [int, int, float, bool]
 
 
 class TestBatchOperatorValidation:

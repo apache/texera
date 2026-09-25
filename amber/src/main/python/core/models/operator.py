@@ -20,6 +20,7 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 from typing import (
     Any,
     Iterator,
@@ -115,12 +116,67 @@ class Operator(ABC):
             f"but its value {value!r} is not a scalar"
         )
 
+    def loop_variable_value(self, name: str, kind: str) -> Union[int, float, bool]:
+        """
+        The value of loop variable ``name``, its text (``loop_variable_text``)
+        converted to ``kind``. Inside a control block, the code generated for
+        an operator calls this where a numeric or boolean property holds
+        ``$name``, in place of the value written into the code, so the value is
+        read when the code runs. It is converted as a JVM operator's numeric or
+        boolean property binds it (``LateBoundExecutor``), from its text: an
+        integer must be integral and fit a signed 64-bit long, a number is any
+        numeral, and a boolean is ``true`` or ``false`` in any case, never ``1``
+        or ``0``.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :param kind: str, ``integer``, ``number`` or ``boolean``: the JSON type
+            of the property that holds ``$name``.
+        :return: int, float or bool, the variable's value as ``kind``.
+        """
+        if kind not in ("integer", "number", "boolean"):
+            raise ValueError(
+                f"loop variable ${name} cannot be read as {kind!r}: "
+                "the kind is one of 'integer', 'number' and 'boolean'"
+            )
+        text = self.loop_variable_text(name).strip()
+        value = self._loop_variables[name]
+
+        def not_a(description: str) -> RuntimeError:
+            return RuntimeError(
+                f"the operator refers to loop variable ${name}, "
+                f"but its value {value!r} is not {description}"
+            )
+
+        if kind == "boolean":
+            if text.lower() not in ("true", "false"):
+                raise not_a("a boolean")
+            return text.lower() == "true"
+        description = "a number" if kind == "number" else "an integer"
+        try:
+            numeral = Decimal(text)
+        except InvalidOperation:
+            raise not_a(description) from None
+        if kind == "number":
+            try:
+                return float(numeral)
+            except ValueError:  # a signalling NaN
+                raise not_a(description) from None
+        # BigDecimal.longValueExact: integral and within a signed 64-bit long.
+        if (
+            not numeral.is_finite()
+            or numeral != numeral.to_integral_value()
+            or not -(2**63) <= numeral < 2**63
+        ):
+            raise not_a(description)
+        return int(numeral)
+
     def register_loop_state(self, state: State) -> None:
         """
         Register ``state`` as the latest state message handed to this operator.
         It becomes ``loop_state``, and its values join the loop variables
-        ``loop_variable_text`` reads, replacing those of the same name. The
-        runtime calls this right before ``process_state``.
+        ``loop_variable_text`` and ``loop_variable_value`` read, replacing
+        those of the same name. The runtime calls this right before
+        ``process_state``.
 
         :param state: State, the state message that arrived.
         """

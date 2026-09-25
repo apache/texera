@@ -35,6 +35,8 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrain
 }
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.HyperParameters
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
+import org.apache.texera.amber.operator.visualization.radarChart.RadarChartOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.decoderExpression
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -206,25 +208,30 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
       .replace(decoderExpression("$k"), lookup("k"))
   }
 
-  it should "not rewrite a typed placeholder, even where its name's text is decoded elsewhere" in {
+  it should "not bind a boolean that picks the shape of the code, and say why" in {
     // As the frontend sends it: the Boolean `parametersSource` holds "$k", which the parse turns
-    // into the placeholder false and records. The String `value` keeps its "$k" text, which only
-    // the compiler adds to the sidecar, and only inside a loop block.
+    // into the placeholder false and records. Generated with true, the row reads its parameter
+    // from the second input; with false, from its `value`: no one place in the code is the value.
+    // The String `value` keeps its "$k" text, which only the compiler adds to the sidecar.
     val op = objectMapper
       .readValue(
         """{"operatorType":"SVCTrainer","groundTruthAttribute":"y","Selected Features":["x"],
-          |"paraList":[{"parameter":"C","value":"$k","parametersSource":"$k"}]}""".stripMargin,
+          |"paraList":[{"parameter":"C","value":"$k","attribute":"p","parametersSource":"$k"}]}
+          |""".stripMargin,
         classOf[LogicalOp]
       )
       .asInstanceOf[SklearnAdvancedSVCTrainerOpDesc]
     op.stateReferences shouldBe Map("/paraList/0/parametersSource" -> "k")
     op.paraList.head.parametersSource shouldBe false
 
-    val unbound = code(op)
+    val binding = op.loopVariableBinding
 
-    unbound shouldBe op.generatePythonCode()
-    unbound should include(decoderExpression("$k"))
-    unbound should not include "loop_variable_text"
+    binding.unbound shouldBe Map(
+      "/paraList/0/parametersSource" -> "its code is generated from the value before the loop runs"
+    )
+    code(op) shouldBe binding.code
+    code(op) should not include "loop_variable_value"
+    code(op) should not include "loop_variable_text"
   }
 
   it should "go by the text at each pointer, not by the names the sidecar lists" in {
@@ -271,5 +278,134 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
     PythonOperatorDescriptor.loopVariableLookup("i") shouldBe lookup("i")
     PythonOperatorDescriptor.loopVariableLookup("_Top_2") shouldBe
       "self.loop_variable_text('_Top_2')"
+  }
+
+  // -------------------- numeric and boolean loop-variable references --------------------
+
+  private def valueLookup(name: String, kind: String): String =
+    s"self.loop_variable_value('$name', '$kind')"
+
+  /**
+    * A Histogram2D as the frontend sends it, its bins given as JSON (`"\"$n\""` refers to `n`),
+    * and `more` properties after them.
+    */
+  private def histogram2d(xBins: String, yBins: String, more: String = ""): Histogram2DOpDesc =
+    objectMapper
+      .readValue(
+        s"""{"operatorType":"Histogram2D","xColumn":"x","yColumn":"y",
+           |"xBins":$xBins,"yBins":$yBins$more}""".stripMargin,
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[Histogram2DOpDesc]
+
+  private val checkedValue = "it checks or adjusts the value before the loop runs"
+
+  "PythonOperatorDescriptor.getPhysicalOp" should
+    "not bind the integers Histogram2D checks before the loop runs, and say why" in {
+    // Its "X Bins must be > 0" passes for the probes, which land in the code as they are. It
+    // rejects 0 and -1, though: read from the loop state, a 0 would reach plotly unchecked.
+    val op = histogram2d("\"$n\"", "\"$m\"")
+    op.stateReferences shouldBe Map("/xBins" -> "n", "/yBins" -> "m")
+
+    val binding = op.loopVariableBinding
+
+    binding.unbound shouldBe Map("/xBins" -> checkedValue, "/yBins" -> checkedValue)
+    code(op) shouldBe binding.code
+    code(op) should not include "loop_variable_value"
+  }
+
+  it should "not bind the values HuggingFace clamps before the loop runs" in {
+    // Its code holds max(1, min(tokens, 4096)) and the temperature clamped to [0, 2]: the probes
+    // land in it as they are, but 0 and 1000000 do not, and a lookup would skip the clamp.
+    val op = objectMapper
+      .readValue(
+        """{"operatorType":"HuggingFace","hfApiToken":"t","promptColumn":"p",
+          |"maxNewTokens":"$n","temperature":"$t"}""".stripMargin,
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[PythonOperatorDescriptor]
+    op.stateReferences shouldBe Map("/maxNewTokens" -> "n", "/temperature" -> "t")
+
+    op.loopVariableBinding.unbound shouldBe
+      Map("/maxNewTokens" -> checkedValue, "/temperature" -> checkedValue)
+    code(op) should not include "loop_variable_value"
+  }
+
+  it should "embed why the code generation failed when it fails for every probe value alike" in {
+    // Y Bins is 0, which Histogram2D rejects whatever $n is: that is the error its code embeds,
+    // for the code-generation check to report, and no reference is said to be unbound.
+    val op = histogram2d("\"$n\"", "0")
+
+    op.loopVariableBinding.unbound shouldBe empty
+    code(op) shouldBe
+      "#EXCEPTION DURING CODE GENERATION: assertion failed: Y Bins must be > 0, but got 0"
+  }
+
+  it should "generate the code from the properties the descriptor holds, null ones too" in {
+    // A null Normalization fails the generation. Its copies must fail alike, not generate the
+    // code from the field's default, 'density', which the descriptor does not hold.
+    val literal = code(histogram2d("4", "4", ""","normalize":null"""))
+    literal should startWith("#EXCEPTION DURING CODE GENERATION")
+
+    val op = histogram2d("\"$n\"", "4", ""","normalize":null""")
+
+    code(op) shouldBe literal
+    op.loopVariableBinding.unbound shouldBe empty
+  }
+
+  it should "generate the code from the properties themselves when the sidecar is empty" in {
+    // Outside every loop block: exactly the code and the schema of the plain values.
+    val op = histogram2d("4", "6")
+    op.stateReferences shouldBe empty
+
+    val physical = op.getPhysicalOp(workflowId, executionId)
+
+    code(op) shouldBe op.generatePythonCode()
+    code(op) should include("nbinsx=4,")
+    code(op) should not include "loop_variable_value"
+    op.loopVariableBinding.unbound shouldBe empty
+    physical.propagateSchema.func(Map.empty) shouldBe op.getOutputSchemas(Map.empty)
+  }
+
+  /** A Radar Chart as the frontend sends it, its opacity given as JSON. */
+  private def radarChart(fillOpacity: String, nameColumn: String = "name"): RadarChartOpDesc =
+    objectMapper
+      .readValue(
+        s"""{"operatorType":"RadarChart","nameColumn":"$nameColumn","valueColumns":["a","b"],
+           |"fillOpacity":$fillOpacity}""".stripMargin,
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[RadarChartOpDesc]
+
+  it should "read a floating-point reference as a number" in {
+    // Radar Chart writes its opacity into the code as it is, for every value: no check to skip.
+    val op = radarChart("\"$r\"")
+    op.stateReferences shouldBe Map("/fillOpacity" -> "r")
+    val plain = radarChart("0.4").generatePythonCode()
+
+    code(op) shouldBe plain.replace("opacity=0.4\n", s"opacity=${valueLookup("r", "number")}\n")
+    op.loopVariableBinding.unbound shouldBe empty
+  }
+
+  it should "read a typed and a text reference together" in {
+    val op = radarChart("\"$r\"", nameColumn = "$col")
+    op.stateReferences = op.stateReferences + ("/nameColumn" -> "col")
+    val plain = radarChart("0.4", nameColumn = "$col").generatePythonCode()
+
+    code(op) shouldBe plain
+      .replace("opacity=0.4\n", s"opacity=${valueLookup("r", "number")}\n")
+      .replace(decoderExpression("$col"), lookup("col"))
+    code(op) should include(lookup("col"))
+    op.loopVariableBinding.unbound shouldBe empty
+  }
+
+  "PythonOperatorDescriptor.loopVariableValueLookup" should
+    "be the call pyamber's Operator.loop_variable_value answers, naming the variable and its kind" in {
+    PythonOperatorDescriptor.loopVariableValueLookup("n", "integer") shouldBe
+      "self.loop_variable_value('n', 'integer')"
+    PythonOperatorDescriptor.loopVariableValueLookup("_r2", "number") shouldBe
+      "self.loop_variable_value('_r2', 'number')"
+    PythonOperatorDescriptor.loopVariableValueLookup("flag", "boolean") shouldBe
+      valueLookup("flag", "boolean")
   }
 }
