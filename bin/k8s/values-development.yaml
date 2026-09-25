@@ -360,6 +360,14 @@ texeraEnvVars:
     value: "false"
   - name: KUBERNETES_COMPUTING_UNIT_ENABLED
     value: "true"
+  # Periodic termination of idle Kubernetes computing units. Off by default; set the timeout to
+  # match how long a deployment's users expect an untouched unit to stay alive before enabling.
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CLEANUP_ENABLED
+    value: "false"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_TIMEOUT_MINUTES
+    value: "1440"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CHECK_INTERVAL_MINUTES
+    value: "60"
   - name: KUBERNETES_IMAGE_PULL_POLICY
     value: "IfNotPresent"
   - name: GUI_WORKFLOW_WORKSPACE_PYTHON_LANGUAGE_SERVER_PORT

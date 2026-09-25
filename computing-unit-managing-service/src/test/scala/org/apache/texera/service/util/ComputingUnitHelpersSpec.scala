@@ -24,6 +24,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
   UserRoleEnum,
+  WorkflowComputingUnitTerminationReasonEnum,
   WorkflowComputingUnitTypeEnum
 }
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
@@ -317,6 +318,8 @@ class ComputingUnitHelpersSpec
 
     live.map(_.getCuid) should contain theSameElementsAs Seq(600, 602)
     computingUnitDao.fetchOneByCuid(601).getTerminateTime should not be null
+    computingUnitDao.fetchOneByCuid(601).getTerminationReason shouldBe
+      WorkflowComputingUnitTerminationReasonEnum.GARBAGE_COLLECTED
     computingUnitDao.fetchOneByCuid(600).getTerminateTime shouldBe null
     computingUnitDao.fetchOneByCuid(602).getTerminateTime shouldBe null
   }
