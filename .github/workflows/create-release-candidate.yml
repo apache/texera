@@ -59,6 +59,7 @@ jobs:
       tag_name: ${{ steps.vars.outputs.tag_name }}
       rc_dir: ${{ steps.vars.outputs.rc_dir }}
       commit_hash: ${{ steps.vars.outputs.commit_hash }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
       src_tarball: ${{ steps.vars.outputs.src_tarball }}
       compose_tarball: ${{ steps.vars.outputs.compose_tarball }}
 
@@ -261,13 +262,29 @@ jobs:
           RC_DIR="${{ steps.vars.outputs.rc_dir }}"
           COMMIT_HASH="${{ steps.vars.outputs.commit_hash }}"
           IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          # The same value the compose bundle pins in its .env: the email must
+          # list the images voters will actually pull.
+          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
 
           # Get GPG key ID from the imported key
           GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
           GPG_EMAIL=$(gpg --list-secret-keys | grep 'uid' | head -n1 | grep -oP '[\w\.-]+@[\w\.-]+')
 
+          # Derive the image list from the compose file the bundle ships, so
+          # the email always matches what the RC actually pulls.
+          git show "$TAG_NAME:bin/single-node/docker-compose.yml" \
+            | grep -oE '\$\{IMAGE_REGISTRY[^}]*\}/texera-[a-z-]+' \
+            | sed -E "s|.*\}/|${IMAGE_REGISTRY}/|" \
+            | sort -u \
+            | sed "s|\$|:${IMAGE_TAG}|" > image-list.txt
+
+          if [[ ! -s image-list.txt ]]; then
+            echo "Error: derived an empty image list from the bundled docker-compose.yml"
+            exit 1
+          fi
+
           # Copy template from repository
-          cp .github/release/vote-email-template.md vote-email.txt
+          cp .github/release/vote-email-template.txt vote-email.txt
 
           # Substitute variables in the template
           sed -i "s|\${VERSION}|${VERSION}|g" vote-email.txt
@@ -277,9 +294,14 @@ jobs:
           sed -i "s|\${COMMIT_HASH}|${COMMIT_HASH}|g" vote-email.txt
           sed -i "s|\${GPG_KEY_ID}|${GPG_KEY_ID}|g" vote-email.txt
           sed -i "s|\${GPG_EMAIL}|${GPG_EMAIL}|g" vote-email.txt
-          sed -i "s|\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" vote-email.txt
+          sed -i -e "/\${IMAGE_LIST}/r image-list.txt" -e "/\${IMAGE_LIST}/d" vote-email.txt
 
-          echo "✓ Vote email template generated!"
+          # The remaining <...> markers are for the release manager to fill.
+          if grep -nE '<[A-Z][^>]*>|\$\{[A-Z_]+\}' vote-email.txt; then
+            echo "Vote email generated; fill in the placeholders above before sending."
+          else
+            echo "Vote email generated; no placeholders left to fill."
+          fi
 
       - name: Upload RC artifacts
         uses: actions/upload-artifact@v7
@@ -409,6 +431,7 @@ jobs:
           TAG_NAME="${{ needs.create-rc.outputs.tag_name }}"
           RC_DIR="${{ needs.create-rc.outputs.rc_dir }}"
           COMMIT_HASH="${{ needs.create-rc.outputs.commit_hash }}"
+          IMAGE_TAG="${{ needs.create-rc.outputs.image_tag }}"
           SRC_TARBALL="${{ needs.create-rc.outputs.src_tarball }}"
           COMPOSE_TARBALL="${{ needs.create-rc.outputs.compose_tarball }}"
 
@@ -432,7 +455,7 @@ jobs:
           echo "Each artifact has a corresponding \`.asc\` (GPG signature) and \`.sha512\` (checksum) file." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Build and push container images using the \`Build and push images\` workflow with tag \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "1. Build and push container images using the \`Build and push images\` workflow with tag \`${IMAGE_TAG}\` (the tag the bundled .env pins)" >> $GITHUB_STEP_SUMMARY
           echo "2. Verify the artifacts at the staging directory" >> $GITHUB_STEP_SUMMARY
           echo "3. Send [VOTE] email to dev@texera.apache.org" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
