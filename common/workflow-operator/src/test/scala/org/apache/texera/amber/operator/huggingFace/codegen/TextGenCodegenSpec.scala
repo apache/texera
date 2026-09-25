@@ -67,11 +67,26 @@ class TextGenCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("""payload = {"inputs": prompt_value}""")
   }
 
-  "TextGenCodegen.parsePython" should "pull text out of choices[0].message.content" in {
+  "TextGenCodegen.parsePython" should "pull the assistant text out of the chat response" in {
+    // The chat shape (choices[0].message.content) is decoded by the shared,
+    // type-checked _chat_message_content helper in HuggingFaceCodegenBase; this
+    // snippet's job is to call it and fall back to the raw body.
     val out = TextGenCodegen.parsePython(makeCtx())
-    out should include("choices")
-    out should include("message")
-    out should include("content")
+    out should include("content = self._chat_message_content(body)")
+    out should include("if content is not None:")
+    out should include("return json.dumps(body)")
+  }
+
+  it should "degrade instead of raising when a chat response is malformed (#8486)" in {
+    // This extraction was fully unguarded: a non-dict body, an empty "choices"
+    // list, or a choice missing "message"/"content" raised, and since parsing
+    // runs per row that aborted the whole run over one bad response. It now
+    // falls back to the raw JSON body, as the other codegens do.
+    val out = TextGenCodegen.parsePython(makeCtx())
+    out should include("""content = self._chat_message_content(body)""")
+    out should include("if content is not None:")
+    out should include("return json.dumps(body)")
+    out should not include ("""["message"]["content"]""")
   }
 
   "TextGenCodegen snippets" should "never inline raw CodegenContext string values" in {
@@ -129,5 +144,12 @@ class TextGenCodegenSpec extends AnyFlatSpec with Matchers {
 
     TextGenCodegen.payloadPython(ctxA) shouldBe TextGenCodegen.payloadPython(ctxB)
     TextGenCodegen.parsePython(ctxA) shouldBe TextGenCodegen.parsePython(ctxB)
+  }
+
+  it should "read chat content through the shared type-checked helper (#8617 review)" in {
+    val out = TextGenCodegen.parsePython(makeCtx())
+    out should include("self._chat_message_content(body)")
+    // No direct index/get chaining survives — the helper owns that logic.
+    out should not include ("""body["choices"][0]""")
   }
 }

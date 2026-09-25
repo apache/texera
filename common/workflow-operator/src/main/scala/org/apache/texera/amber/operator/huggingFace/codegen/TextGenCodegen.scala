@@ -28,7 +28,9 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   * (Cerebras, Groq, Sambanova, Together, …) accepts.
   *
   * The parse step pulls `body["choices"][0]["message"]["content"]` out of
-  * the response.
+  * the response, degrading to the raw JSON body when a provider returns a
+  * shape that does not carry it — parsing runs per row, so raising here
+  * would abort the whole run over one malformed response.
   */
 object TextGenCodegen extends TaskCodegen {
 
@@ -50,5 +52,8 @@ object TextGenCodegen extends TaskCodegen {
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "text-generation":
-      |                return body["choices"][0]["message"]["content"]""".stripMargin
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
+      |                return json.dumps(body)""".stripMargin
 }
