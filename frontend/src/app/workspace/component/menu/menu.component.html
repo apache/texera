@@ -294,6 +294,7 @@
               nz-icon
               nzType="partition"></i>
           </button>
+          <texera-overbox-button [disabled]="!isWorkflowModifiable"></texera-overbox-button>
           <button
             (click)="onClickAddCommentBox()"
             [disabled]="!isWorkflowModifiable"

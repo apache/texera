@@ -90,6 +90,13 @@ export interface CommentBox {
   commentBoxID: string;
   comments: Comment[];
   commentBoxPosition: Point;
+  /** Optional visual section frame; regular comments remain unchanged. */
+  overbox?: {
+    name: string;
+    color: string;
+    width: number;
+    height: number;
+  };
 }
 
 export interface OperatorLink
