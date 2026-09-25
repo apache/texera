@@ -31,6 +31,8 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.util.Base64
+import scala.sys.process._
 
 /** The two ways of running one operator, and the file format they meet in.
   *
@@ -115,7 +117,26 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       """out1df = pd.DataFrame({"kind": [type(_v).__name__ for _v in in1df["blob"]]})"""
   }
 
-  private def blobKind(cell: Array[Byte]): String = {
+  /** Calls predict on each cell of its `blob` column, as a model's consumer does. */
+  private class ModelPredictOp extends BlobTypeOp {
+    override def generateStandaloneCode(): String =
+      """out1df = pd.DataFrame({"kind": [str(_v.predict([[1.0]])[0]) for _v in in1df["blob"]]})"""
+  }
+
+  // A fitted DecisionTreeClassifier behind the marker the cast writes, pickled
+  // by the interpreter the script runs so the two share a sklearn.
+  private def fittedTreeCell(): Array[Byte] = {
+    val script =
+      """import base64, pickle, sys
+        |from sklearn.tree import DecisionTreeClassifier
+        |model = DecisionTreeClassifier(random_state=0).fit([[0.0], [1.0]], [0, 1])
+        |sys.stdout.write(base64.b64encode(b"pickle    " + pickle.dumps(model)).decode("ascii"))
+        |""".stripMargin
+    val encoded = Process(Seq(PyOpExecHarness.resolvePython(), "-c", script)).!!
+    Base64.getDecoder.decode(encoded.trim)
+  }
+
+  private def blobKind(cell: Array[Byte], opDesc: BlobTypeOp = new BlobTypeOp): String = {
     val blobOnly = new Schema(new Attribute("blob", AttributeType.BINARY))
     val dir = Files.createTempDirectory("harness-spec-blob-kind-")
     val input = dir.resolve("input_port_0.jsonl")
@@ -125,7 +146,7 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       blobOnly
     )
     val result = StandaloneRunner.run(
-      opDesc = new BlobTypeOp,
+      opDesc = opDesc,
       inputs = Map(1 -> input),
       outputPortCount = 1,
       workDir = dir
@@ -336,11 +357,9 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
   }
 
   // A model column arrives as the marker followed by the pickle, and the worker
-  // unpickles it before the operator sees it. This is pickle.dumps(["a"],
-  // protocol=0), which stands in for a fitted estimator.
-  it should "hand a pickled binary cell to the script as the object" taggedAs NeedsPython in {
-    val pickled = "pickle    ".getBytes("US-ASCII") ++ "(lp0\nVa\np1\na.".getBytes("US-ASCII")
-    blobKind(pickled) should include("\"kind\":\"list\"")
+  // unpickles it before the operator sees it, so predict works on it.
+  it should "hand a pickled model cell to the script as the model" taggedAs NeedsPython in {
+    blobKind(fittedTreeCell(), new ModelPredictOp) should include("\"kind\":\"1\"")
   }
 
   it should "hand any other binary cell to the script as bytes" taggedAs NeedsPython in {
