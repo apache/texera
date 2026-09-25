@@ -26,25 +26,38 @@ import org.apache.parquet.example.data.simple.SimpleGroupFactory
 import org.apache.parquet.hadoop.example.{ExampleParquetWriter, GroupWriteSupport}
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
 import org.apache.parquet.schema.{LogicalTypeAnnotation, MessageType, Types}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
-import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.{FileAttributeType, ScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileWriter
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
+import org.apache.arrow.vector.{
+  FieldVector,
+  Float4Vector,
+  SmallIntVector,
+  TimeStampMilliTZVector,
+  TinyIntVector,
+  UInt1Vector,
+  UInt2Vector,
+  UInt4Vector,
+  VectorSchemaRoot
+}
 import org.apache.texera.amber.util.ArrowUtils
 
 import java.nio.channels.FileChannel
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import java.time.ZoneOffset
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
 
 /**
@@ -86,14 +99,14 @@ object SourceCategoryRunner {
     * but it is currently commented out of `@JsonSubTypes`, so the suite doesn't
     * enumerate it.)
     */
-  private val encoderByFileType: Map[String, (Path, Charset) => Path] = Map(
+  private val encoderByFileType: Map[String, (Path, Charset, Seq[Tuple]) => Path] = Map(
     "CSV" -> CanonicalSourceFixture.writeCsv,
     "CSVOld" -> CanonicalSourceFixture.writeCsv,
     "JSONL" -> CanonicalSourceFixture.writeJsonl,
     // Arrow is binary and its descriptor declares fileEncoding ignored, so the
     // charset a variant asks for has nothing to apply to.
-    "Arrow" -> ((dir, _) => CanonicalSourceFixture.writeArrow(dir)),
-    "Parquet" -> ((dir, _) => CanonicalSourceFixture.writeParquet(dir))
+    "Arrow" -> ((dir, _, rows) => CanonicalSourceFixture.writeArrow(dir, rows)),
+    "Parquet" -> ((dir, _, rows) => CanonicalSourceFixture.writeParquet(dir, rows))
   )
 
   /**
@@ -214,7 +227,11 @@ object SourceCategoryRunner {
                 )
               (variant.label, op, dir)
             }
-          }
+          } ++ handler.scenarios.map {
+          case (label, write) =>
+            val dir = dirFor(label)
+            (label, write(dir), dir)
+        }
       case None =>
         val fileType = declaredFileType(opDescClass).getOrElse("")
         val encoder = encoderByFileType.getOrElse(
@@ -223,15 +240,65 @@ object SourceCategoryRunner {
             s"No encoder for ${opDescClass.getSimpleName} (fileTypeName='$fileType')"
           )
         )
-        val base = {
-          val dir = dirFor("default")
+        def bare(
+            label: String,
+            rows: Seq[Tuple],
+            window: (Option[Int], Option[Int]) = (None, None)
+        ): (String, LogicalOp, Path) = {
+          val dir = dirFor(label)
           val op = newScanSource(opDescClass)
-          op.fileName = Some(encoder(dir, op.fileEncoding.getCharset).toUri.toString)
-          ("default", op: LogicalOp, dir)
+          op.fileName = Some(encoder(dir, op.fileEncoding.getCharset, rows).toUri.toString)
+          op.offset = window._1
+          op.limit = window._2
+          (label, op, dir)
         }
-        base +: generatedVariants(opDescClass, encoder, dirFor)
+        // The nulls variant takes the bare config rather than crossing with the
+        // others: how a reader treats an empty cell is a property of the reader,
+        // and multiplying it across every knob buys runtime, not signal.
+        //
+        // The windows are the ones the generator never fills, since it fills a
+        // knob with a value the property editor accepts: a limit of no rows, which
+        // still has columns to declare, a negative bound, which only a plan posted
+        // to the API can carry and which pandas reads from the end, and bounds
+        // whose sum is past what an Int holds.
+        val rows = CanonicalSourceFixture.rows
+        Seq(
+          bare("default", rows),
+          bare("nulls", CanonicalSourceFixture.holedRows),
+          bare("window: limit 0", rows, (None, Some(0))),
+          bare("window: negative offset", rows, (Some(-1), None)),
+          bare("window: negative limit", rows, (None, Some(-1))),
+          bare("window: negative", rows, (Some(-1), Some(-1))),
+          bare("window: long end", rows, (Some(1), Some(Int.MaxValue))),
+          bare("window: largest", rows, (Some(Int.MaxValue), Some(Int.MaxValue)))
+        ) ++ skippedBadLine(opDescClass, fileType, encoder, dirFor) ++
+          generatedVariants(opDescClass, encoder, dirFor)
     }
   }
+
+  /** A JSONL file whose first line is no JSON at all, read past it. The executor
+    * drops and takes the raw lines before it parses any, so a line outside the
+    * window is never read, however malformed. The other formats have no line a
+    * reader refuses to parse.
+    */
+  private def skippedBadLine(
+      opDescClass: Class[_ <: LogicalOp],
+      fileType: String,
+      encoder: (Path, Charset, Seq[Tuple]) => Path,
+      dirFor: String => Path
+  ): Seq[(String, LogicalOp, Path)] =
+    if (fileType != "JSONL") Seq.empty
+    else {
+      val label = "window: skips a bad line"
+      val dir = dirFor(label)
+      val op = newScanSource(opDescClass)
+      val path = encoder(dir, op.fileEncoding.getCharset, CanonicalSourceFixture.rows)
+      val body = new String(Files.readAllBytes(path), op.fileEncoding.getCharset)
+      Files.write(path, ("not json at all\n" + body).getBytes(op.fileEncoding.getCharset))
+      op.fileName = Some(path.toUri.toString)
+      op.offset = Some(1)
+      Seq((label, op, dir))
+    }
 
   /**
     * The variants the shared [[ConfigGenerator]] derives from the operator's own
@@ -250,7 +317,7 @@ object SourceCategoryRunner {
     */
   private def generatedVariants(
       opDescClass: Class[_ <: LogicalOp],
-      encoder: (Path, Charset) => Path,
+      encoder: (Path, Charset, Seq[Tuple]) => Path,
       dirFor: String => Path
   ): Seq[(String, LogicalOp, Path)] = {
     val seen = mutable.Set.empty[String]
@@ -274,7 +341,9 @@ object SourceCategoryRunner {
             // the generator's, which additionally fills limit and offset.
             val name = if (label == "default") "auto-base" else label
             val dir = dirFor(name)
-            scan.fileName = Some(encoder(dir, scan.fileEncoding.getCharset).toUri.toString)
+            scan.fileName = Some(
+              encoder(dir, scan.fileEncoding.getCharset, CanonicalSourceFixture.rows).toUri.toString
+            )
             Some((name, scan: LogicalOp, dir))
           }
       }
@@ -314,6 +383,50 @@ object SourceCategoryRunner {
     val actual = pathA.outputs(PortIdentity(0))
     val expected = pathB.outputs(1)
     Comparator.assertEqual(actual, expected)
+    assertDtypesFit(pathA.outputSchemas(PortIdentity(0)), expected)
+  }
+
+  /** Whether a pandas dtype is one a Texera column of this type can be left in.
+    *
+    * The values alone cannot tell a width or a zone apart: a float32 writes the
+    * same text as a float64, and the zone is gone once the timestamp is text. Both
+    * still reach the next operator, where a float32 sums to another number and a
+    * zoned column refuses a cast to a plain datetime. So what the script left
+    * each column in is compared with what the read declared, apart from the
+    * values. Only the widths and zones Texera has no column for are refused.
+    */
+  private def fits(attributeType: AttributeType, dtype: String): Boolean =
+    attributeType match {
+      case AttributeType.INTEGER   => Set("int32", "Int32", "int64", "Int64").contains(dtype)
+      case AttributeType.LONG      => Set("int64", "Int64").contains(dtype)
+      case AttributeType.DOUBLE    => Set("float64", "Float64").contains(dtype)
+      case AttributeType.BOOLEAN   => Set("bool", "boolean").contains(dtype)
+      case AttributeType.STRING    => dtype == "object" || dtype == "str" || dtype.startsWith("string")
+      case AttributeType.TIMESTAMP => dtype.startsWith("datetime64[") && !dtype.contains(",")
+      case _                       => true
+    }
+
+  private def assertDtypesFit(declared: Schema, output: Path): Unit = {
+    val dtypes =
+      objectMapper.readTree(Files.readAllBytes(Path.of(output.toString + ".dtypes.json")))
+    // An output with no rows reads back with no columns on either side, so the
+    // values cannot say which columns the frame had. What the read declared and
+    // what the script left are both still on record.
+    val left = dtypes.fieldNames.asScala.toList
+    if (left != declared.getAttributeNames)
+      throw new AssertionError(
+        s"the script left the columns $left where the read declared ${declared.getAttributeNames}"
+      )
+    val misfits = declared.getAttributes.flatMap { attribute =>
+      Option(dtypes.get(attribute.getName))
+        .map(_.asText)
+        .filterNot(fits(attribute.getType, _))
+        .map(dtype => s"${attribute.getName}: declared ${attribute.getType}, left as $dtype")
+    }
+    if (misfits.nonEmpty)
+      throw new AssertionError(
+        s"the script left columns in a dtype the read did not declare:\n  ${misfits.mkString("\n  ")}"
+      )
   }
 }
 
@@ -340,6 +453,13 @@ trait SourceHandler {
     * take keeps some rows and drops some instead of landing past the end.
     */
   def rowCount: Int
+
+  /** Configurations the sweep cannot reach, each with the file it has to read:
+    * a type the default text cannot be parsed as, or bytes in another charset.
+    * Each one writes into the directory it is handed and returns the configured
+    * op. Default: none.
+    */
+  def scenarios: Seq[(String, Path => LogicalOp)] = Seq.empty
 }
 
 /**
@@ -361,19 +481,59 @@ trait SourceHandler {
   */
 object CanonicalSourceFixture {
 
-  val schema: Schema = CanonicalFixture.schema
+  /** Columns only a reader has a question about, appended to the canonical ones.
+    * They stay out of [[CanonicalFixture]], which every transform reads.
+    *
+    * `a"b\c_big` holds odd integers past 2^53, none of which a float can hold, so
+    * a reader that widens the column through one rounds every value. `a"b\c_region`
+    * holds the text `NA`, which pandas reads as missing unless told not to.
+    */
+  private val sourceColumns: Seq[(Attribute, Int => AnyRef)] = Seq(
+    new Attribute("a\"b\\c_big", AttributeType.LONG) -> (i => Long.box(9007199254740993L + 2 * i)),
+    new Attribute("a\"b\\c_region", AttributeType.STRING) -> (i => Seq("NA", "EU", "APAC")(i % 3))
+  )
 
-  val rows: Vector[Tuple] = CanonicalFixture.allRows
+  val schema: Schema =
+    new Schema(CanonicalFixture.schema.getAttributes ++ sourceColumns.map(_._1): _*)
+
+  val rows: Vector[Tuple] = CanonicalFixture.allRows.zipWithIndex.map {
+    case (canonical, i) =>
+      val b = Tuple.builder(schema)
+      CanonicalFixture.schema.getAttributes.foreach { a =>
+        b.add(a, canonical.getField[AnyRef](a.getName))
+      }
+      sourceColumns.foreach { case (a, value) => b.add(a, value(i)) }
+      b.build()
+  }
+
+  /** [[rows]] with one empty cell per column, for the `nulls` variant. Nothing is
+    * kept filled: a source reads every column the same way and pairs no rows, so
+    * no column's value is load-bearing.
+    */
+  val holedRows: Seq[Tuple] = SharedFixture.emptyOneCellPerColumn(rows, schema, Set.empty)
 
   /** Write the rows as a header-first, comma-delimited CSV encoded in `charset`.
     *
     * The charset is a parameter because it describes the BYTES, not the config: a
     * variant declaring `fileEncoding = UTF_16` over a file left in UTF-8 would
     * compare nothing but how each path fails.
+    *
+    * Two headers are left blank, a timestamp's and a long's, which the reader
+    * names column-N and pandas names "Unnamed: N" until it is told otherwise, so
+    * a type asked for by the schema's name finds no column. The header at
+    * position 1 is written as the text "Unnamed: 1", a name a user can really
+    * choose and pandas' placeholder for the same place.
     */
-  def writeCsv(dir: Path, charset: Charset): Path = {
+  def writeCsv(dir: Path, charset: Charset, rows: Seq[Tuple]): Path = {
     val path = dir.resolve("sample.csv")
-    val header = schema.getAttributes.map(a => csvField(a.getName)).mkString(",")
+    val blank = Set("start_ts", "a\"b\\c_big")
+    val header = schema.getAttributes.zipWithIndex
+      .map {
+        case (_, 1)                              => "Unnamed: 1"
+        case (a, _) if blank.contains(a.getName) => ""
+        case (a, _)                              => csvField(a.getName)
+      }
+      .mkString(",")
     val body = rows.map { t =>
       schema.getAttributes
         .map(a => csvField(Option(t.getField[AnyRef](a.getName)).map(_.toString).orNull))
@@ -402,22 +562,56 @@ object CanonicalSourceFixture {
     *
     * That writer is shared and always writes UTF-8, so a variant asking for another
     * charset gets the bytes transcoded afterwards rather than a second writer.
+    *
+    * A hole is written two ways, because the executor reads them differently: a
+    * key left out is a null, and a key holding null is the text "null". A column
+    * at an even position keeps the key, one at an odd position leaves it out.
+    *
+    * Each record also nests, the one thing JSON holds that a table does not: an
+    * array of objects, an array of text whose length differs between records, and
+    * an object holding a date written month first. Flattening names every element
+    * by its position, and the date is only a date once it is parsed.
     */
-  def writeJsonl(dir: Path, charset: Charset): Path = {
+  def writeJsonl(dir: Path, charset: Charset, rows: Seq[Tuple]): Path = {
     val path = dir.resolve("sample.jsonl")
     TupleIO.writeTuples(path, rows.iterator, schema)
-    if (charset != StandardCharsets.UTF_8) {
-      val text = new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
-      Files.write(path, text.getBytes(charset))
+    val leftOut = schema.getAttributes.zipWithIndex.collect {
+      case (attribute, i) if i % 2 == 1 => attribute.getName
     }
+    val lines = new String(Files.readAllBytes(path), StandardCharsets.UTF_8)
+      .split("\n")
+      .filter(_.nonEmpty)
+      .zipWithIndex
+      .map {
+        case (line, i) =>
+          val node = objectMapper.readTree(line).asInstanceOf[ObjectNode]
+          leftOut.filter(name => node.has(name) && node.get(name).isNull).foreach(node.remove)
+          addNested(node, i)
+          objectMapper.writeValueAsString(node)
+      }
+    Files.write(path, lines.map(_ + "\n").mkString.getBytes(charset))
     path
+  }
+
+  /** The nested values of record `i`. The first item's `id` is a long past 2^53,
+    * missing from record 1, so the flattened `items1.id` is a nullable long.
+    */
+  private def addNested(node: ObjectNode, i: Int): Unit = {
+    val items = node.putArray("a\"b\\c_items")
+    val first = items.addObject()
+    if (i != 1) first.put("id", 9007199254740993L + 2 * i)
+    items.addObject().put("id", i)
+    val tags = node.putArray("a\"b\\c_tags")
+    tags.add("x")
+    if (i % 2 == 0) tags.add("y")
+    node.putObject("a\"b\\c_meta").put("when", f"${i % 12 + 1}%02d/15/${2024 + i % 2} 10:00:00")
   }
 
   /** Write the rows as an uncompressed Arrow IPC ("file" format) stream — the
     * format both `ArrowFileReader` (Path A) and `pd.read_feather` (Path B)
     * read.
     */
-  def writeArrow(dir: Path): Path = {
+  def writeArrow(dir: Path, rows: Seq[Tuple]): Path = {
     val path = dir.resolve("sample.arrow")
     // Texera's own Schema-to-Arrow mapping and tuple writer, so the file carries
     // exactly the types `ArrowUtils.toTexeraSchema` reads back on the other side.
@@ -427,10 +621,14 @@ object CanonicalSourceFixture {
     val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
     Using.Manager { use =>
       val allocator = use(new RootAllocator())
-      val root = use(VectorSchemaRoot.create(arrowSchema, allocator))
-      root.allocateNew()
-      rows.zipWithIndex.foreach { case (t, i) => ArrowUtils.setTexeraTuple(t, i, root) }
-      root.setRowCount(rows.size)
+      val texera = use(VectorSchemaRoot.create(arrowSchema, allocator))
+      texera.allocateNew()
+      rows.zipWithIndex.foreach { case (t, i) => ArrowUtils.setTexeraTuple(t, i, texera) }
+      val extras = arrowOnlyColumns(allocator, rows.size).map(use(_))
+      val vectors = texera.getFieldVectors.asScala.toSeq ++ extras
+      val withNote =
+        new ArrowSchema(vectors.map(_.getField).asJava, Map("pandas" -> PandasIndexNote).asJava)
+      val root = use(new VectorSchemaRoot(withNote, vectors.asJava, rows.size))
       val channel = use(
         FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
       )
@@ -442,6 +640,56 @@ object CanonicalSourceFixture {
     path
   }
 
+  /** The note pandas leaves in the schema of a file it wrote from a frame keyed
+    * by `id`. pandas reads it back and makes `id` the index rather than a column;
+    * the executor reads the columns the file states and knows of no index.
+    */
+  private val PandasIndexNote: String =
+    """{"index_columns": ["id"], "column_indexes": [], "columns": [{"name": "id", """ +
+      """"field_name": "id", "pandas_type": "int32", "numpy_type": "int32", "metadata": null}], """ +
+      """"pandas_version": "2.2.3"}"""
+
+  /** Columns in the widths and zones an Arrow file states and Texera's own
+    * mapping never writes, since it writes every float as a double and every
+    * integer as a signed 32 or 64 bits. Real files carry them: pyarrow writes a
+    * numpy float32, int16 or uint32 array as one.
+    *
+    * Row 0 holds the value each width cannot be read out of by accident: 2^24 in
+    * single precision, a negative in eight bits, and the largest value each
+    * unsigned width counts to, which its storage holds as -1. Row 1 is null in
+    * every one. The timestamp names a zone other than UTC, so the wall clock read
+    * is the file's.
+    *
+    * The values reach the executor's reading. The width and zone the script
+    * leaves each column in write out as the same values, and are what
+    * [[SourceCategoryRunner.assertDtypesFit]] checks.
+    */
+  private def arrowOnlyColumns(allocator: RootAllocator, rowCount: Int): Seq[FieldVector] = {
+    val f32 = new Float4Vector("a\"b\\c_f32", allocator)
+    val i16 = new SmallIntVector("a\"b\\c_i16", allocator)
+    val i8 = new TinyIntVector("a\"b\\c_i8", allocator)
+    val u8 = new UInt1Vector("a\"b\\c_u8", allocator)
+    val u16 = new UInt2Vector("a\"b\\c_u16", allocator)
+    val u32 = new UInt4Vector("a\"b\\c_u32", allocator)
+    val zoned = new TimeStampMilliTZVector("a\"b\\c_zoned", allocator, "Asia/Tokyo")
+    val all = Seq[FieldVector](f32, i16, i8, u8, u16, u32, zoned)
+    all.foreach(_.allocateNew())
+    (0 until rowCount).foreach { i =>
+      if (i == 1) all.foreach(_.setNull(i))
+      else {
+        f32.setSafe(i, if (i == 0) 16777216.0f else i.toFloat)
+        i16.setSafe(i, (i * 7).toShort)
+        i8.setSafe(i, (if (i == 0) -3 else i).toByte)
+        u8.setSafe(i, if (i == 0) 0xff else i)
+        u16.setSafe(i, if (i == 0) 0xffff else i)
+        u32.setSafe(i, if (i == 0) -1 else i)
+        zoned.setSafe(i, i * 3600000L)
+      }
+    }
+    all.foreach(_.setValueCount(rowCount))
+    all
+  }
+
   /** Write the rows as a Parquet file carrying the canonical table's own types.
     *
     * The mapping below is the inverse of `ParquetSchemaMapping`, which is what
@@ -449,7 +697,7 @@ object CanonicalSourceFixture {
     * what lets a hole be a hole: Parquet has no null value, only a field that
     * repeats zero times, so a required column could not hold one.
     */
-  def writeParquet(dir: Path): Path = {
+  def writeParquet(dir: Path, rows: Seq[Tuple]): Path = {
     val path = dir.resolve("sample.parquet")
     val messageType = parquetSchemaOf(schema)
     val conf = new Configuration()
@@ -529,6 +777,29 @@ object TextInputHandler extends SourceHandler {
     desc.textInput = "alice\nbob\ncarol"
     desc // defaults: attributeType STRING (one row per line), attributeName "line"
   }
+
+  private def typed(
+      text: String,
+      attributeType: FileAttributeType,
+      offset: Option[Int]
+  ): LogicalOp = {
+    val desc = new TextInputSourceOpDesc()
+    desc.textInput = text
+    desc.attributeType = attributeType
+    desc.fileScanOffset = offset
+    desc
+  }
+
+  /** A line the window skips is never parsed, so it may be one the type refuses.
+    * A boolean line is read as the engine reads one, where 1 is true.
+    */
+  override def scenarios: Seq[(String, Path => LogicalOp)] =
+    Seq(
+      "integers past a line skipped" -> (_ =>
+        typed("not a number\n1\n2\n3", FileAttributeType.INTEGER, Some(1))
+      ),
+      "booleans" -> (_ => typed("true\nFALSE\n1\n0", FileAttributeType.BOOLEAN, None))
+    )
 }
 
 /** Handler for `FileScanSourceOpDesc`. Plain text file read in default line mode. */
@@ -546,4 +817,80 @@ object FileScanSourceHandler extends SourceHandler {
     desc.fileName = Some(txtPath.toUri.toString)
     desc // defaults: attributeType STRING (one row per line), attributeName "line"
   }
+
+  /** `extract`, `outputFileName` and `encoding` are vals, so they are
+    * deserialized in rather than set.
+    */
+  private def described(
+      file: Path,
+      attributeType: FileAttributeType,
+      fields: String*
+  ): LogicalOp = {
+    val desc = objectMapper.readValue(
+      (""""operatorType":"FileScan"""" +: fields).mkString("{", ",", "}"),
+      classOf[FileScanSourceOpDesc]
+    )
+    desc.fileName = Some(file.toUri.toString)
+    desc.attributeType = attributeType
+    desc
+  }
+
+  private def text(dir: Path, content: String, charset: Charset = StandardCharsets.UTF_8): Path =
+    Files.write(dir.resolve("sample.txt"), content.getBytes(charset))
+
+  /** Two entries and the one macOS adds beside them, which the engine skips. */
+  private def archive(dir: Path): Path = {
+    val path = dir.resolve("sample.zip")
+    Using(new ZipOutputStream(Files.newOutputStream(path))) { out =>
+      Seq("a.txt" -> "line1\nline2\n", "b.txt" -> "line3\n", "__MACOSX/a.txt" -> "junk\n").foreach {
+        case (name, content) =>
+          out.putNextEntry(new ZipEntry(name))
+          out.write(content.getBytes(StandardCharsets.UTF_8))
+          out.closeEntry()
+      }
+    }.get
+    path
+  }
+
+  /** A line the window skips is never parsed, so it may be one the type refuses.
+    * A boolean line is read as the engine reads one, where 1 is true. The charset
+    * the Encoding field names is the one the bytes are in. With Extract on, the
+    * engine reads the entries inside the archive and names each one by its own
+    * name, line by line or whole.
+    */
+  override def scenarios: Seq[(String, Path => LogicalOp)] =
+    Seq(
+      "integers past a line skipped" -> (dir =>
+        described(
+          text(dir, "not a number\n1\n2\n3\n"),
+          FileAttributeType.INTEGER,
+          """"fileScanOffset":1"""
+        )
+      ),
+      "booleans" -> (dir => described(text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN)),
+      "UTF-16" -> (dir =>
+        described(
+          text(dir, "première\ndeuxième\n", StandardCharsets.UTF_16),
+          FileAttributeType.STRING,
+          """"encoding":"UTF_16""""
+        )
+      ),
+      "archive" -> (dir => described(archive(dir), FileAttributeType.STRING, """"extract":true""")),
+      "archive, lines named" -> (dir =>
+        described(
+          archive(dir),
+          FileAttributeType.STRING,
+          """"extract":true""",
+          """"outputFileName":true"""
+        )
+      ),
+      "archive, entries named" -> (dir =>
+        described(
+          archive(dir),
+          FileAttributeType.SINGLE_STRING,
+          """"extract":true""",
+          """"outputFileName":true"""
+        )
+      )
+    )
 }
