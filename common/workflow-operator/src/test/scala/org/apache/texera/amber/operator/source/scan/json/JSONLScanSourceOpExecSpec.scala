@@ -120,4 +120,44 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
       (0 until 3).map(i => new JSONLScanSourceOpExec(desc, idx = i, workerCount = 3))
     assert(workers.map(drain(_).map(_.head)) == Seq(Seq(2), Seq(3), Seq(4, 5)))
   }
+
+  it should "skip a post-inference line whose value does not match the inferred type and report it" in {
+    // 100 clean integer lines fix "v" at INTEGER (INFER_READ_LIMIT=100); line 101
+    // holds a string and must be skipped but reported with its absolute line number.
+    val clean = (1 to 100).map(i => s"""{"v":$i}""")
+    val exec = new JSONLScanSourceOpExec(descString(writeJsonl(clean :+ """{"v":"oops"}""": _*)))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.startsWith("WARNING: "))
+    assert(warnings.head.contains("row 101"))
+    assert(warnings.head.contains("'oops'"))
+    assert(warnings.head.contains("column 'v'"))
+    assert(warnings.head.contains("INTEGER"))
+  }
+
+  it should "skip a malformed JSON line and report it with the generic fallback" in {
+    val clean = (1 to 100).map(i => s"""{"v":$i}""")
+    val exec = new JSONLScanSourceOpExec(descString(writeJsonl(clean :+ """{"v": not json""": _*)))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.contains("row 101"))
+    assert(warnings.head.contains("could not be parsed into the inferred schema"))
+  }
+
+  it should "report the absolute line number when an offset is set" in {
+    // offset=2 skips lines 1-2; inference then samples lines 3-102 (100 clean
+    // integers), and the bad value sits at file line 103.
+    val clean = (1 to 102).map(i => s"""{"v":$i}""")
+    val exec = new JSONLScanSourceOpExec(
+      descString(writeJsonl(clean :+ """{"v":"oops"}""": _*), offset = Some(2))
+    )
+    assert(drain(exec).size == 100)
+    assert(exec.getWarnings.head.contains("row 103"))
+  }
 }

@@ -22,7 +22,10 @@ package org.apache.texera.amber.error
 import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.{
+  ERROR,
+  PRINT
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
 import org.apache.texera.amber.util.{StackTraceUtils, VirtualIdentityUtils}
 
@@ -56,6 +59,18 @@ object ErrorUtils {
     val message = err.getStackTrace.mkString("\n")
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
   }
+
+  /**
+    * Builds a PRINT console message carrying a plain informational/warning line (no
+    * stack trace). A title starting with "WARNING: " is surfaced as a warning by the
+    * UI (see SyncExecutionResource), so callers should keep that prefix intact.
+    */
+  def mkPrintConsoleMessage(
+      actorId: ActorVirtualIdentity,
+      title: String,
+      source: String = ""
+  ): ConsoleMessage =
+    ConsoleMessage(actorId.name, Timestamp(Instant.now), PRINT, source, title, "")
 
   def mkControlError(err: Throwable): ControlError = {
     // Format each stack trace element with "at " prefix
