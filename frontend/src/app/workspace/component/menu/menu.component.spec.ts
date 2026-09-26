@@ -27,7 +27,7 @@ import { BehaviorSubject, of, Subject, throwError } from "rxjs";
 import { take } from "rxjs/operators";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
-import { MenuComponent } from "./menu.component";
+import { HANDOVER_DRAIN_TIMEOUT_MS, MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import type { ExecutionDurationUpdateEvent } from "../../types/workflow-websocket.interface";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -290,6 +290,39 @@ describe("MenuComponent", () => {
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith(7);
     expect(component.isSaving).toBe(false);
+  });
+
+  it("leaves after a bound when a save queued behind its own never answers", () => {
+    // The wait is on a request this component did not make; one that never answers must not hold
+    // the spinner and the button for good. Past the bound the hand-over leaves as it did before
+    // the wait existed, and an edit landed meanwhile is not saved again: that save would queue
+    // behind the request that never answers.
+    vi.useFakeTimers();
+    try {
+      const edits = new Subject<unknown>();
+      vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+      component.ngOnInit();
+      component.writeAccess = true;
+      vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+      vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+      const persistSpy = vi
+        .spyOn(workflowPersistService, "persistWorkflow")
+        .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+      vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(new Subject<void>().asObservable());
+      const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+      component.onClickOpenFormView();
+      edits.next(undefined); // an edit while the queue is waited for
+      vi.advanceTimersByTime(HANDOVER_DRAIN_TIMEOUT_MS - 1);
+      expect(navigate).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+
+      expect(navigate).toHaveBeenCalledWith(7);
+      expect(persistSpy).toHaveBeenCalledTimes(1); // not saved again behind a request that never answers
+      expect(component.isSaving).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("ignores a second click while the hand-over is already in progress", () => {

@@ -32,7 +32,7 @@ import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap, timeout } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -89,6 +89,15 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
  * @author Henry Chen
  *
  */
+/**
+ * How long the Form View hand-over waits for the save queue to drain after its own save has
+ * completed (see saveThenOpenFormView). Long enough for a slow save queued behind it to land,
+ * short enough that a request which never answers does not read as a hang.
+ */
+export const HANDOVER_DRAIN_TIMEOUT_MS = 10_000;
+/** What the bounded wait yields past the bound, in place of the drain. */
+const DRAIN_TIMED_OUT = "drain timed out" as const;
+
 @UntilDestroy()
 @Component({
   selector: "texera-menu",
@@ -776,15 +785,22 @@ export class MenuComponent implements OnInit, OnDestroy {
           // response fed back here, and neither reaches a component the route has destroyed. Leave
           // once it has answered; a failure of its own is reported by its caller and does not hold
           // the hand-over.
+          //
+          // Bounded, because this is a wait on requests this component did not make: a save queued
+          // behind ours that never answers -- neither completes nor fails, which the queue does
+          // count -- would otherwise hold the spinner and the button for good. Past the bound the
+          // hand-over leaves as it did before this wait existed, the request going on in the
+          // service with nobody left to answer to.
           this.workflowPersistService
             .whenSavesDrained()
-            .pipe(untilDestroyed(this))
-            .subscribe(() => {
+            .pipe(timeout({ first: HANDOVER_DRAIN_TIMEOUT_MS, with: () => of(DRAIN_TIMED_OUT) }), untilDestroyed(this))
+            .subscribe(outcome => {
               // The page stayed editable while our save was out and while the queue drained. An
               // edit landed in either window is stored here rather than left to an autosave that
               // would fire under the other view -- checked after the drain, so the two windows
-              // are one.
-              if (this.editedSinceSwitchSnapshot) {
+              // are one. Not past the bound: a save then would queue behind the request that never
+              // answers, and never complete.
+              if (outcome !== DRAIN_TIMED_OUT && this.editedSinceSwitchSnapshot) {
                 this.saveThenOpenFormView(target);
                 return;
               }
