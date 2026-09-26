@@ -22,9 +22,16 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -90,4 +97,72 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
     h.yBins shouldBe 5
     h.normalize shouldBe NormalizationType.PROBABILITY
   }
+
+  // The operator answers with a page: the engine emits `html-content`, and the two
+  // branches that cannot draw write that page themselves. A drawn chart owes the
+  // same file, and the JSON beside it is what the comparison reads.
+  "Histogram2DOpDesc.generateStandaloneCode" should "write the page as well as the figure" in {
+    val code = configured().generateStandaloneCode()
+    code should include("fig.write_json(outputJson)")
+    code should include("fig.write_html(outputHtml)")
+    // The branches that draw nothing, which already wrote the page.
+    code should include("""output.write(render_error("Input table is empty."))""")
+    code should include("""output.write(render_error("No rows after dropping nulls."))""")
+  }
+
+  it should "leave both files behind when it runs" in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandasAndPlotly(python))
+      cancel(s"'$python' cannot import pandas and plotly")
+
+    val dir = Files.createTempDirectory("histogram2d-outputs-")
+    val json = dir.resolve("output.json")
+    val html = dir.resolve("output.html")
+    val driver =
+      s"""import pandas as pd
+         |
+         |outputJson = ${pyStringLiteral(json.toString)}
+         |outputHtml = ${pyStringLiteral(html.toString)}
+         |in1df = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, 1.0, 4.0, 3.0]})
+         |${configured().generateStandaloneCode()}
+         |""".stripMargin
+
+    val script = Files.createTempFile("histogram2d-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(300, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      Files.exists(json) shouldBe true
+      Files.exists(html) shouldBe true
+      Files.size(json) should be > 0L
+      Files.size(html) should be > 0L
+    }
+  }
+
+  private def resolvePython(): Option[String] = {
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
+      "python3",
+      "python",
+      "py"
+    )).distinct
+      .find(runnable)
+  }
+
+  private def canImportPandasAndPlotly(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(120, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
