@@ -38,6 +38,7 @@ import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.common.util.RetryUtil
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
@@ -63,7 +64,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     Location.forGrpcInsecure("localhost", portNumber)
   })()
 
-  private val MAX_TRY_COUNT: Int = 2
+  private val MAX_ATTEMPTS: Int = 3
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -80,28 +81,32 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def establishConnection(): Unit = {
-    var connected = false
-    var tryCount = 0
-    while (!connected && tryCount <= MAX_TRY_COUNT) {
+    RetryUtil.withBackoff(
+      description = "connect to Flight Server",
+      maxAttempts = MAX_ATTEMPTS,
+      initialDelayMillis = UNIT_WAIT_TIME_MS,
+      onRetry = attempt => logger.warn(attempt.message),
+      delayMultiplier = 1L,
+      failureFactory = (_, attempts, cause) =>
+        new WorkflowRuntimeException(
+          s"Failed to connect to Flight Server after $attempts attempts. Abort!",
+          cause,
+          None
+        )
+    ) {
       try {
         flightClient = FlightClient.builder(allocator, location).build()
-        connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
-        if (!connected)
+        val connected =
+          new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
+        if (!connected) {
           throw new RuntimeException("heartbeat failed")
+        }
       } catch {
-        case _: RuntimeException =>
-          logger.warn(
-            s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
-          )
+        case cause: RuntimeException =>
           if (flightClient != null) flightClient.close()
-          Thread.sleep(UNIT_WAIT_TIME_MS)
-          tryCount += 1
+          flightClient = null
+          throw cause
       }
-    }
-    if (!connected) {
-      throw new WorkflowRuntimeException(
-        s"Failed to connect to Flight Server after $MAX_TRY_COUNT attempts. Abort!"
-      )
     }
   }
 
