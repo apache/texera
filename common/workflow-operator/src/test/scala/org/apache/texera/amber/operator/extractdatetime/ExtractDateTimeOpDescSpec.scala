@@ -25,7 +25,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,6 +39,8 @@ import scala.io.Source
 import scala.util.Try
 
 class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -210,7 +214,7 @@ class ExtractDateTimeOpDescSpec extends AnyFlatSpec with Matchers {
 
   // The moments either side of the nanosecond edge, and far past it in both
   // directions, read against the executor's own answer for the same moment.
-  it should "read the same fields as the executor at and past the nanosecond edge" in {
+  it should "read the same fields as the executor at and past the nanosecond edge" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
