@@ -26,7 +26,6 @@ import { catchError, map } from "rxjs/operators";
 import { OwnerScope } from "../../../type/owner-scope";
 import { WorkflowResourceDescriptor } from "./workflow-resource.descriptor";
 import { DatasetResourceDescriptor } from "./dataset-resource.descriptor";
-import { FileResourceDescriptor } from "./file-resource.descriptor";
 import { ModelResourceDescriptor } from "./model-resource.descriptor";
 
 /**
@@ -43,12 +42,11 @@ export class ResourceRegistryService {
   constructor(
     workflow: WorkflowResourceDescriptor,
     dataset: DatasetResourceDescriptor,
-    file: FileResourceDescriptor,
     model: ModelResourceDescriptor
   ) {
     // Computing units are deliberately absent: nothing in the dashboard renders them as entries.
     this.descriptors = new Map<EntityType, ResourceDescriptor>(
-      [workflow, dataset, file, model].map(descriptor => [descriptor.type, descriptor])
+      [workflow, dataset, model].map(descriptor => [descriptor.type, descriptor])
     );
   }
 

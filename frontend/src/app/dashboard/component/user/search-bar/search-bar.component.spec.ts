@@ -171,26 +171,6 @@ describe("SearchBarComponent", () => {
       expect(component.convertToName(makeWorkflowItem("wf-name", 7))).toBe("wf-name");
     });
 
-    it("returns the file's name", () => {
-      const item: SearchResultItem = {
-        resourceType: "file",
-        file: {
-          ownerEmail: "a@b.c",
-          accessLevel: "WRITE",
-          file: {
-            fid: 1,
-            ownerUid: 1,
-            name: "file-name",
-            size: 0,
-            path: "",
-            description: "",
-            uploadTime: 0,
-          },
-        } as any,
-      };
-      expect(component.convertToName(item)).toBe("file-name");
-    });
-
     it("returns the dataset's name", () => {
       const item: SearchResultItem = {
         resourceType: "dataset",
