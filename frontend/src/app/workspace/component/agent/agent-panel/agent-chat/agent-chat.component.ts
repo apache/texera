@@ -95,7 +95,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   @Input() agentInfo!: AgentInfo;
   @Input() isActive: boolean = false;
   @ViewChild("messageContainer", { static: false }) messageContainer?: ElementRef;
-  @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
   /** All steps (for timeline rendering) */
   public agentResponses: ReActStep[] = [];
@@ -322,11 +321,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     this.isDetailsModalVisible = true;
   }
 
-  public closeDetailsModal(): void {
-    this.isDetailsModalVisible = false;
-    this.selectedResponse = null;
-  }
-
   public showSystemInfo(): void {
     this.refreshSystemInfo();
     this.isSystemInfoModalVisible = true;
@@ -368,28 +362,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
 
   public closeSystemInfoModal(): void {
     this.isSystemInfoModalVisible = false;
-  }
-
-  public getToolResult(response: ReActStep, toolCallIndex: number): any {
-    if (!response.toolResults || toolCallIndex >= response.toolResults.length) {
-      return null;
-    }
-    const toolResult = response.toolResults[toolCallIndex];
-    return toolResult.output || toolResult.result || toolResult;
-  }
-
-  public getToolOperatorAccess(
-    response: ReActStep,
-    toolCallIndex: number
-  ): { viewedOperatorIds: string[]; modifiedOperatorIds: string[] } | null {
-    if (!response.operatorAccess) {
-      return null;
-    }
-    return response.operatorAccess.get(toolCallIndex) || null;
-  }
-
-  public hasOperatorAccess(response: ReActStep): boolean {
-    return !!response.operatorAccess && response.operatorAccess.size > 0;
   }
 
   public sendMessage(): void {
@@ -574,22 +546,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       current = stepMap.get(current)?.parentId;
     }
     this.visibleSteps = this.agentResponses.filter(s => ancestorIds.has(s.id));
-  }
-
-  /**
-   * Scroll chat messages to a specific step index.
-   */
-  private scrollToMessage(stepIndex: number): void {
-    if (!this.messageContainer) {
-      return;
-    }
-
-    const container = this.messageContainer.nativeElement;
-    const messages = container.querySelectorAll(".message");
-
-    if (stepIndex >= 0 && stepIndex < messages.length) {
-      messages[stepIndex].scrollIntoView({ behavior: "smooth", block: "center" });
-    }
   }
 
   /**
