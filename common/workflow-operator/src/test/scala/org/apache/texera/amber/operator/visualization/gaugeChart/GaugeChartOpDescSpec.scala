@@ -19,12 +19,18 @@
 
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.util.Try
 
 class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -125,5 +131,130 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
     d.steps shouldBe null
 
     d.generatePythonCode() should include("valid_steps = []")
+  }
+
+  // The operator draws inside a try and answers anything it did not foresee with
+  // a page. Without the same catch, a column that is not in the table reaches
+  // pandas as a KeyError and ends the whole exported run, not just this chart.
+  "GaugeChartOpDesc.generateStandaloneCode" should
+    "answer what it cannot draw the way the operator answers it" in {
+    val python = resolvePythonExecutable().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandasAndPlotly(python)) {
+      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
+    }
+
+    val d = new GaugeChartOpDesc
+    d.value = "score"
+    val moduleFile = Files.createTempFile("gauge_standalone_", ".py")
+    val driverFile = Files.createTempFile("gauge_driver_", ".py")
+    try {
+      Files.write(moduleFile, d.generateStandaloneCode().getBytes(StandardCharsets.UTF_8))
+      Files.write(driverFile, driverScript.getBytes(StandardCharsets.UTF_8))
+
+      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
+        .redirectErrorStream(true)
+        .start()
+      if (!process.waitFor(120, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        fail("Gauge driver timed out after 120s")
+      }
+      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      withClue(s"Driver output:\n$output\n") {
+        process.exitValue() shouldBe 0
+        val verdicts = "CASE (\\S+) (\\S+)".r
+          .findAllMatchIn(output)
+          .map(m => m.group(1) -> m.group(2))
+          .toMap
+        verdicts shouldBe Map(
+          "missing" -> "GENERAL_ERROR",
+          "empty" -> "EMPTY",
+          "nulls" -> "NO_ROWS",
+          "good" -> "CHART"
+        )
+      }
+    } finally {
+      Try(Files.deleteIfExists(moduleFile))
+      Try(Files.deleteIfExists(driverFile))
+      ()
+    }
+  }
+
+  // Runs the exported block over one frame per case and reports the page it
+  // wrote, so a branch that raises instead of answering fails here.
+  private val driverScript: String =
+    """import pathlib
+      |import sys
+      |import tempfile
+      |
+      |import pandas as pd
+      |
+      |source = pathlib.Path(sys.argv[1]).read_text()
+      |
+      |cases = {
+      |    "good": pd.DataFrame({"score": [42.0]}),
+      |    "missing": pd.DataFrame({"other": [42.0]}),
+      |    "empty": pd.DataFrame({"score": []}),
+      |    "nulls": pd.DataFrame({"score": [None, None]}),
+      |}
+      |
+      |for name, frame in cases.items():
+      |    directory = tempfile.mkdtemp()
+      |    scope = {
+      |        "in1df": frame,
+      |        "outputHtml": directory + "/chart.html",
+      |        "outputJson": directory + "/chart.json",
+      |        "pd": pd,
+      |    }
+      |    exec(compile(source, "standalone", "exec"), scope)
+      |    page = pathlib.Path(scope["outputHtml"]).read_text()
+      |    if "General error" in page:
+      |        verdict = "GENERAL_ERROR"
+      |    elif "Input table is empty" in page:
+      |        verdict = "EMPTY"
+      |    elif "No non-null rows" in page:
+      |        verdict = "NO_ROWS"
+      |    elif "Gauge chart is not available" in page:
+      |        verdict = "OTHER_PAGE"
+      |    else:
+      |        verdict = "CHART"
+      |    print("CASE %s %s" % (name, verdict))
+      |""".stripMargin
+
+  // Python executable resolution, following FilledAreaPlotOpDescSpec:
+  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePythonExecutable(): Option[String] = {
+    def fromConfig: Option[String] = {
+      val configOpt =
+        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+          .orElse(Try(ConfigFactory.load()).toOption)
+      configOpt
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+    }
+
+    def isRunnable(exe: String): Boolean = {
+      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
+      pTry.toOption.exists { p =>
+        val finished = p.waitFor(5, TimeUnit.SECONDS)
+        if (!finished) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
+    }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
+  }
+
+  private def canImportPandasAndPlotly(python: String): Boolean = {
+    val pTry = Try(
+      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
+    )
+    pTry.toOption.exists { p =>
+      val finished = p.waitFor(60, TimeUnit.SECONDS)
+      if (!finished) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
   }
 }
