@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.hashJoin
 
 import org.apache.texera.amber.core.tuple._
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -273,5 +275,83 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
 
     probeExec.close()
     assert(probeExec.buildTableHashMap.isEmpty)
+  }
+
+  /** The rows a join over `left` and `right` on `k` emits, matched to the schema
+    * the operator declares by name, as the engine matches them.
+    */
+  private def joinedRows(
+      joinType: JoinType,
+      left: Schema,
+      leftRows: Seq[Array[Any]],
+      right: Schema,
+      rightRows: Seq[Array[Any]]
+  ): (List[String], List[List[Any]]) = {
+    val desc = new HashJoinOpDesc[String]()
+    desc.buildAttributeName = "k"
+    desc.probeAttributeName = "k"
+    desc.joinType = joinType
+    val plan = desc.getPhysicalPlan(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    val build = plan.operators.find(_.id.layerName == "build").get
+    val probe = plan.operators.find(_.id.layerName == "probe").get
+    val buildOut =
+      build.propagateSchema.func(Map(PortIdentity() -> left))(PortIdentity(0, internal = true))
+    val declared = probe.propagateSchema
+      .func(Map(PortIdentity(0, internal = true) -> buildOut, PortIdentity(1) -> right))(
+        PortIdentity()
+      )
+
+    val descString = objectMapper.writeValueAsString(desc)
+    val buildExec = new HashJoinBuildOpExec[String](descString)
+    buildExec.open()
+    leftRows.foreach(r => buildExec.processTuple(Tuple.builder(left).addSequentially(r).build(), 0))
+    val probeExec = new HashJoinProbeOpExec[String](descString)
+    probeExec.open()
+    buildExec
+      .onFinish(0)
+      .foreach(t =>
+        probeExec.processTuple(t.asInstanceOf[SchemaEnforceable].enforceSchema(buildOut), 0)
+      )
+    val emitted = rightRows.flatMap(r =>
+      probeExec.processTuple(Tuple.builder(right).addSequentially(r).build(), 1)
+    ) ++ probeExec.onFinish(1)
+    (
+      declared.getAttributeNames,
+      emitted.map(_.asInstanceOf[SchemaEnforceable].enforceSchema(declared).getFields.toList).toList
+    )
+  }
+
+  // A right column meeting a left name takes "#@1", and the right side can
+  // already hold that name, as the output of an earlier join does. The schema
+  // declared two columns under it while the executor named the row "#@1#@1",
+  // so matching the row to the schema lost the right x and doubled the other.
+  it should "name a right column colliding twice alike in the schema and the row" in {
+    val (names, rows) = joinedRows(
+      JoinType.INNER,
+      Schema().add("k", AttributeType.STRING).add("x", AttributeType.STRING),
+      Seq(Array[Any]("1", "left")),
+      Schema()
+        .add("k", AttributeType.STRING)
+        .add("x", AttributeType.STRING)
+        .add("x#@1", AttributeType.STRING),
+      Seq(Array[Any]("1", "right x", "right x#@1"))
+    )
+    assert(names == List("k", "x", "x#@1#@1", "x#@1"))
+    assert(rows == List(List("1", "left", "right x", "right x#@1")))
+  }
+
+  // An unmatched right row kept its columns' own names, so one the left side
+  // also names landed in the left column, and failed there on a type the left
+  // one did not declare. Its key still fills the left key column.
+  it should "name an unmatched right row's columns as a joined row names them" in {
+    val (names, rows) = joinedRows(
+      JoinType.FULL_OUTER,
+      Schema().add("k", AttributeType.STRING).add("x", AttributeType.INTEGER),
+      Seq(Array[Any]("1", 10)),
+      Schema().add("k", AttributeType.STRING).add("x", AttributeType.DOUBLE),
+      Seq(Array[Any]("2", 2.5))
+    )
+    assert(names == List("k", "x", "x#@1"))
+    assert(rows.toSet == Set(List("2", null, 2.5), List("1", 10, null)))
   }
 }

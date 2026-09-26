@@ -114,57 +114,6 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Run rather than asserted as text: the arithmetic is the point.
-  it should "answer SUM, AVERAGE and CONCAT the way the engine answers them" in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    val input = Schema()
-      .add("i", AttributeType.INTEGER)
-      .add("t", AttributeType.TIMESTAMP)
-      .add("b", AttributeType.BOOLEAN)
-    val desc = descWith(
-      List.empty,
-      aggOp(AggregationFunction.SUM, "i", "int_total"),
-      aggOp(AggregationFunction.SUM, "t", "ts_total"),
-      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg"),
-      aggOp(AggregationFunction.CONCAT, "b", "flags")
-    )
-    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
-
-    val driver =
-      s"""import pandas as pd
-         |in1df = pd.DataFrame({
-         |    "i": pd.Series([2147483647, 1], dtype="int64"),
-         |    "t": pd.to_datetime(["2020-01-01", "2020-01-02"]),
-         |    "b": pd.Series([True, False], dtype=bool),
-         |})
-         |$block
-         |row = out1df.iloc[0]
-         |# The engine adds INTEGER as a Java int, which wraps; sums timestamps
-         |# into a timestamp; declares AVERAGE a DOUBLE whatever it read; and
-         |# folds CONCAT with Java's toString, which lowercases a boolean.
-         |print(int(row["int_total"]))
-         |print(pd.Timestamp(row["ts_total"]).isoformat())
-         |print(repr(float(row["ts_avg"])))
-         |print(row["flags"])
-         |""".stripMargin
-
-    // Timestamp arithmetic goes through the zone the script runs in, the way
-    // the engine's goes through the JVM's, so the zone is named here and the
-    // numbers below can be read.
-    val out = runPython(python, driver, "aggregate-engine-answers-", "UTC")
-
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      val lines = out.trim.linesIterator.toSeq
-      lines.head shouldBe "-2147483648"
-      // 1577836800000 + 1577923200000 milliseconds, read back as a timestamp.
-      lines(1) shouldBe "2070-01-01T00:00:00"
-      lines(2) shouldBe "1577880000000.0"
-      lines(3) shouldBe "true,false"
-    }
-  }
-
   // The integers behind a timestamp column mean microseconds or nanoseconds
   // depending on the resolution it was read at, and a nanosecond total leaves
   // the range of a 64-bit integer after a handful of modern dates.

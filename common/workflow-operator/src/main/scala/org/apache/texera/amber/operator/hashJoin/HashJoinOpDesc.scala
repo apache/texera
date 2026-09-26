@@ -155,19 +155,19 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
               buildSchema.getAttributes.filterNot(_.getName == HASH_JOIN_INTERNAL_KEY_NAME)
             val leftAttributeNames = leftAttributes.map(_.getName).toSet
 
-            // Filter and rename attributes from the probe schema to avoid conflicts
+            // Filter and rename attributes from the probe schema to avoid conflicts,
+            // by the rule the executor names its fields with. Checking the left
+            // side alone declared two columns under one name when the right side
+            // already carried the suffixed one, and the row, matched to the schema
+            // by name, lost the value the executor had put under the other name.
+            val rightNames = probeSchema.getAttributeNames.filterNot(_ == probeAttributeName)
             val rightAttributes = probeSchema.getAttributes
               .filterNot(_.getName == probeAttributeName)
               .map { attr =>
-                var newName = attr.getName
-                while (leftAttributeNames.contains(newName)) {
-                  val suffixIndex = """#@(\d+)$""".r
-                    .findFirstMatchIn(newName)
-                    .map(_.group(1).toInt + 1)
-                    .getOrElse(1)
-                  newName = s"${attr.getName}#@$suffixIndex"
-                }
-                new Attribute(newName, attr.getType)
+                new Attribute(
+                  JoinUtils.renamed(attr.getName, leftAttributeNames.toSeq, rightNames),
+                  attr.getType
+                )
               }
 
             // Combine left and right attributes into a new schema
