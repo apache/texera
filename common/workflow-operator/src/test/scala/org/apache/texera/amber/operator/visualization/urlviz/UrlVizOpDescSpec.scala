@@ -26,8 +26,10 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -39,6 +41,8 @@ import scala.io.Source
 import scala.util.Try
 
 class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -164,7 +168,7 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
     page should not include """onload="alert"""
   }
 
-  it should "write that cell the same way in the exported script" in {
+  it should "write that cell the same way in the exported script" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

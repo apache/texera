@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.visualization.waterfallChart
 
 import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.scalatest.BeforeAndAfter
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,6 +33,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: WaterfallChartOpDesc = _
 
@@ -187,7 +191,7 @@ class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |    ))
       |""".stripMargin
 
-  it should "plot the last row and draw the total over the whole column at runtime" in {
+  it should "plot the last row and draw the total over the whole column at runtime" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
