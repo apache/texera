@@ -31,6 +31,7 @@ import type { Mocked } from "vitest";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import JSZip from "jszip";
+import { TruncatedDownloadError } from "../../../../common/util/download-integrity.util";
 
 function computingUnit(type: string, cuid: number): DashboardWorkflowComputingUnit {
   return { computingUnit: { cuid, type } } as unknown as DashboardWorkflowComputingUnit;
@@ -114,6 +115,20 @@ describe("DownloadService", () => {
     expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
     expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
     expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
+  });
+
+  it("names the truncation in the error notification when a download ends early", async () => {
+    datasetServiceSpy.retrieveDatasetVersionSingleFile.mockReturnValue(
+      throwError(() => new TruncatedDownloadError(1416092224, 106168320))
+    );
+
+    await expect(firstValueFrom(downloadService.downloadSingleFile("big.czi", true))).rejects.toBeInstanceOf(
+      TruncatedDownloadError
+    );
+
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith(
+      "Error downloading file 'big.czi'. Download truncated: expected 1416092224 bytes but received 106168320."
+    );
   });
 
   it("passes isLogin=false through to retrieveDatasetVersionSingleFile", async () => {
