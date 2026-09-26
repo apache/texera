@@ -22,20 +22,21 @@ package org.apache.texera.amber.operator.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 object HashJoinOpDesc {
@@ -53,8 +54,7 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp {
-
+class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
   @JsonPropertyDescription("attribute to be joined on the Left Input")
@@ -155,19 +155,19 @@ class HashJoinOpDesc[K] extends LogicalOp {
               buildSchema.getAttributes.filterNot(_.getName == HASH_JOIN_INTERNAL_KEY_NAME)
             val leftAttributeNames = leftAttributes.map(_.getName).toSet
 
-            // Filter and rename attributes from the probe schema to avoid conflicts
+            // Filter and rename attributes from the probe schema to avoid conflicts,
+            // by the rule the executor names its fields with. Checking the left
+            // side alone declared two columns under one name when the right side
+            // already carried the suffixed one, and the row, matched to the schema
+            // by name, lost the value the executor had put under the other name.
+            val rightNames = probeSchema.getAttributeNames.filterNot(_ == probeAttributeName)
             val rightAttributes = probeSchema.getAttributes
               .filterNot(_.getName == probeAttributeName)
               .map { attr =>
-                var newName = attr.getName
-                while (leftAttributeNames.contains(newName)) {
-                  val suffixIndex = """#@(\d+)$""".r
-                    .findFirstMatchIn(newName)
-                    .map(_.group(1).toInt + 1)
-                    .getOrElse(1)
-                  newName = s"${attr.getName}#@$suffixIndex"
-                }
-                new Attribute(newName, attr.getType)
+                new Attribute(
+                  JoinUtils.renamed(attr.getName, leftAttributeNames.toSeq, rightNames),
+                  attr.getType
+                )
               }
 
             // Combine left and right attributes into a new schema
@@ -200,4 +200,106 @@ class HashJoinOpDesc[K] extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Equi-join: drop the probe key (kept only when its name differs from the
+  // build key), suffix colliding right columns "#@1" — matches JoinUtils. Known
+  // Texera divergences: row order, null keys (NaN != NaN in merge), outer
+  // anti-row column placement.
+  /** Only the declared type can say which columns an outer join widened, so
+    * without a schema the widening stands.
+    */
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    val integral = (a: Attribute) =>
+      a.getType == AttributeType.INTEGER || a.getType == AttributeType.LONG
+    val declaredIntegers = (port: PortIdentity) =>
+      inputSchemas.get(port).map(_.getAttributes.filter(integral).map(_.getName)).getOrElse(List())
+    // Each side keeps its own list, under the names that side's frame carries,
+    // so a column the merge renames is still the column its own schema typed.
+    if (joinType == JoinType.INNER) generateStandaloneCode()
+    else
+      generateStandaloneCode(
+        declaredIntegers(operatorInfo.inputPorts.head.id),
+        declaredIntegers(operatorInfo.inputPorts.last.id)
+      )
+  }
+
+  override def generateStandaloneCode(): String =
+    generateStandaloneCode(List(), List())
+
+  private def generateStandaloneCode(
+      leftIntegerColumns: List[String],
+      rightIntegerColumns: List[String]
+  ): String = {
+    val buildKeyLit = objectMapper.writeValueAsString(buildAttributeName)
+    val probeKeyLit = objectMapper.writeValueAsString(probeAttributeName)
+    val how = joinType match {
+      case JoinType.INNER       => "inner"
+      case JoinType.LEFT_OUTER  => "left"
+      case JoinType.RIGHT_OUTER => "right"
+      case JoinType.FULL_OUTER  => "outer"
+    }
+    // An unmatched row leaves a hole, and a hole costs a pandas integer column
+    // its type: int64 becomes float64, which rounds every value past 2^53
+    // before anything can put the type back. The engine writes a null and
+    // leaves the column INTEGER, so widen to the integer dtype that holds a
+    // hole before the merge digs one.
+    val widen = leftIntegerColumns.nonEmpty || rightIntegerColumns.nonEmpty
+    val namesLit = (names: List[String]) => names.map(pyStringLiteral).mkString("[", ", ", "]")
+    val widening =
+      if (!widen) ""
+      else
+        s"""_left_ints = {_c: "Int64" for _c in ${namesLit(leftIntegerColumns)} if _c in in1df.columns}
+           |_right_ints = {_c: "Int64" for _c in ${namesLit(rightIntegerColumns)} if _c in in2df.columns}
+           |""".stripMargin
+    val leftFrame = if (widen) "in1df.astype(_left_ints)" else "in1df"
+    // Cast before the rename, because the names above are the ones the right
+    // input declared.
+    val rightFrame =
+      if (widen) "in2df.astype(_right_ints).rename(columns=_rename)"
+      else "in2df.rename(columns=_rename)"
+    // HashJoinProbeOpExec's rename, written out: append "#@1" until the name is
+    // free. pandas' `suffixes` appends once and then refuses the duplicate it
+    // just made.
+    //
+    // JoinUtils sets the probe key aside before it renames anything, so a
+    // payload column never has to step around the key that is about to leave.
+    // The key itself still rides along, because the merge joins on it, and it
+    // only has to land where nothing else already sits.
+    val merge =
+      s"""_left_cols = set(in1df.columns)
+         |_right_cols = list(in2df.columns)
+         |_payload = [_c for _c in _right_cols if _c != $probeKeyLit]
+         |_payload_set = set(_payload)
+         |_rename = {}
+         |for _col in _payload:
+         |    _new = _col
+         |    _others = _payload_set - {_col}
+         |    while _new in _left_cols or _new in _others:
+         |        _new = _new + "#@1"
+         |    _rename[_col] = _new
+         |_probe_key = $probeKeyLit
+         |_taken = _left_cols | set(_rename.values())
+         |while _probe_key in _taken:
+         |    _probe_key = _probe_key + "#@1"
+         |if _probe_key != $probeKeyLit:
+         |    _rename[$probeKeyLit] = _probe_key
+         |""".stripMargin + widening +
+        s"""out1df = $leftFrame.merge(
+           |    $rightFrame,
+           |    how=${pyStringLiteral(how)},
+           |    left_on=$buildKeyLit,
+           |    right_on=_probe_key,
+           |)""".stripMargin
+    // `_probe_key` is whatever the rename settled on, so this drops the right
+    // column rather than a left one that happened to share its name. Asked of
+    // the name the rename produced and not of the two the operator was given:
+    // when both sides name the key alike the rename still moves the right one
+    // aside, and a test on the operator's own two names read that as one shared
+    // column and kept the copy, where the engine emits the key once.
+    val tail =
+      s"""if _probe_key != $buildKeyLit:
+         |    out1df = out1df.drop(columns=[_probe_key])
+         |out1df = out1df.reset_index(drop=True)""".stripMargin
+    s"$merge\n$tail"
+  }
 }

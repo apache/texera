@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.intervalJoin
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -28,6 +29,12 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -104,6 +111,69 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
       List("a", "k", "b", "k#@1")
   }
 
+  "IntervalJoinOpDesc.generateStandaloneCode" should
+    "read the right key under the name the merge left it with" in {
+    // "rk" is only suffixed when the left frame has a column of that name, and
+    // the frame is not known until the script runs, so the choice is in Python.
+    configured().generateStandaloneCode() should include(
+      """_iv_r = _pairs["rk" if "rk" not in in1df.columns else "rk" + "#@1"]"""
+    )
+  }
+
+  /** The bug this pins: the keys used to be copied into `_iv_l` and `_iv_r`
+    * columns, so an input column already carrying one of those names was
+    * overwritten and then dropped. Run the generated pandas and hold its
+    * columns against the schema the operator promises for the same two inputs.
+    */
+  it should "keep an input column that carries a temporary's name" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("x", AttributeType.INTEGER))
+      .add(new Attribute("_iv_l", AttributeType.STRING))
+    val right = Schema().add(new Attribute("r", AttributeType.INTEGER))
+
+    val d = new IntervalJoinOpDesc
+    d.leftAttributeName = "x"
+    d.rightAttributeName = "r"
+    d.constant = 3L
+    d.timeIntervalType = None
+    val promised = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema
+      .func(Map(PortIdentity() -> left, PortIdentity(1) -> right))(
+        d.operatorInfo.outputPorts.head.id
+      )
+      .getAttributeNames
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"x": [2], "_iv_l": ["payload"]})
+         |in2df = pd.DataFrame({"r": [1]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |print(",".join(map(str, out1df.iloc[0].tolist())))
+         |""".stripMargin
+
+    val script = Files.createTempFile("intervaljoin-columns-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head.split(",").toList shouldBe promised
+      // The payload the temporary used to overwrite, and the row still joins.
+      lines(1) shouldBe "2,payload,1"
+    }
+  }
+
   "IntervalJoinOpDesc" should "round-trip its fields through the polymorphic base" in {
     val d = configured()
     d.constant = 42L
@@ -118,4 +188,33 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     ij.includeLeftBound shouldBe false
     ij.includeRightBound shouldBe false
   }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }
