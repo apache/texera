@@ -23,6 +23,8 @@ import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -32,6 +34,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class BinningOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val inputSchema = new Schema(
     new Attribute("id", AttributeType.INTEGER),
@@ -184,7 +188,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
   // An all-empty column used to raise on an equal-width cut, and so did an empty
   // table, both before the suffix that keeps a hole a hole could run.
   for (method <- BinningMethod.values) {
-    it should s"bin a column with nothing in it rather than raising, cutting by $method" in {
+    it should s"bin a column with nothing in it rather than raising, cutting by $method" taggedAs NeedsPythonPackages in {
       val python = resolvePythonExecutable().getOrElse(
         cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
       )
