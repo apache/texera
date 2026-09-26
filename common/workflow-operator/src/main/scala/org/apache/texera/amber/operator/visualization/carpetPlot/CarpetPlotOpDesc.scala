@@ -22,10 +22,14 @@ package org.apache.texera.amber.operator.visualization.carpetPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import javax.validation.constraints.NotNull
@@ -41,7 +45,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class CarpetPlotOpDesc extends PythonOperatorDescriptor {
+class CarpetPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "a", required = true)
   @NotNull(message = "A-axis Attribute cannot be empty")
@@ -130,6 +134,53 @@ class CarpetPlotOpDesc extends PythonOperatorDescriptor {
            |            yield {"html-content": f"<h3>Error generating carpet plot: {str(e)}</h3>"}
            |"""
     finalCode.encode
+  }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val aLit = pyStringLiteral(a)
+    val bLit = pyStringLiteral(b)
+    val yLit = pyStringLiteral(y)
+    // Every case the operator answers with a page writes that page here rather
+    // than printing or raising: a reason the reader can see is the whole output
+    // of a chart that cannot be drawn, and a run that writes nothing at all
+    // looks like a crash. A column that is not there and a value that is not a
+    // number are checked in the operator's own order, before the drop that
+    // would otherwise raise on the missing name.
+    s"""def _write_page(html):
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(html)
+       |
+       |missing = [column for column in [$aLit, $bLit, $yLit] if column not in in1df.columns]
+       |if in1df.empty:
+       |    _write_page("<h3>Input table is empty</h3>")
+       |elif missing:
+       |    _write_page(f"<h3>Column '{missing[0]}' not found</h3>")
+       |else:
+       |    table = in1df.dropna(subset=[$aLit, $bLit, $yLit]).copy()
+       |    if table.empty:
+       |        _write_page("<h3>No valid rows after removing nulls</h3>")
+       |    else:
+       |        try:
+       |            table[$aLit] = table[$aLit].astype(float)
+       |            table[$bLit] = table[$bLit].astype(float)
+       |            table[$yLit] = table[$yLit].astype(float)
+       |        except Exception as e:
+       |            _write_page(f"<h3>Error converting input columns to numeric values: {str(e)}</h3>")
+       |        else:
+       |            try:
+       |                fig = go.Figure(go.Carpet(
+       |                    a=table[$aLit],
+       |                    b=table[$bLit],
+       |                    y=table[$yLit]
+       |                ))
+       |            except Exception as e:
+       |                _write_page(f"<h3>Error generating carpet plot: {str(e)}</h3>")
+       |            else:
+       |                fig.write_json(outputJson)
+       |                fig.write_html(outputHtml)
+       |                print("Carpet plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
   }
 
 }
