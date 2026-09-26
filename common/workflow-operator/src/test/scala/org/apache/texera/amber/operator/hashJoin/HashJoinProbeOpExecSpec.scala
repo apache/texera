@@ -277,19 +277,21 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
     assert(probeExec.buildTableHashMap.isEmpty)
   }
 
-  /** The rows a join over `left` and `right` on `k` emits, matched to the schema
-    * the operator declares by name, as the engine matches them.
+  /** The rows a join over `left` and `right` emits, matched to the schema the
+    * operator declares by name, as the engine matches them.
     */
   private def joinedRows(
       joinType: JoinType,
       left: Schema,
       leftRows: Seq[Array[Any]],
       right: Schema,
-      rightRows: Seq[Array[Any]]
+      rightRows: Seq[Array[Any]],
+      buildKey: String = "k",
+      probeKey: String = "k"
   ): (List[String], List[List[Any]]) = {
     val desc = new HashJoinOpDesc[String]()
-    desc.buildAttributeName = "k"
-    desc.probeAttributeName = "k"
+    desc.buildAttributeName = buildKey
+    desc.probeAttributeName = probeKey
     desc.joinType = joinType
     val plan = desc.getPhysicalPlan(WorkflowIdentity(1L), ExecutionIdentity(1L))
     val build = plan.operators.find(_.id.layerName == "build").get
@@ -353,5 +355,23 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
     )
     assert(names == List("k", "x", "x#@1"))
     assert(rows.toSet == Set(List("2", null, 2.5), List("1", 10, null)))
+  }
+
+  // The key an unmatched right row carries fills the left key column only when
+  // the two keys share a name. Under any other name it belonged to no declared
+  // column, and where a left payload happened to carry that name the key landed
+  // in the payload.
+  it should "not let an unmatched right key fill a left payload that shares its name" in {
+    val (names, rows) = joinedRows(
+      JoinType.FULL_OUTER,
+      Schema().add("id", AttributeType.STRING).add("key", AttributeType.STRING),
+      Seq(Array[Any]("1", "payload")),
+      Schema().add("key", AttributeType.STRING).add("value", AttributeType.INTEGER),
+      Seq(Array[Any]("2", 9)),
+      buildKey = "id",
+      probeKey = "key"
+    )
+    assert(names == List("id", "key", "value"))
+    assert(rows.toSet == Set(List(null, null, 9), List("1", "payload", null)))
   }
 }

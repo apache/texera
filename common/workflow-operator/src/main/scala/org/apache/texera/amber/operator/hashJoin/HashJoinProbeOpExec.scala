@@ -154,17 +154,20 @@ class HashJoinProbeOpExec[K](
 
   // The right columns are named as a matched row names them, so a column the
   // left side also names goes under its suffixed name and not into the left
-  // column. The probe key keeps its own name: where both sides name the key
-  // alike, the unmatched row's key is what fills the left key column.
+  // column. The probe key fills the left key column where both sides name the
+  // key alike, and is left out where a left payload shares its name, which it
+  // would otherwise fill.
   private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] = {
-    val rightNames = tuple.getSchema.getAttributeNames.filterNot(_ == desc.probeAttributeName)
+    val keyName = desc.probeAttributeName
+    val rightNames = tuple.getSchema.getAttributeNames.filterNot(_ == keyName)
+    val key =
+      if (keyName == desc.buildAttributeName || !leftAttributeNames.contains(keyName))
+        Seq(keyName -> tuple.getField[Any](keyName))
+      else Seq.empty
     Iterator(
       TupleLike(
-        tuple.getSchema.getAttributeNames.map { name =>
-          val named =
-            if (name == desc.probeAttributeName) name
-            else JoinUtils.renamed(name, leftAttributeNames, rightNames)
-          named -> tuple.getField[Any](name)
+        key ++ rightNames.map { name =>
+          JoinUtils.renamed(name, leftAttributeNames, rightNames) -> tuple.getField[Any](name)
         }: _*
       )
     )

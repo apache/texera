@@ -296,10 +296,25 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     // when both sides name the key alike the rename still moves the right one
     // aside, and a test on the operator's own two names read that as one shared
     // column and kept the copy, where the engine emits the key once.
+    //
+    // Where both sides name the key alike, the engine's unmatched right row
+    // fills the left key column with its own key. The merge left that column
+    // empty and put the key in the renamed right one, which is about to go.
+    // A matched row holds the same value in both, so filling the holes changes
+    // only the rows the right side alone brought.
+    val rightRowsKept = joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER
+    val fillKey =
+      if (rightRowsKept && buildAttributeName == probeAttributeName)
+        s"""out1df[$buildKeyLit] = out1df[$buildKeyLit].where(
+           |    out1df[$buildKeyLit].notna(), out1df[_probe_key]
+           |)
+           |""".stripMargin
+      else ""
     val tail =
-      s"""if _probe_key != $buildKeyLit:
-         |    out1df = out1df.drop(columns=[_probe_key])
-         |out1df = out1df.reset_index(drop=True)""".stripMargin
+      fillKey +
+        s"""if _probe_key != $buildKeyLit:
+           |    out1df = out1df.drop(columns=[_probe_key])
+           |out1df = out1df.reset_index(drop=True)""".stripMargin
     s"$merge\n$tail"
   }
 }
