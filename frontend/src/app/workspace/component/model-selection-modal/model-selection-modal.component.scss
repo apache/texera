@@ -17,5 +17,16 @@
  * under the License.
  */
 
-@use "../../../section-style" as *;
-@use "../../../dashboard.component.scss" as *;
+.model-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.access-level {
+  color: grey;
+}

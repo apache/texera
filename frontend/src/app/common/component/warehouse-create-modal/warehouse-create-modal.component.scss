@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,19 +17,32 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+.create-warehouse-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  justify-content: start;
+  align-items: center;
+}
 
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
+.select-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: flex-start;
+}
 
-case class EditingTimeCompilationRequest(
-    operators: List[LogicalOp],
-    links: List[LogicalLink],
-    opsToViewResult: List[String],
-    opsToReuseResult: List[String]
-) extends TexeraWebSocketRequest {
+.select-unit.name-field {
+  grid-column: span 2;
+}
 
-  def toLogicalPlanPojo: LogicalPlanPojo = {
-    LogicalPlanPojo(operators, links, opsToViewResult, opsToReuseResult)
-  }
+.warehouse-name-input {
+  width: 100%;
+}
+
+.warehouse-name-hint {
+  margin: 8px 0 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }

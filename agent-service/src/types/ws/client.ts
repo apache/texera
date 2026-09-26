@@ -27,7 +27,12 @@ export class WsClientPromptCommand {
   readonly type = "WsClientPromptCommand";
   constructor(
     readonly content: string,
-    readonly messageSource?: "chat" | "feedback"
+    readonly messageSource?: "chat" | "feedback",
+    // The warehouse picked in the workspace right now. Sent per prompt rather
+    // than fixed at agent creation: an agent created before the picker loaded
+    // would otherwise carry no warehouse for its whole life and every run would
+    // be refused, with nothing in the agent panel able to fix it (#7751).
+    readonly warehouseId?: number
   ) {}
 }
 

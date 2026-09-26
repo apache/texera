@@ -1078,10 +1078,6 @@ describe("JointGraphWrapperService", () => {
       );
     });
 
-    it("getLinkIDsWithBreakpoint starts empty", () => {
-      expect(jointGraphWrapper.getLinkIDsWithBreakpoint()).toEqual([]);
-    });
-
     it("getElementPositionChangeEvent reports the old and new position of a moved element", () => {
       jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
 

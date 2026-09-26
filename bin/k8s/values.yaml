@@ -111,6 +111,9 @@ rustfs:
     rustfs:
       access_key: texera_rustfs
       secret_key: password
+  extraEnv:
+    - name: RUSTFS_CORS_ALLOWED_ORIGINS
+      value: "*"
   config:
     rustfs:
       # Must match storage.s3.region: the region is part of the SigV4 scope.
@@ -374,8 +377,12 @@ litellm:
 
 # Images an administrator registers, which a computing unit can then be started from.
 curatedImages:
-  # Off until the UI to manage these ships.
-  enabled: false
+  enabled: true
+  prepull:
+    # Pull every ready image onto every node, so the first unit there does not wait for it.
+    # Costs node disk: each node holds each ready image. Turning it off also removes the
+    # pre-pulls already made.
+    enabled: true
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -413,6 +420,15 @@ mounter:
   imagePullPolicy: IfNotPresent
   port: 8100
   hostMountRoot: /var/lib/texera-mounts
+  # Where a computing-unit pod sees its mounts.
+  podMountRoot: /mnt/texera-mounts
+  # Host directory for geesefs's on-disk cache. Empty (the default) means no cache, so every
+  # read of a mounted repository is served from the object store. Set it when a mount is read
+  # repeatedly -- a reference dataset scanned on every execution -- and the node has room for
+  # the data being cached. Deliberately separate from hostMountRoot rather than a directory
+  # inside it: hostMountRoot holds only mount points and usually sits on the OS disk, while a
+  # cache is sized by the data, so the two generally belong on different volumes.
+  cacheRoot: ""
   serviceAccountName: texera-mounter-service-account
   # The mounter authenticates its callers: a caller presents a service-account token
   # projected for the mounter's audience, which the mounter verifies with TokenReview and
@@ -445,6 +461,14 @@ texeraEnvVars:
     value: "false"
   - name: KUBERNETES_COMPUTING_UNIT_ENABLED
     value: "true"
+  # Periodic termination of idle Kubernetes computing units. Off by default; set the timeout to
+  # match how long a deployment's users expect an untouched unit to stay alive before enabling.
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CLEANUP_ENABLED
+    value: "false"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_TIMEOUT_MINUTES
+    value: "1440"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CHECK_INTERVAL_MINUTES
+    value: "60"
   - name: KUBERNETES_IMAGE_PULL_POLICY
     value: "IfNotPresent"
   - name: GUI_WORKFLOW_WORKSPACE_PYTHON_LANGUAGE_SERVER_PORT
