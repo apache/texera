@@ -22,8 +22,10 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -34,6 +36,8 @@ import scala.io.Source
 import scala.util.Try
 
 class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private def configured(): Histogram2DOpDesc = {
     val d = new Histogram2DOpDesc
@@ -110,7 +114,7 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""output.write(render_error("No rows after dropping nulls."))""")
   }
 
-  it should "leave both files behind when it runs" in {
+  it should "leave both files behind when it runs" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandasAndPlotly(python))
       cancel(s"'$python' cannot import pandas and plotly")
