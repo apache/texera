@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790427979272,
+  "lastUpdate": 1790427981743,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -57230,6 +57230,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2064401.623,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Eugene Gu",
+            "username": "eugenegujing",
+            "email": "eugenegujing@outlook.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "33bd07bf27648870ecaf54da0d24c85763186cda",
+          "message": "feat(computing-unit): surface failed/unhealthy computing units instead of an endless \"Connecting\" (#7944)\n\n### What changes were proposed in this PR?\n\nWhen a computing unit becomes unhealthy (the pod is OOM-killed into a\ncrash loop, evicted for disk pressure, stuck on an image pull, or its\nnode becomes unreachable), the UI used to show **\"Connecting\"** with a\n\"starting up\" tooltip forever because status resolution only looked at\n`pod.status.phase` and the frontend did not represent the complete\nbackend status vocabulary.\n\nThis PR follows the decisions settled in #7670: mirror Kubernetes for\nthe status vocabulary, expose actionable failure reasons only to\nauthorized viewers, and perform no automatic recovery—users delete and\nrecreate unhealthy units, using the existing termination flow that\nalready handles dead pods.\n\nBecause a status the UI refuses to act on is only worth as much as the\nrefusal, the change also closes the paths that ignored it: every run\nentry point now declines to start work on a unit in a terminal state,\nand a dropdown row the list already greys out can no longer be selected\nby clicking it.\n\n#### Before → after\n\n```text\nBefore: unhealthy unit → Pending/Connecting forever → no actionable explanation\nAfter:  unhealthy unit → Failed/Unknown + Unit Unavailable → authorized reason in the row tooltip\n\nBefore: terminating unit → frontend Pending fallback → Connecting\nAfter:  terminating unit → explicit Terminating state → Shutting Down\n\nBefore: run on a dead unit → results cleared, request dropped on a closed socket, no feedback\nAfter:  run on a dead unit → refused with an actionable toast, previous results left on screen\n\nBefore: click a greyed-out row → unit selected anyway, and remembered for next time\nAfter:  click a greyed-out row → ignored, as the row's own \"Cannot select.\" tooltip says\n```\n\n#### Screenshots\n\n<!-- Attach the files from ~/Downloads/pr-7944-screenshots/ in place of\neach FILE: line below. -->\n\nEvery frame below is the running application with the computing-unit\nstatus rewritten in flight, the automated equivalent of the DevTools\nresponse-override recipe. The workflow held one operator, so no\n\"Invalid\" or \"Empty\" state could mask the unit state.\n\n**Before.** An unhealthy pod could only be reported as `Pending`, so the\nrun button said **Connecting** for ever and the tooltip claimed the unit\nwas starting up. This one frame is the counterpart to both \"after\"\nframes, because every unhealthy or terminating unit used to collapse\ninto this same state.\n\n<img width=\"1362\" height=\"368\" alt=\"01-before-connecting\"\nsrc=\"https://github.com/user-attachments/assets/7c3382f0-f6c5-4fd7-8ac7-8b70b696c6a8\"\n/>\n\n**After, an unreachable node.** Red badge, a disabled **Unit\nUnavailable** run button, and the authorized owner-facing reason on the\nrow tooltip.\n\n<img width=\"1362\" height=\"368\" alt=\"02-after-unit-unavailable\"\nsrc=\"https://github.com/user-attachments/assets/f8027a33-54b2-4814-a266-3e0d9d415c35\"\n/>\n\n**After, a unit being deleted.** Gold transient-state badge and a\ndisabled **Shutting Down**, instead of falling through to `Pending`.\n\n<img width=\"1362\" height=\"368\" alt=\"03-after-shutting-down\"\nsrc=\"https://github.com/user-attachments/assets/aad7b5c6-1647-4d04-8d0e-9682ef19dd2c\"\n/>\n\n**After, a crash loop caused by an OOM kill.** The reason names what\nhappened and what to do about it.\n\n<img width=\"1362\" height=\"388\" alt=\"04-after-failed-crashloop-oom\"\nsrc=\"https://github.com/user-attachments/assets/56c4294c-70ec-4590-b8a8-34a6ba88c193\"\n/>\n\n**After, the Form View run button with the socket still connected.**\nThis is the second entry point, which has its own run-button logic. In\nthis exact state it previously fell through to an enabled **Run**; it is\nnow a disabled **Unavailable**.\n\n<img width=\"1494\" height=\"176\" alt=\"05-after-form-view-unavailable\"\nsrc=\"https://github.com/user-attachments/assets/12b0edcd-355d-4693-903c-b49ed4602753\"\n/>\n\nA recovered OOM-killed unit stays green and runnable, but the tooltip\ncarries the out-of-memory warning with the restart count:\n\n<img width=\"550\" height=\"241\" alt=\"Screenshot 2026-08-23 at 1 05 13 AM\"\nsrc=\"https://github.com/user-attachments/assets/555d440c-411a-4b6f-a970-bef3a7ac2555\"\n/>\n\n#### Status vocabulary and reasons\n\n`ComputingUnitState` now explicitly represents `Running`, `Pending`,\n`Failed`, `Unknown`, and `Terminating`; truly unrecognized future status\nstrings retain the existing `Pending` fallback.\n\nThe full mapping from observed pod state to status and authorized\n`statusReason` is:\n\n| Observed pod state | Status | Authorized `statusReason` |\n|---|---|---|\n| `deletionTimestamp` set | `Terminating` | — |\n| phase `Failed` + reason `Evicted`, message mentions ephemeral/disk |\n`Failed` | \"The computing unit was evicted because it ran out of local\ndisk storage. Consider storing less data on the unit's local file\nsystem, or recreate it with more storage.\" |\n| phase `Failed` + reason `Evicted`, other | `Failed` | \"The computing\nunit was evicted by the cluster (\\<first sentence of the cluster\nmessage, capped at 120 chars\\>). Consider recreating it.\" |\n| container waiting `ImagePullBackOff` / `ErrImagePull` /\n`InvalidImageName` | `Failed` | \"The computing unit's image could not be\npulled. Please recreate the unit or contact an administrator.\" |\n| container waiting `CrashLoopBackOff`, last termination `OOMKilled` |\n`Failed` | \"The computing unit keeps crashing because it runs out of\nmemory. Please terminate it and recreate it with a higher memory limit.\"\n|\n| container waiting `CrashLoopBackOff`, other | `Failed` | \"The\ncomputing unit is repeatedly crashing (restarted N times). Please\nterminate and recreate it, or contact an administrator.\" |\n| phase `Failed`, not evicted | `Failed` | \"The computing unit stopped\nunexpectedly. Please terminate and recreate it, or contact an\nadministrator.\" |\n| phase `Unknown` | `Unknown` | \"The state of the computing unit cannot\nbe determined (its node may be unreachable).\" |\n| phase `Pending` + `PodScheduled=False/Unschedulable` condition |\n`Pending` | \"The computing unit is waiting for cluster resources to\nbecome available.\" |\n| phase `Running` + a container's last termination `OOMKilled` |\n`Running` | \"The last run was terminated because the computing unit ran\nout of memory (restarted N times). Consider recreating the unit with a\nhigher memory limit before running the same workload.\" |\n| phase `Running`, healthy | `Running` | — |\n| anything else / pod absent / `local` unit | `Pending` / `Running`\n(unchanged) | — |\n\nPrecedence is top-to-bottom; in particular, a `CrashLoopBackOff` failure\nwins over the recovered-OOM warning, and `Terminating` wins over\neverything.\n\n`statusReason` visibility is independent of ownership: owners receive it\nthrough the regular list and direct lookup, administrators receive it\nfor every row from the dedicated admin-list endpoint without those rows\nbeing marked as owned, and ordinary shared users receive `null` and\ntherefore see generic frontend text.\n\nFrontend fallbacks when `statusReason` is absent are `Running` → \"Ready\nto use\", `Pending` → \"Computing unit is starting up\", `Failed`/`Unknown`\n→ \"This computing unit is unavailable.\", `Terminating` → \"Computing unit\nis shutting down\", and any other value → the status word itself.\n\n#### Backend\n\n- The existing single namespace-level pod listing now yields a\n`PodStatusSnapshot` per pod (phase, deletion timestamp, pod\nreason/message, `Unschedulable` condition, and each container's waiting\nreason, last termination reason, and restart count) via a pure,\nunit-testable transform, with **no additional Kubernetes round trips**.\n- With `restartPolicy: Always`, an OOM-killed container restarts in\nplace and the pod phase never leaves `Running`, so OOM kills are\ndetected through `containerStatuses[].lastState.terminated.reason`; a\nrecovered unit stays `Running` with a warning, while a unit that cannot\nrecover and enters `CrashLoopBackOff` is reported as `Failed`.\n- Vanished-pod reconciliation (#6853/#6854) remains keyed only on pod\npresence, so a present but `Failed` pod is not treated as vanished.\n- `local` units remain always `Running`; local liveness remains outside\nthis PR's scope, as settled in #7670.\n- Dashboard-row construction now receives `canViewStatusReason`\nseparately from `isOwner`, which lets the admin endpoint expose\nactionable reasons while preserving truthful ownership and ordinary\nshared-user suppression.\n- The unused `getComputingUnitStatus` wrapper was removed, and the two\nequivalent `Running` branches were collapsed without changing status\nprecedence or OOM-warning behavior.\n\n#### Frontend\n\n- The dashboard DTO status union and the internal `ComputingUnitState`\nenum both contain all five states, and the status service maps\n`Terminating` explicitly while preserving `Pending` as the fallback for\ngenuinely unrecognized future values.\n- One shared `unavailableComputingUnitReason` utility answers whether a\nunit can never accept work, distinguishing `Terminating` from\n`Failed`/`Unknown`. Both run buttons and the execution service read the\nterminal states from it, so the three cannot drift apart.\n- A selected `Terminating` unit shows a disabled **Shutting Down**\nrun-button state with a loading icon before WebSocket connectivity is\nconsidered; invalid and empty workflow messages retain precedence,\n`Pending` still shows **Connecting**, and `Failed`/`Unknown` still show\n**Unit Unavailable**.\n- The Form View run button, which is a second entry point with its own\nstate logic, gained the same terminal states in the same relative\nposition, shortened to **Shutting Down** and **Unavailable** to match\nits siblings. Its \"connecting\" condition now excludes terminal units,\nwhich would otherwise have spun there for ever, and its Stop branch is\noffered only while the socket can actually deliver the kill.\n- `Failed`/`Unknown` use a red dropdown badge, while\n`Pending`/`Terminating` use gold because both are transient rather than\nfailed states.\n- No state adds a text suffix next to the unit name; status is conveyed\nconsistently through badge color, row tooltip, and run-button behavior\nwithout truncating labels at normal dropdown widths.\n- Each dropdown row has one status-tooltip surface: a `Running` row\nshows its status or recovered-OOM warning, while every non-running row\nappends \"Cannot select.\" without duplicating a trailing period.\n- Row-tooltip composition is now the pure `getComputingUnitRowTooltip`\nutility instead of three component methods, and its punctuation/status\nmatrix is tested in the utility spec.\n- The unreferenced `.unit-disconnected` and `.unit-terminating`\nselectors were removed; the live `.unit-connecting` selector remains\nbound to `Pending` rows.\n- `statusReason` is typed `string | null` on the DTO, which is what\n`Option[String]` through `DefaultScalaModule` actually puts on the wire;\nthe previous optional-only type could not represent it.\n\n#### Refusing work a unit cannot do\n\nNaming a terminal state is not enough on its own, because three of the\nfour run entry points never looked at the unit status: run-up-to from\nthe operator menu, the Time Travel replay, and the Form View run button\nall call `ExecuteWorkflowService` directly, and only the canvas button\nwas gated, by its disabled state alone. On a terminal unit the old flow\nreset the execution state, clearing the results already on screen, and\nthen handed the request to a WebSocket that has no delivery check and no\nerror path, so the user silently lost their previous results and no run\nstarted.\n\n- `ExecuteWorkflowService` gained a guard modelled on the existing\nwarehouse refusal: it is checked at both public entry points, before the\nwarehouse guard and before `resetExecutionState()`, so a refused click\nleaves the screen as it was. The unit is checked first because picking a\nwarehouse cannot rescue a dead unit.\n- The guard reads the same shared utility the two run buttons use, so it\nnever refuses a click that either button allows.\n- In the dropdown, a row the list marks unselectable is no longer\nselectable by clicking it. ng-zorro greys such a row out and calls\n`preventDefault`/`stopPropagation`, but neither cancels the `(click)`\nbinding on the same `<li>`, so a click still selected the unit. Since\nthe per-workflow selection is now remembered, that stray selection was\nalso written to storage and restored on every later load, because the\nrecall path only checks that the remembered `cuid` still exists, never\nits status. The guard lives in a row-only handler rather than in the\nshared selection method, which the creation flow also calls with a\nfreshly created and therefore `Pending` unit.\n\n### Any related issues, documentation, discussions?\n\nCloses #7669.\n\nThe status vocabulary, reason visibility, and no-auto-recovery policy\nwere discussed in #7670; administrator reason visibility and the review\ncleanups address feedback on this PR. The run-entry-point guard and the\nForm View run button address the Copilot review on this PR, which\nobserved that the new states reached only `MenuComponent`.\n\n### How was this PR tested?\n\n- TDD covers every backend decision-table row with `PodBuilder`-built\npods through the pure snapshot and mapping functions, including both\neviction wordings, all three image-pull reasons, crash loops with and\nwithout OOM history, crash-loop precedence over recovered OOM,\nmulti-container pods, authorization gating, and the absent-pod path used\nby creation polling; fabric8 null guards for `status`, `conditions`,\n`containerStatuses`, `state`, `lastState`, and `terminated` have\ndedicated coverage.\n- Additional edge cases cover Terminating precedence over eviction and\nstatus-less pods, eviction-message\ntruncation/whitespace/case-insensitivity, mixed multi-container pods,\nstale/malformed `Unschedulable` conditions, image-pull precedence over\ncrash loops, empty `statusReason` fallback behavior, and the pinned\n`Succeeded` → `Pending` behavior.\n- The refusal guard is pinned per entry point: a terminating, `Failed`\nor `Unknown` unit is refused, nothing reaches the WebSocket, and the\nexecution state is **not** reset, so a test fails if the guard is ever\nmoved after the reset. `Running` and `Pending` units still run, and a\nworkflow with no unit selected at all still runs and keeps the existing\nwarning.\n- The Form View button is pinned for both terminal labels with the\nsocket up and down, for invalid and empty workflows keeping precedence\nover a terminal unit, for a terminal unit being named ahead of a missing\nwarehouse, for `Pending` still saying Connecting, and for Stop being\nwithheld when it could not be delivered.\n- The dropdown row is pinned for a refused click on a `Failed`,\n`Unknown`, `Terminating` and `Pending` row, and for a `Running` row\nstill being selected and remembered; creating a unit, which arrives\n`Pending`, is pinned as still being selected.\n- Mutation checks confirmed that swapping precedence, mapping Evicted to\nPending, removing wording branches, hardcoding restart counts, bypassing\nreason authorization, mapping absent pods to Unknown, or removing\nrun-button terminal-state branches causes tests to fail. A further\ntwenty mutations on the shared utility, the refusal guard, the Form View\nbranch, the Stop condition and the row handler were each killed by at\nleast one test, with no survivors.\n- Backend: `ComputingUnitManagingService / Test` passes 238/238.\n- Frontend: the five affected specs pass 626/626 with\n`NODE_OPTIONS=\"--no-experimental-webstorage\" npx ng test --watch=false\n--include src/app/common/util/computing-unit.util.spec.ts --include\nsrc/app/workspace/service/execute-workflow/execute-workflow.service.spec.ts\n--include\nsrc/app/workspace/component/workflow-form/workflow-form.component.spec.ts\n--include src/app/workspace/component/menu/menu.component.spec.ts\n--include\nsrc/app/workspace/component/power-button/computing-unit-selection.component.spec.ts`.\nThe whole frontend suite is green under the same flag; without it, local\nNode 25 shadows jsdom's `localStorage` and the suite is both noisy and\nnon-deterministic, which CI does not hit because it pins Node 24.\n- Type checking passed with `tsc --noEmit`, Scala and frontend\nformatting checks passed, scoped frontend ESLint passed, and `git diff\n--check` passed.\n- Manual verification in Chrome with response overrides on both\ncomputing-unit polling endpoints: switching a unit's status between\n`Running`, `Pending`, `Terminating`, `Failed` and `Unknown` produces the\nbadge colour, row tooltip and run-button state described above. Click\npath: open a workflow in the workspace, open the computing-unit picker\nin the toolbar, override the array response for the dropdown rows and\nthe single-unit response for the run button, then observe both within\none polling interval.\n\n`Option[String] → null` serialization relies on `DefaultScalaModule`\nregistered on the service's Dropwizard `ObjectMapper`; there is no\nend-to-end JSON serialization test for the field, though the DTO type\nnow admits `null` and both consumers treat it as absent.\n\nA bare pod in phase `Succeeded` still maps to `Pending`, which is pinned\nby a test and practically unreachable under `restartPolicy: Always`.\n\nFollow-ups intentionally outside this PR's scope remain a frontend\ntimeout for the \"pod Running but engine unreachable\" zombie case, UX for\nsilent vanish reconciliation, and `local` computing-unit liveness.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nCo-authored by: Claude Code (Claude Fable 5)",
+          "timestamp": "2026-09-26T05:25:24Z",
+          "url": "https://github.com/apache/texera/commit/33bd07bf27648870ecaf54da0d24c85763186cda"
+        },
+        "date": 1790427981494,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 17407.954,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 22934.868,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 29397.503,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 91993.033,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 102439.461,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 109548.547,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 874121.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 906673.262,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 920864.745,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11863.22,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 15317.454,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 20091.108,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 88835.933,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 95300.763,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 105349.285,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 875778.595,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 910911.689,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 926351.696,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 11678.301,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14684.073,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 18148.724,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 90216.439,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 97183.258,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 101432.791,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 874298.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 909569.655,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 933486.87,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 13925.263,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 18220.066,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 20703.616,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 111199.199,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 119035.151,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 136192.308,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1083645.857,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1124957.998,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1141427.024,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 13231.391,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 15735.608,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 20194.118,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 110348.379,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 115876.767,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 117170.999,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1082326.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1120666.863,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1147036.232,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 13332.906,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 15505.464,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 19038.067,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 111131.573,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 117376.074,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 129930.83,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1090207.04,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1136136.474,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1180815.845,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 22602.345,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 24381.28,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 29215.298,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 190469.905,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 199043.998,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 230382.414,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1901209.7,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1947113.142,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2008047.385,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 22011.501,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 22908.007,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 25328.116,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 190980.004,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 197686.791,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 210812.83,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1903102.56,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1943535.742,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1976441.711,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 22997.811,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 26535.493,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 34369.216,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 199335.13,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 206614.934,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 217047.74,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1979119.866,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2017831.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2041153.236,
             "unit": "us"
           }
         ]
