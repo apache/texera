@@ -25,7 +25,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,6 +38,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   /** An EncodableString field renders as a runtime decode site in the emitted code. */
   private val decodeSite = "self.decode_python_template"
@@ -378,7 +382,7 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       |        print("CASE %s REFUSED %s" % (cid, e))
       |""".stripMargin
 
-  it should "score the rows it can and refuse a table that keeps none of them" in {
+  it should "score the rows it can and refuse a table that keeps none of them" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
