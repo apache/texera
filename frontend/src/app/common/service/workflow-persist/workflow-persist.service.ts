@@ -26,10 +26,7 @@ import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
-import {
-  DEFAULT_WORKFLOW,
-  WorkflowActionService,
-} from "../../../workspace/service/workflow-graph/model/workflow-action.service";
+import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
@@ -78,7 +75,11 @@ export class WorkflowPersistService {
    * sent for, which may be older than an edit made since. Callers feed the response back as the
    * workflow's metadata; without this, a rename made while a save was out came back undone.
    */
-  private readonly persistQueue = new Subject<{ send: Observable<Workflow>; result: Subject<Workflow> }>();
+  private readonly persistQueue = new Subject<{
+    send: Observable<Workflow>;
+    result: Subject<Workflow>;
+    sentWid: number | undefined;
+  }>();
 
   /** Saves asked for and not yet answered (or failed); see whenSavesDrained. */
   private pendingSaves = 0;
@@ -93,9 +94,9 @@ export class WorkflowPersistService {
   ) {
     this.persistQueue
       .pipe(
-        concatMap(({ send, result }) =>
+        concatMap(({ send, result, sentWid }) =>
           send.pipe(
-            map(updated => this.withLocalEdits(updated)),
+            map(updated => this.withLocalEdits(updated, sentWid)),
             tap({
               next: updated => result.next(updated),
               error: (err: unknown) => result.error(err),
@@ -129,13 +130,17 @@ export class WorkflowPersistService {
 
   /**
    * The response with the page's current name and description: a response carries the values the
-   * save was sent with, and an edit made since would be undone by feeding them back. Left alone when
-   * another workflow is open by now (nothing local belongs to this response); a workflow just created
-   * still carries the default id locally, and its rename made meanwhile is kept too.
+   * save was sent with, and an edit made since would be undone by feeding them back.
+   *
+   * Only for a response that is the page's, which is one whose save went out with the id the page
+   * still holds: the open workflow's, or the default id of a workflow this very save created and
+   * the page still holds under it. Left alone otherwise: another workflow is open by now, or the
+   * page was cleared meanwhile (clearWorkflow puts the default id back, but this save went out with
+   * the real one). Nothing local belongs to those.
    */
-  private withLocalEdits(response: Workflow): Workflow {
+  private withLocalEdits(response: Workflow, sentWid: number | undefined): Workflow {
     const current = this.injector.get(WorkflowActionService).getWorkflowMetadata();
-    if (current.wid !== response.wid && current.wid !== DEFAULT_WORKFLOW.wid) {
+    if (current.wid !== sentWid) {
       return response;
     }
     return { ...response, name: current.name, description: current.description };
@@ -173,7 +178,7 @@ export class WorkflowPersistService {
     // save that was quick, or a synchronous test double) still receives it.
     const result = new ReplaySubject<Workflow>(1);
     this.pendingSaves += 1;
-    this.persistQueue.next({ send, result });
+    this.persistQueue.next({ send, result, sentWid: workflow.wid });
     return result.asObservable();
   }
 

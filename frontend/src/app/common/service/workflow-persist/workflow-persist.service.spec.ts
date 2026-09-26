@@ -307,6 +307,21 @@ describe("WorkflowPersistService", () => {
 
         expect(result?.name).toBe("old");
       });
+
+      it("leaves the response alone when the page was cleared while its save was out", () => {
+        // clearWorkflow puts the default metadata back, so the page holds the default id like a
+        // just-created workflow does; the save went out with the real id, which tells them apart.
+        currentMetadata = { wid: 0, name: "Untitled Workflow", description: undefined };
+        let result: Workflow | undefined;
+        service.persistWorkflow(wf("old")).subscribe(w => (result = w));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "old", description: "d1", content: "{}" });
+
+        expect(result?.name).toBe("old");
+        expect(result?.description).toBe("d1");
+      });
     });
 
     describe("whenSavesDrained", () => {
