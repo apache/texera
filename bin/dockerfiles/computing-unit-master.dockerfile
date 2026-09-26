@@ -105,7 +105,7 @@ RUN apt-get update && apt-get install -y \
 # Install Python packages
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
-    pip3 install -r /tmp/operator-requirements.txt
+    pip3 install -c /tmp/requirements.txt -r /tmp/operator-requirements.txt
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/.git /texera/amber/.git

@@ -435,8 +435,8 @@ jobs:
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/operator-requirements.txt; fi
-          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/dev-requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -c amber/requirements.txt -r amber/operator-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -c amber/requirements.txt -r amber/dev-requirements.txt; fi
       - name: Install protoc
         # Linux pins protoc to the version in bin/protoc-version.txt via
         # the upstream release zip. macOS uses brew's arm64-native
@@ -1168,7 +1168,7 @@ jobs:
             install="uv pip install --system --index-strategy unsafe-best-match"
           fi
           if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then $install -c amber/requirements.txt -r amber/operator-requirements.txt; fi
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
@@ -1186,7 +1186,7 @@ jobs:
         # is safe here regardless of leg because it runs post-snapshot.
         run: |
           python -m pip install uv
-          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -c amber/requirements.txt -r amber/dev-requirements.txt; fi
       - name: Lint with Ruff
         # ruff comes from dev-requirements.txt, so this must run after the
         # dev-dependency install above.
@@ -1353,7 +1353,7 @@ jobs:
         # instructions ends up with the TUI working.
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r amber/dev-requirements.txt
+          python -m pip install -c amber/requirements.txt -r amber/dev-requirements.txt
       - name: Run shell smoke tests
         # Discover + run every `test_*.sh` under bin/ and .github/scripts/. New
         # shell test suites picked up automatically — no edits to this workflow.
