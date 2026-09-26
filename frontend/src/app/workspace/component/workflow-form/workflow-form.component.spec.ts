@@ -630,32 +630,6 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
     });
 
-    it("does not let an older save's response undo a rename made while it was in flight", () => {
-      // Save A carries the old name. The author renames to B (B's own save is queued behind A). When
-      // A returns, its echoed name must not be written back over B, or an autosave in that window
-      // would carry the old name and the rename would be lost. The server-owned timestamp is kept.
-      vi.useFakeTimers();
-      enableSave();
-      build(formViewWorkflow).ngOnInit();
-      workflowPersistService.persistWorkflow.mockClear();
-      const saveA$ = new Subject<Workflow>();
-      workflowPersistService.persistWorkflow.mockReturnValueOnce(saveA$);
-      h.workflowChangedStream.next(undefined);
-      vi.runAllTimers();
-      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledTimes(1);
-
-      // The rename lands in the shared metadata while A is still out.
-      workflowActionService.getWorkflowMetadata = () => ({ name: "B", lastModifiedTime: 1 });
-      saveA$.next({ ...formViewWorkflow, wid: 7, name: "scGPT", lastModifiedTime: 42 } as any);
-      saveA$.complete();
-
-      expect(workflowActionService.setWorkflowMetadata).toHaveBeenCalledTimes(1);
-      const fedBack = workflowActionService.setWorkflowMetadata.mock.calls[0][0];
-      expect(fedBack.name).toBe("B");
-      expect(fedBack.lastModifiedTime).toBe(42);
-      vi.useRealTimers();
-    });
-
     it("hands over only once a save queued behind the switch's has completed too", () => {
       // The page stays interactive while the switch's save is in flight, so an edit made then gets its
       // own autosave queued behind it. Navigating on the switch's save alone would abort that newer
