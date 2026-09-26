@@ -23,7 +23,9 @@ import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,6 +35,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   "GaugeChartOpDesc.operatorInfo" should
     "advertise the name and Financial visualization group" in {
@@ -137,7 +141,7 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
   // a page. Without the same catch, a column that is not in the table reaches
   // pandas as a KeyError and ends the whole exported run, not just this chart.
   "GaugeChartOpDesc.generateStandaloneCode" should
-    "answer what it cannot draw the way the operator answers it" in {
+    "answer what it cannot draw the way the operator answers it" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

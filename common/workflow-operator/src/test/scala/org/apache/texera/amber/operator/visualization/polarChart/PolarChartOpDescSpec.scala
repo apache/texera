@@ -23,7 +23,9 @@ import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,6 +35,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   "PolarChartOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -82,7 +86,7 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
   // A source read from Arrow hands over nullable dtypes such as Int64, which
   // np.issubdtype cannot interpret; the check must draw them, not raise.
   "PolarChartOpDesc.generateStandaloneCode" should
-    "draw nullable numeric columns and refuse non-numeric ones" in {
+    "draw nullable numeric columns and refuse non-numeric ones" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
