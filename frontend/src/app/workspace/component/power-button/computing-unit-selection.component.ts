@@ -50,7 +50,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
-  getComputingUnitStatusTooltip,
+  getComputingUnitRowTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
@@ -138,6 +138,8 @@ type PveDraft = {
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  readonly getRowTooltip = getComputingUnitRowTooltip;
+
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
@@ -454,6 +456,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
     this.selectComputingUnit(this.workflowId, cuid);
     this.rememberComputingUnit(this.workflowId, cuid);
+  }
+
+  /**
+   * Click handler for a dropdown row. nzDisabled only greys the row out; it does not stop this
+   * (click) on the same <li>, so without this check a disabled unit could still be selected.
+   *
+   * Not inside onPickComputingUnit on purpose: creating a unit also calls that, and a new unit is
+   * Pending, so a guard there would stop new units from being selected.
+   */
+  public onClickComputingUnitRow(unit: DashboardWorkflowComputingUnit): void {
+    if (this.cannotSelectUnit(unit)) {
+      return;
+    }
+    this.onPickComputingUnit(unit);
   }
 
   /**
@@ -876,13 +892,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
     return getComputingUnitMemoryStatus(this.getMemoryPercentage());
-  }
-
-  /**
-   * Returns a descriptive tooltip for a specific unit's status
-   */
-  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return getComputingUnitStatusTooltip(unit);
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {

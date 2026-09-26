@@ -50,6 +50,7 @@ import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
@@ -408,6 +409,26 @@ export class MenuComponent implements OnInit, OnDestroy {
       return {
         text: "Empty Workflow",
         icon: "info-circle",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
+    // Checked before the "Connecting" branch below, which would otherwise spin forever:
+    // these units are not coming back.
+    const unavailableReason = unavailableComputingUnitReason(this.computingUnitStatus);
+    if (unavailableReason === "terminating") {
+      return {
+        text: "Shutting Down",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+    if (unavailableReason === "unavailable") {
+      return {
+        text: "Unit Unavailable",
+        icon: "warning",
         disable: true,
         onClick: () => {},
       };

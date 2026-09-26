@@ -40,6 +40,7 @@ import { EditableLabelWrapperComponent } from "../../../common/formly/editable-l
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -1562,10 +1563,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * A unit is picked but its socket is still coming up -- the same window the operator canvas shows
    * "Connecting" and disables its run button. Read from the exact condition the canvas uses
    * (menu.component's getRunButtonBehavior), so the two stay in step.
+   *
+   * Terminal units are excluded: they are not coming back, so runButtonState names them instead.
    */
   public get isConnecting(): boolean {
     return (
-      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected
+      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit &&
+      unavailableComputingUnitReason(this.computingUnitStatus) === undefined &&
+      !this.workflowWebsocketService.isConnected
     );
   }
 
@@ -1596,6 +1601,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * to Run and Stop, with no pause/resume: while a run is in flight the button stops (kills) it,
    * otherwise it runs. (The canvas offers Pause/Resume/Submitting and a clickable Connect; a form
    * reader does not, and picks the unit in the embedded selector instead.)
+   *
+   * A unit that cannot accept work also disables it, named as on the canvas via
+   * unavailableComputingUnitReason but with shorter labels. One difference: mid-run the canvas shows
+   * "Shutting Down", but here Stop wins while the socket can still deliver it, because Stop is this
+   * button's only run control.
    */
   public get runButtonState(): { label: string; icon: string; disabled: boolean } {
     // Connecting is checked before Stop on purpose: if the socket drops mid-run, a "Stop" would
@@ -1604,7 +1614,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.isConnecting) {
       return { label: "Connecting", icon: "loading", disabled: true };
     }
-    if (this.isRunning) {
+    // Stop is shown only while the socket can deliver the kill. A run on a unit that died or
+    // vanished mid-run falls through, so a later branch names the problem.
+    if (this.isRunning && this.workflowWebsocketService.isConnected) {
       return { label: "Stop", icon: "stop", disabled: false };
     }
     if (!this.isWorkflowValid) {
@@ -1612,6 +1624,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
     if (this.isWorkflowEmpty) {
       return { label: "Empty", icon: "info-circle", disabled: true };
+    }
+    // Before the access and warehouse checks: neither can fix a dead unit.
+    const unavailableReason = unavailableComputingUnitReason(this.computingUnitStatus);
+    if (unavailableReason === "terminating") {
+      return { label: "Shutting Down", icon: "loading", disabled: true };
+    }
+    if (unavailableReason === "unavailable") {
+      return { label: "Unavailable", icon: "warning", disabled: true };
     }
     if (this.hasNoComputingUnit) {
       return { label: "Computing Unit", icon: "plus-circle", disabled: true };

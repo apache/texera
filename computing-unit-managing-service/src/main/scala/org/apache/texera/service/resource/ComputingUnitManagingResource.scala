@@ -439,6 +439,9 @@ object ComputingUnitManagingResource {
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       status: String,
+      // User-friendly explanation of a failing/degraded status; serialized as null when there is
+      // nothing to explain or the endpoint does not authorize the caller to view it.
+      statusReason: Option[String],
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
       accessPrivilege: EnumType,
@@ -744,9 +747,13 @@ class ComputingUnitManagingResource {
         }
       }
 
+      // The creator is always the owner, so the status reason is never withheld here.
+      val (status, statusReason) =
+        ComputingUnitHelpers.getComputingUnitStatusWithReason(insertedUnit)
       DashboardWorkflowComputingUnit(
         insertedUnit,
-        ComputingUnitHelpers.getComputingUnitStatus(insertedUnit).toString,
+        status.toString,
+        statusReason,
         ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
@@ -812,14 +819,14 @@ class ComputingUnitManagingResource {
       }.toMap
       val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
 
-      // Pod phases decide which Kubernetes units are still alive.
-      val podPhases = ComputingUnitHelpers.podPhasesFor(candidateUnits)
+      // Pod snapshots decide which Kubernetes units are still alive (by pod-name presence).
+      val podSnapshots = ComputingUnitHelpers.podSnapshotsFor(candidateUnits)
 
       val liveUnits =
         ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
           computingUnitDao,
           candidateUnits,
-          podPhases
+          podSnapshots
         )
 
       // Metrics only for survivors, so fetch after reconciliation.
@@ -829,12 +836,14 @@ class ComputingUnitManagingResource {
         ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
 
       liveUnits.map { unit =>
+        val isOwner = unit.getUid.equals(uid)
         ComputingUnitHelpers.buildDashboardUnit(
           unit,
-          isOwner = unit.getUid.equals(uid),
+          isOwner = isOwner,
+          canViewStatusReason = isOwner,
           accessPrivilege = privilegeByCuid(unit.getCuid),
           ownerInfo = ownerInfoMap,
-          podPhases = podPhases,
+          podSnapshots = podSnapshots,
           podMetrics = podMetrics
         )
       }
@@ -864,11 +873,17 @@ class ComputingUnitManagingResource {
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
+    val isOwner = unit.getUid.equals(user.getUid)
+    val (status, statusReason) = ComputingUnitHelpers.getComputingUnitStatusWithReason(unit)
+
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
-      status = ComputingUnitHelpers.getComputingUnitStatus(unit).toString,
+      status = status.toString,
+      // The direct and regular-user listing endpoints remain owner-gated; the separate admin
+      // listing authorizes administrators to view reasons without marking them as owners.
+      statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
-      isOwner = unit.getUid.equals(user.getUid),
+      isOwner = isOwner,
       accessPrivilege = {
         val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
         val access = cuAccessDao

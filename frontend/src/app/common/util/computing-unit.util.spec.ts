@@ -20,8 +20,10 @@
 import { TestBed, ComponentFixture } from "@angular/core/testing";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import type { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
+import { ComputingUnitState } from "../type/computing-unit-connection.interface";
 import {
   ComputingUnitMetadataComponent,
+  unavailableComputingUnitReason,
   parseResourceUnit,
   parseResourceNumber,
   cpuResourceConversion,
@@ -30,6 +32,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
+  getComputingUnitRowTooltip,
   getComputingUnitStatusTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
@@ -188,8 +191,45 @@ describe("getComputingUnitBadgeColor", () => {
     expect(getComputingUnitBadgeColor("Pending")).toBe("gold");
   });
 
+  it("should keep a terminating unit gold (transient, not broken)", () => {
+    expect(getComputingUnitBadgeColor("Terminating")).toBe("gold");
+  });
+
+  it("should mark failure states red", () => {
+    expect(getComputingUnitBadgeColor("Failed")).toBe("red");
+    expect(getComputingUnitBadgeColor("Unknown")).toBe("red");
+  });
+
   it("should default to red for unknown statuses", () => {
     expect(getComputingUnitBadgeColor("Terminated")).toBe("red");
+  });
+});
+
+describe("unavailableComputingUnitReason", () => {
+  it("names a shutting-down unit separately from a dead one", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Terminating)).toBe("terminating");
+  });
+
+  it("reports a unit that can never come back as unavailable", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Failed)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(ComputingUnitState.Unknown)).toBe("unavailable");
+  });
+
+  it("reports no reason for a unit that can still accept work, or for no unit at all", () => {
+    expect(unavailableComputingUnitReason(ComputingUnitState.Running)).toBeUndefined();
+    // Pending is still starting up, so it must not be blocked.
+    expect(unavailableComputingUnitReason(ComputingUnitState.Pending)).toBeUndefined();
+    expect(unavailableComputingUnitReason(ComputingUnitState.NoComputingUnit)).toBeUndefined();
+    expect(unavailableComputingUnitReason(undefined)).toBeUndefined();
+  });
+
+  it("reads a dashboard unit's own status field, not only the connection enum", () => {
+    // The enum and the DTO string share the same values, so one helper serves both.
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Terminating" }).status)).toBe("terminating");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Failed" }).status)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Unknown" }).status)).toBe("unavailable");
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Running" }).status)).toBeUndefined();
+    expect(unavailableComputingUnitReason(makeUnit({ status: "Pending" }).status)).toBeUndefined();
   });
 });
 
@@ -203,9 +243,94 @@ describe("getComputingUnitStatusTooltip", () => {
     );
   });
 
+  it("should show the backend's status reason whenever one is present", () => {
+    // An authorized viewer's reason is already user-friendly, so it wins over every canned text:
+    // a failure explanation, a Pending unschedulable note, or a Running recovered-OOM warning.
+    expect(
+      getComputingUnitStatusTooltip({
+        status: "Failed",
+        statusReason: "The computing unit keeps crashing because it runs out of memory.",
+      } as unknown as DashboardWorkflowComputingUnit)
+    ).toBe("The computing unit keeps crashing because it runs out of memory.");
+    expect(
+      getComputingUnitStatusTooltip({
+        status: "Running",
+        statusReason: "The last run was terminated because the computing unit ran out of memory.",
+      } as unknown as DashboardWorkflowComputingUnit)
+    ).toBe("The last run was terminated because the computing unit ran out of memory.");
+    expect(
+      getComputingUnitStatusTooltip({
+        status: "Pending",
+        statusReason: "The computing unit is waiting for cluster resources to become available.",
+      } as unknown as DashboardWorkflowComputingUnit)
+    ).toBe("The computing unit is waiting for cluster resources to become available.");
+  });
+
+  it("should show a generic unavailable message for reason-less failure states", () => {
+    expect(getComputingUnitStatusTooltip({ status: "Failed" } as unknown as DashboardWorkflowComputingUnit)).toBe(
+      "This computing unit is unavailable."
+    );
+    expect(getComputingUnitStatusTooltip({ status: "Unknown" } as unknown as DashboardWorkflowComputingUnit)).toBe(
+      "This computing unit is unavailable."
+    );
+  });
+
+  it("should not let an empty-string statusReason shadow the canned fallback", () => {
+    // The backend omits the reason (undefined) for ordinary shared users, but an empty string
+    // must behave the same way: it is falsy, so the status switch still decides the text.
+    expect(
+      getComputingUnitStatusTooltip({
+        status: "Failed",
+        statusReason: "",
+      } as unknown as DashboardWorkflowComputingUnit)
+    ).toBe("This computing unit is unavailable.");
+  });
+
+  it("should fall back to the canned text when the backend sends a null status reason", () => {
+    // The backend sends a missing reason as null, which must fall back just like undefined.
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Failed", statusReason: null }))).toBe(
+      "This computing unit is unavailable."
+    );
+    expect(getComputingUnitStatusTooltip(makeUnit({ status: "Pending", statusReason: null }))).toBe(
+      "Computing unit is starting up"
+    );
+  });
+
   it("should fall back to the raw status for unknown statuses", () => {
     expect(getComputingUnitStatusTooltip({ status: "Terminated" } as unknown as DashboardWorkflowComputingUnit)).toBe(
       "Terminated"
+    );
+    // Terminating is the one transient state with its own canned text, so the raw
+    // enum word never reaches the user.
+    expect(getComputingUnitStatusTooltip({ status: "Terminating" } as unknown as DashboardWorkflowComputingUnit)).toBe(
+      "Computing unit is shutting down"
+    );
+  });
+});
+
+describe("getComputingUnitRowTooltip", () => {
+  it("should show only the status tooltip for a selectable running unit", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Running" }))).toBe("Ready to use");
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Running", statusReason: "OOM warning." }))).toBe(
+      "OOM warning."
+    );
+  });
+
+  it("should explain why a non-running unit cannot be selected without doubling punctuation", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Pending" }))).toBe(
+      "Computing unit is starting up. Cannot select."
+    );
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed" }))).toBe(
+      "This computing unit is unavailable. Cannot select."
+    );
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed", statusReason: "Crash loop detected." }))).toBe(
+      "Crash loop detected. Cannot select."
+    );
+  });
+
+  it("should fall back to the canned text when the backend sends a null status reason", () => {
+    expect(getComputingUnitRowTooltip(makeUnit({ status: "Failed", statusReason: null }))).toBe(
+      "This computing unit is unavailable. Cannot select."
     );
   });
 });
