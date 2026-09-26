@@ -16,7 +16,7 @@
 // under the License.
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.7")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.9")
 // Coverage instrumentation; emits jacoco.xml that Codecov consumes.
 // JaCoCo (vs scoverage) works on JVM bytecode, so it does not need a
 // per-Scala-version compiler plugin — scalac-scoverage-plugin only
