@@ -79,6 +79,7 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
 import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.parquet.ParquetScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
@@ -273,6 +274,7 @@ trait StateTransferFunc
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
+    new Type(value = classOf[ParquetScanSourceOpDesc], name = "ParquetFileScan"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),
