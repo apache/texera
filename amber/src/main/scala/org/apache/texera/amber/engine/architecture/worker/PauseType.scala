@@ -25,8 +25,6 @@ sealed trait PauseType
 
 object UserPause extends PauseType
 
-object BackpressurePause extends PauseType
-
 object OperatorLogicPause extends PauseType
 
 case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType
