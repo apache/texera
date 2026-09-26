@@ -381,10 +381,14 @@ object RegexTransformHandler extends TransformHandler {
   }
 }
 
-/** HashJoin INNER on `id`. Build (port 0) and probe (port 1) intentionally
-  *  arrive in different id orders so any probe-major / left-major mismatch
-  *  between the JVM emit and `pd.merge` shows up. HashJoin inherits the
-  *  unordered `LogicalOp.orderSensitive` default, so rows compare as a set.
+/** HashJoin on `id` over the shared table, whose two ports overlap in five of
+  * their ten rows and hold them in different id orders. Each side keeps five rows
+  * the other lacks, so the swept join types part from one another, and every
+  * column but the key collides. HashJoin inherits the unordered
+  * `LogicalOp.orderSensitive` default, so rows compare as a set.
+  *
+  * The handler exists for its [[extraScenarios]]; the config it pins is the one
+  * the auto tier would pick.
   */
 object HashJoinTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[HashJoinOpDesc[_]]
@@ -393,56 +397,14 @@ object HashJoinTransformHandler extends TransformHandler {
     * the run would be asking about an inner join that finds nothing rather than
     * about a null. The payload columns carry no arrangement and take the holes.
     */
-  override def nullsKeepFilled: Option[Set[String]] = Some(Set("a\"b\\c_id"))
+  override def nullsKeepFilled: Option[Set[String]] = Some(Set("id"))
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val buildSchema = new Schema(
-      new Attribute("a\"b\\c_id", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
-    val probeSchema = new Schema(
-      new Attribute("a\"b\\c_id", AttributeType.INTEGER),
-      new Attribute("score", AttributeType.INTEGER)
-    )
-
-    def buildTup(id: Int, name: String): Tuple = {
-      val b = Tuple.builder(buildSchema)
-      b.add(buildSchema.getAttribute("a\"b\\c_id"), Int.box(id))
-      b.add(buildSchema.getAttribute("name"), name)
-      b.build()
-    }
-    def probeTup(id: Int, score: Int): Tuple = {
-      val b = Tuple.builder(probeSchema)
-      b.add(probeSchema.getAttribute("a\"b\\c_id"), Int.box(id))
-      b.add(probeSchema.getAttribute("score"), Int.box(score))
-      b.build()
-    }
-
-    val buildRows = Seq(
-      buildTup(3, "carol"),
-      buildTup(1, "alice"),
-      buildTup(5, "eve"),
-      buildTup(2, "bob"),
-      buildTup(4, "dave")
-    )
-    val probeRows = Seq(
-      probeTup(1, 95),
-      probeTup(2, 80),
-      probeTup(3, 88),
-      probeTup(4, 72),
-      probeTup(5, 91)
-    )
-    val buildPath = testRoot.resolve("input_port_0.jsonl")
-    val probePath = testRoot.resolve("input_port_1.jsonl")
-    TupleIO.writeTuples(buildPath, buildRows.iterator, buildSchema)
-    TupleIO.writeTuples(probePath, probeRows.iterator, probeSchema)
-
     val desc = new HashJoinOpDesc[Integer]()
-    desc.buildAttributeName = "a\"b\\c_id"
-    desc.probeAttributeName = "a\"b\\c_id"
+    desc.buildAttributeName = "id"
+    desc.probeAttributeName = "id"
     desc.joinType = JoinType.INNER
-
-    (desc, Map(PortIdentity(0) -> buildPath, PortIdentity(1) -> probePath))
+    (desc, CanonicalFixture.writeInputs(testRoot, 2))
   }
 
   private type Columns = Seq[(String, AttributeType)]
@@ -476,7 +438,8 @@ object HashJoinTransformHandler extends TransformHandler {
 
   /** The tables the default one cannot be: names that collide once, twice, or
     * with the key being set aside, and outer joins whose unmatched rows leave
-    * holes in integer columns or carry a column the left side also names.
+    * holes in integer columns or carry a column the left side also names, or
+    * carry a key that the left key or a left payload names.
     *
     * A missing key beside a NaN one is not among them. The script reads a double
     * column into float64, where the two are already one value before the
@@ -539,6 +502,24 @@ object HashJoinTransformHandler extends TransformHandler {
         (Seq("kk" -> INTEGER, "x" -> DOUBLE), Seq(Seq(1, 1.5), Seq(3, 2.5))),
         "k",
         "kk",
+        JoinType.FULL_OUTER
+      ),
+      scenario(
+        testRoot,
+        "outer join over keys both sides name alike",
+        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10), Seq(2, 20))),
+        (Seq("k" -> INTEGER, "y" -> INTEGER), Seq(Seq(1, 30), Seq(3, 40))),
+        "k",
+        "k",
+        JoinType.FULL_OUTER
+      ),
+      scenario(
+        testRoot,
+        "outer join whose right key a left payload names",
+        (Seq("id" -> INTEGER, "key" -> STRING), Seq(Seq(1, "payload"), Seq(2, "kept"))),
+        (Seq("key" -> INTEGER, "value" -> INTEGER), Seq(Seq(1, 9), Seq(3, 8))),
+        "id",
+        "key",
         JoinType.FULL_OUTER
       )
     )
