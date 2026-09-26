@@ -17,5 +17,16 @@
  * under the License.
  */
 
-@use "../../../section-style" as *;
-@use "../../../dashboard.component.scss" as *;
+.resource-value-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.resource-value-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

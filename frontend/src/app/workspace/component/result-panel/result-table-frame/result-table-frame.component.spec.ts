@@ -31,6 +31,8 @@ import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 import {
   OperatorPaginationResultService,
@@ -91,6 +93,13 @@ describe("ResultTableFrameComponent", () => {
   });
 
   const queryParams = (pageIndex: number): NzTableQueryParams => ({ pageIndex, pageSize: 5, sort: [], filter: [] });
+
+  // `commonTestProviders` supplies MockGuiConfigService, which is what the component receives,
+  // so the deployment's export switch is driven through it.
+  const setExport = (enabled: boolean): void =>
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      exportExecutionResultEnabled: enabled,
+    });
 
   // Re-creates the component so spies installed on service streams are picked up by ngOnInit.
   // Destroys the fixture created in beforeEach (or a prior recreate) first so its
@@ -612,6 +621,7 @@ describe("ResultTableFrameComponent", () => {
   describe("downloadData", () => {
     it("opens the export modal for the clicked cell's absolute row index", () => {
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = "op1";
       component.currentPageIndex = 2;
       component.pageSize = 5;
 
@@ -624,6 +634,45 @@ describe("ResultTableFrameComponent", () => {
       expect(config.nzData).toEqual(
         expect.objectContaining({ exportType: "data", defaultFileName: "name_6", rowIndex: 6, columnIndex: 3 })
       );
+    });
+
+    // The export otherwise scopes itself to whatever the canvas has selected, which answers a
+    // different question: what the user picked, not what this frame shows. The frame also mounts
+    // on the Form View, where nothing is selected until the user clicks a step, so the export
+    // found an empty scope and did nothing.
+    it("names the operator whose results it is showing, so the export has a scope", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = "op1";
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ operatorIds: ["op1"] }));
+    });
+
+    // `getWorkflowMetadata` is a method: read without calling it, `.name` is the function's own
+    // name, so every export carried the string "getWorkflowMetadata" as the workflow's name.
+    it("carries the workflow's real name, not the name of the accessor", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      vi.spyOn(TestBed.inject(WorkflowActionService), "getWorkflowMetadata").mockReturnValue({
+        name: "scGPT",
+      } as any);
+      component.operatorId = "op1";
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ workflowName: "scGPT" }));
+    });
+
+    // A cell belongs to the operator whose results the frame shows. With no operator there is
+    // nothing to scope an export to, and opening the dialog would only let the reader press
+    // buttons that export nothing.
+    it("does not open the dialog at all when the frame has no operator", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = undefined;
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -688,6 +737,8 @@ describe("ResultTableFrameComponent", () => {
     });
 
     it("renders headers, per-column stats, and clickable row cells once results arrive", () => {
+      // The download click below needs a rendered button, and the button is gated on the switch.
+      setExport(true);
       component.operatorId = "op1";
       component.setupResultTable([SAMPLE_ROW], 1);
       component.isFrontPagination = false;
@@ -735,6 +786,29 @@ describe("ResultTableFrameComponent", () => {
       const download = fixture.debugElement.query(By.css("button.download-button"));
       download.triggerEventHandler("click", { stopPropagation: vi.fn() });
       expect(downloadSpy).toHaveBeenCalledWith("alice", 0, 0, "name");
+    });
+
+    // Result export is a deployment switch. Every action behind this button returns without
+    // sending a request when it is off, so the button is not rendered rather than left there
+    // to do nothing. The top menu and the context menu already honour the same switch.
+    describe("the per-cell download button and the export switch", () => {
+      const renderOneRow = (exportEnabled: boolean) => {
+        setExport(exportEnabled);
+        component.operatorId = "op1";
+        component.setupResultTable([SAMPLE_ROW], 1);
+        component.isFrontPagination = false;
+        fixture.detectChanges();
+      };
+
+      it("is rendered when result export is on", () => {
+        renderOneRow(true);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).not.toBeNull();
+      });
+
+      it("is not rendered when result export is off", () => {
+        renderOneRow(false);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
     });
   });
 

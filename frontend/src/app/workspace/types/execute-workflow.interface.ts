@@ -80,6 +80,8 @@ export enum OperatorState {
 
 export interface OperatorStatistics
   extends Readonly<{
+    // Provenance: the operator completed by reusing cached results (no workers ran).
+    reusedFromCache?: boolean;
     aggregatedInputRowCount: number;
     aggregatedInputSize?: number;
     /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */

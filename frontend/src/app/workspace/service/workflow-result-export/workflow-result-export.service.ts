@@ -197,12 +197,18 @@ export class WorkflowResultExportService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
-    // we should export all operators, otherwise, only highlighted ones
-    // which means export button is selected from context-menu
-    destination: "dataset" | "local" = "dataset", // default to dataset
-    unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
+    destination: "dataset" | "local",
+    unit: DashboardWorkflowComputingUnit | null, // computing unit for cluster setting
+    // The operators this export covers. The caller resolves them: the dialog already works out
+    // its own scope in order to report what a blocking dataset blocks, so it says so here rather
+    // than leaving the scope to be worked out a second time, separately, from a flag and the
+    // canvas -- two answers to one question that agree only for as long as nobody edits one.
+    operatorIds: readonly string[]
   ): void {
+    // Copied now, not read later: the restriction analysis below is asynchronous, and the canvas
+    // selection a caller may have handed us is the live array, so the scope would otherwise be
+    // whatever is selected when the analysis answers rather than what was asked for.
+    const scope = [...operatorIds];
     this.computeRestrictionAnalysis()
       .pipe(take(1))
       .subscribe(restrictionResult =>
@@ -213,10 +219,10 @@ export class WorkflowResultExportService {
           rowIndex,
           columnIndex,
           filename,
-          exportAll,
           destination,
           unit,
-          restrictionResult
+          restrictionResult,
+          scope
         )
       );
   }
@@ -226,10 +232,9 @@ export class WorkflowResultExportService {
    *
    * This method handles the core export logic:
    * 1. Validates configuration and computing unit availability
-   * 2. Determines operator scope (all vs highlighted)
-   * 3. Applies restriction filtering with user feedback
-   * 4. Makes the export API call
-   * 5. Handles response and shows appropriate notifications
+   * 2. Applies restriction filtering with user feedback
+   * 3. Makes the export API call
+   * 4. Handles response and shows appropriate notifications
    *
    * Shows error messages if all operators are blocked, warning messages if some are blocked.
    *
@@ -242,10 +247,10 @@ export class WorkflowResultExportService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    exportAll: boolean,
     destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null,
-    downloadability: WorkflowResultDownloadability
+    downloadability: WorkflowResultDownloadability,
+    operatorIds: readonly string[]
   ): void {
     // Validates configuration and computing unit availability
     if (!this.config.env.exportExecutionResultEnabled) {
@@ -261,14 +266,6 @@ export class WorkflowResultExportService {
       this.notificationService.error("Cannot export result: workflow ID is not available");
       return;
     }
-
-    // Determines operator scope
-    const operatorIds = exportAll
-      ? this.workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .map(operator => operator.operatorID)
-      : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
     if (operatorIds.length === 0) {
       return;
@@ -354,7 +351,18 @@ export class WorkflowResultExportService {
    */
   public resetFlags(): void {
     this.hasResultToExportOnHighlightedOperators = false;
-    this.hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+    // The same subject, not a fresh one: replacing it silently orphaned whoever was subscribed.
+    this.hasResultToExportOnAllOperators.next(false);
+  }
+
+  /**
+   * Recompute the export flags from what is in hand. The menu resets them on destroy, which is
+   * right when the workspace is left and its results cleared, and wrong when a workflow's two
+   * views hand over and the results are kept: the arriving menu would otherwise read `false` for
+   * results that are still there, until the next execution or result event happened to recompute.
+   */
+  public refreshExportAvailability(): void {
+    this.updateExportAvailabilityFlags();
   }
 
   getExportOnAllOperatorsStatusStream(): Observable<boolean> {

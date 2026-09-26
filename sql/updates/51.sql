@@ -17,19 +17,29 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+\c texera_db
 
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
+SET search_path TO texera_db;
 
-case class EditingTimeCompilationRequest(
-    operators: List[LogicalOp],
-    links: List[LogicalLink],
-    opsToViewResult: List[String],
-    opsToReuseResult: List[String]
-) extends TexeraWebSocketRequest {
+BEGIN;
 
-  def toLogicalPlanPojo: LogicalPlanPojo = {
-    LogicalPlanPojo(operators, links, opsToViewResult, opsToReuseResult)
-  }
-}
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type WHERE typname = 'workflow_computing_unit_termination_reason_enum'
+    ) THEN
+        CREATE TYPE workflow_computing_unit_termination_reason_enum AS ENUM (
+            'USER_REQUESTED',
+            'GARBAGE_COLLECTED'
+        );
+    END IF;
+END $$;
+
+ALTER TABLE workflow_computing_unit
+    ADD COLUMN IF NOT EXISTS termination_reason workflow_computing_unit_termination_reason_enum DEFAULT NULL;
+
+-- Postgres indexes only the referenced side of a foreign key, so cuid needs its own index for the
+-- idle computing unit sweep and every other per-computing-unit lookup on this table.
+CREATE INDEX IF NOT EXISTS idx_workflow_executions_cuid ON workflow_executions (cuid);
+
+COMMIT;

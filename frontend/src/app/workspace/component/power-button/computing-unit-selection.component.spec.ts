@@ -49,6 +49,7 @@ import { ComputingUnitCreateModalComponent } from "../../../common/component/com
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -1239,6 +1240,28 @@ describe("PowerButtonComponent", () => {
       expect(retrieveSpy).toHaveBeenCalledWith(42, [ExecutionState.Running, ExecutionState.Initializing]);
       expect(infoSpy).toHaveBeenCalled();
       expect(disableSpy).toHaveBeenCalledTimes(1);
+      expect(enableSpy).not.toHaveBeenCalled();
+    });
+
+    // "No execution someone else started" is not "nothing is running here": this query asks only
+    // about Running and Initializing, and its answer lands asynchronously, after whatever the page
+    // set on arrival. A view handed a session with a run in flight had just been given the lock;
+    // enabling outright took it away again, leaving a running workflow editable.
+    it("leaves a run already in flight locked, even when the backend reports no executions", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      const disableSpy = vi.spyOn(actionService, "disableWorkflowModification").mockImplementation(() => {});
+      const enableSpy = vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveWorkflowExecutions").mockReturnValue(
+        of([] as WorkflowExecutionsEntry[])
+      );
+      // This page's own execute service is holding a run, as it would after a hand-over.
+      (TestBed.inject(ExecuteWorkflowService) as any).currentState = { state: ExecutionState.Running };
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 7 }));
+
+      expect(disableSpy).toHaveBeenCalled();
       expect(enableSpy).not.toHaveBeenCalled();
     });
 
