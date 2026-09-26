@@ -1563,7 +1563,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    *
    * A unit that cannot accept work also disables it, named as on the canvas via
    * unavailableComputingUnitReason but with shorter labels. One difference: mid-run the canvas shows
-   * "Shutting Down", but here Stop wins, because Stop is this button's only run control.
+   * "Shutting Down", but here Stop wins while the socket can still deliver it, because Stop is this
+   * button's only run control.
    */
   public get runButtonState(): { label: string; icon: string; disabled: boolean } {
     // Connecting is checked before Stop on purpose: if the socket drops mid-run, a "Stop" would
@@ -1572,10 +1573,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.isConnecting) {
       return { label: "Connecting", icon: "loading", disabled: true };
     }
-    // The socket may already be gone here, for a terminal unit or one that vanished mid-run.
-    // A kill on a dead socket is lost, so Stop is only enabled while it can be delivered.
-    if (this.isRunning) {
-      return { label: "Stop", icon: "stop", disabled: !this.workflowWebsocketService.isConnected };
+    // Stop is shown only while the socket can deliver the kill. A run on a unit that died or
+    // vanished mid-run falls through, so a later branch names the problem.
+    if (this.isRunning && this.workflowWebsocketService.isConnected) {
+      return { label: "Stop", icon: "stop", disabled: false };
     }
     if (!this.isWorkflowValid) {
       return { label: "Invalid", icon: "warning", disabled: true };

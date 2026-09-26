@@ -1613,15 +1613,16 @@ describe("WorkflowFormComponent", () => {
       expect(component.runButtonState).toEqual({ label: "Connecting", icon: "loading", disabled: true });
     });
 
-    it("does not offer a dead Stop when the selected unit vanishes mid-run and takes its socket with it", () => {
+    it("asks for a unit instead of a dead Stop when the selected unit vanishes mid-run", () => {
       build(formViewWorkflow).ngOnInit();
+      makeReady(); // a valid workflow runs on a unit the reader can write to
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } }); // a run is in flight
       h.statusStream.next(ComputingUnitState.NoComputingUnit); // the selected unit left the list
-      h.executionStateStream.next({ current: { state: ExecutionState.Running } }); // its run is still in flight
       h.workflowWebsocketService.isConnected = false; // and its socket is gone
 
-      // This reaches the Stop branch with a dead socket, where a kill would be lost.
+      // The run never looks finished, so the button must name the problem instead of a dead Stop.
       expect(component.isRunning).toBe(true);
-      expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: true });
+      expect(component.runButtonState).toEqual({ label: "Computing Unit", icon: "plus-circle", disabled: true });
     });
 
     it("still offers a deliverable Stop when the selected unit vanishes mid-run but its socket is up", () => {
@@ -1633,19 +1634,21 @@ describe("WorkflowFormComponent", () => {
       expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: false });
     });
 
-    it.each([ComputingUnitState.Terminating, ComputingUnitState.Failed, ComputingUnitState.Unknown])(
-      "does not offer a dead Stop when a run is in flight on a %s unit whose socket is gone",
-      state => {
-        build(formViewWorkflow).ngOnInit();
-        h.statusStream.next(state);
-        h.executionStateStream.next({ current: { state: ExecutionState.Running } });
-        h.workflowWebsocketService.isConnected = false;
+    it.each([
+      [ComputingUnitState.Terminating, { label: "Shutting Down", icon: "loading", disabled: true }],
+      [ComputingUnitState.Failed, { label: "Unavailable", icon: "warning", disabled: true }],
+      [ComputingUnitState.Unknown, { label: "Unavailable", icon: "warning", disabled: true }],
+    ])("names a %s unit instead of a dead Stop when it dies mid-run", (state, expected) => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady(); // a valid workflow runs on a unit the reader can write to
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } }); // a run is in flight
+      h.statusStream.next(state); // the unit dies
+      h.workflowWebsocketService.isConnected = false; // and its socket goes with it
 
-        // This reaches the Stop branch with a dead socket, where a kill would be lost.
-        expect(component.isRunning).toBe(true);
-        expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: true });
-      }
-    );
+      // The run never looks finished, so the button must name the problem instead of a dead Stop.
+      expect(component.isRunning).toBe(true);
+      expect(component.runButtonState).toEqual(expected);
+    });
 
     it.each([ComputingUnitState.Terminating, ComputingUnitState.Failed, ComputingUnitState.Unknown])(
       "still offers a deliverable Stop when a run is in flight on a %s unit whose socket is up",
