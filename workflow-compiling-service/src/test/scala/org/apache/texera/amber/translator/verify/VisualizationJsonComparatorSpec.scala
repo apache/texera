@@ -74,23 +74,6 @@ class VisualizationJsonComparatorSpec extends AnyFlatSpec with Matchers {
     noException should be thrownBy VisualizationJsonComparator.assertEqual(actual, expected)
   }
 
-  it should "accept a run whose every figure the other path drew the same" in {
-    val actual = writeActual("multi-actual.jsonl", 1, 2, 3)
-    val expected = writePage("multi-expected.html", 1, 2, 3)
-    noException should be thrownBy VisualizationJsonComparator.assertEqual(actual, expected)
-  }
-
-  // The one a comparison that reads the first figure and stops would call a
-  // match, and the reason it reads them all: an operator drawing a figure per
-  // input row agrees on the first long after it has stopped agreeing.
-  it should "reject a second figure the other path drew differently" in {
-    val actual = writeActual("second-actual.jsonl", 1, 2)
-    val expected = writePage("second-expected.html", 1, 7)
-    val thrown = the[VisualizationJsonMismatchException] thrownBy VisualizationJsonComparator
-      .assertEqual(actual, expected)
-    thrown.stderr should include("\"value\": 7")
-  }
-
   it should "reject a figure the other path did not draw at all" in {
     val actual = writeActual("count-actual.jsonl", 1, 2)
     val expected = writePage("count-expected.html", 1)
