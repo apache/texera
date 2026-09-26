@@ -40,7 +40,9 @@ This page lists what else a new operator needs. It is done when all five hold.
 - Write the `OpDesc` and the `OpExec`.
 - Declare the columns each output port carries: `getOutputSchemas` on a Python operator, a
   `SchemaPropagationFunc` inside `getPhysicalOp` on a Java or Scala one. A schema that
-  disagrees with what the executor emits fails at run time, not at compile time.
+  disagrees with what the executor emits is not caught at compile time, and not always at
+  run time either. The row is matched to the schema by name, so a column the two name
+  apart can lose its value without an error.
 - Register the descriptor in `LogicalOp`'s `@JsonSubTypes` under a unique name. This is the
   only registration there is: the form, the translator and the verification harness all read
   that list.
@@ -144,6 +146,10 @@ reference, and as the generated script. The outputs are compared per port, by da
 - Nothing is added to the spec for a new operator. It reflects over `@JsonSubTypes` and keeps
   whatever implements `StandaloneCodeGenerator`.
 - The run proves the two paths agree, not that either is correct.
+- Some differences never reach the comparison. The script reads a DOUBLE column as
+  `float64`, so a null and a NaN arrive as one value. CI runs in UTC, so a zone offset
+  cannot show. A table file carries one timestamp resolution. Test these in the operator's
+  own spec, by running the fragment on a frame built in Python.
 - Two assertions read the generated code instead of running it, for what no single run can
   ask: a write to an input frame, and every column knob hostile at once.
 
@@ -162,6 +168,11 @@ reference, and as the generated script. The outputs are compared per port, by da
 `ConfigGenerator` builds a valid config from the annotations alone. Write a curated handler in
 `CuratedHandlers` only when a shared table cannot supply what the operator needs, such as
 duplicate rows or a cross-field type pairing.
+
+A case a review finds, such as a column name collision or a boundary value, goes in that
+handler's `extraScenarios`: a small table of its own, run on both paths. Do not write it as
+a spec test that runs only the script against an expected value. That test holds the
+script to what its author believed the engine does, and the harness asks the engine.
 
 | Field kind | Fill |
 | --- | --- |
@@ -220,9 +231,9 @@ canonical table. What you owe depends on which of four cases it falls in.
 
 - **A scan source in a format already covered.** Nothing. `SourceCategoryRunner` maps the
   `fileTypeName` a `ScanSourceOpDesc` declares to an encoder that writes a file in it, so a
-  source declaring `"CSV"`, `"CSVOld"`, `"JSONL"` or `"Arrow"` is verified the moment it is
-  registered in `@JsonSubTypes`. `CSVScanSourceOpDesc` is the example, and its name appears
-  nowhere in the runner.
+  source declaring `"CSV"`, `"CSVOld"`, `"JSONL"`, `"Arrow"` or `"Parquet"` is verified the
+  moment it is registered in `@JsonSubTypes`. `CSVScanSourceOpDesc` is the example, and its
+  name appears nowhere in the runner.
 - **A scan source in a new format.** Add one encoder to `encoderByFileType`, keyed by the
   `fileTypeName` the descriptor declares.
 - **A source that is not a scan source**, such as a SQL or an API source. Write a
@@ -230,6 +241,9 @@ canonical table. What you owe depends on which of four cases it falls in.
 - **A source that cannot be verified at all.** Add a `knownIssues` row with the reason, the
   way `FileScanOpDesc` (its filenames arrive on an input port) and `URLFetcherOpDesc` (it
   fetches over the network) do.
+
+A scan source reads one shared table, written out in its own format, and also a copy with one
+cell emptied per column, since how an empty cell is read belongs to the reader.
 
 ### When a run cannot happen
 
