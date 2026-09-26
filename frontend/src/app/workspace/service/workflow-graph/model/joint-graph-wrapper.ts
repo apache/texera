@@ -23,7 +23,7 @@ import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { ObservableContextManager } from "src/app/common/util/context";
+import { ContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { HeatmapView } from "../../heatmap/heatmap-scoring";
@@ -836,7 +836,7 @@ export class JointGraphWrapper {
   }
 
   public static jointGraphContextFactory() {
-    class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
+    class JointGraphContext extends ContextManager<JointGraphContextType>(DefaultContext) {
       private static jointPaper: joint.dia.Paper | undefined;
 
       public static async() {
