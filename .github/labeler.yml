@@ -78,6 +78,9 @@ engine:
           - 'amber/src/main/resources/**'
           - 'amber/src/test/scala/**'
           - 'amber/src/test/java/**'
+          - 'amber/LICENSE-binary-java'
+          - 'amber/NOTICE-binary'
+          - 'amber/NOTICE-binary-python'
 
 amber-integration:
   # Scala specs that exercise both Scala and Python end-to-end. They
@@ -104,6 +107,7 @@ pyamber:
           - 'amber/**/*.py'
           - 'amber/pyproject.toml'
           - 'amber/**/*requirements*.txt'
+          - 'amber/LICENSE-binary-python'
 
 docs:
   - changed-files:
@@ -150,4 +154,3 @@ fix:
 
 refactor:
   - head-branch: '^refactor'
-
