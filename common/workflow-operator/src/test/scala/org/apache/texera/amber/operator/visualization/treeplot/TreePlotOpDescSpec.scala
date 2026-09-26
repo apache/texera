@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.visualization.treeplot
 
 import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.scalatest.BeforeAndAfter
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,6 +33,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: TreePlotOpDesc = _
 
@@ -204,7 +208,7 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     }
   }
 
-  it should "lay a tree out top-down, with every parent centred over its own children" in {
+  it should "lay a tree out top-down, with every parent centred over its own children" taggedAs NeedsPythonPackages in {
     val tree = layouts("tree")
     // Depth picks the row and the axis is inverted, so a child sits below its parent.
     tree.map { case (label, (_, y)) => label -> y } shouldBe
@@ -218,7 +222,7 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     tree("a")._1 shouldBe (tree("b")._1 + tree("c")._1) / 2
   }
 
-  it should "place a shared child once, under the parent that reaches it first" in {
+  it should "place a shared child once, under the parent that reaches it first" taggedAs NeedsPythonPackages in {
     val shared = layouts("shared")
     shared.keySet shouldBe Set("a", "b", "c")
     // c is claimed by a, so it hangs below a and b is left as a childless root.
@@ -228,21 +232,21 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     shared("b")._1 should not be shared("a")._1
   }
 
-  it should "terminate on a cycle and still place every node once" in {
+  it should "terminate on a cycle and still place every node once" taggedAs NeedsPythonPackages in {
     val cycle = layouts("cycle")
     // No node is a root, so the layout starts from the first label it saw and the
     // edge that closes the ring is dropped rather than followed a second time.
     cycle shouldBe Map("a" -> (0.0, 0.0), "b" -> (0.0, -1.0), "c" -> (0.0, -2.0))
   }
 
-  it should "survive a self loop" in {
+  it should "survive a self loop" taggedAs NeedsPythonPackages in {
     val selfLoop = layouts("selfloop")
     selfLoop.keySet shouldBe Set("a", "b")
     selfLoop("a")._2 shouldBe 0.0
     selfLoop("b")._2 shouldBe -1.0
   }
 
-  it should "lay each tree of a forest out beside the other" in {
+  it should "lay each tree of a forest out beside the other" taggedAs NeedsPythonPackages in {
     val forest = layouts("forest")
     forest.keySet shouldBe Set("a", "b", "x", "y")
     // Two roots, each over its own child, in columns that do not overlap.
