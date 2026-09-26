@@ -19,8 +19,13 @@
 
 package org.apache.texera.amber.operator.source.scan
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.IntNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import org.apache.texera.amber.core.workflow.OutputPort
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.csv.{
   CSVScanSourceOpDesc,
   ParallelCSVScanSourceOpDesc
@@ -195,9 +200,12 @@ class ScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     tree.has("fileEncoding") shouldBe true
     tree.has("limit") shouldBe true
     tree.has("offset") shouldBe true
-    // both are @JsonIgnore on the base class
+    // all @JsonIgnore on the base class; the two window accessors must not reach the
+    // saved JSON, or a workflow would round-trip with fields the editor never wrote
     tree.has("INFER_READ_LIMIT") shouldBe false
     tree.has("fileTypeName") shouldBe false
+    tree.has("windowLimit") shouldBe false
+    tree.has("windowOffset") shouldBe false
   }
 
   it should "omit unset optional fields entirely, the shape saved workflows store" in {
@@ -206,5 +214,60 @@ class ScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     tree.has("fileName") shouldBe false
     tree.has("limit") shouldBe false
     tree.has("offset") shouldBe false
+  }
+
+  // The two window fields mean nothing below zero, and a negative one is not read
+  // the same way twice: `drop(-1)` keeps every row while `iloc[-1:]` keeps the
+  // last. Validate through the schema the property editor validates against,
+  // rather than restating the bound it declares.
+  private def windowSchema(field: String): JsonNode =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]: Class[_ <: LogicalOp])
+      .path("properties")
+      .path(field)
+
+  private def schemaTakes(field: String, value: Int): Boolean =
+    JsonSchemaFactory
+      .byDefault()
+      .getJsonSchema(windowSchema(field))
+      .validate(IntNode.valueOf(value))
+      .isSuccess
+
+  "A scan source's window" should "refuse a negative limit or offset" in {
+    Seq("limit", "offset").foreach { field =>
+      withClue(s"$field: ") {
+        schemaTakes(field, -1) shouldBe false
+        schemaTakes(field, 0) shouldBe true
+        schemaTakes(field, 5) shouldBe true
+      }
+    }
+  }
+
+  // Nothing revalidates the schema on the way in, so a plan posted to the API or an
+  // imported workflow file can still carry a value the editor would have refused.
+  private def deserialize(window: String): ScanSourceOpDesc =
+    objectMapper
+      .readValue(
+        s"""{"operatorType": "CSVFileScan", "fileName": "file:///tmp/a.csv", $window}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[ScanSourceOpDesc]
+
+  it should "clamp a negative one that was deserialized rather than typed" in {
+    val d = deserialize(""""limit": -1, "offset": -1""")
+    d.limit shouldBe Some(-1)
+    d.offset shouldBe Some(-1)
+    d.windowLimit shouldBe Some(0)
+    d.windowOffset shouldBe 0
+  }
+
+  it should "pass a non-negative one through, absent included" in {
+    val set = deserialize(""""limit": 2, "offset": 3""")
+    set.windowLimit shouldBe Some(2)
+    set.windowOffset shouldBe 3
+
+    val unset = deserialize(""""fileEncoding": "UTF_8"""")
+    unset.windowLimit shouldBe None
+    unset.windowOffset shouldBe 0
   }
 }
