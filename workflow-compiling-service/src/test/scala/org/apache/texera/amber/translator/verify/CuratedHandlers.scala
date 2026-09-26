@@ -174,18 +174,19 @@ object CuratedHandlers {
       columns.zip(row).foreach {
         case ((name, attrType), value) =>
           val boxed: AnyRef = (attrType, value) match {
-            case (_, null)                           => null
-            case (AttributeType.INTEGER, x: Int)     => Int.box(x)
-            case (AttributeType.INTEGER, x: Long)    => Int.box(x.toInt)
-            case (AttributeType.INTEGER, x: Double)  => Int.box(x.toInt)
-            case (AttributeType.LONG, x: Long)       => Long.box(x)
-            case (AttributeType.LONG, x: Int)        => Long.box(x.toLong)
-            case (AttributeType.DOUBLE, x: Double)   => Double.box(x)
-            case (AttributeType.DOUBLE, x: Int)      => Double.box(x.toDouble)
-            case (AttributeType.DOUBLE, x: Long)     => Double.box(x.toDouble)
-            case (AttributeType.BOOLEAN, x: Boolean) => Boolean.box(x)
-            case (AttributeType.STRING, x)           => x.toString
-            case (_, x)                              => x.toString
+            case (_, null)                                        => null
+            case (AttributeType.INTEGER, x: Int)                  => Int.box(x)
+            case (AttributeType.INTEGER, x: Long)                 => Int.box(x.toInt)
+            case (AttributeType.INTEGER, x: Double)               => Int.box(x.toInt)
+            case (AttributeType.LONG, x: Long)                    => Long.box(x)
+            case (AttributeType.LONG, x: Int)                     => Long.box(x.toLong)
+            case (AttributeType.DOUBLE, x: Double)                => Double.box(x)
+            case (AttributeType.DOUBLE, x: Int)                   => Double.box(x.toDouble)
+            case (AttributeType.DOUBLE, x: Long)                  => Double.box(x.toDouble)
+            case (AttributeType.BOOLEAN, x: Boolean)              => Boolean.box(x)
+            case (AttributeType.TIMESTAMP, x: java.sql.Timestamp) => x
+            case (AttributeType.STRING, x)                        => x.toString
+            case (_, x)                                           => x.toString
           }
           builder.add(schema.getAttribute(name), boxed)
       }
@@ -442,6 +443,105 @@ object HashJoinTransformHandler extends TransformHandler {
     desc.joinType = JoinType.INNER
 
     (desc, Map(PortIdentity(0) -> buildPath, PortIdentity(1) -> probePath))
+  }
+
+  private type Columns = Seq[(String, AttributeType)]
+
+  private def scenario(
+      testRoot: Path,
+      label: String,
+      left: (Columns, Seq[Seq[Any]]),
+      right: (Columns, Seq[Seq[Any]]),
+      build: String,
+      probe: String,
+      joinType: JoinType
+  ): (String, LogicalOp, Map[PortIdentity, Path]) = {
+    val dir = testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
+    Files.createDirectories(dir)
+    val desc = new HashJoinOpDesc[Integer]()
+    desc.buildAttributeName = build
+    desc.probeAttributeName = probe
+    desc.joinType = joinType
+    (
+      label,
+      desc,
+      Map(
+        PortIdentity(0) -> CuratedHandlers
+          .writeFixture(dir.resolve("input_port_0.jsonl"), left._1, left._2),
+        PortIdentity(1) -> CuratedHandlers
+          .writeFixture(dir.resolve("input_port_1.jsonl"), right._1, right._2)
+      )
+    )
+  }
+
+  /** The tables the default one cannot be: names that collide once, twice, or
+    * with the key being set aside, and outer joins whose unmatched rows leave
+    * holes in integer columns or carry a column the left side also names.
+    *
+    * A missing key beside a NaN one is not among them. The script reads a double
+    * column into float64, where the two are already one value before the
+    * operator runs, so the operator's own spec asks it with a nullable column.
+    */
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    import AttributeType._
+    Seq(
+      scenario(
+        testRoot,
+        "left names a column like the right key",
+        (Seq("id" -> INTEGER, "key" -> STRING), Seq(Seq(1, "payload"))),
+        (Seq("key" -> INTEGER, "value" -> INTEGER), Seq(Seq(1, 9))),
+        "id",
+        "key",
+        JoinType.INNER
+      ),
+      scenario(
+        testRoot,
+        "a right column colliding twice",
+        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10))),
+        (Seq("k" -> INTEGER, "x" -> INTEGER, "x#@1" -> INTEGER), Seq(Seq(1, 20, 30))),
+        "k",
+        "k",
+        JoinType.INNER
+      ),
+      scenario(
+        testRoot,
+        "a probe key named like a renamed payload",
+        (Seq("k" -> INTEGER, "x" -> STRING), Seq(Seq(1, "left"))),
+        (Seq("x#@1" -> INTEGER, "x" -> STRING), Seq(Seq(1, "right"))),
+        "k",
+        "x#@1",
+        JoinType.INNER
+      ),
+      scenario(
+        testRoot,
+        "outer join over integers",
+        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10), Seq(2, 20))),
+        (Seq("kk" -> INTEGER, "y" -> INTEGER), Seq(Seq(1, 30), Seq(3, 40))),
+        "k",
+        "kk",
+        JoinType.FULL_OUTER
+      ),
+      scenario(
+        testRoot,
+        "outer join over a long past 2^53",
+        (Seq("k" -> LONG, "id" -> LONG), Seq(Seq(1L, 9007199254740993L))),
+        (Seq("kk" -> LONG, "y" -> STRING), Seq(Seq(2L, "b"))),
+        "k",
+        "kk",
+        JoinType.FULL_OUTER
+      ),
+      scenario(
+        testRoot,
+        "outer join over a name both sides type apart",
+        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10), Seq(2, 20))),
+        (Seq("kk" -> INTEGER, "x" -> DOUBLE), Seq(Seq(1, 1.5), Seq(3, 2.5))),
+        "k",
+        "kk",
+        JoinType.FULL_OUTER
+      )
+    )
   }
 }
 
@@ -750,7 +850,39 @@ object AggregateTransformHandler extends TransformHandler {
     desc.groupByKeys = List("a\"b\\c_grp")
     desc.aggregations = List(agg(AggregationFunction.CONCAT, "a\"b\\c_txt", "joined"))
 
-    Seq(("concat over a leading empty string", desc, Map(PortIdentity(0) -> input)))
+    Seq(
+      ("concat over a leading empty string", desc, Map(PortIdentity(0) -> input)),
+      engineArithmetic(testRoot)
+    )
+  }
+
+  /** The answers the engine's own arithmetic gives: an INTEGER sum adds as a
+    * Java int and wraps, a timestamp sum is a timestamp, a timestamp average is
+    * a DOUBLE, and CONCAT folds a boolean through Java's toString, in lower case.
+    */
+  private def engineArithmetic(testRoot: Path): (String, LogicalOp, Map[PortIdentity, Path]) = {
+    val dir = testRoot.resolve("engine-arithmetic")
+    Files.createDirectories(dir)
+    val columns = Seq(
+      ("a\"b\\c_i", AttributeType.INTEGER),
+      ("a\"b\\c_t", AttributeType.TIMESTAMP),
+      ("a\"b\\c_b", AttributeType.BOOLEAN)
+    )
+    val rows: Seq[Seq[Any]] = Seq(
+      Seq[Any](Int.MaxValue, java.sql.Timestamp.valueOf("2020-01-01 00:00:00"), true),
+      Seq[Any](1, java.sql.Timestamp.valueOf("2020-01-02 00:00:00"), false)
+    )
+    val input = CuratedHandlers.writeFixture(dir.resolve("input_port_0.jsonl"), columns, rows)
+
+    val desc = new AggregateOpDesc()
+    desc.groupByKeys = List.empty
+    desc.aggregations = List(
+      agg(AggregationFunction.SUM, "a\"b\\c_i", "int_total"),
+      agg(AggregationFunction.SUM, "a\"b\\c_t", "ts_total"),
+      agg(AggregationFunction.AVERAGE, "a\"b\\c_t", "ts_avg"),
+      agg(AggregationFunction.CONCAT, "a\"b\\c_b", "flags")
+    )
+    ("the engine's own arithmetic", desc, Map(PortIdentity(0) -> input))
   }
 }
 
