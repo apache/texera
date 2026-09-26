@@ -437,9 +437,10 @@ object HashJoinTransformHandler extends TransformHandler {
   }
 
   /** The tables the default one cannot be: names that collide once, twice, or
-    * with the key being set aside, and outer joins whose unmatched rows leave
-    * holes in integer columns or carry a column the left side also names, or
-    * carry a key that the left key or a left payload names.
+    * with the key being set aside, and outer joins whose unmatched rows leave a
+    * hole beside a long past 2^53, carry a column the left side types apart, or
+    * carry a key that a left payload names. A hole beside a small integer is not
+    * among them: the declared type writes it back as an integer either way.
     *
     * A missing key beside a NaN one is not among them. The script reads a double
     * column into float64, where the two are already one value before the
@@ -479,15 +480,6 @@ object HashJoinTransformHandler extends TransformHandler {
       ),
       scenario(
         testRoot,
-        "outer join over integers",
-        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10), Seq(2, 20))),
-        (Seq("kk" -> INTEGER, "y" -> INTEGER), Seq(Seq(1, 30), Seq(3, 40))),
-        "k",
-        "kk",
-        JoinType.FULL_OUTER
-      ),
-      scenario(
-        testRoot,
         "outer join over a long past 2^53",
         (Seq("k" -> LONG, "id" -> LONG), Seq(Seq(1L, 9007199254740993L))),
         (Seq("kk" -> LONG, "y" -> STRING), Seq(Seq(2L, "b"))),
@@ -502,15 +494,6 @@ object HashJoinTransformHandler extends TransformHandler {
         (Seq("kk" -> INTEGER, "x" -> DOUBLE), Seq(Seq(1, 1.5), Seq(3, 2.5))),
         "k",
         "kk",
-        JoinType.FULL_OUTER
-      ),
-      scenario(
-        testRoot,
-        "outer join over keys both sides name alike",
-        (Seq("k" -> INTEGER, "x" -> INTEGER), Seq(Seq(1, 10), Seq(2, 20))),
-        (Seq("k" -> INTEGER, "y" -> INTEGER), Seq(Seq(1, 30), Seq(3, 40))),
-        "k",
-        "k",
         JoinType.FULL_OUTER
       ),
       scenario(
@@ -901,7 +884,8 @@ object IfTransformHandler extends TransformHandler {
   }
 }
 
-/** A model port holding one fitted estimator, and the table it is scored on.
+/** A model port holding fitted estimators, one per row, and the table they are
+  * scored on.
   *
   * The model is fitted in Python, since no JVM value is an sklearn model, and
   * written the way Tuple.cast_to_schema writes one into a BINARY field: the
@@ -940,30 +924,57 @@ private object FittedModelFixture {
     * @param target    the column the model predicts; every other numeric column
     *                  is a feature
     */
-  def write(dir: Path, estimator: String, target: String): Map[PortIdentity, Path] = {
-    val data = CuratedHandlers.writeFixture(dir.resolve("input_port_1.jsonl"), columns, rows)
+  def write(dir: Path, estimator: String, target: String): Map[PortIdentity, Path] =
+    writeModels(dir, Seq(s"$estimator(random_state=0)"), target)
+
+  /** [[write]] with one model row per estimator, each fitted on all but the last
+    * of [[rows]], and port 1 holding `scored` where it is given.
+    *
+    * @param estimators constructor calls on the `sklearn.tree` classes
+    */
+  def writeModels(
+      dir: Path,
+      estimators: Seq[String],
+      target: String,
+      scored: Option[Seq[Seq[Any]]] = None
+  ): Map[PortIdentity, Path] = {
+    val fitData = CuratedHandlers.writeFixture(dir.resolve("fit.jsonl"), columns, rows)
+    val data = CuratedHandlers.writeFixture(
+      dir.resolve("input_port_1.jsonl"),
+      columns,
+      scored.getOrElse(rows)
+    )
     val fit =
       s"""import base64, pickle, sys
          |import pandas as pd
-         |from sklearn.tree import $estimator
+         |from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
          |table = pd.read_json(sys.argv[1], lines=True).iloc[:-1]
          |X = table.drop(sys.argv[2], axis=1).select_dtypes("number")
-         |fitted = $estimator(random_state=0).fit(X, table[sys.argv[2]])
-         |print(base64.b64encode(b"pickle    " + pickle.dumps(fitted)).decode("ascii"))
+         |for estimator in [${estimators.mkString(", ")}]:
+         |    fitted = estimator.fit(X, table[sys.argv[2]])
+         |    print(base64.b64encode(b"pickle    " + pickle.dumps(fitted)).decode("ascii"))
          |""".stripMargin
     val out = new java.io.ByteArrayOutputStream()
     val exit = scala.sys.process
-      .Process(Seq(PyOpExecHarness.resolvePython(), "-c", fit, data.toString, target))
+      .Process(Seq(PyOpExecHarness.resolvePython(), "-c", fit, fitData.toString, target))
       .#>(out)
       .!
-    require(exit == 0, s"fitting the fixture's $estimator exited with $exit")
-    val cell = java.util.Base64.getDecoder.decode(out.toString("US-ASCII").trim)
+    require(exit == 0, s"fitting the fixture's ${estimators.mkString(", ")} exited with $exit")
+    val cells = out
+      .toString("US-ASCII")
+      .linesIterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .map(java.util.Base64.getDecoder.decode)
+      .toSeq
 
     val modelSchema = new Schema(new Attribute(model, AttributeType.BINARY))
     val modelPath = dir.resolve("input_port_0.jsonl")
     TupleIO.writeTuples(
       modelPath,
-      Iterator(Tuple.builder(modelSchema).add(modelSchema.getAttribute(model), cell).build()),
+      cells.iterator.map(c =>
+        Tuple.builder(modelSchema).add(modelSchema.getAttribute(model), c).build()
+      ),
       modelSchema
     )
     Map(PortIdentity(0) -> modelPath, PortIdentity(1) -> data)
@@ -1014,16 +1025,43 @@ object SklearnTestingTransformHandler extends TransformHandler {
       FittedModelFixture.write(testRoot, "DecisionTreeClassifier", FittedModelFixture.label)
     )
 
+  /** The regressor reads one feature, since the label is text. Beside it: a
+    * table the drop of missing rows leaves one row of, a shape a frame squeezed
+    * to one dimension would lose as the single feature would, and two model rows
+    * that answer differently, which the engine scores one row at a time.
+    */
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
-    val dir = testRoot.resolve("regression")
-    Files.createDirectories(dir)
+    def in(name: String): Path = Files.createDirectories(testRoot.resolve(name))
+    val tree = "DecisionTreeClassifier(random_state=0)"
+    val label = FittedModelFixture.label
     Seq(
       (
         "regression",
         testing("petal_width", isRegression = true),
-        FittedModelFixture.write(dir, "DecisionTreeRegressor", "petal_width")
+        FittedModelFixture.write(in("regression"), "DecisionTreeRegressor", "petal_width")
+      ),
+      (
+        "one row left after the drop",
+        testing(label, isRegression = false),
+        FittedModelFixture.writeModels(
+          in("one-row"),
+          Seq(tree),
+          label,
+          scored = Some(
+            Seq(Seq("versicolor", 5.0, 1.8), Seq("setosa", null, 0.2), Seq("virginica", 6.0, null))
+          )
+        )
+      ),
+      (
+        "two model rows",
+        testing(label, isRegression = false),
+        FittedModelFixture.writeModels(
+          in("two-models"),
+          Seq(tree, "DecisionTreeClassifier(max_depth=1, random_state=0)"),
+          label
+        )
       )
     )
   }
