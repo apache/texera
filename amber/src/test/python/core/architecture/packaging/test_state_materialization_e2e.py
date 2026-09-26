@@ -52,6 +52,7 @@ from core.storage.runnables.input_port_materialization_reader_runnable import (
 )
 from core.storage.storage_config import StorageConfig
 from core.storage.vfs_uri_factory import VFSURIFactory
+from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
@@ -197,7 +198,9 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
     # 5. Consumer side: spin up the materialization reader against the
     # same base URI. Each reader needs a partitioning even when no real
     # downstream worker exists -- supply a OneToOnePartitioning whose
-    # only receiver is the consumer worker itself.
+    # only receiver is the consumer worker itself. As in the partitioning
+    # the coordinator builds, the channel's sender is the reader's virtual
+    # actor.
     consumer_worker = ActorVirtualIdentity(name="consumer-worker-0")
     consumer_queue = InternalQueue()
     partitioning = Partitioning(
@@ -205,7 +208,9 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
             batch_size=400,
             channels=[
                 ChannelIdentity(
-                    from_worker_id=ActorVirtualIdentity(name="producer-worker-0"),
+                    from_worker_id=get_from_actor_id_for_input_port_storage(
+                        base_uri, consumer_worker
+                    ),
                     to_worker_id=consumer_worker,
                     is_control=False,
                 )
