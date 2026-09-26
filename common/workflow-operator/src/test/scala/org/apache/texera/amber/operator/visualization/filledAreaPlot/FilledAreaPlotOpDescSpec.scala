@@ -23,8 +23,10 @@ import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,6 +37,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: FilledAreaPlotOpDesc = _
 
@@ -306,7 +310,7 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |    print("CASE %s %s" % (cid, verdict))
       |""".stripMargin
 
-  it should "enforce the five-percent tolerance at runtime boundaries" in {
+  it should "enforce the five-percent tolerance at runtime boundaries" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -403,7 +407,7 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
   // boundary rather than asserted: 7 disjoint groups are within the tolerance
   // and 8 are past it.
   "FilledAreaPlotOpDesc.generateStandaloneCode" should
-    "refuse the same tables the operator refuses" in {
+    "refuse the same tables the operator refuses" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

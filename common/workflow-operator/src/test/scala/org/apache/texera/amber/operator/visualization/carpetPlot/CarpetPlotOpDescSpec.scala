@@ -23,7 +23,9 @@ import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,6 +35,8 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   "CarpetPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -74,7 +78,7 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
   // to reach the drop as a KeyError, and a value that is not a number reached
   // astype as a ValueError, both of them ending the whole exported run.
   "CarpetPlotOpDesc.generateStandaloneCode" should
-    "write the page the operator yields for input it cannot plot" in {
+    "write the page the operator yields for input it cannot plot" taggedAs NeedsPythonPackages in {
     val python = resolvePythonExecutable().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
