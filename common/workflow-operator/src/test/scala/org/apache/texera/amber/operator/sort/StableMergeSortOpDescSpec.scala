@@ -24,7 +24,9 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,6 +38,8 @@ import scala.io.Source
 import scala.util.Try
 
 class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -80,7 +84,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   // number, so it goes last ascending and first descending. Only a column read
   // into a nullable dtype can hold both, which is where this is run.
   "StableMergeSortOpDesc.generateStandaloneCode" should
-    "put a null last both ways and a NaN where the key points" in {
+    "put a null last both ways and a NaN where the key points" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -134,7 +138,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
 
   // The sort tiers are named after nothing the input can be carrying, so a
   // column that happens to answer to a helper's old name keeps its values.
-  it should "keep an input column named after a sort helper" in {
+  it should "keep an input column named after a sort helper" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

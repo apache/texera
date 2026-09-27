@@ -201,10 +201,9 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort())
     )
 
-  // Equi-join: drop the probe key (kept only when its name differs from the
-  // build key), suffix colliding right columns "#@1" — matches JoinUtils. Known
-  // Texera divergences: row order, null keys (NaN != NaN in merge), outer
-  // anti-row column placement.
+  // Equi-join: the probe key is dropped and a colliding right column takes
+  // "#@1", as JoinUtils names it. Rows come out in the merge's order rather
+  // than the engine's.
   /** Only the declared type can say which columns an outer join widened, so
     * without a schema the widening stands.
     */

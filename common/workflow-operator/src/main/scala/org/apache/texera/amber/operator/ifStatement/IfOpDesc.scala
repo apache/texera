@@ -78,10 +78,23 @@ class IfOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // Condition port. A script has no State channel, so the condition is read from
   // a global named after it, true when nothing set it, which is the port the
   // engine starts on. The Condition input carries no rows to read either way.
+  //
+  // Taking True silently would report the True route for a workflow whose
+  // condition says otherwise, so an unset switch says which route it took and
+  // how to take the other.
+  override def standaloneImports(): Seq[String] = Seq("import sys")
+
   override def generateStandaloneCode(): String = {
     val globalName = "_texera_if_" + Option(conditionName).getOrElse("")
     val globalLit = pyStringLiteral(globalName)
-    s"""_texera_if_cond = bool(globals().get($globalLit, True))
+    s"""if $globalLit not in globals():
+       |    print(
+       |        "If: the script cannot receive the condition the workflow sets upstream, "
+       |        "so it takes the True branch. To take the False branch, set "
+       |        + $globalLit + " = False before this step.",
+       |        file=sys.stderr,
+       |    )
+       |_texera_if_cond = bool(globals().get($globalLit, True))
        |if _texera_if_cond:
        |    out2df = in2df.copy()
        |    out1df = in2df.iloc[0:0].copy()

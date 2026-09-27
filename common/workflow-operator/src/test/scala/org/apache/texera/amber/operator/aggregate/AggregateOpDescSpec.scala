@@ -24,6 +24,8 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,6 +37,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -117,7 +121,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // The integers behind a timestamp column mean microseconds or nanoseconds
   // depending on the resolution it was read at, and a nanosecond total leaves
   // the range of a 64-bit integer after a handful of modern dates.
-  it should "read a timestamp as epoch milliseconds at either resolution" in {
+  it should "read a timestamp as epoch milliseconds at either resolution" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -163,7 +167,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     * it added. Checked against Java 17 in the same zone: the sum below is
     * 2078-01-01 06:00:00 and the average 1704132000000.
     */
-  it should "add timestamps in the zone the script runs in" in {
+  it should "add timestamps in the zone the script runs in" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -213,7 +217,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // A group keyed on a missing value and one keyed on a NaN are two groups to
   // the engine. The two are only distinct in a nullable dtype, which is what an
   // Arrow file is read into.
-  it should "group a missing key apart from a NaN one" in {
+  it should "group a missing key apart from a NaN one" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

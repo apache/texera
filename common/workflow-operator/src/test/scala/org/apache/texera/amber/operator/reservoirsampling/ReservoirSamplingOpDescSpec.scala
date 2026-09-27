@@ -22,9 +22,11 @@ package org.apache.texera.amber.operator.reservoirsampling
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.operator.{LogicalOp, SamplingHelpers}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,6 +37,8 @@ import scala.io.Source
 import scala.util.Try
 
 class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -77,21 +81,21 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
       """_texera_rs_rng = _TexeraJavaRandom(1)
         |_texera_rs_k = 3
         |_texera_rs_reservoir = []
-        |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
+        |for _texera_rs_n in range(len(in1df)):
         |    if _texera_rs_n < _texera_rs_k:
-        |        _texera_rs_reservoir.append(_texera_rs_row)
+        |        _texera_rs_reservoir.append(_texera_rs_n)
         |    else:
         |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
         |        if _texera_rs_i < _texera_rs_k:
-        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
-        |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin
+        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_n
+        |out1df = in1df.iloc[_texera_rs_reservoir].reset_index(drop=True)""".stripMargin
   }
 
   // A reservoir of zero ends the engine's run on the first row: the executor
   // skips the fill branch and hands nextInt a bound of zero, which Java refuses.
   // The script has to refuse it there too. Answering with an empty table would
   // report a result the run never produced.
-  it should "fail on the first row when the reservoir holds nothing" in {
+  it should "fail on the first row when the reservoir holds nothing" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

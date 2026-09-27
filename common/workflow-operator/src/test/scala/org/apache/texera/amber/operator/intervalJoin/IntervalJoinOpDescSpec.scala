@@ -26,7 +26,9 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,6 +39,8 @@ import scala.io.Source
 import scala.util.Try
 
 class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -125,7 +129,7 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     * overwritten and then dropped. Run the generated pandas and hold its
     * columns against the schema the operator promises for the same two inputs.
     */
-  it should "keep an input column that carries a temporary's name" in {
+  it should "keep an input column that carries a temporary's name" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

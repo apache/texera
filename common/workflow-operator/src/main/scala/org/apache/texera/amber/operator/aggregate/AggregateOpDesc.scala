@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeNameList
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -159,6 +159,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def generateStandaloneCode(): String = build(_ => None)
 
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
   private def build(declaredType: String => Option[AttributeType]): String = {
     val keys = Option(groupByKeys).getOrElse(List())
     val aggs = Option(aggregations).getOrElse(List())
@@ -172,15 +174,10 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # comma: "", "a", "" concatenates to "a," and not ",a,". A null is
         |    # read as the empty string, which is what makes the two the same
         |    # here. This is concatAgg's fold, written out.
+        |    # Each value is written as Java's toString writes it.
         |    partial = ""
         |    for v in series:
-        |        if pd.isna(v):
-        |            text = ""
-        |        elif isinstance(v, bool) or (hasattr(v, "dtype") and v.dtype == bool):
-        |            # Java's toString spells a boolean in lower case.
-        |            text = "true" if v else "false"
-        |        else:
-        |            text = str(v)
+        |        text = "" if pd.isna(v) else _texera_java_text(v)
         |        partial = text if partial == "" else partial + "," + text
         |    return partial
         |

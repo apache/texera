@@ -30,6 +30,8 @@ import org.apache.texera.amber.core.workflow.{
   UnknownPartition
 }
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -40,6 +42,8 @@ import scala.io.Source
 import scala.util.Try
 
 class DifferenceOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -153,7 +157,7 @@ class DifferenceOpDescSpec extends AnyFlatSpec with Matchers {
   // NaN row. The two are only distinct in a nullable dtype, which is what an
   // Arrow file is read into.
   "DifferenceOpDesc.generateStandaloneCode" should
-    "keep the NaN row that a null row does not cancel" in {
+    "keep the NaN row that a null row does not cancel" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

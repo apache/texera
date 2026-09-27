@@ -24,7 +24,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,6 +37,8 @@ import scala.io.Source
 import scala.util.Try
 
 class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private def leftRight(): (Schema, Schema) =
     (
@@ -85,7 +89,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
   // A key that is missing and a key holding a NaN are two different keys to the
   // engine, so only the missing one matches a missing right key. The two are
   // only distinct in a nullable dtype, which is what an Arrow file is read into.
-  "HashJoinOpDesc.generateStandaloneCode" should "match a missing key but not a NaN one" in {
+  "HashJoinOpDesc.generateStandaloneCode" should "match a missing key but not a NaN one" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

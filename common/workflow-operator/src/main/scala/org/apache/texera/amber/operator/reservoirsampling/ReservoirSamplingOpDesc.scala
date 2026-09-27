@@ -70,17 +70,22 @@ class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // Its generator is seeded with the worker count, so the rows agree with a
   // single-worker run and not with a wider one. See RandomKSamplingOpDesc for
   // why no seed closes that gap.
+  //
+  // The reservoir holds row positions, and the rows are taken from the input
+  // by them, so every column keeps its dtype. A frame rebuilt from the rows'
+  // values infers each one again, and a timestamp past pandas' nanosecond
+  // range came back as an object column.
   override def generateStandaloneCode(): String = {
     s"""_texera_rs_rng = _TexeraJavaRandom(1)
        |_texera_rs_k = $k
        |_texera_rs_reservoir = []
-       |for _texera_rs_n, _texera_rs_row in enumerate(in1df.itertuples(index=False, name=None)):
+       |for _texera_rs_n in range(len(in1df)):
        |    if _texera_rs_n < _texera_rs_k:
-       |        _texera_rs_reservoir.append(_texera_rs_row)
+       |        _texera_rs_reservoir.append(_texera_rs_n)
        |    else:
        |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
        |        if _texera_rs_i < _texera_rs_k:
-       |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_row
-       |out1df = pd.DataFrame(_texera_rs_reservoir, columns=list(in1df.columns)).reset_index(drop=True)""".stripMargin
+       |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_n
+       |out1df = in1df.iloc[_texera_rs_reservoir].reset_index(drop=True)""".stripMargin
   }
 }

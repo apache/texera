@@ -93,8 +93,10 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // stable, ascending, nulls first. The domain bounds are partitioning hints
   // that the sort itself never reads.
   //
-  // NaN is where the two part. The engine orders it after positive infinity;
-  // pandas treats it as missing and puts it where the nulls go, which is first.
+  // The engine orders a NaN after positive infinity. In a nullable column,
+  // which is what an Arrow file is read into, pandas keeps a NaN apart from a
+  // null and sorts it last too. A numpy float column has one slot for both, so
+  // there a NaN goes first with the nulls.
   //
   // A string column parts more narrowly: the engine reads UTF-16 code units and
   // pandas reads code points, which agree below U+FFFF and can differ above it.
