@@ -52,18 +52,11 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
   }
 
   "StorageConfig warehouse settings" should "be on by default, and only with the REST catalog" in {
-    // storage.warehouse.enabled is the switch for the whole per-user warehouse
-    // feature (#6870), on since #8712. Warehouses are Lakekeeper entities, so the
-    // switch is conjoined with the catalog type: any other catalog keeps the
-    // feature off however the switch reads, which is what stops a deployment
-    // without Lakekeeper from being handed a feature it cannot serve.
-    // Both assertions are guarded on the env override being unset, since it wins
-    // over the resource — resolve() applies it to the parsed resource as well.
+    // Only assert when the env override is unset, since it would win otherwise.
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
-      // The resource default is asserted directly, not just through
-      // warehouseEnabled: CI's amber job pins the catalog to postgres, which
-      // makes the conjunction below false either way and would let a revert of
-      // the switch pass unnoticed.
+      // The resource is read directly as well because CI's amber job pins the
+      // catalog to postgres, which makes warehouseEnabled false there either
+      // way and would let a revert of the default pass unnoticed.
       ConfigFactory
         .parseResources("storage.conf")
         .resolve()
