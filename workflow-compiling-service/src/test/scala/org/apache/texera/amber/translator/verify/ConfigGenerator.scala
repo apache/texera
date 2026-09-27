@@ -109,8 +109,8 @@ object ConfigGenerator {
   }
 
   /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
-    * admits, or all of them when the rule matches nothing (or there is no rule),
-    * minus the ones a single-column knob beside it already took.
+    * admits, or all of them when there is no rule, minus the ones a single-column
+    * knob beside it already took. A rule that matches nothing is refused.
     * The same fill for a required and an optional field, so the two cannot drift.
     *
     * Subtracting `used` is what [[resolveColumn]] already does for a single-column
