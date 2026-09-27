@@ -19,6 +19,7 @@
 
 package org.apache.texera.common.config
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -57,6 +58,14 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     // feature off however the switch reads, which is what stops a deployment
     // without Lakekeeper from being handed a feature it cannot serve.
     // Only assert when the env override is unset, since it would win otherwise.
+    // The resource default is asserted directly, not through warehouseEnabled: CI's
+    // amber job pins the catalog to postgres, which would make the conjunction
+    // false either way and let a revert of the switch pass unnoticed.
+    ConfigFactory
+      .parseResources("storage.conf")
+      .resolve()
+      .getBoolean("storage.warehouse.enabled") shouldBe true
+
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
       StorageConfig.warehouseEnabled shouldBe (StorageConfig.icebergCatalogType == "rest")
     }
