@@ -56,9 +56,9 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
   override def standaloneSourcePath(): Option[String] = fileName
 
   override def generateStandaloneCode(): String = {
-    // No date columns to name, and no dtype map. pandas reads the types out of
+    // No timestamps to parse, and no dtype map. pandas reads the types out of
     // the same footer the executor does, which is the whole point of the format;
-    // the text formats have to be told because they carry nothing to read.
+    // the text formats parse theirs because they carry nothing to read.
     // Read into the nullable dtypes, as the Arrow source is. Parquet says of
     // every value whether it is there, and a numpy column has nowhere to put
     // that: pandas widens a holed integer column through a float, where every

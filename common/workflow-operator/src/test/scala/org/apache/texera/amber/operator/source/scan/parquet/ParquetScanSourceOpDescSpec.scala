@@ -35,7 +35,9 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -50,6 +52,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
 
 class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -568,7 +572,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     * is compared as its nanoseconds from the epoch and bytes as their numbers, so
     * neither side is read through the other's idea of how to print one.
     */
-  it should "read the same values the exported script reads" in {
+  it should "read the same values the exported script reads" taggedAs NeedsPythonPackages in {
     val python = runnablePython().getOrElse(
       cancel("No runnable python with pandas and pyarrow (udf.conf python.path, python3, python)")
     )
@@ -674,7 +678,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     * written from a frame keyed by `customer_id` carried that column on the one
     * side and dropped it on the other, where a projection naming it raised.
     */
-  it should "keep the column a pandas index was written from" in {
+  it should "keep the column a pandas index was written from" taggedAs NeedsPythonPackages in {
     val python = runnablePython().getOrElse(
       cancel("No runnable python with pandas and pyarrow (udf.conf python.path, python3, python)")
     )
