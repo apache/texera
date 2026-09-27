@@ -127,6 +127,10 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   machine is set to, and pandas reads the same number as UTC, so the two paths part by the
   local offset and agree again on a machine set to UTC. `ArrowUtils` states the convention;
   follow it wherever an operator turns a number into a moment.
+- Text becomes a moment the way `DateParserUtils` reads it, and a value becomes text the way
+  Java's `toString` writes it. Call `_texera_text_to_timestamp` and `_texera_java_text` from
+  `StandaloneHelpers.AttributeCasts` rather than `pd.to_datetime` or `str()`, which keep
+  nanoseconds, stop at 2262, and write `1e+20` where Java writes `1.0E20`.
 - The fragment answers the same inputs the operator answers. A guard, the page it writes, and
   any number it computes have to match on both sides. One path refusing a table the other
   draws is a divergence the verification will not catch, because it only compares runs that
@@ -258,6 +262,7 @@ cell emptied per column, since how an empty cell is read belongs to the reader.
 - Unit tests go in the operator's own spec. Do not open a second one.
 - Assert on the generated Python string for anything checkable statically. Real execution
   belongs in the harness.
-- If a spec must execute Python, copy `FilledAreaPlotOpDescSpec`: it runs in the integration
-  job and cancels itself in the JVM-only one.
+- If a spec must execute Python, copy `FilledAreaPlotOpDescSpec`: tag the test
+  `taggedAs NeedsPythonPackages`, a `Tag` on `IntegrationTest`, so it runs in the integration
+  job, which installs pandas. Untagged, it cancels in both jobs and CI never runs it.
 - Run scalafix then scalafmt, and their check variants, before committing.
