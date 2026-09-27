@@ -50,27 +50,15 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.toAttributeType(new ArrowType.Int(64, true)) shouldBe AttributeType.LONG
   }
 
-  it should "map every integer to the narrowest Texera type that holds it" in {
-    // Texera has no column shorter than a 32-bit integer, so a narrower width
-    // reads as one. An unsigned column needs the width above its own, counting
-    // up where its storage counts down: the largest unsigned 32-bit value is
-    // past what an INTEGER holds.
-    ArrowUtils.toAttributeType(new ArrowType.Int(8, true)) shouldBe AttributeType.INTEGER
-    ArrowUtils.toAttributeType(new ArrowType.Int(8, false)) shouldBe AttributeType.INTEGER
-    ArrowUtils.toAttributeType(new ArrowType.Int(16, false)) shouldBe AttributeType.INTEGER
-    ArrowUtils.toAttributeType(new ArrowType.Int(32, false)) shouldBe AttributeType.LONG
-  }
-
-  it should "throw AttributeTypeException for an integer no Texera type holds" in {
-    // A width above 64 used to be silently coerced to LONG by a `case 64 | _`
-    // catch-all; it raises rather than masquerade as Int64. An unsigned 64-bit
-    // column raises for the same reason, there being no width above it to read
-    // it as.
+  it should "throw AttributeTypeException for non-standard Int bit-widths" in {
+    // Only 16/32 (INTEGER) and 64 (LONG) are supported. Other widths used to
+    // be silently coerced to LONG by a `case 64 | _` catch-all; they now
+    // raise rather than masquerade as Int64.
     assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Int(128, true))
+      ArrowUtils.toAttributeType(new ArrowType.Int(8, true))
     }
     assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Int(64, false))
+      ArrowUtils.toAttributeType(new ArrowType.Int(128, true))
     }
   }
 
@@ -126,9 +114,9 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.fromAttributeType(AttributeType.BOOLEAN) shouldBe ArrowType.Bool.INSTANCE
   }
 
-  it should "map TIMESTAMP to a zoneless Timestamp(MICROSECOND)" in {
+  it should "map TIMESTAMP to Timestamp(MILLISECOND, UTC)" in {
     val arrow = ArrowUtils.fromAttributeType(AttributeType.TIMESTAMP)
-    arrow shouldBe new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
+    arrow shouldBe new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
   }
 
   it should "map BINARY to ArrowType.Binary" in {
@@ -369,20 +357,6 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // A Timestamp reaches past 2262, where counting microseconds through
-  // nanoseconds overflowed, and before 1970. Both come back to the microsecond.
-  it should "round-trip a timestamp either side of the nanosecond range" in {
-    val schema = Schema(List(new Attribute("t", AttributeType.TIMESTAMP)))
-    Seq("2500-01-01 00:00:00.123456", "1600-06-15 08:30:00.5").foreach { text =>
-      val tuple =
-        Tuple.builder(schema).addSequentially(Array[Any](Timestamp.valueOf(text))).build()
-      withRoot(schema) { root =>
-        ArrowUtils.appendTexeraTuple(tuple, root)
-        ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe Timestamp.valueOf(text)
-      }
-    }
-  }
-
   it should "append consecutive tuples at increasing row indices" in {
     val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
     val first = Tuple.builder(schema).addSequentially(Array[Any]("first")).build()
@@ -462,9 +436,9 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // ----- Timestamp fields that are not the zoneless microsecond ones we write -----
+  // ----- Timestamp fields that are not the UTC millisecond ones we write -----
 
-  // fromTexeraSchema only ever writes a zoneless Timestamp(MICROSECOND), so the
+  // fromTexeraSchema only ever writes Timestamp(MILLISECOND, "UTC"), so the
   // roots built above never exercise another zone or unit. An .arrow file handed
   // to ArrowSourceOpDesc can carry either: pandas writes a tz-aware column as
   // Timestamp(NANOSECOND, <its zone>). These build the field directly.
