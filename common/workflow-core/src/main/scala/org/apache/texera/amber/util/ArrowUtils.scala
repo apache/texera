@@ -85,15 +85,16 @@ object ArrowUtils extends LazyLogging {
               // instead of deriving it from the Arrow type
               val attributeType = schema.getAttributes(index).getType
               // A timestamp and an unsigned integer are the types whose field
-              // says more than the schema does, so they are the ones that read
-              // the field.
+              // says more than the schema does, so they are the only ones that
+              // read the field: an unsigned column arrives as INTEGER or LONG.
               attributeType match {
                 case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
-                case _ =>
+                case AttributeType.INTEGER | AttributeType.LONG =>
                   AttributeTypeUtils.parseField(
                     unsignedValueOf(value, fieldVector.getField.getType),
                     attributeType
                   )
+                case _ => AttributeTypeUtils.parseField(value, attributeType)
               }
             } catch {
               case e: Exception =>
