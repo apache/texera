@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790427981743,
+  "lastUpdate": 1790512892541,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -15807,6 +15807,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 505.111657694389,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "e0f49897dbb525dc7faa6eac5f293fdb02b8f7f9",
+          "message": "fix(workflow): keep a newer local edit over a save's response (#8540)\n\n### What changes were proposed in this PR?\n\nCloses #8536, the item deferred from #8456 on review.\n\nEvery save's response is fed back as the workflow's metadata (the canvas\nautosave in `workspace.component.ts`, the menu's own save for a rename /\ndescription / revert, the Form View switch's save). Saves go out one at\na time, so a response can land after a newer local edit and put the old\nname or description back: rename while an autosave is out and the title\nflips back until the rename's own save answers; rename while the Form\nView switch's save is out and the rename is lost: the switch's own\nresponse puts the old name back, the hand-over leaves at once, and the\ncanvas's save on its way out (`persistBeforeLeaving`) stores that old\nname, queued behind the rename's own save. (When this PR was opened the\nswitch was a page load that aborted the rename's save outright; since\n#8581 made it a route the save is sent, and the rename is lost this way\ninstead.)\n\nHandled once, in `WorkflowPersistService`, the one place every save goes\nthrough:\n\n- Each response is relayed with the page's current name and description\nin place of the ones the save was sent with. Those are the two fields a\nuser edits; everything else in the response (id, timestamps, publish\nstate, default view) is the server's and arrives as before. A response\nis left alone when another workflow is open by the time it answers, or\nwhen the page was cleared meanwhile; the local name is kept for a\nworkflow the save has just created (the page still holds the default\nid), which the id the save was sent with tells apart from a cleared\npage, since that one also holds the default id. The action service is\nlooked up lazily at response time, so the dashboard, which also uses\nthis service (retrieve, create, duplicate), does not construct the\ngraph-owning service as a side effect. The callers that feed a response\nback as metadata (the workspace autosave, the menu's own save, the Form\nView switch, the form's save) are unchanged by this part; the settings\npanel's save and the workspace's unload save never read the response.\n- `whenSavesDrained()` emits once every save asked for so far has\nanswered or failed (at once when none is pending). The Form View switch\nwaits for it before leaving, so a save queued behind its own (a\nrename's, a description's, which save through the menu itself and do not\ngo through `workflowChanged`) has answered while the menu that asked for\nit is still there to show its error or feed back its response, the same\nreason the switch already waits for its own save. A queued save that\nfails reports its error through its own caller and does not hold the\nhand-over. The wait is bounded (`HANDOVER_DRAIN_TIMEOUT_MS`, 10 s): a\nqueued save that never answers does not hold the switch either; past the\nbound it leaves as it did before the wait existed.\n\nVerified in a real browser against today's main and this branch side by\nside (two dev servers on one backend, every persist request held 1.5 s\nby a proxy in front of each). Before: a rename made while an earlier\nrename's save was out flipped the title back to the old name when that\nresponse landed (1.6 s) until the second answered (3.2 s); a rename made\nduring the Form View switch's save ended with the old name shown in the\nForm View and stored (the switch left at 1.5 s, the canvas's save on its\nway out carried the reverted name). After: the title stays on the new\nname; the switch leaves once the rename's save has landed (3.1 s) and\nthe Form View shows, and the server stores, the new name; an operator\ndragged while the hand-over waited for the queue was saved before the\nroute, with its new position in the stored content.\n\n### Any related issues, documentation, discussions?\n\nCloses #8536. Follow-up to #8456 (threads on `menu.component.ts:692` and\n`:231`); part of the Form View feature (parent issue #8011).\n\n### How was this PR tested?\n\nUnit tests (vitest): the persist service relays a response with the\npage's current name and description and the server's other fields, keeps\nthe local name for a just-created workflow, leaves a response alone when\nanother workflow is open or when the page was cleared while the save was\nout; `whenSavesDrained` emits at once when idle, only after the last of\ntwo queued saves has answered, and after a failed save; the menu's\nswitch leaves only once the queue has drained, and an edit made while it\nwaits for the queue is saved before it leaves; the service answers a\ncaller asking from its own save's complete callback only once the save\nqueued behind has answered too, and answers a call once (a drain caused\nby a later save does not reach a caller answered already); the menu's\nswitch leaves after the bound when a queued save never answers, without\nsaving again behind it. Each new guard was deletion-checked (removing it\nturns the corresponding test red). eslint, prettier and the production\n(AOT) build pass; every changed line is statement and function covered.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nYes. Generated-by: Claude Code (Claude Fable 5.1, Anthropic).\nCo-authored with Claude, reviewed line by line by the author before\nsubmission.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01FVvP3ttj22f9LB4p9u2anY\n\n---------\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-09-27T03:50:35Z",
+          "url": "https://github.com/apache/texera/commit/e0f49897dbb525dc7faa6eac5f293fdb02b8f7f9"
+        },
+        "date": 1790512891548,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1002.9051524626292,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2238.758802425039,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2506.8441357853094,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1474.4980153157185,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2301.095058865656,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2520.997709077214,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1626.8789371883631,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2328.0920935113704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2514.0186337494397,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1294.078000847845,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1869.0317808500577,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1971.7529353696827,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1407.0651820039973,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1889.3258673530747,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1934.5039037089384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1347.9005201916084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1817.558701062448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1904.272304020111,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 775.863262290034,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 992.6931694048251,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1045.2582584035933,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 854.7794253681119,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1056.9697766598372,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1034.0493071585506,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 848.8463498180047,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 953.606875231542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 987.1330837112891,
             "unit": "tuples/sec"
           }
         ]
