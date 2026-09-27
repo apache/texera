@@ -221,12 +221,6 @@ object SpecializedFilterTransformHandler extends TransformHandler {
   }
 }
 
-/** Handler for `DistinctOpDesc`. The canonical auto-fixture is all-distinct
-  * (the name column is unique by invariant), so it never exercises dedup.
-  * This 5-row table repeats two rows so both paths must actually drop
-  * duplicates, and both keep the first occurrence: JVM LinkedHashSet and pandas
-  * `drop_duplicates(keep="first")` agree on which of a pair survives.
-  */
 /**
   * Curated CONFIG for [[ProjectionOpDesc]] over the shared table. Its `attributes`
   * list is not declared `required`, so the auto tier starts it empty the way the UI
@@ -246,24 +240,19 @@ object ProjectionTransformHandler extends TransformHandler {
   }
 }
 
+/** Handler for `DistinctOpDesc`. Every row of the shared table is distinct, since
+  * `id` is, so it never exercises dedup. Two of its columns, `name` and the 0/1
+  * species, repeat whole rows, so both paths must actually drop duplicates, and
+  * both keep the first occurrence: JVM LinkedHashSet and pandas
+  * `drop_duplicates(keep="first")` agree on which of a pair survives.
+  */
 object DistinctTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[DistinctOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val columns = Seq(
-      ("id", AttributeType.INTEGER),
-      ("name", AttributeType.STRING)
-    )
-    val rows = Seq(
-      Seq[Any](1, "a"),
-      Seq[Any](2, "b"),
-      Seq[Any](1, "a"), // duplicate of row 0
-      Seq[Any](3, "c"),
-      Seq[Any](2, "b") // duplicate of row 1
-    )
-    val inputPath =
-      CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
-    (new DistinctOpDesc(), Map(PortIdentity(0) -> inputPath))
+    val repeating =
+      ProjectedFixture(CanonicalFixture, Seq("name", "a\"b\\c_species"), Set.empty)
+    (new DistinctOpDesc(), repeating.writeInputs(testRoot, 1))
   }
 }
 
@@ -346,15 +335,14 @@ object RegexTransformHandler extends TransformHandler {
       numberRows
     )
 
-    // A boolean column. The engine matches "true", where a hole leaves pandas
-    // holding 1.0. Case-sensitive on purpose, since case is half the difference.
-    val boolDir = testRoot.resolve("booleans")
-    Files.createDirectories(boolDir)
-    val boolColumn = Seq(("a\"b\\c_b", AttributeType.BOOLEAN))
-    val boolRows: Seq[Seq[Any]] =
-      Seq(Seq[Any](true), Seq[Any](false), Seq[Any](null), Seq[Any](true))
-    val boolInput =
-      CuratedHandlers.writeFixture(boolDir.resolve("input_port_0.jsonl"), boolColumn, boolRows)
+    // The shared table's boolean column, holed. The engine matches "true", where
+    // the hole leaves pandas holding 1.0. Case-sensitive on purpose, since case
+    // is half the difference.
+    val boolInput = CanonicalFixture.write(
+      Files.createDirectories(testRoot.resolve("booleans")),
+      1,
+      withGaps = true
+    )
 
     Seq(
       (
@@ -374,8 +362,8 @@ object RegexTransformHandler extends TransformHandler {
       ),
       (
         "regex=^true$ on a boolean column",
-        regexOp("a\"b\\c_b", "^true$", caseInsensitive = false),
-        Map(PortIdentity(0) -> boolInput)
+        regexOp("a\"b\\c_high_score", "^true$", caseInsensitive = false),
+        boolInput
       )
     )
   }
@@ -516,11 +504,6 @@ object HashJoinTransformHandler extends TransformHandler {
   * pairs a target type with a source column that type accepts, holding a value
   * that round-trips identically through JVM `AttributeTypeUtils` and through the
   * generated pandas.
-  *
-  * TIMESTAMP is left out: the two runtimes serialize one differently to JSONL,
-  * native as an ISO string and pandas as epoch millis, so the comparator flags a
-  * representation mismatch for an identical instant. That is a harness-wide gap
-  * rather than a TypeCasting defect.
   */
 object TypeCastingTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[TypeCastingOpDesc]
@@ -539,7 +522,7 @@ object TypeCastingTransformHandler extends TransformHandler {
       // since Path A would end before there is anything to compare; that half
       // is pinned in TypeCastingOpDescSpec.
       ("str_to_bool", AttributeType.STRING), // "true"/"0"     → BOOLEAN
-      // The other direction, which the five above cannot ask: the engine writes
+      // The other direction, which the casts above cannot ask: the engine writes
       // "true" where Python's str() writes "True".
       ("bool_to_str", AttributeType.BOOLEAN), // true/false     → STRING
       // Named by two units at once. `tupleCasting` takes a Map, so the second
@@ -551,13 +534,50 @@ object TypeCastingTransformHandler extends TransformHandler {
       ("lng_to_int", AttributeType.LONG), // beyond Int range → INTEGER
       // `new Timestamp(long)` reads the number as milliseconds; pd.to_datetime
       // defaults to nanoseconds and puts every one of these in 1970.
-      ("ms_to_ts", AttributeType.LONG) // epoch millis → TIMESTAMP
+      ("ms_to_ts", AttributeType.LONG), // epoch millis → TIMESTAMP
+      // Double.toString writes E notation from 1e7 up and below 1e-3, where
+      // Python's str() waits until 1e16 and 1e-4.
+      ("dbl_to_str", AttributeType.DOUBLE), // double → STRING
+      // Timestamp.toString writes every digit of the nanoseconds it holds, and
+      // a year past pandas' range as readily as any other. Two columns, since
+      // one pandas column holds nanoseconds or those years but not both.
+      ("ts_to_str", AttributeType.TIMESTAMP), // timestamp → STRING
+      ("far_ts_to_str", AttributeType.TIMESTAMP) // timestamp → STRING
     )
+    def ts(text: String) = java.sql.Timestamp.valueOf(text)
     // `str_to_int` carries the text NumberFormat reads and Python's int refuses:
     // a decimal point, a grouping comma, trailing letters.
     val rows = Seq(
-      Seq[Any]("10", 1, 6, 11, 1, "true", true, "2024-01-07 00:00:00", 2147483648L, 1700000000000L),
-      Seq[Any]("6.7", 2, 7, 12, 0, "false", false, "2024-03-15 08:30:00", 2147483647L, 0L),
+      Seq[Any](
+        "10",
+        1,
+        6,
+        11,
+        1,
+        "true",
+        true,
+        "2024-01-07 00:00:00",
+        2147483648L,
+        1700000000000L,
+        1.0e20,
+        ts("2024-01-01 00:00:00.123456789"),
+        ts("2500-01-01 00:00:00.5")
+      ),
+      Seq[Any](
+        "6.7",
+        2,
+        7,
+        12,
+        0,
+        "false",
+        false,
+        "2024-03-15 08:30:00",
+        2147483647L,
+        0L,
+        1.0e-4,
+        ts("2024-03-05 14:09:07.5"),
+        ts("1600-06-15 08:30:00.0")
+      ),
       Seq[Any](
         "1,234",
         3,
@@ -568,10 +588,41 @@ object TypeCastingTransformHandler extends TransformHandler {
         true,
         "2024-06-01 12:00:00",
         -2147483649L,
-        1000000000000L
+        1000000000000L,
+        1.0e7,
+        ts("2024-06-30 23:59:59.999999999"),
+        ts("9999-12-31 23:59:59.0")
       ),
-      Seq[Any]("12abc", 4, 9, 14, 0, "1", false, "2024-09-20 23:59:59", 0L, 1893456000000L),
-      Seq[Any]("-6.7", 5, 10, 15, 1, "TRUE", true, "2024-12-31 01:02:03", -1L, 946684800000L)
+      Seq[Any](
+        "12abc",
+        4,
+        9,
+        14,
+        0,
+        "1",
+        false,
+        "2024-09-20 23:59:59",
+        0L,
+        1893456000000L,
+        0.1,
+        ts("2024-01-01 00:00:00.000000001"),
+        ts("2024-01-01 00:00:00.0")
+      ),
+      Seq[Any](
+        "-6.7",
+        5,
+        10,
+        15,
+        1,
+        "TRUE",
+        true,
+        "2024-12-31 01:02:03",
+        -1L,
+        946684800000L,
+        3.0,
+        ts("2024-01-01 00:00:00.0"),
+        ts("1677-09-21 00:00:00.0")
+      )
     )
     val inputPath =
       CuratedHandlers.writeFixture(testRoot.resolve("input_port_0.jsonl"), columns, rows)
@@ -594,7 +645,10 @@ object TypeCastingTransformHandler extends TransformHandler {
       unit("twice_cast", AttributeType.TIMESTAMP),
       unit("twice_cast", AttributeType.STRING),
       unit("lng_to_int", AttributeType.INTEGER),
-      unit("ms_to_ts", AttributeType.TIMESTAMP)
+      unit("ms_to_ts", AttributeType.TIMESTAMP),
+      unit("dbl_to_str", AttributeType.STRING),
+      unit("ts_to_str", AttributeType.STRING),
+      unit("far_ts_to_str", AttributeType.STRING)
     )
 
     (desc, Map(PortIdentity(0) -> inputPath))
@@ -642,22 +696,17 @@ object KeywordSearchTransformHandler extends TransformHandler {
   override def extraScenarios(
       testRoot: Path
   ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
-    // A hole widens an integer column to float and every value grows a ".0" the
-    // term "0" then matches on a word boundary, so the rendering decides between
-    // one row and all of them. A digit term cannot: `\b6\b` finds "6.0" too.
-    val numberDir = testRoot.resolve("numbers")
-    Files.createDirectories(numberDir)
-    val numberColumn = Seq(("a\"b\\c_n", AttributeType.INTEGER))
-    val numberRows: Seq[Seq[Any]] =
-      Seq(Seq[Any](6), Seq[Any](null), Seq[Any](70), Seq[Any](0))
-    val numberInput = CuratedHandlers.writeFixture(
-      numberDir.resolve("input_port_0.jsonl"),
-      numberColumn,
-      numberRows
+    // A hole widens the shared table's 0/1 column to float and every value grows
+    // a ".0" the term "0" then matches on a word boundary, so the rendering
+    // decides between the 0 rows and all of them.
+    val numberInput = CanonicalFixture.write(
+      Files.createDirectories(testRoot.resolve("numbers")),
+      1,
+      withGaps = true
     )
 
     val desc = new KeywordSearchOpDesc()
-    desc.attribute = "a\"b\\c_n"
+    desc.attribute = "a\"b\\c_species"
     desc.keyword = "0"
     desc.isCaseSensitive = false
 
@@ -684,7 +733,7 @@ object KeywordSearchTransformHandler extends TransformHandler {
     cased.isCaseSensitive = true
 
     Seq(
-      ("keyword=0 on an integer column", desc, Map(PortIdentity(0) -> numberInput)),
+      ("keyword=0 on an integer column", desc, numberInput),
       ("keyword=Love, case sensitive", cased, Map(PortIdentity(0) -> casedInput))
     )
   }
@@ -830,11 +879,12 @@ object AggregateTransformHandler extends TransformHandler {
     val columns = Seq(
       ("a\"b\\c_i", AttributeType.INTEGER),
       ("a\"b\\c_t", AttributeType.TIMESTAMP),
-      ("a\"b\\c_b", AttributeType.BOOLEAN)
+      ("a\"b\\c_b", AttributeType.BOOLEAN),
+      ("a\"b\\c_d", AttributeType.DOUBLE)
     )
     val rows: Seq[Seq[Any]] = Seq(
-      Seq[Any](Int.MaxValue, java.sql.Timestamp.valueOf("2020-01-01 00:00:00"), true),
-      Seq[Any](1, java.sql.Timestamp.valueOf("2020-01-02 00:00:00"), false)
+      Seq[Any](Int.MaxValue, java.sql.Timestamp.valueOf("2020-01-01 00:00:00"), true, 1.0e20),
+      Seq[Any](1, java.sql.Timestamp.valueOf("2020-01-02 00:00:00"), false, 1.0e-4)
     )
     val input = CuratedHandlers.writeFixture(dir.resolve("input_port_0.jsonl"), columns, rows)
 
@@ -844,7 +894,9 @@ object AggregateTransformHandler extends TransformHandler {
       agg(AggregationFunction.SUM, "a\"b\\c_i", "int_total"),
       agg(AggregationFunction.SUM, "a\"b\\c_t", "ts_total"),
       agg(AggregationFunction.AVERAGE, "a\"b\\c_t", "ts_avg"),
-      agg(AggregationFunction.CONCAT, "a\"b\\c_b", "flags")
+      agg(AggregationFunction.CONCAT, "a\"b\\c_b", "flags"),
+      agg(AggregationFunction.CONCAT, "a\"b\\c_d", "doubles"),
+      agg(AggregationFunction.CONCAT, "a\"b\\c_t", "moments")
     )
     ("the engine's own arithmetic", desc, Map(PortIdentity(0) -> input))
   }
@@ -997,6 +1049,48 @@ object SklearnPredictionTransformHandler extends TransformHandler {
     (
       desc,
       FittedModelFixture.write(testRoot, "DecisionTreeClassifier", FittedModelFixture.label)
+    )
+  }
+
+  /** The ground-truth branch over rows missing a feature, which the nulls case
+    * does not reach since it leaves the optional knob unfilled; and two model
+    * rows, of which the engine predicts with the last.
+    */
+  override def extraScenarios(
+      testRoot: Path
+  ): Seq[(String, LogicalOp, Map[PortIdentity, Path])] = {
+    def in(name: String): Path = Files.createDirectories(testRoot.resolve(name))
+    val tree = "DecisionTreeClassifier(random_state=0)"
+    val label = FittedModelFixture.label
+    def prediction(groundTruth: String): SklearnPredictionOpDesc = {
+      val desc = new SklearnPredictionOpDesc()
+      desc.model = FittedModelFixture.model
+      desc.resultAttribute = "prediction"
+      desc.groundTruthAttribute = groundTruth
+      desc
+    }
+    Seq(
+      (
+        "ground truth named, a feature missing",
+        prediction(label),
+        FittedModelFixture.writeModels(
+          in("ground-truth-holes"),
+          Seq(tree),
+          label,
+          scored = Some(
+            Seq(Seq("versicolor", 5.0, 1.8), Seq("setosa", null, 0.2), Seq("virginica", 6.0, null))
+          )
+        )
+      ),
+      (
+        "two model rows",
+        prediction(""),
+        FittedModelFixture.writeModels(
+          in("two-models"),
+          Seq(tree, "DecisionTreeClassifier(max_depth=1, random_state=0)"),
+          label
+        )
+      )
     )
   }
 }
