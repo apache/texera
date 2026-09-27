@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
@@ -158,6 +158,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
   override def standaloneSourcePath(): Option[String] = fileName
 
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
   override def generateStandaloneCode(): String = {
     // Resolve the delimiter the same way the parser above does — first character, empty
     // means comma — and escape it. Every value the field accepts has to survive this:
@@ -182,34 +184,24 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     args += "keep_default_na=False"
     args += """na_values=[""]"""
 
-    // A CSV carries no types, so both readers infer, and they do not infer
-    // alike: the schema above tries TIMESTAMP and parses what it can, while
-    // pd.read_csv leaves a date column as text. Name the columns this operator
-    // decided were timestamps so pandas parses the same ones. They are named by
-    // position, header or not, because the schema's names are not pandas' until
-    // the rename below: a blank header is `column-2` here and `Unnamed: 1`
-    // there, and asking for `column-2` ended the read. pandas takes an integer
-    // here as a position even where a header spells one. A schema that cannot be
-    // read (an unresolved file) leaves the argument off rather than failing the
-    // export.
-    val dateColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.zipWithIndex
-          .filter(_._1.getType == AttributeType.TIMESTAMP)
-          .map(_._2.toString)
-      )
-    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
-
     // A column holding a null has to be asked for, or pandas widens it to carry
     // the hole: an integer through a float, where a LONG past 2^53 comes back
     // rounded (9007199254740993 as ...992) and every INTEGER is left a float
     // that prints 3 as 3.0, and a boolean to an object column. The nullable
-    // dtypes carry the hole and keep the type the schema declared. By position,
-    // as the dates are.
+    // dtypes carry the hole and keep the type the schema declared. A timestamp
+    // is read as its text and parsed below, the way the engine parses it.
+    //
+    // By position, header or not, because the schema's names are not pandas'
+    // until the rename below: a blank header is `column-2` here and `Unnamed: 1`
+    // there, and asking for `column-2` ended the read. pandas takes an integer
+    // here as a position even where a header spells one. A schema that cannot be
+    // read (an unresolved file) leaves the argument off rather than failing the
+    // export.
     val nullableDtypes = Map(
       AttributeType.INTEGER -> "Int32",
       AttributeType.LONG -> "Int64",
-      AttributeType.BOOLEAN -> "boolean"
+      AttributeType.BOOLEAN -> "boolean",
+      AttributeType.TIMESTAMP -> "object"
     )
     val typedColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
@@ -247,9 +239,12 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
         .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
 
     if (schemaNames.nonEmpty)
-      s"""$readCall
-         |out1df.columns = [${schemaNames.mkString(", ")}]
-         |${StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())}""".stripMargin
+      Seq(
+        readCall,
+        s"out1df.columns = [${schemaNames.mkString(", ")}]",
+        StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
+        StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())
+      ).filter(_.nonEmpty).mkString("\n")
     else if (hasHeader) readCall
     else {
       // Unresolved file: fall back to Texera's headerless naming.

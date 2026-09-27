@@ -155,7 +155,7 @@ class FileScanOpDesc
         case FileAttributeType.LONG      => "int(l.rstrip())"
         case FileAttributeType.DOUBLE    => "float(l.rstrip())"
         case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
-        case FileAttributeType.TIMESTAMP => "pd.Timestamp(l.rstrip())"
+        case FileAttributeType.TIMESTAMP => "l.rstrip()"
         case _                           => """l.rstrip("\n")"""
       }
       // The slice applies to the raw lines, as the engine drops and takes
@@ -182,13 +182,12 @@ class FileScanOpDesc
     } else {
       buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
     }
+    buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
 
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] =
-    if (attributeType == FileAttributeType.BOOLEAN) Seq(TextSourceOpDesc.BooleanParser)
-    else Seq.empty
+  override def standaloneHelpers(): Seq[String] = TextSourceOpDesc.lineHelpers(attributeType)
 
   override def standaloneImports(): Seq[String] =
     if (!extract) Seq.empty

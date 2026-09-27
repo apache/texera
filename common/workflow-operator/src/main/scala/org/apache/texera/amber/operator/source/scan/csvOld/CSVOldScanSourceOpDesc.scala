@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -82,6 +82,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
 
   override def standaloneSourcePath(): Option[String] = fileName
 
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
   override def generateStandaloneCode(): String = {
     // First character, empty means comma — the same resolution the reader below does —
     // and escaped, so every value the field accepts survives being spliced into Python.
@@ -105,28 +107,19 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // keeps it. See CSVScanSourceOpDesc.
     args += "keep_default_na=False"
 
-    // Name the columns this operator inferred as timestamps, so pandas parses
-    // the same ones instead of leaving them as text. By position, header or
+    // Read a LONG column as the nullable integer, so a hole does not widen it
+    // through a float and round the values it carries, and a timestamp as its
+    // text, parsed below the way the engine parses it. By position, header or
     // not, since a blank header is not yet the schema's name. See
     // CSVScanSourceOpDesc.
-    val dateColumns: Seq[String] =
+    val readAs = Map(AttributeType.LONG -> "Int64", AttributeType.TIMESTAMP -> "object")
+    val typedColumns: Seq[String] =
       Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.zipWithIndex
-          .filter(_._1.getType == AttributeType.TIMESTAMP)
-          .map(_._2.toString)
+        _.getAttributes.zipWithIndex.flatMap {
+          case (attribute, i) => readAs.get(attribute.getType).map(d => s"""$i: "$d"""")
+        }
       )
-    if (dateColumns.nonEmpty) args += s"parse_dates=[${dateColumns.mkString(", ")}]"
-
-    // Read a LONG column as the nullable integer, so a hole does not widen it
-    // through a float and round the values it carries. By position, as the
-    // dates are. See CSVScanSourceOpDesc.
-    val longColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.zipWithIndex
-          .filter(_._1.getType == AttributeType.LONG)
-          .map { case (_, i) => s"""$i: "Int64"""" }
-      )
-    if (longColumns.nonEmpty) args += s"dtype={${longColumns.mkString(", ")}}"
+    if (typedColumns.nonEmpty) args += s"dtype={${typedColumns.mkString(", ")}}"
 
     // Clamped, as in the newer CSV scan: pandas rejects a negative `nrows` where
     // the executor's `take` keeps no rows, and only the editor refuses one.
@@ -149,9 +142,12 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
         .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
 
     if (schemaNames.nonEmpty)
-      s"""$readCall
-         |out1df.columns = [${schemaNames.mkString(", ")}]
-         |${StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())}""".stripMargin
+      Seq(
+        readCall,
+        s"out1df.columns = [${schemaNames.mkString(", ")}]",
+        StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
+        StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())
+      ).filter(_.nonEmpty).mkString("\n")
     else if (hasHeader) readCall
     else
       // Unresolved file: fall back to Texera's headerless naming.

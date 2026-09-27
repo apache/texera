@@ -103,9 +103,8 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
     // TIMESTAMP has none. Left zoned, the column reached a downstream `astype`
     // that refuses to drop a zone and ended the script. pandas already holds the
     // wall clock in the file's own zone, so the zone is taken off and the clock
-    // left as it is, which is what ArrowUtils reads. The other scan sources have
-    // to name their date columns, CSV and JSONL carrying no types to go on, but
-    // Arrow states its own.
+    // left as it is, which is what ArrowUtils reads. CSV and JSONL parse their
+    // timestamps from text, carrying no types to go on, but Arrow states its own.
     val zones =
       """|for _column, _values in out1df.items():
          |    if isinstance(_values.dtype, pd.DatetimeTZDtype):

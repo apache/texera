@@ -106,7 +106,7 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // back empty while the header still asked each column for one, and the
   // operator threw before a row was read. A file's columns do not depend on how
   // many of its rows were asked for.
-  "CSVOldScanSourceOpDesc.generateStandaloneCode" should "keep the file's columns when the window asks for no rows" in {
+  "CSVOldScanSourceOpDesc.sourceSchema" should "keep the file's columns when the window asks for no rows" in {
     val d = describing(writeCsv("id,name\n1,alice\n2,bob\n"))
     d.limit = Some(0)
 

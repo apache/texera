@@ -27,11 +27,13 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema =
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -45,6 +47,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -171,7 +175,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // and a numpy column has one slot for both. A holed integer column loses its
   // type the same way.
   "ArrowSourceOpDesc.generateStandaloneCode" should
-    "keep a missing value apart from a NaN, and an integer integral" in {
+    "keep a missing value apart from a NaN, and an integer integral" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -236,7 +240,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // had, and casts the names back to it. A frame whose columns were numbered is written
   // under the names "1" and "2", which is what the executor reads, and comes
   // back out of pandas labelled 1 and 2.
-  it should "keep the names a pandas frame of numbered columns was written under" in {
+  it should "keep the names a pandas frame of numbered columns was written under" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 

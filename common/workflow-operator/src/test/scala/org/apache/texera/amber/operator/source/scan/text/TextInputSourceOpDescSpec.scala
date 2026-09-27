@@ -31,8 +31,10 @@ import org.apache.texera.amber.core.tuple.{
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
@@ -42,6 +44,8 @@ import scala.io.Source
 import scala.util.Try
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
   var textInputSourceOpDesc: TextInputSourceOpDesc = _
 
   before {
@@ -289,7 +293,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // `parseField` reads a BOOLEAN line as "true" or "false" in any case, then as an
   // integer that is true only at 1, and refuses anything else, which the export
   // has to refuse too rather than pass off as a row of false.
-  "TextInputSourceOpDesc.generateStandaloneCode" should "refuse a boolean line the engine refuses" in {
+  "TextInputSourceOpDesc.generateStandaloneCode" should "refuse a boolean line the engine refuses" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

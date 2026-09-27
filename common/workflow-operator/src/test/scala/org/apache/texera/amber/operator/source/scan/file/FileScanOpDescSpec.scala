@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.tuple.{
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{StandaloneHelpers, TestOperators}
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -223,7 +223,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       FileAttributeType.LONG -> "int(l.rstrip())",
       FileAttributeType.DOUBLE -> "float(l.rstrip())",
       FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
-      FileAttributeType.TIMESTAMP -> "pd.Timestamp(l.rstrip())",
+      FileAttributeType.TIMESTAMP -> "l.rstrip()",
       FileAttributeType.STRING -> """l.rstrip("\n")"""
     )
     castByType.foreach {
@@ -241,6 +241,14 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     assert(fileScanOpDesc.standaloneHelpers().isEmpty)
+    // A timestamp line is read as text and parsed as a column, as CSV parses one.
+    fileScanOpDesc.attributeType = FileAttributeType.TIMESTAMP
+    assert(
+      fileScanOpDesc
+        .generateStandaloneCode()
+        .endsWith("""out1df["line"] = _texera_text_to_timestamp(out1df["line"])""")
+    )
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(StandaloneHelpers.AttributeCasts))
   }
 
   it should "slice the raw lines before converting them when a limit or offset is set" in {

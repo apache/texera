@@ -168,13 +168,17 @@ object ArrowUtils extends LazyLogging {
       case TimeUnit.NANOSECOND  => Instant.EPOCH.plusNanos(number)
     }
 
-  /** The number a field of this unit records an instant as, inverting [[instantOf]]. */
+  /** The number a field of this unit records an instant as, inverting [[instantOf]].
+    * Microseconds are counted from the seconds, because ChronoUnit.MICROS goes
+    * through nanoseconds and overflows past 2262, a year a Timestamp holds.
+    */
   private def numberOf(instant: Instant, unit: TimeUnit): Long =
     unit match {
       case TimeUnit.SECOND      => instant.getEpochSecond
       case TimeUnit.MILLISECOND => instant.toEpochMilli
-      case TimeUnit.MICROSECOND => ChronoUnit.MICROS.between(Instant.EPOCH, instant)
-      case TimeUnit.NANOSECOND  => ChronoUnit.NANOS.between(Instant.EPOCH, instant)
+      case TimeUnit.MICROSECOND =>
+        Math.addExact(Math.multiplyExact(instant.getEpochSecond, 1000000L), instant.getNano / 1000L)
+      case TimeUnit.NANOSECOND => ChronoUnit.NANOS.between(Instant.EPOCH, instant)
     }
 
   /**
@@ -402,8 +406,13 @@ object ArrowUtils extends LazyLogging {
       case AttributeType.BOOLEAN =>
         ArrowType.Bool.INSTANCE
 
+      // A wall clock with no zone, to the microsecond, which is what a Python
+      // worker maps TIMESTAMP to and the finest a datetime holds. Labelled UTC
+      // in milliseconds, a Python operator was handed an aware moment cut to
+      // the millisecond, where a JVM operator reads the same row with no zone
+      // and to the nanosecond.
       case AttributeType.TIMESTAMP =>
-        new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+        new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
 
       case AttributeType.BINARY =>
         new ArrowType.Binary

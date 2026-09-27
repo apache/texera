@@ -96,7 +96,7 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // operator emits, so a Limit of 0 had nothing to infer from and the operator
   // declared a schema of no columns at all. A file's columns do not depend on
   // how many of its rows were asked for.
-  "JSONLScanSourceOpDesc.generateStandaloneCode" should "keep the file's columns when the window asks for no rows" in {
+  "JSONLScanSourceOpDesc.sourceSchema" should "keep the file's columns when the window asks for no rows" in {
     val data = Files.createTempFile("jsonl-zero-window-", ".jsonl")
     data.toFile.deleteOnExit()
     Files.write(

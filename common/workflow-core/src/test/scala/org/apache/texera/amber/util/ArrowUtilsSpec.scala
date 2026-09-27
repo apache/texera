@@ -126,9 +126,9 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ArrowUtils.fromAttributeType(AttributeType.BOOLEAN) shouldBe ArrowType.Bool.INSTANCE
   }
 
-  it should "map TIMESTAMP to Timestamp(MILLISECOND, UTC)" in {
+  it should "map TIMESTAMP to a zoneless Timestamp(MICROSECOND)" in {
     val arrow = ArrowUtils.fromAttributeType(AttributeType.TIMESTAMP)
-    arrow shouldBe new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+    arrow shouldBe new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
   }
 
   it should "map BINARY to ArrowType.Binary" in {
@@ -369,6 +369,20 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // A Timestamp reaches past 2262, where counting microseconds through
+  // nanoseconds overflowed, and before 1970. Both come back to the microsecond.
+  it should "round-trip a timestamp either side of the nanosecond range" in {
+    val schema = Schema(List(new Attribute("t", AttributeType.TIMESTAMP)))
+    Seq("2500-01-01 00:00:00.123456", "1600-06-15 08:30:00.5").foreach { text =>
+      val tuple =
+        Tuple.builder(schema).addSequentially(Array[Any](Timestamp.valueOf(text))).build()
+      withRoot(schema) { root =>
+        ArrowUtils.appendTexeraTuple(tuple, root)
+        ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe Timestamp.valueOf(text)
+      }
+    }
+  }
+
   it should "append consecutive tuples at increasing row indices" in {
     val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
     val first = Tuple.builder(schema).addSequentially(Array[Any]("first")).build()
@@ -448,9 +462,9 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // ----- Timestamp fields that are not the UTC millisecond ones we write -----
+  // ----- Timestamp fields that are not the zoneless microsecond ones we write -----
 
-  // fromTexeraSchema only ever writes Timestamp(MILLISECOND, "UTC"), so the
+  // fromTexeraSchema only ever writes a zoneless Timestamp(MICROSECOND), so the
   // roots built above never exercise another zone or unit. An .arrow file handed
   // to ArrowSourceOpDesc can carry either: pandas writes a tz-aware column as
   // Timestamp(NANOSECOND, <its zone>). These build the field directly.

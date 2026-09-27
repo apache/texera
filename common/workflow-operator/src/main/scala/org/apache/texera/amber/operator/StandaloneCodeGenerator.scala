@@ -152,12 +152,30 @@ object StandaloneCodeGenerator {
       .mkString(", ")}})""".stripMargin
   }
 
+  /** Python that reads each TIMESTAMP column of `schema`, held as text, the way
+    * the engine reads it, with `_texera_text_to_timestamp` from
+    * [[StandaloneHelpers.AttributeCasts]], which the caller declares.
+    *
+    * pandas parses a date column into nanoseconds, which end in 2262, and left a
+    * later year as text. The engine hands each field to DateParserUtils, so a
+    * row states its own format, any year reads, and the reading is cut to the
+    * millisecond.
+    */
+  def parseTimestamps(frame: String, schema: Schema): String =
+    schema.getAttributes
+      .filter(_.getType == AttributeType.TIMESTAMP)
+      .map { a =>
+        val name = pyStringLiteral(a.getName)
+        s"$frame[$name] = _texera_text_to_timestamp($frame[$name])"
+      }
+      .mkString("\n")
+
   private val emptyDtypes: Map[AttributeType, String] = Map(
     AttributeType.INTEGER -> "Int32",
     AttributeType.LONG -> "Int64",
     AttributeType.DOUBLE -> "float64",
     AttributeType.BOOLEAN -> "boolean",
-    AttributeType.TIMESTAMP -> "datetime64[ns]",
+    AttributeType.TIMESTAMP -> "datetime64[us]",
     AttributeType.STRING -> "object"
   )
 }

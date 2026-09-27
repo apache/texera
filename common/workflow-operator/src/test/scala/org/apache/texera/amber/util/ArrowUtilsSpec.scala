@@ -42,7 +42,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val float = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)
   val double = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
   val half = new ArrowType.FloatingPoint(FloatingPointPrecision.HALF)
-  val timestamp = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+  val timestamp = new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
   val texeraSchema: Schema = Schema()
@@ -176,10 +176,12 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     assert(vectorSchemaRoot.getVector(2).getObject(index).asInstanceOf[Boolean] == true)
     assert(vectorSchemaRoot.getVector(3).getObject(index).asInstanceOf[Double] == 1.1)
 
-    // The arrow storage type of timestamp is Long, and the field is labelled
-    // UTC, so the wall clock above is stored as the UTC instant of the same
-    // reading: ten seconds past the epoch, on a server anywhere.
-    assert(vectorSchemaRoot.getVector(4).getObject(index).asInstanceOf[Long] == 10000L)
+    // The field carries no zone, so the vector holds the wall clock above and
+    // hands it back as one: ten seconds past the epoch, on a server anywhere.
+    assert(
+      vectorSchemaRoot.getVector(4).getObject(index) ==
+        java.time.LocalDateTime.of(1970, 1, 1, 0, 0, 10)
+    )
 
     // the arrow storage type of string is Text
     assert(

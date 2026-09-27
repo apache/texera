@@ -27,7 +27,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -94,24 +94,11 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // JSON has no timestamp of its own, so both readers infer from the text and
     // do not infer alike: the schema below tries TIMESTAMP and parses what it
     // can, while pd.read_json guesses from the COLUMN NAME (anything ending
-    // "_at" or "_time", anything called "date") and leaves the rest as text.
-    // Naming the columns this operator decided were timestamps settles both
-    // halves — the ones it misses and the ones it would have taken on its own.
-    // An unreadable schema leaves the argument off rather than failing the
-    // export.
-    val dateColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes
-          .filter(_.getType == AttributeType.TIMESTAMP)
-          .map(a => pyStringLiteral(a.getName))
-      )
-    // Under flattening the schema names a nested value for the column the
-    // flattening is about to build, and read_json is asked about that name
-    // while the file still holds the object around it. It finds no such column,
-    // converts nothing, and the value reaches the plan as text, where a sort
-    // puts a 2025 date before a 2024 one. Those columns are converted once the
-    // frame that holds them exists, below.
-    if (!flatten) readArgs += s"convert_dates=[${dateColumns.mkString(", ")}]"
+    // "_at" or "_time", anything called "date"). Every column is read as it
+    // was written, and the ones this operator decided were timestamps are
+    // parsed below, the way it parses them, once the frame holds them: under
+    // flattening a nested value is no column until the flattening builds it.
+    readArgs += "convert_dates=False"
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"
     // json_normalize opens a nested object and leaves a nested array whole, so
@@ -152,14 +139,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       }
     }
 
-    if (flatten) {
-      // A format is inferred for each value on its own, the way this operator's
-      // own parser reads each value on its own, so a column whose lines wrote
-      // the same instant two ways still converts whole.
-      dateColumns.foreach { nameLit =>
-        lines += s"""out1df[$nameLit] = pd.to_datetime(out1df[$nameLit], format="mixed")"""
-      }
-    }
+    Try(sourceSchema()).toOption
+      .map(StandaloneCodeGenerator.parseTimestamps("out1df", _))
+      .filter(_.nonEmpty)
+      .foreach(lines += _)
 
     // pandas has no plain boolean that carries a hole, so a record missing the
     // key widens the column to floats, and a later cast to text read 1.0 and 0.0
@@ -215,6 +198,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
   override def standaloneHelpers(): Seq[String] =
     (if (flatten) Seq(JSONLScanSourceOpDesc.JsonFlatten) else Seq.empty) ++
       (if (columnCount(AttributeType.STRING) > 0) Seq(JSONLScanSourceOpDesc.JsonText)
+       else Seq.empty) ++
+      (if (columnCount(AttributeType.TIMESTAMP) > 0 || columnCount(AttributeType.STRING) > 0)
+         Seq(StandaloneHelpers.AttributeCasts)
        else Seq.empty)
 
   override def standaloneImports(): Seq[String] = {
@@ -222,8 +208,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     val longs = columnCount(AttributeType.LONG)
     val strings = columnCount(AttributeType.STRING)
     (if (windowed || longs > 0 || strings > 0) Seq("import io") else Seq.empty) ++
-      (if (longs > 0 || strings > 0) Seq("import json") else Seq.empty) ++
-      (if (strings > 0) Seq("import decimal") else Seq.empty)
+      (if (longs > 0 || strings > 0) Seq("import json") else Seq.empty)
   }
 
   /** How many columns the schema gives this type, or none when it cannot be read. */
@@ -352,29 +337,16 @@ object JSONLScanSourceOpDesc {
   /**
     * One JSON value as the text Jackson's `asText` gives it, which is what the
     * executor reads every value as: `null` for a null, `true` and `false` in
-    * lower case, and a float the way Java prints a double, in E notation outside
-    * 10^-3 to 10^7. An object or an array is skipped by the executor, so it is
-    * no value here either.
+    * lower case, and a number the way Java prints it, with `_texera_java_text`
+    * from [[StandaloneHelpers.AttributeCasts]]. An object or an array is skipped
+    * by the executor, so it is no value here either.
     */
   val JsonText: String =
     """def _texera_json_text(value):
       |    if value is None:
       |        return "null"
-      |    if isinstance(value, bool):
-      |        return "true" if value else "false"
-      |    if isinstance(value, int):
-      |        return str(value)
-      |    if isinstance(value, float):
-      |        if value != value:
-      |            return "NaN"
-      |        if value in (float("inf"), float("-inf")):
-      |            return "Infinity" if value > 0 else "-Infinity"
-      |        if value == 0 or 1e-3 <= abs(value) < 1e7:
-      |            return repr(value)
-      |        sign, digits, exponent = decimal.Decimal(repr(value)).as_tuple()
-      |        power = len(digits) + exponent - 1
-      |        kept = "".join(map(str, digits)).rstrip("0") or "0"
-      |        return ("-" if sign else "") + kept[0] + "." + (kept[1:] or "0") + "E" + str(power)
+      |    if isinstance(value, (bool, int, float)):
+      |        return _texera_java_text(value)
       |    if isinstance(value, str):
       |        return value
       |    return None""".stripMargin

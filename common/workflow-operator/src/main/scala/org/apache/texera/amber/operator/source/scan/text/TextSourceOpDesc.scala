@@ -26,6 +26,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 
@@ -112,4 +113,21 @@ object TextSourceOpDesc {
 
   /** The call the per-line cast makes, over the loop variable the readers share. */
   val BooleanParserCall: String = "_texera_parse_bool(l)"
+
+  /** A TIMESTAMP line is kept as text and parsed once the column is built, as
+    * CSV and JSONL parse theirs. `pd.Timestamp` kept the nanoseconds and the
+    * offset that the engine's DateParserUtils does not.
+    */
+  def parseTimestampColumn(attributeType: FileAttributeType, colLit: String): Seq[String] =
+    if (attributeType == FileAttributeType.TIMESTAMP)
+      Seq(s"out1df[$colLit] = _texera_text_to_timestamp(out1df[$colLit])")
+    else Seq.empty
+
+  /** The helpers the Python above calls for this attribute type. */
+  def lineHelpers(attributeType: FileAttributeType): Seq[String] =
+    attributeType match {
+      case FileAttributeType.BOOLEAN   => Seq(BooleanParser)
+      case FileAttributeType.TIMESTAMP => Seq(StandaloneHelpers.AttributeCasts)
+      case _                           => Seq.empty
+    }
 }

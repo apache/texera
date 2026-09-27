@@ -95,7 +95,7 @@ class TextInputSourceOpDesc
         case FileAttributeType.LONG      => "int(l)"
         case FileAttributeType.DOUBLE    => "float(l)"
         case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
-        case FileAttributeType.TIMESTAMP => "pd.Timestamp(l)"
+        case FileAttributeType.TIMESTAMP => "l"
         case _                           => "l"
       }
       // The slice applies to the raw lines, as the engine drops and takes
@@ -106,12 +106,11 @@ class TextInputSourceOpDesc
         fileScanOffset.filter(_ > 0).fold("_text.splitlines()")(o => s"_text.splitlines()[$o:]")
       val linesExpr = fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
       buf += s"""out1df = pd.DataFrame({$colLit: [$castExpr for l in $linesExpr]})"""
+      buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
     }
 
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] =
-    if (attributeType == FileAttributeType.BOOLEAN) Seq(TextSourceOpDesc.BooleanParser)
-    else Seq.empty
+  override def standaloneHelpers(): Seq[String] = TextSourceOpDesc.lineHelpers(attributeType)
 }
