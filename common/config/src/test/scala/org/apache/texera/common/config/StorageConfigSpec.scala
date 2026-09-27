@@ -50,12 +50,15 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     StorageConfig.ENV_CLEANUP_INTERVAL_MINUTES shouldBe "STORAGE_CLEANUP_INTERVAL_MINUTES"
   }
 
-  "StorageConfig warehouse settings" should "default the feature to disabled so merging changes nothing" in {
-    // storage.warehouse.enabled is the kill switch for the whole per-user warehouse
-    // feature (#6870); this guards the safe default from silently flipping to true.
-    // Only assert when the env override is unset (e.g. in CI), since it would win otherwise.
+  "StorageConfig warehouse settings" should "be on by default, and only with the REST catalog" in {
+    // storage.warehouse.enabled is the switch for the whole per-user warehouse
+    // feature (#6870), on since #8712. Warehouses are Lakekeeper entities, so the
+    // switch is conjoined with the catalog type: any other catalog keeps the
+    // feature off however the switch reads, which is what stops a deployment
+    // without Lakekeeper from being handed a feature it cannot serve.
+    // Only assert when the env override is unset, since it would win otherwise.
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
-      StorageConfig.warehouseEnabled shouldBe false
+      StorageConfig.warehouseEnabled shouldBe (StorageConfig.icebergCatalogType == "rest")
     }
   }
 
