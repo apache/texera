@@ -28,6 +28,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Files
+import java.sql.Timestamp
 import java.util.Base64
 import scala.sys.process._
 
@@ -72,6 +73,48 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
         |        row["x"] = 2
         |        yield row
         |""".stripMargin
+  }
+
+  /** Reports the timestamp it was handed, as Python prints it. */
+  private class TimestampTextOpDesc extends BinaryTypeOpDesc {
+    override def generatePythonCode(): String =
+      """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"kind": str(tuple_["ts"])}
+        |""".stripMargin
+  }
+
+  /** Declares one INTEGER column `x` and yields `row`, a Python dict literal. */
+  private class YieldOpDesc(row: String) extends PythonOperatorDescriptor {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        userFriendlyName = "Yield",
+        operatorDescription = "yields one row as given",
+        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map(
+        operatorInfo.outputPorts.head.id -> Schema().add(new Attribute("x", AttributeType.INTEGER))
+      )
+
+    override def generatePythonCode(): String =
+      s"""from pytexera import *
+         |
+         |class ProcessTupleOperator(UDFOperatorV2):
+         |
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        yield $row
+         |""".stripMargin
   }
 
   /** Reads a LARGE_BINARY column and writes out the reference it holds.
@@ -211,6 +254,32 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
     binaryCellKind(Array[Byte](0, 1, 2)) shouldBe "bytes"
   }
 
+  // The worker gets the wall clock as a zoneless Arrow microsecond timestamp,
+  // so the operator holds a naive datetime cut to the microsecond, and a year
+  // past pandas' nanosecond range reaches it all the same.
+  it should "hand a timestamp to the operator as the worker hands it" in {
+    val dir = Files.createTempDirectory("py-op-harness-timestamp-")
+    val inputSchema = Schema().add(new Attribute("ts", AttributeType.TIMESTAMP))
+    val input = dir.resolve("input_port_0.jsonl")
+    val row = Tuple
+      .builder(inputSchema)
+      .add("ts", AttributeType.TIMESTAMP, Timestamp.valueOf("2500-01-01 00:00:00.123456789"))
+      .build()
+    TupleIO.writeTuples(input, Iterator(row), inputSchema)
+
+    val result = PyOpExecHarness.execute(
+      new TimestampTextOpDesc,
+      inputs = Map(PortIdentity(0) -> input),
+      outputDir = dir.resolve("actual")
+    )
+
+    val out = result.outputs(PortIdentity(0))
+    TupleIO
+      .readTuples(out, TupleIO.readSchemaSidecar(out))
+      .map(_.getField[String]("kind"))
+      .toSeq shouldBe Seq("2500-01-01 00:00:00.123456")
+  }
+
   private val someObject = "s3://a-bucket/a/large/object"
 
   // The schema sidecar names large_binary, so the harness has to carry it in as
@@ -259,6 +328,31 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
       .readTuples(out, TupleIO.readSchemaSidecar(out))
       .map(_.getField[LargeBinary]("blob").getUri)
       .toSeq shouldBe Seq(someObject)
+  }
+
+  // The worker finalizes each yielded row against the output schema, and so
+  // does the driver: a value the cast cannot bring to the declared type, and a
+  // field the schema does not have or lacks, end the run in both.
+  "PyOpExecHarness" should "refuse a row the output schema does not describe" in {
+    val dir = Files.createTempDirectory("py-op-harness-finalize-")
+    val inputSchema = Schema().add(new Attribute("seed", AttributeType.INTEGER))
+    val input = dir.resolve("input_port_0.jsonl")
+    val seed = Tuple.builder(inputSchema).add("seed", AttributeType.INTEGER, Int.box(1)).build()
+    TupleIO.writeTuples(input, Iterator(seed), inputSchema)
+
+    def run(row: String): Unit =
+      PyOpExecHarness.execute(
+        new YieldOpDesc(row),
+        inputs = Map(PortIdentity(0) -> input),
+        outputDir = dir.resolve("actual")
+      )
+
+    noException should be thrownBy run("""{"x": 1}""")
+    Seq("""{"x": 1.5}""", """{"x": 1, "y": 2}""", "{}").foreach { row =>
+      withClue(s"yielding $row: ") {
+        a[PyOpDriverException] should be thrownBy run(row)
+      }
+    }
   }
 
   "PyOpExecHarness" should "record each yield as it was yielded" in {

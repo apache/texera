@@ -54,6 +54,7 @@ this driver never has to infer them. The driver writes the schema back as a
 from __future__ import annotations
 
 import base64
+import datetime
 import inspect
 import json
 import pickle
@@ -203,10 +204,15 @@ def _coerce_field(raw: Any, attr_type: AttributeType) -> Any:
         # needs none either.
         return largebinary(str(raw))
     if attr_type == AttributeType.TIMESTAMP:
-        # TupleIO writes java.sql.Timestamp.toString ("YYYY-MM-DD HH:MM:SS[.f]");
-        # the native path's schema maps TIMESTAMP -> datetime.datetime, and
-        # pandas parses the JDBC form robustly.
-        return pd.Timestamp(raw).to_pydatetime()
+        # TupleIO writes java.sql.Timestamp.toString ("YYYY-MM-DD HH:MM:SS[.f]").
+        # The engine hands a worker the wall clock as a zoneless Arrow
+        # microsecond timestamp, which reaches the operator as a naive datetime
+        # cut to the microsecond. Read here without pandas, whose nanoseconds
+        # end in 2262 where the engine's years go on.
+        date, _, fraction = str(raw).partition(".")
+        return datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").replace(
+            microsecond=int((fraction + "000000")[:6])
+        )
     # Every type the schema can name is read above. A new one fails loud rather
     # than passing a string through as though it had been read.
     raise NotImplementedError(
