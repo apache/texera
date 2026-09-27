@@ -57,16 +57,18 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     // switch is conjoined with the catalog type: any other catalog keeps the
     // feature off however the switch reads, which is what stops a deployment
     // without Lakekeeper from being handed a feature it cannot serve.
-    // Only assert when the env override is unset, since it would win otherwise.
-    // The resource default is asserted directly, not through warehouseEnabled: CI's
-    // amber job pins the catalog to postgres, which would make the conjunction
-    // false either way and let a revert of the switch pass unnoticed.
-    ConfigFactory
-      .parseResources("storage.conf")
-      .resolve()
-      .getBoolean("storage.warehouse.enabled") shouldBe true
-
+    // Both assertions are guarded on the env override being unset, since it wins
+    // over the resource — resolve() applies it to the parsed resource as well.
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
+      // The resource default is asserted directly, not just through
+      // warehouseEnabled: CI's amber job pins the catalog to postgres, which
+      // makes the conjunction below false either way and would let a revert of
+      // the switch pass unnoticed.
+      ConfigFactory
+        .parseResources("storage.conf")
+        .resolve()
+        .getBoolean("storage.warehouse.enabled") shouldBe true
+
       StorageConfig.warehouseEnabled shouldBe (StorageConfig.icebergCatalogType == "rest")
     }
   }
