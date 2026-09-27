@@ -120,7 +120,11 @@
   }
 }
 
-.list-item-card:hover .button-group {
+// Shown on hover, and while anything in the row has the keyboard focus: the group is display:none
+// otherwise, so a keyboard user reaches it by tabbing into the row (its checkbox, rename, like),
+// which reveals the actions and lets the next Tab move into them.
+.list-item-card:hover .button-group,
+.list-item-card:focus-within .button-group {
   display: flex;
   background-color: transparent;
 }
@@ -178,6 +182,22 @@
 
 .type-icon {
   font-size: 30px;
+}
+
+/* A form-default workflow carries a little colour so the row reads at a glance,
+   without shouting: same flask, tinted, in the row icon and in the hover action. */
+.type-icon.defaults-to-form {
+  color: #1e90ff;
+}
+
+.button-group button.defaults-to-form-on {
+  background-color: #e6f7ff;
+  border-color: #1e90ff;
+  color: #1e90ff;
+}
+
+.button-group button.defaults-to-form-on:hover {
+  background-color: #cceeff;
 }
 
 .workflow-id {

@@ -21,6 +21,9 @@ import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
+import { forkJoin, Observable, of } from "rxjs";
+import { catchError, map } from "rxjs/operators";
+import { OwnerScope } from "../../../type/owner-scope";
 import { WorkflowResourceDescriptor } from "./workflow-resource.descriptor";
 import { DatasetResourceDescriptor } from "./dataset-resource.descriptor";
 import { FileResourceDescriptor } from "./file-resource.descriptor";
@@ -60,6 +63,38 @@ export class ResourceRegistryService {
       throw new Error("Unexpected type in DashboardEntry.");
     }
     return descriptor;
+  }
+
+  /**
+   * Names for the Owner facet of a page listing `type` under `scope`; `null` unions every kind.
+   * A kind whose request fails contributes nothing rather than blanking the facet.
+   */
+  public ownersFor(type: EntityType | null, scope: OwnerScope): Observable<string[]> {
+    const kinds = type === null ? [EntityType.Workflow, EntityType.Dataset, EntityType.Model] : [type];
+    const requests = kinds.flatMap(kind => this.ownerRequests(kind, scope));
+    if (requests.length === 0) {
+      return of([]);
+    }
+    // Unsorted, so a single kind keeps its endpoint's order.
+    return forkJoin(requests).pipe(map(lists => [...new Set(lists.flat())]));
+  }
+
+  /** The one or two lists a scope is made of, skipping any the descriptor cannot answer. */
+  private ownerRequests(type: EntityType, scope: OwnerScope): Observable<string[]>[] {
+    const descriptor = this.find(type);
+    if (!descriptor) {
+      return [];
+    }
+    const wanted: (Observable<string[]> | undefined)[] = [];
+    if (scope !== "public") {
+      wanted.push(descriptor.retrieveOwners?.());
+    }
+    if (scope !== "accessible") {
+      wanted.push(descriptor.retrievePublicOwners?.());
+    }
+    return wanted
+      .filter((request): request is Observable<string[]> => request !== undefined)
+      .map(request => request.pipe(catchError(() => of([] as string[]))));
   }
 
   /**

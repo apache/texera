@@ -28,7 +28,7 @@ public enum SklearnAdvancedSVRParameters implements ParamClass {
     degree("degree", "int"),
     coef0("coef0", "float"),
     tol("tol", "float"),
-    probability("shrinking", "(lambda value: value.lower() == \"true\")"),
+    shrinking("shrinking", "(lambda value: value.lower() == \"true\")"),
     verbose("verbose", "(lambda value: value.lower() == \"true\")"),
     epsilon("epsilon", "float"),
     cache_size("cache_size", "int"),

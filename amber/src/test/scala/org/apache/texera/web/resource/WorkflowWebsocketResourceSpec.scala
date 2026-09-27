@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource
 
+import com.fasterxml.jackson.databind.exc.InvalidTypeIdException
 import com.google.protobuf.timestamp.Timestamp
 import org.apache.texera.amber.clustering.ClusterListener
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
@@ -80,11 +81,17 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, MapHasAsJava, SeqHasA
   *   - the catch-all error mapper, which turns any exception into a `WorkflowFatalError`, routes it
   *     either to the execution's metadata store or (with no execution) straight to the socket, and
   *     then rethrows so the container sees it too. Both halves are asserted: dropping either the
-  *     send or the rethrow would leave the other silently missing.
-  *
-  * Worth knowing, and the reason there is no malformed-frame test here: `objectMapper.readValue`
-  * sits OUTSIDE the try, so an unparseable frame escapes un-mapped and the client is told nothing.
-  * That looks like an oversight, but pinning today's behaviour would cement it.
+  *     send or the rethrow would leave the other silently missing. `objectMapper.readValue` runs
+  *     INSIDE the guarded region, so an unparseable frame is reported through that same mapper
+  *     rather than escaping un-mapped with the client told nothing; both of the mapper's routing
+  *     arms are asserted for a parse failure as well as for a handler failure.
+  *   - the three-state distinction every execution-scoped arm has to make: no workflow, a workflow
+  *     with no execution yet, and a live execution. `executionService` is a `BehaviorSubject`
+  *     created without an initial value, so `getValue` is null until one is published, and reading
+  *     it through `workflowStateOpt.map(...)` yields `Some(null)` — a shape that slips past a `case
+  *     None` guard and NPEs on the next dereference. The middle state is covered for both
+  *     `ModifyLogicRequest` and the `case other` fall-through; it is also the only input that tells
+  *     `workflowStateOpt` apart from `executionStateOpt`, so it is what pins each guard's condition.
   *
   * Everything here drives a mocked `javax.websocket.Session` (the pattern `CollaborationResourceSpec`
   * established) and registers a `SessionState` directly, so no real workflow is created.
@@ -93,14 +100,10 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, MapHasAsJava, SeqHasA
   *   - `myOnOpen`'s missing-`wid`/`cuid` and bogus-privilege paths, which fail with NPE /
   *     IndexOutOfBounds / IllegalArgumentException. A harmless improvement (a default, or a clear
   *     message) would break such a test.
-  *   - `ModifyLogicRequest` with a workflow but no execution: `executionService.getValue` is null,
-  *     so the handler NPEs instead of reporting "workflow execution is not initialized". Same guard
-  *     gap as `case other` below — reported, not pinned. It is also the only input that would tell
-  *     `if (workflowStateOpt.isDefined)` apart from `if (executionStateOpt.isDefined)`, so that
-  *     guard's exact condition is left unpinned on purpose; see the no-workflow case below.
   *   - `ResultPaginationRequest`'s real payload, which needs a DB; only the request/response
   *     pass-through is asserted here, against a stubbed result service.
-  *   - the deserialization line, already owned by `TexeraWebSocketRequestSpec`.
+  *   - what the mapper itself accepts and rejects, already owned by `TexeraWebSocketRequestSpec`;
+  *     the malformed-frame cases here are about the endpoint's handling, not the binding rules.
   */
 class WorkflowWebsocketResourceSpec
     extends AnyFlatSpec
@@ -453,13 +456,8 @@ class WorkflowWebsocketResourceSpec
 
   it should "report a runtime command that arrives before any workflow is attached" in {
     // Anything that is not one of the four named requests falls through to `wsInput`, which only
-    // exists once an execution has been created.
-    //
-    // Note this drives the case with NO workflow attached. With a workflow attached but no
-    // execution, `executionService.getValue` returns null and `workflowStateOpt.map(...)` yields
-    // Some(null), which slips past the `case None` guard and NPEs on `value.wsInput`. That is a
-    // real gap in the guard, but it is an accidental failure mode rather than a contract, so it is
-    // reported rather than pinned here.
+    // exists once an execution has been created. This is the no-workflow state; the workflow-but-no-
+    // execution state is the next case, and both have to report the same thing.
     val (session, sent) = mockSession(uid = Some(42))
     registerState(session, PrivilegeEnum.WRITE)
 
@@ -497,6 +495,27 @@ class WorkflowWebsocketResourceSpec
     sent shouldBe empty
   }
 
+  it should "report a runtime command that arrives with a workflow but no execution" in {
+    // The third state of this arm, between the two above: a workflow IS attached, but nothing has
+    // published an execution into it yet. `executionService` is a `BehaviorSubject` created without
+    // an initial value, so `getValue` is null, and this is the input that pins how the arm reads it:
+    // `workflowStateOpt.map(_.executionService.getValue)` would wrap that null into `Some(null)` and
+    // walk straight past the `case None` guard that exists to report this very situation, NPEing on
+    // `value.wsInput` instead. The message has to be the same one the no-workflow case above
+    // produces: the client cannot act on the difference, and an NPE tells it nothing at all.
+    val (session, sent) = mockSession(uid = Some(42))
+    val workflow = new TestWorkflowService(9107L)
+    attach(session, PrivilegeEnum.WRITE, workflow)
+
+    val ex = intercept[IllegalStateException] {
+      resource.myOnMsg(session, """{"type":"WorkflowPauseRequest"}""")
+    }
+    ex.getMessage should include("workflow execution is not initialized")
+
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    fatalErrorMessages(sent).head should include("workflow execution is not initialized")
+  }
+
   // -- reconfiguration ----------------------------------------------------------
 
   it should "forward a ModifyLogicRequest to the execution's reconfiguration service" in {
@@ -529,17 +548,34 @@ class WorkflowWebsocketResourceSpec
     // throw NoSuchElementException, the catch-all would turn it into a WorkflowErrorEvent, and the
     // rethrow would escape — so both assertions here have teeth.
     //
-    // NOT pinned, and it cannot be: rewriting the guard as `if (executionStateOpt.isDefined)` is
-    // indistinguishable from the current one to every test in this suite. The only input that
-    // separates them is a workflow with no execution, where today's guard NPEs on
-    // `executionService.getValue` and the rewrite quietly does nothing. Pinning either answer would
-    // cement one of them, and the rewrite is arguably the fix.
+    // Silence is the assertion, and it is what separates this from the next case: with no workflow
+    // there is nothing to reconfigure and nothing to say, whereas a workflow whose execution has not
+    // started yet is a state the client can act on and is reported.
     val (session, sent) = mockSession(uid = Some(42))
     registerState(session, PrivilegeEnum.WRITE)
 
     noException should be thrownBy resource.myOnMsg(session, modifyLogicFrame)
 
     sent shouldBe empty
+  }
+
+  it should "report a ModifyLogicRequest that arrives before any execution exists" in {
+    // The input that separates `workflowStateOpt.isDefined` from the execution actually being there:
+    // a workflow with nothing published into its `executionService`. Reconfiguration needs the
+    // execution, not the workflow, so the guard has to be about the execution — reading
+    // `executionService.getValue` behind a workflow-shaped guard yields null and NPEs one dereference
+    // later. Same message as the `case other` arm, for the same reason.
+    val (session, sent) = mockSession(uid = Some(42))
+    val workflow = new TestWorkflowService(9108L)
+    attach(session, PrivilegeEnum.WRITE, workflow)
+
+    val ex = intercept[IllegalStateException] {
+      resource.myOnMsg(session, modifyLogicFrame)
+    }
+    ex.getMessage should include("workflow execution is not initialized")
+
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    fatalErrorMessages(sent).head should include("workflow execution is not initialized")
   }
 
   // -- pagination ---------------------------------------------------------------
@@ -582,6 +618,49 @@ class WorkflowWebsocketResourceSpec
 
     noException should be thrownBy resource.myOnMsg(session, paginationFrame)
 
+    sent shouldBe empty
+  }
+
+  // -- the error mapper and unparseable frames ----------------------------------
+
+  it should "report an unparseable frame instead of letting it escape unmapped" in {
+    // A stale or typo'd client sends an id nothing binds to. The mapper's own rejection is already
+    // pinned by `TexeraWebSocketRequestSpec`; what this asserts is that the failure travels through
+    // the endpoint's error mapper on its way out, exactly like a failure raised by a handler. The
+    // rethrow AND the send are both asserted, for the same reason as the write-access gate: losing
+    // either one leaves the other silently missing.
+    val (session, sent) = mockSession(uid = Some(42))
+    registerState(session, PrivilegeEnum.WRITE)
+
+    val ex = intercept[InvalidTypeIdException] {
+      resource.myOnMsg(session, """{"type":"NoSuchWebSocketRequest"}""")
+    }
+    ex.getMessage should include("NoSuchWebSocketRequest")
+
+    // No execution is attached, so the mapper's socket arm is the one that runs.
+    sentTypes(sent) shouldBe Seq("WorkflowErrorEvent")
+    // The offending id has to reach the client: a generic "bad frame" would leave a stale frontend
+    // with nothing to debug against.
+    fatalErrorMessages(sent).head should include("NoSuchWebSocketRequest")
+  }
+
+  it should "record an unparseable frame in the execution's metadata store when one exists" in {
+    // The other half of the mapper, reached by a parse failure rather than a handler failure: with an
+    // execution attached the error is written to its metadata store and nothing goes to the socket.
+    // Without this case, a fix that reported parse failures by sending directly from the parse site
+    // instead of routing them through the mapper would look correct.
+    val (session, sent) = mockSession(uid = Some(42))
+    val workflow = new TestWorkflowService(9109L)
+    val execution = newExecution()
+    attach(session, PrivilegeEnum.WRITE, workflow, Some(execution))
+
+    intercept[InvalidTypeIdException] {
+      resource.myOnMsg(session, """{"type":"NoSuchWebSocketRequest"}""")
+    }
+
+    val errors = execution.executionStateStore.metadataStore.getState.fatalErrors
+    errors.map(_.`type`) shouldBe Seq(COMPILATION_ERROR)
+    errors.head.message should include("NoSuchWebSocketRequest")
     sent shouldBe empty
   }
 

@@ -264,6 +264,9 @@ jobs:
                 "access-control-service")
                   image_name="texera-access-control-service"
                   ;;
+                "mounter")
+                  image_name="texera-mounter"
+                  ;;
                 "config-service")
                   image_name="texera-config-service"
                   ;;

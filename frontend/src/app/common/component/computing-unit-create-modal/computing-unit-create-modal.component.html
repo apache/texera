@@ -78,6 +78,32 @@
           </nz-select>
         </div>
 
+        <!-- Only when an administrator has curated something to choose. -->
+        <div
+          *ngIf="curatedImages.length > 0"
+          class="select-unit">
+          <span
+            >Image
+            <span
+              nz-icon
+              nzType="info-circle"
+              nz-tooltip="Chosen when the unit is created and fixed for its lifetime. Affects only this unit."></span>
+          </span>
+          <nz-select
+            class="image-selection"
+            [(ngModel)]="selectedImageId">
+            <nz-option
+              [nzValue]="DEPLOYMENT_IMAGE"
+              nzLabel="Default">
+            </nz-option>
+            <nz-option
+              *ngFor="let img of curatedImages"
+              [nzValue]="img.iid"
+              [nzLabel]="img.name">
+            </nz-option>
+          </nz-select>
+        </div>
+
         <div
           *ngIf="showGpuSelection()"
           class="select-unit">

@@ -370,6 +370,32 @@ describe("executeOperatorAndFormat — request construction", () => {
     );
   });
 
+  test("the execute request carries the picked warehouse, and omits it when none is picked", async () => {
+    // The last hop of the chain: the id has travelled request -> agent ->
+    // delegate config -> here, and the backend refuses a run without it while
+    // the feature is enabled (#7751).
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("dst"));
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: { dst: { state: "Completed", inputTuples: 0, outputTuples: 1, resultMode: "table", result: [] } },
+    });
+
+    await executeOperatorAndFormat(state, cfg({ workflowId: 7, computingUnitId: 3, warehouseId: 42 }), "dst");
+    expect(requestBody(fetchSpy).warehouseId).toBe(42);
+
+    fetchSpy.mockClear();
+    resolveFetch(fetchSpy, {
+      success: true,
+      state: "Completed",
+      operators: { dst: { state: "Completed", inputTuples: 0, outputTuples: 1, resultMode: "table", result: [] } },
+    });
+
+    await executeOperatorAndFormat(state, cfg({ workflowId: 7, computingUnitId: 3 }), "dst");
+    expect("warehouseId" in requestBody(fetchSpy)).toBe(false);
+  });
+
   test("sends the whole workflow, not an upstream slice, when the operator id is empty", async () => {
     // The plan builder only takes the sub-DAG path for a *truthy* target id, so an empty
     // operator id falls through to the "every operator" branch. `sink` and `orphan` are the

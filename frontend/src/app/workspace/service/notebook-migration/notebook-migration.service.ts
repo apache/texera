@@ -103,19 +103,7 @@ export class NotebookMigrationService {
     notebookContent: Notebook,
     modelType: string
   ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent }> {
-    if (!this.enabled) throw new Error("Notebook migration feature is disabled");
-    const migrationLLM = this.createMigrationLLM();
-    // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
-    // The outer try/finally guarantees close() runs for the whole lifecycle,
-    // including a verifyConnection failure.
-    try {
-      migrationLLM.initialize(modelType);
-
-      const isValid = await migrationLLM.verifyConnection();
-      if (!isValid) {
-        throw new Error("Unable to authenticate with or reach the LLM backend");
-      }
-
+    return this.withMigrationLLM(modelType, async migrationLLM => {
       try {
         const result = await migrationLLM.convertNotebookToWorkflow(notebookContent);
         const parsedResult = JSON.parse(result);
@@ -126,6 +114,57 @@ export class NotebookMigrationService {
         console.error("Error converting notebook:", error);
         throw error;
       }
+    });
+  }
+
+  /**
+   * Convert a Python script into a workflow.
+   *
+   * Returns a notebook alongside the workflow and mapping, which the notebook path does not:
+   * a script has no cells, so the LLM reports which line ranges became which operator and the
+   * notebook is derived from that. Callers store and display it as they would a user's own
+   * .ipynb, so the Jupyter panel and cell highlighting work the same way for both inputs.
+   */
+  public async sendScriptToAIGenerateWorkflow(
+    scriptSource: string,
+    modelType: string
+  ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent; notebook: Notebook }> {
+    return this.withMigrationLLM(modelType, async migrationLLM => {
+      try {
+        const conversion = await migrationLLM.convertScriptToWorkflow(scriptSource);
+        return {
+          workflowContent: conversion.workflowJSON,
+          mappingContent: conversion.workflowNotebookMapping,
+          notebook: conversion.notebook,
+        };
+      } catch (error) {
+        console.error("Error converting Python script:", error);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Run one conversion against a fresh LLM session: initialize, check the backend is reachable,
+   * then convert. Shared by both input paths so the lifecycle cannot drift between them, and so
+   * the finally guarantees close() for every exit, including a failed verifyConnection.
+   */
+  private async withMigrationLLM<T>(
+    modelType: string,
+    convert: (migrationLLM: NotebookMigrationLLM) => Promise<T>
+  ): Promise<T> {
+    if (!this.enabled) throw new Error("Notebook migration feature is disabled");
+    const migrationLLM = this.createMigrationLLM();
+    // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
+    try {
+      migrationLLM.initialize(modelType);
+
+      const isValid = await migrationLLM.verifyConnection();
+      if (!isValid) {
+        throw new Error("Unable to authenticate with or reach the LLM backend");
+      }
+
+      return await convert(migrationLLM);
     } finally {
       migrationLLM.close();
     }
@@ -153,12 +192,12 @@ export class NotebookMigrationService {
 
     try {
       await firstValueFrom(this.http.post(jupyterAPIUrl, requestBody, { headers }));
-      this.notificationService.success("Notebook successfully sent to Jupyter");
+      this.notificationService.success("Source code successfully sent to Jupyter");
       return 1;
     } catch (error) {
       console.error("Error sending notebook to pod: ", error);
       const message = error instanceof Error ? error.message : String(error);
-      this.notificationService.error("Error sending notebook to Jupyter: " + message);
+      this.notificationService.error("Error sending source code to Jupyter: " + message);
       return 0;
     }
   }
@@ -277,6 +316,28 @@ export class NotebookMigrationService {
 
   public deleteMapping(id: string): void {
     delete this.mapping[id];
+  }
+
+  // Reads a .py file as text. Rejects on a read error or a file with nothing in it: an empty
+  // script would otherwise cost a full LLM round trip to produce an empty workflow. Uses
+  // FileReader for the same reason parseAndTagNotebook does.
+  public parseScriptFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read the Python file."));
+      reader.onload = () => {
+        if (typeof reader.result !== "string") {
+          reject(new Error("File content is not a valid string."));
+          return;
+        }
+        if (reader.result.trim() === "") {
+          reject(new Error("The Python file is empty."));
+          return;
+        }
+        resolve(reader.result);
+      };
+      reader.readAsText(file);
+    });
   }
 
   // Reads and parses an .ipynb file, then tags each cell with a uuid (the mapping keys off these).

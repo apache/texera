@@ -181,6 +181,33 @@ describe("ShareAccessComponent", () => {
       expect(c.isPublic).toBe(false);
     });
 
+    // isPublic staying null hides the Private/Public choice, which is right for a kind that cannot
+    // be published and wrong when the request merely failed: the dialog then looked complete while
+    // silently offering one control fewer, and the only way to find out was the network tab.
+    it("says so when the publish state cannot be read, instead of hiding the choice silently", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(throwError(() => new Error("boom")));
+
+      const c = setupComponent({ type: "workflow", id: 9 });
+
+      expect(c.isPublic).toBeNull();
+      expect(notificationSpy.error).toHaveBeenCalled();
+    });
+
+    // ngOnInit is re-entered as a refresh after an access change, so a value from the previous read
+    // is still here when the second one fails. Keeping it would leave the buttons on screen showing
+    // a state nothing has confirmed, while the toast says the choice is not shown.
+    it("drops a previously read publish state when the refresh fails, rather than leaving it stale", () => {
+      workflowPublished = true;
+      const c = setupComponent({ type: "workflow", id: 9 });
+      expect(c.isPublic).toBe(true);
+
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(throwError(() => new Error("boom")));
+      c.ngOnInit();
+
+      expect(c.isPublic).toBeNull();
+      expect(notificationSpy.error).toHaveBeenCalled();
+    });
+
     it("loads publish state for dataset via DatasetService.getDataset", () => {
       datasetPublished = true;
       const c = setupComponent({ type: "dataset", id: 12 });

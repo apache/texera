@@ -36,7 +36,7 @@ class FileScanSourceOpExec private[scan] (
     FileScanUtils.createTuplesFromFile(
       fileName = desc.fileName.get,
       attributeType = desc.attributeType,
-      fileEncoding = desc.fileEncoding,
+      fileEncoding = desc.encoding,
       extract = desc.extract,
       outputFileName = desc.outputFileName,
       fileScanOffset = desc.fileScanOffset,

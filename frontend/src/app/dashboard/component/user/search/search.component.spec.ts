@@ -44,6 +44,7 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
@@ -56,10 +57,13 @@ import { MODEL_ICON } from "../../../../common/icon/model-icon";
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => MockFiltersComponent) }],
 })
 class MockFiltersComponent {
+  @Input() entityType: EntityType | null = null;
+  @Input() ownerScope?: string;
   masterFilterListChange = EMPTY;
   masterFilterList: ReadonlyArray<string> = [];
   getSearchKeywords = (): string[] => [...this.masterFilterList];
   getSearchFilterParameters = () => ({});
+  clearFacetSelections = vi.fn();
 }
 
 @Component({
@@ -287,6 +291,19 @@ describe("SearchComponent", () => {
 
     expect(component.selectedType).toBe("workflow");
     expect(searchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the previous tab's facet selections before it searches", () => {
+    // search() reads the filter parameters in the same turn, long before the new facet lands, so a
+    // selection cleared afterwards would still go out with the first request.
+    fixture.detectChanges(); // resolves the filters ViewChild
+    const order: string[] = [];
+    vi.spyOn(component.filters, "clearFacetSelections").mockImplementation(() => void order.push("clear"));
+    vi.spyOn(component, "search").mockImplementation(async () => void order.push("search"));
+
+    component.filterByType("dataset");
+
+    expect(order).toEqual(["clear", "search"]);
   });
 
   it("navigates back on goBack", () => {

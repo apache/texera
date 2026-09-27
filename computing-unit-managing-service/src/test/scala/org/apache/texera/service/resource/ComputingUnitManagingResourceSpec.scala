@@ -19,7 +19,13 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.{BadRequestException, ForbiddenException, NotFoundException}
+import jakarta.ws.rs.{
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  ServiceUnavailableException
+}
+import org.apache.texera.common.config.EnvironmentalVariable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.KubernetesConfig.maxNumOfRunningComputingUnitsPerUser
 import org.apache.texera.dao.MockTexeraDB
@@ -460,4 +466,101 @@ class ComputingUnitManagingResourceSpec
     a[NotFoundException] should be thrownBy
       resource.getComputingUnitResourceLimit("99999", user)
   }
+
+  // Mirrors the private production list, so a name added or dropped there fails the all-set
+  // case.
+  private val requiredEnvNames = Seq(
+    EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
+    EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT,
+    EnvironmentalVariable.ENV_AUTH_JWT_SECRET
+  )
+
+  private val payloadSize = EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB
+
+  "requiredComputingUnitEnv" should "return every variable when all are set" in {
+    val env = ComputingUnitManagingResource.requiredComputingUnitEnv(name => Some(s"value-$name"))
+    env.keySet shouldBe requiredEnvNames.toSet
+    env.values.foreach(_ should startWith("value-"))
+  }
+
+  // USER_SYS_ENABLED and SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR lost their
+  // conf keys (#3831, #3542); the payload size defaults to 1024 in application.conf. None of
+  // the three stops a unit from starting, so none may refuse to create one.
+  it should "not require a variable the unit does not need" in {
+    val notNeeded = Seq(
+      EnvironmentalVariable.ENV_USER_SYS_ENABLED,
+      EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR,
+      payloadSize
+    )
+    val env = ComputingUnitManagingResource.requiredComputingUnitEnv(name =>
+      if (notNeeded.contains(name)) None else Some("set")
+    )
+    notNeeded.foreach(name => env.keySet should not contain name)
+  }
+
+  it should "name the missing variable and leave the ones that are set out of it" in {
+    val absent = EnvironmentalVariable.ENV_AUTH_JWT_SECRET
+    val thrown = intercept[ServiceUnavailableException] {
+      ComputingUnitManagingResource.requiredComputingUnitEnv(name =>
+        if (name == absent) None else Some("set")
+      )
+    }
+    thrown.getMessage should include(absent)
+    requiredEnvNames
+      .filterNot(_ == absent)
+      .foreach(name => thrown.getMessage should not include name)
+  }
+
+  // The chart renders every value as "{{ .value }}", so an unset one arrives as "".
+  it should "treat a blank variable as missing" in {
+    val blank = EnvironmentalVariable.ENV_AUTH_JWT_SECRET
+    val thrown = intercept[ServiceUnavailableException] {
+      ComputingUnitManagingResource.requiredComputingUnitEnv(name =>
+        if (name == blank) Some("   ") else Some("set")
+      )
+    }
+    thrown.getMessage should include(blank)
+  }
+
+  // AuthConfig does not trim, so a trimmed copy would verify against a different key. The
+  // endpoints are trimmed by their own readers, so they need nothing here either.
+  it should "hand on the value untrimmed" in {
+    val env =
+      ComputingUnitManagingResource.requiredComputingUnitEnv(_ => Some(" s3cret "))
+    env(EnvironmentalVariable.ENV_AUTH_JWT_SECRET) shouldBe " s3cret "
+  }
+
+  // The variable is there in the pod's env, so calling it "missing" would read as wrong.
+  it should "say unset or blank rather than missing" in {
+    val thrown = intercept[ServiceUnavailableException] {
+      ComputingUnitManagingResource.requiredComputingUnitEnv(_ => Some(" "))
+    }
+    thrown.getMessage should include("Unset or blank environment variable(s)")
+  }
+
+  it should "name every missing variable at once" in {
+    val thrown = intercept[ServiceUnavailableException] {
+      ComputingUnitManagingResource.requiredComputingUnitEnv(_ => None)
+    }
+    requiredEnvNames.foreach(name => thrown.getMessage should include(name))
+  }
+
+  "optionalComputingUnitEnv" should "forward an override that is set" in {
+    ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some("2048")) shouldBe
+      Map(payloadSize -> "2048")
+  }
+
+  // HOCON refuses " 2048" as an int, and the unit then dies at startup naming nothing.
+  it should "trim what it forwards" in {
+    ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some(" 2048\n")) shouldBe
+      Map(payloadSize -> "2048")
+  }
+
+  // application.conf already defaults this to 1024; forwarding "" would override the default
+  // with a value HOCON cannot read as an int.
+  it should "forward nothing when unset or blank" in {
+    ComputingUnitManagingResource.optionalComputingUnitEnv(_ => None) shouldBe empty
+    ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some("  ")) shouldBe empty
+  }
+
 }

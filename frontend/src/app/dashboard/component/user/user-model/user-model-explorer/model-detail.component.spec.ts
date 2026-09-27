@@ -512,16 +512,6 @@ describe("ModelDetailComponent", () => {
     expect(hubService["toggleLike"]).toHaveBeenCalled();
   });
 
-  it("dashes out the latest-version facts for a model with no versions", () => {
-    create();
-    const stats = q(render(), ".data-card-stats").textContent ?? "";
-
-    // "0 B" would assert a zero-byte version that does not exist; the card already
-    // uses an em dash for an absent framework or format.
-    expect(stats).not.toContain("0 B");
-    expect(stats.match(/—/g)?.length).toBe(3);
-  });
-
   it("shows the empty-version notice until a version exists", () => {
     create();
     const root = openTab("Versions & Files");
@@ -558,6 +548,51 @@ describe("ModelDetailComponent", () => {
   //
   // The panel itself is covered by version-uploader.component.spec.ts; what matters here is that
   // the page hands it the model's own addressing, and what the page still owns around it.
+
+  it("offers the tree's write controls only to a writer", () => {
+    // A fresh page per access level: the Settings tab is gated on write access, so flipping the
+    // level on a live component removes a tab and nz-tabs can tear down the pane being asserted on.
+    const treeFor = (level: "READ" | "WRITE") => {
+      create();
+      component.userModelAccessLevel = level;
+      openTab("Versions & Files");
+      const filetree = fixture.debugElement.query(By.css("texera-user-dataset-version-filetree"));
+      expect(filetree, "expected the file tree to be rendered").not.toBeNull();
+      return filetree.componentInstance;
+    };
+
+    expect(treeFor("WRITE").isTreeNodeDeletable).toBe(true);
+    expect(treeFor("WRITE").isCoverSettable).toBe(true);
+
+    expect(treeFor("READ").isTreeNodeDeletable).toBe(false);
+    expect(treeFor("READ").isCoverSettable).toBe(false);
+  });
+
+  it("em-dashes the facts a model with no versions has none of, but keeps 0 B for its size", () => {
+    create();
+    const root = render({
+      versions: [],
+      latestVersionCreationTime: "",
+      latestVersionFileName: "",
+      latestVersionSize: undefined,
+      modelFormat: "",
+    });
+
+    /** The stat value rendered beside a label. */
+    const stat = (label: string): string => {
+      const row = Array.from(root.querySelectorAll<HTMLElement>(".stat-row")).find(
+        r => (q<HTMLElement>(r, ".stat-label").textContent ?? "").trim() === label
+      );
+      expect(row, `expected a stat row labelled "${label}"`).toBeDefined();
+      return (q<HTMLElement>(row!, ".stat-value").textContent ?? "").trim();
+    };
+
+    expect(stat("Last updated")).toBe("—");
+    expect(stat("Latest version file")).toBe("—");
+    expect(stat("Format")).toBe("—");
+    // A size has a meaningful zero, so it reads 0 B here and on the dataset page.
+    expect(stat("Latest version size")).toBe("0 B");
+  });
 
   it("hands the version uploader the model endpoint and the model's identity", () => {
     create();

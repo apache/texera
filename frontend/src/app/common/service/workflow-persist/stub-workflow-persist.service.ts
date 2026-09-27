@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, of } from "rxjs";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { Workflow } from "../../type/workflow";
 import { SearchFilterParameters, searchTestEntries } from "../../../dashboard/type/search-filter-parameters";
@@ -49,6 +49,7 @@ export class StubWorkflowPersistService {
     const names = this.testWorkflows.filter(i => i).map(i => i.workflow.ownerName) as string[];
     return new Observable(observer => {
       observer.next([...new Set(names)]);
+      observer.complete();
     });
   }
 
@@ -58,6 +59,14 @@ export class StubWorkflowPersistService {
   public retrieveWorkflowIDs(): Observable<number[]> {
     return new Observable(observer => {
       observer.next(this.testWorkflows.map(i => i.workflow.workflow.wid as number).filter(i => i));
+      observer.complete();
     });
+  }
+
+  /**
+   * reports the stored size of each requested workflow
+   */
+  public getSizes(wids: number[]): Observable<Record<number, number>> {
+    return of(Object.fromEntries(wids.map(wid => [wid, 0])));
   }
 }

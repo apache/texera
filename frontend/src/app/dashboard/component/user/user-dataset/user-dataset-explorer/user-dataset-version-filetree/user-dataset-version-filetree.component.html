@@ -55,7 +55,7 @@
         <button
           nz-button
           nzType="link"
-          *ngIf="!node.data.children && isImageFile(node.data.name)"
+          *ngIf="isCoverSettable && !node.data.children && isImageFile(node.data.name)"
           class="icon-button"
           nz-tooltip="Set as cover"
           (click)="onSetCover(node.data)">

@@ -36,6 +36,8 @@ import { ComputingUnitActionsService } from "../../service/computing-unit/comput
 import { NotificationService } from "../../service/notification/notification.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../type/workflow-computing-unit";
 import { extractErrorMessage } from "../../util/error";
+import { HttpErrorResponse } from "@angular/common/http";
+import { CuImage, CuImageService, isStartable } from "../../../dashboard/service/admin/cu-image/cu-image.service";
 import {
   buildLocalComputingUnitUri,
   getJvmMemorySliderConfig,
@@ -48,6 +50,9 @@ import {
 // Defaults for the advanced-settings values, restored every time the modal opens.
 const DEFAULT_SHM_SIZE_VALUE = 64;
 const DEFAULT_SHM_SIZE_UNIT: "Mi" | "Gi" = "Mi";
+
+/** The deployment's own image. Never a real iid, which the database numbers from 1. */
+const DEPLOYMENT_IMAGE = 0;
 
 /**
  * The "create computing unit" modal shared by the workspace power button and
@@ -115,6 +120,12 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   };
 
   // cpu&memory limit options from backend
+  /** Ready curated images. Empty when none are registered, or the feature is off. */
+  curatedImages: CuImage[] = [];
+  /** DEPLOYMENT_IMAGE means the deployment's own image, which is the default. */
+  selectedImageId: number = DEPLOYMENT_IMAGE;
+  readonly DEPLOYMENT_IMAGE = DEPLOYMENT_IMAGE;
+
   cpuOptions: string[] = [];
   memoryOptions: string[] = [];
   gpuOptions: string[] = []; // Add GPU options array
@@ -122,7 +133,8 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
-    private computingUnitActionsService: ComputingUnitActionsService
+    private computingUnitActionsService: ComputingUnitActionsService,
+    private cuImageService: CuImageService
   ) {}
 
   ngOnInit(): void {
@@ -171,7 +183,34 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["visible"]?.currentValue === true) {
       this.resetAdvancedSettings();
+      this.loadCuratedImages();
     }
+  }
+
+  /**
+   * Read when the dialog opens rather than in ngOnInit: both hosts render this component
+   * unconditionally, so ngOnInit runs once at page load. An image that became ready since
+   * then would never appear, and one failed read would hide the field for the session.
+   *
+   * Readable by any signed-in user. A deployment with curated images off answers 503, and
+   * a user who never sees the dropdown gets exactly today's behaviour.
+   */
+  private loadCuratedImages(): void {
+    this.cuImageService
+      .list()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: images => (this.curatedImages = images.filter(isStartable)),
+        error: (err: unknown) => {
+          // The field goes either way -- without a list there is nothing to choose from,
+          // and the unit falls back to the deployment's image. But only 503 means the
+          // feature is off; anything else is worth saying, or the picker just vanishes.
+          this.curatedImages = [];
+          if (!(err instanceof HttpErrorResponse && err.status === 503)) {
+            this.notificationService.error(`Could not load the available images: ${extractErrorMessage(err)}`);
+          }
+        },
+      });
   }
 
   // Runs every time the modal opens: re-collapse the advanced panel so it
@@ -180,6 +219,8 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   // hidden behind the collapsed panel.
   private resetAdvancedSettings(): void {
     this.showAdvancedSettings = false;
+    // The image is chosen per unit, so a previous choice must not ride along.
+    this.selectedImageId = DEPLOYMENT_IMAGE;
     this.shmSizeValue = DEFAULT_SHM_SIZE_VALUE;
     this.shmSizeUnit = DEFAULT_SHM_SIZE_UNIT;
     this.resetJvmMemorySlider();
@@ -262,6 +303,8 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
       jvmMemorySize: this.selectedJvmMemorySize,
       shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
       localUri: this.localComputingUnitUri,
+      // Left out for the deployment's own image, so the request carries no image at all.
+      imageId: this.selectedImageId === DEPLOYMENT_IMAGE ? undefined : this.selectedImageId,
     };
 
     this.computingUnitActionsService

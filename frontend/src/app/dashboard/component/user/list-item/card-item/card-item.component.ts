@@ -52,6 +52,10 @@ import { extractErrorMessage } from "../../../../../common/util/error";
 import { WorkflowCoverService } from "../../../../service/user/workflow-cover/workflow-cover.service";
 import { isDefined } from "../../../../../common/util/predicate";
 import { ResourceRegistryService } from "../../../../service/user/resource-registry/resource-registry.service";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
+import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
+import { DefaultView } from "../../../../type/workflow-metadata.interface";
+import { defaultsToFormView, landingLink } from "../default-view-landing";
 
 @UntilDestroy()
 @Component({
@@ -126,7 +130,9 @@ export class CardItemComponent implements OnChanges {
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService,
     private workflowCoverService: WorkflowCoverService,
-    private resourceRegistry: ResourceRegistryService
+    private resourceRegistry: ResourceRegistryService,
+    private workflowPersistService: WorkflowPersistService,
+    private config: GuiConfigService
   ) {}
 
   get hasCustomImage(): boolean {
@@ -136,6 +142,45 @@ export class CardItemComponent implements OnChanges {
   /** Whether the cover-image controls are shown: an editable workflow in private search. */
   get canEditCover(): boolean {
     return this.isPrivateSearch && this.entry.type === "workflow" && this.entry.workflow.isOwner;
+  }
+
+  /** Whether this card is a form-default workflow (Form View icon, deep-links into the form). */
+  public defaultsToForm = false;
+
+  /**
+   * Whether the default-view toggle is offered: the same rule as the list row. Setting the default
+   * view writes the workflow row, so it needs WRITE access, not just ownership of the card.
+   */
+  get canToggleDefaultView(): boolean {
+    return (
+      this.isPrivateSearch &&
+      this.entry.type === "workflow" &&
+      this.config.env.formViewEnabled &&
+      this.entry.accessLevel === "WRITE"
+    );
+  }
+
+  public onToggleDefaultView(): void {
+    // The rule the button is gated on, checked here too: the write needs WRITE access whoever calls.
+    if (!this.canToggleDefaultView) {
+      return;
+    }
+    const next = this.defaultsToForm ? DefaultView.CANVAS : DefaultView.FORM;
+    this.workflowPersistService
+      .setDefaultView(this.entry.id as number, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          if (this.entry.workflow?.workflow) {
+            this.entry.workflow.workflow.defaultView = next;
+          }
+          // Re-derive from the descriptor so the icon and link fully reset when turning it
+          // off, not just when turning it on.
+          this.initializeEntry();
+          this.cdr.detectChanges();
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
   }
 
   openImagePicker(): void {
@@ -191,6 +236,13 @@ export class CardItemComponent implements OnChanges {
     this.canDownload = descriptor.download !== undefined;
     this.canShare = descriptor.retrieveOwners !== undefined;
     this.entryLink = this.resourceRegistry.entryLink(this.entry, this.currentUid);
+    // Same landing rule as the list row (default-view-landing.ts): a form-default workflow shows
+    // the Form View icon and opens in its form, so the card and the row never disagree.
+    this.defaultsToForm = defaultsToFormView(this.entry, this.config.env.formViewEnabled);
+    if (this.defaultsToForm) {
+      this.iconType = "solution";
+    }
+    this.entryLink = landingLink(this.entry, this.entryLink, this.config.env.formViewEnabled);
     if (descriptor.hasSize && typeof this.entry.id === "number") {
       this.size = this.entry.size;
     }

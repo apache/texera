@@ -17,69 +17,130 @@
  under the License.
 -->
 
-<div class="import-modal-diagram">
-  <img
-    ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
-    alt="Notebook to Workflow"
-    width="1132"
-    height="290" />
-</div>
-
 <div class="import-modal-content">
   <form
     class="import-modal-form"
     [formGroup]="importForm"
     [attr.inert]="isSubmitting ? '' : null"
     nz-form>
-    <nz-form-item>
-      <p class="import-modal-text">
-        This tool converts a Python Jupyter Notebook into a Texera workflow using LLM capabilities. After you submit a
-        notebook, the LLM service generates a corresponding Texera workflow. The conversion time depends on the
-        notebook's complexity and can take 1-5 minutes. Once generation finishes, you are taken to the new workflow,
-        which opens with:
-      </p>
-      <ol class="import-modal-list">
-        <li>
-          The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to the
-          workflow).
-        </li>
-        <li>A floating Jupyter window containing the uploaded notebook for reference.</li>
-      </ol>
-      <p class="import-modal-text">
-        Generation runs here after you submit. Please keep this window open while you wait.
-      </p>
-    </nz-form-item>
+    <!-- One upload row shared by both tabs. They differ only in the accepted extension and
+         their labels, so the markup lives here once and each tab passes its own context. -->
+    <ng-template
+      #uploadRow
+      let-accept="accept"
+      let-label="label"
+      let-action="action">
+      <nz-form-item>
+        <nz-form-label [nzNoColon]="true">
+          <span class="import-modal-label">{{ label }}</span>
+        </nz-form-label>
+        <nz-form-control>
+          <div class="import-modal-upload-row">
+            <nz-upload
+              [nzAccept]="accept"
+              [nzBeforeUpload]="beforeUpload"
+              [nzShowUploadList]="false">
+              <button
+                nz-button
+                type="button"
+                [title]="action"
+                [attr.aria-label]="action">
+                <i
+                  nz-icon
+                  nzType="upload"></i>
+              </button>
+            </nz-upload>
 
-    <nz-form-item>
-      <nz-form-label [nzNoColon]="true">
-        <span class="import-modal-label"> Upload Python Jupyter Notebook </span>
-      </nz-form-label>
-      <nz-form-control>
-        <div class="import-modal-upload-row">
-          <nz-upload
-            nzAccept=".ipynb"
-            [nzBeforeUpload]="beforeUpload"
-            [nzShowUploadList]="false">
-            <button
-              nz-button
-              type="button"
-              title="Upload notebook"
-              aria-label="Upload notebook">
-              <i
-                nz-icon
-                nzType="upload"></i>
-            </button>
-          </nz-upload>
+            <span
+              *ngIf="importForm.get('file')?.value?.name as fileName"
+              class="import-modal-selected-file"
+              [title]="fileName">
+              Selected file: {{ fileName }}
+            </span>
+          </div>
+        </nz-form-control>
+      </nz-form-item>
+    </ng-template>
 
-          <span
-            *ngIf="importForm.get('file')?.value?.name as fileName"
-            class="import-modal-selected-file"
-            [title]="fileName">
-            Selected file: {{ fileName }}
-          </span>
-        </div>
-      </nz-form-control>
-    </nz-form-item>
+    <nz-tabs
+      [nzSelectedIndex]="selectedTabIndex"
+      [nzAnimated]="tabAnimation"
+      (nzSelectedIndexChange)="onTabChange($event)">
+      <nz-tab nzTitle="Jupyter Notebook">
+        <ng-template nz-tab>
+          <div class="import-modal-diagram">
+            <img
+              ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
+              alt="Notebook to Workflow"
+              width="1132"
+              height="290" />
+          </div>
+
+          <nz-form-item>
+            <p class="import-modal-text">
+              This tool converts a Python Jupyter Notebook into a Texera workflow using LLM capabilities. After you
+              submit a notebook, the LLM service generates a corresponding Texera workflow. The conversion time depends
+              on the notebook's complexity and can take 1-5 minutes. Once generation finishes, you are taken to the new
+              workflow, which opens with:
+            </p>
+            <ol class="import-modal-list">
+              <li>
+                The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
+                the workflow).
+              </li>
+              <li>A floating Jupyter window containing the uploaded notebook for reference.</li>
+            </ol>
+            <p class="import-modal-text">
+              Generation runs here after you submit. Please keep this window open while you wait.
+            </p>
+          </nz-form-item>
+
+          <ng-container
+            *ngTemplateOutlet="
+              uploadRow;
+              context: { accept: '.ipynb', label: 'Upload Python Jupyter Notebook', action: 'Upload notebook' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <nz-tab nzTitle="Python File">
+        <ng-template nz-tab>
+          <div class="import-modal-diagram">
+            <img
+              ngSrc="assets/notebook_migration_tool/python_file_diagram.png"
+              alt="Python File to Workflow"
+              width="1348"
+              height="346" />
+          </div>
+
+          <nz-form-item>
+            <p class="import-modal-text">
+              This tool converts a Python file into a Texera workflow using LLM capabilities. After you submit a script,
+              the LLM service generates a corresponding Texera workflow. A script has no notebook cells, so the LLM also
+              divides it into sections and records which section became which operator. The conversion time depends on
+              the script's complexity and can take 1-5 minutes. Once generation finishes, you are taken to the new
+              workflow, which opens with:
+            </p>
+            <ol class="import-modal-list">
+              <li>
+                The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
+                the workflow).
+              </li>
+              <li>A floating Jupyter window containing your script, divided into cells, for reference.</li>
+            </ol>
+            <p class="import-modal-text">
+              Generation runs here after you submit. Please keep this window open while you wait.
+            </p>
+          </nz-form-item>
+
+          <ng-container
+            *ngTemplateOutlet="
+              uploadRow;
+              context: { accept: '.py', label: 'Upload Python File', action: 'Upload Python file' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+    </nz-tabs>
 
     <nz-form-item>
       <nz-form-label [nzNoColon]="true">
@@ -147,7 +208,7 @@
       [nzSize]="'large'"></nz-spin>
     <p class="import-modal-loading-title">Generating your workflow</p>
     <p class="import-modal-loading-elapsed">Elapsed time: {{ formattedElapsedTime }}</p>
-    <p class="import-modal-loading-text">This can take 1-5 minutes depending on the notebook's complexity.</p>
+    <p class="import-modal-loading-text">This can take 1-5 minutes depending on the code's complexity.</p>
     <p class="import-modal-loading-text">
       Please keep this window open. You will be taken to the new workflow when it is ready.
     </p>

@@ -55,6 +55,8 @@ export interface ResourceDescriptor {
   retrieveSingleFile?(filePath: string, isLogin: boolean): Observable<Blob>;
   /** Owners of this kind, for the filter dropdown and the share modal. */
   retrieveOwners?(): Observable<string[]>;
+  /** Owners of the *published* entries of this kind, for the filter dropdown on the hub. */
+  retrievePublicOwners?(): Observable<string[]>;
   /** What other users get once an entry is published; absent when the kind cannot be published. */
   readonly affordances?: ResourceAffordances;
   /** Whether the entry is currently published. */

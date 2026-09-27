@@ -208,6 +208,22 @@ describe("NotebookMigrationLLM", () => {
       warn.mockRestore();
     });
 
+    it("skips a mapping entry whose cell list is not an array, keeping the rest of the conversion", async () => {
+      const llm = makeLLM();
+      mockResponses(
+        JSON.stringify({ code: { UDF1: "# UDF1", UDF2: "# UDF2" }, edges: [], outputs: {} }),
+        // A model that answers with a bare string here used to throw away the whole conversion.
+        JSON.stringify({ UDF1: "cell-a", UDF2: ["cell-b"] })
+      );
+
+      const result = JSON.parse(
+        await llm.convertNotebookToWorkflow({ cells: [codeCell("cell-a", "x = 1"), codeCell("cell-b", "y = 2")] })
+      );
+
+      expect(result.workflowJSON.operators).toHaveLength(2);
+      expect(result.workflowNotebookMapping.operator_to_cell).toEqual({ "PythonUDFV2-1": ["cell-b"] });
+    });
+
     it("skips (with a warning) a mapping entry that references an unknown UDF id", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const notebook: Notebook = { cells: [codeCell("CELL1", "a")] };
@@ -519,6 +535,164 @@ describe("NotebookMigrationLLM", () => {
 
       // After close(), the initialized flag is cleared even though the feature stays enabled.
       await expect(llm.convertNotebookToWorkflow({ cells: [] })).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("convertScriptToWorkflow", () => {
+    // Five lines; line 2 and line 4 are blank, so the reconciler's blank-gap handling shows up.
+    const script = ["import os", "", "x = compute()", "", "print(x)"].join("\n");
+
+    const workflowResponse = JSON.stringify({
+      code: { UDF1: "# UDF1", UDF2: "# UDF2" },
+      edges: [["UDF1", "UDF2"]],
+      outputs: { UDF1: ["value"], UDF2: ["result"] },
+    });
+
+    // sendPrompt pushes onto the same array it hands to callModel, so a captured call argument
+    // keeps mutating. Each conversion does get a fresh array from seedDocumentation, so index by
+    // the conversion's first call and read the whole exchange rather than a point-in-time state.
+    function conversation(firstCallIndex = 0): { role: string; content: string }[] {
+      return callModelSpy.mock.calls[firstCallIndex][0] as { role: string; content: string }[];
+    }
+
+    function contentsFor(role: string, firstCallIndex = 0): string[] {
+      return conversation(firstCallIndex)
+        .filter(message => message.role === role)
+        .map(message => message.content);
+    }
+
+    it("sends the script with a line number on every line", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]] }));
+
+      await llm.convertScriptToWorkflow(script);
+
+      const prompt = contentsFor("user").join("\n");
+      expect(prompt).toContain("1| import os");
+      expect(prompt).toContain("3| x = compute()");
+      expect(prompt).toContain("5| print(x)");
+    });
+
+    it("seeds the script prelude, not the cell-marked notebook example", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]] }));
+
+      await llm.convertScriptToWorkflow(script);
+
+      const prelude = contentsFor("system").join("\n");
+      // The notebook worked example is the one entry that is swapped out; if it survives, the
+      // model is being shown cell ids for an input that has none.
+      expect(prelude).not.toContain("# START CELL1");
+      expect(prelude).toContain("1| import pandas as pd");
+    });
+
+    it("builds the workflow from the model's code and edges", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]], UDF2: [[5, 5]] }));
+
+      const { workflowJSON } = await llm.convertScriptToWorkflow(script);
+
+      expect(workflowJSON.operators.map(operator => operator.operatorID)).toEqual(["PythonUDFV2-0", "PythonUDFV2-1"]);
+      expect(workflowJSON.links).toHaveLength(1);
+      expect(workflowJSON.links[0].source.operatorID).toBe("PythonUDFV2-0");
+      expect(workflowJSON.links[0].target.operatorID).toBe("PythonUDFV2-1");
+    });
+
+    it("derives cells from the reported ranges and maps them to operator ids", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]], UDF2: [[5, 5]] }));
+
+      const { workflowNotebookMapping, notebook } = await llm.convertScriptToWorkflow(script);
+
+      // Line 4 is blank and is dropped; lines 1-2 are a real gap no UDF claimed.
+      expect(notebook.cells.map(cell => cell.source)).toEqual(["import os\n", "x = compute()", "print(x)"]);
+
+      const [gap, first, second] = notebook.cells.map(cell => String(cell.metadata.uuid));
+      expect(workflowNotebookMapping.operator_to_cell).toEqual({
+        "PythonUDFV2-0": [first],
+        "PythonUDFV2-1": [second],
+      });
+      expect(workflowNotebookMapping.cell_to_operator).toEqual({
+        [first]: ["PythonUDFV2-0"],
+        [second]: ["PythonUDFV2-1"],
+      });
+      // The unclaimed lines survive as a cell so no source is lost, but highlight nothing.
+      expect(workflowNotebookMapping.cell_to_operator[gap]).toBeUndefined();
+    });
+
+    it("returns a notebook Jupyter can open", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]] }));
+
+      const { notebook } = await llm.convertScriptToWorkflow(script);
+
+      expect(notebook.nbformat).toBe(4);
+      expect(notebook.nbformat_minor).toBe(4);
+      expect(notebook.metadata?.["language_info"]).toEqual({ name: "python" });
+      notebook.cells.forEach(cell => {
+        expect(cell.cell_type).toBe("code");
+        expect(String(cell.metadata.uuid)).not.toBe("");
+        expect(cell.outputs).toEqual([]);
+        expect(cell.execution_count).toBeNull();
+      });
+    });
+
+    it("still returns the workflow when the model reports no usable ranges", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: "not a range" }));
+
+      const { workflowJSON, workflowNotebookMapping, notebook } = await llm.convertScriptToWorkflow(script);
+
+      expect(workflowJSON.operators).toHaveLength(2);
+      // Degrades to the whole script in one cell that highlights nothing, rather than failing
+      // and throwing away a conversion that already cost two model calls.
+      expect(notebook.cells).toHaveLength(1);
+      expect(notebook.cells[0].source).toBe(script);
+      expect(workflowNotebookMapping.operator_to_cell).toEqual({});
+    });
+
+    it("skips a reported range whose UDF the model never defined", async () => {
+      const llm = makeLLM();
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]], UDF9: [[5, 5]] }));
+
+      const { workflowNotebookMapping } = await llm.convertScriptToWorkflow(script);
+
+      expect(Object.keys(workflowNotebookMapping.operator_to_cell)).toEqual(["PythonUDFV2-0"]);
+    });
+
+    it("does not carry a previous notebook conversion's prelude into a script conversion", async () => {
+      const llm = makeLLM();
+      mockResponses(
+        JSON.stringify({ code: { UDF1: "# UDF1" }, edges: [], outputs: {} }),
+        JSON.stringify({ UDF1: ["cell-a"] })
+      );
+      await llm.convertNotebookToWorkflow({ cells: [codeCell("cell-a", "x = 1")] });
+
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[3, 3]] }));
+      await llm.convertScriptToWorkflow(script);
+
+      // Calls 0 and 1 were the notebook conversion; the script conversion starts at call 2.
+      expect(contentsFor("system", 2).join("\n")).not.toContain("# START CELL1");
+      // Nothing from the notebook exchange survives: not its cell ids, not its replies.
+      expect(
+        conversation(2)
+          .map(message => message.content)
+          .join("\n")
+      ).not.toContain("cell-a");
+    });
+
+    it("refuses to run before initialize()", async () => {
+      const llm = makeUninitializedLLM();
+
+      await expect(llm.convertScriptToWorkflow(script)).rejects.toThrow("LLM session not initialized");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("refuses to run when the feature is disabled", async () => {
+      const llm = makeUninitializedLLM(false);
+
+      await expect(llm.convertScriptToWorkflow(script)).rejects.toThrow("Notebook migration feature is disabled");
       expect(callModelSpy).not.toHaveBeenCalled();
     });
   });

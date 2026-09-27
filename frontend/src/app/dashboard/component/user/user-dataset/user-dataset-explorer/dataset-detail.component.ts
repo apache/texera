@@ -141,6 +141,7 @@ export class DatasetDetailComponent implements OnInit {
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
+  public uploadsInFlight = false;
   public fileTreeNodeList: DatasetFileNode[] = [];
   public selectedVersionCreationTime: string = "";
   // The following three fields describe the latest version for the Data Card, all
@@ -424,11 +425,11 @@ export class DatasetDetailComponent implements OnInit {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
   }
 
-  onVersionSelected(version: DatasetVersion): void {
+  onVersionSelected(version: DatasetVersion | undefined): void {
     this.selectedVersion = version;
-    if (this.did && this.selectedVersion.dvid)
+    if (this.did && version?.dvid)
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
+        .retrieveDatasetVersionFileTree(this.did, version.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;
@@ -599,6 +600,10 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did) {
       return;
     }
+    if (this.uploadsInFlight) {
+      this.notificationService.error("Finish or cancel the upload in progress before renaming this dataset");
+      return;
+    }
     // Reject invalid names outright instead of silently rewriting them, matching
     // the shared validation used by the other rename entry points (PR #6426).
     const name = this.editedDatasetName;
@@ -615,6 +620,12 @@ export class DatasetDetailComponent implements OnInit {
         next: () => {
           this.datasetName = name;
           this.editedDatasetName = name;
+          // Every file path embeds the dataset name, and preview and single-file download resolve
+          // a dataset by (owner, name) — a stale tree 404s until reload.
+          if (this.selectedVersion) {
+            this.onVersionSelected(this.selectedVersion);
+          }
+          this.retrieveLatestVersionFile();
           this.notificationService.success(`Dataset name updated to '${name}'`);
         },
         error: (err: unknown) => {

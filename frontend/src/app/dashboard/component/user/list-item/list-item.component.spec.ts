@@ -34,8 +34,10 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import type { Mocked } from "vitest";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
+import { DefaultView } from "../../../type/workflow-metadata.interface";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
@@ -74,6 +76,12 @@ describe("ListItemComponent", () => {
     datasetService = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
     hubService = TestBed.inject(HubService);
     modalService = TestBed.inject(NzModalService);
+    // The Form View entry points (deep-link, solution icon, toggle) are gated on the
+    // form-view-enabled flag, which the stack's closing PR turns on. The shared config mock
+    // defaults it off (matching the production default), so enable it here for the form-default cases.
+    (TestBed.inject(GuiConfigService) as unknown as { setConfig: (c: object) => void }).setConfig({
+      formViewEnabled: true,
+    });
     // initializeEntry() needs a fully-formed workflow entry to avoid throwing
     // when the template renders for the first time. Each test below overwrites
     // component.entry directly, which exercises confirm methods without going
@@ -143,6 +151,94 @@ describe("ListItemComponent", () => {
     expect(component.editingDescription).toBe(false);
   });
 
+  describe("Form View toggle", () => {
+    const formEntry = (defaultView: DefaultView, accessLevel = "WRITE") =>
+      ({
+        id: 42,
+        type: "workflow",
+        workflow: { isOwner: true, workflow: { defaultView } },
+        accessibleUserIds: [1],
+        accessLevel,
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+      }) as unknown as DashboardEntry;
+
+    beforeEach(() => {
+      component.currentUid = 1;
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(of(undefined));
+    });
+
+    it("turns it on, showing the flask and repointing the row", () => {
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+      expect(component.iconType).toBe("project");
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(42, DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(true);
+      expect(component.iconType).toBe("solution");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "42", "form"]);
+    });
+
+    it("turns it back off, restoring the plain row", () => {
+      component.entry = formEntry(DefaultView.FORM);
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(42, DefaultView.CANVAS);
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "42"]);
+    });
+
+    // A failed call must not leave the row claiming a state the server never took.
+    it("keeps the previous state when the request fails", () => {
+      component.entry = formEntry(DefaultView.CANVAS);
+      component.initializeEntry();
+      (workflowPersistService as any).setDefaultView = vi.fn().mockReturnValue(throwError(() => new Error("nope")));
+
+      component.onToggleDefaultView();
+
+      expect(component.defaultsToForm).toBe(false);
+      expect(component.iconType).toBe("project");
+    });
+
+    // A card without the cached workflow row must still record the toggle, not crash.
+    it("still persists the toggle when the entry has no cached workflow row", () => {
+      component.entry = {
+        id: 42,
+        type: "workflow",
+        workflow: { isOwner: true },
+        accessibleUserIds: [1],
+        accessLevel: "WRITE",
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(workflowPersistService.setDefaultView).toHaveBeenCalledWith(42, DefaultView.FORM);
+      expect(component.defaultsToForm).toBe(false);
+    });
+
+    // The permission lives in the method, not only in the button's *ngIf: setting the default view
+    // writes the workflow row, which needs WRITE access whoever calls.
+    it("refuses to toggle for a collaborator without write access", () => {
+      component.entry = formEntry(DefaultView.CANVAS, "READ");
+      component.initializeEntry();
+
+      component.onToggleDefaultView();
+
+      expect(component.canToggleDefaultView).toBe(false);
+      expect(workflowPersistService.setDefaultView).not.toHaveBeenCalled();
+    });
+  });
+
   describe("initializeEntry routes", () => {
     const baseStats = { likeCount: 0, viewCount: 0, isLiked: false };
 
@@ -157,6 +253,38 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([USER_WORKSPACE, "100"]);
+    });
+
+    it("sends an owned form-default workflow straight to its form", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 100,
+        type: "workflow",
+        workflow: { isOwner: true, workflow: { defaultView: DefaultView.FORM } },
+        accessibleUserIds: [1],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+
+      expect(component.entryLink).toEqual([USER_WORKSPACE, "100", "form"]);
+      expect(component.iconType).toBe("solution");
+      expect(component.defaultsToForm).toBe(true);
+    });
+
+    // The flask is the owner's entry point; a hub visitor still lands on the detail page.
+    it("leaves the hub link alone for a form-default workflow the user does not own", () => {
+      component.currentUid = 1;
+      component.entry = {
+        id: 101,
+        type: "workflow",
+        workflow: { isOwner: false, workflow: { defaultView: DefaultView.FORM } },
+        accessibleUserIds: [2],
+        ...baseStats,
+      } as unknown as DashboardEntry;
+      component.initializeEntry();
+
+      expect(component.entryLink).toEqual([HUB_WORKFLOW_RESULT_DETAIL, "101"]);
+      expect(component.iconType).toBe("solution");
     });
 
     it("routes non-owned workflows to the hub workflow detail page", () => {
@@ -676,6 +804,24 @@ describe("ListItemComponent", () => {
       q(".resource-description").triggerEventHandler("click", new MouseEvent("click"));
 
       expect(edit).toHaveBeenCalledTimes(2);
+    });
+
+    // Setting the default view writes the workflow row, so the control is only offered to a
+    // collaborator who can write it; a reader would only ever see it fail.
+    it("offers the default-view toggle only to a collaborator with write access", () => {
+      const toggle = vi.spyOn(component, "onToggleDefaultView").mockImplementation(() => {});
+      render({ accessLevel: "WRITE" });
+
+      const button = q("button.default-view-toggle");
+      expect(button).not.toBeNull();
+      // A toggle: constant name, state in aria-pressed.
+      expect(button.nativeElement.getAttribute("aria-label")).toBe("Open in the Form View by default");
+      expect(button.nativeElement.getAttribute("aria-pressed")).toBe("false");
+      button.triggerEventHandler("click", new MouseEvent("click"));
+      expect(toggle).toHaveBeenCalledTimes(1);
+
+      render({ accessLevel: "READ" });
+      expect(q("button.default-view-toggle")).toBeNull();
     });
 
     it("tracks hover over the row", () => {

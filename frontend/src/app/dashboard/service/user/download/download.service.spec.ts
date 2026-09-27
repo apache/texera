@@ -237,6 +237,36 @@ describe("DownloadService", () => {
     // produced it.
   });
 
+  // Blob.text() is missing in jsdom, but FileReader.readAsText works.
+  const readBlob = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+
+  it("carries the default view into the downloaded workflow json so it round-trips on upload", async () => {
+    const content = { operators: [], links: [] };
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content, defaultView: "FORM" } as any));
+
+    const result = await firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"));
+    const parsed = JSON.parse(await readBlob(result.blob));
+
+    expect(parsed.defaultView).toBe("FORM");
+    expect(parsed.operators).toEqual([]);
+  });
+
+  it("omits the default view from the json when the workflow has none", async () => {
+    const content = { operators: [], links: [] };
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content } as any));
+
+    const result = await firstValueFrom(downloadService.downloadWorkflow(42, "MyWorkflow"));
+    const parsed = JSON.parse(await readBlob(result.blob));
+
+    expect("defaultView" in parsed).toBe(false);
+  });
+
   // ─── downloadWorkflowsAsZip ───────────────────────────────────────────────
 
   it("downloads the workflow ZIP and routes through createWorkflowsZip", async () => {

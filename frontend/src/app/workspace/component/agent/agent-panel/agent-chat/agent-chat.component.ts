@@ -237,13 +237,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
     if (this.isActive) {
       this.startWorkflowSubscription();
     }
-
-    // Subscribe to scroll-to-step requests
-    this.agentService.scrollToStep$.pipe(untilDestroyed(this)).subscribe(({ agentId, messageId, stepId }) => {
-      if (agentId === this.agentInfo.id) {
-        this.scrollToStep(messageId, stepId);
-      }
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -740,19 +733,5 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         },
         error: () => {},
       });
-  }
-
-  /**
-   * Scroll to a specific step in the chat by messageId and stepId.
-   */
-  private scrollToStep(messageId: string, stepId: number): void {
-    // Find the step index in visibleSteps
-    const stepIndex = this.visibleSteps.findIndex(step => step.messageId === messageId && step.stepId === stepId);
-
-    if (stepIndex >= 0) {
-      this.scrollToMessage(stepIndex);
-      // Highlight the message briefly
-      this.setHoveredMessage(stepIndex);
-    }
   }
 }
