@@ -596,9 +596,8 @@ def _plotly_payloads_from_html(html: str) -> list:
 
 def _load_expected_plots(path) -> list:
     """Every chart the exported script drew. An operator that draws one writes a
-    lone figure; one that draws a chart per row writes the sequence, or writes
-    them to its page and only the first as a figure, in which case the page is
-    what this is handed."""
+    lone figure, and one that draws a chart per row writes the sequence. A page
+    is read for every chart on it."""
     import json
 
     with open(path, "r", encoding="utf-8") as fh:

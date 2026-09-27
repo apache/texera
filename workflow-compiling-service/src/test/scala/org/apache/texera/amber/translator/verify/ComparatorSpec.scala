@@ -280,23 +280,29 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
 
   /** A model column holds a pickled estimator, which only Python can fit. Writes
     * the two one-row frames the comparison reads and the probe it predicts on,
-    * each side's model fitted on its own targets.
+    * each side's model fitted on its own targets and its own feature column.
+    * The probe carries both columns, with the same values.
     */
   private def writeFittedModels(
       dir: Path,
       estimator: String,
       actualTargets: String,
-      expectedTargets: String
+      expectedTargets: String,
+      actualFeature: String = "petal_length",
+      expectedFeature: String = "petal_length"
   ): (Path, Path, Path) = {
     val program =
       s"""import base64, json, pickle
          |import pandas as pd
          |from sklearn.tree import $estimator as Estimator
          |
-         |x = pd.DataFrame({"petal_length": [1.0, 2.0, 3.0]})
+         |x = pd.DataFrame({"petal_length": [1.0, 2.0, 3.0], "petal_width": [1.0, 2.0, 3.0]})
          |x.to_json(r"$dir/probe.jsonl", orient="records", lines=True)
-         |for name, y in (("actual.jsonl", $actualTargets), ("expected.jsonl", $expectedTargets)):
-         |    model = base64.b64encode(pickle.dumps(Estimator().fit(x, y))).decode()
+         |for name, y, feature in (
+         |    ("actual.jsonl", $actualTargets, "$actualFeature"),
+         |    ("expected.jsonl", $expectedTargets, "$expectedFeature"),
+         |):
+         |    model = base64.b64encode(pickle.dumps(Estimator().fit(x[[feature]], y))).decode()
          |    with open(rf"$dir/{name}", "w") as handle:
          |        handle.write(json.dumps({"model": model, "score": 1.0}) + "\\n")
          |""".stripMargin
@@ -330,6 +336,29 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
         probePath = Some(probe)
       )
     }.getMessage should include("predictions differ")
+  }
+
+  // What a model was fitted on is part of the model. Two fitted on different
+  // columns answer alike on a probe carrying both, so only the names part them.
+  it should "catch two models fitted on different columns that predict alike" in {
+    val dir = Files.createTempDirectory("comparator-spec-model-features-")
+    val (actual, expected, probe) =
+      writeFittedModels(
+        dir,
+        "DecisionTreeClassifier",
+        "[0, 1, 1]",
+        "[0, 1, 1]",
+        expectedFeature = "petal_width"
+      )
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(
+        actual,
+        expected,
+        modelColumns = Seq("model"),
+        probePath = Some(probe)
+      )
+    }.getMessage should include("fitted feature names differ")
   }
 
   // The tolerance still has to reach what it was for: a regressor computes its
@@ -442,9 +471,8 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
   }
 
   // A bullet or gauge chart draws its charts onto one page and yields that page
-  // as a single row, and its script writes the whole set to its page and only
-  // the first of them as a figure. Both sides are pages then, and every call on
-  // them is a chart to compare.
+  // as a single row. Every call on a page is a chart to compare, whichever side
+  // the page is on.
   private def plotlyPage(values: Int*): String =
     values
       .map(v =>
