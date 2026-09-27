@@ -26,7 +26,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SearchResult, SearchResultItem } from "../../../type/search-result";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { Observable, of, Subject } from "rxjs";
-import { debounceTime, switchMap } from "rxjs/operators";
+import { catchError, debounceTime, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
 import { SEARCH } from "../../../../app-routing.constant";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -107,12 +107,15 @@ export class SearchBarComponent {
         this.includePublic
       );
 
+      // A failed request or a row convertToName cannot name costs this query its suggestions, not the
+      // subscription in the constructor, which would otherwise end and leave autocomplete dead for the session.
       return searchObservable.pipe(
         switchMap((result: SearchResult) => {
           const uniqueResults = Array.from(new Set(result.results.map(item => this.convertToName(item))));
           this.addToCache(query, uniqueResults);
           return of(uniqueResults);
-        })
+        }),
+        catchError(() => of([]))
       );
     }
   }
@@ -146,6 +149,8 @@ export class SearchBarComponent {
       return new DashboardEntry(resultItem.file).name;
     } else if (resultItem.dataset) {
       return new DashboardEntry(resultItem.dataset).name;
+    } else if (resultItem.model) {
+      return new DashboardEntry(resultItem.model).name;
     } else {
       throw new Error("Unexpected type in SearchResult.");
     }

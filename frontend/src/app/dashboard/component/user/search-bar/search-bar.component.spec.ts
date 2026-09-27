@@ -21,7 +21,8 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testin
 import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { of, Subject } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
+import { of, Subject, throwError } from "rxjs";
 
 import { SearchBarComponent } from "./search-bar.component";
 import { SearchService } from "../../../service/user/search.service";
@@ -41,6 +42,19 @@ function makeWorkflowItem(name: string, wid: number = 1): SearchResultItem {
       accessLevel: "WRITE",
       ownerId: 1,
     } as any,
+  };
+}
+
+function makeModelItem(name: string, mid: number = 1): SearchResultItem {
+  return {
+    resourceType: "model",
+    model: {
+      isOwner: true,
+      ownerEmail: "a@b.c",
+      accessPrivilege: "WRITE",
+      size: 0,
+      model: { mid, ownerUid: 1, name } as any,
+    },
   };
 }
 
@@ -145,6 +159,53 @@ describe("SearchBarComponent", () => {
     expect(component.listOfResult).toEqual(["hello"]);
   }));
 
+  it("lists a model hit by name, as the all-kinds search returns model rows", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeModelItem("my-model")], more: false } as SearchResult));
+
+    component.onSearchInputChange("my");
+    tick(200);
+
+    expect(component.listOfResult).toEqual(["my-model"]);
+  }));
+
+  it("keeps autocomplete working after a response carries a row it cannot name", fakeAsync(() => {
+    component.listOfResult = ["stale"];
+    searchSpy.search.mockReturnValueOnce(
+      of({ results: [{ resourceType: "computing-unit" } as any, makeWorkflowItem("bad-wf")], more: false })
+    );
+
+    component.onSearchInputChange("bad");
+    tick(200);
+
+    expect(component.listOfResult).toEqual([]);
+
+    searchSpy.search.mockReturnValueOnce(of({ results: [makeWorkflowItem("good")], more: false } as SearchResult));
+    component.onSearchInputChange("good");
+    tick(200);
+
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(component.listOfResult).toEqual(["good"]);
+  }));
+
+  it("keeps autocomplete working after a failed request, and retries rather than caching the failure", fakeAsync(() => {
+    component.listOfResult = ["stale"];
+    searchSpy.search.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(component.listOfResult).toEqual([]);
+    expect((component as any).searchCache.has("x")).toBe(false);
+
+    searchSpy.search.mockReturnValueOnce(of({ results: [makeWorkflowItem("x-wf")], more: false } as SearchResult));
+    // Same query again: the failure was not cached, so this goes back to the server.
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(component.listOfResult).toEqual(["x-wf"]);
+  }));
+
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
 
@@ -211,6 +272,10 @@ describe("SearchBarComponent", () => {
         } as any,
       };
       expect(component.convertToName(item)).toBe("ds-name");
+    });
+
+    it("returns the model's name", () => {
+      expect(component.convertToName(makeModelItem("model-name", 3))).toBe("model-name");
     });
 
     it("throws for a SearchResultItem with no recognized resource", () => {
