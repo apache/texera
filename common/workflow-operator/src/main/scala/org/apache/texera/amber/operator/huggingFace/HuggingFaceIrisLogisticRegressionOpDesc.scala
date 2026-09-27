@@ -83,6 +83,7 @@ class HuggingFaceIrisLogisticRegressionOpDesc
   override def generatePythonCode(): String = {
     pyb"""from pytexera import *
        |import numpy as np
+       |import pandas as pd
        |import torch
        |import torch.nn as nn
        |from huggingface_hub import PyTorchModelHubMixin
@@ -108,10 +109,11 @@ class HuggingFaceIrisLogisticRegressionOpDesc
        |        length = tuple_[$petalLengthCmAttribute]
        |        width = tuple_[$petalWidthCmAttribute]
        |        # An empty cell arrives as None, which numpy carries as an object the
-       |        # standardization cannot subtract from. Keep the row and leave the
-       |        # prediction empty rather than ending the run over a measurement the
-       |        # model was never given.
-       |        if length is None or width is None:
+       |        # standardization cannot subtract from, and a NaN is no measurement
+       |        # either. Keep the row and leave the prediction empty rather than
+       |        # ending the run or predicting from a measurement the model was
+       |        # never given, as the exported script does.
+       |        if pd.isna(length) or pd.isna(width):
        |            tuple_[$predictionClassName] = None
        |            tuple_[$predictionProbabilityName] = None
        |            yield tuple_
@@ -157,9 +159,8 @@ class HuggingFaceIrisLogisticRegressionOpDesc
        |_classes = []
        |_probs = []
        |for _length, _width in zip(out1df[$lengthLit], out1df[$widthLit]):
-       |    # The operator's guard, except that an empty cell reaches a frame read
-       |    # from JSON as a NaN rather than as the None a Tuple hands over, so this
-       |    # side asks pandas, which answers for both.
+       |    # The operator's guard: pandas answers for the NaN a frame read from
+       |    # JSON holds and for the None a Tuple hands over.
        |    if pd.isna(_length) or pd.isna(_width):
        |        _classes.append(None)
        |        _probs.append(None)

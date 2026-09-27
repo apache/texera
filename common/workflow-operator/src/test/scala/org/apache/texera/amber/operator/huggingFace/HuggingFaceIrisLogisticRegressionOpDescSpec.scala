@@ -107,11 +107,12 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
   }
 
   // An empty cell reaches the standardization as a None, which numpy cannot
-  // subtract from, so the row is answered rather than ending the run.
-  it should "leave the prediction empty when a measurement is missing" in {
+  // subtract from, and a NaN is no measurement either, so the row is answered
+  // rather than ending the run or predicting from it, as the export does.
+  it should "leave the prediction empty when a measurement is missing, NaN included" in {
     val d = configured()
     val code = d.generatePythonCode()
-    code should include("if length is None or width is None:")
+    code should include("if pd.isna(length) or pd.isna(width):")
     code should include("yield tuple_")
     code should include("return")
   }
