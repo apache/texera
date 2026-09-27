@@ -214,10 +214,10 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
     stdout should not include "cat"
   }
 
-  /** A timestamp column read from a file is text and renders itself; only a cast
-    * makes one a real datetime, and Python's str() then writes no fraction at all
-    * on a whole second where `Timestamp.toString` writes ".0". One operator cannot
-    * show it, since the executor casts each column once from its original value.
+  /** A cast makes the column a datetime, and Python's str() then writes no
+    * fraction at all on a whole second where `Timestamp.toString` writes ".0".
+    * One operator cannot show it, since the executor casts each column once from
+    * its original value.
     */
   it should "render a cast timestamp the way the engine's toString does" in {
     val source = csvSource("source")
