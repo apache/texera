@@ -41,9 +41,9 @@ import org.scalatest.matchers.should.Matchers
   * Requires Python 3 with pandas on the [[Comparator]] / [[StandaloneRunner]]
   * resolution chain (`UDF_PYTHON_PATH` env var, then `python3.12`).
   */
-// Tagged @IntegrationTest: this is the only verify spec that forks a real
-// Python process end-to-end, so CI routes it to the Python-provisioned
-// integration job (see workflow-compiling-service/build.sbt WCS_TEST_FILTER).
+// Tagged @IntegrationTest: it forks Python, so CI routes it to the
+// Python-provisioned integration job (see workflow-compiling-service/build.sbt
+// WCS_TEST_FILTER).
 @IntegrationTest
 class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestExecution {
 
@@ -55,8 +55,8 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
       // Only a local run sets those, and CI therefore runs the lot.
       name should "NARROWED OUT — outside this run's VERIFY_ONLY / VERIFY_SKIP" ignore {}
     } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
-      // Sources keep their handler-per-source design: each needs a real file
-      // in its specific format, which a generic fixture can't supply.
+      // A source has no input port, so its own runner writes the shared table
+      // into the file format each one reads.
       if (SourceCategoryRunner.canRun(opClass)) {
         name should "produce equivalent output in Texera and standalone Python (source)" in {
           SourceCategoryRunner.run(opClass)

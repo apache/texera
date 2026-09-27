@@ -79,7 +79,7 @@ object SourceCategoryRunner {
   /**
     * The curated tier: sources that keep a hand-written handler because they
     * can't go through the shared-fixture + encoder (auto) path — their output
-    * isn't the shared 3-column table (text-family, single `line` column) or
+    * isn't the shared table (text-family, single `line` column) or
     * their data is inline config rather than a file. Mirrors the transform
     * side's [[CuratedHandlers]] (hand-written vs auto-generated fixture).
     */
@@ -455,7 +455,8 @@ trait SourceHandler {
   def rowCount: Int
 
   /** Configurations the sweep cannot reach, each with the file it has to read:
-    * a type the default text cannot be parsed as, or bytes in another charset.
+    * a type the default text cannot be parsed as, bytes in another charset, or
+    * an archive to extract.
     * Each one writes into the directory it is handed and returns the configured
     * op. Default: none.
     */
@@ -467,17 +468,17 @@ trait SourceHandler {
   *
   * A source has no input port, so the fixture is delivered not as an input JSONL
   * but as a file the operator opens itself. Each `writeXxx` encodes these rows
-  * into one on-disk format (CSV / JSONL / Arrow); a source handler picks the
-  * encoder its operator understands and points `fileName` at the result. So CSV,
-  * CSVOld, JSONL and Arrow all verify that the operator reconstructs one shared
-  * table, instead of each asserting against its own ad-hoc sample.
+  * into one on-disk format (CSV / JSONL / Arrow / Parquet); [[encoderByFileType]]
+  * picks the one the operator declares and points `fileName` at the result. So
+  * CSV, CSVOld, JSONL, Arrow and Parquet all verify that the operator reconstructs
+  * one shared table, instead of each asserting against its own ad-hoc sample.
   *
   * It reads the canonical table rather than a narrow one of its own. A source
   * fixture picked for the types that survive a round trip would be choosing not
   * to ask the question this suite exists to ask: these files carry no types, both
   * readers infer, and where they infer differently is exactly what should show. A
-  * date column does part them, and [[StandaloneRunner.sourceCasts]] is where that
-  * is settled — on Path B's reading, not by leaving the column out.
+  * date column does part them, and the exported reader settles that by parsing it
+  * as the engine does, not by leaving the column out.
   */
 object CanonicalSourceFixture {
 
@@ -487,10 +488,24 @@ object CanonicalSourceFixture {
     * `a"b\c_big` holds odd integers past 2^53, none of which a float can hold, so
     * a reader that widens the column through one rounds every value. `a"b\c_region`
     * holds the text `NA`, which pandas reads as missing unless told not to.
+    * `a"b\c_nanos` holds digits past the millisecond, which a reader keeps or cuts
+    * as the engine's own does. It stays out of the canonical table, where a
+    * Python operator is handed a datetime, which counts no finer than microseconds.
     */
   private val sourceColumns: Seq[(Attribute, Int => AnyRef)] = Seq(
     new Attribute("a\"b\\c_big", AttributeType.LONG) -> (i => Long.box(9007199254740993L + 2 * i)),
-    new Attribute("a\"b\\c_region", AttributeType.STRING) -> (i => Seq("NA", "EU", "APAC")(i % 3))
+    new Attribute("a\"b\\c_region", AttributeType.STRING) -> (i => Seq("NA", "EU", "APAC")(i % 3)),
+    new Attribute("a\"b\\c_nanos", AttributeType.TIMESTAMP) -> (i =>
+      java.sql.Timestamp.valueOf(
+        Seq(
+          "2024-01-01 00:00:00.123456789",
+          "2024-06-30 23:59:59.999999999",
+          "2024-03-05 14:09:07.5"
+        )(
+          i % 3
+        )
+      )
+    )
   )
 
   val schema: Schema =
@@ -790,6 +805,13 @@ object TextInputHandler extends SourceHandler {
     desc
   }
 
+  /** Timestamp lines the engine reads its own way: digits past the millisecond,
+    * which it cuts, an offset, which it moves to the local zone, and a year
+    * past pandas' nanosecond range.
+    */
+  val TimestampLines: String =
+    "2024-01-01 00:00:00.123456789\n2024-01-01T00:00:00+05:30\n2500-01-01 00:00:00"
+
   /** A line the window skips is never parsed, so it may be one the type refuses.
     * A boolean line is read as the engine reads one, where 1 is true.
     */
@@ -798,7 +820,8 @@ object TextInputHandler extends SourceHandler {
       "integers past a line skipped" -> (_ =>
         typed("not a number\n1\n2\n3", FileAttributeType.INTEGER, Some(1))
       ),
-      "booleans" -> (_ => typed("true\nFALSE\n1\n0", FileAttributeType.BOOLEAN, None))
+      "booleans" -> (_ => typed("true\nFALSE\n1\n0", FileAttributeType.BOOLEAN, None)),
+      "timestamps" -> (_ => typed(TimestampLines, FileAttributeType.TIMESTAMP, None))
     )
 }
 
@@ -868,6 +891,9 @@ object FileScanSourceHandler extends SourceHandler {
         )
       ),
       "booleans" -> (dir => described(text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN)),
+      "timestamps" -> (dir =>
+        described(text(dir, TextInputHandler.TimestampLines + "\n"), FileAttributeType.TIMESTAMP)
+      ),
       "UTF-16" -> (dir =>
         described(
           text(dir, "première\ndeuxième\n", StandardCharsets.UTF_16),
