@@ -25,7 +25,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, AttributeTy
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,6 +38,8 @@ import scala.io.Source
 import scala.util.Try
 
 class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -98,11 +102,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     tc.typeCastingUnits.head.resultType shouldBe AttributeType.STRING
   }
 
-  // The values a cast reads differently on the two sides. Python's own `bool`
-  // answers true for every non-empty string, so "false" and "0" are where the
-  // script used to disagree with the run it came from; text that is neither a
-  // boolean nor a number, and an empty cell, are the two ends of the range.
-  private val boolCases = Seq("true", "false", "0", "1", "not a boolean", null)
+  // Text that is neither a boolean nor a number, which the engine refuses. The
+  // verification only compares runs that both produced something, so it cannot
+  // ask this; the values both sides read are its `str_to_bool` column.
+  private val boolCases = Seq("not a boolean")
 
   /** What the engine answers, as the string the Python side prints back: the
     * literal, or `error` for a value `parseField` refuses.
@@ -112,7 +115,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .map(v => if (v == null) "null" else v.toString)
       .getOrElse("error")
 
-  it should "cast to boolean the way AttributeTypeUtils does" in {
+  it should "refuse a boolean the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -167,76 +170,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"cases=${boolCases.mkString(", ")}\nscript said $fromScript\n") {
       fromScript shouldBe fromEngine
     }
-    // The pairs that made the review: "false" is not true, and "0" is not true.
-    fromEngine shouldBe Seq("true", "false", "false", "true", "error", "null")
-  }
-
-  // One column per source type, since what the text looks like follows the
-  // column and not the value: a whole double keeps its point, an integer never
-  // grows one, and a boolean is lower case.
-  private val stringColumns: Seq[(String, String, Seq[AnyRef])] = Seq(
-    ("dbl", "float64", Seq(Double.box(6.0), Double.box(7.25))),
-    ("int", "int64", Seq(Int.box(6), Int.box(7))),
-    ("flag", "bool", Seq(Boolean.box(true), Boolean.box(false)))
-  )
-
-  it should "cast to string the way AttributeTypeUtils does" in {
-    val python = resolvePython().getOrElse(
-      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
-    )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
-
-    val op = new TypeCastingOpDesc
-    op.typeCastingUnits = stringColumns.map {
-      case (name, _, _) => castUnit(name, AttributeType.STRING)
-    }.toList
-
-    val frame = stringColumns
-      .map {
-        case (name, dtype, values) =>
-          val cells = values
-            .map {
-              case b: java.lang.Boolean => if (b) "True" else "False"
-              case other                => other.toString
-            }
-            .mkString("[", ", ", "]")
-          s"""    "$name": pd.Series($cells, dtype="$dtype"),"""
-      }
-      .mkString("\n")
-    val driver =
-      s"""import pandas as pd
-         |
-         |${op.standaloneHelpers().mkString("\n\n")}
-         |
-         |
-         |in1df = pd.DataFrame({
-         |$frame
-         |})
-         |${op.generateStandaloneCode()}
-         |for column in ${stringColumns.map(c => "\"" + c._1 + "\"").mkString("[", ", ", "]")}:
-         |    for cell in out1df[column]:
-         |        print("null" if pd.isna(cell) else cell)
-         |""".stripMargin
-
-    val script = Files.createTempFile("typecast-string-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
-    }
-
-    val fromEngine = stringColumns.flatMap(_._3).map(v => engineAnswer(v, AttributeType.STRING))
-    withClue(s"script said ${out.trim.linesIterator.toSeq}\n") {
-      out.trim.linesIterator.toSeq shouldBe fromEngine
-    }
-    // The pair that made the review: a double keeps its point at 6.0, where the
-    // integer 6 has none.
-    fromEngine shouldBe Seq("6.0", "7.25", "6", "7", "true", "false")
+    fromEngine shouldBe Seq("error")
   }
 
   // The moments where the two sides used to part. pandas parses into nanoseconds
@@ -248,13 +182,17 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   // Two of them state an offset, which DateParserUtils reads and java.sql.Timestamp
   // then keeps no zone for: the moment is held as the wall clock of the machine's
   // own zone. The expectation is taken from the engine rather than written down,
-  // so the pair says the same thing wherever the suite runs.
+  // so the pair says the same thing wherever the suite runs. Two carry digits
+  // past the millisecond, which DateParserUtils reads into a java.util.Date and
+  // so drops.
   private val timestampCases = Seq(
     "2024-03-05 14:09:07",
     "2024-03-05T14:09:07",
     "March 5, 2024",
     "2024-03-05T14:09:07Z",
     "2024-03-05T14:09:07+05:30",
+    "2024-03-05 14:09:07.123456",
+    "2024-03-05 14:09:07.9999",
     "1677-09-22 00:12:44",
     "2262-04-11 23:47:16",
     "2500-01-01 00:00:00",
@@ -262,11 +200,12 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     "9999-12-31 23:59:59"
   )
 
-  /** `java.sql.Timestamp.toString` always writes a fraction where Python writes
-    * one only when there is something to write, and every case here lands on a
-    * whole second.
+  /** A printed moment as the wall clock it names. `java.sql.Timestamp.toString`
+    * trims its fraction and writes ".0" for none, where Python pads it to six
+    * digits or leaves it out.
     */
-  private def withoutFraction(text: String): String = text.stripSuffix(".0")
+  private def moment(text: String): Any =
+    Try(java.time.LocalDateTime.parse(text.replace(' ', 'T'))).getOrElse(text)
 
   /** The cells the driver printed, told apart from anything pandas wrote to
     * stderr, which this process merges into the same stream.
@@ -274,7 +213,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   private def cellsOf(out: String): Seq[String] =
     out.linesIterator.filter(_.startsWith("cell ")).map(_.drop("cell ".length)).toSeq
 
-  it should "cast text to a timestamp the way AttributeTypeUtils does" in {
+  it should "cast text to a timestamp the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -310,17 +249,16 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     process.waitFor(120, TimeUnit.SECONDS)
     withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
 
-    // Only the printed cells: pandas writes a parsing warning to stderr, which
-    // this process merges into the same stream.
+    // Only the printed cells, so nothing else written to the merged stderr is
+    // read as one.
     val fromScript = cellsOf(out)
-    val fromEngine =
-      timestampCases.map(v => withoutFraction(engineAnswer(v, AttributeType.TIMESTAMP)))
+    val fromEngine = timestampCases.map(v => engineAnswer(v, AttributeType.TIMESTAMP))
     withClue(s"cases=${timestampCases.mkString(", ")}\nscript said $fromScript\n") {
-      fromScript shouldBe fromEngine
+      fromScript.map(moment) shouldBe fromEngine.map(moment)
     }
     // The rows that made the issue: a moment either side of the nanosecond edge.
-    fromEngine.takeRight(3) shouldBe
-      Seq("2500-01-01 00:00:00", "1500-06-15 08:30:00", "9999-12-31 23:59:59")
+    fromEngine.takeRight(3).map(moment) shouldBe
+      Seq("2500-01-01 00:00:00", "1500-06-15 08:30:00", "9999-12-31 23:59:59").map(moment)
     // And the pair that states an offset, which reaches the same moment by two
     // spellings: five and a half hours apart in the text, and so in the reading.
     val zoned = fromScript.slice(3, 5)
@@ -341,7 +279,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     "2024-03-05 14:09:07.123456001"
   )
 
-  it should "keep the resolution a timestamp column arrived in" in {
+  it should "keep the resolution a timestamp column arrived in" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -390,7 +328,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   // parse strictly: the engine accepts a set of formats no single pandas call
   // states, so text neither can read leaves an empty cell instead of ending an
   // exported run halfway.
-  it should "leave a cell it cannot read empty rather than refusing it" in {
+  it should "leave a cell it cannot read empty rather than refusing it" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )

@@ -131,7 +131,9 @@ object StandaloneHelpers {
       |    # nanoseconds pandas parses into by default, which reach 1677 to 2262:
       |    # the engine holds a java.sql.Timestamp, where the year 2500 is an
       |    # ordinary moment and emptying it would answer for a row the run itself
-      |    # had no trouble with. A column that is already a moment is handed back
+      |    # had no trouble with. Text is cut to the millisecond, because
+      |    # DateParserUtils reads it into a java.util.Date, which counts no finer.
+      |    # A column that is already a moment is handed back
       |    # at the resolution it arrived in instead, because parseField returns a
       |    # java.sql.Timestamp untouched and that class counts nanoseconds.
       |    #
@@ -163,7 +165,7 @@ object StandaloneHelpers {
       |            return None
       |        if parsed.tzinfo is not None:
       |            parsed = parsed.astimezone(tzlocal()).replace(tzinfo=None)
-      |        return parsed
+      |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
       |
       |    return s.map(_one).astype("datetime64[us]")
       |
@@ -190,6 +192,38 @@ object StandaloneHelpers {
       |    return float(x)
       |
       |
+      |def _texera_java_text(x):
+      |    # The text Java's toString gives the value Texera holds. A double past
+      |    # 1e7 or under 1e-3 is written in E notation, where Python's str()
+      |    # waits until 1e16 and 1e-4. A java.sql.Timestamp writes every digit of
+      |    # its nanoseconds, trailing zeros dropped but never all of them, where
+      |    # Python writes no fraction on a whole second and six digits otherwise.
+      |    # A boolean is written in lower case.
+      |    import datetime
+      |    import decimal
+      |
+      |    if pd.api.types.is_bool(x):
+      |        return "true" if x else "false"
+      |    if isinstance(x, datetime.datetime):
+      |        nanos = x.microsecond * 1000 + getattr(x, "nanosecond", 0)
+      |        return x.strftime("%Y-%m-%d %H:%M:%S") + "." + (f"{nanos:09d}".rstrip("0") or "0")
+      |    if pd.api.types.is_integer(x):
+      |        return str(int(x))
+      |    if pd.api.types.is_float(x):
+      |        value = float(x)
+      |        if value != value:
+      |            return "NaN"
+      |        if value in (float("inf"), float("-inf")):
+      |            return "Infinity" if value > 0 else "-Infinity"
+      |        if value == 0 or 1e-3 <= abs(value) < 1e7:
+      |            return repr(value)
+      |        sign, digits, exponent = decimal.Decimal(repr(value)).as_tuple()
+      |        power = len(digits) + exponent - 1
+      |        kept = "".join(map(str, digits)).rstrip("0") or "0"
+      |        return ("-" if sign else "") + kept[0] + "." + (kept[1:] or "0") + "E" + str(power)
+      |    return str(x)
+      |
+      |
       |def _texera_cast_string(s):
       |    # `toString` on the field, so the COLUMN's type decides the text and
       |    # not the shape of the value: a double keeps its point, whether or not
@@ -199,20 +233,5 @@ object StandaloneHelpers {
       |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
       |    if pd.api.types.is_integer_dtype(s):
       |        return s.map(lambda x: None if pd.isna(x) else str(int(x)))
-      |    if pd.api.types.is_datetime64_any_dtype(s):
-      |        # java.sql.Timestamp.toString: trailing zeros dropped from the
-      |        # fraction, but never all of them. Python's own str() writes no
-      |        # fraction at all on a whole second and six digits otherwise.
-      |        def _ts(x):
-      |            if pd.isna(x):
-      |                return None
-      |            text = x.strftime("%Y-%m-%d %H:%M:%S.%f").rstrip("0")
-      |            return text + "0" if text.endswith(".") else text
-      |
-      |        return s.map(_ts)
-      |    return s.map(
-      |        lambda x: None
-      |        if pd.isna(x)
-      |        else ("true" if x else "false") if pd.api.types.is_bool(x) else str(x)
-      |    )""".stripMargin
+      |    return s.map(lambda x: None if pd.isna(x) else _texera_java_text(x))""".stripMargin
 }
