@@ -24,10 +24,9 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, RangePartition}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonSchemaInject(json = """
@@ -39,10 +38,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
-
-  // Sorting is this operator's contract: output row order is meaningful.
-  override def orderSensitive: Boolean = true
+class SortPartitionsOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -88,21 +84,4 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(blocking = true))
     )
-
-  // Row order is this operator's answer, so the sort matches the engine's:
-  // stable, ascending, nulls first. The domain bounds are partitioning hints
-  // that the sort itself never reads.
-  //
-  // The engine orders a NaN after positive infinity. In a nullable column,
-  // which is what an Arrow file is read into, pandas keeps a NaN apart from a
-  // null and sorts it last too. A numpy float column has one slot for both, so
-  // there a NaN goes first with the nulls.
-  //
-  // A string column parts more narrowly: the engine reads UTF-16 code units and
-  // pandas reads code points, which agree below U+FFFF and can differ above it.
-  override def generateStandaloneCode(): String = {
-    val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
-    s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
-  }
-
 }

@@ -23,14 +23,9 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{
-  LogicalOp,
-  PortDescription,
-  PortDescriptor,
-  StandaloneCodeGenerator
-}
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription, PortDescriptor}
 
-class DummyOpDesc extends LogicalOp with PortDescriptor with StandaloneCodeGenerator {
+class DummyOpDesc extends LogicalOp with PortDescriptor {
 
   @JsonProperty
   @JsonSchemaTitle("Description")
@@ -70,13 +65,5 @@ class DummyOpDesc extends LogicalOp with PortDescriptor with StandaloneCodeGener
       supportReconfiguration = true,
       allowPortCustomization = true
     )
-  }
-
-  override def generateStandaloneCode(): String = {
-    // Placeholder operator: pass the first input through to the output.
-    // Multi-port configurations don't fully translate under the current
-    // single-output placeholder scheme; downstream of extra ports would
-    // alias the same variable.
-    "out1df = in1df"
   }
 }
