@@ -70,8 +70,8 @@ object StandaloneRunner extends LazyLogging {
     * @param workDir directory used for the generated `script.py` and output
     *                JSONL files. Created if missing.
     * @param pythonExe path to the Python 3.12 interpreter. Defaults to
-    *                  the env var `UDF_PYTHON_PATH`, then `python3.12`, then
-    *                  `python3`. The same fallback chain used by the rest of
+    *                  the env var `UDF_PYTHON_PATH`, then `python3.12`.
+    *                  The same fallback chain used by the rest of
     *                  the Texera test suite for Python-backed operators.
     */
   def run(
