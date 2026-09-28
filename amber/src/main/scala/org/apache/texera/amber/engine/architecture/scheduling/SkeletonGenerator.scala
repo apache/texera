@@ -28,7 +28,14 @@ import org.apache.texera.amber.core.workflow.{
   PhysicalPlan,
   WorkflowContext
 }
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  OutputPortConfig,
+  ResourceConfig
+}
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
 
+import java.net.URI
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -45,7 +52,9 @@ import scala.util.{Failure, Success, Try}
   *    the port is a required output of a skipped operator;
   *  - every other operator is retained: it runs in this execution. Every other link runs.
   *
-  * The skeleton holds only these marks.
+  * The skeleton holds only these marks. What the scheduler needs (the part that runs, the input
+  * ports that read saved results, and the skip regions) is derived from the plan the skeleton
+  * was generated for.
   *
   * @param skippedOps the operators that do not run in this execution
   * @param skippedLinks the links into skipped operators, from skipped or retained ones; no data
@@ -66,6 +75,76 @@ case class RunSkeleton(
 ) {
 
   def skipsAnything: Boolean = skippedOps.nonEmpty
+
+  /**
+    * The part of `physicalPlan` that runs: the operators that run, as the plan's own operator
+    * objects, and the links between them except the cache-read links. This is what the
+    * schedule generator plans. Links leave the plan's link list only: an operator's own link
+    * list still names every link it has in the full plan, cache-read links and links to
+    * skipped operators included.
+    */
+  def retainedPart(physicalPlan: PhysicalPlan): PhysicalPlan = {
+    val retained = physicalPlan.getSubPlan(physicalPlan.operators.map(_.id).diff(skippedOps))
+    retained.copy(links = retained.links.diff(cacheReadLinks))
+  }
+
+  /**
+    * The input port of every cache-read link, with the saved location of the link's source
+    * port. An input port with several cache-read links gets their locations in a fixed order
+    * (sorted by link).
+    */
+  def cacheReadInputs: CacheReadInputs =
+    CacheReadInputs(
+      cacheReadLinks.toList
+        .sortBy(_.toString)
+        .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
+          val inputPort = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+          val savedLocation =
+            cacheReadPorts(GlobalPortIdentity(link.fromOpId, link.fromPortId)).storageUri
+          acc.updated(inputPort, acc.getOrElse(inputPort, List.empty[URI]) :+ savedLocation)
+        }
+    )
+
+  /**
+    * The skipped operators of `physicalPlan` as skip regions, one per connected group, with
+    * ids `firstRegionId`, `firstRegionId + 1`, ... in a deterministic order. A region holds
+    * the plan's own operator objects, the skipped links inside its group, every port of its
+    * operators, and in its resource config the group's ports whose saved results are read,
+    * each with the saved location and row count. The caller passes an id above every id the
+    * schedule generator used. All of them can sit in one schedule level: they start no
+    * workers, so `max-concurrent-regions` does not apply to them.
+    */
+  def skipRegions(physicalPlan: PhysicalPlan, firstRegionId: Long): Set[Region] = {
+    val groups: List[Set[PhysicalOpIdentity]] =
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
+        physicalPlan.getSubPlan(skippedOps).dag
+      ).getConnectedComponents.asScala
+        .map(_.vertexSet().asScala.toSet)
+        .toList
+        .sortBy(_.map(_.toString).min)
+    groups.zipWithIndex.map {
+      case (group, index) =>
+        val physicalOps = group.map(physicalPlan.getOperator)
+        Region(
+          id = RegionIdentity(firstRegionId + index),
+          physicalOps = physicalOps,
+          physicalLinks = skippedLinks.filter(link =>
+            group.contains(link.fromOpId) && group.contains(link.toOpId)
+          ),
+          ports = physicalOps.flatMap(op =>
+            op.inputPorts.keys.map(portId => GlobalPortIdentity(op.id, portId, input = true)) ++
+              op.outputPorts.keys.map(portId => GlobalPortIdentity(op.id, portId))
+          ),
+          resourceConfig = Some(
+            ResourceConfig(portConfigs = cacheReadPorts.collect {
+              case (port, saved) if group.contains(port.opId) =>
+                port -> OutputPortConfig(saved.storageUri, saved.tupleCount)
+            })
+          ),
+          skipped = true
+        )
+    }.toSet
+  }
 }
 
 /**
@@ -100,15 +179,14 @@ case class RunSkeleton(
   * a plan with a loop every saved result is unusable, since such a plan reuses nothing. An
   * unusable result never fails the run; the run just doesn't reuse it.
   *
-  * Nothing here starts an operator or changes the plan; the skeleton only marks what the run
-  * does.
+  * Nothing here starts an operator; the scheduler decides what to do with the skeleton.
   */
 object SkeletonGenerator {
 
   /**
     * The run skeleton for `physicalPlan`, given the matched results on `workflowContext`. With
-    * none, or none that is usable, or none that changes what the run does, nothing is skipped
-    * and no link reads a saved result: every operator and link runs as without a cache.
+    * none, or none that is usable, or none that changes what the run does, every operator and
+    * link runs and the schedule generator sees exactly what it sees without a cache.
     */
   def generate(workflowContext: WorkflowContext, physicalPlan: PhysicalPlan): RunSkeleton = {
     val entries = workflowContext.matchedResults

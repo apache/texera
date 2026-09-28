@@ -138,4 +138,10 @@ class RegionSpec extends AnyFlatSpec {
 
     assert(region.getStarterOperators == region.getSourceOperators)
   }
+
+  "Region" should "default skipped to false" in {
+    val region = Region(RegionIdentity(1), Set(op("a")), Set.empty)
+    assert(!region.skipped)
+    assert(region.copy(skipped = true).skipped)
+  }
 }

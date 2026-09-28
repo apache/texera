@@ -35,7 +35,10 @@ case class Region(
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
     ports: Set[GlobalPortIdentity] = Set.empty,
-    resourceConfig: Option[ResourceConfig] = None
+    resourceConfig: Option[ResourceConfig] = None,
+    // True for a skip region: its operators do not run in this execution. `resourceConfig`
+    // lists their output ports that are read from saved results, with the saved locations.
+    skipped: Boolean = false
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =

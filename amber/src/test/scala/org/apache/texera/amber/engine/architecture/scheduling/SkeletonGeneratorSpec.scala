@@ -39,6 +39,7 @@ import org.apache.texera.amber.core.workflow.{
   WorkflowContext,
   WorkflowSettings
 }
+import org.apache.texera.amber.engine.architecture.scheduling.config.OutputPortConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -132,6 +133,8 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe empty
     skeleton.skippedLinks shouldBe empty
     skeleton.cacheReadLinks shouldBe empty
+    skeleton.retainedPart(plan) shouldBe plan
+    skeleton.cacheReadInputs.readerUris shouldBe empty
     skeleton.cacheReadPorts shouldBe empty
     skeleton.unusable shouldBe empty
   }
@@ -144,7 +147,20 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe ids(plan)
     skeleton.skippedLinks shouldBe plan.links
     skeleton.cacheReadLinks shouldBe empty
+    skeleton.retainedPart(plan).operators shouldBe empty
+    skeleton.cacheReadInputs.readerUris shouldBe empty
     skeleton.cacheReadPorts shouldBe Map(out("c") -> CachedResult(baseUri(out("c")), Some(3L)))
+    val regions = skeleton.skipRegions(plan, firstRegionId = 5)
+    regions.map(_.id.id) shouldBe Set(5L)
+    val region = regions.head
+    region.skipped shouldBe true
+    region.physicalOps.map(_.id) shouldBe ids(plan)
+    region.physicalLinks shouldBe plan.links
+    region.ports shouldBe Set(out("a"), in("b"), out("b"), in("c"), out("c"))
+    // the saved result becomes the port's config: its location and row count
+    region.resourceConfig.get.portConfigs shouldBe Map(
+      out("c") -> OutputPortConfig(baseUri(out("c")), Some(3L))
+    )
   }
 
   it should "run only the operators downstream of a match in the middle" in {
@@ -155,7 +171,15 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe Set(opId("a"), opId("b"))
     skeleton.skippedLinks shouldBe Set(link("a", "b"))
     skeleton.cacheReadLinks shouldBe Set(link("b", "c"))
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("c"))
+    skeleton.retainedPart(plan).links shouldBe empty
+    skeleton.cacheReadInputs.readerUris shouldBe Map(
+      in("c") -> List(cached(out("b")).storageUri)
+    )
+    skeleton.cacheReadInputs.operatorsReadingFromCache shouldBe Set(opId("c"))
     skeleton.cacheReadPorts shouldBe cached
+    val region = skeleton.skipRegions(plan, 0).head
+    region.resourceConfig.get.portConfigs.keySet shouldBe Set(out("b"))
   }
 
   it should "run an operator whose results the user views when its port has no saved result" in {
@@ -164,6 +188,7 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     val plan = chain()
     val skeleton = skeletonOf(plan, context(Map(entry(out("c"))), Set(out("b"), out("c"))))
     skeleton.skippedOps shouldBe Set(opId("c"))
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("a"), opId("b"))
     skeleton.skippedLinks shouldBe Set(link("b", "c"))
     skeleton.cacheReadLinks shouldBe empty
     skeleton.cacheReadPorts.keySet shouldBe Set(out("c"))
@@ -180,7 +205,41 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe Set(opId("s1"))
     skeleton.skippedLinks shouldBe empty
     skeleton.cacheReadLinks shouldBe Set(link("s1", "j", toPort = 0))
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("s2"), opId("j"))
+    skeleton.retainedPart(plan).links shouldBe Set(link("s2", "j", toPort = 1))
+    skeleton.cacheReadInputs.readerUris shouldBe Map(
+      in("j", 0) -> List(cached(out("s1")).storageUri)
+    )
     skeleton.cacheReadPorts shouldBe cached
+  }
+
+  it should "give each input port the saved location of its own link" in {
+    // s1 -> j's port 0 and s2 -> j's port 1, both from port 0 and both saved: each of j's
+    // input ports reads the saved result of the link into it.
+    val plan = planOf(
+      Set(source("s1"), source("s2"), op("j", inputs = 2)),
+      Set(link("s1", "j", toPort = 0), link("s2", "j", toPort = 1))
+    )
+    val cached = Map(entry(out("s1")), entry(out("s2")))
+    val skeleton = skeletonOf(plan, context(cached, Set(out("j"))))
+    skeleton.cacheReadInputs.readerUris shouldBe Map(
+      in("j", 0) -> List(cached(out("s1")).storageUri),
+      in("j", 1) -> List(cached(out("s2")).storageUri)
+    )
+  }
+
+  it should "list the saved locations of one input port in a fixed order" in {
+    // s1, s2 and s3 all feed u's one input port and all have saved results. The locations are
+    // sorted by link, so the same plan configures the port the same way whatever order its links
+    // were added in.
+    val ops = Set(source("s1"), source("s2"), source("s3"), op("u"))
+    val links = List(link("s1", "u"), link("s2", "u"), link("s3", "u"))
+    val cached = Map(entry(out("s1")), entry(out("s2")), entry(out("s3")))
+    val expected = List("s1", "s2", "s3").map(name => cached(out(name)).storageUri)
+    List(links, links.reverse).foreach { linkOrder =>
+      val skeleton = skeletonOf(planOf(ops, linkOrder.toSet), context(cached, Set(out("u"))))
+      skeleton.cacheReadInputs.readerUris shouldBe Map(in("u") -> expected)
+    }
   }
 
   it should "run a multi-output operator as a whole when one needed output has no saved result" in {
@@ -192,9 +251,12 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     val cached = Map(entry(out("m", 0)), entry(out("x")))
     val skeleton = skeletonOf(plan, context(cached, Set(out("x"), out("y"))))
     // y needs m.1, which has no saved result, so m runs and computes m.0 again too
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("m"), opId("y"))
+    skeleton.retainedPart(plan).links shouldBe Set(link("m", "y", fromPort = 1))
     // x is skipped on its own saved result, so m.0's saved result is read by nothing
     skeleton.skippedOps shouldBe Set(opId("x"))
     skeleton.cacheReadLinks shouldBe empty
+    skeleton.cacheReadInputs.readerUris shouldBe empty
     skeleton.cacheReadPorts.keySet shouldBe Set(out("x"))
   }
 
@@ -209,7 +271,13 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe Set(opId("x"), opId("w"))
     // the link from the retained m into the skipped x is skipped, like the one between x and w
     skeleton.skippedLinks shouldBe Set(link("m", "x", fromPort = 0), link("x", "w"))
+    // the link between the retained m and y is not
+    skeleton.retainedPart(plan).links shouldBe Set(link("m", "y", fromPort = 1))
     skeleton.cacheReadLinks shouldBe empty
+    // the skip region keeps only the skipped link inside it
+    val regions = skeleton.skipRegions(plan, 0)
+    regions.map(_.physicalOps.map(_.id)) shouldBe Set(Set(opId("x"), opId("w")))
+    regions.head.physicalLinks shouldBe Set(link("x", "w"))
   }
 
   it should "read a saved port from storage even when its operator runs" in {
@@ -222,7 +290,14 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe empty
     skeleton.skippedLinks shouldBe empty
     skeleton.cacheReadLinks shouldBe Set(link("split", "x", fromPort = 0))
+    ids(skeleton.retainedPart(plan)) shouldBe ids(plan)
+    skeleton.retainedPart(plan).links shouldBe plan.links - link("split", "x", fromPort = 0)
+    skeleton.cacheReadInputs.readerUris shouldBe Map(
+      in("x") -> List(cached(out("split", 0)).storageUri)
+    )
     skeleton.cacheReadPorts shouldBe cached
+    // split.1 has no saved result, so y still reads it over its link
+    skeleton.retainedPart(plan).links should contain(link("split", "y", fromPort = 1))
   }
 
   it should "change nothing for a usable saved result that no retained operator reads" in {
@@ -237,7 +312,23 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     skeleton.skippedOps shouldBe empty
     skeleton.cacheReadLinks shouldBe empty
     skeleton.cacheReadPorts shouldBe empty
+    skeleton.retainedPart(plan) shouldBe plan
     skeleton.unusable shouldBe empty
+  }
+
+  it should "leave the plan's own operators in the retained part and the skip regions" in {
+    val plan = chain()
+    val skeleton = skeletonOf(plan, context(Map(entry(out("b"))), Set(out("c"))))
+    val retained = skeleton.retainedPart(plan)
+    retained.operators.foreach(op => op should be theSameInstanceAs plan.getOperator(op.id))
+    // c still lists its input link from b, which the retained part no longer holds
+    retained.getOperator(opId("c")).getInputLinks() shouldBe List(link("b", "c"))
+    retained.links should not contain link("b", "c")
+    val region = skeleton.skipRegions(plan, 0).head
+    region.physicalOps.foreach(op => op should be theSameInstanceAs plan.getOperator(op.id))
+    // b still lists its output link to c, which is in no region
+    region.getOperator(opId("b")).getOutputLinks(PortIdentity(0)) shouldBe List(link("b", "c"))
+    region.physicalLinks shouldBe Set(link("a", "b"))
   }
 
   it should "run an operator whose unconnected output port has no saved result" in {
@@ -249,9 +340,11 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     )
     val cached = Map(entry(out("x")))
     val skeleton = skeletonOf(plan, context(cached, Set(out("x"))))
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("m"))
     skeleton.skippedOps shouldBe Set(opId("x"))
     skeleton.skippedLinks shouldBe Set(link("m", "x", fromPort = 0))
     skeleton.cacheReadLinks shouldBe empty
+    skeleton.cacheReadInputs.readerUris shouldBe empty
     skeleton.cacheReadPorts.keySet shouldBe Set(out("x"))
   }
 
@@ -271,6 +364,10 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
       out("m", 1) -> CachedResult(baseUri(out("m", 1)), Some(4L)),
       out("x") -> CachedResult(baseUri(out("x")), Some(10L))
     )
+    skeleton.skipRegions(plan, 0).head.resourceConfig.get.portConfigs shouldBe Map(
+      out("m", 1) -> OutputPortConfig(baseUri(out("m", 1)), Some(4L)),
+      out("x") -> OutputPortConfig(baseUri(out("x")), Some(10L))
+    )
   }
 
   it should "keep a /wh/ warehouse on the URIs it hands out" in {
@@ -282,6 +379,7 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     val uri = skeleton.cacheReadPorts(out("b")).storageUri
     uri.toString should include("/wh/wh1/")
     uri shouldBe cached(out("b")).storageUri
+    skeleton.cacheReadInputs.readerUris(in("c")) shouldBe List(uri)
   }
 
   it should "mark each bad saved result unusable and say why" in {
@@ -355,9 +453,67 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
     val plan = planOf(Set(source("a"), op("s", outputs = 0)), Set(link("a", "s")))
     val cached = Map(entry(out("a")))
     val skeleton = skeletonOf(plan, context(cached, Set.empty))
+    ids(skeleton.retainedPart(plan)) shouldBe Set(opId("s"))
     skeleton.skippedOps shouldBe Set(opId("a"))
     skeleton.cacheReadLinks shouldBe Set(link("a", "s"))
+    skeleton.cacheReadInputs.readerUris shouldBe Map(in("s") -> List(cached(out("a")).storageUri))
     skeleton.cacheReadPorts shouldBe cached
+  }
+
+  it should "number skip regions from the given id, one per connected component" in {
+    // two chains that never meet: a1 -> b1, a2 -> b2; both terminal ports matched
+    val plan = planOf(
+      Set(source("a1"), op("b1"), source("a2"), op("b2")),
+      Set(link("a1", "b1"), link("a2", "b2"))
+    )
+    val cached = Map(entry(out("b1")), entry(out("b2")))
+    val skeleton = skeletonOf(plan, context(cached, Set(out("b1"), out("b2"))))
+    val regions = skeleton.skipRegions(plan, firstRegionId = 3)
+    regions.map(_.id.id) shouldBe Set(3L, 4L)
+    regions.map(_.physicalOps.map(_.id)) shouldBe Set(
+      Set(opId("a1"), opId("b1")),
+      Set(opId("a2"), opId("b2"))
+    )
+    regions.forall(_.skipped) shouldBe true
+    // deterministic: the same ids for the same input
+    skeleton.skipRegions(plan, 3).map(r => r.id -> r.physicalOps.map(_.id)) shouldBe
+      regions.map(r => r.id -> r.physicalOps.map(_.id))
+  }
+
+  it should "give each skip region only its own group's saved results" in {
+    // Two chains that never meet, s1 -> t1 and s2 -> t2, are skipped on t1's and t2's saved
+    // results. Beside them m runs for y, and x reads m's port 0 from its saved result: that
+    // port is read too, but its operator runs, so it is in no skip region.
+    val plan = planOf(
+      Set(
+        source("s1"),
+        op("t1"),
+        source("s2"),
+        op("t2"),
+        source("m", outputs = 2),
+        op("x"),
+        op("y")
+      ),
+      Set(
+        link("s1", "t1"),
+        link("s2", "t2"),
+        link("m", "x", fromPort = 0),
+        link("m", "y", fromPort = 1)
+      )
+    )
+    val cached = Map(entry(out("t1")), entry(out("t2")), entry(out("m", 0)))
+    val skeleton =
+      skeletonOf(plan, context(cached, Set(out("t1"), out("t2"), out("x"), out("y"))))
+    skeleton.cacheReadPorts.keySet shouldBe Set(out("t1"), out("t2"), out("m", 0))
+    skeleton
+      .skipRegions(plan, 0)
+      .map(region =>
+        region.physicalOps.map(_.id) -> region.resourceConfig.get.portConfigs.keySet
+      ) shouldBe
+      Set(
+        Set(opId("s1"), opId("t1")) -> Set(out("t1")),
+        Set(opId("s2"), opId("t2")) -> Set(out("t2"))
+      )
   }
 
   /** What a reference computation expects of the skeleton of one plan. */
@@ -365,6 +521,7 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
       retained: Set[PhysicalOpIdentity],
       skippedLinks: Set[PhysicalLink],
       cacheReadLinks: Set[PhysicalLink],
+      retainedLinks: Set[PhysicalLink],
       readPorts: Set[GlobalPortIdentity]
   )
 
@@ -404,11 +561,33 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
       retained = retained,
       skippedLinks = plan.links.filter(l => skipped.contains(l.toOpId)),
       cacheReadLinks = cacheRead,
+      retainedLinks = intoRetained -- cacheRead,
       // The saved results read: behind every cache-read link, and every required output of a
       // skipped operator. A required output of a retained operator is stored and shown from this
       // run, not read from its saved result.
       readPorts = cacheRead.map(portOf) ++ required.filter(p => skipped.contains(p.opId))
     )
+  }
+
+  /** The connected groups of `ops` over the links between them, the slow way. */
+  private def groupsOf(
+      ops: Set[PhysicalOpIdentity],
+      links: Set[PhysicalLink]
+  ): Set[Set[PhysicalOpIdentity]] = {
+    val inside = links.filter(l => ops.contains(l.fromOpId) && ops.contains(l.toOpId))
+    ops.map { start =>
+      var group = Set(start)
+      var changed = true
+      while (changed) {
+        val next = group ++ inside.collect {
+          case l if group.contains(l.fromOpId) => l.toOpId
+          case l if group.contains(l.toOpId)   => l.fromOpId
+        }
+        changed = next != group
+        group = next
+      }
+      group
+    }
   }
 
   /** Up to six operators with two input ports and zero to two output ports, linked at random. */
@@ -449,9 +628,48 @@ class SkeletonGeneratorSpec extends AnyFlatSpec with Matchers {
         skeleton.skipsAnything shouldBe expectedSkipped.nonEmpty
         skeleton.skippedLinks shouldBe expected.skippedLinks
         skeleton.cacheReadLinks shouldBe expected.cacheReadLinks
+        val retained = skeleton.retainedPart(plan)
+        ids(retained) shouldBe expected.retained
+        retained.links shouldBe expected.retainedLinks
+        retained.operators.foreach(o => o should be theSameInstanceAs plan.getOperator(o.id))
+        // a retained link's producer runs too
+        expected.retainedLinks.foreach(l => expected.retained should contain(l.fromOpId))
+        // every reader URI is the saved location of a cache-read link's source port
+        skeleton.cacheReadInputs.readerUris.keySet shouldBe
+          expected.cacheReadLinks.map(l => GlobalPortIdentity(l.toOpId, l.toPortId, input = true))
+        skeleton.cacheReadInputs.readerUris.foreach {
+          case (inputPort, uris) =>
+            val links = expected.cacheReadLinks
+              .filter(l => l.toOpId == inputPort.opId && l.toPortId == inputPort.portId)
+            uris.size shouldBe links.size
+            uris.toSet shouldBe links.map(l =>
+              cached(GlobalPortIdentity(l.fromOpId, l.fromPortId)).storageUri
+            )
+        }
         skeleton.cacheReadPorts.keySet shouldBe expected.readPorts
         skeleton.cacheReadPorts.foreach {
           case (port, saved) => saved shouldBe cached(port)
+        }
+        val regions = skeleton.skipRegions(plan, 10)
+        regions.map(_.physicalOps.map(_.id)) shouldBe groupsOf(
+          expectedSkipped,
+          expected.skippedLinks
+        )
+        regions.map(_.id.id) shouldBe (10L until 10L + regions.size).toSet
+        regions.foreach { region =>
+          val group = region.physicalOps.map(_.id)
+          region.physicalLinks shouldBe expected.skippedLinks.filter(l =>
+            group.contains(l.fromOpId) && group.contains(l.toOpId)
+          )
+          // the group's ports whose saved results are read, each with its location and count
+          region.resourceConfig.get.portConfigs shouldBe
+            expected.readPorts
+              .filter(port => group.contains(port.opId))
+              .map { port =>
+                port -> OutputPortConfig(cached(port).storageUri, cached(port).tupleCount)
+              }
+              .toMap
+          region.physicalOps.foreach(o => o should be theSameInstanceAs plan.getOperator(o.id))
         }
       }
     }
