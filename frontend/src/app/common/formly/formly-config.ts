@@ -30,6 +30,7 @@ import { ExposePropertyWrapperComponent } from "./expose-property-wrapper/expose
 import { EditableLabelWrapperComponent } from "./editable-label-wrapper/editable-label-wrapper.component";
 import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 import { UiUdfParametersComponent } from "../../workspace/component/ui-udf-parameters/ui-udf-parameters.component";
+import { ConstrainedValueComponent } from "../../workspace/component/constrained-value/constrained-value.component";
 import { DatasetVersionSelectorComponent } from "../../workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { ResourceValueSelectorComponent } from "../../workspace/component/resource-value-selector/resource-value-selector.component";
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
@@ -91,6 +92,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "huggingface-image-upload", component: HuggingFaceImageUploadComponent, wrappers: ["form-field"] },
     { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
     { name: "ui-udf-parameters", component: UiUdfParametersComponent, wrappers: ["form-field"] },
+    { name: "constrainedvalue", component: ConstrainedValueComponent, wrappers: ["form-field"] },
     { name: "resourcevalue", component: ResourceValueSelectorComponent },
   ],
   wrappers: [
