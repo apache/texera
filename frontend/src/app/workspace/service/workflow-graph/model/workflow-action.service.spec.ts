@@ -865,9 +865,10 @@ describe("WorkflowActionService", () => {
   });
 
   // A co-editor's settings change has to reach this client's settings panel, which refreshes from
-  // workflowChanged, and this client's autosave. Writing to the shared map stands in for the
-  // remote update, as it does for the form binding.
-  it("announces a settings change from the shared model on workflowChanged", () => {
+  // workflowSettingsChanged$. Not through workflowChanged: the panel persists a settings change
+  // itself, and the autosave behind workflowChanged would save it a second time, cutting a second
+  // version. Writing to the shared map stands in for the remote update, as it does for the form binding.
+  it("announces a settings change from the shared model on workflowSettingsChanged$, not on workflowChanged", () => {
     const changed: unknown[] = [];
     const settings: WorkflowSettings = { dataTransferBatchSize: 77, executionMode: ExecutionMode.MATERIALIZED };
     const settingsSeen: unknown[] = [];
@@ -877,7 +878,7 @@ describe("WorkflowActionService", () => {
     texeraGraph.sharedModel.contentMetaMap.set("settings", settings);
 
     expect(settingsSeen).toEqual([settings]);
-    expect(changed.length).toEqual(1);
+    expect(changed).toEqual([]);
     expect(service.getWorkflowSettings()).toEqual(settings);
     subA.unsubscribe();
     subB.unsubscribe();
@@ -1307,7 +1308,7 @@ describe("WorkflowActionService", () => {
       syncSharedDoc();
 
       expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(mine);
-      expect(seen).not.toContainEqual(live);
+      expect(seen).toEqual([mine]); // once: not again when the room's value arrived, nor on landing
       sub.unsubscribe();
     });
 

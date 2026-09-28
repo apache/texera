@@ -119,6 +119,8 @@ export class WorkflowActionService {
   // is kept there too (key "settings") for the same reason.
   private formBindingChangeSubject = new Subject<FormBindingConfig>();
   public readonly formBindingChanged$: Observable<FormBindingConfig> = this.formBindingChangeSubject.asObservable();
+  // A settings change, this client's or a co-editor's, for the settings panel to refresh from. Not
+  // part of workflowChanged, unlike the form definition (see observeContentMeta).
   private workflowSettingsChangeSubject = new Subject<WorkflowSettings>();
   public readonly workflowSettingsChanged$: Observable<WorkflowSettings> =
     this.workflowSettingsChangeSubject.asObservable();
@@ -199,18 +201,26 @@ export class WorkflowActionService {
       if (this.jointGraphWrapper.getReloadingWorkflow()) {
         return;
       }
-      if (event.changes.keys.has("formBinding") && !this.seedingContentMetaKeys.has("formBinding")) {
+      if (event.changes.keys.has("formBinding") && this.announces("formBinding")) {
         this.formBindingChangeSubject.next(this.getFormBinding());
       }
-      // Settings are announced the same way, so a co-editor's change reaches the settings panel
-      // (it refreshes from workflowChanged, which this feeds) instead of sitting stale until an
-      // unrelated edit, and so this client's autosave carries it.
-      if (event.changes.keys.has("settings") && !this.seedingContentMetaKeys.has("settings")) {
+      // Settings are announced the same way, so a co-editor's change reaches the settings panel,
+      // which refreshes from this stream, instead of sitting stale until an unrelated edit. Not
+      // through workflowChanged, though: the panel persists a settings change itself, and the
+      // autosave behind workflowChanged would save it a second time, cutting a second version.
+      if (event.changes.keys.has("settings") && this.announces("settings")) {
         this.workflowSettingsChangeSubject.next(this.getWorkflowSettings());
       }
     };
     contentMetaMap.observe(this.contentMetaObserver);
     this.observedContentMetaMap = contentMetaMap;
+  }
+
+  /** Whether a change to a key in the shared map is announced: not a seed's own write, which is an
+   *  open and not an edit; and not while an edit held for the first sync owns the key -- that edit
+   *  was announced when it was made, reads answer it, and its landing is a seed's write. */
+  private announces(key: ContentMetaKey): boolean {
+    return !this.seedingContentMetaKeys.has(key) && !this.pendingContentMeta.get(key)?.edit;
   }
 
   private getDefaultSettings(): WorkflowSettings {
@@ -845,7 +855,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
       this.formBindingChanged$,
-      this.workflowSettingsChanged$,
       this.workflowResetSubject.asObservable()
     );
   }
