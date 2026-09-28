@@ -38,12 +38,7 @@ import {
 import { inject, TestBed } from "@angular/core/testing";
 
 import * as Y from "yjs";
-import {
-  CONTENT_META_SEED_TIMEOUT_MS,
-  DEFAULT_WORKFLOW,
-  DEFAULT_WORKFLOW_NAME,
-  WorkflowActionService,
-} from "./workflow-action.service";
+import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -891,6 +886,33 @@ describe("WorkflowActionService", () => {
     expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
   });
 
+  // Clearing the page reports no edit and writes nothing: the document is destroyed, and the
+  // settings go back to the defaults through the blank reload's seed, under the reloading flag,
+  // the same way the form definition does.
+  it("clears non-default settings without announcing an edit or writing into the destroyed document", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 1, executionMode: ExecutionMode.MATERIALIZED });
+    const changed: unknown[] = [];
+    const sub = service.workflowChanged().subscribe(v => changed.push(v));
+
+    service.clearWorkflow();
+
+    expect(changed).toEqual([]);
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    sub.unsubscribe();
+  });
+
+  // The copy a seed holds for the previous workflow is that workflow's: a blank one opened before
+  // the sync came must not read it, or carry it into its first save.
+  it("does not carry the previous workflow's waiting settings copy into a blank workflow", () => {
+    service.hydrateSettings({ dataTransferBatchSize: 5, executionMode: ExecutionMode.MATERIALIZED });
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toBe(5);
+
+    service.clearWorkflow();
+
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    expect(service.getWorkflowContent().settings).toEqual(service["getDefaultSettings"]());
+  });
+
   it("should assemble workflow content and the full workflow from graph state", () => {
     service.addOperator(mockScanPredicate, { x: 10, y: 20 });
     service.addOperator(mockResultPredicate, { x: 30, y: 40 });
@@ -1107,19 +1129,47 @@ describe("WorkflowActionService", () => {
       expect(service.getWorkflowContent().formBinding).toEqual(config);
     });
 
-    // A y-websocket that never answers must not leave the workflow without its definition.
-    it("seeds anyway when the document never syncs", () => {
+    // A room that is slow to answer must not be written into before it has: the copy would be the
+    // concurrent write the wait exists to avoid. Reads and saves carry the copy for as long as it
+    // takes, and the document gets it when the sync comes.
+    it("holds the database copy out of the document until the first sync, however long that takes", () => {
       vi.useFakeTimers();
       try {
         service.hydrateFormBinding(config);
+        vi.advanceTimersByTime(60_000);
+
         expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+        expect(service.getFormBinding()).toEqual(config);
+        expect(service.getWorkflowContent().formBinding).toEqual(config);
 
-        vi.advanceTimersByTime(CONTENT_META_SEED_TIMEOUT_MS);
-
+        syncSharedDoc();
         expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    // A workflow opened without a definition seeds a deletion once the sync lands. An author who
+    // writes one before then has the document carry theirs, and the seed must not take it away.
+    it("does not delete a definition written while the seed of a workflow opened without one was waiting", () => {
+      service.hydrateFormBinding(undefined);
+      service.setFormBinding(config);
+
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      expect(service.getFormBinding()).toEqual(config);
+    });
+
+    // A stored definition can be present but empty (an author added fields and removed them all).
+    // While the seed waits, the copy counts as present too: an autosave in that window keeps
+    // carrying it, where dropping it would cut a version without the key.
+    it("keeps a present but empty definition in the content while the seed waits", () => {
+      const presentButEmpty: FormBindingConfig = { fields: [] };
+      service.hydrateFormBinding(presentButEmpty);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+      expect(service.getWorkflowContent().formBinding).toEqual(presentButEmpty);
     });
 
     // A document that is not connecting to a room has no sync to wait for, and one that has
