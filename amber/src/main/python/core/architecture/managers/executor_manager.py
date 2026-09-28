@@ -20,12 +20,20 @@ import inspect
 import itertools
 import sys
 import tempfile
+import traceback
 from cached_property import cached_property
 from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional
 
 from core.models import Operator, SourceOperator
+
+
+def pytexera_names() -> set:
+    """Names that `from pytexera import *` brings into a UDF."""
+    import pytexera
+
+    return set(pytexera.__all__)
 
 
 class ExecutorManager:
@@ -119,14 +127,116 @@ class ExecutorManager:
         # gen_module_file_name guarantees module_name is unique across
         # the process, so import_module will always cleanly load source
         # from the tmp directory we just wrote — no re-import / reload dance.
-        executor_module = importlib.import_module(module_name)
+        try:
+            executor_module = importlib.import_module(module_name)
+        except SyntaxError:
+            # SyntaxError already carries the user's line number.
+            raise
+        except Exception as error:
+            raise self._with_user_code_hint(error, str(file_path)) from error
         self.operator_module_name = module_name
 
         executors = list(
             filter(self.is_concrete_operator, executor_module.__dict__.values())
         )
-        assert len(executors) == 1, "There should be one and only one Operator defined"
+        assert len(executors) == 1, (
+            "There should be one and only one Operator defined. "
+            + self._explain_operator_count(executors, executor_module)
+        )
         return executors[0]
+
+    # Each pytexera base class and the one method a subclass must implement.
+    _BASE_CLASS_METHODS = {
+        "UDFOperatorV2": "process_tuple",
+        "UDFBatchOperator": "process_batch",
+        "UDFTableOperator": "process_table",
+        "UDFSourceOperator": "produce",
+    }
+
+    @classmethod
+    def _base_class_pairing(cls) -> str:
+        return ", ".join(
+            f"{base} -> {method}" for base, method in cls._BASE_CLASS_METHODS.items()
+        )
+
+    @classmethod
+    def _explain_operator_count(cls, executors: list, module) -> str:
+        """
+        Explain why a UDF module does not define exactly one concrete Operator,
+        naming the classes involved and how to fix them.
+        """
+        if len(executors) > 1:
+            names = ", ".join(executor.__name__ for executor in executors)
+            return (
+                f"Found {len(executors)}: {names}. Keep one and delete or comment "
+                "out the others. Helper classes must not subclass an Operator."
+            )
+
+        abstract_classes = [
+            value
+            for value in module.__dict__.values()
+            if inspect.isclass(value)
+            and issubclass(value, Operator)
+            and value.__module__ == module.__name__
+        ]
+        if not abstract_classes:
+            return (
+                "No Operator class was found. Uncomment or write exactly one class, "
+                "e.g. `class ProcessTupleOperator(UDFOperatorV2):`, and keep "
+                "`from pytexera import *` as the first line."
+            )
+
+        explanations = []
+        for abstract_class in abstract_classes:
+            base_names = [
+                base.__name__
+                for base in abstract_class.__mro__
+                if base.__name__ in cls._BASE_CLASS_METHODS
+            ]
+            base_name = base_names[0] if base_names else "Operator"
+            missing = ", ".join(sorted(abstract_class.__abstractmethods__))
+            explanation = (
+                f"{abstract_class.__name__} subclasses {base_name} but does not "
+                f"implement {missing}."
+            )
+            for other_base, method in cls._BASE_CLASS_METHODS.items():
+                if other_base != base_name and method in abstract_class.__dict__:
+                    explanation += (
+                        f" If you meant {method}, subclass {other_base} instead."
+                    )
+            explanations.append(explanation)
+        return (
+            " ".join(explanations)
+            + f" Each base class needs its own method: {cls._base_class_pairing()}."
+        )
+
+    @classmethod
+    def _with_user_code_hint(cls, error: Exception, file_path: str) -> Exception:
+        """
+        Rebuild an error raised while importing user code so its message says
+        which line of the UDF failed and, for common mistakes, how to fix it.
+        Returns the original error if it cannot be rebuilt with a new message.
+        """
+        message = str(error)
+        user_lines = [
+            frame.lineno
+            for frame in traceback.extract_tb(error.__traceback__)
+            if frame.filename == file_path
+        ]
+        if user_lines:
+            message += f" (line {user_lines[-1]} of the UDF code)"
+        if isinstance(error, NameError) and error.name in pytexera_names():
+            message += ". Add `from pytexera import *` at the top of the UDF."
+        elif "No super class method found" in message:
+            message += (
+                f". The method must match the base class: {cls._base_class_pairing()}."
+            )
+        if message == str(error):
+            return error
+        try:
+            return type(error)(message)
+        except Exception:
+            return error
 
     def close(self) -> None:
         """
