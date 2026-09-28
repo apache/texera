@@ -61,7 +61,7 @@ A **computing unit** is the machine that runs your workflow. Pick one in the top
 ![Computing unit selector and Run button](select-computing-unit.png)
 
 - One computing unit can run all your workflows. Reuse it.
-- Creating a new unit does **not** fix errors in a workflow. The same workflow fails the same way on every unit.
+- A new unit usually won't fix an error in the workflow itself (code or settings). It can help when the run needs more memory, CPU or GPU, or different Python packages.
 - Stopping (terminating) a unit deletes the results it holds. Your workflows and datasets are safe.
 
 More in [Computing Units](../computing-units/).
@@ -113,5 +113,5 @@ The run button says *Submitting* or *Pause*, the timer keeps counting, and every
 2. **Click each colored box** and look at its **Console**. A magenta box is paused on an error.
 3. **Is a box still orange, waiting for its input?** Operators such as Sort and Join wait for all their input. Check the box before it.
 4. **Stop** the run (red ⊗), fix the problem, and **Run** again.
-5. **Don't create a new computing unit.** The same workflow fails the same way on a new one.
+5. **Don't create a new computing unit just to retry.** Errors in code or settings happen on every unit. Switch units only if the error points at the unit, e.g. out of memory or a missing package.
 6. Nothing in Static Error or the Console? Ask your Texera administrator to check the computing unit logs.
