@@ -42,6 +42,7 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
@@ -564,6 +565,109 @@ describe("ExecuteWorkflowService", () => {
       TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
     }
   }));
+
+  // ---- refusing to run on a unit that cannot accept work -------------------------------------
+
+  describe("refusing to run on a computing unit that cannot accept work", () => {
+    // Run-up-to and Time Travel replay bypass the run buttons and call this service directly,
+    // so the service itself must refuse, before it resets the results on screen.
+    const selectUnitWithStatus = (status: DashboardWorkflowComputingUnit["status"]): void => {
+      vi.spyOn(service["computingUnitStatusService"], "getSelectedComputingUnitValue").mockReturnValue({
+        computingUnit: { cuid: 7 },
+        status,
+      } as unknown as DashboardWorkflowComputingUnit);
+    };
+
+    const replayInfo: ReplayExecutionInfo = { eid: 42, interaction: "step-3" };
+
+    const entryPoints: { name: string; run: () => void }[] = [
+      {
+        name: "executeWorkflowWithEmailNotification",
+        run: () => service.executeWorkflowWithEmailNotification("e", false),
+      },
+      { name: "executeWorkflowWithReplay", run: () => service.executeWorkflowWithReplay(replayInfo) },
+    ];
+
+    for (const entryPoint of entryPoints) {
+      it(`${entryPoint.name} refuses a terminating unit and keeps the previous results on screen`, fakeAsync(() => {
+        selectUnitWithStatus("Terminating");
+        const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+        const resetSpy = vi.spyOn(service, "resetExecutionState");
+        const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+        entryPoint.run();
+        tick(FORM_DEBOUNCE_TIME_MS + 1);
+        flush();
+
+        expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+        expect(resetSpy).not.toHaveBeenCalled();
+        expect(statusResetSpy).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith(
+          "The selected computing unit is shutting down. Wait for it to finish, then select or create another one."
+        );
+      }));
+
+      it.each(["Failed", "Unknown"] as const)(
+        `${entryPoint.name} refuses a %s unit and keeps the previous results on screen`,
+        status => {
+          selectUnitWithStatus(status);
+          const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
+          const resetSpy = vi.spyOn(service, "resetExecutionState");
+          const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
+          const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+          entryPoint.run();
+
+          expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+          expect(resetSpy).not.toHaveBeenCalled();
+          expect(statusResetSpy).not.toHaveBeenCalled();
+          expect(errorSpy).toHaveBeenCalledWith(
+            "The selected computing unit is unavailable. Select a running unit or create a new one."
+          );
+        }
+      );
+
+      it.each(["Running", "Pending"] as const)(`${entryPoint.name} still runs on a %s unit`, status => {
+        // Pending is still starting up, so it must not be blocked.
+        selectUnitWithStatus(status);
+        const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest").mockImplementation(() => {});
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+        entryPoint.run();
+
+        expect(sendExecutionRequestSpy).toHaveBeenCalled();
+        expect(errorSpy).not.toHaveBeenCalled();
+      });
+    }
+
+    it("refuses on the unit before the warehouse, since a warehouse cannot rescue a dead unit", () => {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      try {
+        TestBed.inject(WarehouseService).selectWarehouse(undefined);
+        selectUnitWithStatus("Failed");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+
+        service.executeWorkflowWithEmailNotification("e", false);
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "The selected computing unit is unavailable. Select a running unit or create a new one."
+        );
+      } finally {
+        TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+      }
+    });
+
+    it("runs normally when no unit is selected at all, leaving that to the existing warning", () => {
+      // No unit selected is not a terminal state; sendExecutionRequest already warns about it.
+      const sendExecutionRequestSpy = vi.spyOn(service, "sendExecutionRequest").mockImplementation(() => {});
+
+      service.executeWorkflowWithEmailNotification("e", false);
+
+      expect(sendExecutionRequestSpy).toHaveBeenCalled();
+    });
+  });
 
   it("sendExecutionRequest carries the picked warehouse id, and none when unset (#7817)", fakeAsync(() => {
     const warehouseService = TestBed.inject(WarehouseService);

@@ -36,13 +36,28 @@ import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { Privilege } from "../../../type/share-access.interface";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+import { ResourceDescriptor } from "../../../type/resource-descriptor";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 interface SetupOptions {
   type?: string;
   id?: number;
   inWorkspace?: boolean;
   currentEmail?: string | undefined;
+  /** What the registry answers for the kind, in place of the shipped descriptor. */
+  descriptor?: ResourceDescriptor;
 }
+
+/**
+ * A registered kind that cannot be published. Every shipped kind can, so the checks for publishing
+ * need this one.
+ */
+const UNPUBLISHABLE_DESCRIPTOR: ResourceDescriptor = {
+  type: EntityType.Dataset,
+  iconType: "database",
+  isOwner: () => true,
+};
 
 describe("ShareAccessComponent", () => {
   let gmailSpy: { sendEmail: ReturnType<typeof vi.fn> };
@@ -105,6 +120,9 @@ describe("ShareAccessComponent", () => {
         { provide: WorkflowActionService, useValue: workflowActionSpy },
       ],
     });
+    if (opts.descriptor) {
+      vi.spyOn(TestBed.inject(ResourceRegistryService), "find").mockReturnValue(opts.descriptor);
+    }
     fixture = TestBed.createComponent(ShareAccessComponent);
     fixture.detectChanges();
     return fixture.componentInstance;
@@ -215,8 +233,8 @@ describe("ShareAccessComponent", () => {
       expect(c.isPublic).toBe(true);
     });
 
-    it("does not query publish state for non-workflow/dataset types", () => {
-      setupComponent({ type: "file", id: 4 });
+    it("does not query publish state for a kind that cannot be published", () => {
+      setupComponent({ type: "dataset", id: 4, descriptor: UNPUBLISHABLE_DESCRIPTOR });
       expect(workflowPersistSpy.getWorkflowIsPublished).not.toHaveBeenCalled();
       expect(datasetServiceSpy.getDataset).not.toHaveBeenCalled();
     });
@@ -601,10 +619,11 @@ describe("ShareAccessComponent", () => {
     });
 
     it("does nothing for a registered kind that cannot be published", () => {
-      const c = setupComponent({ type: "file", id: 4 });
+      const c = setupComponent({ type: "dataset", id: 4, descriptor: UNPUBLISHABLE_DESCRIPTOR });
       c.setPublished(true);
       expect(c.isPublic).toBeNull();
       expect(notificationSpy.success).not.toHaveBeenCalled();
+      expect(datasetServiceSpy.updateDatasetPublicity).not.toHaveBeenCalled();
     });
 
     it("does nothing for a kind the registry does not carry at all", () => {
