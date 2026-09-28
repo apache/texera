@@ -552,6 +552,18 @@ class TestActionableLoadErrors:
             executor_manager.load_executor_definition(RUNTIME_ERROR_AT_LOAD_CODE)
         assert "line 3" in str(exc_info.value)
 
+    def test_error_without_user_line_or_hint_is_returned_unchanged(self):
+        error = ValueError("boom")
+        assert ExecutorManager._with_user_code_hint(error, "/not/the/udf.py") is error
+
+    def test_error_that_cannot_be_rebuilt_is_kept_as_is(self, executor_manager):
+        # UnicodeDecodeError needs five constructor arguments, so the hint
+        # can't be added by rebuilding it; the original error must survive.
+        code = 'from pytexera import *\n\nb"\\xff".decode("utf-8")\n'
+        with pytest.raises(UnicodeDecodeError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert exc_info.value.object == b"\xff"
+
 
 # Shape of the default Python UDF template (PythonUDFOpDescV2.defaultValue):
 # the import is active and every class is commented out.
