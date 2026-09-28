@@ -19,7 +19,6 @@
 
 import { Injectable } from "@angular/core";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 
 @Injectable({
@@ -28,14 +27,13 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 export class OperatorReuseCacheStatusService {
   constructor(
     private jointUIService: JointUIService,
-    private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowActionService: WorkflowActionService
   ) {
     this.registerHandleCacheStatusUpdate();
   }
 
   /**
-   * Registers handler for cache status update from the backend.
+   * Repaints an operator's reuse-cache marker whenever its reuse-cache flag changes.
    */
   private registerHandleCacheStatusUpdate() {
     this.workflowActionService
@@ -53,15 +51,5 @@ export class OperatorReuseCacheStatusService {
           this.jointUIService.changeOperatorReuseCacheStatus(mainJointPaper, op);
         });
       });
-    this.workflowWebsocketService.subscribeToEvent("CacheStatusUpdateEvent").subscribe(event => {
-      const mainJointPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
-      if (!mainJointPaper) {
-        return;
-      }
-      Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus]) => {
-        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
-        this.jointUIService.changeOperatorReuseCacheStatus(mainJointPaper, op, cacheStatus);
-      });
-    });
   }
 }
