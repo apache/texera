@@ -73,7 +73,7 @@ Almost every UDF problem comes from breaking one of these.
 | 1 | The first line is `from pytexera import *` | `name 'UDFOperatorV2' is not defined` |
 | 2 | Exactly **one** class. Delete or comment out the others. | `There should be one and only one Operator defined` |
 | 3 | The method name must match the class you inherit from (table below) | `... No super class method found`, or rule 2's error |
-| 4 | Send results with `yield`, never `return` | Confusing errors such as `MatchError` or `'NoneType' object is not iterable` |
+| 4 | Send results with `yield`, never `return` | ``process_tuple must `yield` results, not `return` them`` |
 | 5 | The columns you yield must match the output columns (step 3) | `expected but missing` or `unexpected field` |
 
 ## How your code receives data
@@ -115,7 +115,7 @@ class ProcessTupleOperator(UDFOperatorV2):
             yield tuple_
 ```
 
-If you write `__init__` instead, its first line must be `super().__init__()`. Otherwise `UDFTableOperator` fails with `'_TableOperator__table_data'`.
+If you write `__init__` instead, make its first line `super().__init__()`. Older Texera versions fail without it (see the table below).
 
 To set values like `threshold` from the property panel instead of in code, see [UI parameters](/docs/reference/operators/user-defined-functions/python/#ui-parameters).
 
@@ -199,10 +199,11 @@ List every column (here `number`, type `integer`) under **Columns** in the prope
 | Error message contains | Cause | Fix |
 |---|---|---|
 | `name 'UDFOperatorV2' is not defined` (or `Tuple`, `Table`, …) | Missing import | Add `from pytexera import *` as the first line |
-| `There should be one and only one Operator defined` | No class, or more than one (e.g. every class in the template is still commented out) | Keep exactly one class, uncommented |
+| `There should be one and only one Operator defined` | No class, more than one, or a class whose method doesn't match its base. The rest of the message names the class and the fix. | Keep exactly one class, uncommented, with the matching method |
 | `No super class method found` | Method doesn't match the class (e.g. `process_table` in a `UDFOperatorV2`) | Use the pair from [the table](#how-your-code-receives-data) |
-| `MatchError: '_' not provided` or `'NoneType' object is not iterable` | `return` used instead of `yield` | Replace `return x` with `yield x` |
-| `_TableOperator__table_data` | `__init__` without `super().__init__()` | Add `super().__init__()`, or use `open()` |
+| ``must `yield` results, not `return` them`` (older versions: `MatchError: '_' not provided` or `'NoneType' object is not iterable`) | `return` used instead of `yield` | Replace `return x` with `yield x` |
+| `_TableOperator__table_data` (older versions) | `__init__` without `super().__init__()` | Add `super().__init__()`, or use `open()` |
+| `yield the DataFrame itself, not a dict of DataFrames` | A dict containing DataFrames was yielded | `yield` the DataFrame directly |
 | `expected but missing in the Tuple` | A declared output column is missing from what you yield | Yield that column, or remove it from **Extra output column(s)** |
 | `contains unexpected field` | You yield a column that isn't declared | Add it under **Extra output column(s)**, or stop yielding it |
 | `Column name X already exists!` | An extra output column has the same name as an input column | Rename it, or uncheck **Retain input columns** |
