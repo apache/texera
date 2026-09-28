@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790512895871,
+  "lastUpdate": 1790600919159,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -15964,6 +15964,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 987.1330837112891,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bcd0ec4f742264503114aa4388d82df8d35e9647",
+          "message": "fix(deploy): load example datasets against the account's real email (#8723)\n\n### What changes were proposed in this PR?\n\n`bin/single-node/examples/load-examples.sh` derived the owner email that\nfile-service matches dataset lookups against by concatenating\n`@example.com`\nonto the username. On a single-node deployment that never matches: the\nadmin\nseeded from `USER_SYS_ADMIN_USERNAME` has the username itself as its\nemail\n(`AuthResource.createAdminUser`), so the loader logged in as that admin,\nskipped\nits register branch, and every example file upload failed with\n`400 Dataset not found`. Both example datasets were created but left\nwith no\nfiles and no version, so the two example workflows pointed at CSV paths\nthat do\nnot exist.\n\nThe owner email now comes from the access token's `email` claim, which\nis\nwhatever the server actually stored — correct for the seeded admin and\nfor an\naccount the script had to register itself. The register call keeps an\n`@`-shaped address, which the server's format check requires.\n\nSecond, the loader now exits non-zero once it has logged an error. Each\nfailure\nis still non-fatal so one bad file does not abandon the rest, but they\nused to\nleave no trace: the container printed `=== Example data loading complete\n===`\nand exited 0. That is why the broken lookup went unnoticed for two\nmonths.\n\n### Any related issues, documentation, discussions?\n\nCloses #8721.\n\nIntroduced by #6402, which had to give the register call a regex-valid\naddress\nand changed the shared variable rather than splitting its two roles.\n`release/v1.3` carries it too.\n\n### How was this PR tested?\n\nNew `bin/single-node/tests/test_load_examples_sh.sh` (9 assertions,\npicked up\nautomatically by build.yml's shell-test discovery) drives the loader\nagainst a\nstub `curl` — no docker, no network, no sleeping. It pins the owner\nemail to the\ntoken's claim, asserts it is never `<username>@example.com`, and asserts\nthat a\nfailed upload or version create exits non-zero. Both fixes were reverted\nindividually to confirm the relevant assertions go red and the suite\nexits 1.\n\nEnd to end on a fresh single-node deployment (`down --volumes` then\n`up --with-examples`): the loader now reports `Owner email resolved as\n'texera'`\nand uploads both files, `dataset_version` goes from 0 rows to 2 (both\n`v1`), and\npresigned download of the two paths the example workflows scan returns\nHTTP 200.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5)",
+          "timestamp": "2026-09-27T23:45:05Z",
+          "url": "https://github.com/apache/texera/commit/bcd0ec4f742264503114aa4388d82df8d35e9647"
+        },
+        "date": 1790600918281,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 639.7012807911292,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1128.758957729712,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1185.0140662327422,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 871.7353992566152,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1141.142431786939,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1210.9436720368064,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 882.0711586156297,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1171.755710348228,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1195.4930442671393,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 730.4670909394599,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 932.162847883991,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 967.1445138387782,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 745.6288623591381,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 936.288804572133,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 959.2005509213792,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 764.4771769312198,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 921.117685721541,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 952.4071484302754,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 458.1139364895948,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 532.4318759909007,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 539.0518173236595,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 467.91521020307647,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 532.6551997431523,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 521.3166290386822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 447.73768155328963,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 511.3831145266115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 520.4846187909044,
             "unit": "tuples/sec"
           }
         ]
