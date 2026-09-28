@@ -45,15 +45,22 @@ tags: [user-defined-functions, python]
 **Python script**
 
 ```python
+# Uncomment the class below. Its method must match its base class:
+#   UDFSourceOperator -> produce
+# Always `yield` results (never `return`). Put setup code in open();
+# if you override __init__, call super().__init__() first.
+# Keep exactly ONE class in this script.
+# 
 # Define UiParameter inside GenerateOperator.open().
 # Example: self.count = self.UiParameter("count", AttributeType.INT).value
+# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.
 # See the Python UDF operator documentation for supported types and behavior.
-#
-# from pytexera import *
+
+from pytexera import *
+
 # class GenerateOperator(UDFSourceOperator):
 # 
 #     @overrides
-#     
 #     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
 #         yield
 

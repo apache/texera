@@ -551,3 +551,58 @@ class TestActionableLoadErrors:
         with pytest.raises(KeyError) as exc_info:
             executor_manager.load_executor_definition(RUNTIME_ERROR_AT_LOAD_CODE)
         assert "line 3" in str(exc_info.value)
+
+
+# Shape of the default Python UDF template (PythonUDFOpDescV2.defaultValue):
+# the import is active and every class is commented out.
+DEFAULT_TEMPLATE_CODE = """# Keep exactly ONE class below: uncomment it and delete the others.
+
+from pytexera import *
+
+# class ProcessTupleOperator(UDFOperatorV2):
+#
+#     @overrides
+#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+#         yield tuple_
+#
+# class ProcessTableOperator(UDFTableOperator):
+#
+#     @overrides
+#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+#         yield table
+"""
+
+
+def uncomment_class(code: str, class_name: str) -> str:
+    """Uncomment one `# class <name>` block of a template, as a user would."""
+    lines, in_block = [], False
+    for line in code.splitlines():
+        if line.startswith("# class "):
+            in_block = line.startswith(f"# class {class_name}")
+        if in_block and line.startswith("#"):
+            line = line[1:].removeprefix(" ")
+        lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+class TestDefaultTemplate:
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_untouched_template_explains_what_to_do(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(DEFAULT_TEMPLATE_CODE)
+        assert "No Operator class was found" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "class_name", ["ProcessTupleOperator", "ProcessTableOperator"]
+    )
+    def test_uncommenting_one_class_loads_without_adding_an_import(
+        self, executor_manager, class_name
+    ):
+        code = uncomment_class(DEFAULT_TEMPLATE_CODE, class_name)
+        executor = executor_manager.load_executor_definition(code)
+        assert executor.__name__ == class_name

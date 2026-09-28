@@ -42,7 +42,7 @@ This example adds a `Revenue` column (units × price) to the sales data from [th
 
 **1. Add the operator.** Drag **Python UDF** (under *User-defined Functions*) onto the canvas and connect your data to it.
 
-**2. Write the code.** Click **Edit code content**. The editor opens with a template in which **every line is commented out** (starts with `#`). Running it as-is fails. Replace it with:
+**2. Write the code.** Click **Edit code content**. The editor opens with a template. Its classes are commented out (their lines start with `#`), so running it unchanged fails. Uncomment one class, or replace everything with:
 
 ```python
 from pytexera import *
@@ -199,7 +199,7 @@ List every column (here `number`, type `integer`) under **Columns** in the prope
 | Error message contains | Cause | Fix |
 |---|---|---|
 | `name 'UDFOperatorV2' is not defined` (or `Tuple`, `Table`, …) | Missing import | Add `from pytexera import *` as the first line |
-| `There should be one and only one Operator defined` | No class, or more than one (e.g. the template is still all comments) | Keep exactly one class, uncommented |
+| `There should be one and only one Operator defined` | No class, or more than one (e.g. every class in the template is still commented out) | Keep exactly one class, uncommented |
 | `No super class method found` | Method doesn't match the class (e.g. `process_table` in a `UDFOperatorV2`) | Use the pair from [the table](#how-your-code-receives-data) |
 | `MatchError: '_' not provided` or `'NoneType' object is not iterable` | `return` used instead of `yield` | Replace `return x` with `yield x` |
 | `_TableOperator__table_data` | `__init__` without `super().__init__()` | Add `super().__init__()`, or use `open()` |
