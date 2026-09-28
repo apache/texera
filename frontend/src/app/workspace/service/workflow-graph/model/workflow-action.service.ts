@@ -55,6 +55,12 @@ import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ContentMetaKey, ContentMetaValue } from "./shared-model";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
+/** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
+ *  listening for the sync it waits on once it is superseded or cancelled. */
+interface ContentMetaSeed {
+  detach?: () => void;
+}
+
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
   name: DEFAULT_WORKFLOW_NAME,
@@ -119,14 +125,17 @@ export class WorkflowActionService {
   // The shared content-map observer, tracked so re-attaching on a new doc detaches the old one.
   private contentMetaObserver?: (event: Y.YMapEvent<ContentMetaValue>) => void;
   private observedContentMetaMap?: Y.Map<ContentMetaValue>;
-  // Database copies waiting for the shared document's first sync (see seedContentMeta), read from
-  // meanwhile; the seed each key is waiting on, which a later open replaces and a local edit of
-  // the key cancels; the keys a seed is writing right now, which is not an edit and so is not
-  // announced; and the keys whose value came from the room, which a seed leaves alone.
+  // Per document, all reset when a new one is loaded (see observeContentMeta): database copies
+  // waiting for the document's first sync (see seedContentMeta), read from meanwhile; the seed
+  // each key is waiting on, which a later reload replaces and a local edit of the key cancels;
+  // the keys a seed is writing right now, which is not an edit and so is not announced; the keys
+  // whose value came from the room, which the first seed of the key leaves alone; and the keys
+  // seeded on this document already, whose next seed is a reload that replaces the value.
   private pendingContentMeta = new Map<ContentMetaKey, ContentMetaValue>();
-  private contentMetaSeeds = new Map<ContentMetaKey, object>();
+  private contentMetaSeeds = new Map<ContentMetaKey, ContentMetaSeed>();
   private seedingContentMetaKeys = new Set<ContentMetaKey>();
   private roomOwnedContentMeta = new Set<ContentMetaKey>();
+  private seededContentMetaKeys = new Set<ContentMetaKey>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -166,8 +175,15 @@ export class WorkflowActionService {
     // Detach the observer from the previous shared model before attaching to the new one, so
     // re-attaching on each opened workflow does not stack listeners on the same map.
     this.observedContentMetaMap?.unobserve(this.contentMetaObserver!);
-    // A new document is a new room: nothing in it belongs to the previous one's co-editors.
+    // A new document starts with no seed state: nothing in it belongs to the previous room's
+    // co-editors, no key has been seeded on it yet, and whatever copy the previously open
+    // workflow left waiting is not this one's -- dropped here, so it cannot leak into the next
+    // save of a workflow opened (or a blank one started) on this document.
+    for (const key of [...this.contentMetaSeeds.keys()]) {
+      this.cancelContentMetaSeed(key); // drops the copy it holds, and stops its listening
+    }
     this.roomOwnedContentMeta.clear();
+    this.seededContentMetaKeys.clear();
     const contentMetaMap = this.texeraGraph.sharedModel.contentMetaMap;
     this.contentMetaObserver = event => {
       // A value that arrived from the room belongs to the room: a seed must not overwrite or
@@ -772,10 +788,9 @@ export class WorkflowActionService {
       this.jointGraphWrapper.jointGraph.clear();
 
       if (workflow === undefined) {
-        // A blank workflow carries no settings and no Form View definition; drop any left over
-        // from the previously open one so neither can leak into this workflow's next save.
-        this.hydrateSettings(undefined);
-        this.hydrateFormBinding(undefined);
+        // A blank workflow starts on a fresh document, which carries no settings and no Form View
+        // definition; a copy the previously open workflow left waiting goes with the old document
+        // (see observeContentMeta), so neither can leak into this workflow's next save.
         this.setNewSharedModel();
         return;
       }
@@ -913,30 +928,32 @@ export class WorkflowActionService {
    * A local edit of the key while the seed waits cancels it (see observeContentMeta): the document
    * then carries the author's value, which the seed must neither write over nor delete.
    *
-   * `undefined` clears the key, so a workflow that carries no settings or no form definition does
-   * not inherit the one the document already held (reloading a version into the open document);
-   * a value the room put there is left alone here too.
+   * The room's precedence is for the first seed of a key on a document, the one a workflow is
+   * opened with. A later reload into the same document -- a version shown, or returned from; an
+   * agent's rewrite -- is the intent, and its seed replaces whatever the document holds, a value
+   * the room put there included; `undefined` then clears the key, so a version that carries no
+   * settings or no form definition does not keep the open workflow's.
    */
   private seedContentMeta(key: ContentMetaKey, value: ContentMetaValue | undefined): void {
-    // This seed replaces whatever the previously open workflow left waiting for the key. It has an
+    // This seed replaces any the key was still waiting on (and stops its listening); it has an
     // identity of its own, since a cleared key (undefined) has no value to be told apart by.
-    const seed = {};
+    this.cancelContentMetaSeed(key);
+    const seed: ContentMetaSeed = {};
     this.contentMetaSeeds.set(key, seed);
-    this.pendingContentMeta.delete(key);
     if (value !== undefined) {
       this.pendingContentMeta.set(key, value);
     }
     const shared = this.texeraGraph.sharedModel;
+    // Runs at once or when the sync comes, and then for this seed only: a later seed of the key, a
+    // local edit of it and the loading of another document all detach the listening before they
+    // would make this seed stale (see cancelContentMetaSeed, observeContentMeta).
     const land = () => {
-      // Not ours to write any more: the workflow was closed or swapped while we waited (the seed
-      // or the document was replaced), or the author edited the key meanwhile (the seed was
-      // cancelled).
-      if (this.texeraGraph.sharedModel !== shared || this.contentMetaSeeds.get(key) !== seed) {
-        return;
-      }
       this.cancelContentMetaSeed(key);
-      // The room's value wins, whether it is a co-editor's edit or this client's from another tab.
-      if (this.roomOwnedContentMeta.has(key)) {
+      const first = !this.seededContentMetaKeys.has(key);
+      this.seededContentMetaKeys.add(key);
+      // Over the first seed the room's value wins, whether it is a co-editor's edit or this
+      // client's from another tab; a later reload replaces it.
+      if (first && this.roomOwnedContentMeta.has(key)) {
         return;
       }
       // Opening a workflow is not an edit, so the seed is not announced (see observeContentMeta).
@@ -944,7 +961,7 @@ export class WorkflowActionService {
       try {
         if (value === undefined) {
           shared.contentMetaMap.delete(key);
-        } else if (!shared.contentMetaMap.has(key)) {
+        } else if (first ? !shared.contentMetaMap.has(key) : !isEqual(shared.contentMetaMap.get(key), value)) {
           shared.contentMetaMap.set(key, value);
         }
       } finally {
@@ -955,11 +972,17 @@ export class WorkflowActionService {
       land();
       return;
     }
-    shared.wsProvider.once("sync", land);
+    // Listening is undone by land itself (through cancelContentMetaSeed) and by whatever supersedes
+    // or cancels the seed, so a document that never syncs does not collect a listener per reload.
+    const onSync = () => land();
+    seed.detach = () => shared.wsProvider.off("sync", onSync);
+    shared.wsProvider.on("sync", onSync);
   }
 
-  /** Forget the seed a key is waiting on, and the copy it holds; the document's value stands. */
+  /** Forget the seed a key is waiting on, stop its listening, and drop the copy it holds; the
+   *  document's value stands. */
   private cancelContentMetaSeed(key: ContentMetaKey): void {
+    this.contentMetaSeeds.get(key)?.detach?.();
     this.contentMetaSeeds.delete(key);
     this.pendingContentMeta.delete(key);
   }
@@ -1089,9 +1112,9 @@ export class WorkflowActionService {
   public clearWorkflow(): void {
     this.destroySharedModel();
     this.setWorkflowMetadata(undefined);
-    // The settings go back to the defaults through the blank reload's seed (hydrateSettings), under
-    // the reloading flag, like the form definition: written here they would go into the document
-    // just destroyed and be announced as an edit.
+    // The settings go back to the defaults with the fresh document the blank reload creates, like
+    // the form definition: written here they would go into the document just destroyed and be
+    // announced as an edit.
     this.reloadWorkflow(undefined);
     this.setHighlightingEnabled(false);
   }
