@@ -136,7 +136,6 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
           "texera_db_" + java.util.UUID.randomUUID().toString.replace("-", "")
 
         MockTexeraDB.createTestDatabase(uniqueDbName)
-
         val embedded = MockTexeraDB.getDBInstance
         val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
 
