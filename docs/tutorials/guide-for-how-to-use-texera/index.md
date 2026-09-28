@@ -64,6 +64,8 @@ A **computing unit** is the machine that runs your workflow. Pick one in the top
 - Creating a new unit does **not** fix errors in a workflow. The same workflow fails the same way on every unit.
 - Stopping (terminating) a unit deletes the results it holds. Your workflows and datasets are safe.
 
+More in [Computing Units](../computing-units/).
+
 ## Read a running workflow
 
 Each box's outline color shows its state. The number on each side is how many rows went in (left) and came out (right).
@@ -78,7 +80,7 @@ Each box's outline color shows its state. The number on each side is how many ro
 | Magenta | Paused. You paused it, or a row caused an error |
 | Green | Finished |
 
-Some operators (e.g. Sort, Aggregate, and the build side of Join) must read **all** their input before they output anything. They show 0 rows out until the operator before them finishes. That's normal.
+Some operators (e.g. Sort, Aggregate, and the build side of Join) must read **all** their input before they output anything. They show 0 rows out until the operator before them finishes. That's normal. See [How Texera runs your workflow](/docs/concepts/how-texera-runs-your-workflow/).
 
 ## See the results
 

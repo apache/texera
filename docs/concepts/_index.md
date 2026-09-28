@@ -37,10 +37,12 @@ For contributors, it offers insight into the design principles and architecture 
 
 ### What’s in this section
 
-Concept pages are still being written. Until then, these pages cover the same ground:
+- **[How Texera runs your workflow](how-texera-runs-your-workflow/):** pipelining, blocking operators, regions, workers and execution mode.
+
+More concept pages are still being written. Until then, these pages cover the same ground:
 
 - **Workflows and operators:** [Guide for how to use Texera](/docs/tutorials/guide-for-how-to-use-texera/) and the [operator reference](/docs/reference/operators/).
-- **Execution engine:** [Engine](/docs/reference/engine/).
+- **Execution engine internals:** [Engine](/docs/reference/engine/).
 - **Data storage:** [Storage](/docs/reference/storage/).
 - **Architecture:** [Project structure](/docs/reference/project-structure/) and the [Overview](/docs/overview/).
 
