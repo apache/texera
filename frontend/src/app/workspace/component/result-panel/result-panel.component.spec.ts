@@ -753,6 +753,16 @@ describe("ResultPanelComponent", () => {
       expect((fixture.nativeElement as HTMLElement).textContent).toContain("No results available to display.");
     });
 
+    it("tells the user where to find an operator's output and errors in the empty state", () => {
+      component.width = DEFAULT_WIDTH;
+      component.frameComponentConfigs.clear();
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+      expect(text).toContain("Click an operator to see its results and Console.");
+      expect(text).toContain("Click an empty spot on the canvas to see errors from all operators.");
+    });
+
     it("renders a tab per frame when frames are present", () => {
       component.width = DEFAULT_WIDTH;
       // Seed real inputs: the outlet binds `inputs: config.value.componentInputs`, and that is
