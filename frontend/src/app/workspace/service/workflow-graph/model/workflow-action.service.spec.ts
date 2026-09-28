@@ -852,8 +852,10 @@ describe("WorkflowActionService", () => {
   });
 
   it("does not write a redundant shared-model update when the settings value is unchanged", () => {
+    syncSharedDoc(); // an edit after the sync goes straight into the document
     service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
     const stored = texeraGraph.sharedModel.contentMetaMap.get("settings");
+    expect(stored).toEqual({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
 
     // An equal value (a different object) must be skipped, or every collaborator gets a redundant
     // Yjs update; the stored object is therefore left in place.
@@ -1264,7 +1266,7 @@ describe("WorkflowActionService", () => {
     // A seed that waits listens for the sync; a document that never syncs must not collect a
     // listener per reload, so the listening ends with the seed: when it is superseded by a later
     // one, cancelled by an edit, or lands.
-    it("keeps one sync listener per waiting key, and none once the seed is superseded or cancelled", () => {
+    it("keeps one sync listener per waiting key, and none once it has landed", () => {
       const listeners = () => (texeraGraph.sharedModel.wsProvider as any)._observers.get("sync")?.size ?? 0;
       const before = listeners();
 
@@ -1272,12 +1274,56 @@ describe("WorkflowActionService", () => {
       service.hydrateFormBinding({ fields: [], instruction: { title: "later", body: "supersedes" } });
       expect(listeners()).toBe(before + 1);
 
-      service.setFormBinding(config); // cancels the seed
-      expect(listeners()).toBe(before);
+      service.setFormBinding(config); // an edit before the sync takes the seed's place: still one
+      expect(listeners()).toBe(before + 1);
 
-      service.hydrateFormBinding(config);
       syncSharedDoc(); // lands
       expect(listeners()).toBe(before);
+    });
+
+    // Before the first sync every write into the document is concurrent with the room's state and
+    // settled by client id, so an edit typed right after opening could lose to a value the room
+    // holds. The edit is held instead -- shown and announced at once, carried by an autosave --
+    // and written after the sync, where it follows the room's state and replaces it.
+    it("holds an edit made before the first sync and writes it after, over what the room held", () => {
+      service.hydrateFormBinding(config); // the open's seed, waiting
+      const seen: FormBindingConfig[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+      const mine: FormBindingConfig = { fields: [], instruction: { title: "mine", body: "typed right after opening" } };
+
+      service.setFormBinding(mine);
+
+      expect(seen).toEqual([mine]);
+      expect(service.getFormBinding()).toEqual(mine);
+      expect(service.getWorkflowContent().formBinding).toEqual(mine);
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false); // not a concurrent write
+
+      // The room's state arrives with the sync, holding a co-editor's definition.
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+      expect(service.getFormBinding()).toEqual(mine); // the edit is what this page shows throughout
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(mine);
+      expect(seen).not.toContainEqual(live);
+      sub.unsubscribe();
+    });
+
+    it("holds a settings edit made before the first sync the same way", () => {
+      const seen: WorkflowSettings[] = [];
+      const sub = service.workflowSettingsChanged$.subscribe(v => seen.push(v));
+      const mine: WorkflowSettings = { dataTransferBatchSize: 7, executionMode: ExecutionMode.MATERIALIZED };
+
+      service.setWorkflowSettings(mine);
+
+      expect(seen).toEqual([mine]);
+      expect(service.getWorkflowSettings()).toEqual(mine);
+      expect(texeraGraph.sharedModel.contentMetaMap.has("settings")).toBe(false);
+      syncSharedDoc();
+      expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toEqual(mine);
+      sub.unsubscribe();
     });
 
     // The graph observers stay quiet while a workflow is being opened, and this one does the same:
@@ -1298,7 +1344,20 @@ describe("WorkflowActionService", () => {
 
     // Setting the same value again must not write, or every collaborator gets a redundant Yjs
     // update and the observer re-fires for a change that is not one.
+    it("writes an edit straight into the document once it has synced, and announces it from there", () => {
+      syncSharedDoc();
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.setFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      expect(seen).toEqual([config]);
+      sub.unsubscribe();
+    });
+
     it("does not re-announce a form binding that is unchanged", () => {
+      syncSharedDoc();
       service.setFormBinding(config);
       const seen: unknown[] = [];
       const sub = service.formBindingChanged$.subscribe(v => seen.push(v));

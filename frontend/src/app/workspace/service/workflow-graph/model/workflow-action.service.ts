@@ -125,13 +125,14 @@ export class WorkflowActionService {
   // The shared content-map observer, tracked so re-attaching on a new doc detaches the old one.
   private contentMetaObserver?: (event: Y.YMapEvent<ContentMetaValue | null>) => void;
   private observedContentMetaMap?: Y.Map<ContentMetaValue | null>;
-  // Per document, all reset when a new one is loaded (see observeContentMeta): database copies
-  // waiting for the document's first sync (see seedContentMeta), read from meanwhile; the seed
+  // Per document, all reset when a new one is loaded (see observeContentMeta): database copies,
+  // and edits, waiting for the document's first sync (see seedContentMeta), read from meanwhile; the seed
   // each key is waiting on, which a later reload replaces and a local edit of the key cancels;
-  // the keys a seed is writing right now, which is not an edit and so is not announced; the keys
+  // the keys a seed is writing right now, which is not an edit and so is not announced (an edit
+  // held for the sync is announced when it is made, see writeContentMeta); the keys
   // whose entry came from the room, which the first seed of the key yields to; and the keys seeded
   // on this document already, whose next seed is a reload that replaces the value.
-  private pendingContentMeta = new Map<ContentMetaKey, ContentMetaValue>();
+  private pendingContentMeta = new Map<ContentMetaKey, { value: ContentMetaValue; edit: boolean }>();
   private contentMetaSeeds = new Map<ContentMetaKey, ContentMetaSeed>();
   private seedingContentMetaKeys = new Set<ContentMetaKey>();
   private roomOwnedContentMeta = new Set<ContentMetaKey>();
@@ -193,15 +194,6 @@ export class WorkflowActionService {
         // opening client learns what the room already holds.
         for (const key of event.changes.keys.keys()) {
           this.roomOwnedContentMeta.add(key as ContentMetaKey);
-        }
-      } else {
-        // A local edit of a key supersedes the database copy a seed is still holding for it: the
-        // document now carries what the author wants, and the seed must neither write over it nor,
-        // for a workflow opened without a value, clear it once the sync lands.
-        for (const key of event.changes.keys.keys()) {
-          if (!this.seedingContentMetaKeys.has(key as ContentMetaKey)) {
-            this.cancelContentMetaSeed(key as ContentMetaKey);
-          }
         }
       }
       if (this.jointGraphWrapper.getReloadingWorkflow()) {
@@ -883,7 +875,7 @@ export class WorkflowActionService {
     if (isEqual(this.getWorkflowSettings(), newSettings)) {
       return;
     }
-    this.texeraGraph.sharedModel.contentMetaMap.set("settings", newSettings);
+    this.writeContentMeta("settings", newSettings, () => this.workflowSettingsChangeSubject.next(newSettings));
   }
 
   public getWorkflowSettings(): WorkflowSettings {
@@ -926,8 +918,9 @@ export class WorkflowActionService {
    * when the sync eventually comes -- or never, which loses nothing, since nobody else was in that
    * document either.
    *
-   * A local edit of the key while the seed waits cancels it (see observeContentMeta): the document
-   * then carries the author's value, which the seed must neither write over nor delete.
+   * A local edit of the key while the seed waits replaces it (see writeContentMeta): the edit is
+   * what goes in then, and the copy -- or the clearing, for a workflow opened without a value --
+   * must neither write over it nor undo it.
    *
    * The room's precedence is for the first seed of a key on a document, the one a workflow is
    * opened with: it yields to what the room put there by then, a co-editor's value or the mark
@@ -940,15 +933,21 @@ export class WorkflowActionService {
    * and its seed replaces whatever the document holds, a co-editor's value included; `undefined`
    * then marks the key cleared, so a version that carries no settings or no form definition does
    * not keep the open workflow's.
+   *
+   * An edit made before the first sync (`edit`) is held the same way: written straight into the
+   * document it would be one more concurrent whole-value write, settled by client id, that could
+   * lose to a value the room holds or take it over unseen. Held, it is read from and announced at
+   * once (see writeContentMeta), and goes in after the sync as a write that follows the room's
+   * state and replaces it -- which is what an edit means -- so it yields to nothing.
    */
-  private seedContentMeta(key: ContentMetaKey, value: ContentMetaValue | undefined): void {
+  private seedContentMeta(key: ContentMetaKey, value: ContentMetaValue | undefined, edit = false): void {
     // This seed replaces any the key was still waiting on (and stops its listening); it has an
     // identity of its own, since a cleared key (undefined) has no value to be told apart by.
     this.cancelContentMetaSeed(key);
     const seed: ContentMetaSeed = {};
     this.contentMetaSeeds.set(key, seed);
     if (value !== undefined) {
-      this.pendingContentMeta.set(key, value);
+      this.pendingContentMeta.set(key, { value, edit });
     }
     const shared = this.texeraGraph.sharedModel;
     // Runs at once or when the sync comes, and then for this seed only: a later seed of the key, a
@@ -959,8 +958,8 @@ export class WorkflowActionService {
       const first = !this.seededContentMetaKeys.has(key);
       this.seededContentMetaKeys.add(key);
       // Over the first seed the room's word wins, a value or the cleared mark, whether a
-      // co-editor's or this client's from another tab; a later reload replaces it.
-      if (first && this.roomOwnedContentMeta.has(key)) {
+      // co-editor's or this client's from another tab; a later reload, or an edit, replaces it.
+      if (first && !edit && this.roomOwnedContentMeta.has(key)) {
         return;
       }
       const stored = value ?? null;
@@ -993,14 +992,34 @@ export class WorkflowActionService {
     this.pendingContentMeta.delete(key);
   }
 
-  /** The shared document's value for a key -- none, if the document marks it cleared -- or, for a
-   *  key the document says nothing about yet, the database copy still waiting to go in. */
+  /** An edit still waiting for the first sync, which is going to replace whatever the document
+   *  holds; else the shared document's value for a key -- none, if the document marks it cleared
+   *  -- or, for a key the document says nothing about yet, the database copy still waiting to go in. */
   private readContentMeta(key: ContentMetaKey): ContentMetaValue | undefined {
+    const pending = this.pendingContentMeta.get(key);
+    if (pending?.edit) {
+      return pending.value;
+    }
     const held = this.texeraGraph.sharedModel.contentMetaMap.get(key);
     if (held !== undefined) {
       return held ?? undefined;
     }
-    return this.pendingContentMeta.get(key);
+    return pending?.value;
+  }
+
+  /**
+   * An edit of a content-meta value: into the document, where the map's observer announces it --
+   * unless the document has not had its first sync yet, when the edit is held and announced here
+   * instead, and goes in after the sync (see seedContentMeta).
+   */
+  private writeContentMeta(key: ContentMetaKey, value: ContentMetaValue, announce: () => void): void {
+    const shared = this.texeraGraph.sharedModel;
+    if (shared.wsProvider.shouldConnect && !shared.wsProvider.synced) {
+      this.seedContentMeta(key, value, true);
+      announce();
+      return;
+    }
+    shared.contentMetaMap.set(key, value);
   }
 
   /** Whether the workflow has a value for a key: in the document, or still waiting to go in. */
@@ -1025,7 +1044,7 @@ export class WorkflowActionService {
     if (isEqual(this.getFormBinding(), formBinding)) {
       return;
     }
-    this.texeraGraph.sharedModel.contentMetaMap.set("formBinding", formBinding);
+    this.writeContentMeta("formBinding", formBinding, () => this.formBindingChangeSubject.next(formBinding));
   }
 
   public getFormBinding(): FormBindingConfig {
