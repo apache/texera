@@ -74,7 +74,6 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     return this.entityType === EntityType.Dataset || this.entityType === EntityType.Model;
   }
 
-  public searchKeywords: string[] = [];
   currentUid = this.userService.getCurrentUser()?.uid;
   public viewMode: SearchResultsViewMode = localStorage.getItem(HUB_VIEW_MODE_STORAGE_KEY) === "card" ? "card" : "list";
 
@@ -155,7 +154,6 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
-    this.searchKeywords = this.filters.getSearchKeywords();
     let filterParams = this.filters.getSearchFilterParameters();
 
     this.searchResultsComponent.reset((start, count) => {
