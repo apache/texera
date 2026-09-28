@@ -40,7 +40,7 @@ You don't need to be a programmer. Copy the example below and change one line at
 
 This example adds a `Revenue` column (units × price) to the sales data from [the dataset tutorial](../create-dataset-upload-data/).
 
-**1. Add the operator.** Drag **Python UDF** (under *User-defined Functions*) onto the canvas and connect your data to it.
+**1. Add the operator.** Drag **Python UDF** (under *User-defined Functions → Python*) onto the canvas and connect your data to it.
 
 **2. Write the code.** Click **Edit code content**. The editor opens with a template in which **every line is commented out** (starts with `#`). Running it as-is fails. Replace it with:
 
@@ -62,7 +62,7 @@ class ProcessTupleOperator(UDFOperatorV2):
 
 <img src="udf-output-columns.png" alt="Retain input columns and one extra output column named Revenue" width="260">
 
-**4. Run.** Click the eye icon on the UDF, then **Run**. Click the UDF to see its result.
+**4. Run.** Click the eye icon on the UDF, then **Run**. Click the UDF, then the **Result** tab in the result panel.
 
 ## The 5 rules
 

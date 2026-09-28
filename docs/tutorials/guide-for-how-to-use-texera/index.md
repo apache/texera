@@ -43,16 +43,16 @@ After signing in you see the dashboard. The left menu has:
   - **Compute**: your computing units (see [below](#run-a-workflow)).
   - **Environments**: extra Python packages for Python operators.
   - **Quota**: how much storage and compute you have used.
-- **Admin**: user management. Admins only.
+- **Admin**: users, executions and site settings. Admins only.
 
 ## The workflow editor
 
 ![Workflow editor](/images/github-assets/605df038-5335-4a65-bcf8-fa872ce79551.png)
 
-1. **Operators**: all available boxes, grouped by type. Drag one onto the canvas, or type its name in the search box.
+1. **Operators**: all available boxes, grouped by type. If the panel is closed, click the grid icon at the top left of the canvas. Drag a box onto the canvas, or type its name in the search box. Boxes added through search land on top of each other; drag them apart.
 2. **Canvas**: connect the output dot on the right of one box to the input dot on the left of the next.
 3. **Property panel**: click a box to set its options. A red outline means an option is missing or wrong.
-4. **Result panel**: click a box after a run to see its output, printed messages and errors.
+4. **Result panel**: shows a box's output, printed messages and errors. If it's closed, open it with the square icon at the bottom left.
 
 ## Run a workflow
 
@@ -85,13 +85,13 @@ Some operators (e.g. Sort, Aggregate, and the build side of Join) must read **al
 ## See the results
 
 1. Before running, click the box and turn on its **eye icon** (top toolbar). Texera shows results only for boxes with the eye on.
-2. After the run, click the box. The result panel shows its rows.
+2. After the run, click the box and open the result panel (square icon, bottom left) if it's closed. The **Result** tab shows its rows.
 
 The result panel only shows the box you clicked. If it says *No results available to display*, click a box that has the eye on.
 
 ## Where to find errors
 
-- **Click an empty spot on the canvas.** The result panel then shows **Static Error**: errors from every operator, including code that failed to start.
+- **Click an empty spot on the canvas.** If any operator failed, the result panel shows a **Static Error** tab with errors from every operator, including code that failed to start. A run that stops right away with every box at 0 rows usually means this.
 
 ![Static Error tab listing an error for all operators](errors-all-operators.png)
 

@@ -43,7 +43,7 @@ While a blocking operator reads, the operators after it show 0 rows. That's norm
 
 Texera splits a workflow into **regions** at blocking points. Operators in one region run together; a region starts after the regions it depends on finish. Between regions, results are saved (**materialized**) so the next region can read them.
 
-To see regions, click the **Layers** button in the editor toolbar and check **Regions**:
+To see regions, click the **Layers** button in the editor toolbar and check **Regions**. On a narrow window the button can be hidden; widen the window if you don't see it.
 
 <img src="layers-menu.png" alt="Layers menu with Grid, Regions, Workers, Status and Performance" width="160">
 
