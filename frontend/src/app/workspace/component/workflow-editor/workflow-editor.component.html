@@ -21,6 +21,15 @@
   <div
     id="workflow-editor"
     (contextmenu)="nzContextMenu.create($event, menu)"></div>
+  <texera-canvas-selection
+    *ngIf="paper"
+    [paper]="paper"
+    [disabled]="structureLocked"
+    (contextRequested)="nzContextMenu.create($event, menu)"></texera-canvas-selection>
+  <texera-overbox-interaction
+    *ngIf="paper"
+    [paper]="paper"
+    [disabled]="structureLocked"></texera-overbox-interaction>
   <texera-heatmap-legend></texera-heatmap-legend>
   <div
     class="heatmap-tooltip"

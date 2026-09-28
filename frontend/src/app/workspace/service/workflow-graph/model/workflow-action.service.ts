@@ -848,7 +848,15 @@ export class WorkflowActionService {
     const operators = texeraGraph.getAllOperators();
     const links = texeraGraph.getAllLinks();
     const operatorPositions: { [key: string]: Point } = {};
-    const commentBoxes = texeraGraph.getAllCommentBoxes();
+    const commentBoxes = texeraGraph.getAllCommentBoxes().map(box =>
+      box.overbox
+        ? {
+            ...box,
+            commentBoxPosition:
+              this.texeraGraph.sharedModel.elementPositionMap.get(box.commentBoxID) ?? box.commentBoxPosition,
+          }
+        : box
+    );
     const settings = this.workflowSettings;
 
     texeraGraph

@@ -1,0 +1,89 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<form
+  nz-form
+  nzLayout="vertical"
+  (ngSubmit)="save()">
+  <p class="description">Use a labeled section to explain and organize part of the workflow for collaborators.</p>
+
+  <nz-form-item>
+    <nz-form-label
+      nzFor="overbox-name"
+      nzRequired
+      >Section name</nz-form-label
+    >
+    <nz-form-control>
+      <input
+        nz-input
+        id="overbox-name"
+        name="overbox-name"
+        [(ngModel)]="name"
+        maxlength="100"
+        autocomplete="off" />
+      <span class="character-count">{{ name.length }}/100</span>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item>
+    <nz-form-label nzFor="overbox-color">Color</nz-form-label>
+    <nz-form-control>
+      <div class="color-row">
+        <button
+          *ngFor="let option of colors"
+          type="button"
+          class="color-swatch"
+          [class.selected]="color === option"
+          [style.background]="option"
+          [attr.aria-label]="'Choose color ' + option"
+          (click)="color = option"></button>
+      </div>
+    </nz-form-control>
+  </nz-form-item>
+
+  <p
+    *ngIf="error"
+    class="error"
+    role="alert">
+    {{ error }}
+  </p>
+
+  <div class="dialog-actions">
+    <button
+      nz-button
+      type="button"
+      [disabled]="!name.trim()"
+      (click)="saveAsReusable()">
+      Save as reusable section
+    </button>
+    <button
+      nz-button
+      type="button"
+      (click)="modal.close()">
+      Cancel
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      type="submit"
+      [disabled]="!name.trim()">
+      Save section
+    </button>
+  </div>
+</form>

@@ -18,6 +18,7 @@
  */
 
 import { WorkflowGraph } from "./workflow-graph";
+import { renderOverbox } from "../../overbox/overbox-renderer";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import * as Y from "yjs";
 import {
@@ -475,6 +476,10 @@ export class SharedModelChangeHandler {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
+          if (commentBox.overbox) {
+            const element = this.jointGraph.getCell(commentBox.commentBoxID);
+            if (element?.isElement()) renderOverbox(element as joint.dia.Element, commentBox);
+          }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());

@@ -36,6 +36,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
+import { MySnippetsComponent } from "./my-snippets/my-snippets.component";
 
 @UntilDestroy()
 @Component({
@@ -95,6 +96,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
       icon: "clock-circle",
       enabled: false,
     },
+    { component: MySnippetsComponent, title: "Reusable Sections", icon: "snippets", enabled: true },
   ];
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);

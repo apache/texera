@@ -164,12 +164,12 @@ describe("LeftPanelComponent", () => {
   });
 
   it("onDrop reorders the tab order array in place", () => {
-    // default order is [1, 2, 3, 4, 5]
-    expect(component.order).toEqual([1, 2, 3, 4, 5]);
+    // My Snippets is appended so the established tab indices remain stable.
+    expect(component.order).toEqual([1, 2, 3, 4, 5, 6]);
 
     component.onDrop({ previousIndex: 0, currentIndex: 2 } as CdkDragDrop<string[]>);
 
-    expect(component.order).toEqual([2, 3, 1, 4, 5]);
+    expect(component.order).toEqual([2, 3, 1, 4, 5, 6]);
   });
 
   it("onResize applies the new dimensions through requestAnimationFrame", () => {
@@ -295,12 +295,12 @@ describe("LeftPanelComponent", () => {
 
   it("constructor restores a valid saved tab order from localStorage", () => {
     // a permutation whose value-set matches the default order's set is accepted
-    localStorage.setItem("left-panel-order", "5,4,3,2,1");
+    localStorage.setItem("left-panel-order", "6,5,4,3,2,1");
 
     const freshFixture = TestBed.createComponent(LeftPanelComponent);
     const fresh = freshFixture.componentInstance;
 
-    expect(fresh.order).toEqual([5, 4, 3, 2, 1]);
+    expect(fresh.order).toEqual([6, 5, 4, 3, 2, 1]);
 
     freshFixture.destroy();
   });
@@ -312,7 +312,7 @@ describe("LeftPanelComponent", () => {
     const freshFixture = TestBed.createComponent(LeftPanelComponent);
     const fresh = freshFixture.componentInstance;
 
-    expect(fresh.order).toEqual([1, 2, 3, 4, 5]);
+    expect(fresh.order).toEqual([1, 2, 3, 4, 5, 6]);
 
     freshFixture.destroy();
   });
@@ -345,9 +345,10 @@ describe("LeftPanelComponent", () => {
     });
 
     it("the collapsed dock renders enabled tabs and omits disabled ones", () => {
-      // 1/2/3 are enabled; 4 (Execution History) is disabled in the mock GUI config
-      expect(fixture.debugElement.queryAll(By.css("#docked-buttons li[nz-menu-item].cdk-drag")).length).toBe(3);
+      // Operators, Versions, Settings, and My Snippets are enabled; execution-only tabs are disabled.
+      expect(fixture.debugElement.queryAll(By.css("#docked-buttons li[nz-menu-item].cdk-drag")).length).toBe(4);
       expect(tabForFrame("docked-buttons", 1)).toBeTruthy();
+      expect(tabForFrame("docked-buttons", 6)).toBeTruthy();
       expect(tabForFrame("docked-buttons", 4)).toBeUndefined();
     });
 
@@ -421,11 +422,11 @@ describe("LeftPanelComponent", () => {
       fixture.detectChanges();
 
       for (const id of ["docked-buttons", "dock", "return-button"]) {
-        component.order = [1, 2, 3, 4, 5];
+        component.order = [1, 2, 3, 4, 5, 6];
         fixture.debugElement
           .query(By.css(`#${id}`))
           .triggerEventHandler("cdkDropListDropped", { previousIndex: 0, currentIndex: 1 });
-        expect(component.order).toEqual([2, 1, 3, 4, 5]);
+        expect(component.order).toEqual([2, 1, 3, 4, 5, 6]);
       }
     });
 
