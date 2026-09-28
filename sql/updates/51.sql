@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,29 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
-import { ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+\c texera_db
 
-@Injectable({
-  providedIn: "root",
-})
-export class FileResourceDescriptor implements ResourceDescriptor {
-  readonly type = EntityType.File;
-  readonly iconType = "folder-open";
-  // Files have no page of their own, so entries of this kind stay unrouted.
+SET search_path TO texera_db;
 
-  isOwner = (): boolean => true;
-}
+BEGIN;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type WHERE typname = 'workflow_computing_unit_termination_reason_enum'
+    ) THEN
+        CREATE TYPE workflow_computing_unit_termination_reason_enum AS ENUM (
+            'USER_REQUESTED',
+            'GARBAGE_COLLECTED'
+        );
+    END IF;
+END $$;
+
+ALTER TABLE workflow_computing_unit
+    ADD COLUMN IF NOT EXISTS termination_reason workflow_computing_unit_termination_reason_enum DEFAULT NULL;
+
+-- Postgres indexes only the referenced side of a foreign key, so cuid needs its own index for the
+-- idle computing unit sweep and every other per-computing-unit lookup on this table.
+CREATE INDEX IF NOT EXISTS idx_workflow_executions_cuid ON workflow_executions (cuid);
+
+COMMIT;
