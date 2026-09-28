@@ -42,7 +42,13 @@ import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { ExecutionMode, FormBindingConfig, Workflow, WorkflowSettings } from "../../../../common/type/workflow";
+import {
+  ExecutionMode,
+  FormBindingConfig,
+  getDefaultFormBinding,
+  Workflow,
+  WorkflowSettings,
+} from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
@@ -875,17 +881,28 @@ describe("WorkflowActionService", () => {
     subB.unsubscribe();
   });
 
-  it("clears the settings key when a workflow with no settings is opened, not overwriting a co-editor's", () => {
-    service.setWorkflowSettings({ dataTransferBatchSize: 99, executionMode: ExecutionMode.PIPELINED });
+  // A workflow opened without settings marks the key cleared rather than leaving it absent, so the
+  // room can tell "cleared" from "nobody has seeded this yet"; getWorkflowSettings then falls back
+  // to the defaults on the mark.
+  it("marks the settings cleared when a workflow with no settings is opened into a fresh room", () => {
+    service.hydrateSettings(undefined);
+    syncSharedDoc();
+
+    expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toBeNull();
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    expect(service.getWorkflowContent().settings).toEqual(service["getDefaultSettings"]());
+  });
+
+  it("leaves a co-editor's settings alone when the workflow being opened has none", () => {
+    const coeditors = new Y.Doc();
+    const live: WorkflowSettings = { dataTransferBatchSize: 99, executionMode: ExecutionMode.MATERIALIZED };
+    coeditors.getMap("contentMeta").set("settings", live);
+    Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
 
     service.hydrateSettings(undefined);
     syncSharedDoc();
 
-    // Absent -> delete (not set-to-defaults), mirroring hydrateFormBinding, so opening a workflow
-    // that never saved settings does not write over another editor's; getWorkflowSettings then
-    // falls back to defaults on the absent key.
-    expect(texeraGraph.sharedModel.contentMetaMap.has("settings")).toBe(false);
-    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    expect(service.getWorkflowSettings()).toEqual(live);
   });
 
   // Clearing the page reports no edit and writes nothing: the document is destroyed, and the
@@ -1223,7 +1240,25 @@ describe("WorkflowActionService", () => {
       expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(version);
 
       service.hydrateFormBinding(undefined);
-      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toBeNull();
+      expect(service.getFormBinding()).toEqual(getDefaultFormBinding());
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    // A collaborator who opened or reloaded the workflow without a definition marked the key
+    // cleared. A client joining with a database copy the clearing has not reached yet must not
+    // put the definition back: the room's word, cleared included, beats the copy.
+    it("does not bring back a definition the room has cleared from a database copy that still has it", () => {
+      const coeditors = new Y.Doc();
+      coeditors.getMap("contentMeta").set("formBinding", null);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(config);
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toBeNull();
+      expect(service.getFormBinding()).toEqual(getDefaultFormBinding());
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
     });
 
     // A seed that waits listens for the sync; a document that never syncs must not collect a

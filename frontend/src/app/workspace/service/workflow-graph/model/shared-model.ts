@@ -60,7 +60,10 @@ export class SharedModel {
   // silently overwritten by another editor's whole-content autosave (workflowSettings, and
   // the Form View definition). Kept in the shared doc, keyed "settings"/"formBinding", so it
   // syncs live like the graph and every autosave writes the current value, not a stale copy.
-  public contentMetaMap: Y.Map<ContentMetaValue>;
+  // `null` marks a key the room has cleared -- a workflow opened or reloaded without the value --
+  // as opposed to one no client has seeded yet: the difference decides whether a joining client's
+  // database copy goes in (see WorkflowActionService.seedContentMeta).
+  public contentMetaMap: Y.Map<ContentMetaValue | null>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
