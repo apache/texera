@@ -96,6 +96,10 @@ describe("AiWorkflowFixerService", () => {
       expect(classifyError("java.lang.NullPointerException: boom")).toEqual("null_error");
       expect(classifyError("ModelNotFound: no such model")).toEqual("model_not_found");
       expect(classifyError("Error code: 404 - model does not exist")).toEqual("model_not_found");
+      expect(classifyError("404 Client Error: Not Found for url: .../models/Qwen")).toEqual("model_not_found");
+      // A bare 404 is a line number, an unrelated HTTP status, or data -- not a model lookup.
+      expect(classifyError('  File "udf.py", line 404, in process_tuple')).toEqual("unsupported");
+      expect(classifyError("requests.HTTPError: 404 for https://example.com/report")).toEqual("unsupported");
     });
 
     it("returns unsupported for out-of-scope, empty, and near-miss messages", () => {

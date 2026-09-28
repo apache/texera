@@ -56,19 +56,24 @@ export interface FixState {
   status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "applied_without_run" | "error";
 }
 
-// Model id as LiteLLM exposes it (bin/single-node/litellm-config.yaml), not the provider's id.
+// Model id as LiteLLM exposes it (bin/single-node/litellm-config.yaml), not the provider's
+// id. A deployment whose proxy publishes a different alias has to change this: there is no
+// GuiConfig field for it today, and adding one is a backend change.
 export const AI_FIXER_MODEL = "claude-haiku-4.5";
 export const AI_FIXER_TIMEOUT_MS = 120_000;
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
-const IDLE_STATE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
+export const IDLE_STATE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
 
 // Each pattern matches a line anywhere inside a traceback, not the whole message.
 const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
   [/KeyError:\s*['"][^'"]+['"]/, "missing_column"],
   [/TypeError:\s*unsupported operand/i, "type_error"],
   [/ValueError:[^\n]*\bNaN\b|NullPointerException/i, "null_error"],
-  [/ModelNotFound|\b404\b/i, "model_not_found"],
+  // `404` only counts beside a model reference. On its own it also matches a line number
+  // in a traceback, an HTTP status from unrelated user code, or a literal in the data --
+  // all of which would be sent off asking for a model-config fix that makes no sense.
+  [/ModelNotFound|\bmodel[^\n]*\b404\b|\b404\b[^\n]*\bmodel/i, "model_not_found"],
 ];
 
 export function classifyError(errorMessage: string): FixErrorType {

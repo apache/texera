@@ -184,6 +184,50 @@ describe("AiFixFrameComponent", () => {
     });
   });
 
+  describe("operator scoping", () => {
+    // The service is a root singleton with one suggestion, but a failed pipeline can put a
+    // tab on several operators at once. A frame must ignore state naming another operator,
+    // or Apply would patch an operator the user is not looking at.
+    it("ignores a suggestion analyzed for a different operator", () => {
+      component.operatorId = "op2";
+
+      render(READY_CODE_FIX); // READY_CODE_FIX names op1
+
+      expect(query(".ai-fix-diff")).toBeNull();
+      expect(query(".ai-fix-actions")).toBeNull();
+      expect(query(".ai-fix-analyze")).toBeTruthy();
+    });
+
+    it("cannot apply another operator's suggestion", () => {
+      component.operatorId = "op2";
+
+      render(READY_CODE_FIX);
+
+      expect(query(".ai-fix-apply")).toBeNull();
+      expect(applyFix).not.toHaveBeenCalled();
+    });
+
+    it("still shows the suggestion on the operator it was analyzed for", () => {
+      component.operatorId = "op1";
+
+      render(READY_CODE_FIX);
+
+      expect(query(".ai-fix-diff")).toBeTruthy();
+      expect(query(".ai-fix-apply")).toBeTruthy();
+    });
+
+    it("drops a suggestion that stops matching when the bound operator changes", () => {
+      component.operatorId = "op1";
+      render(READY_CODE_FIX);
+      expect(query(".ai-fix-diff")).toBeTruthy();
+
+      component.operatorId = "op2";
+      fixture.detectChanges();
+
+      expect(query(".ai-fix-diff")).toBeNull();
+    });
+  });
+
   it("shows a spinner while analyzing", () => {
     render({ ...READY_CODE_FIX, status: "analyzing", suggestedFix: undefined });
 

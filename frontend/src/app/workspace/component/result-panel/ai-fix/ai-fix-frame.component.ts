@@ -19,7 +19,8 @@
 
 import { Component, Input } from "@angular/core";
 import { AsyncPipe, NgFor, NgIf } from "@angular/common";
-import { Observable } from "rxjs";
+import { BehaviorSubject, Observable, combineLatest } from "rxjs";
+import { map } from "rxjs/operators";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzTagComponent } from "ng-zorro-antd/tag";
@@ -30,7 +31,13 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
-import { AiWorkflowFixerService, FixConfidence, FixState, UNSUPPORTED_MESSAGE } from "./ai-workflow-fixer.service";
+import {
+  AiWorkflowFixerService,
+  FixConfidence,
+  FixState,
+  IDLE_STATE,
+  UNSUPPORTED_MESSAGE,
+} from "./ai-workflow-fixer.service";
 
 /**
  * Result-panel frame that asks the LLM to fix the failed operator.
@@ -57,7 +64,16 @@ import { AiWorkflowFixerService, FixConfidence, FixState, UNSUPPORTED_MESSAGE } 
   ],
 })
 export class AiFixFrameComponent {
-  @Input() operatorId?: string;
+  private readonly operatorIdSubject = new BehaviorSubject<string | undefined>(undefined);
+
+  @Input()
+  set operatorId(value: string | undefined) {
+    this.operatorIdSubject.next(value);
+  }
+
+  get operatorId(): string | undefined {
+    return this.operatorIdSubject.value;
+  }
 
   public readonly state$: Observable<FixState>;
   public readonly unsupportedMessage = UNSUPPORTED_MESSAGE;
@@ -69,7 +85,13 @@ export class AiFixFrameComponent {
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService
   ) {
-    this.state$ = aiWorkflowFixerService.getState$();
+    // The service is a root singleton holding one suggestion, but a failed pipeline can
+    // put an AI Fix tab on several operators at once. Showing another operator's
+    // suggestion here would let Apply patch an operator the user is not looking at, so a
+    // frame only ever renders state that names its own operator.
+    this.state$ = combineLatest([aiWorkflowFixerService.getState$(), this.operatorIdSubject]).pipe(
+      map(([state, operatorId]) => (state.operatorId === operatorId ? state : IDLE_STATE))
+    );
   }
 
   /** Collects the operator's error, code, schema and config, then asks for a fix. */
