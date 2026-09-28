@@ -56,17 +56,17 @@ When you upload a new version, existing workflows keep reading the old one. To u
 ## 3. Read the file in a workflow
 
 1. Go to **Your Work → Workflows → Create Workflow**.
-2. Drag a **CSV File Scan** operator (under *Data Input*) onto the canvas.
+2. Open the **Operators** panel (grid icon at the top left of the canvas) and drag a **CSV File Scan** operator (under *Data Input*) onto the canvas.
 3. In its property panel, click **Select File**. Choose the dataset, the version, then the file, and click **Select**.
 
 ![File picker with dataset, version and file](select-file.png)
 
 ## 4. Filter and aggregate
 
-1. Add a **Filter** operator and connect it after the CSV File Scan. Set: column `Region`, condition `=`, value `Europe`.
+1. Add a **Filter** operator and connect it after the CSV File Scan. Click the blue **+** next to **Predicates**, then set Attribute `Region`, Condition `=`, Value `Europe`.
 2. Add an **Aggregate** operator after the Filter. Set: function `average`, attribute `Units Sold`, result attribute `avg_units`, group by key `Item Type`.
 3. Click the Aggregate box and turn on the **eye icon** in the toolbar, then click **Run**. To pick a computing unit first, see [Run a workflow](../guide-for-how-to-use-texera/#run-a-workflow).
-4. Click the Aggregate box to see the result:
+4. Click the Aggregate box. If the result panel is closed, open it with the square icon at the bottom left. The result:
 
 ![Finished workflow: 100 rows read, 23 kept by the filter, 6 averages](workflow-result.png)
 

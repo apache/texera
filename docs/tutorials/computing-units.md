@@ -55,7 +55,7 @@ A new unit shows a gold dot while it starts. You can select it once the dot turn
 - **Reuse one unit** for all your workflows. You don't need one per workflow.
 - **A new unit usually won't fix an error in your workflow**, such as a mistake in Python code or an operator setting. Read the error first ([where to find errors](../guide-for-how-to-use-texera/#where-to-find-errors)). A different unit *can* help when the problem is the unit itself: not enough memory, CPU or GPU, or a missing Python package or software image.
 - **Terminating a unit deletes the results stored on it.** Your workflows and datasets are kept. Run the workflow again to get results back.
-- **Details**: click the eye icon next to a unit to see its CPU, memory and GPU limits.
+- **Details**: click the eye icon next to a unit to see its CPU, memory and GPU limits. Local units have no limits and show `NaN`.
 - **Python packages**: the **+** icon next to a unit manages its Python environments.
 
 ## Common messages
