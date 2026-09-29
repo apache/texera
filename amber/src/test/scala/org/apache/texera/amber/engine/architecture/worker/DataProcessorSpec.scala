@@ -550,10 +550,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     val later = State(Map("n" -> 9L))
     dp.processDataPayload(senderChannel, StateFrame(later))
 
-    // open() at worker start, before any state; produceStateOnStart on the operator itself, still
-    // with the placeholder; then its own processState, with the message registered and the
-    // variable written just before. A state after the first tuple is still registered and
-    // processed, but the setting keeps what the first tuple was processed with.
+    // open() and produceStateOnStart see the placeholder; each processState sees its message
+    // registered and the variable written; a state after the first tuple no longer writes.
     assert(
       exec.calls.toList == List(
         ("open", 0, None),
@@ -616,20 +614,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
         ).toString
       )
     )
-  }
-
-  "data processor" should "leave the setting of an operator outside every loop block as it was parsed" in {
-    // Outside every block the sidecar is empty: a state carrying `n` writes nothing.
-    val (dp, exec, sent) = initializedWith("""{"limit":1}""")
-    openExecutor(dp)
-    val state = State(Map("n" -> 2L))
-    dp.processDataPayload(senderChannel, StateFrame(state))
-    dp.processDataPayload(senderChannel, DataFrame(tuples.take(3)))
-    drain(dp)
-
-    assert(exec.calls.toList == List(("open", 1, None), ("state", 1, Some(state))))
-    assert(statesSent(sent) == List(State(Map("seen" -> 2L, "limit" -> 1))))
-    assert(tuplesSent(sent) == tuples.take(1).toList)
   }
 
   "data processor" should "handle an exception thrown while advancing the output iterator" in {

@@ -31,7 +31,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.common.compiler.LoopBlockMembership
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
@@ -103,9 +102,7 @@ class ExecutionReconfigurationService(
     */
   private def refersToLoopVariables(op: LogicalOp): Boolean =
     op.stateReferences.nonEmpty || (
-      LoopBlockMembership
-        .operatorsInsideLoopBlocks(workflow.logicalPlan)
-        .contains(op.operatorIdentifier) &&
+      workflow.logicalPlan.operatorsInsideLoopBlocks.contains(op.operatorIdentifier) &&
         literalReferences(objectMapper.valueToTree[ObjectNode](op)).nonEmpty
     )
 

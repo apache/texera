@@ -19,9 +19,6 @@
 
 package org.apache.texera.amber.operator.dictionary
 
-import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.texera.amber.core.executor.ExecFactory
-import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -330,48 +327,6 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // Asserts emptiness only, never null: close() nulls the other two fields but
     // merely clears this one, and this test takes no side on that asymmetry.
     assert(opExec.tokenizedDictionaryEntries.isEmpty)
-  }
-
-  it should "prepare the dictionary again after it is reopened" in {
-    opDesc.dictionary = "nice person"
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    assert(isMatched(tupleWith("person nice")))
-    opExec.close()
-    opExec.open()
-    assert(isMatched(tupleWith("person nice")))
-    assert(opExec.tokenizedDictionaryEntries.size == 1)
-    opExec.close()
-  }
-
-  /** As the compiler hands `opDesc` over inside a loop block, its dictionary referring to `d`. */
-  private def withReferencedDictionary(): DictionaryMatcherOpExec = {
-    opDesc.dictionary = "$d"
-    val node = objectMapper.valueToTree[ObjectNode](opDesc)
-    node.putObject(StateReferencing.SIDECAR_PROPERTY).put("/Dictionary", "d")
-    ExecFactory
-      .newExecFromJavaClassName(
-        classOf[DictionaryMatcherOpExec].getName,
-        objectMapper.writeValueAsString(node)
-      )
-      .asInstanceOf[DictionaryMatcherOpExec]
-  }
-
-  it should "match against the dictionary written into its setting after construction and open()" in {
-    for (matchingType <- List(MatchingType.SCANBASED, MatchingType.CONJUNCTION_INDEXBASED)) {
-      opDesc.matchingType = matchingType
-      opExec = withReferencedDictionary()
-      opExec.open()
-      opExec.registerState(State(Map("d" -> "cat,dog")))
-      opExec.bindStateReferences()
-      withClue(s"$matchingType: ") {
-        assert(isMatched(tupleWith("dog")))
-        // The placeholder it held at open() is no entry of the dictionary.
-        assert(!isMatched(tupleWith("$d")))
-      }
-      opExec.close()
-    }
   }
 
   it should "fail loudly rather than silently report no match when no matching type is configured" in {

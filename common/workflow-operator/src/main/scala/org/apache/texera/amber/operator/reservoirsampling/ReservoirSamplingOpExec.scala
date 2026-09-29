@@ -30,8 +30,7 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
     extends OperatorExecutor {
   private val desc: ReservoirSamplingOpDesc =
     objectMapper.readValue(descString, classOf[ReservoirSamplingOpDesc])
-  // Read at first use, not at construction or in open(): inside a loop block `k` may refer to a
-  // loop variable, which the loop state writes into the setting after both.
+  // Read at first use: inside a loop block `k` may be written into the setting after open().
   private lazy val count: Int = equallyPartitionGoal(desc.k, workerCount)(idx)
   private var n: Int = _
   private var reservoir: Array[Tuple] = _
@@ -39,13 +38,6 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
 
   override def open(): Unit = {
     n = 0
-    reservoir = null
-  }
-
-  /** The reservoir, allocated at first use. */
-  private def slots: Array[Tuple] = {
-    if (reservoir == null) reservoir = Array.ofDim(count)
-    reservoir
   }
 
   override def close(): Unit = {
@@ -53,13 +45,13 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    val sample = slots
+    if (reservoir == null) reservoir = Array.ofDim(count)
     if (n < count) {
-      sample(n) = tuple
+      reservoir(n) = tuple
     } else {
       val i = rand.nextInt(n)
       if (i < count) {
-        sample(i) = tuple
+        reservoir(i) = tuple
       }
     }
     n += 1
@@ -68,6 +60,9 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
 
   // Only the first n slots are filled when the input is smaller than the reservoir;
   // take(n) keeps the trailing unfilled (null) slots from being emitted.
-  override def onFinish(port: Int): Iterator[TupleLike] = slots.iterator.take(n)
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    if (reservoir == null) reservoir = Array.ofDim(count)
+    reservoir.iterator.take(n)
+  }
 
 }

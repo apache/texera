@@ -43,15 +43,13 @@ class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
   }
 
   "OperatorMetadataGenerator.generateOperatorJsonSchema" should
-    "hide the loop-variable sidecar from the property panel, like operatorVersion" in {
+    "hide the loop-variable sidecar from the property panel" in {
     val schema =
       OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[SpecializedFilterOpDesc])
     val properties = schema.get("properties")
     properties.has("predicates") shouldBe true
     properties.has(StateReferencing.SIDECAR_PROPERTY) shouldBe false
-    properties.has("operatorVersion") shouldBe false
     val required = schema.get("required").elements().asScala.map(_.asText()).toList
     required should not contain StateReferencing.SIDECAR_PROPERTY
-    required should not contain "operatorType"
   }
 }

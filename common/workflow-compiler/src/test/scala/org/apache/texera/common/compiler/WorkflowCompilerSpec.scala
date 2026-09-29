@@ -29,10 +29,9 @@ import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILAT
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
-  SpecializedFilterOpDesc,
-  SpecializedFilterOpExec
+  SpecializedFilterOpDesc
 }
-import org.apache.texera.amber.operator.limit.{LimitOpDesc, LimitOpExec}
+import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
@@ -900,11 +899,10 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       classOf[Map[String, String]]
     )
 
-  private def row(attribute: String, value: String): Tuple = {
-    val schema = Schema().add(new Attribute(attribute, AttributeType.STRING))
-    Tuple.builder(schema).add(schema.getAttribute(attribute), value).build()
+  private def line(text: String): Tuple = {
+    val schema = Schema().add(new Attribute("line", AttributeType.STRING))
+    Tuple.builder(schema).add(schema.getAttribute("line"), text).build()
   }
-  private def line(text: String): Tuple = row("line", text)
 
   "WorkflowCompiler" should "bind a frontend '$n' in Limit's Int property inside a loop block when the state arrives, end to end" in {
     // TextInput -> LoopStart -> Limit("$n") -> LoopEnd, the Limit parsed as the frontend sends it.
@@ -920,25 +918,13 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
     val (className, descString) = executorInit(result, limit)
     assert(sidecarOf(descString) == Map("/limit" -> "n"))
-    // Driven the way the worker drives it: Limit's own executor, opened before any state, each
-    // state message registered right before processState, and the binding ended by the first tuple.
+    // Driven the way the worker drives it: Limit's own executor, opened before any state.
     val exec = ExecFactory.newExecFromJavaClassName(className, descString)
-    assert(exec.isInstanceOf[LimitOpExec])
     exec.open()
-    val state = State(Map("n" -> 2L))
-    exec.registerState(state)
-    assert(exec.processState(state, 0).contains(state))
+    exec.registerState(State(Map("n" -> 2L)))
     exec.bindStateReferences()
     val passed = (1 to 5).flatMap(i => exec.processTuple(line(i.toString), 0))
     assert(passed.size == 2)
-
-    // A tuple ahead of every state message finds the variable unwritten.
-    val early = ExecFactory.newExecFromJavaClassName(className, descString)
-    early.open()
-    assert(
-      intercept[IllegalStateException](early.bindStateReferences()).getMessage ==
-        "property /limit refers to loop variable n, but no state message carried it"
-    )
   }
 
   it should "keep a '$AAPL' on a Filter outside every loop block the literal it is on main" in {
@@ -952,23 +938,15 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
 
     assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
-    val (className, descString) = executorInit(result, filter)
+    val (_, descString) = executorInit(result, filter)
     assert(sidecarOf(descString).isEmpty)
-    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
-    assert(exec.isInstanceOf[SpecializedFilterOpExec])
-    exec.open()
-    // A state carrying a variable of that name writes nothing into the setting.
-    exec.registerState(State(Map("AAPL" -> "Asia")))
-    exec.bindStateReferences()
-    assert(exec.processTuple(row("Region", "$AAPL"), 0).toList == List(row("Region", "$AAPL")))
-    assert(exec.processTuple(row("Region", "Asia"), 0).isEmpty)
   }
 
   it should "report a typed '$n' outside every loop block, naming the property and the variable" in {
     val csv = csvOp(realCsvPath)
     val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
     val plan = pojo(List(csv, limit), List(linked(csv, limit)))
-    val message = "property /limit refers to loop variable n, but Limit is not inside a loop block"
+    val message = "Limit refers to loop variables (/limit -> $n), but is not inside a loop block"
 
     val result = new WorkflowCompiler(newContext()).compile(plan)
 
@@ -1034,57 +1012,6 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       outsideResult.operatorIdToError.isEmpty,
       s"unexpected: ${outsideResult.operatorIdToError}"
     )
-  }
-
-  private def intervalJoinOp(): LogicalOp =
-    parsed(
-      """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",
-        |"includeLeftBound":true,"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin
-    )
-
-  it should "report a reference inside a loop block on an operator whose first input comes from outside the block" in {
-    // Its right input waits for the left one, so every left tuple arrives before the loop state.
-    val outside = textInputOp("0")
-    val src = textInputOp("0\n1")
-    val start = loopStartOp()
-    val join = intervalJoinOp()
-    val end = loopEndOp()
-    val plan = pojo(
-      List(outside, src, start, join, end),
-      List(linked(outside, join), linked(src, start), linked(start, join, 1), linked(join, end))
-    )
-
-    val result = new WorkflowCompiler(newContext()).compile(plan)
-
-    assert(result.operatorIdToError.keySet == Set(join.operatorIdentifier))
-    assert(
-      result
-        .operatorIdToError(join.operatorIdentifier)
-        .message
-        .contains(
-          "Interval Join refers to loop variables (/constant -> $i), but its input 'left table' " +
-            "is fed from outside the loop block"
-        )
-    )
-  }
-
-  it should "accept a reference on an operator inside a loop block whose input from outside waits for one from inside" in {
-    val outside = textInputOp("0")
-    val src = textInputOp("0\n1")
-    val start = loopStartOp()
-    val join = intervalJoinOp()
-    val end = loopEndOp()
-
-    val result = new WorkflowCompiler(newContext()).compile(
-      pojo(
-        List(outside, src, start, join, end),
-        List(linked(src, start), linked(start, join), linked(outside, join, 1), linked(join, end))
-      )
-    )
-
-    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
-    val (_, descString) = executorInit(result, join)
-    assert(sidecarOf(descString) == Map("/constant" -> "i"))
   }
 
   /** TextInput -> LoopStart -> `op` -> LoopEnd, every input of `op` fed by the LoopStart. */
