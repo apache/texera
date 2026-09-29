@@ -34,7 +34,8 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   * The parse fills it in for a typed property, which holds a placeholder instead
   * (`StateReferenceModule`); the compiler adds the string ones inside a loop block and rejects
   * every entry outside one (`WorkflowCompiler.normalizeStateReferences`). It rides in the
-  * descriptor's JSON to the worker, which binds it (`LateBoundExecutor`), and the property panel
+  * descriptor's JSON to the worker, where each state message writes the variables it names into
+  * the descriptor the executor parsed (`OperatorExecutor.registerState`), and the property panel
   * never shows it.
   */
 trait StateReferencing {

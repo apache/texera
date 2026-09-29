@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.core.executor
 
+import org.apache.texera.amber.core.state.StateReferenceModule
+
 object ExecFactory {
 
   def newExecFromJavaCode(code: String): OperatorExecutor = {
@@ -30,21 +32,46 @@ object ExecFactory {
   }
 
   /**
-    * A descriptor whose `stateReferences` sidecar names loop variables gets a `LateBoundExecutor`,
-    * which builds the executor once the loop state has arrived. The compiler fills the sidecar in
-    * only inside a loop block, so a `$name` string anywhere else is the literal it looks like.
+    * A descriptor whose `stateReferences` sidecar names loop variables gets the operator's own
+    * executor, built from the descString with its placeholders like any other; the descriptor its
+    * constructor parses is its setting, which each state message registered on it writes the loop
+    * variables into (`OperatorExecutor.registerState`). The compiler fills the sidecar in only
+    * inside a loop block, so a `$name` string anywhere else is the literal it looks like.
     */
   def newExecFromJavaClassName[K](
       className: String,
       descString: String = "",
       idx: Int = 0,
       workerCount: Int = 1
-  ): OperatorExecutor =
-    if (LateBoundExecutor.refersToLoopVariables(descString)) {
-      new LateBoundExecutor(className, descString, idx, workerCount)
-    } else {
+  ): OperatorExecutor = {
+    val references = StateReferenceBinding.sidecarOf(descString)
+    if (references.isEmpty) {
       instantiate[K](className, descString, idx, workerCount)
+    } else {
+      val (executor, settings) =
+        StateReferenceModule.capturing(instantiate[K](className, descString, idx, workerCount))
+      def refuse(reason: String): Nothing = {
+        val named = references.toSeq.sorted.map { case (pointer, name) => s"$pointer -> $$$name" }
+        throw new IllegalStateException(
+          s"$className refers to loop variables (${named.mkString(", ")}), but its constructor " +
+            s"parsed $reason"
+        )
+      }
+      settings match {
+        case List(setting) =>
+          OperatorExecutor.attach(
+            executor,
+            new StateReferenceBinding(className, setting, references)
+          )
+        case Nil => refuse("no descriptor from its descString to write them into")
+        case _ =>
+          refuse(
+            s"${settings.size} descriptors from its descString, so which one is its setting is unclear"
+          )
+      }
+      executor
     }
+  }
 
   private def instantiate[K](
       className: String,

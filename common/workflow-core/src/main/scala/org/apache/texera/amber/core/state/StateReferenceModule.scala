@@ -54,6 +54,10 @@ import scala.collection.mutable
   * other target (an enum, a date, ...) keeps Jackson's ordinary error. A String property simply
   * keeps the literal: the compiler finds those itself, and only inside a loop block
   * (`WorkflowCompiler.normalizeStateReferences`).
+  *
+  * While `StateReferenceModule.capturing` runs, each outermost `StateReferencing` object parsed on
+  * its thread is also handed over: that is how the executor factory finds the setting an
+  * executor's constructor parsed from its descString, to write the loop variables into.
   */
 class StateReferenceModule extends SimpleModule("StateReferenceModule") {
 
@@ -101,6 +105,26 @@ object StateReferenceModule {
 
   /** The key of the frames open in one deserialization (innermost first), kept on its context. */
   private object Frames
+
+  /** The outermost objects parsed on this thread while `capturing` runs; null outside it. */
+  private val captured = new ThreadLocal[mutable.ArrayBuffer[StateReferencing]]
+
+  /**
+    * Runs `body`, and returns its result with every outermost `StateReferencing` object (one not
+    * nested in another) parsed on this thread while it ran, in parse order. A capture nested in
+    * another keeps its objects to itself; the enclosing one resumes when it ends, however it ends.
+    */
+  private[core] def capturing[T](body: => T): (T, List[StateReferencing]) = {
+    val enclosing = captured.get()
+    val parsed = mutable.ArrayBuffer.empty[StateReferencing]
+    captured.set(parsed)
+    try {
+      val result = body
+      (result, parsed.toList)
+    } finally {
+      if (enclosing == null) captured.remove() else captured.set(enclosing)
+    }
+  }
 
   private def frames(ctxt: DeserializationContext): util.Deque[Frame] =
     ctxt.getAttribute(Frames) match {
@@ -177,7 +201,9 @@ object StateReferenceModule {
       val bean =
         try _delegatee.deserialize(parser, ctxt).asInstanceOf[AnyRef]
         finally open.pop()
-      bean.asInstanceOf[StateReferencing].stateReferences = frame.references.toMap
+      val parsed = bean.asInstanceOf[StateReferencing]
+      parsed.stateReferences = frame.references.toMap
+      if (open.isEmpty) Option(captured.get()).foreach(_ += parsed)
       bean
     }
   }

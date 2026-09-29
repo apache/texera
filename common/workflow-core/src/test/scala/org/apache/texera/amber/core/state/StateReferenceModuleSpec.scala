@@ -196,6 +196,67 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
+  // Capturing the setting an executor's constructor parses
+  // ---------------------------------------------------------------------------
+
+  "StateReferenceModule.capturing" should "hand over each outermost StateReferencing object parsed on this thread while it runs, in order" in {
+    val ((bean, wrapper, outer), captured) = StateReferenceModule.capturing {
+      (
+        parse("""{"int":"$a"}"""),
+        objectMapper.readValue("""{"wrapped":{"name":"x"}}""", classOf[Wrapper]),
+        objectMapper.readValue("""{"inner":{"int":"$b"},"limit":"$c"}""", classOf[Outer])
+      )
+    }
+    // The very objects the parses returned. The bean nested in `outer` is part of it, not a
+    // setting of its own; the one inside a plain wrapper is the outermost StateReferencing.
+    assert(captured.size == 3)
+    assert(captured(0) eq bean)
+    assert(captured(1) eq wrapper.wrapped)
+    assert(captured(2) eq outer)
+    assert(outer.stateReferences == Map("/limit" -> "c"))
+    assert(outer.inner.stateReferences == Map("/int" -> "b"))
+  }
+
+  it should "hand over nothing parsed before it, after it, or on another thread" in {
+    parse("""{"int":"$a"}""")
+    val (_, captured) = StateReferenceModule.capturing {
+      val thread = new Thread(() => { parse("""{"int":"$a"}"""); () })
+      thread.start()
+      thread.join()
+      objectMapper.readValue("""{"count":1}""", classOf[Nested])
+    }
+    assert(captured.isEmpty)
+    parse("""{"int":"$a"}""")
+    assert(StateReferenceModule.capturing(())._2.isEmpty)
+  }
+
+  it should "keep a nested capture apart, and resume the enclosing one even when the nested body throws" in {
+    val (inner, outer) = StateReferenceModule.capturing {
+      val first = parse("""{"name":"first"}""")
+      val (nested, nestedCaptured) = StateReferenceModule.capturing(parse("""{"name":"nested"}"""))
+      assert(nestedCaptured == List(nested))
+      intercept[IllegalStateException] {
+        StateReferenceModule.capturing {
+          parse("""{"name":"lost"}""")
+          throw new IllegalStateException("boom")
+        }
+      }
+      val last = parse("""{"name":"last"}""")
+      List(first, last)
+    }
+    assert(outer == inner)
+  }
+
+  it should "not change what a parse returns" in {
+    val json = """{"name":"n","int":"$a","nested":[{"count":"$c"}]}"""
+    val (captured, _) = StateReferenceModule.capturing(parse(json))
+    assert(
+      objectMapper.writeValueAsString(captured) == objectMapper.writeValueAsString(parse(json))
+    )
+    assert(captured.stateReferences == Map("/int" -> "a", "/nested/0/count" -> "c"))
+  }
+
+  // ---------------------------------------------------------------------------
   // The helpers the compiler and the worker share
   // ---------------------------------------------------------------------------
 
@@ -245,6 +306,12 @@ object StateReferenceModuleSpec {
     @JsonProperty var items: List[String] = List.empty
     @JsonProperty var nested: List[Nested] = List.empty
     @JsonProperty var color: AttributeType = _ // a Java enum
+  }
+
+  /** A StateReferencing object holding another one. */
+  class Outer extends StateReferencing {
+    @JsonProperty var inner: Bean = _
+    @JsonProperty var limit: Int = _
   }
 
   /** Not a StateReferencing object itself: it only holds one. */

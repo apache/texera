@@ -28,11 +28,22 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   */
 class HtmlVizOpExec(descString: String) extends OperatorExecutor {
   private val desc: HtmlVizOpDesc = objectMapper.readValue(descString, classOf[HtmlVizOpDesc])
-  override def open(): Unit =
+
+  // Checked again at the first tuple: inside a loop block the attribute name may refer to a loop
+  // variable, which the loop state writes into the setting after open().
+  private lazy val htmlContentAttrName: String = {
+    checkHtmlContentAttrName()
+    desc.htmlContentAttrName
+  }
+
+  override def open(): Unit = checkHtmlContentAttrName()
+
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
+    Iterator(TupleLike(tuple.getField[Any](htmlContentAttrName)))
+
+  private def checkHtmlContentAttrName(): Unit =
     assert(
       desc.htmlContentAttrName != null && desc.htmlContentAttrName.nonEmpty,
       "HTML content cannot be empty"
     )
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
-    Iterator(TupleLike(tuple.getField[Any](desc.htmlContentAttrName)))
 }
