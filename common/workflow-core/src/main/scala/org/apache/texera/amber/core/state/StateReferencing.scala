@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.state
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 
@@ -30,13 +31,10 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   *
   * Inside a loop block (LoopStart ... LoopEnd) a property whose WHOLE value is `$K` refers to the
   * loop variable `K`, which reaches the operator in the iteration's state message. The
-  * `stateReferences` sidecar records each such property: its JSON pointer -> the variable name.
-  * The parse fills it in for a typed property, which holds a placeholder instead
-  * (`StateReferenceModule`); the compiler adds the string ones inside a loop block and rejects
-  * every entry outside one (`WorkflowCompiler.normalizeStateReferences`). It rides in the
-  * descriptor's JSON to the worker, where each state message writes the variables it names into
-  * the descriptor the executor parsed (`OperatorExecutor.registerState`), and the property panel
-  * never shows it.
+  * `stateReferences` sidecar maps each such property's JSON pointer to the variable name: the
+  * parse records the typed ones (`StateReferenceModule`), the compiler adds the string ones
+  * (`WorkflowCompiler.normalizeStateReferences`), and the worker writes the variables there
+  * (`OperatorExecutor.registerState`). The property panel never shows it.
   */
 trait StateReferencing {
 
@@ -59,29 +57,25 @@ object StateReferencing {
       case _                      => None
     }
 
-  /** Escape one property name as an RFC 6901 pointer segment: `~` -> `~0`, `/` -> `~1`. */
-  def escapePointerSegment(name: String): String =
-    name.replace("~", "~0").replace("/", "~1")
-
   /** Every whole-string `$name` value of `tree` outside its sidecar: its JSON pointer -> name. */
   def literalReferences(tree: ObjectNode): Map[String, String] = {
-    def scan(node: JsonNode, pointer: String): Iterator[(String, String)] =
+    def scan(node: JsonNode, at: JsonPointer): Iterator[(String, String)] =
       if (node.isTextual) {
-        referencedVariable(node.asText()).map(pointer -> _).iterator
+        referencedVariable(node.asText()).map(at.toString -> _).iterator
       } else if (node.isObject) {
         node.fields().asScala.flatMap { entry =>
-          scan(entry.getValue, pointer + "/" + escapePointerSegment(entry.getKey))
+          scan(entry.getValue, at.appendProperty(entry.getKey))
         }
       } else {
         node.elements().asScala.zipWithIndex.flatMap {
-          case (element, i) => scan(element, s"$pointer/$i")
+          case (element, i) => scan(element, at.appendIndex(i))
         }
       }
     tree
       .fields()
       .asScala
       .filter(_.getKey != SIDECAR_PROPERTY)
-      .flatMap(entry => scan(entry.getValue, "/" + escapePointerSegment(entry.getKey)))
+      .flatMap(entry => scan(entry.getValue, JsonPointer.empty().appendProperty(entry.getKey)))
       .toMap
   }
 

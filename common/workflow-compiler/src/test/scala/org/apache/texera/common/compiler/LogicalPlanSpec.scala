@@ -25,6 +25,8 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
+import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
@@ -276,6 +278,106 @@ class LogicalPlanSpec extends AnyFlatSpec {
   it should "return an empty list for a source operator with no inbound links" in {
     val r = richPlan()
     assert(r.plan.getUpstreamLinks(r.csv.operatorIdentifier).isEmpty)
+  }
+
+  // ---------------------------------------------------------------------------
+  // operatorsInsideLoopBlocks: the cases mirror the frontend's `getEnclosingLoopStarts` spec
+  // ---------------------------------------------------------------------------
+
+  private def loopStart(id: String): LogicalOp = named(new LoopStartOpDesc, id)
+  private def loopEnd(id: String): LogicalOp = named(new LoopEndOpDesc, id)
+  private def op(id: String): LogicalOp = named(new LimitOpDesc, id)
+
+  /** The ids of the operators inside a loop block, `edges` as "from" -> "to" ids. */
+  private def inside(operators: List[LogicalOp], edges: (String, String)*): Set[String] =
+    LogicalPlan(
+      operators,
+      edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
+    ).operatorsInsideLoopBlocks.map(_.id)
+
+  "LogicalPlan.operatorsInsideLoopBlocks" should "find nothing unless a LoopStart and a LoopEnd close a block" in {
+    assert(inside(List(op("a"), op("b")), "a" -> "b").isEmpty)
+    assert(inside(List(loopStart("S"), op("a"), op("b")), "S" -> "a", "a" -> "b").isEmpty)
+    assert(inside(List(op("a"), op("b"), loopEnd("E")), "a" -> "b", "b" -> "E").isEmpty)
+  }
+
+  it should "put the body of a straight block inside it, and neither control operator" in {
+    // src -> S -> a -> b -> E -> sink
+    val ops = List(op("src"), loopStart("S"), op("a"), op("b"), loopEnd("E"), op("sink"))
+    val result =
+      inside(ops, "src" -> "S", "S" -> "a", "a" -> "b", "b" -> "E", "E" -> "sink")
+    assert(result == Set("a", "b"))
+  }
+
+  it should "put both branches of a block that branches and converges inside it" in {
+    // S -> a -> E, S -> b -> c -> E
+    val ops = List(loopStart("S"), op("a"), op("b"), op("c"), loopEnd("E"))
+    val result = inside(ops, "S" -> "a", "a" -> "E", "S" -> "b", "b" -> "c", "c" -> "E")
+    assert(result == Set("a", "b", "c"))
+  }
+
+  it should "leave out a dangling branch that never reaches the LoopEnd" in {
+    // S -> a -> E, and S -> d -> e: the block never closes on the path through d and e.
+    val ops = List(loopStart("S"), op("a"), loopEnd("E"), op("d"), op("e"))
+    val result = inside(ops, "S" -> "a", "a" -> "E", "S" -> "d", "d" -> "e")
+    assert(result == Set("a"))
+  }
+
+  it should "leave out a branch that joins the body from outside the block" in {
+    // src2 -> a, where a is in the body of S ... E: src2 reaches E but no LoopStart reaches src2.
+    val ops = List(loopStart("S"), op("a"), loopEnd("E"), op("src2"))
+    val result = inside(ops, "S" -> "a", "a" -> "E", "src2" -> "a")
+    assert(result == Set("a"))
+  }
+
+  it should "put a nested block's LoopStart and LoopEnd inside the outer block, and not the outer ones" in {
+    // S0 -> x -> S1 -> a -> E1 -> y -> E0
+    val ops =
+      List(
+        loopStart("S0"),
+        op("x"),
+        loopStart("S1"),
+        op("a"),
+        loopEnd("E1"),
+        op("y"),
+        loopEnd("E0")
+      )
+    val result =
+      inside(ops, "S0" -> "x", "x" -> "S1", "S1" -> "a", "a" -> "E1", "E1" -> "y", "y" -> "E0")
+    assert(result == Set("x", "S1", "a", "E1", "y"))
+  }
+
+  it should "not count a control operator inside its own block when an outer block is left open" in {
+    // S0 -> x -> S1 -> a -> E1, where no LoopEnd closes S0's block: S1 is only in its own.
+    val openAbove = List(loopStart("S0"), op("x"), loopStart("S1"), op("a"), loopEnd("E1"))
+    assert(inside(openAbove, "S0" -> "x", "x" -> "S1", "S1" -> "a", "a" -> "E1") == Set("a"))
+    // S -> a -> E -> b -> E2, where no LoopStart opens E2's block: E is only in its own.
+    val openBelow = List(loopStart("S"), op("a"), loopEnd("E"), op("b"), loopEnd("E2"))
+    assert(inside(openBelow, "S" -> "a", "a" -> "E", "E" -> "b", "b" -> "E2") == Set("a"))
+  }
+
+  it should "not leak one block into the next when blocks run in sequence" in {
+    // S1 -> a -> E1 -> x -> S2 -> b -> E2: x is in neither block.
+    val ops =
+      List(
+        loopStart("S1"),
+        op("a"),
+        loopEnd("E1"),
+        op("x"),
+        loopStart("S2"),
+        op("b"),
+        loopEnd("E2")
+      )
+    val result =
+      inside(ops, "S1" -> "a", "a" -> "E1", "E1" -> "x", "x" -> "S2", "S2" -> "b", "b" -> "E2")
+    assert(result == Set("a", "b"))
+    // S1 -> a -> E1 -> S2 -> b -> E2: nor are E1 and S2, linked directly.
+    val linked =
+      List(loopStart("S1"), op("a"), loopEnd("E1"), loopStart("S2"), op("b"), loopEnd("E2"))
+    assert(
+      inside(linked, "S1" -> "a", "a" -> "E1", "E1" -> "S2", "S2" -> "b", "b" -> "E2") ==
+        Set("a", "b")
+    )
   }
 
   // ---------------------------------------------------------------------------

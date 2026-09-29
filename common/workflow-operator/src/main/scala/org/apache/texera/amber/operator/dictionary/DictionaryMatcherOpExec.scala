@@ -54,16 +54,8 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
   )
 
   /**
-    * The dictionary is prepared at the first tuple, not here: inside a loop block it may refer to a
-    * loop variable, which the loop state writes into the setting after open(). Reopening prepares
-    * it again.
-    */
-  override def open(): Unit = {
-    dictionaryEntries = null
-  }
-
-  /**
     * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
+    * at the first tuple: inside a loop block the loop state may write the dictionary after open()
     */
   private def prepareDictionary(): Unit = {
     // create the dictionary by splitting the values first

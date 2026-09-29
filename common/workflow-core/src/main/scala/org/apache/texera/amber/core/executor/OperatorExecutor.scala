@@ -54,18 +54,15 @@ trait OperatorExecutor {
   def close(): Unit = {}
 
   /**
-    * The state message most recently handed to this executor, `None` until one arrives; inside a
-    * loop block it carries the iteration's loop variables. The worker registers every message
-    * right before `processState` runs, so the callback and every call after it can consult it.
+    * The state message most recently registered on this executor, `None` until one arrives; inside
+    * a loop block it carries the iteration's loop variables.
     */
   final def state: Option[State] = OperatorExecutor.registrationOf(this).flatMap(_.state)
 
   /**
-    * Registers `state` as this executor's `state`; the worker calls it for every state message,
-    * right before `processState`. When the executor's setting (the descriptor its constructor
-    * parsed from its descString) refers to loop variables, each one the message carries is also
-    * written into that setting, in place, until the executor first sees data or finishes: see
-    * `bindStateReferences`.
+    * The worker calls it for every state message, right before `processState`. Until
+    * `bindStateReferences`, it also writes each loop variable the message carries that the
+    * executor's setting (the descriptor it holds) refers to into that setting, in place.
     */
   final def registerState(state: State): Unit = {
     val registration = OperatorExecutor.registrationFor(this)
@@ -74,10 +71,9 @@ trait OperatorExecutor {
   }
 
   /**
-    * The worker calls it right before this executor first sees data or finishes. It fails, naming
-    * each reference of the setting that no state message could write, and otherwise ends the
-    * writing: a state message after it is still registered and processed, but no longer changes
-    * the setting. A no-op when the setting refers to no loop variable, and once it has succeeded.
+    * The worker calls it right before this executor first sees data. It fails, naming
+    * each reference no state message could write, and otherwise ends the writing: later messages
+    * no longer change the setting.
     */
   final def bindStateReferences(): Unit =
     OperatorExecutor.registrationOf(this).foreach { registration =>
