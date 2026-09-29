@@ -121,7 +121,7 @@ object JSONUtils {
           val absoluteKey = (if (currentParent.nonEmpty) currentParent + "." else "") + key
           if (flatten && (child.isObject || child.isArray)) {
             stack.push((child, absoluteKey))
-          } else if (child.isValueNode) {
+          } else if (child.isValueNode && !child.isNull) {
             result(absoluteKey) = child.asText()
           } else {
             // do nothing
@@ -131,7 +131,7 @@ object JSONUtils {
         for ((child, i) <- current.elements().asScala.zipWithIndex) {
           stack.push((child, currentParent + (i + 1)))
         }
-      } else if (current.isValueNode && currentParent.nonEmpty) {
+      } else if (current.isValueNode && currentParent.nonEmpty && !current.isNull) {
         result(currentParent) = current.asText()
       }
     }
