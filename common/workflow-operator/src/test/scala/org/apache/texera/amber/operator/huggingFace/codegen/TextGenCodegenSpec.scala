@@ -79,9 +79,10 @@ class TextGenCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "degrade instead of raising when a chat response is malformed (#8486)" in {
     // This extraction was fully unguarded: a non-dict body, an empty "choices"
-    // list, or a choice missing "message"/"content" raised, and since parsing
-    // runs per row that aborted the whole run over one bad response. It now
-    // falls back to the raw JSON body, as the other codegens do.
+    // list, or a choice missing "message"/"content" raised. _parse_response
+    // catches KeyError, IndexError and TypeError, but an AttributeError from
+    // indexing a non-dict escapes it and that row reads "Request failed"
+    // instead. It now falls back to the raw JSON body, as the other codegens do.
     val out = TextGenCodegen.parsePython(makeCtx())
     out should include("""content = self._chat_message_content(body)""")
     out should include("if content is not None:")

@@ -103,15 +103,35 @@ class HuggingFaceParseBehaviorSpec extends AnyFlatSpec with Matchers {
     val arr = request.putArray("bodies")
     bodies.foreach(b => arr.add(mapper.readTree(b)))
 
-    val process = new ProcessBuilder(exe, probe.toString).redirectErrorStream(false).start()
-    process.getOutputStream.write(mapper.writeValueAsBytes(request))
-    process.getOutputStream.close()
-    val out = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
-    val err = new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)
-    if (!process.waitFor(60, TimeUnit.SECONDS)) {
-      process.destroyForcibly(); fail("probe timed out")
+    // Redirect to files rather than pipes: reading a pipe blocks until the child
+    // closes it, so a probe that hung would never reach the timeout below, and
+    // waiting first with the output still in a pipe would deadlock instead once
+    // it filled. Files bound neither side, so the timeout is always reached.
+    val outFile = Files.createTempFile("hf_parse_probe_out", ".json")
+    val errFile = Files.createTempFile("hf_parse_probe_err", ".txt")
+    try {
+      val process = new ProcessBuilder(exe, probe.toString)
+        .redirectOutput(outFile.toFile)
+        .redirectError(errFile.toFile)
+        .start()
+      process.getOutputStream.write(mapper.writeValueAsBytes(request))
+      process.getOutputStream.close()
+      if (!process.waitFor(60, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        fail("probe timed out")
+      }
+      val out = new String(Files.readAllBytes(outFile), StandardCharsets.UTF_8)
+      val err = new String(Files.readAllBytes(errFile), StandardCharsets.UTF_8)
+      withClue(s"probe stderr: $err\nprobe stdout: $out\n") { process.exitValue() shouldBe 0 }
+      readResults(out)
+    } finally {
+      Files.deleteIfExists(outFile)
+      Files.deleteIfExists(errFile)
     }
-    withClue(s"probe stderr: $err\nprobe stdout: $out\n") { process.exitValue() shouldBe 0 }
+  }
+
+  /** Turns the probe's JSON into one outcome string per body. */
+  private def readResults(out: String): Seq[String] = {
 
     mapper
       .readTree(out)
@@ -160,12 +180,16 @@ class HuggingFaceParseBehaviorSpec extends AnyFlatSpec with Matchers {
     cases.foreach {
       case (codegen, task) =>
         val outcomes = parseAll(codegen, task, malformed)
-        withClue(s"task=$task ") {
-          outcomes.foreach { outcome =>
-            outcome should not startWith "RAISED:"
-            outcome should not be "RETURNED_NONE"
-            outcome should not startWith "NON_STRING:"
-          }
+        outcomes.zip(malformed).foreach {
+          case (outcome, input) =>
+            withClue(s"task=$task body=$input ") {
+              outcome should not startWith "RAISED:"
+              outcome should not be "RETURNED_NONE"
+              outcome should not startWith "NON_STRING:"
+              // Pin the actual fallback, not merely "some string": the parser must
+              // hand back the body it was given, serialized.
+              mapper.readTree(outcome) shouldBe mapper.readTree(input)
+            }
         }
     }
   }

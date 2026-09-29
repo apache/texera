@@ -263,9 +263,11 @@ object HuggingFaceCodegenBase {
        |    def _chat_message_content(self, body):
        |        '''Return the assistant text from a chat-completions response, or None
        |        when the body is not that shape. Providers differ and malformed 200s
-       |        happen, so every level is type-checked rather than indexed: parsing
-       |        runs once per row, and an exception here aborts the whole run. Callers
-       |        fall back to their native shape, or to json.dumps(body), on None.
+       |        happen, so every level is type-checked rather than indexed: indexing
+       |        a non-dict raises AttributeError, which _parse_response's
+       |        except (KeyError, IndexError, TypeError) does not catch, so that row
+       |        ends up reading "Request failed" instead of the body. Callers fall
+       |        back to their native shape, or to json.dumps(body), on None.
        |        '''
        |        if not isinstance(body, dict):
        |            return None

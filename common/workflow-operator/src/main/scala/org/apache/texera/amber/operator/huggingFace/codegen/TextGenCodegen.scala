@@ -28,9 +28,9 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   * (Cerebras, Groq, Sambanova, Together, …) accepts.
   *
   * The parse step pulls `body["choices"][0]["message"]["content"]` out of
-  * the response, degrading to the raw JSON body when a provider returns a
-  * shape that does not carry it — parsing runs per row, so raising here
-  * would abort the whole run over one malformed response.
+  * the response, degrading to raw JSON when a provider returns a shape that
+  * does not carry readable text. This keeps the result column string-valued
+  * for malformed or non-string chat content.
   */
 object TextGenCodegen extends TaskCodegen {
 

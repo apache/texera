@@ -121,10 +121,10 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "degrade instead of raising when a chat response is malformed (#8486)" in {
-    // parsePython runs per row, so indexing straight into
-    // choices[0]["message"]["content"] turned one malformed provider response
-    // into an aborted run: an empty "choices" list raises IndexError and a
-    // choice missing "message"/"content" raises KeyError. All three chat
+    // Indexing straight into choices[0]["message"]["content"] raises on a
+    // malformed provider response. _parse_response catches KeyError, IndexError
+    // and TypeError, but an AttributeError from indexing a non-dict escapes it
+    // and that row's cell becomes "Request failed" instead. All three chat
     // extractions now use a truthiness guard plus .get chaining, matching the
     // native shapes beside them, which already degrade via json.dumps(body).
     val out = QaRankingCodegen.parsePython(makeCtx())
