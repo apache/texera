@@ -498,16 +498,22 @@ export class TexeraAgent {
   }
 
   async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
+    // State flips synchronously, before the first await below, so a second
+    // prompt arriving while this one is mid-flight (e.g. during
+    // refreshWorkflowFromBackend) sees GENERATING and is rejected instead of
+    // interleaving with this run's head/abortController/currentMessageId (#8711).
+    if (this.state !== AgentStateEnum.AVAILABLE) {
+      throw new Error("Agent is busy processing another message");
+    }
+    this.state = AgentStateEnum.GENERATING;
+    this.abortController = new AbortController();
+
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
 
-    await this.refreshWorkflowFromBackend();
-
-    this.abortController = new AbortController();
-
-    this.state = AgentStateEnum.GENERATING;
-
     this.currentMessageId = messageId;
+
+    await this.refreshWorkflowFromBackend();
 
     try {
       let beforeStepContent = this.workflowState.getWorkflowContent();

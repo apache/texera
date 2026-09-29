@@ -817,6 +817,32 @@ describe("sendMessage", () => {
     expect(observed).toEqual([AgentState.GENERATING]);
     expect(agent.getState()).toBe(AgentState.AVAILABLE);
   });
+
+  test("a second sendMessage while one is in flight is rejected, not interleaved (#8711)", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        await gate;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const first = agent.sendMessage("first");
+    await new Promise(r => setTimeout(r, 5));
+
+    expect(agent.getState()).toBe(AgentState.GENERATING);
+    await expect(agent.sendMessage("second")).rejects.toThrow("busy");
+
+    release();
+    await first;
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+  });
 });
 
 /**
