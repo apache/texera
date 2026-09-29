@@ -181,7 +181,18 @@ class LargeBinaryOutputStream(IOBase):
         # Write data in chunks
         data = bytes(b)
         for offset in range(0, len(data), _CHUNK_SIZE):
-            self._queue.put(data[offset : offset + _CHUNK_SIZE], block=True)
+            chunk = data[offset : offset + _CHUNK_SIZE]
+            while True:
+                try:
+                    self._queue.put(chunk, timeout=_QUEUE_TIMEOUT)
+                    break
+                except queue.Full:
+                    with self._lock:
+                        exception = self._upload_exception
+                    if exception is not None:
+                        raise IOError(
+                            f"Background upload failed: {exception}"
+                        ) from exception
 
         return len(data)
 
@@ -221,7 +232,12 @@ class LargeBinaryOutputStream(IOBase):
         try:
             # Signal EOF to upload thread and wait for completion
             if self._upload_thread is not None:
-                self._queue.put(None, block=True)  # EOF marker
+                while not self._upload_complete.is_set():
+                    try:
+                        self._queue.put(None, timeout=_QUEUE_TIMEOUT)
+                        break
+                    except queue.Full:
+                        pass
                 self._upload_thread.join()
                 self._upload_complete.wait()
 
