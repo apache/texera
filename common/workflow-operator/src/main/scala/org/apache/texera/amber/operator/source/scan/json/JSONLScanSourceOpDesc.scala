@@ -99,6 +99,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // parsed below, the way it parses them, once the frame holds them: under
     // flattening a nested value is no column until the flattening builds it.
     readArgs += "convert_dates=False"
+    // read_json's default float parser can land one ulp off the value the text
+    // spells, where Jackson's parse is exact: 1.0000000000000002 reads as 1.0,
+    // and a filter on v > 1 then drops a row the workflow keeps.
+    readArgs += "precise_float=True"
 
     val readExpr = s"pd.read_json(${readArgs.mkString(", ")})"
     // json_normalize opens a nested object and leaves a nested array whole, so
