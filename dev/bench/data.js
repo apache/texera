@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790600922103,
+  "lastUpdate": 1790687946756,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -16121,6 +16121,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 520.4846187909044,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Martin Vu",
+            "username": "VuMartin",
+            "email": "127065329+VuMartin@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "acc6dd1139d936d849e2aaa6abb288f8ef3e98ad",
+          "message": "refactor(test): extract shared DB provisioning helper (#8457)\n\n### What changes were proposed in this PR?\n\nExtract the shared test database provisioning logic from\n`TestUtils.initiateTexeraDBForTestCases` and\n`MockTexeraDB.initializeDBAndReplaceDSLContext` into a reusable\n`MockTexeraDB.createTestDatabase` helper.\n\nThe helper centralizes the creation of an isolated test database and\nexecution of the cached DDL script, while preserving the existing\ndatabase naming and connection/resource lifecycle behavior.\n\n### Any related issues, documentation, discussions?\n\nCloses #6421\n\n### How was this PR tested?\n\n- Ran `DAO / test` successfully.\n- Ran `PauseSpec` successfully.\n- Ran `ReconfigurationSpec` successfully.\n- Ran `DataProcessingSpec` successfully.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: ChatGPT (5.5 mini)\n\n---------\n\nSigned-off-by: Martin Vu <127065329+VuMartin@users.noreply.github.com>",
+          "timestamp": "2026-09-28T22:08:03Z",
+          "url": "https://github.com/apache/texera/commit/acc6dd1139d936d849e2aaa6abb288f8ef3e98ad"
+        },
+        "date": 1790687946382,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 677.8445349880102,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1276.8897174582567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1395.6372167114973,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 909.4735237755674,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1331.9938499483656,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1393.1885991884317,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 933.5353135939037,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1339.4454794258181,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1405.564989751066,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 788.3336620395648,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1058.8790497726989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1105.3021848432045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 813.9566055892772,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1063.4469280124686,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1106.5847353236386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 789.4112053258517,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1062.606525849288,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1082.403544073425,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 476.3879000700434,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 571.0965934030694,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 589.2326812063328,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 485.5123241426357,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 572.0846248530254,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 578.3556351749959,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 466.9438266226365,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 552.4416309707743,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 557.3711131490078,
             "unit": "tuples/sec"
           }
         ]
