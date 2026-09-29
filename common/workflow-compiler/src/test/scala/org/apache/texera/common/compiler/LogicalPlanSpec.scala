@@ -347,6 +347,15 @@ class LogicalPlanSpec extends AnyFlatSpec {
     assert(result == Set("x", "S1", "a", "E1", "y"))
   }
 
+  it should "not count a control operator inside its own block when an outer block is left open" in {
+    // S0 -> x -> S1 -> a -> E1, where no LoopEnd closes S0's block: S1 is only in its own.
+    val openAbove = List(loopStart("S0"), op("x"), loopStart("S1"), op("a"), loopEnd("E1"))
+    assert(inside(openAbove, "S0" -> "x", "x" -> "S1", "S1" -> "a", "a" -> "E1") == Set("a"))
+    // S -> a -> E -> b -> E2, where no LoopStart opens E2's block: E is only in its own.
+    val openBelow = List(loopStart("S"), op("a"), loopEnd("E"), op("b"), loopEnd("E2"))
+    assert(inside(openBelow, "S" -> "a", "a" -> "E", "E" -> "b", "b" -> "E2") == Set("a"))
+  }
+
   it should "not leak one block into the next when blocks run in sequence" in {
     // S1 -> a -> E1 -> x -> S2 -> b -> E2: x is in neither block.
     val ops =

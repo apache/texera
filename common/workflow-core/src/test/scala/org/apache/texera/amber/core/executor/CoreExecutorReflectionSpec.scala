@@ -294,13 +294,22 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
     }
   }
 
-  it should "find the setting in a field its superclass declares, however many fields hold it" in {
+  it should "find the setting in a field its superclass declares" in {
     val exec = ExecFactory.newExecFromJavaClassName(
       classOf[CoreExecutorReflectionSpec.InheritedLimitExec].getName,
       referencingDesc
     )
     exec.registerState(State(Map[String, Any]("n" -> 3L)))
-    assert(exec.asInstanceOf[CoreExecutorReflectionSpec.InheritedLimitExec].alias.limit == 3)
+    assert(exec.asInstanceOf[CoreExecutorReflectionSpec.InheritedLimitExec].setting.limit == 3)
+  }
+
+  it should "count a setting held in more than one field once" in {
+    val exec = ExecFactory.newExecFromJavaClassName(
+      classOf[CoreExecutorReflectionSpec.AliasedLimitExec].getName,
+      referencingDesc
+    )
+    exec.registerState(State(Map[String, Any]("n" -> 3L)))
+    assert(exec.asInstanceOf[CoreExecutorReflectionSpec.AliasedLimitExec].alias.limit == 3)
   }
 
   it should "refuse, naming the operator, when it holds no setting or more than one" in {
@@ -475,10 +484,20 @@ private object CoreExecutorReflectionSpec {
     ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
-  /** Parses its descString twice, so it has two candidate settings. */
+  /** Equal to every setting of its class with the same limit, as a descriptor's equals is. */
+  class EqualLimitSetting extends LimitSetting {
+    override def equals(other: Any): Boolean =
+      other match {
+        case that: EqualLimitSetting => that.limit == limit
+        case _                       => false
+      }
+    override def hashCode(): Int = limit
+  }
+
+  /** Parses its descString twice, so it has two candidate settings, equal but not the same. */
   class TwoSettingsExec(descString: String) extends OperatorExecutor {
-    val first: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
-    val second: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
+    val first: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
+    val second: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
     override def processTuple(
         tuple: org.apache.texera.amber.core.tuple.Tuple,
         port: Int
@@ -493,8 +512,11 @@ private object CoreExecutorReflectionSpec {
     ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
   }
 
+  /** Its setting is declared only in its superclass. */
+  class InheritedLimitExec(descString: String) extends LimitExecBase(descString)
+
   /** Its setting is declared in its superclass, and held once more under another name. */
-  class InheritedLimitExec(descString: String) extends LimitExecBase(descString) {
+  class AliasedLimitExec(descString: String) extends LimitExecBase(descString) {
     val alias: LimitSetting = setting
   }
 

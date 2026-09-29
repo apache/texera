@@ -30,6 +30,8 @@ import io.dropwizard.jetty.MutableServletContextHandler
 import io.dropwizard.jetty.setup.ServletEnvironment
 import jakarta.servlet.{DispatcherType, Filter, FilterChain}
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.WorkflowCompilingServiceRunSpec.SpecPayload
 import org.apache.texera.service.resource.{
@@ -271,6 +273,16 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
     json shouldBe """{"operatorId":"op-1","outputSchemas":{"port0":[1,2],"port1":null}}"""
     // Reading, too: this is also the mapper Dropwizard parses the YAML configuration with.
     mapper.readValue(json, classOf[SpecPayload]) shouldBe payload
+  }
+
+  it should "register the loop-variable module on Dropwizard's object mapper, so a typed '$n' parses" in {
+    // Jersey parses the editor's POST /compile body with this mapper, not JSONUtils'. Without the
+    // module, the "$n" the frontend sends for Limit's Int property is a Jackson error.
+    val limit = initializedBootstrap().getObjectMapper
+      .readValue("""{"limit":"$n","operatorType":"Limit"}""", classOf[LogicalOp])
+    limit shouldBe a[LimitOpDesc]
+    limit.asInstanceOf[LimitOpDesc].limit shouldBe 0
+    limit.stateReferences shouldBe Map("/limit" -> "n")
   }
 }
 

@@ -129,14 +129,15 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
   }
 
   it should "report a sidecar pointer that names no value of the setting at binding" in {
-    Seq("/nothing", "/tags/5", "/predicates", "/predicates/1", "/stateReferences/x", "").foreach {
-      pointer =>
+    // "limit" is not a JSON pointer at all: it does not start with "/".
+    Seq("/nothing", "/tags/5", "/predicates", "/predicates/1", "/stateReferences/x", "", "limit")
+      .foreach { pointer =>
         assert(
           bindOneFails(pointer, 1) == s"property $pointer refers to loop variable k, but " +
             s"${classOf[SettingExec].getName} parsed a setting with no value there",
           pointer
         )
-    }
+      }
   }
 
   // ---------------------------------------------------------------------------

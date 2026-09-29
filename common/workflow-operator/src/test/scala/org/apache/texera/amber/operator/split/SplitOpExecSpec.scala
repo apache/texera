@@ -135,6 +135,15 @@ class SplitOpExecSpec extends AnyFlatSpec {
     assert(exec.random == null)
   }
 
+  "SplitOpExec.open" should "reseed, so a reopened executor repeats its sequence" in {
+    val exec = new SplitOpExec(descJson(k = 50, seed = 7))
+    exec.open()
+    val first = emittedPorts(exec, 100)
+    exec.open()
+    assert(emittedPorts(exec, 100) == first)
+    exec.close()
+  }
+
   // ---------------------------------------------------------------------------
   // Inside a loop block: the setting is written after open()
   // ---------------------------------------------------------------------------

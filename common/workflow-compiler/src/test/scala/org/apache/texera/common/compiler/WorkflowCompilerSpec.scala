@@ -971,8 +971,31 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
 
     assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
-    val (_, descString) = executorInit(result, filter)
+    val (className, descString) = executorInit(result, filter)
     assert(sidecarOf(descString) == Map("/predicates/0/value" -> "i"))
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.open()
+    exec.registerState(State(Map("i" -> 1L)))
+    exec.bindStateReferences()
+    assert(exec.processTuple(line("1"), 0).toList == List(line("1")))
+    assert(exec.processTuple(line("$i"), 0).isEmpty)
+  }
+
+  it should "accept a reference on an operator inside a loop block fed by another operator of the block" in {
+    // LoopStart -> Projection -> Limit("$n") -> LoopEnd: the state reaches Limit through Projection.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val project = projectOp(List("line"))
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, start, project, limit, end), chain(src, start, project, limit, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, limit)
+    assert(sidecarOf(descString) == Map("/limit" -> "n"))
   }
 
   it should "report a reference inside a loop block on an operator whose code is generated" in {
