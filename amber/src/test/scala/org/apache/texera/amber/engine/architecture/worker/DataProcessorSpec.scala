@@ -19,8 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.worker
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.state.State
+import com.fasterxml.jackson.annotation.JsonProperty
+import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OperatorExecutor}
+import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity._
 import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
@@ -30,14 +31,18 @@ import org.apache.texera.amber.engine.architecture.logreplay.{ReplayLogManager, 
 import org.apache.texera.amber.engine.architecture.messaginglayer.WorkerTimerService
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
+  ConsoleMessageTriggeredRequest,
   EmbeddedControlMessage,
   EmbeddedControlMessageType,
-  EmptyRequest
+  EmptyRequest,
+  InitializeExecutorRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
   METHOD_END_CHANNEL,
   METHOD_FLUSH_NETWORK_BUFFER,
-  METHOD_OPEN_EXECUTOR
+  METHOD_INITIALIZE_EXECUTOR,
+  METHOD_OPEN_EXECUTOR,
+  METHOD_START_CHANNEL
 }
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
@@ -52,6 +57,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -59,8 +65,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable.ArrayBuffer
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with BeforeAndAfterEach {
+
+  import DataProcessorSpec._
+
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")
   private val testWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
@@ -429,6 +439,199 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     dp.pauseManager.isPaused shouldBe true
   }
 
+  // ---------------------------------------------------------------------------
+  // An operator whose setting refers to a loop variable
+  // ---------------------------------------------------------------------------
+
+  private val senderChannel = ChannelIdentity(senderWorkerId, testWorkerId, isControl = false)
+  private val coordinatorChannel = ChannelIdentity(COORDINATOR, testWorkerId, isControl = true)
+
+  private val startChannelPayload = EmbeddedControlMessage(
+    EmbeddedControlMessageIdentity("StartChannel"),
+    EmbeddedControlMessageType.NO_ALIGNMENT,
+    Seq(),
+    Map(
+      testWorkerId.name ->
+        ControlInvocation(
+          METHOD_START_CHANNEL.getBareMethodName,
+          EmptyRequest(),
+          AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+          -1
+        )
+    )
+  )
+
+  /**
+    * A data processor whose executor is initialized the way the coordinator initializes a worker,
+    * from `descString` for `LoopLimitExec`, with everything the worker sends collected.
+    */
+  private def initializedWith(
+      descString: String
+  ): (DataProcessor, LoopLimitExec, ArrayBuffer[WorkflowFIFOMessage]) = {
+    val dp = mkDataProcessor
+    val sent = ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(sent += _); ()
+      }
+      .anyNumberOfTimes()
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    dp.stateManager.transitTo(READY)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway.getChannel(senderChannel).setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    dp.processDCM(
+      coordinatorChannel,
+      ControlInvocation(
+        METHOD_INITIALIZE_EXECUTOR,
+        InitializeExecutorRequest(
+          totalWorkerCount = 1,
+          opExecInitInfo = OpExecWithClassName(classOf[LoopLimitExec].getName, descString),
+          isSource = false,
+          loopStartPortUris = Map.empty
+        ),
+        AsyncRPCContext(COORDINATOR, testWorkerId),
+        0
+      )
+    )
+    (dp, dp.executor.asInstanceOf[LoopLimitExec], sent)
+  }
+
+  private def openExecutor(dp: DataProcessor): Unit =
+    dp.processDCM(
+      coordinatorChannel,
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(COORDINATOR, testWorkerId),
+        1
+      )
+    )
+
+  private def drain(dp: DataProcessor): Unit =
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
+      dp.continueDataProcessing()
+    }
+
+  private def statesSent(sent: ArrayBuffer[WorkflowFIFOMessage]): List[State] =
+    sent.map(_.payload).collect { case StateFrame(state, _, _) => state }.toList
+
+  private def tuplesSent(sent: ArrayBuffer[WorkflowFIFOMessage]): List[Tuple] =
+    sent.map(_.payload).collect { case DataFrame(frame) => frame.toList }.flatten.toList
+
+  private def consoleTitles(sent: ArrayBuffer[WorkflowFIFOMessage]): List[String] =
+    sent
+      .map(_.payload)
+      .collect {
+        case invocation: org.apache.texera.amber.engine.architecture.rpc.controlcommands.ControlInvocation =>
+          invocation.command
+      }
+      .collect { case request: ConsoleMessageTriggeredRequest => request.consoleMessage.title }
+      .toList
+
+  private val limitReferringToN = """{"limit":0,"stateReferences":{"/limit":"n"}}"""
+
+  "data processor" should "run an operator whose setting refers to a loop variable as any other, the variable written in as the state arrives" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    // The operator's own executor, built at worker start from the descString with its placeholder.
+    assert(exec.setting.limit == 0)
+
+    openExecutor(dp)
+    dp.processECM(senderChannel, startChannelPayload, logManager)
+    val first = State(Map("n" -> 2L))
+    dp.processDataPayload(senderChannel, StateFrame(first))
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
+    drain(dp)
+    val later = State(Map("n" -> 9L))
+    dp.processDataPayload(senderChannel, StateFrame(later))
+
+    // open() at worker start, before any state; produceStateOnStart on the operator itself, still
+    // with the placeholder; then its own processState, with the message registered and the
+    // variable written just before. A state after the first tuple is still registered and
+    // processed, but the setting keeps what the first tuple was processed with.
+    assert(
+      exec.calls.toList == List(
+        ("open", 0, None),
+        ("start", 0, None),
+        ("state", 2, Some(first)),
+        ("state", 2, Some(later))
+      )
+    )
+    // What the worker sends on is what the operator returned for each callback.
+    assert(
+      statesSent(sent) == List(
+        State(Map("start" -> 0)),
+        State(Map("seen" -> 2L, "limit" -> 2)),
+        State(Map("seen" -> 9L, "limit" -> 2))
+      )
+    )
+    assert(tuplesSent(sent) == tuples.take(2).toList)
+    assert(consoleTitles(sent).isEmpty)
+    assert(!dp.pauseManager.isPaused)
+  }
+
+  "data processor" should "fail the first tuple of an operator whose setting refers to a loop variable no state message carried" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    openExecutor(dp)
+
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(1)))
+
+    // The operator never sees the tuple: it would be processed with the placeholder.
+    assert(exec.tuplesSeen == 0)
+    assert(
+      consoleTitles(sent) == List(
+        new IllegalStateException(
+          "property /limit refers to loop variable n, but no state message carried it"
+        ).toString
+      )
+    )
+    dp.pauseManager.isPaused shouldBe true
+  }
+
+  "data processor" should "bind the references of an executor that replaces one already bound" in {
+    // Reconfiguration and checkpoint restore install a new executor: its references are its own.
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    openExecutor(dp)
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(1)))
+    drain(dp)
+    assert(exec.tuplesSeen == 1)
+
+    val replacement = ExecFactory
+      .newExecFromJavaClassName(classOf[LoopLimitExec].getName, limitReferringToN)
+      .asInstanceOf[LoopLimitExec]
+    dp.executor = replacement
+    dp.processDataPayload(senderChannel, DataFrame(tuples.slice(1, 2)))
+
+    assert(replacement.tuplesSeen == 0)
+    assert(
+      consoleTitles(sent) == List(
+        new IllegalStateException(
+          "property /limit refers to loop variable n, but no state message carried it"
+        ).toString
+      )
+    )
+  }
+
+  "data processor" should "leave the setting of an operator outside every loop block as it was parsed" in {
+    // Outside every block the sidecar is empty: a state carrying `n` writes nothing.
+    val (dp, exec, sent) = initializedWith("""{"limit":1}""")
+    openExecutor(dp)
+    val state = State(Map("n" -> 2L))
+    dp.processDataPayload(senderChannel, StateFrame(state))
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(3)))
+    drain(dp)
+
+    assert(exec.calls.toList == List(("open", 1, None), ("state", 1, Some(state))))
+    assert(statesSent(sent) == List(State(Map("seen" -> 2L, "limit" -> 1))))
+    assert(tuplesSent(sent) == tuples.take(1).toList)
+  }
+
   "data processor" should "handle an exception thrown while advancing the output iterator" in {
     val dp = mkDataProcessor
     dp.executor = executor
@@ -458,4 +661,42 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     dp.outputManager.hasUnfinishedOutput shouldBe false
   }
 
+}
+
+object DataProcessorSpec {
+
+  /** A setting with one Int property, as Limit's. */
+  class LimitSetting extends StateReferencing {
+    @JsonProperty var limit: Int = _
+  }
+
+  /**
+    * Passes the first `limit` tuples, as Limit does, and records each callback the worker makes with
+    * the limit and the registered state at that moment. Public, for the factory's reflection.
+    */
+  class LoopLimitExec(descString: String) extends OperatorExecutor {
+    val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
+    val calls: ArrayBuffer[(String, Int, Option[State])] = ArrayBuffer()
+    var tuplesSeen = 0
+
+    private def record(call: String): Unit = calls += ((call, setting.limit, state))
+
+    override def open(): Unit = record("open")
+
+    override def produceStateOnStart(port: Int): Option[State] = {
+      record("start")
+      Some(State(Map("start" -> setting.limit)))
+    }
+
+    // Transforms the state, so what the worker sends on shows whose return value it is.
+    override def processState(incoming: State, port: Int): Option[State] = {
+      record("state")
+      Some(State(Map("seen" -> incoming.values("n"), "limit" -> setting.limit)))
+    }
+
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+      tuplesSeen += 1
+      if (tuplesSeen <= setting.limit) Iterator.single(tuple) else Iterator.empty
+    }
+  }
 }

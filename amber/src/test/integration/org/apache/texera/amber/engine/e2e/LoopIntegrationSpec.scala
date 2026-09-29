@@ -355,10 +355,10 @@ class LoopIntegrationSpec
     // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Filter(line = $i) -> LoopEnd.
     //
     // The Filter's predicate value is the literal string "$i". The Filter sits inside the
-    // block, so the compiler records "$i" in its sidecar, and ExecFactory hands the
-    // worker a LateBoundExecutor, which binds "$i" to the iteration's `i` when the LoopStart's
-    // state message arrives -- the region's input reader replays states before tuples -- and
-    // only then instantiates the real Filter. Iteration i emits the single row
+    // block, so the compiler records "$i" in its sidecar, and the worker writes the
+    // iteration's `i` into the predicate the Filter's executor parsed when the LoopStart's
+    // state message arrives -- the region's input reader replays states before tuples -- so
+    // the Filter's first tuple already compares against it. Iteration i emits the single row
     // "i" and the Filter compares it against i, so every iteration's row passes and the
     // LoopEnd accumulates 3 rows. A constant "0" instead of "$i" would pass only the first
     // iteration's row and give 1; a reference that never rebinds to the new i would too.

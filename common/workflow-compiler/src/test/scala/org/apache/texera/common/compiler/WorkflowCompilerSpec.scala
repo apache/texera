@@ -26,12 +26,7 @@ import org.apache.texera.common.compiler.WorkflowCompilerSpec.{
   RatioWritingPyOp
 }
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.executor.{
-  ExecFactory,
-  LateBoundExecutor,
-  OpExecWithClassName,
-  OpExecWithCode
-}
+import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OpExecWithCode}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
@@ -43,7 +38,7 @@ import org.apache.texera.amber.operator.filter.{
   SpecializedFilterOpDesc,
   SpecializedFilterOpExec
 }
-import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.limit.{LimitOpDesc, LimitOpExec}
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
@@ -923,7 +918,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
   private def line(text: String): Tuple = row("line", text)
 
-  "WorkflowCompiler" should "late-bind a frontend '$n' in Limit's Int property inside a loop block, end to end" in {
+  "WorkflowCompiler" should "bind a frontend '$n' in Limit's Int property inside a loop block when the state arrives, end to end" in {
     // TextInput -> LoopStart -> Limit("$n") -> LoopEnd, the Limit parsed as the frontend sends it.
     val src = textInputOp("0\n1")
     val start = loopStartOp()
@@ -937,12 +932,25 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
     val (className, descString) = executorInit(result, limit)
     assert(sidecarOf(descString) == Map("/limit" -> "n"))
+    // Driven the way the worker drives it: Limit's own executor, opened before any state, each
+    // state message registered right before processState, and the binding ended by the first tuple.
     val exec = ExecFactory.newExecFromJavaClassName(className, descString)
-    assert(exec.isInstanceOf[LateBoundExecutor])
+    assert(exec.isInstanceOf[LimitOpExec])
     exec.open()
-    exec.processState(State(Map("n" -> 2L)), 0)
+    val state = State(Map("n" -> 2L))
+    exec.registerState(state)
+    assert(exec.processState(state, 0).contains(state))
+    exec.bindStateReferences()
     val passed = (1 to 5).flatMap(i => exec.processTuple(line(i.toString), 0))
     assert(passed.size == 2)
+
+    // A tuple ahead of every state message finds the variable unwritten.
+    val early = ExecFactory.newExecFromJavaClassName(className, descString)
+    early.open()
+    assert(
+      intercept[IllegalStateException](early.bindStateReferences()).getMessage ==
+        "property /limit refers to loop variable n, but no state message carried it"
+    )
   }
 
   it should "keep a '$AAPL' on a Filter outside every loop block the literal it is on main" in {
@@ -961,6 +969,9 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val exec = ExecFactory.newExecFromJavaClassName(className, descString)
     assert(exec.isInstanceOf[SpecializedFilterOpExec])
     exec.open()
+    // A state carrying a variable of that name writes nothing into the setting.
+    exec.registerState(State(Map("AAPL" -> "Asia")))
+    exec.bindStateReferences()
     assert(exec.processTuple(row("Region", "$AAPL"), 0).toList == List(row("Region", "$AAPL")))
     assert(exec.processTuple(row("Region", "Asia"), 0).isEmpty)
   }
@@ -997,7 +1008,9 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val (className, descString) = executorInit(result, filter)
     assert(sidecarOf(descString) == Map("/predicates/0/value" -> "i"))
     val exec = ExecFactory.newExecFromJavaClassName(className, descString)
-    exec.processState(State(Map("i" -> 1L)), 0)
+    exec.open()
+    exec.registerState(State(Map("i" -> 1L)))
+    exec.bindStateReferences()
     assert(exec.processTuple(line("1"), 0).toList == List(line("1")))
     assert(exec.processTuple(line("$i"), 0).isEmpty)
   }
@@ -1767,7 +1780,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
   }
 
-  it should "late-bind an operator inside a loop block whose input from outside waits for one from inside" in {
+  it should "accept a reference on an operator inside a loop block whose input from outside waits for one from inside" in {
     val outside = textInputOp("0")
     val src = textInputOp("0\n1")
     val start = loopStartOp()

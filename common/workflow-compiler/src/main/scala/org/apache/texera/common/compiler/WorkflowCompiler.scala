@@ -86,7 +86,7 @@ object WorkflowCompiler {
   /**
     * Make `logicalOp`'s `stateReferences` sidecar final, now that its place in the plan is known.
     * This runs before the operator's physical plan is built: the descriptor serializes the sidecar
-    * into its executor's descString there, and the worker binds exactly what it names.
+    * into its executor's descString there, and the worker writes exactly what it names.
     *
     * Inside a loop block the sidecar also gets every whole-string `$name` value of the operator's
     * JSON (`StateReferencing.literalReferences`), next to the typed placeholders the parse put in;
@@ -125,11 +125,13 @@ object WorkflowCompiler {
     }
 
   /**
-    * An operator inside a loop block binds its references once the loop state has arrived (see
-    * `LateBoundExecutor`), so a tuple that reaches it earlier cannot be processed. The state comes
-    * ahead of the tuples on a link from a LoopStart or from another operator inside a block, but
-    * not on one from outside every block. An input with such a link is an error, unless the
-    * operator reads it only after an input whose links all carry the state (a join's probe input).
+    * An operator inside a loop block has the loop variables written into its setting as the loop
+    * state arrives, and its first tuple fails on one that has not arrived (see
+    * `OperatorExecutor.bindStateReferences`), so a tuple that reaches it earlier cannot be
+    * processed. The state comes ahead of the tuples on a link from a LoopStart or from another
+    * operator inside a block, but not on one from outside every block. An input with such a link
+    * is an error, unless the operator reads it only after an input whose links all carry the state
+    * (a join's probe input).
     */
   private def inputsAheadOfLoopState(
       logicalOp: LogicalOp,
@@ -165,10 +167,11 @@ object WorkflowCompiler {
     }
 
   /**
-    * A reference is bound by the late-bound executor that `ExecFactory` builds from the
-    * descriptor's JSON. An operator whose executor runs code instead -- a UDF, or a descriptor
-    * that generates Python from its properties, such as the sklearn operators -- never takes that
-    * path: its code is built before the loop runs. A UDF's code and properties are the user's, and
+    * A reference is bound in the executor that `ExecFactory` builds from the descriptor's JSON: the
+    * state message writes the loop variable into the descriptor that executor parsed. An operator
+    * whose executor runs code instead -- a UDF, or a descriptor that generates Python from its
+    * properties, such as the sklearn operators -- never takes that path: its code is built before
+    * the loop runs. A UDF's code and properties are the user's, and
     * nothing binds them. A numeric or boolean property's value is read from the loop state where
     * the descriptor finds it written into its code, and `PythonOperatorDescriptor`'s
     * `loopVariableBinding` says why when it cannot be. A String property's `$name` is bound only
