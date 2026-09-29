@@ -85,10 +85,6 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         if len(self.buffer) >= self.buffer_size:
             self._flush_buffer()
 
-    def remove_one(self, item: T) -> None:
-        """Remove a single item from the buffer."""
-        self.buffer.remove(item)
-
     def _flush_buffer(self) -> None:
         """
         Flush the current buffer to a new Iceberg data file. The buffer is first
