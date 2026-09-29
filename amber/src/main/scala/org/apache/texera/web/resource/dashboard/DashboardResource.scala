@@ -66,7 +66,7 @@ object DashboardResource {
    * @param modelIds          A list of model IDs to include in the search results.
    * @param offset            The number of initial results to skip. This is useful for implementing pagination.
    * @param count             The maximum number of results to return.
-   * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
+   * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeAsc', 'CreateTimeDesc', 'EditTimeAsc', 'EditTimeDesc', 'ExecutionTimeAsc', and 'ExecutionTimeDesc'.
    */
   case class SearchQueryParams(
       @QueryParam("query") keywords: java.util.List[String] = new util.ArrayList[String](),
@@ -152,28 +152,23 @@ object DashboardResource {
     searchQueryParams.orderBy match {
       case pattern(column, order) =>
         val field = getColumnField(column)
-        field match {
-          case Some(value) =>
-            List(order match {
-              case "Asc"  => value.asc()
-              case "Desc" => value.desc().nullsLast()
-            })
-          case None => List()
-        }
-      case _ => List() // Default case if the orderBy string doesn't match the pattern
+        List(order match {
+          case "Asc"  => field.asc()
+          case "Desc" => field.desc().nullsLast()
+        })
+      case _ => throw new BadRequestException(s"Unknown orderBy: ${searchQueryParams.orderBy}")
     }
   }
 
-  // Helper method to map column names to actual database fields based on resource type
-  private def getColumnField(columnName: String): Option[Field[_]] = {
-    Option(columnName match {
+  // Maps an order-column name from the orderBy grammar to its unified-schema field.
+  private def getColumnField(columnName: String): Field[_] =
+    columnName match {
       case "Name"          => UnifiedResourceSchema.resourceNameField
       case "CreateTime"    => UnifiedResourceSchema.resourceCreationTimeField
       case "EditTime"      => UnifiedResourceSchema.resourceLastModifiedTimeField
       case "ExecutionTime" => UnifiedResourceSchema.resourceExecutionTimeField
-      case _               => null // Default case for unmatched resource types or column names
-    })
-  }
+      case _               => throw new IllegalStateException(s"Unknown order column: $columnName")
+    }
 
 }
 
