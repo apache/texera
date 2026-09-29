@@ -269,6 +269,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
   formatCount = formatCount;
 
+  formatViewCount(count: number): string {
+    return this.displayPreciseViewCount ? count.toString() : formatCount(count);
+  }
+
   changeViewDisplayStyle() {
     this.displayPreciseViewCount = !this.displayPreciseViewCount;
   }
