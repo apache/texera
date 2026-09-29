@@ -287,7 +287,7 @@ object PythonOperatorDescriptor {
   /**
     * The call through which generated code reads loop variable `name` as a value of `kind`
     * (`integer`, `number` or `boolean`): pyamber's `Operator.loop_variable_value` answers it from
-    * the iteration's state message, converting it as the JVM's `LateBoundExecutor` does.
+    * the iteration's state message, converting it as the JVM's `StateReferenceBinding` does.
     */
   def loopVariableValueLookup(name: String, kind: String): String =
     s"self.loop_variable_value('$name', '$kind')"

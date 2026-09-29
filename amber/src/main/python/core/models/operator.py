@@ -91,7 +91,7 @@ class Operator(ABC):
         block, the code generated for an operator calls this where a text
         property holds ``$name``, in place of decoding the literal, so the
         value is read when the code runs. It is spelled as a JVM operator's
-        text property binds it (``LateBoundExecutor``): a boolean as ``true``
+        text property binds it (``StateReferenceBinding``): a boolean as ``true``
         or ``false``, and only a scalar at all.
 
         :param name: str, the loop variable's name, without the leading ``$``.
@@ -123,7 +123,7 @@ class Operator(ABC):
         an operator calls this where a numeric or boolean property holds
         ``$name``, in place of the value written into the code, so the value is
         read when the code runs. It is converted as a JVM operator's numeric or
-        boolean property binds it (``LateBoundExecutor``), from its text: an
+        boolean property binds it (``StateReferenceBinding``), from its text: an
         integer must be integral and fit a signed 64-bit long, a number is any
         numeral, and a boolean is ``true`` or ``false`` in any case, never ``1``
         or ``0``.
@@ -196,7 +196,7 @@ class Operator(ABC):
     state: Optional[State] = None
 
     # The values of every state message registered so far, a later message's
-    # winning, as the JVM's LateBoundExecutor merges them: a loop body
+    # winning, as the JVM's StateReferenceBinding writes them: a loop body
     # operator's own state, or a nested loop's inner one, arrives after the
     # loop's and must not hide its variables. ``None`` until the first; a
     # class-level default for the same reason as ``state``.

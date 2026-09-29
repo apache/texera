@@ -340,7 +340,7 @@ class TestLoopVariableText:
 
     def test_spells_a_boolean_as_the_jvm_binds_one(self):
         # A JVM operator's text property takes a boolean as true / false
-        # (LateBoundExecutor), and so does this, not Python's True / False.
+        # (StateReferenceBinding), and so does this, not Python's True / False.
         op = _ConcreteOperator()
         op.register_state(State({"on": True, "off": False}))
         assert op.loop_variable_text("on") == "true"
