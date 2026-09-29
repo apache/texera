@@ -49,6 +49,10 @@ class TestLargeBinary:
         with pytest.raises(ValueError, match="largebinary URI must start with 's3://'"):
             largebinary("invalid-uri")
 
+        for uri in ("s3://", "s3:///object", "s3://bucket", "s3://bucket/"):
+            with pytest.raises(ValueError, match="bucket and object key"):
+                largebinary(uri)
+
     def test_get_bucket_name(self):
         """Test extracting bucket name from URI."""
         large_binary = largebinary("s3://my-bucket/path/to/object")
