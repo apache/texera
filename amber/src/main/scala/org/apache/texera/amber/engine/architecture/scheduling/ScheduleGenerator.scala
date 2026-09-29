@@ -32,7 +32,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 abstract class ScheduleGenerator(
     workflowContext: WorkflowContext,
     var physicalPlan: PhysicalPlan,
-    cacheReadInputs: CacheReadInputs = CacheReadInputs()
+    cacheReadInputs: CacheReadInputs
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
   val resourceAllocator =
