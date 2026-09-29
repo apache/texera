@@ -80,7 +80,8 @@ class InputManager:
     def set_up_input_port_mat_reader_threads(
         self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
     ) -> None:
-        assert len(uris) == len(partitionings)
+        if len(uris) != len(partitionings):
+            raise ValueError("storage URIs and partitionings must have the same length")
         if uris is not None:
             reader_runnables = [
                 InputPortMaterializationReaderRunnable(

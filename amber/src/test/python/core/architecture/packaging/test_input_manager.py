@@ -183,10 +183,16 @@ class TestInputPortMaterializationReaderThreads:
 
         assert manager.get_input_port_mat_reader_threads() == {port_id: []}
 
-    def test_mismatched_uris_and_partitionings_are_rejected(self, manager):
-        with pytest.raises(AssertionError):
+    @pytest.mark.parametrize(
+        ("uris", "partitionings"),
+        [(["vfs:///a"], []), ([], [MagicMock()])],
+    )
+    def test_mismatched_uris_and_partitionings_are_rejected(
+        self, manager, uris, partitionings
+    ):
+        with pytest.raises(ValueError, match="same length"):
             manager.set_up_input_port_mat_reader_threads(
-                PortIdentity(0, False), ["vfs:///a"], []
+                PortIdentity(0, False), uris, partitionings
             )
 
     def test_second_set_up_replaces_previous_readers(self, manager):
