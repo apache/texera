@@ -23,12 +23,14 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
 import java.util
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
@@ -84,6 +86,42 @@ case class LogicalPlan(
 
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
+  }
+
+  /**
+    * The operators inside some loop block: on a path LoopStart -> ... -> operator -> ... -> LoopEnd
+    * whose two ends match. A control operator is not inside its own block, but an inner block's
+    * are inside the outer one. The frontend's `getEnclosingLoopStarts` (loop-block.util.ts), which
+    * decides where the property panel offers `$K`, follows the same rule.
+    */
+  def operatorsInsideLoopBlocks: Set[OperatorIdentity] = {
+    val order = getTopologicalOpIds.asScala.toList
+    val change = order.map { id =>
+      id -> (getOperator(id) match {
+        case _: LoopStartOpDesc => 1
+        case _: LoopEndOpDesc   => -1
+        case _                  => 0
+      })
+    }.toMap
+    val upstream = links.groupMap(_.toOpId)(_.fromOpId).withDefaultValue(Nil)
+    val downstream = links.groupMap(_.fromOpId)(_.toOpId).withDefaultValue(Nil)
+    // The most blocks a path ending at each operator leaves open there, the operator included (a
+    // LoopEnd closes only a block the path opened); the reverse order, sign flipped, is the mirror.
+    def openBlocks(
+        ids: List[OperatorIdentity],
+        before: Map[OperatorIdentity, List[OperatorIdentity]],
+        sign: Int
+    ): Map[OperatorIdentity, Int] =
+      ids.foldLeft(Map.empty[OperatorIdentity, Int]) { (open, id) =>
+        open.updated(id, sign * change(id) + (0 :: before(id).map(open)).max)
+      }
+    val openAbove = openBlocks(order, upstream, 1)
+    val openBelow = openBlocks(order.reverse, downstream, -1)
+    // A block open above and one closed below, not counting a control operator's own.
+    order.filter { id =>
+      (0 :: upstream(id).map(openAbove)).max > (if (change(id) < 0) 1 else 0) &&
+      (0 :: downstream(id).map(openBelow)).max > (if (change(id) > 0) 1 else 0)
+    }.toSet
   }
 
   /**

@@ -31,16 +31,11 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.Try
 
 /**
-  * The loop-variable references of one executor's setting: the descriptor its constructor parsed
-  * from its descString, whose `stateReferences` sidecar maps the JSON pointer of each placeholder
-  * to a loop variable.
-  *
-  * Each state message registered on the executor writes every referenced variable it carries into
-  * the setting, in place, so the executor keeps reading the object it holds; the value is coerced
-  * to the placeholder's JSON type. A later message's value replaces an earlier one's, so in a
-  * nested loop, whose inner body receives the outer loop's state first, an inner variable shadows
-  * an outer one of the same name. A value that cannot be written leaves the property as it was and
-  * is reported by `unbound`, unless a later message's value can be.
+  * Writes the loop variables each state message carries into one executor's setting, the
+  * descriptor it holds, in place, at the placeholders its `stateReferences` sidecar names. Each
+  * value is coerced to the placeholder's JSON type. A later message's value replaces an earlier
+  * one's, so an inner loop's variable shadows an outer one of the same name. A value that cannot be
+  * written leaves the property as it was and is reported by `unbound`, unless a later one can be.
   *
   * @param className the executor's class, named in the errors.
   */
@@ -49,25 +44,6 @@ private[executor] final class StateReferenceBinding(
     setting: StateReferencing,
     references: Map[String, String]
 ) {
-
-  /** The setting's own JSON, the same values the executor reads, updated with each write. */
-  private val tree: ObjectNode = {
-    val json = objectMapper.valueToTree[ObjectNode](setting)
-    json.remove(SIDECAR_PROPERTY)
-    json
-  }
-
-  /** The placeholder at each pointer, whose JSON type each value is coerced to. */
-  private val placeholders: Map[String, JsonNode] = references.map {
-    case (pointer, name) =>
-      val placeholder = Try(tree.at(pointer)).toOption.filter(_.isValueNode)
-      pointer -> placeholder.getOrElse(
-        throw new IllegalStateException(
-          s"property $pointer refers to loop variable $name, but $className parsed a setting " +
-            "with no value there"
-        )
-      )
-  }
 
   /** Why each pointer is not written yet; a pointer is removed once a value is written to it. */
   private val problems: mutable.SortedMap[String, String] = mutable.SortedMap.from(references.map {
@@ -81,10 +57,7 @@ private[executor] final class StateReferenceBinding(
       case (pointer, name) =>
         state.values.get(name).foreach { value =>
           try {
-            writeAt(
-              pointer,
-              StateReferenceBinding.coerce(placeholders(pointer), value, pointer, name)
-            )
+            writeAt(pointer, name, value)
             problems -= pointer
           } catch {
             case e: IllegalStateException => problems(pointer) = e.getMessage
@@ -99,35 +72,27 @@ private[executor] final class StateReferenceBinding(
   def unbound: Seq[String] = problems.values.toSeq
 
   /**
-    * Puts `value` at `pointer` in the setting's JSON, and hands the top-level property it falls
-    * under back to Jackson, which updates the setting in place; the property is replaced whole,
-    * the setting itself is not. When Jackson refuses the value, the JSON is restored.
+    * Puts `value` at `pointer` in a fresh JSON of the setting, and hands the top-level property it
+    * falls under back to Jackson, which replaces that property of the setting in place. Jackson
+    * sets a property only once its whole value has parsed, so a refused value changes nothing.
     */
-  private def writeAt(pointer: String, value: JsonNode): Unit = {
-    val path = JsonPointer.compile(pointer)
-    val parent = tree.at(path.head)
-    val previous = tree.at(path)
-    replace(parent, path.last, value)
-    val property = path.getMatchingProperty
-    try {
-      objectMapper
-        .readerForUpdating(setting)
-        .readValue[AnyRef](
-          JsonNodeFactory.instance.objectNode().set[ObjectNode](property, tree.get(property))
+  private def writeAt(pointer: String, name: String, value: Any): Unit = {
+    val json = objectMapper.valueToTree[ObjectNode](setting)
+    val path = Try(JsonPointer.compile(pointer)).toOption
+      .filter(json.at(_).isValueNode)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"property $pointer refers to loop variable $name, but $className parsed a setting " +
+            "with no value there"
         )
-    } catch {
-      case e: JsonProcessingException =>
-        replace(parent, path.last, previous)
-        throw e
+      )
+    val node = StateReferenceBinding.coerce(json.at(path), value, pointer, name)
+    json.at(path.head) match {
+      case obj: ObjectNode  => obj.replace(path.last.getMatchingProperty, node)
+      case array: ArrayNode => array.set(path.last.getMatchingIndex, node)
     }
+    objectMapper.readerForUpdating(setting).readValue[AnyRef](json.retain(path.getMatchingProperty))
   }
-
-  private def replace(parent: JsonNode, last: JsonPointer, value: JsonNode): Unit =
-    parent match {
-      case obj: ObjectNode  => obj.replace(last.getMatchingProperty, value)
-      case array: ArrayNode => array.set(last.getMatchingIndex, value)
-      case _                => throw new IllegalStateException(s"no container above $last")
-    }
 }
 
 private[executor] object StateReferenceBinding {

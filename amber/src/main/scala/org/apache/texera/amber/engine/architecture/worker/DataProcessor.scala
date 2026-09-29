@@ -101,10 +101,8 @@ class DataProcessor(
     statisticsManager.getStatistics(executor)
 
   /**
-    * Binds the executor's loop-variable references right before it first sees data or finishes
-    * (`OperatorExecutor.bindStateReferences`). Once they are bound, and for an executor that has
-    * none, this costs a reference comparison per tuple; an executor installed in its place binds
-    * its own.
+    * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after
+    * that a reference comparison per tuple. An executor installed in its place binds its own.
     */
   def bindStateReferences(): Unit =
     if (executorWithBoundReferences ne executor) {
@@ -120,7 +118,7 @@ class DataProcessor(
     try {
       val portIdentity: PortIdentity =
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
-      // The executor sees data: a setting that refers to loop variables must have them by now.
+      // The executor sees data: its setting must have its loop variables by now.
       bindStateReferences()
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
@@ -145,8 +143,7 @@ class DataProcessor(
       loopStartId: String
   ): Unit = {
     try {
-      // Registered before the callback runs, so that processState (and every call after it) can
-      // consult it, with the loop variables it carries already written into the setting.
+      // Before processState, which then sees the loop variables written into the setting.
       executor.registerState(state)
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {

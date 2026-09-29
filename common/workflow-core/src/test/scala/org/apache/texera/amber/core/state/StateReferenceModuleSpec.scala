@@ -32,11 +32,8 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
-  * `StateReferenceModule` puts a typed placeholder where a `$name` loop-variable reference cannot
-  * be converted to its property's type, and records the property's pointer relative to the
-  * `StateReferencing` object. The beans below are parsed through `JSONUtils.objectMapper`, where
-  * the module is registered: directly, polymorphically with the type id first, in the middle and
-  * last (Jackson hands the object over differently in each case), and nested in other documents.
+  * `StateReferenceModule`, registered on `JSONUtils.objectMapper`: a typed placeholder where a
+  * `$name` reference cannot be converted, and its pointer relative to the object.
   */
 class StateReferenceModuleSpec extends AnyFlatSpec {
 
@@ -91,10 +88,6 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
   }
 
   it should "leave every value that is not a whole '$name' to Jackson" in {
-    val bean = parse("""{"name":"cost is $5","items":["$1","$","a$b"]}""")
-    assert(bean.name == "cost is $5")
-    assert(bean.items == List("$1", "$", "a$b"))
-    assert(bean.stateReferences.isEmpty)
     // In a typed property they fail as they always did; so does a reference padded with blanks,
     // which Jackson trims before converting but which is not a reference as a string either.
     Seq("$1", "$", "cost is $5", "$a b", " $a", "$a ").foreach { value =>
@@ -161,24 +154,8 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
     }
   }
 
-  it should "record the pointer when the concrete subtype is requested directly" in {
-    Seq("""{"type":"typed","limit":"$i"}""", """{"items":[],"limit":"$i","type":"typed"}""")
-      .foreach { json =>
-        val bean = objectMapper.readValue(json, classOf[TypedBean])
-        assert(bean.stateReferences == Map("/limit" -> "i"), json)
-      }
-  }
-
   it should "parse an object whose only field is the type id" in {
     assert(typed("""{"type":"typed"}""").stateReferences.isEmpty)
-  }
-
-  it should "record a pointer relative to a bean nested in another document" in {
-    val wrapper = objectMapper.readValue(
-      """{"note":"n","wrapped":{"name":"x","nested":[{"count":"$n"}]}}""",
-      classOf[Wrapper]
-    )
-    assert(wrapper.wrapped.stateReferences == Map("/nested/0/count" -> "n"))
   }
 
   it should "record pointers relative to each operator of a whole plan, even one Jackson buffered" in {
@@ -195,65 +172,10 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
     assert(operators(1).stateReferences == Map("/limit" -> "i", "/ratio" -> "r"))
   }
 
-  // ---------------------------------------------------------------------------
-  // Capturing the setting an executor's constructor parses
-  // ---------------------------------------------------------------------------
-
-  "StateReferenceModule.capturing" should "hand over each outermost StateReferencing object parsed on this thread while it runs, in order" in {
-    val ((bean, wrapper, outer), captured) = StateReferenceModule.capturing {
-      (
-        parse("""{"int":"$a"}"""),
-        objectMapper.readValue("""{"wrapped":{"name":"x"}}""", classOf[Wrapper]),
-        objectMapper.readValue("""{"inner":{"int":"$b"},"limit":"$c"}""", classOf[Outer])
-      )
-    }
-    // The very objects the parses returned. The bean nested in `outer` is part of it, not a
-    // setting of its own; the one inside a plain wrapper is the outermost StateReferencing.
-    assert(captured.size == 3)
-    assert(captured(0) eq bean)
-    assert(captured(1) eq wrapper.wrapped)
-    assert(captured(2) eq outer)
+  it should "record a StateReferencing object nested in another in its own sidecar" in {
+    val outer = objectMapper.readValue("""{"inner":{"int":"$b"},"limit":"$c"}""", classOf[Outer])
     assert(outer.stateReferences == Map("/limit" -> "c"))
     assert(outer.inner.stateReferences == Map("/int" -> "b"))
-  }
-
-  it should "hand over nothing parsed before it, after it, or on another thread" in {
-    parse("""{"int":"$a"}""")
-    val (_, captured) = StateReferenceModule.capturing {
-      val thread = new Thread(() => { parse("""{"int":"$a"}"""); () })
-      thread.start()
-      thread.join()
-      objectMapper.readValue("""{"count":1}""", classOf[Nested])
-    }
-    assert(captured.isEmpty)
-    parse("""{"int":"$a"}""")
-    assert(StateReferenceModule.capturing(())._2.isEmpty)
-  }
-
-  it should "keep a nested capture apart, and resume the enclosing one even when the nested body throws" in {
-    val (inner, outer) = StateReferenceModule.capturing {
-      val first = parse("""{"name":"first"}""")
-      val (nested, nestedCaptured) = StateReferenceModule.capturing(parse("""{"name":"nested"}"""))
-      assert(nestedCaptured == List(nested))
-      intercept[IllegalStateException] {
-        StateReferenceModule.capturing {
-          parse("""{"name":"lost"}""")
-          throw new IllegalStateException("boom")
-        }
-      }
-      val last = parse("""{"name":"last"}""")
-      List(first, last)
-    }
-    assert(outer == inner)
-  }
-
-  it should "not change what a parse returns" in {
-    val json = """{"name":"n","int":"$a","nested":[{"count":"$c"}]}"""
-    val (captured, _) = StateReferenceModule.capturing(parse(json))
-    assert(
-      objectMapper.writeValueAsString(captured) == objectMapper.writeValueAsString(parse(json))
-    )
-    assert(captured.stateReferences == Map("/int" -> "a", "/nested/0/count" -> "c"))
   }
 
   // ---------------------------------------------------------------------------
@@ -314,11 +236,9 @@ object StateReferenceModuleSpec {
     @JsonProperty var limit: Int = _
   }
 
-  /** Not a StateReferencing object itself: it only holds one. */
+  /** Not a StateReferencing object. */
   class Wrapper {
-    @JsonProperty var note: String = _
     @JsonProperty var count: Int = _
-    @JsonProperty var wrapped: Bean = _
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")

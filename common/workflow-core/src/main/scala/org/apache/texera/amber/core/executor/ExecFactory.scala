@@ -19,7 +19,9 @@
 
 package org.apache.texera.amber.core.executor
 
-import org.apache.texera.amber.core.state.StateReferenceModule
+import org.apache.texera.amber.core.state.StateReferencing
+
+import java.lang.reflect.Modifier
 
 object ExecFactory {
 
@@ -32,11 +34,9 @@ object ExecFactory {
   }
 
   /**
-    * A descriptor whose `stateReferences` sidecar names loop variables gets the operator's own
-    * executor, built from the descString with its placeholders like any other; the descriptor its
-    * constructor parses is its setting, which each state message registered on it writes the loop
-    * variables into (`OperatorExecutor.registerState`). The compiler fills the sidecar in only
-    * inside a loop block, so a `$name` string anywhere else is the literal it looks like.
+    * When the descString's `stateReferences` sidecar names loop variables, the descriptor the
+    * executor holds is its setting, which each state message writes them into
+    * (`OperatorExecutor.registerState`). The compiler fills the sidecar in only inside a block.
     */
   def newExecFromJavaClassName[K](
       className: String,
@@ -44,34 +44,45 @@ object ExecFactory {
       idx: Int = 0,
       workerCount: Int = 1
   ): OperatorExecutor = {
+    val executor = instantiate[K](className, descString, idx, workerCount)
     val references = StateReferenceBinding.sidecarOf(descString)
-    if (references.isEmpty) {
-      instantiate[K](className, descString, idx, workerCount)
-    } else {
-      val (executor, settings) =
-        StateReferenceModule.capturing(instantiate[K](className, descString, idx, workerCount))
+    if (references.nonEmpty) {
       def refuse(reason: String): Nothing = {
         val named = references.toSeq.sorted.map { case (pointer, name) => s"$pointer -> $$$name" }
         throw new IllegalStateException(
-          s"$className refers to loop variables (${named.mkString(", ")}), but its constructor " +
-            s"parsed $reason"
+          s"$className refers to loop variables (${named.mkString(", ")}), but it holds $reason"
         )
       }
-      settings match {
+      settingsHeldBy(executor) match {
         case List(setting) =>
           OperatorExecutor.attach(
             executor,
             new StateReferenceBinding(className, setting, references)
           )
-        case Nil => refuse("no descriptor from its descString to write them into")
-        case _ =>
-          refuse(
-            s"${settings.size} descriptors from its descString, so which one is its setting is unclear"
-          )
+        case Nil => refuse("no descriptor to write them into")
+        case settings =>
+          refuse(s"${settings.size} descriptors, so which one is its setting is unclear")
       }
-      executor
     }
+    executor
   }
+
+  /** The descriptors `executor` holds in a field of its class or a superclass, each object once. */
+  private def settingsHeldBy(executor: OperatorExecutor): List[StateReferencing] =
+    Iterator
+      .iterate[Class[_]](executor.getClass)(_.getSuperclass)
+      .takeWhile(_ != null)
+      .flatMap(_.getDeclaredFields)
+      .filter(field =>
+        !Modifier.isStatic(field.getModifiers) &&
+          classOf[StateReferencing].isAssignableFrom(field.getType)
+      )
+      .flatMap { field => field.setAccessible(true); Option(field.get(executor)) }
+      // By identity: a descriptor's equals compares its properties.
+      .foldLeft(List.empty[StateReferencing]) {
+        case (held, setting: StateReferencing) if !held.exists(_ eq setting) => held :+ setting
+        case (held, _)                                                       => held
+      }
 
   private def instantiate[K](
       className: String,

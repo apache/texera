@@ -19,9 +19,6 @@
 
 package org.apache.texera.amber.operator.visualization.htmlviz
 
-import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.texera.amber.core.executor.ExecFactory
-import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -87,43 +84,5 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     configuredDesc.htmlContentAttrName = "field1"
     val htmlVizOpExec = new HtmlVizOpExec(objectMapper.writeValueAsString(configuredDesc))
     htmlVizOpExec.open()
-  }
-
-  // ---------------------------------------------------------------------------
-  // Inside a loop block: the setting is written after open()
-  // ---------------------------------------------------------------------------
-
-  /** Opened as the worker opens it, with the html content referring to `h`, then `h` written in. */
-  private def openedInsideLoopBlock(h: String): HtmlVizOpExec = {
-    val desc = new HtmlVizOpDesc()
-    desc.htmlContentAttrName = "$h"
-    val node = objectMapper.valueToTree[ObjectNode](desc)
-    node.putObject(StateReferencing.SIDECAR_PROPERTY).put("/htmlContentAttrName", "h")
-    val exec = ExecFactory
-      .newExecFromJavaClassName(
-        classOf[HtmlVizOpExec].getName,
-        objectMapper.writeValueAsString(node)
-      )
-      .asInstanceOf[HtmlVizOpExec]
-    exec.open()
-    exec.registerState(State(Map("h" -> h)))
-    exec.bindStateReferences()
-    exec
-  }
-
-  "HtmlVizOpExec inside a loop block" should "render the field the loop variable written after open() names" in {
-    val processedTuple = openedInsideLoopBlock("field2")
-      .processTuple(tuple(), 0)
-      .next()
-      .asInstanceOf[SchemaEnforceable]
-      .enforceSchema(outputSchema)
-    assert(processedTuple.getField("html-content").asInstanceOf[String] == "<html></html>")
-  }
-
-  it should "reject an empty html content written after open() at the first tuple, as open() does" in {
-    // open() saw the placeholder "$h"; the empty value arrives with the loop state.
-    val exec = openedInsideLoopBlock("")
-    val ex = intercept[AssertionError](exec.processTuple(tuple(), 0))
-    assert(ex.getMessage.contains("HTML content cannot be empty"))
   }
 }

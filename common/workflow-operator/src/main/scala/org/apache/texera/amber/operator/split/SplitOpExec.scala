@@ -32,12 +32,6 @@ class SplitOpExec(
   val desc: SplitOpDesc = objectMapper.readValue(descString, classOf[SplitOpDesc])
   var random: Random = _
 
-  // Seeded at the first tuple, not in open(): inside a loop block the seed may refer to a loop
-  // variable, which the loop state writes into the setting after open(). Reopening reseeds.
-  override def open(): Unit = {
-    random = null
-  }
-
   override def close(): Unit = {
     random = null
   }
@@ -46,6 +40,7 @@ class SplitOpExec(
       tuple: Tuple,
       port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
+    // Seeded at the first tuple: inside a loop block the seed may be written in after open().
     if (random == null) random = if (desc.random) new Random() else new Random(desc.seed)
     val isTraining = random.nextInt(100) < desc.k
     // training output port: 0, testing output port: 1

@@ -26,12 +26,8 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
-  * `StateReferenceBinding` writes the loop variables of each registered state message into the
-  * setting an executor parsed from its descString, where the descriptor's `stateReferences` sidecar
-  * names them. The tests drive it the way the worker does, through the executor built by
-  * `ExecFactory`: `registerState` for each state message, then `bindStateReferences` before the
-  * first tuple, against a small executor that parses a setting with one property of each JSON
-  * scalar type, a list of strings and a list of beans.
+  * `StateReferenceBinding`, driven the way the worker drives it: `registerState` for each state
+  * message, then `bindStateReferences` before the first tuple, on an executor `ExecFactory` built.
   */
 class StateReferenceBindingSpec extends AnyFlatSpec {
 
@@ -60,7 +56,7 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
   private def missing(pointer: String, name: String): String =
     s"property $pointer refers to loop variable $name, but no state message carried it"
 
-  "StateReferenceBinding" should "write each variable a registered message carries into the setting the executor parsed, in place" in {
+  "StateReferenceBinding" should "write each variable a registered message carries into the setting the executor holds, in place" in {
     val exec = build()
     val setting = exec.setting
     val kept = setting.predicates.head
@@ -81,32 +77,25 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert(setting.stateReferences.isEmpty)
   }
 
-  it should "let a later message's value replace an earlier one's, so an inner loop's variable shadows an outer one" in {
+  it should "let a later message's value replace an earlier one's, even one that did not fit" in {
     // In a nested loop the inner body first receives the outer loop's state, then the inner one.
-    // Both arrive before any tuple, so an inner variable shadows an outer one of the same name,
-    // even when the outer state alone already carries every referenced variable.
+    // Both arrive before any tuple, so an inner variable shadows an outer one of the same name.
     val exec = build()
-    exec.registerState(State(Map("i" -> 1L, "n" -> 2, "t" -> "outer", "v" -> "o", "h" -> 1)))
-    exec.registerState(State(Map("i" -> 5L, "t" -> "inner")))
+    exec.registerState(
+      State(Map("i" -> 1L, "n" -> 2, "t" -> "outer", "v" -> "o", "h" -> "not a number"))
+    )
+    val inner = State(Map("i" -> 5L, "t" -> "inner", "h" -> 1))
+    exec.registerState(inner)
     exec.bindStateReferences()
 
     val setting = exec.setting
     assert((setting.name, setting.limit, setting.tags) == (("5", 2, List("a", "inner"))))
     assert(setting.predicates(1).value == "o")
     assert(setting.predicates(1).threshold == 1.0)
-    assert(exec.state.contains(State(Map("i" -> 5L, "t" -> "inner"))))
+    assert(exec.state.contains(inner))
   }
 
-  it should "shadow an outer value that does not fit the property with an inner one that does" in {
-    val exec = build(Map("/limit" -> "n"))
-    exec.registerState(State(Map("n" -> "not a number")))
-    assert(exec.setting.limit == 0)
-    exec.registerState(State(Map("n" -> 3)))
-    exec.bindStateReferences()
-    assert(exec.setting.limit == 3)
-  }
-
-  it should "fail at binding, naming every reference no state message carried, and write nothing for them" in {
+  it should "fail at binding, naming every reference no state message carried, until one does" in {
     val exec = build()
     exec.registerState(State(Map("i" -> 1L)))
     val message = intercept[IllegalStateException](exec.bindStateReferences()).getMessage
@@ -120,25 +109,9 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     )
     assert(exec.setting.name == "1")
     assert(exec.setting.limit == 0)
-  }
-
-  it should "fail at binding before any state message, naming every reference" in {
-    val exec = build(Map("/limit" -> "n", "/name" -> "i"))
-    assert(
-      intercept[IllegalStateException](exec.bindStateReferences()).getMessage ==
-        s"${missing("/limit", "n")}; ${missing("/name", "i")}"
-    )
-  }
-
-  it should "keep failing until a message carries what was missing, then bind" in {
-    val exec = build(Map("/limit" -> "n"))
-    Seq(1, 2).foreach { _ =>
-      assert(
-        intercept[IllegalStateException](exec.bindStateReferences()).getMessage ==
-          missing("/limit", "n")
-      )
-    }
-    exec.registerState(State(Map("n" -> 4)))
+    // A failed binding does not end the writing.
+    assert(intercept[IllegalStateException](exec.bindStateReferences()).getMessage == message)
+    exec.registerState(State(Map("n" -> 4, "h" -> 1, "v" -> "x", "t" -> "y")))
     exec.bindStateReferences()
     assert(exec.setting.limit == 4)
   }
@@ -155,13 +128,12 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
   }
 
-  it should "reject a sidecar pointer that names no value of the setting when the executor is built" in {
+  it should "report a sidecar pointer that names no value of the setting at binding" in {
     Seq("/nothing", "/tags/5", "/predicates", "/predicates/1", "/stateReferences/x", "").foreach {
       pointer =>
-        val message = intercept[IllegalStateException](build(Map(pointer -> "k"))).getMessage
         assert(
-          message == s"property $pointer refers to loop variable k, but ${classOf[SettingExec].getName} " +
-            "parsed a setting with no value there",
+          bindOneFails(pointer, 1) == s"property $pointer refers to loop variable k, but " +
+            s"${classOf[SettingExec].getName} parsed a setting with no value there",
           pointer
         )
     }
@@ -185,15 +157,39 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     intercept[IllegalStateException](exec.bindStateReferences()).getMessage
   }
 
-  it should "bind an integer placeholder from an int, a long, a whole double or a numeric string" in {
-    Seq[Any](7, 7L, 7.0, "7", " 7 ").foreach { value =>
-      assert(bindOne("/limit", value).limit == 7, value)
-    }
-    Seq[Any](7.5, "seven", true, "").foreach { value =>
-      assert(
-        bindOneFails("/limit", value) ==
-          s"property /limit refers to loop variable k, but its value $value is not an integer"
-      )
+  it should "bind each placeholder from a value its JSON type accepts" in {
+    def accepts[T](pointer: String, read: Setting => T)(cases: (Any, T)*): Unit =
+      cases.foreach {
+        case (value, expected) => assert(read(bindOne(pointer, value)) == expected, value)
+      }
+    accepts("/limit", _.limit)(7 -> 7, 7L -> 7, 7.0 -> 7, "7" -> 7, " 7 " -> 7)
+    accepts("/ratio", _.ratio)(3 -> 3.0, 2.5 -> 2.5, "1.5" -> 1.5, 7L -> 7.0)
+    accepts("/enabled", _.enabled)(true -> true, "false" -> false, "TRUE" -> true)
+    accepts("/name", _.name)(5L -> "5", 2.5 -> "2.5", true -> "true", "text" -> "text", "" -> "")
+    accepts("/tags/1", _.tags)("ünïcödé" -> List("a", "ünïcödé"))
+  }
+
+  it should "report a value its placeholder's JSON type does not accept, naming the property" in {
+    Seq[(String, Any, String)](
+      ("/limit", 7.5, "an integer"),
+      ("/limit", "seven", "an integer"),
+      ("/limit", true, "an integer"),
+      ("/limit", "", "an integer"),
+      ("/ratio", "abc", "a number"),
+      ("/ratio", false, "a number"),
+      ("/enabled", 1, "a boolean"),
+      ("/enabled", "yes", "a boolean"),
+      // A Python None arrives as null; a list, a map or bytes has no text to bind.
+      ("/name", null, "a scalar"),
+      ("/name", List("a", "b"), "a scalar"),
+      ("/name", Map("a" -> 1), "a scalar"),
+      ("/name", Array[Byte](1, 2), "a scalar")
+    ).foreach {
+      case (pointer, value, kind) =>
+        assert(
+          bindOneFails(pointer, value) ==
+            s"property $pointer refers to loop variable k, but its value $value is not $kind"
+        )
     }
   }
 
@@ -223,36 +219,6 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert(!message.contains("/predicates/1/value"), message)
     assert(exec.setting.predicates.map(_.value) == List("kept", "x1"))
     assert(exec.setting.predicates.map(_.count) == List(0, 0))
-  }
-
-  it should "bind a number placeholder from any number or a numeric string" in {
-    Seq[(Any, Double)](3 -> 3.0, 2.5 -> 2.5, "1.5" -> 1.5, 7L -> 7.0).foreach {
-      case (value, expected) => assert(bindOne("/ratio", value).ratio == expected)
-    }
-    Seq[Any]("abc", false).foreach { value =>
-      assert(bindOneFails("/ratio", value).endsWith(s"its value $value is not a number"))
-    }
-  }
-
-  it should "bind a boolean placeholder from a boolean or 'true' / 'false' text only" in {
-    assert(bindOne("/enabled", true).enabled)
-    assert(!bindOne("/enabled", "false").enabled)
-    assert(bindOne("/enabled", "TRUE").enabled)
-    Seq[Any](1, "yes").foreach { value =>
-      assert(bindOneFails("/enabled", value).endsWith(s"its value $value is not a boolean"))
-    }
-  }
-
-  it should "bind a string property from the text of a string, a number or a boolean only" in {
-    Seq[(Any, String)](5L -> "5", 2.5 -> "2.5", true -> "true", "text" -> "text", "" -> "")
-      .foreach {
-        case (value, expected) => assert(bindOne("/name", value).name == expected)
-      }
-    assert(bindOne("/tags/1", "ünïcödé").tags == List("a", "ünïcödé"))
-    // A Python None arrives as null; a list, a map or bytes has no text to bind.
-    Seq[Any](null, List("a", "b"), Map("a" -> 1), Array[Byte](1, 2)).foreach { value =>
-      assert(bindOneFails("/name", value).endsWith(s"its value $value is not a scalar"))
-    }
   }
 }
 

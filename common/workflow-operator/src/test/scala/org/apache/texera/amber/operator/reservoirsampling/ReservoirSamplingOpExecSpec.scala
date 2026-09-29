@@ -83,9 +83,7 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   private def descWithReferencedK: String = {
     val node = objectMapper.valueToTree[ObjectNode](new ReservoirSamplingOpDesc())
     node.put(keyForK, 0)
-    node
-      .putObject(StateReferencing.SIDECAR_PROPERTY)
-      .put("/" + StateReferencing.escapePointerSegment(keyForK), "k")
+    node.putObject(StateReferencing.SIDECAR_PROPERTY).put("/" + keyForK, "k")
     objectMapper.writeValueAsString(node)
   }
 
