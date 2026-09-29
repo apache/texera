@@ -407,17 +407,15 @@ class TestUpdateExecutor:
             )
         assert "SourceOperator API" in str(exc_info.value)
 
-    def test_update_with_no_operator_class_raises_assertion(self, initialized_manager):
-        # load_executor_definition asserts exactly one Operator subclass exists
-        # in the module — an empty module trips that assertion.
-        with pytest.raises(AssertionError) as exc_info:
+    def test_update_with_no_operator_class_is_rejected(self, initialized_manager):
+        with pytest.raises(ValueError) as exc_info:
             initialized_manager.update_executor(code=NO_OPERATOR_CODE, is_source=False)
         assert "one and only one Operator" in str(exc_info.value)
 
-    def test_update_with_multiple_operator_classes_raises_assertion(
+    def test_update_with_multiple_operator_classes_is_rejected(
         self, initialized_manager
     ):
-        with pytest.raises(AssertionError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             initialized_manager.update_executor(
                 code=TWO_OPERATORS_CODE, is_source=False
             )

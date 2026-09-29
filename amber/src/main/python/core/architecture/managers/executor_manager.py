@@ -125,7 +125,8 @@ class ExecutorManager:
         executors = list(
             filter(self.is_concrete_operator, executor_module.__dict__.values())
         )
-        assert len(executors) == 1, "There should be one and only one Operator defined"
+        if len(executors) != 1:
+            raise ValueError("There should be one and only one Operator defined")
         return executors[0]
 
     def close(self) -> None:
