@@ -114,14 +114,13 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     plain should include("dropna")
   }
 
-  it should "render successfully when only name is empty (asymmetric guard, current behavior)" in {
-    // Pin: name has no assert guard. With value set and name empty, the
-    // generated Python still renders — only the runtime call site receives
-    // an empty decode. This asymmetry between value (asserted) and name
-    // (not asserted) is documented here.
+  it should "reject an empty name column" in {
     opDesc.value = "amount"
-    opDesc.name = ""
-    val code = opDesc.generatePythonCode()
-    code should include("class ProcessTableOperator(UDFTableOperator)")
+
+    val tableError = intercept[AssertionError](opDesc.manipulateTable())
+    tableError.getMessage should include("Name Column cannot be empty")
+
+    val figureError = intercept[AssertionError](opDesc.createPlotlyFigure())
+    figureError.getMessage should include("Name Column cannot be empty")
   }
 }
