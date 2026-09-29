@@ -274,6 +274,11 @@ class TestHashBasedShufflePartitioner:
         total = sum(len(b) for _, b in p.receivers)
         assert total == 2
 
+    def test_java_hash_minus_one_is_not_normalized_by_python(self):
+        p = self._partitioner(batch_size=1)
+        out = list(p.add_tuple_to_batch(_hashable_tuple(k=-32)))
+        assert out[0][0] == _worker("B")
+
     def test_flush_emits_pending_batch_and_ecm_for_target_only(self):
         p = self._partitioner(batch_size=10)
         # Force a tuple into receiver A regardless of hash outcome.
