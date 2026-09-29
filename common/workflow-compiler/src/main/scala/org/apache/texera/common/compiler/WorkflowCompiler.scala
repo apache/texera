@@ -43,7 +43,6 @@ import org.apache.texera.amber.core.workflow.{
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.loop.LoopStartOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
@@ -89,14 +88,13 @@ object WorkflowCompiler {
     */
   def normalizeStateReferences(
       logicalOp: LogicalOp,
-      plan: LogicalPlan,
       insideLoopBlocks: Set[OperatorIdentity]
   ): Option[Throwable] =
     if (insideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
       logicalOp.stateReferences =
         literalReferences(objectMapper.valueToTree[ObjectNode](logicalOp)) ++
           logicalOp.stateReferences
-      inputsAheadOfLoopState(logicalOp, plan, insideLoopBlocks)
+      None
     } else {
       Option.when(logicalOp.stateReferences.nonEmpty) {
         new IllegalArgumentException(
@@ -105,43 +103,6 @@ object WorkflowCompiler {
         )
       }
     }
-
-  /**
-    * The first tuple fails on a loop variable its state has not written yet, and the state comes
-    * ahead of the tuples only on links from a LoopStart or from another operator inside a block.
-    * An input with any other link is an error, unless the operator reads it only after an input
-    * whose links all carry the state (a join's probe input).
-    */
-  private def inputsAheadOfLoopState(
-      logicalOp: LogicalOp,
-      plan: LogicalPlan,
-      insideLoopBlocks: Set[OperatorIdentity]
-  ): Option[Throwable] = {
-    val linksByPort = plan.getUpstreamLinks(logicalOp.operatorIdentifier).groupBy(_.toPortId)
-    def carriesOnlyState(port: PortIdentity): Boolean =
-      linksByPort
-        .get(port)
-        .exists(_.forall { link =>
-          insideLoopBlocks.contains(link.fromOpId) ||
-          plan.getOperator(link.fromOpId).isInstanceOf[LoopStartOpDesc]
-        })
-    val exposed = logicalOp.operatorInfo.inputPorts.filter { input =>
-      linksByPort.contains(input.id) && !carriesOnlyState(input.id) &&
-      !input.dependencies.exists(carriesOnlyState)
-    }
-    Option.when(logicalOp.stateReferences.nonEmpty && exposed.nonEmpty) {
-      val inputs = exposed.map { input =>
-        if (input.displayName.nonEmpty) s"input '${input.displayName}'"
-        else s"input port ${input.id.id}"
-      }
-      new IllegalArgumentException(
-        s"${logicalOp.operatorInfo.userFriendlyName} refers to loop variables " +
-          s"(${formatReferences(logicalOp.stateReferences)}), but its ${inputs.mkString(" and ")} " +
-          s"${if (exposed.size == 1) "is" else "are"} fed from outside the loop block, so " +
-          "tuples from there can arrive before the loop state"
-      )
-    }
-  }
 
   /**
     * A reference is bound in the executor that `ExecFactory` builds from the descriptor's JSON: the
@@ -252,7 +213,7 @@ class WorkflowCompiler(
             case None       => throw error
           }
         // Before the physical plan: the descriptor serializes its sidecar into its descString.
-        normalizeStateReferences(logicalOp, logicalPlan, insideLoopBlocks).foreach(report)
+        normalizeStateReferences(logicalOp, insideLoopBlocks).foreach(report)
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         // Before the code-generation check below: the first error per operator is reported, and
         // code generated from a placeholder may fail on it with a less specific message.
