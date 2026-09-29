@@ -106,7 +106,7 @@ class TestChannelRegistration:
     def manager(self):
         return InputManager(worker_id=WORKER_ID, input_queue=MagicMock())
 
-    def test_re_registering_channel_leaves_stale_reverse_mapping(self, manager):
+    def test_re_registering_channel_removes_old_port_membership(self, manager):
         port_a, port_b = PortIdentity(0, False), PortIdentity(1, False)
         channel_id = _channel("upstream")
         for port_id in (port_a, port_b):
@@ -115,12 +115,9 @@ class TestChannelRegistration:
         manager.register_input(channel_id, port_a)
         manager.register_input(channel_id, port_b)
 
-        # The forward mapping is updated to the new port ...
         assert manager.get_port_id(channel_id) == port_b
         assert channel_id in manager.get_port(port_b).get_channels()
-        # ... but the old port's channel set is never cleaned up, so the
-        # channel remains in both reverse mappings (current behavior).
-        assert channel_id in manager.get_port(port_a).get_channels()
+        assert channel_id not in manager.get_port(port_a).get_channels()
 
     def test_data_channel_ids_exclude_control_channels(self, manager):
         port_id = PortIdentity(0, False)
