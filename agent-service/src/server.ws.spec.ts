@@ -299,6 +299,48 @@ describe(`WS ${API}/agents/:id/react`, () => {
     expect(resting.state).toBe("AVAILABLE");
   });
 
+  test("a prompt sent while a run is in flight is rejected, not interleaved (#8711)", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)! as any;
+
+    // Pin an initial warehouse so we can assert the busy-rejected prompt below
+    // never reaches setDelegateWarehouse and re-points it mid-run (#8711).
+    agent.setDelegateConfig({ userToken: "t", workflowId: 1, warehouseId: 7 });
+
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    let callCount = 0;
+    agent.sendMessage = async function (this: any) {
+      callCount++;
+      this.state = "GENERATING";
+      await gate;
+      this.state = "AVAILABLE";
+      return { response: "done", messages: [], usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, stopped: false };
+    };
+    agent.getReActSteps = () => [];
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "first", warehouseId: 7 }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
+
+    // Second prompt, mid-run, picks a *different* warehouse. It must be
+    // rejected before setDelegateWarehouse runs, so the in-flight run keeps
+    // writing to warehouse 7, not 99.
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "second", warehouseId: 99 }));
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Agent is busy processing another message");
+    expect(callCount).toBe(1);
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
+
+    release();
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+    expect(agent.getDelegateConfig()?.warehouseId).toBe(7);
+  });
+
   test("a message for an agent that no longer exists yields an error frame", async () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);
