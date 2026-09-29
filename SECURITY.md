@@ -175,6 +175,21 @@ Texera can be deployed in several configurations, such as local development, sin
 clusters. For details on supported deployment options and their operational differences, see the deployment guides in
 our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
 
+### Deployment Modes and Security Coverage
+
+Some of Texera's security features rely on Kubernetes, so not every deployment mode provides the security model
+described in this document:
+
+- **Kubernetes deployment** (Helm chart under `bin/k8s`): the only deployment mode that provides the full security
+  model. Requests reach the services through the gateway, which enforces access control, and Kubernetes isolates
+  computing units from each other. Use this mode for production and multi-user deployments.
+- **Local deployment on the JVM** (e.g., `bin/local-dev.sh`, or running the services directly) and **single-node Docker
+  Compose deployment** (`bin/single-node`): intended for development, testing, evaluation, and single-user or
+  fully-trusted-team use. These modes do not include the Kubernetes gateway and isolation, so their security is **not
+  guaranteed**, and some access controls described in this document are not enforced.
+
+Deployment managers who need isolation between UI users must use the Kubernetes deployment.
+
 ### Computing Unit Types
 
 Texera executes workflows on **computing units**. UI users (REGULAR and ADMIN) can execute arbitrary code (e.g., through
@@ -188,7 +203,7 @@ Local computing units run as processes on the same machine as the Texera service
 
 **Security characteristics**:
 
-- Suitable for development, testing, and small team use
+- Suitable for development, testing, and single-user or fully-trusted-team use
 - All computing units share the same host machine
 - No infrastructure-level isolation between users' workflows
 - Deployment managers control all computing resources
@@ -228,6 +243,7 @@ Texera's security model does NOT guarantee:
 - Protection against malicious code in user workflows (users can execute arbitrary code)
 - Isolation of application secrets from UDF code executing within the same process or pod
 - Strong isolation between workflows in local computing units
+- Enforcement of the full access-control model in local JVM or Docker Compose deployments (see [Deployment Modes and Security Coverage](#deployment-modes-and-security-coverage))
 - Complete isolation between workflows in Kubernetes computing units within the same namespace
 - Protection against infrastructure-level compromises
 - Protection against deployment manager misconfigurations
@@ -262,6 +278,13 @@ access is granted, full visibility is expected. Resource owners should grant acc
 Resources marked as public are visible to all users. Public sharing is a deliberate collaboration feature. Users should
 review resources before making them public and avoid including sensitive data or credentials.
 
+### Access-Control Gaps in Local and Docker Compose Deployments
+
+Local JVM and single-node Docker Compose deployments do not enforce the full access-control model (see
+[Deployment Modes and Security Coverage](#deployment-modes-and-security-coverage)). Reports of users accessing
+resources they have not been granted in these deployment modes are out of scope, unless the same issue is also
+reproducible on the Kubernetes deployment.
+
 ### Issues Requiring Deployment Manager Access
 
 Issues requiring physical access to servers, administrative access to infrastructure, database access, or access to
@@ -289,7 +312,7 @@ lists and website.
 
 ---
 
-**Last Updated**: April 2026
+**Last Updated**: September 2026
 
 **Disclaimer**: This project is currently undergoing incubation at The Apache Software Foundation (ASF). Incubation is
 required of all newly accepted projects until a further review indicates that the infrastructure, communications, and
