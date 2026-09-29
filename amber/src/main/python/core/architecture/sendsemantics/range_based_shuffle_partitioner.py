@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import typing
 from loguru import logger
 from overrides import overrides
@@ -63,6 +64,8 @@ class RangeBasedShufflePartitioner(Partitioner):
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
         column_val = tuple_[self.range_attribute_names[0]]
+        if isinstance(column_val, float) and math.isfinite(column_val):
+            column_val = int(column_val)
         receiver_index = self.get_receiver_index(column_val)
         receiver, batch = self.receivers[receiver_index]
         batch.append(tuple_)
