@@ -142,7 +142,7 @@ class TestTable:
         assert target_table.equals(target_data_frame)
 
     def test_validation_of_schema(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError, match="same fields"):
             Table([{"text": "hello"}, {"book": "harry"}])
 
     @pytest.mark.parametrize(

@@ -43,8 +43,8 @@ class Table(pandas.DataFrame):
             tuple_ = Tuple(tuple_like)
             field_names = tuple_.get_field_names()
 
-            if column_names is not None:
-                assert field_names == column_names
+            if column_names is not None and field_names != column_names:
+                raise ValueError("all table rows must have the same fields")
             else:
                 column_names = field_names
 
