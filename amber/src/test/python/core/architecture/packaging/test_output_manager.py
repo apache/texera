@@ -666,6 +666,30 @@ class TestQueryMethods:
         output_manager.add_output_port(port_b, MagicMock())
         assert output_manager.get_port_ids() == [port_a, port_b]
 
+    def test_get_port_honors_the_requested_port_id(self, output_manager):
+        port_a = PortIdentity(id=0, internal=False)
+        port_b = PortIdentity(id=1, internal=False)
+        schema_a = MagicMock(name="schema_a")
+        schema_b = MagicMock(name="schema_b")
+        output_manager.add_output_port(port_a, schema_a)
+        output_manager.add_output_port(port_b, schema_b)
+        assert output_manager.get_port(port_b).get_schema() is schema_b
+
+    def test_get_port_without_an_id_uses_the_first_port(self, output_manager):
+        schema_a = MagicMock(name="schema_a")
+        output_manager.add_output_port(PortIdentity(id=0), schema_a)
+        output_manager.add_output_port(PortIdentity(id=1), MagicMock(name="schema_b"))
+        assert output_manager.get_port().get_schema() is schema_a
+
+    def test_get_port_without_ports_preserves_index_error(self, output_manager):
+        with pytest.raises(IndexError, match="list index out of range"):
+            output_manager.get_port()
+
+    def test_get_port_rejects_an_unknown_port_id(self, output_manager):
+        output_manager.add_output_port(PortIdentity(id=0), MagicMock())
+        with pytest.raises(KeyError):
+            output_manager.get_port(PortIdentity(id=99))
+
     def test_get_output_channel_ids_lists_channels_from_add_partitioning(
         self, output_manager
     ):
