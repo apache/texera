@@ -26,6 +26,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
+import org.apache.texera.amber.core.state.FixedAtCompileTime
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 
@@ -46,6 +47,7 @@ trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @FixedAtCompileTime
   var attributeName: String = "line"
 
   @JsonSchemaTitle("Limit (lines)")

@@ -20,10 +20,13 @@
 package org.apache.texera.amber.core.state
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
+import scala.util.Try
 
 /**
   * A descriptor whose properties may refer to loop variables.
@@ -33,7 +36,8 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   * `stateReferences` sidecar records each such property: its JSON pointer -> the variable name.
   * The parse fills it in for a typed property, which holds a placeholder instead
   * (`StateReferenceModule`); the compiler adds the string ones inside a loop block and rejects
-  * every entry outside one (`WorkflowCompiler.normalizeStateReferences`). It rides in the
+  * every entry outside one, and every one in a property the compiled plan is built from
+  * (`FixedAtCompileTime`, `WorkflowCompiler.normalizeStateReferences`). It rides in the
   * descriptor's JSON to the worker, where each state message writes the variables it names into
   * the descriptor the executor parsed (`OperatorExecutor.registerState`), and the property panel
   * never shows it.
@@ -62,6 +66,26 @@ object StateReferencing {
   /** Escape one property name as an RFC 6901 pointer segment: `~` -> `~0`, `/` -> `~1`. */
   def escapePointerSegment(name: String): String =
     name.replace("~", "~0").replace("/", "~1")
+
+  /**
+    * The entries of `descriptor`'s sidecar that fall under a property marked `FixedAtCompileTime`,
+    * however deep: the compiled plan is built from that property, so nothing binds them.
+    */
+  def fixedAtCompileTime(descriptor: StateReferencing): Map[String, String] = {
+    val fixed = objectMapper.getSerializationConfig
+      .introspect(objectMapper.constructType(descriptor.getClass))
+      .findProperties()
+      .asScala
+      .filter(property =>
+        Option(property.getField).exists(_.hasAnnotation(classOf[FixedAtCompileTime]))
+      )
+      .map(_.getName)
+      .toSet
+    descriptor.stateReferences.filter {
+      case (pointer, _) =>
+        Try(JsonPointer.compile(pointer).getMatchingProperty).toOption.exists(fixed.contains)
+    }
+  }
 
   /** Every whole-string `$name` value of `tree` outside its sidecar: its JSON pointer -> name. */
   def literalReferences(tree: ObjectNode): Map[String, String] = {

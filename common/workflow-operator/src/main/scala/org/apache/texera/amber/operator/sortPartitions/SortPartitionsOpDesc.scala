@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.sortPartitions
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.FixedAtCompileTime
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, RangePartition}
 import org.apache.texera.amber.operator.LogicalOp
@@ -44,16 +45,19 @@ class SortPartitionsOpDesc extends LogicalOp {
   @JsonSchemaTitle("Attribute")
   @JsonPropertyDescription("Attribute to sort (must be numerical).")
   @AutofillAttributeName
+  @FixedAtCompileTime
   var sortAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Domain Min")
   @JsonPropertyDescription("Minimum value of the domain of the attribute.")
+  @FixedAtCompileTime
   var domainMin: Long = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Domain Max")
   @JsonPropertyDescription("Maximum value of the domain of the attribute.")
+  @FixedAtCompileTime
   var domainMax: Long = _
 
   override def getPhysicalOp(

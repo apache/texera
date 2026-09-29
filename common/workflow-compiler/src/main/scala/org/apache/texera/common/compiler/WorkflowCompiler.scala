@@ -30,7 +30,7 @@ import org.apache.texera.common.compiler.WorkflowCompiler.{
 }
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.state.StateReferencing.literalReferences
+import org.apache.texera.amber.core.state.StateReferencing.{fixedAtCompileTime, literalReferences}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -88,7 +88,9 @@ object WorkflowCompiler {
     * Inside a loop block the sidecar also gets every whole-string `$name` value of the operator's
     * JSON (`StateReferencing.literalReferences`), next to the typed placeholders the parse put in;
     * an entry whose pointer names no value of that JSON has nothing to bind and is dropped. An
-    * input fed from outside the block is then an error (`inputsAheadOfLoopState`).
+    * entry in a property the compiled plan is built from is then an error
+    * (`referencesFixedAtCompileTime`), and so is an input fed from outside the block
+    * (`inputsAheadOfLoopState`).
     *
     * Outside every block a string such as "$AAPL" stays the literal it was before loop variables
     * existed, and the sidecar holds only typed placeholders (the user wrote "$n" for an Int),
@@ -105,7 +107,8 @@ object WorkflowCompiler {
       logicalOp.stateReferences = (literalReferences(tree) ++ logicalOp.stateReferences).filter {
         case (pointer, _) => tree.at(pointer).isValueNode
       }
-      inputsAheadOfLoopState(logicalOp, plan, insideLoopBlocks)
+      referencesFixedAtCompileTime(logicalOp)
+        .orElse(inputsAheadOfLoopState(logicalOp, plan, insideLoopBlocks))
     } else {
       Option.when(logicalOp.stateReferences.nonEmpty) {
         val name = logicalOp.operatorInfo.userFriendlyName
@@ -120,6 +123,25 @@ object WorkflowCompiler {
         )
       }
     }
+
+  /**
+    * The loop state writes a loop variable into the operator's setting only once the workflow runs,
+    * but a property marked `FixedAtCompileTime` -- the name or type of an output column, or what an
+    * input is partitioned on -- has been built into the plan by then: from the placeholder. A
+    * Projection alias "$a" would output a column named "$a", null in every row; a SortPartitions
+    * domain would stay 0 to 0. A reference there is an error instead.
+    */
+  private def referencesFixedAtCompileTime(logicalOp: LogicalOp): Option[Throwable] = {
+    val fixed = fixedAtCompileTime(logicalOp)
+    Option.when(fixed.nonEmpty) {
+      val those = if (fixed.size == 1) "that property" else "those properties"
+      new IllegalArgumentException(
+        s"${logicalOp.operatorInfo.userFriendlyName} cannot refer to loop variables " +
+          s"(${formatReferences(fixed)}): its output schema or partitioning is built from $those " +
+          "when the workflow is compiled, before the loop runs"
+      )
+    }
+  }
 
   /**
     * An operator inside a loop block has the loop variables written into its setting as the loop

@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.service
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.state.StateReferencing.literalReferences
 import org.apache.texera.amber.core.storage.RepositoryMountManager
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.{UpdateExecutorCompleted, Workflow}
@@ -27,6 +29,9 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   WorkflowReconfigureRequest
 }
 import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.common.compiler.LoopBlockMembership
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
@@ -60,23 +65,49 @@ class ExecutionReconfigurationService(
     val newOp = modifyLogicRequest.operator
     val opId = newOp.operatorIdentifier
     val currentOp = workflow.logicalPlan.getOperator(opId)
-    val reconfiguredPhysicalOp =
-      currentOp.runtimeReconfiguration(
-        workflow.context.workflowId,
-        workflow.context.executionId,
-        currentOp,
-        newOp
+    if (refersToLoopVariables(currentOp) || refersToLoopVariables(newOp)) {
+      ModifyLogicResponse(
+        opId.id,
+        isValid = false,
+        s"${currentOp.operatorInfo.userFriendlyName} refers to loop variables, so it cannot be " +
+          "modified while the workflow runs: its executor would be rebuilt from placeholders, " +
+          "after the loop state that sets them has arrived"
       )
-    reconfiguredPhysicalOp match {
-      case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
-      case Success(op) => {
-        stateStore.reconfigurationStore.updateState(old =>
-          old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+    } else {
+      val reconfiguredPhysicalOp =
+        currentOp.runtimeReconfiguration(
+          workflow.context.workflowId,
+          workflow.context.executionId,
+          currentOp,
+          newOp
         )
-        ModifyLogicResponse(opId.id, isValid = true, "")
+      reconfiguredPhysicalOp match {
+        case Failure(exception) =>
+          ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
+        case Success(op) => {
+          stateStore.reconfigurationStore.updateState(old =>
+            old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+          )
+          ModifyLogicResponse(opId.id, isValid = true, "")
+        }
       }
     }
   }
+
+  /**
+    * Whether `op`, in the deployed operator's place, refers to loop variables: its sidecar names
+    * one (the compiler's final one on the deployed operator, the parse's typed ones on an edit),
+    * or it sits inside a loop block and holds a whole-string `$name`. The rebuilt executor would
+    * parse the placeholders after the loop state that writes them into its setting has arrived
+    * (`OperatorExecutor.registerState`), so nothing would ever set them.
+    */
+  private def refersToLoopVariables(op: LogicalOp): Boolean =
+    op.stateReferences.nonEmpty || (
+      LoopBlockMembership
+        .operatorsInsideLoopBlocks(workflow.logicalPlan)
+        .contains(op.operatorIdentifier) &&
+        literalReferences(objectMapper.valueToTree[ObjectNode](op)).nonEmpty
+    )
 
   // actually performs all reconfiguration requests the user made during pause
   // sends ModifyLogic messages to operators and workers,
