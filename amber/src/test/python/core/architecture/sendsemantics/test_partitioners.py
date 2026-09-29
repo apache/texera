@@ -316,6 +316,19 @@ class TestRangeBasedShufflePartitioner:
         # (9 - 0) // 3 + 1 = 4
         assert partitioner.keys_per_receiver == 4
 
+    def test_duplicate_channels_use_unique_receiver_count(self):
+        p = RangeBasedShufflePartitioner(
+            RangeBasedShufflePartitioning(
+                batch_size=10,
+                channels=[_channel("S", dst) for dst in ("A", "A", "A", "B")],
+                range_attribute_names=["k"],
+                range_min=0,
+                range_max=9,
+            )
+        )
+        list(p.add_tuple_to_batch(_tuple(k=9)))
+        assert p.receivers[1][1] == [_tuple(k=9)]
+
     def test_value_below_range_min_routes_to_first_receiver(self, partitioner):
         assert partitioner.get_receiver_index(-100) == 0
 
