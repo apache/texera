@@ -41,6 +41,7 @@ After signing in you see the dashboard. The left menu has:
   - **Workflows**: your workflows. Click **Create Workflow** to start one.
   - **Datasets**: your data files ([how to upload](../create-dataset-upload-data/)).
   - **Compute**: your computing units (see [below](#run-a-workflow)).
+  - **Warehouses** (on some setups): where your run results are stored.
   - **Environments**: extra Python packages for Python operators.
   - **Quota**: how much storage and compute you have used.
 - **Admin**: users, executions and site settings. Admins only.
@@ -59,6 +60,8 @@ After signing in you see the dashboard. The left menu has:
 A **computing unit** is the machine that runs your workflow. Pick one in the top bar, then click **Run**. If the list is empty, click **+ Computing Unit** to create one.
 
 ![Computing unit selector and Run button](select-computing-unit.png)
+
+Some Texera setups also need a **warehouse**, the place your run's results are stored. Pick one from the **Warehouse** menu next to the computing unit. If the Run button says **+ Warehouse** instead, click it to create one. The name can use letters, digits, `-` and `_`.
 
 - One computing unit can run all your workflows. Reuse it.
 - A new unit usually won't fix an error in the workflow itself (code or settings). It can help when the run needs more memory, CPU or GPU, or different Python packages.
