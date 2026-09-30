@@ -262,6 +262,29 @@ describe("ResultTableFrameComponent", () => {
       expect(component.getCellMediaType(row, 0)).toBe("video");
     });
 
+    it("shows the schema's columns with no rows when the whole result is empty", () => {
+      component.operatorId = "op1";
+
+      component.setupResultTable([], 0, [
+        { attributeName: "name", attributeType: "string" },
+        { attributeName: "score", attributeType: "integer" },
+      ]);
+
+      expect(component.currentResult).toEqual([]);
+      expect(component.currentColumns?.map(c => c.header)).toEqual(["name", "score"]);
+      expect(component.totalNumTuples).toBe(0);
+    });
+
+    it("keeps the existing table for an empty page of a non-empty result, schema or not", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 5);
+
+      component.setupResultTable([], 7, [{ attributeName: "other", attributeType: "string" }]);
+
+      expect(component.currentResult).toEqual([SAMPLE_ROW]);
+      expect(component.currentColumns?.map(c => c.header)).toEqual(["name", "score"]);
+    });
+
     it("builds columns from the first row and drops the internal _id column", () => {
       component.operatorId = "op1";
       component.isLoadingResult = true;

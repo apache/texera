@@ -510,7 +510,9 @@ class ExecutionResultService(
         val mappedResults = convertTuplesToJson(paginationIterable)
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
-          .getOrElse(List.empty)
+          // A page with no rows has no tuple to read the columns off, but the
+          // stored result still declares them.
+          .getOrElse(columns.get.map(schemaOption.get.getAttribute))
         PaginatedResultEvent.apply(request, mappedResults, attributes)
 
       case None =>
