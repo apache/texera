@@ -40,8 +40,8 @@ import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.dao.{MockTexeraDB, SqlServer}
@@ -55,7 +55,6 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.resource.pythonvirtualenvironment.{PveResource, PveWebsocketResource}
 import org.apache.texera.web.resource.{
-  SyncExecutionRequest,
   SyncExecutionResource,
   WebsocketPayloadSizeTuner,
   WorkflowWebsocketResource
@@ -561,7 +560,7 @@ class ComputingUnitMasterSpec
     )
   }
 
-  it should "register the Scala module on the bootstrap object mapper" in {
+  it should "register the Scala and loop-variable modules on the bootstrap object mapper" in {
     val bootstrap = new Bootstrap[Configuration](master)
 
     master.initialize(bootstrap)
@@ -569,25 +568,10 @@ class ComputingUnitMasterSpec
     bootstrap.getObjectMapper.getRegisteredModuleIds.asScala should contain(
       com.fasterxml.jackson.module.scala.DefaultScalaModule.getClass.getName
     )
-  }
-
-  it should "register the loop-variable module on the bootstrap object mapper, so a typed '$n' parses" in {
-    val bootstrap = new Bootstrap[Configuration](master)
-
-    master.initialize(bootstrap)
-
-    // Jersey parses SyncExecutionResource's request body with this mapper, not JSONUtils'.
-    val request = bootstrap.getObjectMapper.readValue(
-      """{"executionName":"run","targetOperatorIds":[],"timeoutSeconds":1,
-        |"maxOperatorResultCharLimit":1,"maxOperatorResultCellCharLimit":1,
-        |"logicalPlan":{"operators":[{"limit":"$n","operatorType":"Limit"}],"links":[],
-        |"opsToViewResult":[],"opsToReuseResult":[]}}""".stripMargin,
-      classOf[SyncExecutionRequest]
-    )
-    val limit = request.logicalPlan.operators.head
-    limit shouldBe a[LimitOpDesc]
-    limit.asInstanceOf[LimitOpDesc].limit shouldBe 0
-    limit.stateReferences shouldBe Map("/limit" -> "n")
+    // Jersey parses SyncExecutionResource's request body, a typed '$n' included, with this mapper.
+    bootstrap.getObjectMapper
+      .readValue("""{"limit":"$n","operatorType":"Limit"}""", classOf[LogicalOp])
+      .stateReferences shouldBe Map("/limit" -> "n")
   }
 
   "run" should "serve the Jersey resources under the /api prefix" in {

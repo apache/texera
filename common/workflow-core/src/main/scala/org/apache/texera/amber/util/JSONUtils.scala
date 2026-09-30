@@ -47,12 +47,7 @@ object JSONUtils {
     @JsonIgnore def isDefined: Boolean
   }
 
-  /**
-    * Registers what a mapper needs to parse a workflow: Scala types, and a `$K` loop-variable
-    * reference in a typed property of a StateReferencing descriptor (every LogicalOp), parsed into
-    * a placeholder recorded in its `stateReferences`. Every mapper that parses workflows calls it:
-    * `objectMapper`, and the Dropwizard mapper of each application whose requests carry one.
-    */
+  /** Registers what any mapper parsing workflows (Dropwizard's too) needs: Scala types and `$K`. */
   def registerWorkflowModules(mapper: ObjectMapper): ObjectMapper =
     mapper.registerModule(DefaultScalaModule).registerModule(new StateReferenceModule())
 

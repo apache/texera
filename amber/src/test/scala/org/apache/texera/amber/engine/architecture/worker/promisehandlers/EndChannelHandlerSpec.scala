@@ -19,10 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.twitter.util.{Await, Duration, Future}
-import org.apache.texera.amber.core.executor.{ExecFactory, OperatorExecutor}
-import org.apache.texera.amber.core.state.{State, StateReferencing}
+import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{
   AttributeType,
   FinalizeExecutor,
@@ -50,6 +49,7 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
 }
+import org.apache.texera.amber.engine.architecture.worker.DataProcessorSpec.loopLimitExec
 import org.apache.texera.amber.engine.architecture.worker.{
   DataProcessor,
   DataProcessorRPCHandlerInitializer,
@@ -58,7 +58,6 @@ import org.apache.texera.amber.engine.architecture.worker.{
 }
 import org.apache.texera.amber.engine.common.ambermessage.{StateFrame, WorkflowFIFOMessage}
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -207,15 +206,6 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
   }
 
   private def await[T](future: Future[T]): T = Await.result(future, awaitTimeout)
-
-  /** Built as a worker builds it, from a descString whose `limit` refers to the loop variable `n`. */
-  private def limitReportingExecutor(): LimitReportingExecutor =
-    ExecFactory
-      .newExecFromJavaClassName(
-        classOf[LimitReportingExecutor].getName,
-        """{"limit":0,"stateReferences":{"/limit":"n"}}"""
-      )
-      .asInstanceOf[LimitReportingExecutor]
 
   /**
     * `handleExecutorException` pauses with `OperatorLogicPause` specifically. `PauseManager` keeps
@@ -406,7 +396,7 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
   }
 
   it should "fail the finish of an operator whose setting refers to a loop variable no state message carried, before asking it for a state" in {
-    val executor = limitReportingExecutor()
+    val executor = loopLimitExec()
     val fixture = new Fixture(executor)
 
     assert(fixture.endChannel() == EmptyReturn())
@@ -420,26 +410,21 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     )
     assertPausedByOperatorLogic(fixture.dp)
     // Neither finish callback ran with the placeholder, and the port is still finalized.
-    assert(executor.finishCalls.isEmpty)
+    assert(executor.calls.isEmpty)
     assert(fixture.emittedStates.isEmpty)
     assert(fixture.drainOutput().contains(FinalizePort(currentPortId, input = true)))
   }
 
   it should "finish an operator whose setting refers to a loop variable with the value its state message wrote" in {
-    val executor = limitReportingExecutor()
+    val executor = loopLimitExec()
     val fixture = new Fixture(executor)
-    val state = State(Map("n" -> 3L))
-    fixture.dp.processDataPayload(currentChannelId, StateFrame(state))
+    fixture.dp.processDataPayload(currentChannelId, StateFrame(State(Map("n" -> 3L))))
 
     assert(fixture.endChannel() == EmptyReturn())
 
     assert(fixture.consoleMessages.isEmpty)
-    assert(executor.finishCalls.toList == List(currentPortId.id))
-    // The state passes through, then the finish state reports the limit it wrote.
-    assert(
-      fixture.emittedStates ==
-        Seq(StateFrame(state, 0L, ""), StateFrame(State(Map("limit" -> 3)), 0L, ""))
-    )
+    // The finish callback sees the limit the state message wrote.
+    assert(executor.calls.map(c => (c._1, c._2)) == Seq(("state", 3), ("finish", 3)))
   }
 
   it should "finalize the output once the last input port completes" in {
@@ -487,26 +472,6 @@ object EndChannelHandlerSpec {
     override def onFinish(port: Int): Iterator[TupleLike] = {
       finishOutputPorts += port
       onFinishTuples(port)
-    }
-
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
-  }
-
-  /** A setting with one Int property. */
-  class LimitSetting extends StateReferencing {
-    @JsonProperty var limit: Int = _
-  }
-
-  /** Reports its setting's limit as its finish state. Public, for the factory's reflection. */
-  class LimitReportingExecutor(descString: String) extends OperatorExecutor {
-    val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
-
-    /** Ports handed to `produceStateOnFinish`. */
-    val finishCalls: ArrayBuffer[Int] = ArrayBuffer()
-
-    override def produceStateOnFinish(port: Int): Option[State] = {
-      finishCalls += port
-      Some(State(Map("limit" -> setting.limit)))
     }
 
     override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty

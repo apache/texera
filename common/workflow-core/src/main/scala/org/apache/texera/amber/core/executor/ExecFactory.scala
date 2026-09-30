@@ -33,11 +33,7 @@ object ExecFactory {
       .asInstanceOf[OperatorExecutor]
   }
 
-  /**
-    * When the descString's `stateReferences` sidecar names loop variables, the descriptor the
-    * executor holds is its setting, which each state message writes them into
-    * (`OperatorExecutor.registerState`). The compiler fills the sidecar in only inside a block.
-    */
+  /** A sidecar's loop variables are bound to the executor's one setting (`OperatorExecutor`). */
   def newExecFromJavaClassName[K](
       className: String,
       descString: String = "",
@@ -55,7 +51,7 @@ object ExecFactory {
       }
       settingsHeldBy(executor) match {
         case List(setting) =>
-          OperatorExecutor.attach(
+          OperatorExecutor.bindings.put(
             executor,
             new StateReferenceBinding(className, setting, references)
           )

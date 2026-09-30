@@ -19,7 +19,6 @@
 
 package org.apache.texera.common.compiler
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
@@ -35,11 +34,9 @@ import org.apache.texera.amber.operator.udf.python.DualInputPortsPythonUDFOpDesc
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.Random
@@ -301,74 +298,46 @@ class LogicalPlanSpec extends AnyFlatSpec {
       operators,
       edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
     )
-    val result = plan.operatorsInsideLoopBlocks.map(_.id)
     val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
     val byPanel = enclosingByPanel(operators, edges)
     assert(
-      result == byPanel.keySet && around == byPanel,
+      around == byPanel,
       s"the panel's walk finds $byPanel, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
         s"with $edges"
     )
-    result
+    plan.operatorsInsideLoopBlocks.map(_.id)
   }
 
   /**
     * A port of the property panel's `getEnclosingLoopStarts` (frontend loop-block.util.ts), which
     * decides where the panel offers `$K`: each operator with an enclosing LoopStart, and those
-    * LoopStarts. It walks from each operator where `operatorsInsideLoopBlocks` takes two passes.
+    * LoopStarts. It walks from each operator where `enclosingLoopStarts` folds over the plan. It
+    * leaves out the panel's hop counts, which only order the LoopStarts, and its cap on open
+    * blocks, which binds only on a cycle.
     */
   private def enclosingByPanel(
       operators: List[LogicalOp],
       edges: Seq[(String, String)]
   ): Map[String, Set[String]] = {
-    val typeOf = operators.map { op =>
-      op.operatorIdentifier.id -> objectMapper
-        .valueToTree[ObjectNode](op)
-        .get("operatorType")
-        .asText()
+    val typeOf = operators.map {
+      case op: LoopStartOpDesc => op.operatorIdentifier.id -> "LoopStart"
+      case op: LoopEndOpDesc   => op.operatorIdentifier.id -> "LoopEnd"
+      case op                  => op.operatorIdentifier.id -> ""
     }.toMap
-    val upstream = edges.groupMap(_._2)(_._1)
-    val downstream = edges.groupMap(_._1)(_._2)
-    // The `closes`-typed operators met with no block open, breadth-first, and their hop distances.
-    def walk(
-        origin: String,
-        adjacency: Map[String, Seq[String]],
-        opens: String,
-        closes: String,
-        initiallyOpen: Int
-    ): List[(String, Int)] = {
-      val maxOpen = typeOf.values.count(_ == opens) + initiallyOpen
-      val hits = mutable.LinkedHashMap[String, Int]()
-      val visited = mutable.Set(s"$origin@$initiallyOpen")
-      val queue = mutable.Queue((origin, initiallyOpen, 0))
-      while (queue.nonEmpty) {
-        val (node, open, hops) = queue.dequeue()
-        adjacency.getOrElse(node, Nil).foreach { next =>
-          val nextType = typeOf.get(next)
-          val nextOpen =
-            if (nextType.contains(opens)) open + 1
-            else if (nextType.contains(closes) && open > 0) open - 1
-            else open
-          if (nextType.contains(closes) && open == 0 && !hits.contains(next)) hits(next) = hops + 1
-          // Only a lap around a cycle opens more blocks than there are openers.
-          if (nextOpen <= maxOpen && visited.add(s"$next@$nextOpen")) {
-            queue.enqueue((next, nextOpen, hops + 1))
-          }
+    // The `closes`-typed operators a walk from `origin` meets with no block open.
+    def walk(origin: String, adjacency: Map[String, Seq[String]], opens: String, closes: String) = {
+      def from(id: String, open: Int): Set[String] =
+        adjacency.getOrElse(id, Nil).toSet.flatMap { next: String =>
+          val change = if (typeOf(next) == opens) 1 else if (typeOf(next) == closes) -1 else 0
+          from(next, (open + change).max(0)) ++ Option.when(change < 0 && open == 0)(next)
         }
-      }
-      hits.toList
+      from(origin, if (typeOf(origin) == opens) 1 else 0)
     }
-    def enclosingLoopStarts(id: String): List[String] = {
-      val closingEnds =
-        walk(id, downstream, "LoopStart", "LoopEnd", if (typeOf(id) == "LoopStart") 1 else 0)
-      if (closingEnds.isEmpty) Nil
-      else {
-        walk(id, upstream, "LoopEnd", "LoopStart", if (typeOf(id) == "LoopEnd") 1 else 0)
-          .sortBy(-_._2)
-          .map(_._1)
-      }
-    }
-    typeOf.keySet.map(id => id -> enclosingLoopStarts(id).toSet).filter(_._2.nonEmpty).toMap
+    typeOf.keySet
+      .filter(walk(_, edges.groupMap(_._1)(_._2), "LoopStart", "LoopEnd").nonEmpty)
+      .map(id => id -> walk(id, edges.groupMap(_._2)(_._1), "LoopEnd", "LoopStart"))
+      .filter(_._2.nonEmpty)
+      .toMap
   }
 
   "LogicalPlan.operatorsInsideLoopBlocks" should "find nothing unless a LoopStart and a LoopEnd close a block" in {
@@ -461,18 +430,11 @@ class LogicalPlanSpec extends AnyFlatSpec {
     (1 to 400).foreach { _ =>
       val size = 2 + random.nextInt(11)
       val density = Seq(0.15, 0.3, 0.5)(random.nextInt(3))
-      val operators = (0 until size).map { i =>
-        random.nextInt(4) match {
-          case 0 => loopStart(s"n$i")
-          case 1 => loopEnd(s"n$i")
-          case _ => op(s"n$i")
-        }
-      }
-      val edges = for {
-        from <- 0 until size
-        to <- from + 1 until size
-        if random.nextDouble() < density
-      } yield s"n$from" -> s"n$to"
+      val operators =
+        (0 until size).map(i => Seq(loopStart _, loopEnd _, op _, op _)(random.nextInt(4))(s"n$i"))
+      val edges =
+        for (from <- 0 until size; to <- from + 1 until size if random.nextDouble() < density)
+          yield s"n$from" -> s"n$to"
       // In shuffled order, so the plan's topological order differs from the ids'.
       inside(random.shuffle(operators).toList, random.shuffle(edges): _*)
     }

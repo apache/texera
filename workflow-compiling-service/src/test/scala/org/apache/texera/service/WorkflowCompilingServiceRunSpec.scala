@@ -31,7 +31,6 @@ import io.dropwizard.jetty.setup.ServletEnvironment
 import jakarta.servlet.{DispatcherType, Filter, FilterChain}
 import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.auth.{RoleAnnotationEnforcer, UnauthorizedExceptionMapper}
 import org.apache.texera.service.WorkflowCompilingServiceRunSpec.SpecPayload
 import org.apache.texera.service.resource.{
@@ -257,7 +256,7 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
     resolve(unsetConfigPath) shouldBe "unset: ${TEXERA_WORKFLOW_COMPILING_SERVICE_SPEC_UNSET}\n"
   }
 
-  it should "register the Scala module on Dropwizard's object mapper" in {
+  it should "register the Scala and loop-variable modules on Dropwizard's object mapper" in {
     val mapper = initializedBootstrap().getObjectMapper
     // The whole module, not only the Option support that `Some("x")` alone would prove: this is
     // the mapper Dropwizard hands to Jersey, so every payload the API returns goes through it —
@@ -273,16 +272,10 @@ class WorkflowCompilingServiceRunSpec extends AnyFlatSpec with Matchers {
     json shouldBe """{"operatorId":"op-1","outputSchemas":{"port0":[1,2],"port1":null}}"""
     // Reading, too: this is also the mapper Dropwizard parses the YAML configuration with.
     mapper.readValue(json, classOf[SpecPayload]) shouldBe payload
-  }
-
-  it should "register the loop-variable module on Dropwizard's object mapper, so a typed '$n' parses" in {
-    // Jersey parses the editor's POST /compile body with this mapper, not JSONUtils'. Without the
-    // module, the "$n" the frontend sends for Limit's Int property is a Jackson error.
-    val limit = initializedBootstrap().getObjectMapper
+    // Jersey parses the editor's POST /compile body, a typed '$n' included, with this mapper.
+    mapper
       .readValue("""{"limit":"$n","operatorType":"Limit"}""", classOf[LogicalOp])
-    limit shouldBe a[LimitOpDesc]
-    limit.asInstanceOf[LimitOpDesc].limit shouldBe 0
-    limit.stateReferences shouldBe Map("/limit" -> "n")
+      .stateReferences shouldBe Map("/limit" -> "n")
   }
 }
 

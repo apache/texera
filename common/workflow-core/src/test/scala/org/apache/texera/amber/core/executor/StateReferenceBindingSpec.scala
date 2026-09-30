@@ -77,69 +77,52 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert(setting.stateReferences.isEmpty)
   }
 
-  it should "let a more deeply nested loop's value replace an outer one's, even one that did not fit" in {
+  it should "let a more deeply nested loop's value replace an outer one's, even one that did not fit, and keep it" in {
     // In a nested loop the inner body first receives the outer loop's state, one loop out, then
     // the inner one's: an inner variable shadows an outer one of the same name.
     val exec = build()
-    exec.registerState(
-      State(Map("i" -> 1L, "n" -> 2, "t" -> "outer", "v" -> "o", "h" -> "not a number")),
-      loopCounter = 1
-    )
-    val inner = State(Map("i" -> 5L, "t" -> "inner", "h" -> 1))
-    exec.registerState(inner, loopCounter = 0)
+    val outer = State(Map("i" -> 1L, "n" -> 2, "t" -> "outer", "v" -> "o", "h" -> "not a number"))
+    exec.registerState(outer, loopCounter = 1)
+    exec.registerState(State(Map("i" -> 5L, "t" -> "inner", "h" -> 1)), loopCounter = 0)
+    // A later copy of the outer loop's state, from another upstream worker, does not undo it.
+    exec.registerState(outer, loopCounter = 1)
     exec.bindStateReferences()
 
     val setting = exec.setting
     assert((setting.name, setting.limit, setting.tags) == (("5", 2, List("a", "inner"))))
     assert(setting.predicates(1).value == "o")
     assert(setting.predicates(1).threshold == 1.0)
-    assert(exec.state.contains(inner))
-  }
-
-  it should "keep a more deeply nested loop's value when an outer loop's message comes after it" in {
-    val exec = build(Map("/limit" -> "n", "/name" -> "i"))
-    exec.registerState(State(Map("n" -> 2L, "i" -> "inner")), loopCounter = 0)
-    val outer = State(Map("n" -> 7L, "i" -> "outer"))
-    exec.registerState(outer, loopCounter = 1)
-    exec.bindStateReferences()
-
-    assert((exec.setting.limit, exec.setting.name) == ((2, "inner")))
     assert(exec.state.contains(outer))
   }
 
-  it should "accept copies from one loop that agree, from several upstream workers or branches" in {
-    val exec = build(Map("/limit" -> "n"))
-    exec.registerState(State(Map("n" -> 2L, "unrelated" -> 1)), loopCounter = 1)
-    // The same number whatever its boxed type; a variable no property refers to may differ.
-    exec.registerState(State(Map("n" -> 2, "unrelated" -> 2)), loopCounter = 1)
-    exec.registerState(State(Map("unrelated" -> 3)), loopCounter = 1)
-    exec.bindStateReferences()
-
-    assert(exec.setting.limit == 2)
-  }
-
-  it should "fail on a message from the same loop that gives a variable another value, bound or not" in {
+  it should "accept copies from one loop that agree, and fail on one that gives a variable another value, bound or not" in {
     def conflict(earlier: Any, later: Any): String =
-      s"loop variable i got two different values in one iteration, $earlier and $later: " +
+      s"loop variable n got two different values in one iteration, $earlier and $later: " +
         "a loop's variables must not change inside its body"
     val exec = build(Map("/limit" -> "n", "/name" -> "i"))
-    exec.registerState(State(Map("i" -> 1L)), loopCounter = 1)
+    // Copies from several upstream workers or branches: the same number whatever its boxed type,
+    // and a variable no property refers to may differ.
+    exec.registerState(State(Map("n" -> 1L, "unrelated" -> 1)), loopCounter = 1)
+    val copy = State(Map("n" -> 1, "unrelated" -> 2))
+    exec.registerState(copy, loopCounter = 1)
 
-    val changed = State(Map("n" -> 3L, "i" -> 2L))
     assert(
-      intercept[IllegalStateException](exec.registerState(changed, loopCounter = 1)).getMessage ==
-        conflict(1, 2)
+      intercept[IllegalStateException](
+        exec.registerState(State(Map("i" -> "x", "n" -> 2L)), loopCounter = 1)
+      ).getMessage == conflict(1, 2)
     )
-    // Nothing of the refused message is written, not even its n, which no message carried yet.
-    assert((exec.setting.limit, exec.setting.name) == ((0, "1")))
-    exec.registerState(State(Map("n" -> 2L)), loopCounter = 1)
+    // Nothing of the refused message is written, not even its i, which no message carried yet and
+    // which sorts before n; nor is the message registered.
+    assert((exec.setting.limit, exec.setting.name) == ((1, "$i")))
+    assert(exec.state.contains(copy))
+    exec.registerState(State(Map("i" -> "y")), loopCounter = 1)
     exec.bindStateReferences()
     assert(
       intercept[IllegalStateException](
-        exec.registerState(State(Map("i" -> "x")), loopCounter = 1)
+        exec.registerState(State(Map("n" -> "x")), loopCounter = 1)
       ).getMessage == conflict(1, "x")
     )
-    assert((exec.setting.limit, exec.setting.name) == ((2, "1")))
+    assert((exec.setting.limit, exec.setting.name) == ((1, "y")))
   }
 
   it should "fail at binding, naming every reference no state message carried, until one does" in {
@@ -174,6 +157,13 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     exec.bindStateReferences()
     assert(exec.state.contains(later))
     assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
+  }
+
+  it should "write a variable into every property that refers to it" in {
+    val exec = build(Map("/name" -> "i", "/tags/1" -> "i", "/limit" -> "i"))
+    exec.registerState(State(Map("i" -> 3L)))
+    exec.bindStateReferences()
+    assert((exec.setting.name, exec.setting.tags, exec.setting.limit) == (("3", List("a", "3"), 3)))
   }
 
   it should "report a sidecar pointer that names no value of the setting at binding" in {

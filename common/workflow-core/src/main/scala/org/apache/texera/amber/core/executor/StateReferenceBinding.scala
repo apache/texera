@@ -37,7 +37,7 @@ import scala.util.Try
   * smaller `loopCounter`) replaces an outer one's value, so an inner loop's variable shadows an
   * outer one of the same name. Messages from the same loop are copies, from several upstream
   * workers or branches, so a different value is an error, bound or not. A value that cannot be
-  * written leaves the property as it was and is reported by `unbound`, unless a deeper one can be.
+  * written leaves the property as it was and is reported by `bind`, unless a deeper one can be.
   *
   * @param className the executor's class, named in the errors.
   */
@@ -57,45 +57,39 @@ private[executor] final class StateReferenceBinding(
   private val values = mutable.Map.empty[String, (Long, Any)]
 
   /** Set once bound: a later message is still checked, but no longer written. */
-  var bound = false
+  private var bound = false
 
-  /** Writes each referenced variable `state` carries into the setting (see the class doc). */
+  /** Writes each referenced variable `state` carries into the setting, in pointer order. */
   def write(state: State, loopCounter: Long): Unit = {
-    val carried = references.values.toSeq.distinct.sorted.flatMap { name =>
-      state.values.get(name).map(name -> _)
-    }
-    carried.foreach {
-      case (name, value) =>
-        values.get(name).filter(seen => seen._1 == loopCounter && seen._2 != value).foreach {
-          case (_, earlier) =>
-            throw new IllegalStateException(
-              s"loop variable $name got two different values in one iteration, $earlier and " +
-                s"$value: a loop's variables must not change inside its body"
-            )
-        }
-    }
+    val carried =
+      references.values.toSeq.distinct.sorted.flatMap(n => state.values.get(n).map(n -> _))
+    for ((name, value) <- carried; (depth, earlier) <- values.get(name))
+      if (depth == loopCounter && earlier != value)
+        throw new IllegalStateException(
+          s"loop variable $name got two different values in one iteration, $earlier and " +
+            s"$value: a loop's variables must not change inside its body"
+        )
     val replacing =
       if (bound) Map.empty[String, Any]
       else carried.filter { case (name, _) => values.get(name).forall(_._1 > loopCounter) }.toMap
     replacing.foreach { case (name, value) => values(name) = (loopCounter, value) }
-    references.toSeq.sorted.foreach {
-      case (pointer, name) =>
-        replacing.get(name).foreach { value =>
-          try {
-            writeAt(pointer, name, value)
-            problems -= pointer
-          } catch {
-            case e: IllegalStateException => problems(pointer) = e.getMessage
-            case e: JsonProcessingException =>
-              problems(pointer) = s"property $pointer refers to loop variable $name, but its " +
-                s"value $value does not fit it: ${e.getOriginalMessage}"
-          }
-        }
-    }
+    for ((pointer, name) <- references.toSeq.sorted; value <- replacing.get(name))
+      try {
+        writeAt(pointer, name, value)
+        problems -= pointer
+      } catch {
+        case e: IllegalStateException => problems(pointer) = e.getMessage
+        case e: JsonProcessingException =>
+          problems(pointer) = s"property $pointer refers to loop variable $name, but its " +
+            s"value $value does not fit it: ${e.getOriginalMessage}"
+      }
   }
 
-  /** Why each reference is not written yet, in pointer order: empty once every one is. */
-  def unbound: Seq[String] = problems.values.toSeq
+  /** Fails, naming in pointer order each reference not written yet, or ends the writing. */
+  def bind(): Unit = {
+    if (problems.nonEmpty) throw new IllegalStateException(problems.values.mkString("; "))
+    bound = true
+  }
 
   /**
     * Puts `value` at `pointer` in a fresh JSON of the setting, and hands the top-level property it
