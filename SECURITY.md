@@ -273,12 +273,6 @@ access is granted, full visibility is expected. Resource owners should grant acc
 Resources marked as public are visible to all users. Public sharing is a deliberate collaboration feature. Users should
 review resources before making them public and avoid including sensitive data or credentials.
 
-### Local JVM and Docker Compose Deployments
-
-Security of local JVM and single-node Docker Compose deployments is not guaranteed (see
-[Deployment Modes and Security Coverage](#deployment-modes-and-security-coverage)). Issues that only affect these
-deployment modes are out of scope unless they are also reproducible on the Kubernetes deployment.
-
 ### Issues Requiring Deployment Manager Access
 
 Issues requiring physical access to servers, administrative access to infrastructure, database access, or access to
