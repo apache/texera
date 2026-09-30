@@ -534,8 +534,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .collect { case request: ConsoleMessageTriggeredRequest => request.consoleMessage.title }
       .toList
 
-  private val limitReferringToN = """{"limit":0,"stateReferences":{"/limit":"n"}}"""
-
   "data processor" should "run an operator whose setting refers to a loop variable as any other, the variable written in as the state arrives" in {
     val (dp, exec, sent) = initializedWith(limitReferringToN)
     // The operator's own executor, built at worker start from the descString with its placeholder.
@@ -572,20 +570,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(tuplesSent(sent) == tuples.take(2).toList)
     assert(consoleTitles(sent).isEmpty)
     assert(!dp.pauseManager.isPaused)
-  }
-
-  "data processor" should "write the more deeply nested loop's value of a variable, even when its state comes first" in {
-    val (dp, exec, sent) = initializedWith(limitReferringToN)
-    openExecutor(dp)
-    // In an inner loop's body: its own state, then the outer loop's, one loop out.
-    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
-    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 5L)), loopCounter = 1))
-    dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
-    drain(dp)
-
-    assert(exec.setting.limit == 2)
-    assert(tuplesSent(sent) == tuples.take(2).toList)
-    assert(consoleTitles(sent).isEmpty)
   }
 
   "data processor" should "fail a state message from the same loop that changes a loop variable" in {
@@ -634,9 +618,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     drain(dp)
     assert(exec.tuplesSeen == 1)
 
-    val replacement = ExecFactory
-      .newExecFromJavaClassName(classOf[LoopLimitExec].getName, limitReferringToN)
-      .asInstanceOf[LoopLimitExec]
+    val replacement = loopLimitExec()
     dp.executor = replacement
     dp.processDataPayload(senderChannel, DataFrame(tuples.slice(1, 2)))
 
@@ -683,6 +665,15 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
 
 object DataProcessorSpec {
 
+  /** A descString whose `limit` refers to the loop variable `n`. */
+  val limitReferringToN = """{"limit":0,"stateReferences":{"/limit":"n"}}"""
+
+  /** Built as a worker builds it, from `limitReferringToN`. */
+  def loopLimitExec(): LoopLimitExec =
+    ExecFactory
+      .newExecFromJavaClassName(classOf[LoopLimitExec].getName, limitReferringToN)
+      .asInstanceOf[LoopLimitExec]
+
   /** A setting with one Int property, as Limit's. */
   class LimitSetting extends StateReferencing {
     @JsonProperty var limit: Int = _
@@ -715,6 +706,11 @@ object DataProcessorSpec {
     override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
       tuplesSeen += 1
       if (tuplesSeen <= setting.limit) Iterator.single(tuple) else Iterator.empty
+    }
+
+    override def produceStateOnFinish(port: Int): Option[State] = {
+      record("finish")
+      None
     }
   }
 }

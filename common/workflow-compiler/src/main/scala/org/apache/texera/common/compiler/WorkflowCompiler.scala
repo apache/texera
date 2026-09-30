@@ -86,12 +86,8 @@ object WorkflowCompiler {
     * such as "$AAPL" stays a literal, and a typed placeholder (the user wrote "$n" for an Int),
     * which nothing would bind, is an error; it stays in the sidecar, so a recompile reports it too.
     */
-  def normalizeStateReferences(
-      logicalOp: LogicalOp,
-      plan: LogicalPlan,
-      insideLoopBlocks: Set[OperatorIdentity]
-  ): Option[Throwable] =
-    if (insideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
+  def normalizeStateReferences(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] =
+    if (plan.operatorsInsideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
       logicalOp.stateReferences =
         literalReferences(objectMapper.valueToTree[ObjectNode](logicalOp)) ++
           logicalOp.stateReferences
@@ -114,15 +110,14 @@ object WorkflowCompiler {
     */
   private def inputsAheadOfLoopState(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] = {
     val around = plan.enclosingLoopStarts
+    val mine = around(logicalOp.operatorIdentifier)
     val linksByPort = plan.getUpstreamLinks(logicalOp.operatorIdentifier).groupBy(_.toPortId)
     // A LoopStart's link carries its own block's state too.
     def carriesOnlyState(port: PortIdentity): Boolean =
       linksByPort
         .get(port)
         .exists(_.forall { link =>
-          around
-            .getOrElse(logicalOp.operatorIdentifier, Set.empty)
-            .subsetOf(around.getOrElse(link.fromOpId, Set.empty) + link.fromOpId)
+          mine.subsetOf(around.getOrElse(link.fromOpId, Set.empty) + link.fromOpId)
         })
     val exposed = logicalOp.operatorInfo.inputPorts.filter { input =>
       linksByPort.contains(input.id) && !carriesOnlyState(input.id) &&
@@ -238,7 +233,6 @@ class WorkflowCompiler(
       (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     val outputPortsNeedingStorage: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
-    val insideLoopBlocks = logicalPlan.operatorsInsideLoopBlocks
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
@@ -251,7 +245,7 @@ class WorkflowCompiler(
             case None       => throw error
           }
         // Before the physical plan: the descriptor serializes its sidecar into its descString.
-        normalizeStateReferences(logicalOp, logicalPlan, insideLoopBlocks).foreach(report)
+        normalizeStateReferences(logicalOp, logicalPlan).foreach(report)
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         // Before the code-generation check below: the first error per operator is reported, and
         // code generated from a placeholder may fail on it with a less specific message.
