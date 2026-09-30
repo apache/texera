@@ -17,7 +17,9 @@
  * under the License.
  */
 
-import { Component, Input } from "@angular/core";
+import { Component, Input, LOCALE_ID } from "@angular/core";
+import { registerLocaleData } from "@angular/common";
+import localeDe from "@angular/common/locales/de";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -532,10 +534,10 @@ describe("HubWorkflowDetailComponent", () => {
       expect(component.formatViewCount(1234)).toBe("1.2k");
     });
 
-    it("returns the exact count after one change and the compact count after a second", () => {
+    it("returns the grouped exact count after one change and the compact count after a second", () => {
       build({ modalData: { wid: 1 } });
       component.changeViewDisplayStyle();
-      expect(component.formatViewCount(1234)).toBe("1234");
+      expect(component.formatViewCount(1234)).toBe("1,234");
       component.changeViewDisplayStyle();
       expect(component.formatViewCount(1234)).toBe("1.2k");
     });
@@ -544,7 +546,7 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 } });
       expect(component.formatViewCount(1000)).toBe("1.0k");
       component.changeViewDisplayStyle();
-      expect(component.formatViewCount(1000)).toBe("1000");
+      expect(component.formatViewCount(1000)).toBe("1,000");
     });
 
     it("renders counts below 1000 the same way in both styles", () => {
@@ -558,7 +560,18 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 } });
       expect(component.formatViewCount(1234567)).toBe(component.formatCount(1234567));
       component.changeViewDisplayStyle();
-      expect(component.formatViewCount(1234567)).toBe("1234567");
+      expect(component.formatViewCount(1234567)).toBe("1,234,567");
+    });
+
+    it("groups the exact count by the app locale", () => {
+      // The separator comes from LOCALE_ID, like the `number` pipe the rest of the UI uses, rather
+      // than a hard-coded "en-US"; the app sets no LOCALE_ID, so it renders "1,234" today.
+      registerLocaleData(localeDe);
+      configure({ modalData: { wid: 1 } });
+      TestBed.overrideProvider(LOCALE_ID, { useValue: "de" });
+      component = TestBed.createComponent(HubWorkflowDetailComponent).componentInstance;
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1234)).toBe("1.234");
     });
   });
 });
@@ -696,7 +709,7 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
       render({ isHub: true, viewCount: 1234 });
 
       clickView();
-      expect(countShownBy("View")).toBe("1234");
+      expect(countShownBy("View")).toBe("1,234");
       clickView();
       expect(countShownBy("View")).toBe("1.2k");
     });
@@ -705,7 +718,7 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
       render({ isHub: false, viewCount: 1234 });
 
       clickView();
-      expect(countShownBy("View")).toBe("1234");
+      expect(countShownBy("View")).toBe("1,234");
     });
 
     it("leaves the like count compact", () => {
