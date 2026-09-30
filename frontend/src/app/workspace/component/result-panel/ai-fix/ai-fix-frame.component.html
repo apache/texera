@@ -1,0 +1,121 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<ng-container *ngIf="state$ | async as state">
+  <div
+    class="ai-fix-status"
+    *ngIf="state.status === 'analyzing' || state.status === 'applying'">
+    <nz-spin nzSize="small"></nz-spin>
+    <span>{{ state.status === "analyzing" ? "Analyzing error with AI..." : "Applying fix..." }}</span>
+  </div>
+
+  <!-- Nothing has been analysed yet (or the user discarded the last suggestion). -->
+  <div
+    class="ai-fix-start"
+    *ngIf="
+      state.status === 'idle' ||
+      state.status === 'applied' ||
+      state.status === 'applied_without_run' ||
+      state.status === 'error'
+    ">
+    <button
+      nz-button
+      nzType="primary"
+      class="ai-fix-analyze"
+      [disabled]="!operatorId"
+      (click)="onAnalyze()">
+      <span
+        nz-icon
+        nzType="robot"></span>
+      Analyze with AI
+    </button>
+  </div>
+
+  <nz-alert
+    *ngIf="state.status === 'ready' && state.errorType === 'unsupported'"
+    nzType="info"
+    [nzMessage]="unsupportedMessage"></nz-alert>
+
+  <nz-alert
+    *ngIf="state.status === 'applied'"
+    nzType="success"
+    nzMessage="Fix applied — workflow re-running..."></nz-alert>
+
+  <nz-alert
+    *ngIf="state.status === 'applied_without_run'"
+    nzType="warning"
+    nzMessage="Fix applied. Select a warehouse to run the workflow."></nz-alert>
+
+  <nz-alert
+    *ngIf="state.status === 'error'"
+    nzType="error"
+    nzMessage="The AI could not suggest a fix for this error. Check the console for details."></nz-alert>
+
+  <ng-container *ngIf="state.status === 'ready' && state.suggestedFix as fix">
+    <div class="ai-fix-section-title">🔍 Root cause</div>
+    <p class="ai-fix-explanation">{{ fix.explanation }}</p>
+
+    <div class="ai-fix-section-title">
+      📝 Proposed fix
+      <nz-tag [nzColor]="confidenceColor(fix.confidence)">{{ fix.confidence }} confidence</nz-tag>
+    </div>
+
+    <div
+      class="ai-fix-field"
+      *ngIf="fix.type === 'property_change'">
+      Configuration field: <code>{{ fix.fieldName }}</code>
+    </div>
+
+    <div class="ai-fix-diff">
+      <div
+        class="ai-fix-removed"
+        *ngFor="let line of splitLines(fix.original)">
+        - {{ line }}
+      </div>
+      <div
+        class="ai-fix-added"
+        *ngFor="let line of splitLines(fix.suggested)">
+        + {{ line }}
+      </div>
+    </div>
+
+    <div class="ai-fix-actions">
+      <button
+        nz-button
+        nzType="primary"
+        class="ai-fix-apply"
+        (click)="onApply()">
+        <span
+          nz-icon
+          nzType="check"></span>
+        Apply and re-run
+      </button>
+      <button
+        nz-button
+        nzType="default"
+        class="ai-fix-discard"
+        (click)="onDiscard()">
+        <span
+          nz-icon
+          nzType="close"></span>
+        Discard
+      </button>
+    </div>
+  </ng-container>
+</ng-container>

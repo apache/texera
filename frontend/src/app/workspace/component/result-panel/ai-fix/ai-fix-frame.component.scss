@@ -1,0 +1,77 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  padding: 8px;
+}
+
+.ai-fix-status {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.ai-fix-section-title {
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.ai-fix-explanation {
+  margin: 4px 0 8px;
+  user-select: text;
+}
+
+.ai-fix-field {
+  margin-bottom: 4px;
+  user-select: text;
+}
+
+/* Same monospace treatment the other result-panel frames use for code. */
+.ai-fix-diff {
+  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  font-family: monaco, serif;
+  font-size: 11px;
+  line-height: 16px;
+  margin: 4px 0 8px;
+  overflow-x: auto;
+  white-space: pre;
+  user-select: text;
+}
+
+.ai-fix-removed {
+  background-color: #ffeef0;
+  color: #82071e;
+  padding: 0 6px;
+}
+
+.ai-fix-added {
+  background-color: #e6ffed;
+  color: #116329;
+  padding: 0 6px;
+}
+
+.ai-fix-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

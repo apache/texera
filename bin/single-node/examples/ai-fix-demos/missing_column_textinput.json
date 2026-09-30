@@ -1,0 +1,91 @@
+{
+  "operators": [
+    {
+      "operatorID": "TextInput-operator-demo-missing-column",
+      "operatorType": "TextInput",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "textInput": "Ad Astra\nThe Irishman\nJoker\nParasite\nKnives Out",
+        "attributeName": "line",
+        "attributeType": "string"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Movie titles",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "PythonUDFV2-operator-demo-missing-column-textinput",
+      "operatorType": "PythonUDFV2",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "code": "from pytexera import *\n\n\nclass ProcessTupleOperator(UDFOperatorV2):\n\n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        # BROKEN ON PURPOSE: the input column is \"line\", not \"lines\".\n        # Raises: KeyError: 'lines'\n        title = tuple_[\"lines\"]\n\n        tuple_[\"title_length\"] = len(title)\n        yield tuple_\n",
+        "workers": 1,
+        "retainInputColumns": true,
+        "defaultEnv": true,
+        "envName": "",
+        "outputColumns": [
+          {
+            "attributeName": "title_length",
+            "attributeType": "integer"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": true,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Title length (missing column)",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true,
+      "viewResult": true
+    }
+  ],
+  "operatorPositions": {
+    "TextInput-operator-demo-missing-column": { "x": 80, "y": 200 },
+    "PythonUDFV2-operator-demo-missing-column-textinput": { "x": 340, "y": 200 }
+  },
+  "links": [
+    {
+      "linkID": "link-demo-missing-column-textinput",
+      "source": {
+        "operatorID": "TextInput-operator-demo-missing-column",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "PythonUDFV2-operator-demo-missing-column-textinput",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}
