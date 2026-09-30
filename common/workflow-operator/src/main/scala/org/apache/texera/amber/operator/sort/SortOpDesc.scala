@@ -21,11 +21,18 @@ package org.apache.texera.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.tuple.Schema
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-class SortOpDesc extends PythonOperatorDescriptor {
+class SortOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+
+  // Sorting is this operator's contract: output row order is meaningful.
+  override def orderSensitive: Boolean = true
+
   @JsonProperty(required = true)
   @JsonPropertyDescription("column to perform sorting on")
   var attributes: List[SortCriteriaUnit] = List.empty
@@ -78,4 +85,11 @@ class SortOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(blocking = true))
     )
 
+  override def generateStandaloneCode(): String = {
+    val cols = attributes.map(c => pyStringLiteral(c.attributeName)).mkString("[", ", ", "]")
+    val ascending = attributes
+      .map(c => if (c.sortPreference == SortPreference.ASC) "True" else "False")
+      .mkString("[", ", ", "]")
+    s"out1df = in1df.sort_values(by=$cols, ascending=$ascending)"
+  }
 }
