@@ -101,7 +101,7 @@ class DataProcessor(
     statisticsManager.getStatistics(executor)
 
   /**
-    * `OperatorExecutor.bindStateReferences`, before the executor first sees data; after
+    * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after
     * that a reference comparison per tuple. An executor installed in its place binds its own.
     */
   def bindStateReferences(): Unit =
@@ -144,7 +144,7 @@ class DataProcessor(
   ): Unit = {
     try {
       // Before processState, which then sees the loop variables written into the setting.
-      executor.registerState(state)
+      executor.registerState(state, loopCounter)
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
         // Carry the incoming loop envelope through unchanged: loop operators
