@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-{{- if .Values.workflowComputingUnitPool.networkPolicy.enabled }}
 # Stops one computing unit from reaching another. Computing units run user code by design,
 # and one unit has no reason to call another, so any pod in the pool is denied. Allowing
 # every other namespace leaves the real callers (the gateway and the agent service) in
 # place without naming the namespaces they are deployed to.
+# Always rendered: there is no deployment in which one unit should reach another. Enforcing it
+# needs a cluster with a NetworkPolicy controller; without one the object is created but inert.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -40,4 +41,3 @@ spec:
                 operator: NotIn
                 values:
                   - {{ .Values.workflowComputingUnitPool.namespace }}
-{{- end }}
