@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -207,6 +208,79 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
       try whole.produceTuple().toList
       finally whole.close()
     assert(all.map(_.getFields(0).toString) == List("1", "2", "3"))
+  }
+
+  for (hasHeader <- Seq(true, false)) {
+    it should s"retain later text when the sampled column is entirely null (header=$hasHeader)" in {
+      val header = if (hasHeader) "id,note\n" else ""
+      val blankSample = (1 to 100).map(i => s"$i,\n").mkString
+      val exec = execOver(
+        writeTempCsv(header + blankSample + "101,José 東京\n102,00042\n103,\n"),
+        hasHeader
+      )
+      exec.open()
+      val tuples =
+        try exec.produceTuple().toList
+        finally exec.close()
+
+      // Check execution, not just the inferred type: an INTEGER fallback silently
+      // drops the Unicode row and strips the leading zeros from the next one.
+      assert(tuples.size == 103)
+      assert(tuples.take(100).forall(_.getFields(1) == null))
+      assert(tuples(100).getFields(1) == "José 東京")
+      assert(tuples(101).getFields(1) == "00042")
+      assert(tuples(102).getFields(1) == null)
+      assert(exec.desc.sourceSchema().getAttributes(1).getType == AttributeType.STRING)
+    }
+  }
+
+  it should "retain nulls with a STRING fallback when a column never has a value" in {
+    val exec = execOver(writeTempCsv("id,note\n1,\n2,\n"), hasHeader = true)
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 2)
+    assert(tuples.forall(_.getFields(1) == null))
+    assert(exec.desc.sourceSchema().getAttribute("note").getType == AttributeType.STRING)
+    assert(exec.desc.sourceSchema().getAttribute("id").getType == AttributeType.INTEGER)
+  }
+
+  it should "use numeric evidence in the final sampled row without scanning beyond the sample" in {
+    val blankPrefix = (1 to 99).map(i => s"$i,\n").mkString
+    val exec = execOver(
+      writeTempCsv("id,measure\n" + blankPrefix + "100,2.5\n101,not-a-number\n102,4.5\n"),
+      hasHeader = true
+    )
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(exec.desc.sourceSchema().getAttribute("measure").getType == AttributeType.DOUBLE)
+    assert(tuples.size == 101)
+    assert(tuples.take(99).forall(_.getFields(1) == null))
+    assert(tuples(99).getFields(1) == 2.5)
+    assert(tuples(100).getFields(1) == 4.5)
+    // An actually incompatible value keeps the established rejection behavior.
+    assert(!tuples.exists(_.getFields(0) == 101))
+  }
+
+  it should "apply the null-only fallback when a positive limit shortens the sample" in {
+    val exec = execOver(
+      writeTempCsv("id,note\n1,\n2,later text\n"),
+      hasHeader = true,
+      offset = Some(1),
+      limit = Some(1)
+    )
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(tuples.size == 1)
+    assert(tuples.head.getFields.toList == List(2, "later text"))
   }
 
   it should "silently drop rows that cannot be parsed into the inferred schema" in {

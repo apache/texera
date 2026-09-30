@@ -140,7 +140,14 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       // (e.g. a trailing comma) do not propagate empty attribute names to
       // downstream Iceberg/Parquet writers, which reject them.
       val name = Option(header(i)).filter(_.nonEmpty).getOrElse(s"column-${i + 1}")
-      schema.add(name, attributeTypeList(i))
+      // An all-null sample has no evidence for the inference helper's INTEGER
+      // seed. Use STRING so later text is preserved instead of dropping its row.
+      // Columns with any sampled value retain the existing numeric inference.
+      val attributeType =
+        if (data.nonEmpty && data.forall(row => i >= row.length || row(i) == null))
+          AttributeType.STRING
+        else attributeTypeList(i)
+      schema.add(name, attributeType)
     }
 
   }
