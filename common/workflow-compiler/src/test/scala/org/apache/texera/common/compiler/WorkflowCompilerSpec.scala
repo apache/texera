@@ -993,6 +993,23 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(exec.processTuple(line("$i"), 0).isEmpty)
   }
 
+  it should "accept a reference on an operator inside a loop block fed by another operator of the block" in {
+    // LoopStart -> Projection -> Limit("$n") -> LoopEnd: the state reaches Limit through Projection.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val project = projectOp(List("line"))
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, start, project, limit, end), chain(src, start, project, limit, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, limit)
+    assert(sidecarOf(descString) == Map("/limit" -> "n"))
+  }
+
   /** The code the worker runs for `op`, an operator whose executor runs code. */
   private def codeOf(result: WorkflowCompilationResult, op: LogicalOp): String =
     result.physicalPlan.get
@@ -1723,6 +1740,161 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
           "output schema"
       ),
       s"unexpected message: $message"
+    )
+  }
+
+  private def intervalJoinOp(): LogicalOp =
+    parsed(
+      """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",
+        |"includeLeftBound":true,"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin
+    )
+
+  it should "report a reference inside a loop block on an operator whose first input comes from outside the block" in {
+    // Its right input waits for the left one, so every left tuple arrives before the loop state.
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val join = intervalJoinOp()
+    val end = loopEndOp()
+    val plan = pojo(
+      List(outside, src, start, join, end),
+      List(linked(outside, join), linked(src, start), linked(start, join, 1), linked(join, end))
+    )
+
+    val result = new WorkflowCompiler(newContext()).compile(plan)
+
+    assert(result.operatorIdToError.keySet == Set(join.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(join.operatorIdentifier)
+        .message
+        .contains(
+          "Interval Join refers to loop variables (/constant -> $i), but its input 'left table' " +
+            "is fed from outside the loop block"
+        )
+    )
+  }
+
+  it should "accept a reference on an operator inside a loop block whose input from outside waits for one from inside" in {
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val join = intervalJoinOp()
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(outside, src, start, join, end),
+        List(linked(src, start), linked(start, join), linked(outside, join, 1), linked(join, end))
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, join)
+    assert(sidecarOf(descString) == Map("/constant" -> "i"))
+  }
+
+  it should "report a reference inside a loop block on an operator whose input also has a link from outside the block" in {
+    // Limit's one input takes the LoopStart's link and an outside one, whose tuples can come first.
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(outside, src, start, limit, end),
+        List(linked(src, start), linked(start, limit), linked(outside, limit), linked(limit, end))
+      )
+    )
+
+    assert(result.operatorIdToError.keySet == Set(limit.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(limit.operatorIdentifier)
+        .message
+        .contains(
+          "Limit refers to loop variables (/limit -> $n), but its input port 0 is fed from " +
+            "outside the loop block"
+        )
+    )
+  }
+
+  /**
+    * src -> outer LoopStart -> Projection, and outer LoopStart -> inner LoopStart -> Interval Join
+    * -> inner LoopEnd -> outer LoopEnd; one of the join's tables comes from the outer body's
+    * Projection, the other from the inner LoopStart.
+    */
+  private def joinInInnerBlock(
+      leftFromOuterBody: Boolean
+  ): (LogicalOp, WorkflowCompilationResult) = {
+    val src = textInputOp("0\n1")
+    val outerStart = loopStartOp()
+    val project = projectOp(List("line"))
+    val innerStart = loopStartOp()
+    val join = intervalJoinOp()
+    val innerEnd = loopEndOp()
+    val outerEnd = loopEndOp()
+    val (left, right) = if (leftFromOuterBody) (project, innerStart) else (innerStart, project)
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(src, outerStart, project, innerStart, join, innerEnd, outerEnd),
+        chain(src, outerStart, project) ++ chain(outerStart, innerStart) ++
+          List(linked(left, join), linked(right, join, 1)) ++ chain(join, innerEnd, outerEnd)
+      )
+    )
+    (join, result)
+  }
+
+  it should "report a reference in an inner loop block on an operator whose first input comes from the outer body" in {
+    // The left table carries only the outer loop's state, so it can come before the inner one's.
+    val (join, result) = joinInInnerBlock(leftFromOuterBody = true)
+
+    assert(result.operatorIdToError.keySet == Set(join.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(join.operatorIdentifier)
+        .message
+        .contains(
+          "Interval Join refers to loop variables (/constant -> $i), but its input 'left table' " +
+            "is fed from outside the loop block"
+        )
+    )
+  }
+
+  it should "accept a reference in an inner loop block on an operator whose input from the outer body waits for one from inside" in {
+    val (join, result) = joinInInnerBlock(leftFromOuterBody = false)
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, join)
+    assert(sidecarOf(descString) == Map("/constant" -> "i"))
+  }
+
+  it should "report a reference in a loop block on an operator with an input from a sibling block" in {
+    // Inside the outer block, S1 -> Projection -> E1 and S2 -> Limit("$n") -> E2, and Projection
+    // -> Limit: neither of Limit's links carries both S1's and S2's state.
+    val src = textInputOp("0\n1")
+    val outerStart = loopStartOp()
+    val (first, project, firstEnd) = (loopStartOp(), projectOp(List("line")), loopEndOp())
+    val (second, limit, secondEnd) =
+      (loopStartOp(), parsed("""{"limit":"$n","operatorType":"Limit"}"""), loopEndOp())
+    val outerEnd = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(src, outerStart, first, project, firstEnd, second, limit, secondEnd, outerEnd),
+        chain(src, outerStart, first, project, firstEnd, outerEnd) ++
+          chain(outerStart, second, limit, secondEnd, outerEnd) :+ linked(project, limit)
+      )
+    )
+
+    assert(result.operatorIdToError.keySet == Set(limit.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(limit.operatorIdentifier)
+        .message
+        .contains("but its input port 0 is fed from outside the loop block")
     )
   }
 }

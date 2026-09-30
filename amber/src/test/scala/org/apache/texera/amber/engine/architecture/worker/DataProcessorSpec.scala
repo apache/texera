@@ -544,14 +544,15 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     openExecutor(dp)
     dp.processECM(senderChannel, startChannelPayload, logManager)
     val first = State(Map("n" -> 2L))
-    dp.processDataPayload(senderChannel, StateFrame(first))
+    dp.processDataPayload(senderChannel, StateFrame(first, loopCounter = 1))
     dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
     drain(dp)
     val later = State(Map("n" -> 9L))
     dp.processDataPayload(senderChannel, StateFrame(later))
 
     // open() and produceStateOnStart see the placeholder; each processState sees its message
-    // registered and the variable written; a state after the first tuple no longer writes.
+    // registered and the variable written; a state after the first tuple no longer writes, even
+    // one from a more deeply nested loop.
     assert(
       exec.calls.toList == List(
         ("open", 0, None),
@@ -571,6 +572,39 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(tuplesSent(sent) == tuples.take(2).toList)
     assert(consoleTitles(sent).isEmpty)
     assert(!dp.pauseManager.isPaused)
+  }
+
+  "data processor" should "write the more deeply nested loop's value of a variable, even when its state comes first" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    openExecutor(dp)
+    // In an inner loop's body: its own state, then the outer loop's, one loop out.
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 5L)), loopCounter = 1))
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
+    drain(dp)
+
+    assert(exec.setting.limit == 2)
+    assert(tuplesSent(sent) == tuples.take(2).toList)
+    assert(consoleTitles(sent).isEmpty)
+  }
+
+  "data processor" should "fail a state message from the same loop that changes a loop variable" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    openExecutor(dp)
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 3L))))
+
+    // The operator never sees the changed state.
+    assert(exec.calls.map(_._1).toList == List("open", "state"))
+    assert(
+      consoleTitles(sent) == List(
+        new IllegalStateException(
+          "loop variable n got two different values in one iteration, 2 and 3: a loop's " +
+            "variables must not change inside its body"
+        ).toString
+      )
+    )
+    dp.pauseManager.isPaused shouldBe true
   }
 
   "data processor" should "fail the first tuple of an operator whose setting refers to a loop variable no state message carried" in {

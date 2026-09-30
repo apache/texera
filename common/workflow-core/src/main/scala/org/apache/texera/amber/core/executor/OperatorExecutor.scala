@@ -26,6 +26,16 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 
 import java.util.concurrent.ConcurrentMap
 
+/**
+  * Inside a loop block a setting may refer to a loop variable (`$i`): the worker writes each
+  * iteration's value into the settings object the executor holds, in place (`registerState`). For
+  * its settings to take loop variables, an executor built from a descString must:
+  *  - keep exactly one settings object, the descriptor it parses from its descString, in a field;
+  *    with none or several the worker fails to start;
+  *  - read its settings only while processing data (`processState`, `processTuple`, the finish
+  *    callbacks), never in its constructor, `open` or `produceStateOnStart`, which run before the
+  *    state arrives: a value worked out there silently keeps the placeholder.
+  */
 trait OperatorExecutor {
 
   def open(): Unit = {}
@@ -60,18 +70,20 @@ trait OperatorExecutor {
   final def state: Option[State] = OperatorExecutor.registrationOf(this).flatMap(_.state)
 
   /**
-    * The worker calls it for every state message, right before `processState`. Until
-    * `bindStateReferences`, it also writes each loop variable the message carries that the
-    * executor's setting (the descriptor it holds) refers to into that setting, in place.
+    * The worker calls it for every state message, right before `processState`, with the message's
+    * `loopCounter`: 0 from the innermost loop around this operator, 1 from the one around that, and
+    * so on. Until `bindStateReferences`, it also writes each loop variable the message carries that
+    * the executor's setting (the descriptor it holds) refers to into that setting, in place. It
+    * fails when a message from the same loop gives such a variable another value.
     */
-  final def registerState(state: State): Unit = {
+  final def registerState(state: State, loopCounter: Long = 0L): Unit = {
     val registration = OperatorExecutor.registrationFor(this)
+    registration.references.foreach(_.write(state, loopCounter))
     registration.state = Some(state)
-    registration.references.foreach(_.write(state))
   }
 
   /**
-    * The worker calls it right before this executor first sees data. It fails, naming
+    * The worker calls it right before this executor first sees data or finishes. It fails, naming
     * each reference no state message could write, and otherwise ends the writing: later messages
     * no longer change the setting.
     */
@@ -80,7 +92,7 @@ trait OperatorExecutor {
       registration.references.foreach { references =>
         val unbound = references.unbound
         if (unbound.nonEmpty) throw new IllegalStateException(unbound.mkString("; "))
-        registration.references = None
+        references.bound = true
       }
     }
 }

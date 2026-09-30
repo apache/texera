@@ -48,6 +48,15 @@ object JSONUtils {
   }
 
   /**
+    * Registers what a mapper needs to parse a workflow: Scala types, and a `$K` loop-variable
+    * reference in a typed property of a StateReferencing descriptor (every LogicalOp), parsed into
+    * a placeholder recorded in its `stateReferences`. Every mapper that parses workflows calls it:
+    * `objectMapper`, and the Dropwizard mapper of each application whose requests carry one.
+    */
+  def registerWorkflowModules(mapper: ObjectMapper): ObjectMapper =
+    mapper.registerModule(DefaultScalaModule).registerModule(new StateReferenceModule())
+
+  /**
     * A singleton object for configuring the Jackson `ObjectMapper` to handle JSON serialization and deserialization
     * in Scala. This custom `ObjectMapper` is tailored for Scala, ensuring compatibility with Scala types
     * and specific serialization/deserialization settings.
@@ -69,8 +78,7 @@ object JSONUtils {
     * This `ObjectMapper` provides a consistent way to serialize and deserialize JSON while adhering to Scala conventions
     * and handling common patterns like `Option` and case classes.
     */
-  final val objectMapper = new ObjectMapper()
-    .registerModule(DefaultScalaModule)
+  final val objectMapper = registerWorkflowModules(new ObjectMapper())
     .registerModule(new NoCtorDeserModule())
     .registerModule(
       new SimpleModule()
@@ -78,9 +86,6 @@ object JSONUtils {
         .addKeyDeserializer(classOf[PortIdentity], new PortIdentityKeyDeserializer())
     )
     .addMixIn(classOf[scalapb.GeneratedSealedOneof], classOf[GeneratedSealedOneofMixin])
-    // Parses a `$K` loop-variable reference in a typed property of a StateReferencing descriptor
-    // (every LogicalOp) into a placeholder, recorded in the descriptor's `stateReferences`.
-    .registerModule(new StateReferenceModule())
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
