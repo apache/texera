@@ -101,7 +101,7 @@ class DataProcessor(
     statisticsManager.getStatistics(executor)
 
   /**
-    * `OperatorExecutor.bindStateReferences`, before the executor first sees data; after
+    * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after
     * that a reference comparison per tuple. An executor installed in its place binds its own.
     */
   def bindStateReferences(): Unit =

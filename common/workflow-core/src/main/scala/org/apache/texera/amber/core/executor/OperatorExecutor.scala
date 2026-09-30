@@ -71,7 +71,7 @@ trait OperatorExecutor {
   }
 
   /**
-    * The worker calls it right before this executor first sees data. It fails, naming
+    * The worker calls it right before this executor first sees data or finishes. It fails, naming
     * each reference no state message could write, and otherwise ends the writing: later messages
     * no longer change the setting.
     */
