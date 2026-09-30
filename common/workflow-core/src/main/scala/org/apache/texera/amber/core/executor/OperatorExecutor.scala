@@ -26,6 +26,16 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 
 import java.util.concurrent.ConcurrentMap
 
+/**
+  * Inside a loop block a setting may refer to a loop variable (`$i`): the worker writes each
+  * iteration's value into the settings object the executor holds, in place (`registerState`). For
+  * its settings to take loop variables, an executor built from a descString must:
+  *  - keep exactly one settings object, the descriptor it parses from its descString, in a field;
+  *    with none or several the worker fails to start;
+  *  - read its settings only while processing data (`processState`, `processTuple`, the finish
+  *    callbacks), never in its constructor, `open` or `produceStateOnStart`, which run before the
+  *    state arrives: a value worked out there silently keeps the placeholder.
+  */
 trait OperatorExecutor {
 
   def open(): Unit = {}
