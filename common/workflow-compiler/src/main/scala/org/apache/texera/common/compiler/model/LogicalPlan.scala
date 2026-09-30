@@ -91,8 +91,9 @@ case class LogicalPlan(
   /**
     * The operators inside some loop block: on a path LoopStart -> ... -> operator -> ... -> LoopEnd
     * whose two ends match. A control operator is not inside its own block, but an inner block's
-    * are inside the outer one. The frontend's `getEnclosingLoopStarts` (loop-block.util.ts), which
-    * decides where the property panel offers `$K`, follows the same rule.
+    * are inside the outer one. The property panel decides where it offers `$K` with its own walk
+    * from each operator (`getEnclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` checks
+    * that the two agree.
     */
   def operatorsInsideLoopBlocks: Set[OperatorIdentity] = {
     val order = getTopologicalOpIds.asScala.toList
