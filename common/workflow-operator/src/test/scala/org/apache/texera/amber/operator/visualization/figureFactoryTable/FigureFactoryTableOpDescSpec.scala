@@ -19,14 +19,22 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
+import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.scalatest.BeforeAndAfter
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.util.Base64
+import java.util.concurrent.TimeUnit
+import scala.util.Try
 
 class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: FigureFactoryTableOpDesc = _
 
@@ -100,14 +108,105 @@ class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with 
     code should include("class TableChartOperator(UDFTableOperator)")
   }
 
-  it should "define the render_error the empty-table branches call" in {
-    // Both empty-table branches call self.render_error; without the definition they
-    // raised AttributeError instead of rendering the message.
-    withColumns()
-    val code = opDesc.generatePythonCode()
-    code should include("def render_error(self, error_msg) -> str:")
-    code should include(
-      """return f"<h1>Figure Factory Table is not available.</h1><p>Reason is: {error_msg}</p>""""
+  // Stubs only the pytexera import seam, then hands the operator a table that arrives
+  // empty, one whose every row has a hole in a chosen column, and one that draws.
+  // Both empty branches call self.render_error, which once was not defined.
+  private val runtimeDriverScript: String =
+    """import base64
+      |import sys
+      |import types
+      |from typing import Iterator, Optional
+      |
+      |import pandas as pd
+      |
+      |class UDFTableOperator:
+      |    def decode_python_template(self, data):
+      |        return base64.b64decode(data).decode("utf-8")
+      |
+      |stub = types.ModuleType("pytexera")
+      |stub.UDFTableOperator = UDFTableOperator
+      |stub.overrides = lambda fn: fn
+      |stub.Table = pd.DataFrame
+      |stub.TableLike = object
+      |stub.Iterator = Iterator
+      |stub.Optional = Optional
+      |sys.modules["pytexera"] = stub
+      |
+      |ns = {"__name__": "generated_table_chart"}
+      |with open(sys.argv[1]) as f:
+      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
+      |op = ns["TableChartOperator"]()
+      |
+      |cases = [
+      |    ("empty", pd.DataFrame({"col_one": [], "col_two": []})),
+      |    ("every_row_holed", pd.DataFrame({"col_one": [1.0, None], "col_two": [None, "b"]})),
+      |    ("filled", pd.DataFrame({"col_one": [1, 2], "col_two": ["a", "b"]})),
+      |]
+      |for cid, df in cases:
+      |    page = list(op.process_table(df, 0))[0]["html-content"]
+      |    print("CASE %s %s" % (cid, page if "not available" in page else "CHART"))
+      |""".stripMargin
+
+  it should "render its message when the table is empty or every row has a hole" taggedAs NeedsPythonPackages in {
+    val python = resolvePythonExecutable().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
+    if (!canImportPandasAndPlotly(python)) cancel(s"'$python' cannot import pandas and plotly")
+
+    withColumns()
+    val moduleFile = Files.createTempFile("figure_factory_table_op_", ".py")
+    val driverFile = Files.createTempFile("figure_factory_table_driver_", ".py")
+    try {
+      Files.write(moduleFile, opDesc.generatePythonCode().getBytes(StandardCharsets.UTF_8))
+      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
+      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
+        .redirectErrorStream(true)
+        .start()
+      if (!process.waitFor(120, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        fail("Runtime driver timed out after 120s")
+      }
+      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      val page = "<h1>Figure Factory Table is not available.</h1><p>Reason is: "
+      withClue(s"Driver output:\n$output\n") {
+        process.exitValue() shouldBe 0
+        output should include(s"CASE empty ${page}input table is empty.</p>")
+        output should include(
+          s"CASE every_row_holed ${page}value column contains only non-positive numbers or nulls.</p>"
+        )
+        output should include("CASE filled CHART")
+      }
+    } finally {
+      Try(Files.deleteIfExists(moduleFile))
+      Try(Files.deleteIfExists(driverFile))
+      ()
+    }
   }
+
+  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePythonExecutable(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def isRunnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
+  }
+
+  private def canImportPandasAndPlotly(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
