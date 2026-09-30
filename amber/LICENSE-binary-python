@@ -251,9 +251,9 @@ Python packages:
   - attrs==26.1.0
   - betterproto==2.0.0b7
   - cachetools==6.2.6
-  - charset-normalizer==3.5.1
-  - filelock==4.0.6
-  - fonttools==4.66.0
+  - charset-normalizer==3.5.2
+  - filelock==4.0.7
+  - fonttools==4.66.1
   - greenlet==3.5.6
   - h11==0.16.0
   - h2==4.4.1
