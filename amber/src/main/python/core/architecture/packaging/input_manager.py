@@ -139,7 +139,14 @@ class InputManager:
         return self._channels[channel_id].port_id
 
     def get_port(self, port_id: PortIdentity) -> WorkerPort:
-        return self._ports[port_id]
+        if port_id.id is None:
+            port_id.id = 0
+        if port_id.internal is None:
+            port_id.internal = False
+        try:
+            return self._ports[port_id]
+        except KeyError as error:
+            raise KeyError(f"unknown input port {port_id}") from error
 
     def register_input(
         self, channel_id: ChannelIdentity, port_id: PortIdentity
