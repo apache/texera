@@ -403,6 +403,11 @@ workflowComputingUnitPool:
   service:
     port: 8085
     targetPort: 8085
+  networkPolicy:
+    # Denies pod-to-pod traffic inside the pool, so one computing unit cannot reach another.
+    # Requires a cluster with a NetworkPolicy controller; without one the object is created
+    # but not enforced.
+    enabled: true
 
 # Per-node privileged DaemonSet that performs the GeeseFS FUSE mount for computing-unit
 # pods, so the CU pods stay unprivileged. hostMountRoot MUST match the computing-unit
