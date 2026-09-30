@@ -14,27 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# Stops one computing unit from reaching another. Computing units run user code by design,
-# and one unit has no reason to call another, so any pod in the pool is denied. Allowing
-# every other namespace leaves the real callers (the gateway and the agent service) in
-# place without naming the namespaces they are deployed to.
-# Always rendered: there is no deployment in which one unit should reach another. Enforcing it
-# needs a cluster with a NetworkPolicy controller; without one the object is created but inert.
+# Denies traffic between pods in the computing unit pool so one computing unit cannot reach another.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ .Values.workflowComputingUnitPool.name }}-deny-cross-unit
   namespace: {{ .Values.workflowComputingUnitPool.namespace }}
 spec:
-  # Every pod in the pool, not only the computing units, so the validation and prepull
-  # pods the manager also runs here cannot be used to reach a unit either.
   podSelector: {}
   policyTypes:
     - Ingress
   ingress:
     - from:
-        # kubernetes.io/metadata.name is set automatically on every namespace, so the pool
-        # can be named here without labelling anything by hand.
         - namespaceSelector:
             matchExpressions:
               - key: kubernetes.io/metadata.name
