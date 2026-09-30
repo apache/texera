@@ -43,7 +43,6 @@ import org.apache.texera.amber.core.workflow.{
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.loop.LoopStartOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
@@ -96,7 +95,7 @@ object WorkflowCompiler {
       logicalOp.stateReferences =
         literalReferences(objectMapper.valueToTree[ObjectNode](logicalOp)) ++
           logicalOp.stateReferences
-      inputsAheadOfLoopState(logicalOp, plan, insideLoopBlocks)
+      inputsAheadOfLoopState(logicalOp, plan)
     } else {
       Option.when(logicalOp.stateReferences.nonEmpty) {
         new IllegalArgumentException(
@@ -107,23 +106,23 @@ object WorkflowCompiler {
     }
 
   /**
-    * The first tuple fails on a loop variable its state has not written yet, and the state comes
-    * ahead of the tuples only on links from a LoopStart or from another operator inside a block.
-    * An input with any other link is an error, unless the operator reads it only after an input
-    * whose links all carry the state (a join's probe input).
+    * The first tuple fails on a loop variable its state has not written yet, and the states of
+    * the blocks around the operator come ahead of the tuples only on links from inside all of
+    * them, or from the LoopStart of the innermost. An input with any other link is an error,
+    * unless the operator reads it only after an input whose links all carry the state (a join's
+    * probe input).
     */
-  private def inputsAheadOfLoopState(
-      logicalOp: LogicalOp,
-      plan: LogicalPlan,
-      insideLoopBlocks: Set[OperatorIdentity]
-  ): Option[Throwable] = {
+  private def inputsAheadOfLoopState(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] = {
+    val around = plan.enclosingLoopStarts
     val linksByPort = plan.getUpstreamLinks(logicalOp.operatorIdentifier).groupBy(_.toPortId)
+    // A LoopStart's link carries its own block's state too.
     def carriesOnlyState(port: PortIdentity): Boolean =
       linksByPort
         .get(port)
         .exists(_.forall { link =>
-          insideLoopBlocks.contains(link.fromOpId) ||
-          plan.getOperator(link.fromOpId).isInstanceOf[LoopStartOpDesc]
+          around
+            .getOrElse(logicalOp.operatorIdentifier, Set.empty)
+            .subsetOf(around.getOrElse(link.fromOpId, Set.empty) + link.fromOpId)
         })
     val exposed = logicalOp.operatorInfo.inputPorts.filter { input =>
       linksByPort.contains(input.id) && !carriesOnlyState(input.id) &&

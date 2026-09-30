@@ -294,30 +294,33 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   /**
     * The ids of the operators inside a loop block, `edges` as "from" -> "to" ids, checked against
-    * the property panel's walk.
+    * the property panel's walk, as are the LoopStarts around each (`enclosingLoopStarts`).
     */
   private def inside(operators: List[LogicalOp], edges: (String, String)*): Set[String] = {
-    val result = LogicalPlan(
+    val plan = LogicalPlan(
       operators,
       edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
-    ).operatorsInsideLoopBlocks.map(_.id)
-    val byPanel = insideByPanel(operators, edges)
+    )
+    val result = plan.operatorsInsideLoopBlocks.map(_.id)
+    val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
+    val byPanel = enclosingByPanel(operators, edges)
     assert(
-      result == byPanel,
-      s"the panel's walk finds $byPanel in ${operators.map(_.operatorIdentifier.id)} with $edges"
+      result == byPanel.keySet && around == byPanel,
+      s"the panel's walk finds $byPanel, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
+        s"with $edges"
     )
     result
   }
 
   /**
     * A port of the property panel's `getEnclosingLoopStarts` (frontend loop-block.util.ts), which
-    * decides where the panel offers `$K`: an operator is inside a block when it has an enclosing
-    * LoopStart. It walks from each operator where `operatorsInsideLoopBlocks` takes two passes.
+    * decides where the panel offers `$K`: each operator with an enclosing LoopStart, and those
+    * LoopStarts. It walks from each operator where `operatorsInsideLoopBlocks` takes two passes.
     */
-  private def insideByPanel(
+  private def enclosingByPanel(
       operators: List[LogicalOp],
       edges: Seq[(String, String)]
-  ): Set[String] = {
+  ): Map[String, Set[String]] = {
     val typeOf = operators.map { op =>
       op.operatorIdentifier.id -> objectMapper
         .valueToTree[ObjectNode](op)
@@ -365,7 +368,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
           .map(_._1)
       }
     }
-    typeOf.keySet.filter(id => enclosingLoopStarts(id).nonEmpty)
+    typeOf.keySet.map(id => id -> enclosingLoopStarts(id).toSet).filter(_._2.nonEmpty).toMap
   }
 
   "LogicalPlan.operatorsInsideLoopBlocks" should "find nothing unless a LoopStart and a LoopEnd close a block" in {
