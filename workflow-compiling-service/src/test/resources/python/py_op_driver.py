@@ -405,6 +405,7 @@ def _run_operator(
     is_source: bool,
     port_order: Sequence[int],
     inputs_by_port: Mapping[int, Sequence[Tuple]],
+    schemas_by_port: Mapping[int, TexeraSchema],
     consume: "Callable[[Any], None]",
 ) -> None:
     """
@@ -434,6 +435,10 @@ def _run_operator(
                 for item in op.process_tuple(tup, port):
                     if item is not None:
                         consume(item)
+            # DataProcessor declares the finishing port's schema right before
+            # on_finish, so a port that carried no rows still has its columns.
+            if port in schemas_by_port:
+                op.input_schemas[port] = schemas_by_port[port]
             for item in op.on_finish(port):
                 if item is not None:
                     consume(item)
@@ -471,10 +476,12 @@ def run_config(config: Mapping[str, Any]) -> None:
     port_order: Sequence[int] = list(config.get("portOrder", []))
 
     inputs_by_port: "dict[int, List[Tuple]]" = {}
+    schemas_by_port: "dict[int, TexeraSchema]" = {}
     for entry in config.get("inputs", []):
         port = int(entry["portIndex"])
         data_path = Path(entry["dataPath"])
-        inputs_by_port[port] = _read_tuples(data_path, _read_schema_sidecar(data_path))
+        schemas_by_port[port] = _read_schema_sidecar(data_path)
+        inputs_by_port[port] = _read_tuples(data_path, schemas_by_port[port])
 
     # Default port order: sorted by index. Matches OpExecHarness's fallback
     # when getInputPortDependencyPairs is empty.
@@ -493,7 +500,14 @@ def run_config(config: Mapping[str, Any]) -> None:
         )
 
     if not outputs:
-        _run_operator(op_instance, is_source, port_order, inputs_by_port, lambda _item: None)
+        _run_operator(
+            op_instance,
+            is_source,
+            port_order,
+            inputs_by_port,
+            schemas_by_port,
+            lambda _item: None,
+        )
         return
 
     out_entry = outputs[0]
@@ -505,6 +519,7 @@ def run_config(config: Mapping[str, Any]) -> None:
         is_source,
         port_order,
         inputs_by_port,
+        schemas_by_port,
         lambda item: rows.extend(_emit_as_dicts([item], out_schema)),
     )
     _write_tuples(out_path, rows, out_schema)

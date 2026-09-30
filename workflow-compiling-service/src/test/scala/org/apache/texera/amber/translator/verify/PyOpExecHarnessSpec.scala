@@ -75,6 +75,37 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
         |""".stripMargin
   }
 
+  /** Reports the column names of the table it was handed, as one row. */
+  private class TableColumnsOpDesc extends PythonOperatorDescriptor {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        userFriendlyName = "Table Columns",
+        operatorDescription = "yields the column names of its input table",
+        operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort())
+      )
+
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map(
+        operatorInfo.outputPorts.head.id -> Schema().add(
+          new Attribute("columns", AttributeType.STRING)
+        )
+      )
+
+    override def generatePythonCode(): String =
+      """from pytexera import *
+        |
+        |class ProcessTableOperator(UDFTableOperator):
+        |
+        |    @overrides
+        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        |        yield {"columns": ",".join(table.columns)}
+        |""".stripMargin
+  }
+
   /** Reports the timestamp it was handed, as Python prints it. */
   private class TimestampTextOpDesc extends BinaryTypeOpDesc {
     override def generatePythonCode(): String =
@@ -376,5 +407,28 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
     withClue(s"schema was $inputSchema\n") {
       values shouldBe Seq(1, 2)
     }
+  }
+
+  // A port that carried no rows gives the table no tuples to read column names
+  // off, so the worker hands the operator the port's declared schema instead.
+  "PyOpExecHarness" should "hand a port that carried no rows its declared columns" in {
+    val dir = Files.createTempDirectory("py-op-harness-empty-")
+    val inputSchema = Schema()
+      .add(new Attribute("name", AttributeType.STRING))
+      .add(new Attribute("n", AttributeType.INTEGER))
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(input, Iterator.empty, inputSchema)
+
+    val result = PyOpExecHarness.execute(
+      new TableColumnsOpDesc,
+      inputs = Map(PortIdentity(0) -> input),
+      outputDir = dir.resolve("actual")
+    )
+
+    val out = result.outputs(PortIdentity(0))
+    TupleIO
+      .readTuples(out, TupleIO.readSchemaSidecar(out))
+      .map(_.getField[String]("columns"))
+      .toSeq shouldBe Seq("name,n")
   }
 }
