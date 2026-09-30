@@ -44,7 +44,6 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
         new EnvironmentVariableSubstitutor(false)
       )
     )
-    // register the modules that parse workflows to dropwizard default object mapper
     JSONUtils.registerWorkflowModules(bootstrap.getObjectMapper)
   }
 

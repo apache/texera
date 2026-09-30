@@ -89,68 +89,47 @@ case class LogicalPlan(
   }
 
   /**
-    * The operators inside some loop block: on a path LoopStart -> ... -> operator -> ... -> LoopEnd
-    * whose two ends match. A control operator is not inside its own block, but an inner block's
-    * are inside the outer one. The property panel decides where it offers `$K` with its own walk
-    * from each operator (`getEnclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` checks
-    * that the two agree on the same graph.
+    * The operators inside some loop block, on a path LoopStart -> ... -> operator -> ... -> LoopEnd
+    * whose two ends match, each with the LoopStarts of the blocks it is inside: those with a path
+    * to it on which no LoopEnd closes their block (a LoopEnd closes the innermost block the path
+    * opened). A control operator is not inside its own block, but an inner block's are inside the
+    * outer one. The property panel decides where it offers `$K` with its own walk from each
+    * operator (`getEnclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` checks that the
+    * two agree on the same graph.
     */
-  def operatorsInsideLoopBlocks: Set[OperatorIdentity] = {
+  lazy val enclosingLoopStarts: Map[OperatorIdentity, Set[OperatorIdentity]] = {
     val order = getTopologicalOpIds.asScala.toList
-    val change = loopBlockChange
-    val upstream = links.groupMap(_.toOpId)(_.fromOpId).withDefaultValue(Nil)
-    val downstream = links.groupMap(_.fromOpId)(_.toOpId).withDefaultValue(Nil)
-    // The most blocks a path ending at each operator leaves open there, the operator included (a
-    // LoopEnd closes only a block the path opened); the reverse order, sign flipped, is the mirror.
-    def openBlocks(
-        ids: List[OperatorIdentity],
-        before: Map[OperatorIdentity, List[OperatorIdentity]],
-        sign: Int
-    ): Map[OperatorIdentity, Int] =
-      ids.foldLeft(Map.empty[OperatorIdentity, Int]) { (open, id) =>
-        open.updated(id, sign * change(id) + (0 :: before(id).map(open)).max)
-      }
-    val openAbove = openBlocks(order, upstream, 1)
-    val openBelow = openBlocks(order.reverse, downstream, -1)
-    // A block open above and one closed below, not counting a control operator's own.
-    order.filter { id =>
-      (0 :: upstream(id).map(openAbove)).max > (if (change(id) < 0) 1 else 0) &&
-      (0 :: downstream(id).map(openBelow)).max > (if (change(id) > 0) 1 else 0)
-    }.toSet
-  }
-
-  /** 1 for a LoopStart, which opens a block, -1 for a LoopEnd, which closes one, 0 otherwise. */
-  private lazy val loopBlockChange: Map[OperatorIdentity, Int] =
-    operatorMap.map {
+    // 1 for a LoopStart, which opens a block, -1 for a LoopEnd, which closes one, 0 otherwise.
+    val change = operatorMap.map {
       case (id, _: LoopStartOpDesc) => id -> 1
       case (id, _: LoopEndOpDesc)   => id -> -1
       case (id, _)                  => id -> 0
     }
-
-  /**
-    * The LoopStarts of the blocks each operator of `operatorsInsideLoopBlocks` is inside: those
-    * with a path to it on which no LoopEnd closes their block (a LoopEnd closes the innermost
-    * block the path opened). The panel's `getEnclosingLoopStarts` finds the same ones.
-    */
-  lazy val enclosingLoopStarts: Map[OperatorIdentity, Set[OperatorIdentity]] = {
-    val order = getTopologicalOpIds.asScala.toList
     val upstream = links.groupMap(_.toOpId)(_.fromOpId).withDefaultValue(Nil)
-    val inside = operatorsInsideLoopBlocks
+    val downstream = links.groupMap(_.fromOpId)(_.toOpId).withDefaultValue(Nil)
+    // The most blocks a path from each operator closes that it did not open, the operator
+    // included; a block closed below is one besides a LoopEnd's own.
+    val closing = order.reverse.foldLeft(Map.empty[OperatorIdentity, Int]) { (closing, id) =>
+      closing.updated(id, (0 :: downstream(id).map(closing)).max - change(id))
+    }
+    val closedBelow = order.filter(id => closing(id) > (if (change(id) < 0) 1 else 0)).toSet
     order
-      .filter(loopBlockChange(_) > 0)
+      .filter(change(_) > 0)
       .flatMap { start =>
         // The most blocks a path from `start` leaves open at each operator, its own still open.
         val open = order.dropWhile(_ != start).tail.foldLeft(Map(start -> 1)) { (open, id) =>
-          upstream(id).flatMap(open.get).maxOption.map(_ + loopBlockChange(id)) match {
+          upstream(id).flatMap(open.get).maxOption.map(_ + change(id)) match {
             case Some(blocks) if blocks > 0 => open.updated(id, blocks)
             case _                          => open
           }
         }
-        (open.keySet - start).intersect(inside).map(_ -> start)
+        (open.keySet - start).intersect(closedBelow).map(_ -> start)
       }
       .groupMap(_._1)(_._2)
       .map { case (id, starts) => id -> starts.toSet }
   }
+
+  def operatorsInsideLoopBlocks: Set[OperatorIdentity] = enclosingLoopStarts.keySet
 
   /**
     * Resolves each scan source operator's user-given file name to a URI and sets it on the

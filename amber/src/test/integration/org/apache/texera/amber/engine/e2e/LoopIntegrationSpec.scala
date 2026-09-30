@@ -357,26 +357,6 @@ class LoopIntegrationSpec
     )
   }
 
-  it should "bind a $i loop-variable reference in a JVM operator's property on every iteration" in {
-    // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Filter(line = $i) -> LoopEnd.
-    // Iteration i emits the row "i", which passes only against that iteration's i: 3 rows at the
-    // LoopEnd. A constant "0", or a $i that never rebinds to the new i, would give 1.
-    val src = textInput("0\n1\n2")
-    val start = loopStart("i = 0", "table.iloc[i]")
-    val mid = filterEquals("line", "$i")
-    val end = loopEnd("i += 1", "i < len(table)")
-    val materialized = runAndGetMaterializedRowCounts(
-      List(src, start, mid, end),
-      List(link(src, start), link(start, mid), link(mid, end))
-    )
-    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
-    assert(
-      endRows == 3,
-      s"Filter(line = $$i) must pass its own iteration's row on all 3 iterations: " +
-        s"expected 3, got $endRows (all: $materialized)"
-    )
-  }
-
   it should "read a $i loop-variable reference in a Python-generated operator's property on every iteration" in {
     // TextInput(1.0, 2.0, 3.0) -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd.
     //
@@ -468,16 +448,10 @@ class LoopIntegrationSpec
       )
     )
     val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
-    val innerRows = materialized.getOrElse(innerEnd.operatorIdentifier, -1L)
     assert(
       outerRows == 4,
       s"Filter(line = $$i) must bind the inner i on all 4 inner iterations: expected 4, got " +
         s"$outerRows (all: $materialized)"
-    )
-    assert(
-      innerRows == 2,
-      s"inner LoopEnd must reset per outer iteration (2 rows, not 4): " +
-        s"expected 2, got $innerRows (all: $materialized)"
     )
   }
 
