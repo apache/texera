@@ -61,7 +61,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     }
 
     var tupleIterator = rowIterator
-      .drop(desc.offset.getOrElse(0))
+      .drop(desc.windowOffset)
       .map(row => {
         try {
           TupleLike(
@@ -75,7 +75,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
       })
       .filter(t => t != null)
 
-    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
+    if (desc.windowLimit.isDefined) tupleIterator = tupleIterator.take(desc.windowLimit.get)
 
     tupleIterator
   }

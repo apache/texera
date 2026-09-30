@@ -86,9 +86,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
 
-    val startOffset = offset.getOrElse(0)
+    val startOffset = windowOffset
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     reader
       .lines()
       .iterator()
