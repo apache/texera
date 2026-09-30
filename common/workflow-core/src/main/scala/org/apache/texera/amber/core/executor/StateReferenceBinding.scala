@@ -33,9 +33,11 @@ import scala.util.Try
 /**
   * Writes the loop variables each state message carries into one executor's setting, the
   * descriptor it holds, in place, at the placeholders its `stateReferences` sidecar names. Each
-  * value is coerced to the placeholder's JSON type. A later message's value replaces an earlier
-  * one's, so an inner loop's variable shadows an outer one of the same name. A value that cannot be
-  * written leaves the property as it was and is reported by `unbound`, unless a later one can be.
+  * value is coerced to the placeholder's JSON type. A message from a more deeply nested loop (a
+  * smaller `loopCounter`) replaces an outer one's value, so an inner loop's variable shadows an
+  * outer one of the same name. Messages from the same loop are copies, from several upstream
+  * workers or branches, so a different value is an error, bound or not. A value that cannot be
+  * written leaves the property as it was and is reported by `unbound`, unless a deeper one can be.
   *
   * @param className the executor's class, named in the errors.
   */
@@ -51,11 +53,34 @@ private[executor] final class StateReferenceBinding(
       pointer -> s"property $pointer refers to loop variable $name, but no state message carried it"
   })
 
-  /** Writes each referenced variable `state` carries into the setting. */
-  def write(state: State): Unit =
+  /** Each referenced variable's value so far, and the `loopCounter` of the message carrying it. */
+  private val values = mutable.Map.empty[String, (Long, Any)]
+
+  /** Set once bound: a later message is still checked, but no longer written. */
+  var bound = false
+
+  /** Writes each referenced variable `state` carries into the setting (see the class doc). */
+  def write(state: State, loopCounter: Long): Unit = {
+    val carried = references.values.toSeq.distinct.sorted.flatMap { name =>
+      state.values.get(name).map(name -> _)
+    }
+    carried.foreach {
+      case (name, value) =>
+        values.get(name).filter(seen => seen._1 == loopCounter && seen._2 != value).foreach {
+          case (_, earlier) =>
+            throw new IllegalStateException(
+              s"loop variable $name got two different values in one iteration, $earlier and " +
+                s"$value: a loop's variables must not change inside its body"
+            )
+        }
+    }
+    val replacing =
+      if (bound) Map.empty[String, Any]
+      else carried.filter { case (name, _) => values.get(name).forall(_._1 > loopCounter) }.toMap
+    replacing.foreach { case (name, value) => values(name) = (loopCounter, value) }
     references.toSeq.sorted.foreach {
       case (pointer, name) =>
-        state.values.get(name).foreach { value =>
+        replacing.get(name).foreach { value =>
           try {
             writeAt(pointer, name, value)
             problems -= pointer
@@ -67,6 +92,7 @@ private[executor] final class StateReferenceBinding(
           }
         }
     }
+  }
 
   /** Why each reference is not written yet, in pointer order: empty once every one is. */
   def unbound: Seq[String] = problems.values.toSeq

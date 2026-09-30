@@ -144,7 +144,7 @@ class DataProcessor(
   ): Unit = {
     try {
       // Before processState, which then sees the loop variables written into the setting.
-      executor.registerState(state)
+      executor.registerState(state, loopCounter)
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
         // Carry the incoming loop envelope through unchanged: loop operators
