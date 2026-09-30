@@ -165,7 +165,8 @@ class DPThread(
       var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
       if (
-        dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused
+        dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput ||
+        dp.outputManager.hasUnfinishedColumnarOutput || dp.pauseManager.isPaused
       ) {
         dp.inputGateway.tryPickControlChannel match {
           case Some(channel) =>

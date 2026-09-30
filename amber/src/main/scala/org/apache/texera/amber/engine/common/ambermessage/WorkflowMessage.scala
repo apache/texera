@@ -26,8 +26,9 @@ case object WorkflowMessage {
     msg match {
       case dataMsg: WorkflowFIFOMessage =>
         dataMsg.payload match {
-          case df: DataFrame => df.inMemSize
-          case _             => 200L
+          case df: DataFrame     => df.inMemSize
+          case cf: ColumnarFrame => cf.inMemSize
+          case _                 => 200L
         }
       case _ => 200L
     }

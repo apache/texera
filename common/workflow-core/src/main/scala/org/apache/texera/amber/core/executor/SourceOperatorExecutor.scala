@@ -19,11 +19,19 @@
 
 package org.apache.texera.amber.core.executor
 
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
 
 trait SourceOperatorExecutor extends OperatorExecutor {
   override def open(): Unit = {}
+
+  /**
+    * Optional columnar production: yields Arrow batches directly (no per-row
+    * Tuple objects). None means the engine uses the row-oriented produceTuple.
+    * The caller serializes and closes each returned root.
+    */
+  def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = None
 
   override def close(): Unit = {}
   override def processTupleMultiPort(

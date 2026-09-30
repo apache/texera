@@ -21,9 +21,12 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
@@ -40,6 +43,8 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var numRowGenerated = 0
   private var maxColumns: Int = CSVScanSourceOpExec.DEFAULT_MAX_COLUMNS
   private val schema: Schema = desc.sourceSchema()
+  private var columnarAllocator: RootAllocator = _
+  private val columnarBatchRows = 10000
 
   override def produceTuple(): Iterator[TupleLike] = {
 
@@ -80,6 +85,37 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     tupleIterator
   }
 
+  // Columnar produce: parse CSV straight into Arrow batches (no per-row Tuple).
+  override def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = {
+    columnarAllocator = new RootAllocator()
+    var toSkip = desc.offset.getOrElse(0)
+    while (toSkip > 0) { CSVScanSourceOpExec.parseNextRow(parser, maxColumns); toSkip -= 1 }
+    val limit = desc.limit.getOrElse(Int.MaxValue)
+    Some(new Iterator[VectorSchemaRoot] {
+      private var pending: Array[String] = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+      private var emitted = 0
+
+      override def hasNext: Boolean = pending != null && emitted < limit
+
+      override def next(): VectorSchemaRoot = {
+        val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), columnarAllocator)
+        var filled = 0
+        while (pending != null && filled < columnarBatchRows && emitted < limit) {
+          try {
+            val fields = AttributeTypeUtils.parseFields(pending.asInstanceOf[Array[Any]], schema)
+            ArrowUtils.setRow(fields, filled, root)
+            filled += 1
+          } catch { case _: Throwable => } // skip malformed row (matches row path)
+          emitted += 1
+          numRowGenerated += 1
+          pending = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+        }
+        root.setRowCount(filled)
+        root
+      }
+    })
+  }
+
   override def open(): Unit = {
     inputReader = new InputStreamReader(
       DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
@@ -109,6 +145,9 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     }
     if (inputReader != null) {
       inputReader.close()
+    }
+    if (columnarAllocator != null) {
+      columnarAllocator.close()
     }
   }
 }
