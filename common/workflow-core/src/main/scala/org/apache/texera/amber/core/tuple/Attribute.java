@@ -80,13 +80,6 @@ public class Attribute implements Serializable {
 
         Attribute that = (Attribute) toCompare;
 
-        if (this.attributeName == null) {
-            return that.attributeName == null;
-        }
-        if (this.attributeType == null) {
-            return that.attributeType == null;
-        }
-
         return this.attributeName.equalsIgnoreCase(that.attributeName) && this.attributeType.equals(that.attributeType);
     }
 

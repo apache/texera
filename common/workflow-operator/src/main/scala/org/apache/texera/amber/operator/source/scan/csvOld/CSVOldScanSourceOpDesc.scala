@@ -188,10 +188,10 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // came back empty while the header below still asked each column for one.
     // The header and the offset are dropped one after the other, as the executor
     // drops them, since their sum is past what an Int holds at the largest offset.
-    val sampleSize = limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val sampleSize = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val windowRows = reader.iterator
       .drop(header)
-      .drop(offset.getOrElse(0))
+      .drop(windowOffset)
       .take(sampleSize)
       .map(_.toArray[Any])
       .toSeq

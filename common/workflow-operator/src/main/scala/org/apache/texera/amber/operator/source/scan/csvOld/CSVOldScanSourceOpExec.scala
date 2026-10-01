@@ -54,8 +54,8 @@ class CSVOldScanSourceOpExec private[csvOld] (
       )
       .filter(tuple => tuple != null)
 
-    if (desc.limit.isDefined)
-      tuples.take(desc.limit.get)
+    if (desc.windowLimit.isDefined)
+      tuples.take(desc.windowLimit.get)
     else {
       tuples
     }
@@ -70,7 +70,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
     // skip line if this worker reads the start of a file, and the file has a header line
     // Dropped one after the other: the largest offset plus the header line is past
     // what an Int holds, and the sum wrapped to a negative that skipped no row.
-    rows = reader.iterator.drop(if (desc.hasHeader) 1 else 0).drop(desc.offset.getOrElse(0))
+    rows = reader.iterator.drop(if (desc.hasHeader) 1 else 0).drop(desc.windowOffset)
   }
 
   override def close(): Unit = {

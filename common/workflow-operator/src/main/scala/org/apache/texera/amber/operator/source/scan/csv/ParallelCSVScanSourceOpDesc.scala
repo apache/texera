@@ -200,7 +200,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     // came back empty while the header below still asked each column for one.
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
+        .take(windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
         .map(seq => seq.toArray)
     )
 

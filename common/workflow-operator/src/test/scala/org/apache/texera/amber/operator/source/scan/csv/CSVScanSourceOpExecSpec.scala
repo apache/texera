@@ -185,6 +185,30 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(firstCol == List("2", "3"))
   }
 
+  it should "read a negative window as the empty or whole one, not from the end" in {
+    // The schema's `minimum` binds the property editor only. `execOver` hands the
+    // exec the descriptor's JSON, the same way a plan posted to the API arrives, so
+    // a negative survives to here. A negative limit selects no rows and a negative
+    // offset skips none, which is what `take` and `drop` already did with it; the
+    // clamp is what keeps a reader that counts from the end from answering
+    // differently.
+    val rows = "a,b\n1,x\n2,y\n3,z\n"
+
+    val emptied = execOver(writeTempCsv(rows), hasHeader = true, limit = Some(-1))
+    emptied.open()
+    val none =
+      try emptied.produceTuple().toList
+      finally emptied.close()
+    assert(none.isEmpty)
+
+    val whole = execOver(writeTempCsv(rows), hasHeader = true, offset = Some(-1))
+    whole.open()
+    val all =
+      try whole.produceTuple().toList
+      finally whole.close()
+    assert(all.map(_.getFields(0).toString) == List("1", "2", "3"))
+  }
+
   it should "silently drop rows that cannot be parsed into the inferred schema" in {
     // No header, so every line is data. The schema is inferred from the first
     // `limit` rows only (INFER_READ_LIMIT is capped by limit); those are integers,

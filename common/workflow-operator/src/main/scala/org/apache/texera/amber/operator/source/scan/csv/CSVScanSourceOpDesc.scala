@@ -126,7 +126,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // do not depend on how many of its rows were asked for. Reading the sample
     // through the limit left a Limit of 0 nothing to infer from, and the operator
     // declared a schema of no columns at all.
-    val readLimit = limit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val readLimit = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {
