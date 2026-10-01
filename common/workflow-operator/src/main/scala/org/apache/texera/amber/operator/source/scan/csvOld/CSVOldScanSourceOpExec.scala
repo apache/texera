@@ -54,8 +54,8 @@ class CSVOldScanSourceOpExec private[csvOld] (
       )
       .filter(tuple => tuple != null)
 
-    if (desc.limit.isDefined)
-      tuples.take(desc.limit.get)
+    if (desc.windowLimit.isDefined)
+      tuples.take(desc.windowLimit.get)
     else {
       tuples
     }
@@ -68,7 +68,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
     val filePath = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
     reader = CSVReader.open(filePath.toString, desc.fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
+    val startOffset = desc.windowOffset + (if (desc.hasHeader) 1 else 0)
     rows = reader.iterator.drop(startOffset)
   }
 

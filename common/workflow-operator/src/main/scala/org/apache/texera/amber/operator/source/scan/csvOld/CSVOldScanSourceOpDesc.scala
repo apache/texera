@@ -102,9 +102,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     // reopen the file to read from the beginning
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
-    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    val startOffset = windowOffset + (if (hasHeader) 1 else 0)
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
         .slice(startOffset, endOffset)

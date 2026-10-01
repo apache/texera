@@ -55,6 +55,10 @@ spec:
               value: "{{ .Values.mounter.port }}"
             - name: MOUNT_ROOT
               value: "{{ .Values.mounter.hostMountRoot }}"
+            {{- if .Values.mounter.cacheRoot }}
+            - name: CACHE_ROOT
+              value: "{{ .Values.mounter.cacheRoot }}"
+            {{- end }}
             - name: POOL_NAMESPACE
               value: "{{ .Values.workflowComputingUnitPool.namespace }}"
             - name: CU_POD_NAME_PREFIX
@@ -76,9 +80,19 @@ spec:
             - name: texera-mounts
               mountPath: {{ .Values.mounter.hostMountRoot }}
               mountPropagation: Bidirectional
+            {{- if .Values.mounter.cacheRoot }}
+            - name: texera-mount-cache
+              mountPath: {{ .Values.mounter.cacheRoot }}
+            {{- end }}
       volumes:
         - name: texera-mounts
           hostPath:
             path: {{ .Values.mounter.hostMountRoot }}
             type: DirectoryOrCreate
+        {{- if .Values.mounter.cacheRoot }}
+        - name: texera-mount-cache
+          hostPath:
+            path: {{ .Values.mounter.cacheRoot }}
+            type: DirectoryOrCreate
+        {{- end }}
 {{- end }}

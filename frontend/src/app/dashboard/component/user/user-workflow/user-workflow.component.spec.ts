@@ -57,7 +57,6 @@ import {
   testWorkflowFileNameConflictEntries,
 } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
-import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
@@ -104,7 +103,6 @@ describe("SavedWorkflowSectionComponent", () => {
         UserWorkflowComponent,
         ShareAccessComponent,
         FiltersComponent,
-        UserWorkflowListItemComponent,
         SearchResultsComponent,
         FormsModule,
         RouterTestingModule,
