@@ -21,23 +21,36 @@ package org.apache.texera.amber.operator.source.fetcher
 
 import java.io.InputStream
 import java.net.URL
+import org.apache.texera.common.util.RetryUtil
+
+import scala.util.Try
 
 object URLFetchUtil {
-  def getInputStreamFromURL(urlObj: URL, retries: Int = 5): Option[InputStream] = {
-    for (_ <- 0 until retries) {
-      val result =
-        try {
+  def getInputStreamFromURL(urlObj: URL, retries: Int = 5): Option[InputStream] =
+    getInputStreamFromURL(urlObj, retries, initialDelayMillis = 200L, sleep = Thread.sleep)
+
+  private[fetcher] def getInputStreamFromURL(
+      urlObj: URL,
+      retries: Int,
+      initialDelayMillis: Long,
+      sleep: Long => Unit
+  ): Option[InputStream] = {
+    if (retries <= 0) {
+      None
+    } else {
+      Try {
+        RetryUtil.withBackoff(
+          description = s"fetch ${urlObj.toExternalForm}",
+          maxAttempts = retries,
+          initialDelayMillis = initialDelayMillis,
+          onRetry = _ => (),
+          sleep = sleep
+        ) {
           val request = urlObj.openConnection()
           request.setRequestProperty("User-Agent", RandomUserAgent.getRandomUserAgent)
-          Some(request.getInputStream)
-        } catch {
-          case t: Throwable => //re-try
-            None
+          request.getInputStream
         }
-      if (result.isDefined) {
-        return result
-      }
+      }.toOption
     }
-    None
   }
 }

@@ -362,9 +362,13 @@ class PythonProxyClientSpec extends AnyFlatSpec {
     withClient(heartbeatBody = "nak") { fixture =>
       // run() on the test thread: it must give up after the retry budget
       // because the heartbeat body check fails on every attempt.
-      assertThrows[WorkflowRuntimeException] {
+      val failure = intercept[WorkflowRuntimeException] {
         fixture.client.run()
       }
+      val heartbeatAttempts =
+        fixture.producer.actionsReceived.asScala.count(_._1 == "heartbeat")
+      assert(heartbeatAttempts == 3)
+      assert(failure.getMessage.contains("after 3 attempts"))
     }
   }
 

@@ -72,6 +72,23 @@ class RetryUtilSpec extends AnyFlatSpec {
     assert(delays.toList == List(50L, 100L, 200L))
   }
 
+  it should "support a constant retry delay when the multiplier is one" in {
+    val delays = ListBuffer.empty[Long]
+    intercept[RuntimeException] {
+      RetryUtil.withBackoff(
+        "reach the store",
+        4,
+        200L,
+        noopRetryHook,
+        delays += _,
+        delayMultiplier = 1L
+      ) {
+        throw new RuntimeException("down")
+      }
+    }
+    assert(delays.toList == List(200L, 200L, 200L))
+  }
+
   it should "succeed on the final permitted attempt without giving up one try too early" in {
     // Boundary for `attempt >= maxAttempts`: success on the very last attempt must still count.
     val delays = ListBuffer.empty[Long]
@@ -95,6 +112,25 @@ class RetryUtilSpec extends AnyFlatSpec {
     }
     assert(attempts == 3)
     assert(failure.getMessage == "Failed to connect to lake fs server after 3 attempts: still down")
+    assert(failure.getCause eq cause)
+  }
+
+  it should "let the caller choose the final exception type without losing the cause" in {
+    val cause = new RuntimeException("still down")
+    val failure = intercept[IllegalStateException] {
+      RetryUtil.withBackoff(
+        "connect to the worker",
+        2,
+        1L,
+        noopRetryHook,
+        _ => (),
+        failureFactory = (description, attempts, lastCause) =>
+          new IllegalStateException(s"$description failed after $attempts attempts", lastCause)
+      ) {
+        throw cause
+      }
+    }
+    assert(failure.getMessage == "connect to the worker failed after 2 attempts")
     assert(failure.getCause eq cause)
   }
 
