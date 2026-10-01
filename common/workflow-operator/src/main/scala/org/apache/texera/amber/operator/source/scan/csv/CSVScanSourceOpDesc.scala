@@ -28,22 +28,29 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
+import scala.util.Try
 
-class CSVScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   // One character: every reader narrows this with charAt(0), because univocity's
   // setDelimiter and scala-csv's DefaultCSVFormat both take a Char.
+  //
+  // `examples` names a delimiter the fixture's rows do not contain, so the
+  // verification config generator does not pick one that parses them ragged.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -115,7 +122,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     parser.beginParsing(inputReader)
 
     var data: Array[Array[String]] = Array()
-    val readLimit = windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    // A window of no rows is still a window on this file, and the file's columns
+    // do not depend on how many of its rows were asked for. Reading the sample
+    // through the limit left a Limit of 0 nothing to infer from, and the operator
+    // declared a schema of no columns at all.
+    val readLimit = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {
@@ -145,4 +156,100 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   }
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
+  override def generateStandaloneCode(): String = {
+    // Resolve the delimiter the same way the parser above does — first character, empty
+    // means comma — and escape it. Every value the field accepts has to survive this:
+    // pandas reads a separator longer than one character as a REGULAR EXPRESSION, and a
+    // backslash spliced raw produced `sep="\"`, which is not valid Python at all.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    // Texera's encoding enum uses values like UTF_8; pandas expects utf-8.
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"filepath_or_buffer=$SourceFilePlaceholder"
+    args += s"sep=${pyStringLiteral(sep)}"
+    args += s"""encoding=${pyStringLiteral(encoding)}"""
+    args += s"header=$headerArg"
+
+    // The parser above sets no null value, so only an empty field is null and every other
+    // text stands for itself. pandas instead reads a list of words as missing by default,
+    // "NA" and "null" among them, which turned a column holding the country code NA into
+    // nulls. Both halves are needed: dropping the default list stops the words, and naming
+    // the empty string keeps the blank cell null.
+    args += "keep_default_na=False"
+    args += """na_values=[""]"""
+
+    // A column holding a null has to be asked for, or pandas widens it to carry
+    // the hole: an integer through a float, where a LONG past 2^53 comes back
+    // rounded (9007199254740993 as ...992) and every INTEGER is left a float
+    // that prints 3 as 3.0, and a boolean to an object column. The nullable
+    // dtypes carry the hole and keep the type the schema declared. A timestamp
+    // is read as its text and parsed below, the way the engine parses it.
+    //
+    // By position, header or not, because the schema's names are not pandas'
+    // until the rename below: a blank header is `column-2` here and `Unnamed: 1`
+    // there, and asking for `column-2` ended the read. pandas takes an integer
+    // here as a position even where a header spells one. A schema that cannot be
+    // read (an unresolved file) leaves the argument off rather than failing the
+    // export.
+    val nullableDtypes = Map(
+      AttributeType.INTEGER -> "Int32",
+      AttributeType.LONG -> "Int64",
+      AttributeType.BOOLEAN -> "boolean",
+      AttributeType.TIMESTAMP -> "object"
+    )
+    val typedColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex.flatMap {
+          case (attribute, i) => nullableDtypes.get(attribute.getType).map(d => s"""$i: "$d"""")
+        }
+      )
+    if (typedColumns.nonEmpty) args += s"dtype={${typedColumns.mkString(", ")}}"
+
+    // Clamped: the property editor refuses a negative, but a plan posted to the API
+    // can still carry one, and pandas rejects a negative `nrows` outright where the
+    // executor's `take` simply keeps no rows.
+    offset.map(_.max(0)).foreach { o =>
+      // With a header, skip offset rows after row 0; without, skip offset rows from the start.
+      // The end is counted in Long: the largest offset the operator accepts
+      // overflows an Int on the way past the header, and the range came out
+      // empty, skipping nothing where the executor's `drop` keeps no rows. Asked
+      // of each line rather than listed, since pandas makes a set of a list of
+      // rows to skip, and one of two billion ran the script out of memory.
+      if (hasHeader) args += s"skiprows=lambda _i: 0 < _i <= ${o.toLong}"
+      else args += s"skiprows=$o"
+    }
+    limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    // The schema's own names, which every downstream operator was configured
+    // against. They differ from pandas' in both directions: a blank header is
+    // `column-2` here and `Unnamed: 1` there, and a header the user really did
+    // spell `Unnamed: 1` is kept. Matching the placeholder against the index
+    // cannot tell those two apart when they coincide; taking the names by
+    // position can.
+    val schemaNames: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq
+        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+
+    if (schemaNames.nonEmpty)
+      Seq(
+        readCall,
+        s"out1df.columns = [${schemaNames.mkString(", ")}]",
+        StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
+        StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())
+      ).filter(_.nonEmpty).mkString("\n")
+    else if (hasHeader) readCall
+    else {
+      // Unresolved file: fall back to Texera's headerless naming.
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+    }
+  }
 }

@@ -32,6 +32,7 @@ import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -95,6 +96,38 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.fileName = Some(path)
     opDesc.setResolvedFileName(FileResolver.resolve(path))
     opDesc.sourceSchema().getAttributes.map(_.getName).toList
+  }
+
+  // Writes a CSV whose `big` column holds values past 2^53 and one omitted cell,
+  // and returns the absolute path.
+  private def writeNullableLongCsv(): String = {
+    val tmpFile = Files.createTempFile("nullable-long-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,big\n1,9007199254740993\n2,\n3,9007199254740995\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
+  }
+
+  // Writes a CSV holding the country code NA and an omitted field, and returns
+  // the absolute path.
+  private def writeNaCsv(): String = {
+    val tmpFile = Files.createTempFile("na-code-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(tmpFile, "code,note\nNA,x\n,y\n".getBytes(StandardCharsets.UTF_8))
+    tmpFile.toString
+  }
+
+  // Writes a headered CSV with six data rows and returns the absolute path.
+  private def writeSixRowCsv(): String = {
+    val tmpFile = Files.createTempFile("six-row-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,name\n1,a\n2,b\n3,c\n4,d\n5,e\n6,f\n".getBytes(StandardCharsets.UTF_8)
+    )
+    tmpFile.toString
   }
 
   // Writes a numeric column with one blank cell and returns the absolute path.
@@ -211,6 +244,159 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
 
+  // The name is left to the translator, which is the only thing that can see a
+  // second source wanting it. What the operator owes is the path and the name it
+  // would like.
+  it should "offer the csv basename and read the file by placeholder" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("filepath_or_buffer=sourceFile"))
+    assert(csvScanSourceOpDesc.standaloneSourcePath() == csvScanSourceOpDesc.fileName)
+    assert(
+      csvScanSourceOpDesc.standaloneSourceName().contains("country_sales_small_multi_line.csv")
+    )
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
+  it should "offer the unresolved csv basename" in {
+    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    csvScanSourceOpDesc.hasHeader = true
+
+    val code = csvScanSourceOpDesc.generateStandaloneCode()
+
+    assert(code.contains("filepath_or_buffer=sourceFile"))
+    assert(
+      csvScanSourceOpDesc.standaloneSourceName().contains("country_sales_small_multi_line.csv")
+    )
+    assert(!code.contains("base64.b64decode"))
+    assert(!code.contains("io.BytesIO"))
+  }
+
+  // pandas raises nothing for a type asked of a name it has no column for, so
+  // under a blank header the type was dropped without a word and the column
+  // was inferred as floats, rounding 9007199254740993 to ...992.
+  it should "ask pandas for a type under a blank header by its position for parallel CSV" in {
+    val tmpFile = Files.createTempFile("blank-long-header-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "id,\n1,9007199254740993\n2,\n3,9007199254740995\n".getBytes(StandardCharsets.UTF_8)
+    )
+    val path = tmpFile.toString
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = true
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
+        AttributeType.STRING
+    )
+    assert(parallelCsvScanSourceOpDesc.generateStandaloneCode().contains("""dtype={1: "string"}"""))
+  }
+
+  // sourceSchema reads this operator's file with scala-csv, which hands a blank
+  // back as "", so one blank cell types the whole column STRING — while the
+  // executor's block reader nulls the blank and parses the rest as that STRING.
+  // pandas sees the blank as missing and infers a number instead, which read a
+  // column of ids back as floats and rounded 9007199254740993 to ...992.
+  it should "read a parallel CSV column the schema typed STRING as text" in {
+    val path = writeNullableLongCsv()
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("big").getType ==
+        AttributeType.STRING
+    )
+
+    val exec = new ParallelCSVScanSourceOpExec(
+      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
+    )
+    exec.open()
+    val rows =
+      try exec.produceTuple().map(_.getFields.toList).toList
+      finally exec.close()
+    assert(rows.map(_(1)) == List("9007199254740993", null, "9007199254740995"))
+
+    assert(
+      parallelCsvScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""dtype={1: "string"}""")
+    )
+  }
+
+  // The block reader nulls an omitted field and leaves every other text alone, so
+  // "NA" is the country code it says it is. pandas reads it as missing by default,
+  // so the export read a column of codes as a column of nulls.
+  it should "read only an empty field as null for parallel CSV, the way its reader does" in {
+    val path = writeNaCsv()
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    val exec = new ParallelCSVScanSourceOpExec(
+      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
+    )
+    exec.open()
+    val rows =
+      try exec.produceTuple().map(_.getFields.toList).toList
+      finally exec.close()
+    assert(rows == List(List("NA", "x"), List(null, "y")))
+
+    val code = parallelCsvScanSourceOpDesc.generateStandaloneCode()
+    assert(code.contains("keep_default_na=False"))
+    assert(code.contains("""na_values=[""]"""))
+  }
+
+  it should "give the parallel CSV frame the names the schema gives it" in {
+    val path = writeCsvWithEmptyHeader()
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = true
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+
+    assert(
+      parallelCsvScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""out1df.columns = ["id", "name", "column-3", "age"]""")
+    )
+  }
+
+  // ParallelCSVScanSourceOpExec.open carves the file into byte ranges and leaves
+  // limit and offset as TODOs, so the window the panel offers never reaches the
+  // rows. Slicing in the export handed back fewer rows than the workflow did.
+  it should "leave limit and offset out of the parallel CSV read, as its reader ignores them" in {
+    val path = writeSixRowCsv()
+    parallelCsvScanSourceOpDesc.fileName = Some(path)
+    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.offset = Some(2)
+    parallelCsvScanSourceOpDesc.limit = Some(2)
+
+    val exec = new ParallelCSVScanSourceOpExec(
+      objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
+    )
+    exec.open()
+    val rowsRead =
+      try exec.produceTuple().size
+      finally exec.close()
+    assert(rowsRead == 6)
+
+    val code = parallelCsvScanSourceOpDesc.generateStandaloneCode()
+    assert(!code.contains("skiprows"))
+    assert(!code.contains("nrows"))
+    assert(code.startsWith("# NOTE: this operator's limit and offset are ignored"))
+  }
+
   it should "use comma as the default delimiter when customDelimiter is not set for parallel CSV" in {
     parallelCsvScanSourceOpDesc.customDelimiter = None
 
@@ -315,6 +501,29 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsv.customDelimiter = Some(";abc")
     val oldCsv = new CSVOldScanSourceOpDesc()
     oldCsv.customDelimiter = Some(";abc")
+
+    assert(columnNames(csv, path) == List("id", "name", "age"))
+    assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
+    assert(columnNames(oldCsv, path) == List("id", "name", "age"))
+  }
+
+  // The limit bounded the sample the inference reads as well as the rows the
+  // operator emits, so a Limit of 0 had nothing to infer from. The three readers
+  // then failed differently on the same file: these two declared a schema of no
+  // columns at all, and the old one threw, its header still asking each column
+  // for a type the empty sample could not give. A file's columns do not depend
+  // on how many of its rows were asked for.
+  it should "keep the file's columns when the window asks for no rows" in {
+    val path = writeSemicolonCsv()
+    val csv = new CSVScanSourceOpDesc()
+    csv.customDelimiter = Some(";")
+    csv.limit = Some(0)
+    val parallelCsv = new ParallelCSVScanSourceOpDesc()
+    parallelCsv.customDelimiter = Some(";")
+    parallelCsv.limit = Some(0)
+    val oldCsv = new CSVOldScanSourceOpDesc()
+    oldCsv.customDelimiter = Some(";")
+    oldCsv.limit = Some(0)
 
     assert(columnNames(csv, path) == List("id", "name", "age"))
     assert(columnNames(parallelCsv, path) == List("id", "name", "age"))
