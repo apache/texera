@@ -200,3 +200,11 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
+--------------------------------------------------------------------------------
+THIRD-PARTY DEPENDENCIES
+--------------------------------------------------------------------------------
+
+This bundle includes the Iris example dataset:
+  - examples/datasets/iris-species/Iris.csv
+  Source: https://www.kaggle.com/datasets/uciml/iris
+  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)

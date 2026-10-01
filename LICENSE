@@ -264,6 +264,14 @@ build:
   Source: https://github.com/yarnpkg/berry
   License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
 
+Creative Commons Zero 1.0 Universal (CC0 1.0)
+--------------------------------------
+
+This product bundles the Iris example dataset:
+  - bin/single-node/examples/datasets/iris-species/Iris.csv
+  Source: https://www.kaggle.com/datasets/uciml/iris
+  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
+
 Trademarks
 --------------------------------------
 
