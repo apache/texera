@@ -1,8 +1,5 @@
 # Copyright (c) 2019 sebkeim
 # Licensed under the MIT License.
-#
-# This file is derived from inner-class.
-# Source: https://github.com/sebkeim/inner-class
 
 """
 This class is taken from https://github.com/sebkeim/inner-class at commit sha
