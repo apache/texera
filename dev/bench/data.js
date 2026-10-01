@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790773856766,
+  "lastUpdate": 1790859833818,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -16435,6 +16435,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 504.6297539787765,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "98d3d4b1ec8b02f611801d035c190fa31f56fa47",
+          "message": "feat(source): bound a file scan's window at zero (#8514)\n\n### What changes were proposed in this PR?\n\nEvery file-scan source takes a Limit and an Offset from\n`ScanSourceOpDesc`, and neither field said it cannot be negative. Both\nnow declare `minimum: 0`.\n\nNeither value means anything below zero, and a negative one is not read\nthe same way twice. The executors take the window with Scala's `drop`\nand `take`, where a negative drop keeps every row and a negative take\nkeeps none. The scripts the export writes take the same window with\n`iloc`, which counts from the end instead. So `offset = -1` is every row\non one side and the last row on the other, and `limit = -1` is no rows\non one side and all but the last on the other.\n\nDeclaring the bound states what the operators already assume, and the\nproperty editor then refuses the value rather than passing it on. It\nreaches CSV, CSVOld, JSONL, Arrow and the file scans at once, all of\nwhich inherit the two fields.\n\nThe schema is not revalidated on the way in, though, so a plan posted to\nthe API or an imported workflow file still arrives with whatever the\nfield holds. Every reader now takes the window through two accessors on\nthe base class, `windowOffset` and `windowLimit`, which clamp at zero.\nThe fields themselves are left as they came, and the native readers\nbehave exactly as they did: `drop(-1)` and `drop(0)` both keep every\nrow, and `take(-1)` and `take(0)` both keep none. What the clamp settles\nis that a reader counting a negative from the end cannot answer\ndifferently from the one that does not.\n\n\nhttps://github.com/user-attachments/assets/4692ec26-1c93-4ca3-b3e8-d527cd0d0922\n\n### Any related issues, documentation, discussions?\n\nCloses #8513, the task this change is the whole of.\n\n### How was this PR tested?\n\nA case in `ScanSourceOpDescSpec` validates `-1`, `0` and `5` against the\ngenerated schema for both fields, through the same validator the\nproperty editor uses rather than restating the bound the schema\ndeclares. Two more deserialize a window through the same polymorphic\nmapper a saved workflow goes through, and check that a negative reaches\nthe fields intact while the accessors report the empty or the whole\nwindow, and that a non-negative one and an absent one pass through\nuntouched.\n\nThe executor is covered where the value can actually arrive:\n`CSVScanSourceOpExecSpec` builds the exec from the descriptor's JSON, as\na submitted plan does, and runs it over a real file with each negative\nin turn. A negative limit emits no rows and a negative offset emits all\nof them. The 166 tests across the scan-source specs pass.\n\nThe four numbers quoted above were read off the two runtimes rather than\nfrom memory: `Iterator(1,2,3,4,5).drop(-1)` keeps all five and\n`.take(-1)` keeps none, while pandas' `iloc[-1:]` is the last row and\n`iloc[:-1]` is the first four.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-30T06:11:49Z",
+          "url": "https://github.com/apache/texera/commit/98d3d4b1ec8b02f611801d035c190fa31f56fa47"
+        },
+        "date": 1790859833042,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 665.5380428167377,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1264.555286631224,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1379.8448221334472,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 955.2757942188388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1304.6735420627404,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1383.0909453193583,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 954.1602117310898,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1316.9172310034958,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1376.9374550173677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 768.0520335713501,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1020.567870837948,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1074.8529262569841,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 795.2357553136878,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1051.1241828345715,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1069.2781871438735,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 787.0390004989398,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1027.1180349648669,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1053.7497023521425,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 489.47566814299967,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 574.9820742639807,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 580.414887392411,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 470.06250312284556,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 557.39358229088,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 571.1820537583478,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 440.8633798863453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 525.9171456336065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 557.6735631541858,
             "unit": "tuples/sec"
           }
         ]
