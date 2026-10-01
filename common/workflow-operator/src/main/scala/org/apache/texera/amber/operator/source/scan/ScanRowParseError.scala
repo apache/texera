@@ -46,8 +46,8 @@ object ScanRowParseError {
     * @param rawFields       raw field values of the failing row, in schema order
     *                        (may be empty or shorter than the schema)
     * @param schema          the inferred schema of the scan
-    * @param inferSampleSize number of rows actually used for type inference
-    *                        (desc.inferSampleSize)
+    * @param inferSampleSize cap on the rows read for type inference
+    *                        (desc.inferSampleSize); a shorter file uses fewer
     * @param rowNumber       1-based row number, if cheaply available
     * @param cause           the original parse exception
     */
@@ -63,12 +63,12 @@ object ScanRowParseError {
       case Some((attribute, value)) =>
         s"${WarningPrefix}skipped $where — value '$value' in column '${attribute.getName}' " +
           s"cannot be read as ${attribute.getType.name()}. " +
-          s"Column types were inferred from an initial sample of $inferSampleSize rows, " +
+          s"Column types were inferred from an initial sample of up to $inferSampleSize rows, " +
           "and this value does not match."
       case None =>
         val reason = Option(cause.getMessage).getOrElse(cause.getClass.getSimpleName)
         s"${WarningPrefix}skipped $where — could not be parsed into the inferred schema: $reason. " +
-          s"Column types were inferred from an initial sample of $inferSampleSize rows."
+          s"Column types were inferred from an initial sample of up to $inferSampleSize rows."
     }
   }
 

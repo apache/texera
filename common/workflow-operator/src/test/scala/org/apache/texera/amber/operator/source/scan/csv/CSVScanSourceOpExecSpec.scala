@@ -238,7 +238,7 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(exec.getWarnings.head.contains("'oops'"))
     // The warning names the real inference sample size (limit-capped), not the
     // default INFER_READ_LIMIT of 100.
-    assert(exec.getWarnings.head.contains("sample of 2 rows"))
+    assert(exec.getWarnings.head.contains("sample of up to 2 rows"))
   }
 
   it should "skip a post-inference row that does not parse and report row, value, column, type" in {
@@ -274,8 +274,8 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     val warnings = exec.getWarnings
     assert(warnings.size == 101) // 100 detail lines + 1 summary line
     assert(warnings.take(100).forall(_.contains("INTEGER")))
-    assert(warnings.last.contains("50"))
-    assert(warnings.last.contains("150"))
+    assert(warnings.last.contains("50 more"))
+    assert(warnings.last.contains("150 total"))
   }
 
   it should "keep a row whose empty cell parses to null instead of skipping it" in {

@@ -99,4 +99,17 @@ class CSVOldScanSourceOpExecSpec extends AnyFlatSpec {
     assert(warnings.head.contains("column 'a'"))
     assert(warnings.head.contains("INTEGER"))
   }
+
+  it should "report the absolute data-row number when an offset is set" in {
+    // offset=2 shifts both inference and reading to data row 3; the inference sample
+    // (rows 3..102) is all integers, so "oops" at data row 103 is skipped. The
+    // reported number must count from the start of the data, not from the offset.
+    val clean = (1 to 102).map(_.toString).mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a\n$clean\noops\n", offset = Some(2)))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    assert(exec.getWarnings.size == 1)
+    assert(exec.getWarnings.head.contains("row 103"))
+  }
 }

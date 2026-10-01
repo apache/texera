@@ -206,6 +206,7 @@ class ScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     tree.has("fileTypeName") shouldBe false
     tree.has("windowLimit") shouldBe false
     tree.has("windowOffset") shouldBe false
+    tree.has("inferSampleSize") shouldBe false
   }
 
   it should "omit unset optional fields entirely, the shape saved workflows store" in {

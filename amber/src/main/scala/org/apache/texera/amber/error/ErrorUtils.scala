@@ -62,8 +62,9 @@ object ErrorUtils {
 
   /**
     * Builds a PRINT console message carrying a plain informational/warning line (no
-    * stack trace). A title starting with "WARNING: " is surfaced as a warning by the
-    * UI (see SyncExecutionResource), so callers should keep that prefix intact.
+    * stack trace). A title starting with "WARNING: " is collected into the `warnings`
+    * field of the sync-execution API (see SyncExecutionResource), so callers should
+    * keep that prefix intact.
     */
   def mkPrintConsoleMessage(
       actorId: ActorVirtualIdentity,
