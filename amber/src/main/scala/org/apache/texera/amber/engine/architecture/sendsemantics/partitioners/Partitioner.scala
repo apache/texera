@@ -40,6 +40,8 @@ class NetworkOutputBuffer(
     val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize
 ) {
 
+  require(batchSize > 0, "batchSize must be positive")
+
   var buffer = new ArrayBuffer[Tuple]()
 
   def addTuple(tuple: Tuple): Unit = {
