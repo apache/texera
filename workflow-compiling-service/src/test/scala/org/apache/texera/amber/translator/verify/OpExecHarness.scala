@@ -386,9 +386,8 @@ object TupleIO {
               // Timestamps round-trip through the JDBC string form
               // ("yyyy-mm-dd hh:mm:ss[.f]"), the exact inverse of Timestamp.toString
               // below — timezone-free, so no shift across write/read. The Python
-              // side reads this column with convert_dates=False (see
-              // StandaloneRunner) and treats it as an opaque string, so both paths
-              // agree on pass-through.
+              // side parses it back into a datetime and writes it out in this same
+              // form (see StandaloneRunner), so both paths agree on pass-through.
               case AttributeType.TIMESTAMP =>
                 Timestamp.valueOf(fieldNode.asText())
               case other =>
