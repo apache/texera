@@ -24,12 +24,20 @@ permissions:
   pull-requests: write
 
 jobs:
-  # All three behaviors live as steps under one job so the PR Checks
-  # tab shows a single entry per event instead of two-or-three skipped
-  # siblings. Step-level if-guards keep the actual work scoped.
+  # All behaviors live as steps under one job so the PR Checks tab shows
+  # a single entry per event instead of several skipped siblings.
+  # Step-level if-guards keep the actual work scoped.
   pr-assignment:
     runs-on: ubuntu-latest
     steps:
+      # pull_request_target resolves to the trusted base branch, never the
+      # fork head, so requiring this script from the steps below is safe.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts/issue-claims.js
+          sparse-checkout-cone-mode: false
+
       - name: Self-assign PR author to the PR
         if: >-
           github.event.action == 'opened'
@@ -139,6 +147,97 @@ jobs:
               core.info(`Body unchanged on edit; skipping removal-detection.`);
             }
 
+      - name: Flag linked issues someone else has claimed
+        # A PR that closes an issue someone else has claimed (they are
+        # assigned, or have an open PR on it) gets one sticky comment
+        # naming them and their PR, so the overlap is settled in review.
+        # Otherwise the first merge closes the issue and can strand the
+        # other PR: #8339 merged over #8267 on #8149 (see #8676).
+        #
+        # It comments instead of failing a check. Both PRs match (the
+        # claimant's own PR flags this one back), so a red check would
+        # also land on the person being protected. Only a human can tell
+        # an agreed takeover from a duplicate. And nothing re-runs this
+        # when the other PR closes, so a failure would go stale.
+        if: >-
+          contains(fromJSON('["opened","edited"]'), github.event.action)
+          && github.event.pull_request.state == 'open'
+          && github.event.pull_request.user.type != 'Bot'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { CLAIM_MARKER, findClaimConflicts, renderClaimComment } =
+              require('./.github/scripts/issue-claims.js');
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const issue_number = pr.number;
+
+            const { repository: { pullRequest: prq } } = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    closingIssuesReferences(first: 50) {
+                      nodes {
+                        number
+                        state
+                        repository { nameWithOwner }
+                        assignees(first: 20) { nodes { login } }
+                        closedByPullRequestsReferences(first: 20) {
+                          nodes { number state author { login } repository { nameWithOwner } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`, { owner, repo, pr: issue_number });
+
+            const conflicts = findClaimConflicts(prq.closingIssuesReferences.nodes, {
+              repo: `${owner}/${repo}`, prNumber: issue_number, opener: pr.user.login,
+            });
+            for (const { issue, claimants } of conflicts) {
+              core.info(`Issue #${issue} claimed by: ${claimants.map((c) => `${c.login} (assigned=${c.assigned}, prs=[${c.prs.join(',')}])`).join('; ')}`);
+            }
+            if (!conflicts.length && context.payload.action === 'opened') {
+              core.info(`No linked issue is claimed by someone else.`);
+              return;
+            }
+
+            let existing = null;
+            try {
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              );
+              existing = comments.find((c) => c.user?.type === 'Bot' && (c.body || '').includes(CLAIM_MARKER));
+            } catch (e) {
+              // Without the comment list we can't safely de-dupe; bail to
+              // avoid posting a second copy.
+              core.warning(`listComments on #${issue_number} failed: ${e.message}`);
+              return;
+            }
+
+            try {
+              if (conflicts.length) {
+                const body = renderClaimComment(conflicts);
+                if (!existing) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number, body });
+                  core.info(`Posted claim comment on #${issue_number}.`);
+                } else if (existing.body !== body) {
+                  await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+                  core.info(`Updated claim comment ${existing.id}.`);
+                } else {
+                  core.info(`Claim comment ${existing.id} is already current.`);
+                }
+              } else if (existing) {
+                await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+                core.info(`No linked issue is claimed elsewhere any more; deleted comment ${existing.id}.`);
+              } else {
+                core.info(`No linked issue is claimed by someone else.`);
+              }
+            } catch (e) {
+              core.warning(`Updating the claim comment on #${issue_number} failed: ${e.message}`);
+            }
+
       - name: Unassign PR opener from linked issues on PR close without merge
         # When a PR is closed without merging, the opener was added to
         # linked issues by the "Sync PR opener" step on open/edit. Mirror
@@ -187,10 +286,16 @@ jobs:
             }
 
       - name: Credit issue assignees on PR merge
+        # Replace each linked issue's assignees with the merged PR's human
+        # authors, except anyone who still has their own open PR on the
+        # issue: unassigning them would hide a claim that is still in
+        # review. If that PR later closes unmerged, the step above
+        # unassigns them.
         if: github.event.action == 'closed' && github.event.pull_request.merged
         uses: actions/github-script@v9
         with:
           script: |
+            const { creditChanges } = require('./.github/scripts/issue-claims.js');
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
             const opener = pr.user;
@@ -206,6 +311,9 @@ jobs:
                         number
                         repository { nameWithOwner }
                         assignees(first: 20) { nodes { login } }
+                        closedByPullRequestsReferences(first: 20) {
+                          nodes { number state author { login } repository { nameWithOwner } }
+                        }
                       }
                     }
                     commits(first: 250) {
@@ -227,7 +335,6 @@ jobs:
               }
             }
             const credited = [...authors].slice(0, 10);
-            const creditedSet = new Set(credited);
             core.info(`Credited authors (max 10, [bot] filtered): [${credited.join(', ') || '(none)'}]`);
             if (!credited.length) {
               core.info(`No human authors to credit; skipping all linked issues.`);
@@ -238,11 +345,11 @@ jobs:
             core.info(`Linked same-repo issues to credit: [${sameRepoIssues.map((i) => `#${i.number}`).join(', ') || '(none)'}]`);
 
             for (const issue of sameRepoIssues) {
-              const current = issue.assignees.nodes.map(n => n.login);
-              const toRemove = current.filter(l => !creditedSet.has(l));
-              const toAdd = credited.filter(l => !current.includes(l));
+              const { current, toRemove, toAdd, kept } = creditChanges(issue, {
+                repo: `${owner}/${repo}`, prNumber: pr.number, credited,
+              });
               const args = { owner, repo, issue_number: issue.number };
-              core.info(`Issue #${issue.number}: current=[${current.join(',')}] credited=[${credited.join(',')}] toRemove=[${toRemove.join(',')}] toAdd=[${toAdd.join(',')}]`);
+              core.info(`Issue #${issue.number}: current=[${current.join(',')}] credited=[${credited.join(',')}] toRemove=[${toRemove.join(',')}] toAdd=[${toAdd.join(',')}] kept (own open PR)=[${kept.join(',')}]`);
               try {
                 if (toRemove.length) {
                   await github.rest.issues.removeAssignees({ ...args, assignees: toRemove });
