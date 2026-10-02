@@ -206,5 +206,7 @@ THIRD-PARTY DEPENDENCIES
 
 This bundle includes the Iris example dataset:
   - examples/datasets/iris-species/Iris.csv
-  Source: https://www.kaggle.com/datasets/uciml/iris
-  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
+  Creator: R. A. Fisher (1936)
+  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
+  DOI: 10.24432/C56C76
+  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)

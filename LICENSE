@@ -264,13 +264,15 @@ build:
   Source: https://github.com/yarnpkg/berry
   License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
 
-Creative Commons Zero 1.0 Universal (CC0 1.0)
+Creative Commons Attribution 4.0 International (CC BY 4.0)
 --------------------------------------
 
 This product bundles the Iris example dataset:
   - bin/single-node/examples/datasets/iris-species/Iris.csv
-  Source: https://www.kaggle.com/datasets/uciml/iris
-  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
+  Creator: R. A. Fisher (1936)
+  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
+  DOI: 10.24432/C56C76
+  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
 
 Trademarks
 --------------------------------------
