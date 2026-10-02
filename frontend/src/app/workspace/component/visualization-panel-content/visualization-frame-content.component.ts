@@ -45,12 +45,15 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     // attempt to draw chart immediately
     this.drawChart();
 
-    // setup an event lister that re-draws the chart content every (n) milliseconds
-    // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
+    // Re-draw on this operator's result updates, at most once per UPDATE_INTERVAL_MS: auditTime
+    // holds the first re-draw until the interval has elapsed. Filter BEFORE auditing: an update
+    // event carries only the operators whose result changed, so with the audit first a window that
+    // closed on another operator's event handed the filter that event, and this operator's pending
+    // re-draw was lost -- the last update of a run showed the previous picture for good.
     this.workflowResultService
       .getResultUpdateStream()
-      .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS))
       .pipe(filter(rec => this.operatorId !== undefined && rec[this.operatorId] !== undefined))
+      .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.drawChart();
