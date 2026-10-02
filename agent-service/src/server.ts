@@ -493,6 +493,15 @@ export function buildApp() {
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
 
+            // Reject a prompt that arrives while a run is already in flight
+            // instead of re-pointing that run's warehouse mid-execution (#8711).
+            // Checked before setDelegateWarehouse so a busy agent's delegate
+            // config is left untouched.
+            if (agent.getState() !== AgentState.AVAILABLE) {
+              sendEventToClient(ws, new WsServerErrorEvent("Agent is busy processing another message"));
+              return;
+            }
+
             // The prompt carries the workspace's current warehouse pick, so a run
             // uses what the user has selected now rather than whatever was
             // selected when the agent was created. An absent field IS the
