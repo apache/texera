@@ -24,7 +24,6 @@ import { switchMap } from "rxjs/operators";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
 import {
-  NzTableFilterFn,
   NzTableQueryParams,
   NzTableComponent,
   NzTheadComponent,
@@ -185,22 +184,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     return input;
   }
 
-  dataCheck(oldExecution: Execution, newExecution: Execution): boolean {
-    // Get the current time in seconds.
-    const currentTime = Date.now() / 1000;
-    // Check if the execution needed to be updated
-    if (oldExecution.executionStatus === "JUST COMPLETED" && currentTime - newExecution.endTime / 1000 <= 5) {
-      return false;
-    } else if (oldExecution.executionStatus != newExecution.executionStatus) {
-      return true;
-    } else if (oldExecution.executionName != newExecution.executionName) {
-      return true;
-    } else if (oldExecution.workflowName != newExecution.workflowName) {
-      return true;
-    }
-    return false;
-  }
-
   updateTimeStatus() {
     this.specifyCompletedStatus();
     this.updateTimeDifferences();
@@ -300,12 +283,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   padZero(value: number): string {
     return value.toString().padStart(2, "0");
   }
-
-  filterByStatus: NzTableFilterFn<Execution> = function (list: string[], execution: Execution) {
-    return list.some(function (executionStatus) {
-      return execution.executionStatus.indexOf(executionStatus) !== -1;
-    });
-  };
 
   clickToViewHistory(wid: number, name: string) {
     this.modalService.create({
