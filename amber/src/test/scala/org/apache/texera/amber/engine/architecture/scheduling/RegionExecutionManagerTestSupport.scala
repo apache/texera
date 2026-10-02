@@ -88,9 +88,14 @@ object RegionExecutionManagerTestSupport {
     *
     * Non-termination RPCs are completed immediately because these tests focus on termination
     * ordering. `endWorker` responses are controlled by `endWorkerResponse`, allowing each test to
-    * hold termination pending, fail an attempt, or allow it to succeed.
+    * hold termination pending, fail an attempt, or allow it to succeed. `initializeExecutor`
+    * responses are controlled by `initializeExecutorResponse`, allowing a test to simulate a worker
+    * whose executor fails to initialize (e.g., a Python UDF with an error at import time).
     */
-  class CoordinatorRpcProbe(endWorkerResponse: WorkerRpcCall => Option[ControlReturn]) {
+  class CoordinatorRpcProbe(
+      endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
+      initializeExecutorResponse: WorkerRpcCall => ControlReturn = _ => EmptyReturn()
+  ) {
     val calls: mutable.ArrayBuffer[WorkerRpcCall] = mutable.ArrayBuffer()
     val inputGateway = new NetworkInputGateway(COORDINATOR)
     val outputGateway = new NetworkOutputGateway(COORDINATOR, handleOutput)
@@ -137,7 +142,9 @@ object RegionExecutionManagerTestSupport {
 
     private def immediateReturn(call: WorkerRpcCall): Option[ControlReturn] = {
       call.methodName match {
-        case InitializeExecutor | OpenExecutor =>
+        case InitializeExecutor =>
+          Some(initializeExecutorResponse(call))
+        case OpenExecutor =>
           Some(EmptyReturn())
         case StartWorker =>
           // RUNNING is the worker's 2nd transition (UNINITIALIZED -> READY -> RUNNING).
