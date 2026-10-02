@@ -104,7 +104,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
     val startOffset = windowOffset + (if (hasHeader) 1 else 0)
     val endOffset =
-      startOffset + windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + inferSampleSize
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
         .slice(startOffset, endOffset)
