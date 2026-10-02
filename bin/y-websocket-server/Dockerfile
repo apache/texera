@@ -25,7 +25,7 @@
 # has yet to be fully endorsed by the ASF.
 
 # Use an official Node runtime as a parent image
-FROM node:24-slim
+FROM node:24.19.0-slim
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -34,7 +34,7 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Install any needed packages specified in package.json
-RUN npm install
+RUN npm ci
 
 # Define environment variable
 ENV YPERSISTENCE=./leveldb

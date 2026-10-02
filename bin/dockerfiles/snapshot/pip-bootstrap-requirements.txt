@@ -15,23 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-version: '3.8'
-
-services:
-  rustfs:
-    image: rustfs/rustfs:1.0.0
-    container_name: rustfs
-    ports:
-      - "9500:9000"   # S3 API
-      - "9501:9001"   # Console UI
-    environment:
-      - RUSTFS_ACCESS_KEY=texera_rustfs
-      - RUSTFS_SECRET_KEY=password
-      - RUSTFS_REGION=us-west-2
-      - RUSTFS_CONSOLE_ENABLE=true
-      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
-    volumes:
-      - rustfs_data:/data
-
-volumes:
-  rustfs_data:
+# The pip that install.sh installs before anything else: Ubuntu 22.04's own
+# pip (22.0) predates --uploaded-prior-to.
+pip==26.2.1
