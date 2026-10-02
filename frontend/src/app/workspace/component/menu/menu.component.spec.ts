@@ -1797,6 +1797,14 @@ describe("MenuComponent", () => {
         expect(run).toHaveBeenCalled();
         expect(kill).toHaveBeenCalled();
       });
+
+      it("explains the kill button with a tooltip", () => {
+        fixture.detectChanges();
+
+        expect(q("button[nzdanger]").nativeElement.getAttribute("title")).toBe(
+          "Stop this run. A stopped run can't be resumed."
+        );
+      });
     });
 
     describe("toolbar", () => {
