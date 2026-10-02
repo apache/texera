@@ -261,14 +261,12 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
    *
    * Displays the form of the highlighted operator if only one operator is highlighted;
    * Displays the form of the link breakpoint if only one link is highlighted;
-   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
+   * hides the form if no operator/link is highlighted or multiple operators and/or links are highlighted.
    */
   registerHighlightEventsHandler() {
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),

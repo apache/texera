@@ -30,14 +30,6 @@ export interface PortIdentity
     id: number;
     internal: boolean;
   }> {}
-export interface OutputPort extends Readonly<{ id: PortIdentity; displayName: string }> {}
-export interface InputPort
-  extends Readonly<{
-    id: PortIdentity;
-    displayName: string;
-    disallowMultiLinks: boolean;
-    dependencies: ReadonlyArray<PortIdentity>;
-  }> {}
 
 export interface LogicalLink
   extends Readonly<{
@@ -115,7 +107,6 @@ export interface OperatorStatsUpdate
 export type PaginationMode = { type: "PaginationMode" };
 export type SetSnapshotMode = { type: "SetSnapshotMode" };
 export type SetDeltaMode = { type: "SetDeltaMode" };
-export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 export interface WebPaginationUpdate
   extends Readonly<{
