@@ -290,3 +290,62 @@ class TestRunInvariant:
         assert "expected exactly one queued input" in str(excinfo.value)
         assert "marker=True" in str(excinfo.value)
         assert "tuple=True" in str(excinfo.value)
+
+
+class _ReturningExecutor:
+    """process_tuple uses `return` instead of `yield`."""
+
+    def process_tuple(self, tuple_, port_id):
+        return tuple_
+
+
+class TestUDFOutputMistakes:
+    @pytest.fixture
+    def output_schema(self, context, monkeypatch):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        return schema
+
+    @pytest.mark.timeout(2)
+    def test_process_tuple_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _ReturningExecutor()
+        context.tuple_processing_manager.current_input_tuple = Tuple({"x": 1})
+
+        def switch_and_stop():
+            data_processor.switch_calls += 1
+            context.tuple_processing_manager.finished_current.set()
+
+        data_processor._switch_context = switch_and_stop
+        data_processor.process_tuple()
+
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "process_tuple must `yield` results, not `return` them" in str(
+            exc_info[1]
+        )
+
+    def test_dict_of_dataframes_says_to_yield_the_dataframe(
+        self, data_processor, output_schema
+    ):
+        import pandas
+
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"a": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself, not a dict of DataFrames" in str(
+            exc_info.value
+        )
+
+    def test_schema_mismatch_points_to_output_columns(
+        self, data_processor, output_schema
+    ):
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        message = str(exc_info.value)
+        assert "expected but missing" in message
+        assert "Extra output column(s)" in message

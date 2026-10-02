@@ -16,12 +16,15 @@
 # under the License.
 
 from contextlib import contextmanager
+
+import pandas
 from threading import Event
 from typing import Iterator, Optional
 
 from core.architecture.managers import Context
 from core.models import State, TupleLike
 from core.models.internal_marker import EndChannel, PortMarker, StartChannel
+from core.models.operator import require_yielded
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -94,7 +97,11 @@ class DataProcessor(Runnable, Stoppable):
         while not finished_current.is_set():
             with self._executor_session() as (executor, port_id):
                 tuple_ = self._context.tuple_processing_manager.get_input_tuple()
-                self._set_output_tuple(executor.process_tuple(tuple_, port_id))
+                self._set_output_tuple(
+                    require_yielded(
+                        executor.process_tuple(tuple_, port_id), "process_tuple"
+                    )
+                )
 
     @contextmanager
     def _executor_session(self, marker_port_id: int | None = None):
@@ -130,11 +137,26 @@ class DataProcessor(Runnable, Stoppable):
         """
         for output in output_iterator:
             # output could be a None, a TupleLike, or a TableLike.
+            if isinstance(output, dict) and any(
+                isinstance(value, pandas.DataFrame) for value in output.values()
+            ):
+                raise TypeError(
+                    "A dict of DataFrames was yielded: yield the DataFrame itself, "
+                    "not a dict of DataFrames."
+                )
             for output_tuple in all_output_to_tuple(output):
                 if output_tuple is not None:
-                    output_tuple.finalize(
-                        self._context.output_manager.get_port().get_schema()
-                    )
+                    try:
+                        output_tuple.finalize(
+                            self._context.output_manager.get_port().get_schema()
+                        )
+                    except KeyError as error:
+                        raise KeyError(
+                            f"{error.args[0]} The yielded columns must match the "
+                            "operator's output columns. For a Python UDF, check "
+                            "'Retain input columns' and 'Extra output column(s)' "
+                            "in the property panel."
+                        ) from error
                 self._switch_context()
                 self._context.tuple_processing_manager.current_output_tuple = (
                     output_tuple
