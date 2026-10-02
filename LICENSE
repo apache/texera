@@ -254,6 +254,16 @@ This product includes SVG icons from SVGRepo:
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
 
+BSD 2-Clause License
+--------------------------------------
+
+This product bundles the Yarn package manager release used by the frontend
+build:
+  - frontend/.yarn/releases/yarn-4.14.1.cjs
+  Copyright (c) 2016-present, Yarn Contributors
+  Source: https://github.com/yarnpkg/berry
+  License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
+
 Trademarks
 --------------------------------------
 

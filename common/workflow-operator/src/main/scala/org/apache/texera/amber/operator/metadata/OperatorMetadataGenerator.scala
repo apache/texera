@@ -140,6 +140,11 @@ object OperatorMetadataGenerator {
     jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
     // remove "title" for the operator - frontend uses userFriendlyName to show operator title
     jsonSchema.remove("title")
+    // let an operator add the part of its schema that its annotations cannot state
+    opDescClass.getConstructor().newInstance() match {
+      case customizer: JsonSchemaCustomizer => customizer.customizeJsonSchema(jsonSchema)
+      case _                                =>
+    }
     jsonSchema
   }
 
