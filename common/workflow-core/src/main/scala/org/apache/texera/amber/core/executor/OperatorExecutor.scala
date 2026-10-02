@@ -48,6 +48,11 @@ trait OperatorExecutor {
 
   def onFinish(port: Int): Iterator[TupleLike] = Iterator.empty
 
+  /** Non-fatal warnings the worker surfaces as console messages once the executor
+    * completes (e.g. scan rows skipped for not matching the inferred schema).
+    */
+  def getWarnings: Seq[String] = Seq.empty
+
   def close(): Unit = {}
 
 }
