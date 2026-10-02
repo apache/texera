@@ -42,7 +42,7 @@ import java.time.Duration
 object RustFSContainer {
 
   /** Image pinned in lockstep with `bin/single-node/docker-compose.yml` and `bin/k8s/values.yaml`. */
-  val ImageName: String = "rustfs/rustfs:1.0.0-rc.6"
+  val ImageName: String = "rustfs/rustfs:1.0.0"
 
   /** S3 API port inside the container. */
   val Port: Int = 9000
