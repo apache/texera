@@ -244,8 +244,6 @@ This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
-<<<<<<< HEAD
-=======
 
 BSD 2-Clause License
 --------------------------------------
@@ -256,17 +254,3 @@ build:
   Copyright (c) 2016-present, Yarn Contributors
   Source: https://github.com/yarnpkg/berry
   License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
-
-Trademarks
---------------------------------------
-
-This product includes the Apple logo, a trademark of Apple Inc.:
-  - frontend/src/assets/logos/apple-logo-white.svg
-  Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S.
-  and other countries. The mark is included solely to render the "Continue with
-  Apple" button, which Apple's guidelines require to carry their own artwork.
-  Source: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple
-  Use governed by Apple's Sign in with Apple usage guidelines, not by an
-  open-source license:
-  https://developer.apple.com/sign-in-with-apple/usage-guidelines-for-websites-and-other-platforms/
->>>>>>> d1955f386 (fix(licensing): list the bundled Yarn release in LICENSE (#8805))
