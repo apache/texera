@@ -22,7 +22,7 @@ package org.apache.texera.amber.translator.verify
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OperatorExecutor}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -383,6 +383,10 @@ object TupleIO {
               case AttributeType.BOOLEAN => Boolean.box(fieldNode.asBoolean())
               case AttributeType.BINARY =>
                 Base64.getDecoder.decode(fieldNode.asText())
+              // The bytes live in S3 and the field is the reference to them, so
+              // the s3:// URI is the whole value on either side of the file.
+              case AttributeType.LARGE_BINARY =>
+                new LargeBinary(fieldNode.asText())
               // Timestamps round-trip through the JDBC string form
               // ("yyyy-mm-dd hh:mm:ss[.f]"), the exact inverse of Timestamp.toString
               // below — timezone-free, so no shift across write/read. The Python
@@ -425,6 +429,8 @@ object TupleIO {
                     attr.getName,
                     Base64.getEncoder.encodeToString(v.asInstanceOf[Array[Byte]])
                   )
+                case AttributeType.LARGE_BINARY =>
+                  node.put(attr.getName, v.asInstanceOf[LargeBinary].getUri)
                 case AttributeType.TIMESTAMP =>
                   node.put(attr.getName, v.asInstanceOf[Timestamp].toString)
                 case other =>
