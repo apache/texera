@@ -835,17 +835,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular/router@npm:21.2.18":
-  version: 21.2.18
-  resolution: "@angular/router@npm:21.2.18"
+"@angular/router@npm:21.2.24":
+  version: 21.2.24
+  resolution: "@angular/router@npm:21.2.24"
   dependencies:
     tslib: "npm:^2.3.0"
   peerDependencies:
-    "@angular/common": 21.2.18
-    "@angular/core": 21.2.18
-    "@angular/platform-browser": 21.2.18
+    "@angular/common": 21.2.24
+    "@angular/core": 21.2.24
+    "@angular/platform-browser": 21.2.24
     rxjs: ^6.5.3 || ^7.4.0
-  checksum: 10c0/84a4fcb099e04daa7f55e8f0c1ae5afe357faf138f187c035cc6a2fde900414c8e317c01986abd7533f7bfd0e62931064427b9d1f92079247d5dc82ec768b388
+  checksum: 10c0/d5806a4c16e8f16693ce49021e88175c1680eb693e28d24b9c87d652061a7b3cbd494add449c8beed56fb3015b7917021f2eb201899198af86254d23a02a9062
   languageName: node
   linkType: hard
 
@@ -10726,7 +10726,7 @@ __metadata:
     "@angular/localize": "npm:21.2.18"
     "@angular/platform-browser": "npm:21.2.18"
     "@angular/platform-browser-dynamic": "npm:21.2.18"
-    "@angular/router": "npm:21.2.18"
+    "@angular/router": "npm:21.2.24"
     "@auth0/angular-jwt": "npm:5.1.0"
     "@codingame/monaco-vscode-java-default-extension": "npm:25.1.2"
     "@codingame/monaco-vscode-python-default-extension": "npm:25.1.2"
