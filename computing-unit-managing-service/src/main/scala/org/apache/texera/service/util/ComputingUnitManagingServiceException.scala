@@ -37,7 +37,8 @@ final case class InsufficientComputingResource(resourceType: String)
 // User has reached the per-user CU-quota (number of running units)
 final case class InsufficientComputingUnitQuota(maxNumberOfComputingUnit: Int)
     extends ComputingUnitManagingServiceException(
-      s"You may only have $maxNumberOfComputingUnit computing-unit(s) running at the same time"
+      s"You may only have $maxNumberOfComputingUnit computing-unit(s) running at the same time. " +
+        "Reuse one of your running computing units, or terminate one you no longer need."
     )
 
 // default exception fallback

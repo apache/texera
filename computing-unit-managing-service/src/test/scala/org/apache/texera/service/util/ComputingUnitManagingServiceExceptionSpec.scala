@@ -33,9 +33,10 @@ class ComputingUnitManagingServiceExceptionSpec extends AnyFlatSpec with Matcher
       "Insufficient CPU available in the server. Please decrease the requested amount or try again later."
   }
 
-  "InsufficientComputingUnitQuota" should "render the quota message" in {
+  "InsufficientComputingUnitQuota" should "render the quota message and how to free a slot" in {
     InsufficientComputingUnitQuota(3).getMessage shouldBe
-      "You may only have 3 computing-unit(s) running at the same time"
+      "You may only have 3 computing-unit(s) running at the same time. " +
+        "Reuse one of your running computing units, or terminate one you no longer need."
   }
 
   "InternalError" should "default to a generic message" in {
