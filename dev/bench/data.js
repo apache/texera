@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790859837005,
+  "lastUpdate": 1790944936213,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -16592,6 +16592,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 557.6735631541858,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "e5c85111e1b026d0f6d726f99a895e1784f5c9d5",
+          "message": "fix(frontend): replace the Icons8 comment icon with an original drawing (#8804)\n\n### What changes were proposed in this PR?\n\nPer #8800, `frontend/src/assets/operator_images/icons8-chat_bubble.png`\n(the\nworkflow comment icon) comes from Icons8, whose license requires\nattribution\nwe never gave and does not grant the redistribution rights an Apache-2.0\nrelease promises downstream. Rather than record un-grantable terms, this\nreplaces it with an original drawing of the same visual role (blue\nrounded\nspeech bubble with an ellipsis, drawn with PIL for this PR), renamed\n`comment-bubble.png`. The only reference\n(`joint-ui.service.ts`) is updated; `git grep icons8` is now empty.\n\nThis addresses the Icons8 part of #8800 only; the vendor-logo and\nasset-provenance parts stay open there.\n\n### Any related issues, documentation, discussions?\n\nAddresses the Icons8 item in #8800.\n\n### How was this PR tested?\n\nAsset swap plus one path-constant change; no behavior change. The\nexisting\nfrontend suite covers joint-ui rendering in CI; verified repo-wide that\nno\nother reference to the old file remains.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-fable-5)",
+          "timestamp": "2026-10-02T05:48:55Z",
+          "url": "https://github.com/apache/texera/commit/e5c85111e1b026d0f6d726f99a895e1784f5c9d5"
+        },
+        "date": 1790944935144,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1261.4349098227335,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2410.692736499628,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2660.032005581434,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1360.775999496197,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2440.699584941621,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2634.322227173314,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1830.0354854037316,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2503.7363796296536,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2593.5795955655867,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1395.8873182720736,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1919.173389175442,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2048.3661386158947,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1508.6894883344548,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1935.265077014916,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2037.504255458802,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1500.570137497174,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1950.3338178490428,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1968.6050495234822,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 915.0357315322424,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1055.3073449346252,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1080.7199062934922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 925.3315276524943,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1051.1938782864202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1075.1081180483245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 860.6387949191695,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 1013.2511692472536,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 1002.8981622621798,
             "unit": "tuples/sec"
           }
         ]
