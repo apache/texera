@@ -58,7 +58,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerStati
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -167,6 +167,15 @@ class DataProcessor(
     outputTuple match {
       case FinalizeExecutor() =>
         sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
+        // Surface non-fatal warnings the executor accumulated (e.g. rows a scan
+        // skipped) as console messages. Unlike handleExecutorException, this must
+        // not pause the run — the messages are emitted and processing continues.
+        executor.getWarnings.foreach { warning =>
+          asyncRPCClient.coordinatorInterface.consoleMessageTriggered(
+            ConsoleMessageTriggeredRequest(mkPrintConsoleMessage(actorId, warning)),
+            asyncRPCClient.mkContext(COORDINATOR)
+          )
+        }
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
