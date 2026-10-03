@@ -183,6 +183,22 @@ class OPVersionSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "memoize N/A for a new operator path with no history in a valid repository" in {
+    val name = uniqueName()
+    val path = uniqueMissingPath()
+    withCleanCache(name) {
+      withTempRepo("opversion-new-operator") { (handle, dir) =>
+        commitFile(handle, dir, "existing.txt", "existing operator")
+        handle.log().addPath(path).setMaxCount(1).call().iterator().hasNext shouldBe false
+        withGit(handle) {
+          OPVersion.getVersion(name, path) shouldBe "N/A"
+          opMap.get(name) shouldBe "N/A"
+          OPVersion.getVersion(name, "existing.txt") shouldBe "N/A"
+        }
+      }
+    }
+  }
+
   it should "swallow a git failure instead of propagating it to the caller" in {
     val name = uniqueName()
     withCleanCache(name) {
