@@ -19,7 +19,7 @@
 <div class="ui-udf-parameters-field">
   <button
     class="add-parameter-button"
-    *ngIf="workflowModificationEnabled && !draftVisible"
+    *ngIf="editable && !draftVisible"
     nz-button
     nzType="dashed"
     nzBlock
@@ -37,8 +37,8 @@
     <div class="ui-udf-parameter-row header">
       <div
         class="field-cell"
-        *ngFor="let column of fieldColumns">
-        <span class="col-title">{{ column.label }}</span>
+        *ngFor="let column of columns">
+        <span class="col-title">{{ columnLabel(column) }}</span>
       </div>
     </div>
 
@@ -95,7 +95,7 @@
       <ng-container *ngIf="field.fieldGroup?.[i] as rowField">
         <div
           class="field-cell"
-          *ngFor="let column of fieldColumns">
+          *ngFor="let column of columns">
           <formly-field
             *ngIf="getColumnField(rowField, column) as columnField"
             [field]="columnField"></formly-field>
