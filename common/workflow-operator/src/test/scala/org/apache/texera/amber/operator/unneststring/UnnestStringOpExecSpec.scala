@@ -147,4 +147,98 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))
     opExec.close()
   }
+
+  // Runs the operator over one value and returns the pieces it emits.
+  private def unnest(delimiter: String, value: String): List[String] = {
+    opDesc.attribute = "field1"
+    opDesc.delimiter = delimiter
+    val exec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
+    // Built directly, not propagated: schema propagation now rejects the degenerate patterns
+    // (`.`, `|`) whose runtime behavior the tests below pin.
+    val schema = tupleSchema.add(new Attribute("split", AttributeType.STRING))
+    val input = Tuple
+      .builder(tupleSchema)
+      .add(new Attribute("field1", AttributeType.STRING), value)
+      .add(new Attribute("field2", AttributeType.INTEGER), 1)
+      .add(new Attribute("field3", AttributeType.STRING), "a")
+      .build()
+    exec.open()
+    val pieces = exec
+      .processTuple(input, 0)
+      .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(schema).getField[String]("split"))
+      .toList
+    exec.close()
+    pieces
+  }
+
+  // The presets the delimiter picker offers in regex mode, exactly as it stores them.
+  "UnnestStringOpExec with the picker's presets" should "split on a comma" in {
+    assert(unnest(",", "a,b,c") == List("a", "b", "c"))
+  }
+
+  it should "split on a tab written as the regex escape" in {
+    assert(unnest("\\t", "a\tb\tc") == List("a", "b", "c"))
+  }
+
+  it should "split on a tab stored as the literal character by an older workflow" in {
+    assert(unnest("\t", "a\tb\tc") == List("a", "b", "c"))
+  }
+
+  it should "split on a semicolon" in {
+    assert(unnest(";", "a;b;c") == List("a", "b", "c"))
+  }
+
+  it should "split on an escaped pipe" in {
+    assert(unnest("\\|", "a|b|c") == List("a", "b", "c"))
+  }
+
+  it should "split on any run of whitespace" in {
+    assert(unnest("\\s+", "a  b\t c\nd") == List("a", "b", "c", "d"))
+  }
+
+  it should "split on a new line written as the regex escape" in {
+    assert(unnest("\\n", "a\nb\nc") == List("a", "b", "c"))
+  }
+
+  "UnnestStringOpExec with a custom regex" should "split on a character class" in {
+    assert(unnest("[,;]", "a,b;c") == List("a", "b", "c"))
+  }
+
+  it should "absorb the spaces around a comma" in {
+    assert(unnest("\\s*,\\s*", "a , b,  c") == List("a", "b", "c"))
+  }
+
+  it should "split on a multi-character delimiter" in {
+    assert(unnest("::", "a::b::c") == List("a", "b", "c"))
+  }
+
+  it should "split on an escaped dot and keep the text between dots" in {
+    assert(unnest("\\.", "a.b.c") == List("a", "b", "c"))
+  }
+
+  it should "drop everything for an unescaped dot, which matches every character" in {
+    // Why the operator rejects it at compile time: every piece is empty.
+    assert(unnest(".", "a.b.c") == List())
+  }
+
+  it should "leave only the line breaks of a multi-line value for an unescaped dot" in {
+    assert(unnest(".", "ab\ncd\r\ne") == List("\n", "\r\n"))
+  }
+
+  it should "leave only the line breaks of a multi-line value for anything but a line feed" in {
+    assert(unnest("[^\\n]", "ab\ncd") == List("\n"))
+  }
+
+  it should "split every character apart for a bare pipe, the empty alternation" in {
+    // The operator rejects this pattern at compile time; this pins what it would have done.
+    assert(unnest("|", "abc") == List("a", "b", "c"))
+  }
+
+  it should "split on a non-ASCII delimiter" in {
+    assert(unnest("•", "a•b•c") == List("a", "b", "c"))
+  }
+
+  it should "accept Java-only syntax such as a possessive quantifier" in {
+    assert(unnest(",++", "a,,b,c") == List("a", "b", "c"))
+  }
 }
