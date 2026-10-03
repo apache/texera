@@ -129,7 +129,7 @@ object PyStringTypes {
   * Two concrete renderers are provided:
   *
   *  - `EncodableStringRenderer`: pre-encodes `stringValue` as base64 (UTF-8) once, and in `Encode` mode produces a Python
-  *    expression like `self.decode_python_template('<b64>')` given by [[wrapWithPythonDecoderExpr]].
+  *    expression like `self.decode_python_template('<b64>')` given by [[decoderExpression]].
   *  - `PyLiteralStringRenderer`: always emits the raw string value unchanged.
   *
   * Builders can be concatenated with `+` (builder + builder), which merges adjacent `Text` chunks for compactness.
@@ -210,6 +210,16 @@ object PythonTemplateBuilder {
     s"self.decode_python_template('$text')"
 
   /**
+    * The Python expression an Encodable string `text` renders as in `encode` mode: the decoder
+    * call on its UTF-8 base64. [[EncodableStringRenderer]] renders through this, so code that
+    * looks for the expression a given text became (to replace it, say) finds exactly that.
+    */
+  def decoderExpression(text: String): String =
+    wrapWithPythonDecoderExpr(
+      Base64.getEncoder.encodeToString(text.getBytes(StandardCharsets.UTF_8))
+    )
+
+  /**
     * Render `text` as a Python double-quoted string literal, quotes included.
     *
     * For generators that emit standalone Python source rather than an operator
@@ -254,15 +264,14 @@ object PythonTemplateBuilder {
   }
 
   /**
-    * Encodable string: encoded-mode wraps with [[wrapWithPythonDecoderExpr]],
+    * Encodable string: encoded-mode is its [[decoderExpression]],
     * plain-mode is raw `stringValue`.
     */
   final case class EncodableStringRenderer(stringValue: String) extends StringRenderer {
-    private val encodedB64: String =
-      Base64.getEncoder.encodeToString(stringValue.getBytes(StandardCharsets.UTF_8))
+    private val encoded: String = decoderExpression(stringValue)
 
     override def render(mode: RenderMode): String =
-      if (mode == Encode) wrapWithPythonDecoderExpr(encodedB64) else stringValue
+      if (mode == Encode) encoded else stringValue
   }
 
   /**
