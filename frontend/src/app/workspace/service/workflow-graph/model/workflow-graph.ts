@@ -35,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isWorkflowColor, WorkflowColor } from "../../../types/workflow-color";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -58,7 +59,9 @@ type restrictedMethods =
   | "commentBoxDeleteSubject"
   | "commentBoxAddCommentSubject"
   | "commentBoxDeleteCommentSubject"
-  | "commentBoxEditCommentSubject";
+  | "commentBoxEditCommentSubject"
+  | "commentBoxColorChangedSubject"
+  | "setCommentBoxColor";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -136,6 +139,7 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  public readonly commentBoxColorChangedSubject = new Subject<{ commentBox: CommentBox }>();
 
   public readonly portDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -296,6 +300,27 @@ export class WorkflowGraph {
     this.assertCommentBoxNotExists(commentBox.commentBoxID);
     const newCommentBox = createYTypeFromObject(commentBox);
     this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, newCommentBox);
+  }
+
+  /** Replace the preset atomically, so concurrent choices cannot concatenate like edited text. */
+  public setCommentBoxColor(commentBoxID: string, color: WorkflowColor | undefined): void {
+    if (color !== undefined && !isWorkflowColor(color)) {
+      throw new Error("Invalid workflow color");
+    }
+    const commentBox = this.getSharedCommentBoxType(commentBoxID);
+    if (color === undefined ? !commentBox.has("color") : commentBox.toJSON().color === color) {
+      return;
+    }
+    // Each explicit palette choice is one undo step, even inside the usual capture timeout.
+    this.sharedModel.undoManager.stopCapturing();
+    this.bundleActions(() => {
+      if (color === undefined) {
+        (commentBox as unknown as Y.Map<unknown>).delete("color");
+      } else {
+        commentBox.set("color", new Y.Text(color));
+      }
+    });
+    this.sharedModel.undoManager.stopCapturing();
   }
 
   /**
@@ -923,6 +948,10 @@ export class WorkflowGraph {
 
   public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxEditCommentSubject.asObservable();
+  }
+
+  public getCommentBoxColorChangedStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxColorChangedSubject.asObservable();
   }
 
   public getViewResultOperatorsChangedStream(): Observable<{

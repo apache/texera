@@ -27,6 +27,7 @@ import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
+import { getWorkflowColorFill } from "../../types/workflow-color";
 
 /**
  * Defines the SVG path for the delete button
@@ -595,10 +596,15 @@ export class JointUIService {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
         height: JointUIService.DEFAULT_COMMENT_HEIGHT,
       },
-      attrs: JointUIService.getCustomCommentStyleAttrs(),
+      attrs: JointUIService.getCustomCommentStyleAttrs(commentBox.color),
     });
     commentElement.set("id", commentBox.commentBoxID);
     return commentElement;
+  }
+
+  public setCommentColor(commentElement: joint.dia.Cell, color: unknown): void {
+    // Only fill changes: selection and hover borders remain owned by their existing handlers.
+    commentElement.attr("rect/fill", getWorkflowColorFill(color, "#F2F4F5"));
   }
   /**
    * This function converts a Texera source and target OperatorPort to
@@ -1011,10 +1017,10 @@ export class JointUIService {
     }
   }
 
-  public static getCustomCommentStyleAttrs(): joint.shapes.devs.ModelSelectors {
+  public static getCustomCommentStyleAttrs(color?: unknown): joint.shapes.devs.ModelSelectors {
     return {
       rect: {
-        fill: "#F2F4F5",
+        fill: getWorkflowColorFill(color, "#F2F4F5"),
         "follow-scale": true,
         stroke: "#CED4D9",
         "stroke-width": "0",

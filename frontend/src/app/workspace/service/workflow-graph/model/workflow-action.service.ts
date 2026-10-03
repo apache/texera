@@ -54,6 +54,7 @@ import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ContentMetaKey, ContentMetaValue } from "./shared-model";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { WorkflowColor } from "../../../types/workflow-color";
 
 /** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
  *  listening for the sync it waits on once it is superseded or cancelled. */
@@ -433,6 +434,13 @@ export class WorkflowActionService {
   public deleteCommentBox(commentBoxID: string): void {
     this.texeraGraph.assertCommentBoxExists(commentBoxID);
     this.texeraGraph.deleteCommentBox(commentBoxID);
+  }
+
+  public setCommentBoxColor(commentBoxID: string, color: WorkflowColor | undefined): void {
+    if (!this.checkWorkflowModificationEnabled() || this.workflowMetadata.readonly) {
+      return;
+    }
+    this.texeraGraph.setCommentBoxColor(commentBoxID, color);
   }
 
   /**
@@ -848,6 +856,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
+      this.getTexeraGraph().getCommentBoxColorChangedStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),

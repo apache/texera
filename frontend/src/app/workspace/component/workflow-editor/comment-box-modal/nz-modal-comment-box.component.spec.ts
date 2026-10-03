@@ -18,15 +18,20 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { of } from "rxjs";
 import { NzModalCommentBoxComponent } from "./nz-modal-comment-box.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { UserService } from "../../../../common/service/user/user.service";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { User } from "../../../../common/type/user";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import * as Y from "yjs";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 
 const BOX_ID = "box-1";
 const CREATION_TIME = "2026-01-01T00:00:00.000Z";
@@ -39,6 +44,8 @@ describe("NzModalCommentBoxComponent", () => {
   let addComment: ReturnType<typeof vi.fn>;
   let deleteComment: ReturnType<typeof vi.fn>;
   let editComment: ReturnType<typeof vi.fn>;
+  let setCommentBoxColor: ReturnType<typeof vi.fn>;
+  let currentColor: unknown;
   let lastFixture: ComponentFixture<NzModalCommentBoxComponent> | undefined;
   let createdEls: HTMLElement[] = [];
 
@@ -67,24 +74,41 @@ describe("NzModalCommentBoxComponent", () => {
   });
 
   async function createFixture(
-    opts: { user?: User; comments?: unknown[] } = {}
+    opts: { user?: User; comments?: unknown[]; color?: unknown; readonly?: boolean } = {}
   ): Promise<ComponentFixture<NzModalCommentBoxComponent>> {
     addComment = vi.fn();
     deleteComment = vi.fn();
     editComment = vi.fn();
+    currentColor = opts.color;
+    setCommentBoxColor = vi.fn((_id: string, color: unknown) => (currentColor = color));
 
     // The commentBox is a Yjs shared type; only .get('comments') (template) and
     // .get('commentBoxID').toJSON() (the id passed to the service) are exercised.
     const commentBox = {
       get: vi.fn((key: string) => (key === "comments" ? opts.comments ?? [] : { toJSON: () => BOX_ID })),
+      toJSON: () => ({ commentBoxID: BOX_ID, color: currentColor }),
     };
 
     await TestBed.configureTestingModule({
-      imports: [NzModalCommentBoxComponent, BrowserAnimationsModule],
+      imports: [NzModalCommentBoxComponent, BrowserAnimationsModule, HttpClientTestingModule],
       providers: [
         { provide: NZ_MODAL_DATA, useValue: { commentBox } },
-        { provide: WorkflowActionService, useValue: { addComment, deleteComment, editComment } },
-        { provide: UserService, useValue: { userChanged: () => of(opts.user) } },
+        {
+          provide: WorkflowActionService,
+          useValue: {
+            addComment,
+            deleteComment,
+            editComment,
+            setCommentBoxColor,
+            checkWorkflowModificationEnabled: () => !opts.readonly,
+            getWorkflowMetadata: () => ({ readonly: !!opts.readonly }),
+            getTexeraGraph: () => ({
+              hasCommentBox: () => true,
+              getSharedCommentBoxType: () => commentBox,
+            }),
+          },
+        },
+        { provide: UserService, useClass: StubUserService },
         { provide: NzModalRef, useValue: {} },
         { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
         ...commonTestProviders,
@@ -92,6 +116,7 @@ describe("NzModalCommentBoxComponent", () => {
     }).compileComponents();
 
     lastFixture = TestBed.createComponent(NzModalCommentBoxComponent);
+    (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(opts.user);
     return lastFixture;
   }
 
@@ -105,6 +130,73 @@ describe("NzModalCommentBoxComponent", () => {
     expect(fixture.componentInstance).toBeTruthy();
     expect(fixture.nativeElement.querySelector(".modal-body")).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain("hi");
+  });
+
+  describe("comment color picker", () => {
+    function buttons(fixture: ComponentFixture<NzModalCommentBoxComponent>): HTMLButtonElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll(".comment-colors button"));
+    }
+
+    it("renders named, keyboard-focusable preset buttons and an explicit default/reset", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      fixture.detectChanges();
+      const options = buttons(fixture);
+      expect(options.map(button => button.textContent!.trim())).toEqual([
+        "Default (reset)",
+        "Yellow",
+        "Blue",
+        "Green",
+        "Pink",
+        "Purple",
+        "Orange",
+      ]);
+      expect(fixture.nativeElement.querySelector(".comment-colors legend").textContent).toBe("Comment color");
+      expect(options.every(button => button.type === "button" && button.tabIndex === 0)).toBe(true);
+      expect(options.map(button => button.getAttribute("aria-pressed"))).toEqual([
+        "true",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+      ]);
+    });
+
+    it("routes a preset and reset through the action service and updates selected state", async () => {
+      const fixture = await createFixture({ user: makeUser() });
+      fixture.detectChanges();
+      buttons(fixture)[2].click();
+      fixture.detectChanges();
+      expect(setCommentBoxColor).toHaveBeenLastCalledWith(BOX_ID, "blue");
+      expect(buttons(fixture)[2].getAttribute("aria-pressed")).toBe("true");
+      expect(buttons(fixture)[0].getAttribute("aria-pressed")).toBe("false");
+      buttons(fixture)[0].click();
+      fixture.detectChanges();
+      expect(setCommentBoxColor).toHaveBeenLastCalledWith(BOX_ID, undefined);
+      expect(buttons(fixture)[0].getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it("reflects updated shared values and treats malformed imported data as default", async () => {
+      const fixture = await createFixture({ user: makeUser(), color: { malformed: true } });
+      fixture.detectChanges();
+      expect(buttons(fixture)[0].getAttribute("aria-pressed")).toBe("true");
+      currentColor = "purple";
+      fixture.detectChanges();
+      expect(buttons(fixture)[5].getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it.each(["readonly", "signed out"])("disables all color controls when %s", async mode => {
+      const fixture = await createFixture({
+        user: mode === "signed out" ? undefined : makeUser(),
+        readonly: mode === "readonly",
+      });
+      fixture.detectChanges();
+      expect(buttons(fixture)).toHaveLength(7);
+      expect(buttons(fixture).every(button => button.disabled)).toBe(true);
+      buttons(fixture)[2].click();
+      expect(setCommentBoxColor).not.toHaveBeenCalled();
+    });
   });
 
   it("onClickAddComment adds the comment for the current user and clears the input", async () => {
@@ -499,5 +591,71 @@ describe("NzModalCommentBoxComponent", () => {
       deleteLink.click();
       expect(deleteComment).toHaveBeenCalledWith(COMMENT.creatorID, CREATION_TIME, BOX_ID);
     });
+  });
+});
+
+describe("comment color picker shared target lifecycle", () => {
+  let fixture: ComponentFixture<NzModalCommentBoxComponent>;
+  let action: WorkflowActionService;
+  let graph: WorkflowGraph;
+  const buttons = () =>
+    Array.from(fixture.nativeElement.querySelectorAll(".comment-colors button")) as HTMLButtonElement[];
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [NzModalCommentBoxComponent, BrowserAnimationsModule, HttpClientTestingModule],
+      providers: [
+        ...commonTestProviders,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: UserService, useClass: StubUserService },
+        { provide: NzModalRef, useValue: {} },
+        { provide: NotificationService, useValue: { success: vi.fn(), error: vi.fn() } },
+        {
+          provide: NZ_MODAL_DATA,
+          useFactory: (service: WorkflowActionService) => ({
+            commentBox: service.getTexeraGraph().getSharedCommentBoxType(BOX_ID),
+          }),
+          deps: [WorkflowActionService],
+        },
+      ],
+    }).compileComponents();
+    action = TestBed.inject(WorkflowActionService);
+    graph = action.getTexeraGraph() as WorkflowGraph;
+    action.addCommentBox({ commentBoxID: BOX_ID, comments: [], commentBoxPosition: { x: 0, y: 0 } });
+    fixture = TestBed.createComponent(NzModalCommentBoxComponent);
+    (TestBed.inject(UserService) as unknown as StubUserService).userChangeSubject.next(makeUser());
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    graph?.destroyYModel();
+  });
+
+  it("disables stale controls and ignores a color choice after remote deletion", () => {
+    const remote = new Y.Doc();
+    try {
+      Y.applyUpdate(remote, Y.encodeStateAsUpdate(graph.sharedModel.yDoc));
+      remote.getMap("commentBoxMap").delete(BOX_ID);
+      Y.applyUpdate(graph.sharedModel.yDoc, Y.encodeStateAsUpdate(remote), remote);
+      fixture.detectChanges();
+
+      expect(() => fixture.componentInstance.setColor("blue")).not.toThrow();
+      expect(buttons().every(button => button.disabled)).toBe(true);
+      expect(graph.hasCommentBox(BOX_ID)).toBe(false);
+    } finally {
+      remote.destroy();
+    }
+  });
+
+  it("does not recolor a replacement with the same id after workflow reload", () => {
+    const workflow = JSON.parse(JSON.stringify(action.getWorkflow()));
+    action.reloadWorkflow(workflow, false, false);
+    graph = action.getTexeraGraph() as WorkflowGraph;
+    fixture.detectChanges();
+    fixture.componentInstance.setColor("orange");
+
+    expect(graph.getCommentBox(BOX_ID)).not.toHaveProperty("color");
+    expect(buttons().every(button => button.disabled)).toBe(true);
   });
 });
