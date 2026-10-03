@@ -35,6 +35,39 @@ export const NON_FORM_FIELD_TYPES: ReadonlySet<string> = new Set(["codearea"]);
 export const CANVAS_ONLY_FORMLY_TYPES: ReadonlySet<string> = new Set(["codearea", "repeat-section-dnd"]);
 
 /**
+ * The operator an exposed field belongs to, which the Form View sets in `props` on every field it
+ * renders. A shared widget that needs its operator reads it from here on the form, where nothing is
+ * highlighted: the ui-udf-parameters renderer adds a declared parameter to that operator's code. On
+ * the operator property panel, whose fields exist because of the highlight, the highlighted operator
+ * is the one, and no field carries this. So it also tells a widget which host it is on, where the two
+ * must differ: the same renderer keeps its fixed column headers on the panel and derives them from the
+ * author's renames and hides on the form (#8763).
+ */
+export const FIELD_OPERATOR_ID_PROP = "operatorID";
+
+/** The operator the Form View bound a field to, if it rendered the field; see {@link FIELD_OPERATOR_ID_PROP}. */
+export function fieldOperatorID(field: { props?: Record<string, unknown> }): string | undefined {
+  const id = field.props?.[FIELD_OPERATOR_ID_PROP];
+  return typeof id === "string" && id !== "" ? id : undefined;
+}
+
+/** Whether a field is being rendered by the Form View (see {@link FIELD_OPERATOR_ID_PROP}). */
+export function renderedInFormView(field: { props?: Record<string, unknown> }): boolean {
+  return fieldOperatorID(field) !== undefined;
+}
+
+/**
+ * Whether the Form View rendered a field for a reader, who may not change the workflow: it marks the
+ * field `props.disabled`, the one lock it puts on a card, and formly disables the controls it builds
+ * under such a field. A widget with a button of its own (ui-udf-parameters' Add parameter) reads the
+ * mark here rather than its control: formly disables controls, not arrays, so an array with no rows
+ * reads as enabled.
+ */
+export function renderedReadOnly(field: { props?: Record<string, unknown> }): boolean {
+  return field.props?.["disabled"] === true;
+}
+
+/**
  * The custom formly widget an operator-schema property renders as, decided from the property key
  * and its operator. A single source of truth extracted from the operator property panel so that a
  * later view (the Form View) can render the same control instead of letting a selectable/uploadable

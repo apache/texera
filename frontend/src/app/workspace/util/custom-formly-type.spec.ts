@@ -17,7 +17,14 @@
  * under the License.
  */
 
-import { customFormlyFieldType, NON_FORM_FIELD_TYPES, CANVAS_ONLY_FORMLY_TYPES } from "./custom-formly-type";
+import {
+  customFormlyFieldType,
+  NON_FORM_FIELD_TYPES,
+  CANVAS_ONLY_FORMLY_TYPES,
+  fieldOperatorID,
+  renderedInFormView,
+  renderedReadOnly,
+} from "./custom-formly-type";
 
 describe("NON_FORM_FIELD_TYPES", () => {
   it("blocks only the code editor from being a form field, not the drag-reorder list", () => {
@@ -34,6 +41,34 @@ describe("CANVAS_ONLY_FORMLY_TYPES", () => {
     expect(CANVAS_ONLY_FORMLY_TYPES.has("repeat-section-dnd")).toBe(true);
     // an ordinary custom widget (a picker/uploader) is rendered as itself, not fallen back from
     expect(CANVAS_ONLY_FORMLY_TYPES.has("datasetversionselector")).toBe(false);
+  });
+});
+
+describe("fieldOperatorID", () => {
+  it("is the operator the Form View bound the field to, and nothing for a panel field", () => {
+    expect(fieldOperatorID({ props: { operatorID: "op-1" } })).toBe("op-1");
+    expect(fieldOperatorID({ props: { operatorID: "" } })).toBeUndefined();
+    expect(fieldOperatorID({ props: { operatorID: 7 } })).toBeUndefined();
+    expect(fieldOperatorID({ props: {} })).toBeUndefined();
+    expect(fieldOperatorID({})).toBeUndefined();
+  });
+});
+
+describe("renderedInFormView", () => {
+  it("is true only for a field the Form View marked with its operator", () => {
+    expect(renderedInFormView({ props: { operatorID: "op-1" } })).toBe(true);
+    expect(renderedInFormView({ props: { operatorID: "" } })).toBe(false);
+    expect(renderedInFormView({ props: {} })).toBe(false);
+    expect(renderedInFormView({})).toBe(false);
+  });
+});
+
+describe("renderedReadOnly", () => {
+  it("is true only for a field the Form View marked disabled, a reader's", () => {
+    expect(renderedReadOnly({ props: { disabled: true } })).toBe(true);
+    expect(renderedReadOnly({ props: { disabled: false } })).toBe(false);
+    expect(renderedReadOnly({ props: {} })).toBe(false);
+    expect(renderedReadOnly({})).toBe(false);
   });
 });
 

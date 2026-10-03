@@ -72,7 +72,8 @@ describe("WorkflowFormComponent", () => {
       h.panelResizeService as any,
       h.validationWorkflowService as any,
       h.config as any,
-      h.warehouseService as any
+      h.warehouseService as any,
+      h.uiUdfParametersSyncService as any
     );
     return component;
   };
@@ -905,6 +906,228 @@ describe("WorkflowFormComponent", () => {
       expect(component.rendered[0].fields[0].key).toBe(component.rendered[0].resolved.binding.id);
     });
 
+    // The operator an input belongs to rides on its field: a shared widget that needs it (the
+    // ui-udf-parameters renderer, adding a declared parameter to the operator's code) reads it
+    // there, since nothing is highlighted on the form; the same mark tells it which host it is on.
+    it("marks every field with the operator it belongs to", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      renderOne("n_hvg");
+
+      const card = component.rendered[0];
+      expect((card.fields[0].props as any).operatorID).toBe(card.resolved.binding.operatorID);
+    });
+
+    // A Python UDF's code declares its UI parameters; the parser announces them and the step
+    // panel's frame writes them for the operator it shows live. A parameter added from a card
+    // changes the code with the panel closed or on another step, so the form is the writer then.
+    describe("UI parameters a Python UDF's code declares", () => {
+      const declared = [{ attribute: { attributeName: "n", attributeType: "integer" }, value: "3" }];
+      const announce = () => h.uiParametersChanged.next({ operatorId: "op-1", parameters: declared });
+
+      /** Render one card for an operator's `uiParameters`, the card the declaration shows up on. */
+      const renderParameterCard = (operatorID = "op-1", value: unknown = "seed") => {
+        h.formlyJsonschema.toFieldConfig = () => ({
+          fieldGroup: [{ key: "uiParameters", props: { label: "Parameters" } }],
+        });
+        h.hasOperatorIds.add(operatorID);
+        formBindingService.resolveFields.mockReturnValue([
+          resolved("uiParameters", "Parameters", {
+            binding: { id: "uiParameters", operatorID, propertyKey: "uiParameters", displayName: "Parameters" },
+            value,
+          }),
+        ]);
+        (component as any).readConfig();
+      };
+
+      beforeEach(() => {
+        h.hasOperatorIds.add("op-1");
+        h.graphOperators.push({
+          operatorID: "op-1",
+          operatorType: "PythonUDFV2",
+          operatorProperties: { code: "x", uiParameters: [] },
+        });
+        h.graphOperators.push({
+          operatorID: "op-2",
+          operatorType: "PythonUDFV2",
+          operatorProperties: { code: "y", uiParameters: [] },
+        });
+      });
+
+      it("writes them onto the operator for a writer, when the step panel is not editing that step", () => {
+        build(formViewWorkflow).ngOnInit();
+
+        announce();
+
+        expect(h.workflowActionService.setOperatorProperty).toHaveBeenCalledWith("op-1", {
+          code: "x",
+          uiParameters: declared,
+        });
+      });
+
+      it("leaves them to the step panel's frame while it shows that step live", () => {
+        build(formViewWorkflow).ngOnInit();
+        component.selectedOperatorId = "op-1";
+        vi.spyOn(component, "panelLive", "get").mockReturnValue(true);
+
+        announce();
+
+        expect(h.workflowActionService.setOperatorProperty).not.toHaveBeenCalled();
+      });
+
+      it("writes them when the panel shows that step read-only, since the frame does not then", () => {
+        build(formViewWorkflow).ngOnInit();
+        component.selectedOperatorId = "op-1";
+        vi.spyOn(component, "panelLive", "get").mockReturnValue(false);
+
+        announce();
+
+        expect(h.workflowActionService.setOperatorProperty).toHaveBeenCalledTimes(1);
+      });
+
+      it("writes nothing for a reader", () => {
+        build({ ...formViewWorkflow, readonly: true }).ngOnInit();
+
+        announce();
+
+        expect(h.workflowActionService.setOperatorProperty).not.toHaveBeenCalled();
+      });
+
+      it("writes nothing for an operator that is gone", () => {
+        build(formViewWorkflow).ngOnInit();
+        h.hasOperatorIds.delete("op-1");
+
+        announce();
+
+        expect(h.workflowActionService.setOperatorProperty).not.toHaveBeenCalled();
+      });
+
+      // The card showing the parameters would otherwise keep its old rows until the compilation
+      // result rebuilds it, and a value typed into it meanwhile would go back with the old rows,
+      // dropping the one just declared. The rebuild waits for the tick to end: the step panel's
+      // frame, subscribed after this page, writes after this page's handler has run.
+      it("rebuilds the cards after the current tick once the parameters are written, when a card shows that step's parameters", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard();
+        expect(component.rendered).toHaveLength(1);
+        const order: string[] = [];
+        h.uiParametersChanged.subscribe(() => order.push("frame wrote"));
+        const readConfig = vi.spyOn(component as any, "readConfig").mockImplementation(() => order.push("rebuilt"));
+
+        announce();
+        expect(order).toEqual(["frame wrote"]);
+        vi.runAllTimers();
+
+        expect(order).toEqual(["frame wrote", "rebuilt"]);
+        expect(readConfig).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+      });
+
+      // What the rebuild is for: the card ends up holding the declared rows, so a value typed into
+      // it next writes them back rather than the list it was built with.
+      it("leaves the card holding the newly declared rows", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard();
+        expect(component.rendered[0].model["uiParameters"]).toBe("seed");
+        // The operator now has the declared rows, so this is what the next resolve reads back.
+        formBindingService.resolveFields.mockReturnValue([
+          resolved("uiParameters", "Parameters", {
+            binding: { id: "uiParameters", operatorID: "op-1", propertyKey: "uiParameters", displayName: "Parameters" },
+            value: declared,
+          }),
+        ]);
+
+        announce();
+        vi.runAllTimers();
+
+        expect(component.rendered[0].model["uiParameters"]).toEqual(declared);
+        vi.useRealTimers();
+      });
+
+      // The frame is the writer for the step it shows live, and the card still has to follow.
+      it("rebuilds the cards when the step panel's frame is the writer, not this page", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard();
+        component.selectedOperatorId = "op-1";
+        vi.spyOn(component, "panelLive", "get").mockReturnValue(true);
+        const readConfig = vi.spyOn(component as any, "readConfig");
+
+        announce();
+        vi.runAllTimers();
+
+        expect(h.workflowActionService.setOperatorProperty).not.toHaveBeenCalled();
+        expect(readConfig).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+      });
+
+      // Held while the reader is typing, like every other rebuild here: a half-entered value under
+      // the cursor is not thrown away, and the hold is given back when the focus leaves.
+      it("holds the rebuild while the reader is typing, and runs it once the focus leaves", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard();
+        const typing = vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+        const readConfig = vi.spyOn(component as any, "readConfig");
+
+        announce();
+        vi.runAllTimers();
+        expect(readConfig).not.toHaveBeenCalled();
+
+        typing.mockReturnValue(false);
+        component.onFocusOut();
+        vi.runAllTimers();
+
+        expect(readConfig).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+      });
+
+      // The rebuild has to go through buildForm, which announces on formsRebuilt: that is what cuts
+      // off the cards built with the old rows, whose write-back would otherwise put them back.
+      it("cuts the old cards off when it rebuilds", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard();
+        const cutOff = vi.fn();
+        (component as any).formsRebuilt.subscribe(cutOff);
+
+        announce();
+        vi.runAllTimers();
+
+        expect(cutOff).toHaveBeenCalled();
+        vi.useRealTimers();
+      });
+
+      it("leaves the cards alone when none shows that step's parameters", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderOne("n_hvg");
+        const readConfig = vi.spyOn(component as any, "readConfig");
+
+        announce();
+        vi.runAllTimers();
+
+        expect(readConfig).not.toHaveBeenCalled();
+        vi.useRealTimers();
+      });
+
+      it("leaves the cards alone when the parameters card belongs to another step", () => {
+        vi.useFakeTimers();
+        build(formViewWorkflow).ngOnInit();
+        renderParameterCard("op-2");
+        expect(component.rendered).toHaveLength(1);
+        const readConfig = vi.spyOn(component as any, "readConfig");
+
+        announce();
+        vi.runAllTimers();
+
+        expect(readConfig).not.toHaveBeenCalled();
+        vi.useRealTimers();
+      });
+    });
+
     it("renders nothing for an input whose operator is no longer on the graph", () => {
       build(formViewWorkflow).ngOnInit();
       // op-1 deliberately not added to the graph.
@@ -1201,11 +1424,32 @@ describe("WorkflowFormComponent", () => {
       const sub = field.fieldGroup[0];
       expect(sub.key).toBe("sub");
       expect(sub.props.label).toBe("Renamed sub");
+      // Kept apart from the label too, for a widget that draws its own headers (ui-udf-parameters).
+      expect(sub.props.authorName).toBe("Renamed sub");
       expect(sub.hide).toBe(true);
       // Hidden must not strip the value: formly's resetFieldOnHide default would otherwise clear it
       // from the model on render, and the card writes the whole nested object back -- deleting the
       // author's pinned value. resetOnHide=false keeps it.
       expect(sub.resetOnHide).toBe(false);
+    });
+
+    it("renames a sub-field that formly built without any props", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.formlyJsonschema.toFieldConfig = () => ({
+        fieldGroup: [{ key: "nested", fieldGroup: [{ key: "sub" }] }],
+      });
+
+      const field = expose({
+        id: "n",
+        operatorID: "op-1",
+        propertyKey: "nested",
+        displayName: "Nested",
+        overrides: { sub: { displayName: "Renamed sub" } },
+      });
+
+      const sub = field.fieldGroup[0];
+      expect(sub.props.label).toBe("Renamed sub");
+      expect(sub.props.authorName).toBe("Renamed sub");
     });
 
     it("renames and hides an overridden sub-field of a repeated section, per row", () => {
