@@ -251,6 +251,17 @@ export class ExecuteWorkflowService {
     this.updateWorkflowActionLock(this.currentState);
   }
 
+  /**
+   * Whether a run is in flight: exactly the states that lock the graph, which is the same question
+   * {@link updateWorkflowActionLock} answers to lock it. A view that must refuse a structural edit
+   * mid-run asks here instead of re-listing the states, and a view that cannot read the lock itself
+   * -- the Form View clamps it off outside edit mode, so there it no longer means "a run is on" --
+   * has somewhere honest to ask.
+   */
+  public isExecutionInFlight(): boolean {
+    return ExecuteWorkflowService.locksGraph(this.currentState);
+  }
+
   public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
     if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
@@ -506,22 +517,29 @@ export class ExecuteWorkflowService {
    * enables or disables workflow action service based on execution state
    */
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
+    if (ExecuteWorkflowService.locksGraph(stateInfo)) {
+      this.workflowActionService.disableWorkflowModification();
+    } else {
+      this.workflowActionService.enableWorkflowModification();
+    }
+  }
+
+  /** Whether this state is one a run is in flight in, which is what locks the graph. */
+  private static locksGraph(stateInfo: ExecutionStateInfo): boolean {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
       case ExecutionState.Terminated:
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.Killed:
-        this.workflowActionService.enableWorkflowModification();
-        return;
+        return false;
       case ExecutionState.Paused:
       case ExecutionState.Pausing:
       case ExecutionState.Recovering:
       case ExecutionState.Resuming:
       case ExecutionState.Running:
       case ExecutionState.Initializing:
-        this.workflowActionService.disableWorkflowModification();
-        return;
+        return true;
       default:
         return exhaustiveGuard(stateInfo);
     }
