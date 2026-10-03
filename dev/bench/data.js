@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790944939211,
+  "lastUpdate": 1791036544305,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -16749,6 +16749,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 1002.8981622621798,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Meng Wang",
+            "username": "mengw15",
+            "email": "mengw15@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b05b6206c031ebb1cd4fb7b5f1f318a28f5c51f7",
+          "message": "fix(licensing): drop the TMDb example dataset and list the bundled Iris dataset in LICENSE (#8803)\n\n### What changes were proposed in this PR?\n\nResolves #8799 in full:\n\n- **Drop the TMDb example dataset**\n(`bin/single-node/examples/datasets/popular-movies-of-imdb/`) and its\ndemo\nworkflow (`[Example] Data Exploration on Movies Dataset.json`). The\ndataset\nis CC0 only per the Kaggle uploader; the data (including movie overview\n  text) comes from TMDb, whose terms restrict redistribution, so the CC0\n  claim does not hold up. The examples loader discovers datasets and\n  workflows by scanning directories, so no script change is needed; the\nsingle-node examples now ship the Iris dataset and its ML demo workflow.\n- **root `LICENSE`**: new CC0 section listing the bundled Iris dataset,\n  referencing `licenses/LICENSE-CC0-1.0.txt` (already in-tree).\n- **`bin/single-node/LICENSE`**: the same entry with the in-bundle path.\n- **`create-release-candidate.yml`**: the compose-bundle step now ships\n`licenses/LICENSE-CC0-1.0.txt`, so the LICENSE reference resolves inside\n  the bundle.\n\n### Any related issues, documentation, discussions?\n\nCloses #8799.\n\n### How was this PR tested?\n\nLicense-text, workflow-config and file removals; YAML parse verified.\nThe\nexamples loader scans `datasets/*/` and `workflows/*.json` (checked\nagainst\n`bin/single-node/examples/load-examples.sh`). The next RC dispatch\nexercises\nthe changed bundle step.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-fable-5)",
+          "timestamp": "2026-10-03T10:22:02Z",
+          "url": "https://github.com/apache/texera/commit/b05b6206c031ebb1cd4fb7b5f1f318a28f5c51f7"
+        },
+        "date": 1791036543520,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1266.1964025045597,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2491.1210842648265,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2694.7628629805495,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1665.268608446855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2608.8635341303384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2664.358825198521,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1722.3697195539619,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2550.0760792120045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2699.572271546399,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1430.6364234914604,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 2024.2725157084985,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2089.5695019964865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1555.6579610621145,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1996.0931275635821,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2041.407912482932,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1557.146813919646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1974.422650183022,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 2047.6758548071853,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 873.15325276578,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1068.8746473534427,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1096.3056891330646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 919.370255444134,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1035.7570498941486,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1077.1006741706142,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 849.3912270165898,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 999.178811404933,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 1031.2626111910713,
             "unit": "tuples/sec"
           }
         ]
