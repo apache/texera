@@ -55,6 +55,7 @@
   [nzMinHeight]="250"
   [nzMaxWidth]="window.innerWidth"
   [nzMaxHeight]="window.innerHeight"
+  [style.top.px]="-defaultHeight"
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
@@ -99,7 +100,10 @@
         <nz-tab nzTitle="Result">
           <div style="text-align: center">
             <h4>No results available to display.</h4>
-            <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>
+            <p>
+              Enable View Results (the eye icon) on intermediate operators before running the workflow. If you enable it
+              after a run, run it again to collect those results. Final operators collect results automatically.
+            </p>
           </div>
         </nz-tab>
       </div>

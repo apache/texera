@@ -751,6 +751,12 @@ describe("ResultPanelComponent", () => {
       fixture.detectChanges();
 
       expect((fixture.nativeElement as HTMLElement).textContent).toContain("No results available to display.");
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("View Results");
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("before running");
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("run it again");
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+        "Final operators collect results automatically"
+      );
     });
 
     it("renders a tab per frame when frames are present", () => {
