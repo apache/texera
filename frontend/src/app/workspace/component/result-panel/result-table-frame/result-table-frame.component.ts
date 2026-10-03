@@ -34,6 +34,7 @@ import { WorkflowResultService } from "../../../service/workflow-result/workflow
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
@@ -405,7 +406,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples(), pageData.schema);
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -418,11 +419,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
+  setupResultTable(
+    resultData: ReadonlyArray<IndexableObject>,
+    totalRowCount: number,
+    schema: ReadonlyArray<SchemaAttribute> = []
+  ) {
     if (!this.operatorId) {
       return;
     }
-    if (resultData.length < 1) {
+    // A result with no rows still has columns, and showing them tells the user what the
+    // operator would have produced. An empty page of a non-empty result is only a page index
+    // past the end, so the table already shown stays.
+    if (resultData.length < 1 && (totalRowCount > 0 || schema.length === 0)) {
       return;
     }
 
@@ -439,7 +447,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
+    const columnKeys =
+      resultData.length > 0
+        ? Object.keys(resultData[0]).filter(x => x !== "_id")
+        : schema.map(attribute => attribute.attributeName);
     columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
