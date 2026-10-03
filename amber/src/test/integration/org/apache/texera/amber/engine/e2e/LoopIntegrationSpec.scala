@@ -40,7 +40,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData,
   workflowContext
 }
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -54,7 +54,6 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrain
 }
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.HyperParameters
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
-import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
@@ -202,9 +201,9 @@ class LoopIntegrationSpec
   }
 
   /**
-    * An SVM regressor fitting `line` on itself, with one hyperparameter row: `C = c`. A Python
-    * operator whose code the descriptor generates before the loop runs; its `Parameters` output
-    * column records each fit's hyperparameters as text ("C = 2.0,").
+    * An SVM regressor fitting the sales CSV's Unit Cost on its Unit Price, with one hyperparameter
+    * row: `C = c`. A Python operator whose code the descriptor generates before the loop runs; its
+    * `Parameters` output column records each fit's hyperparameters as text ("C = 2.0,").
     */
   private def svrTrainer(c: String): SklearnAdvancedSVRTrainerOpDesc = {
     val op = new SklearnAdvancedSVRTrainerOpDesc()
@@ -212,8 +211,8 @@ class LoopIntegrationSpec
     row.parameter = SklearnAdvancedSVRParameters.C
     row.value = c
     op.paraList = List(row)
-    op.selectedFeatures = List("line")
-    op.groundTruthAttribute = "line"
+    op.selectedFeatures = List("Unit Price")
+    op.groundTruthAttribute = "Unit Cost"
     op
   }
 
@@ -358,7 +357,7 @@ class LoopIntegrationSpec
   }
 
   it should "read a $i loop-variable reference in a Python-generated operator's property on every iteration" in {
-    // TextInput(1.0, 2.0, 3.0) -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd.
+    // Sales CSV -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd(i <= 3).
     //
     // The trainer's Python is generated before the loop runs. pyb renders the C value "$i" as an
     // expression the operator evaluates when it trains, and because the trainer sits inside the
@@ -368,11 +367,10 @@ class LoopIntegrationSpec
     // so each iteration fits once and the LoopEnd accumulates one row per iteration, its
     // Parameters naming the C that fit used. The literal "$i" would fail float("$i") and fail
     // the run; a reference that never rebinds to the new i would repeat one C.
-    val src = textInput("1\n2\n3")
-    src.attributeType = FileAttributeType.DOUBLE
+    val src = TestOperators.smallCsvScanOpDesc()
     val start = loopStart("i = 1", "table")
     val trainer = svrTrainer("$i")
-    val end = loopEnd("i += 1", "i <= len(table)")
+    val end = loopEnd("i += 1", "i <= 3")
     val results = runWorkflowAndReadResults(
       system,
       buildWorkflow(

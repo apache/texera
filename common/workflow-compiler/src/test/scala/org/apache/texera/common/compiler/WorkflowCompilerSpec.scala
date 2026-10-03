@@ -1082,18 +1082,21 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(!outsideCode.contains("loop_variable_text"))
   }
 
-  /** The SVR trainer as the frontend sends it, with one hyperparameter row. */
+  /**
+    * The SVR trainer as the frontend sends it, fitting the sales CSV's Unit Cost on its Unit Price,
+    * with one hyperparameter row.
+    */
   private def svrTrainerOp(value: String, parametersSource: String): LogicalOp =
     parsed(
-      s"""{"groundTruthAttribute":"line","Selected Features":["line"],
-         |"paraList":[{"parameter":"C","value":"$value","attribute":"line",
+      s"""{"groundTruthAttribute":"Unit Cost","Selected Features":["Unit Price"],
+         |"paraList":[{"parameter":"C","value":"$value","attribute":"Units Sold",
          |"parametersSource":$parametersSource}],
          |"operatorType":"SVRTrainer"}""".stripMargin
     )
 
-  /** TextInput -> LoopStart -> both inputs of `body` -> LoopEnd. */
+  /** The sales CSV -> LoopStart -> both inputs of `body` -> LoopEnd. */
   private def twoInputLoop(body: LogicalOp): LogicalPlanPojo = {
-    val src = textInputOp("1\n2")
+    val src = csvOp(realCsvPath)
     val start = loopStartOp()
     val end = loopEndOp()
     pojo(
