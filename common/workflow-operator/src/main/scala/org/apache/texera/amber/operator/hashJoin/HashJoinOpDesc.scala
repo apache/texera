@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.FixedAtCompileTime
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -59,12 +60,14 @@ class HashJoinOpDesc[K] extends LogicalOp {
   @JsonSchemaTitle("Left Input Attribute")
   @JsonPropertyDescription("attribute to be joined on the Left Input")
   @AutofillAttributeName
+  @FixedAtCompileTime
   var buildAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Right Input Attribute")
   @JsonPropertyDescription("attribute to be joined on the Right Input")
   @AutofillAttributeNameOnPort1
+  @FixedAtCompileTime
   var probeAttributeName: String = _
 
   @JsonProperty(required = true, defaultValue = "inner")

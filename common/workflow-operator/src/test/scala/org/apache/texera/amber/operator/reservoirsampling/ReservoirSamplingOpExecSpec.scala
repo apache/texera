@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.reservoirsampling
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.executor.ExecFactory
+import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -62,15 +64,26 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   }
 
   // `k` is renamed by @JsonProperty, so resolve the JSON key from the annotation
-  // rather than hard-coding it, then overwrite that slot with null on a real desc.
+  // rather than hard-coding it.
+  private val keyForK: String =
+    classOf[ReservoirSamplingOpDesc]
+      .getDeclaredField("k")
+      .getAnnotation(classOf[com.fasterxml.jackson.annotation.JsonProperty])
+      .value()
+
+  // Overwrite the `k` slot with null on a real desc.
   private def descWithNullK: String = {
     val node = objectMapper.valueToTree[ObjectNode](new ReservoirSamplingOpDesc())
-    val keyForK =
-      classOf[ReservoirSamplingOpDesc]
-        .getDeclaredField("k")
-        .getAnnotation(classOf[com.fasterxml.jackson.annotation.JsonProperty])
-        .value()
     node.putNull(keyForK)
+    objectMapper.writeValueAsString(node)
+  }
+
+  // As the compiler hands the descriptor over inside a loop block when `k` holds "$k": the
+  // placeholder 0, and the sidecar naming the loop variable.
+  private def descWithReferencedK: String = {
+    val node = objectMapper.valueToTree[ObjectNode](new ReservoirSamplingOpDesc())
+    node.put(keyForK, 0)
+    node.putObject(StateReferencing.SIDECAR_PROPERTY).put("/" + keyForK, "k")
     objectMapper.writeValueAsString(node)
   }
 
@@ -182,10 +195,33 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(emitted.distinct.size == emitted.size, "each input tuple is sampled at most once")
   }
 
-  "ReservoirSamplingOpExec with a bad k" should "reject a negative k with a negative-sized reservoir" in {
-    // equallyPartitionGoal(-1, 1) -> count = -1, so open() allocates Array.ofDim(-1).
+  "ReservoirSamplingOpExec inside a loop block" should
+    "size its reservoir from the k written into its setting after construction and open()" in {
+    val exec = ExecFactory
+      .newExecFromJavaClassName(
+        classOf[ReservoirSamplingOpExec].getName,
+        descWithReferencedK,
+        idx = 0,
+        workerCount = 3
+      )
+      .asInstanceOf[ReservoirSamplingOpExec]
+    exec.open()
+    exec.registerState(State(Map("k" -> 10L)))
+    exec.bindStateReferences()
+    // Worker 0 of 3 keeps 4 of k = 10; the placeholder 0 would keep none.
+    val emitted = runFinish(exec, 0 until 50)
+    assert(emitted.size == 4)
+    assert(emitted.forall((0 until 50).map(tuple).toSet.contains))
+  }
+
+  "ReservoirSamplingOpExec with a bad k" should "reject a negative k with a negative-sized reservoir, at the first tuple or at finish" in {
+    // equallyPartitionGoal(-1, 1) -> count = -1, so the reservoir is Array.ofDim(-1). It is
+    // allocated at first use, when a k that refers to a loop variable has been written in.
     assertThrows[NegativeArraySizeException] {
-      newExec(k = -1)
+      newExec(k = -1).processTuple(tuple(0), 0)
+    }
+    assertThrows[NegativeArraySizeException] {
+      newExec(k = -1).onFinish(0)
     }
   }
 
