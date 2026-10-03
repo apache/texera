@@ -81,7 +81,7 @@ rustfs:
   image:
     rustfs:
       repository: rustfs/rustfs
-      tag: 1.0.0-rc.6
+      tag: 1.0.0
   resources:
     requests:
       memory: "256Mi"

@@ -98,7 +98,7 @@ rustfs:
   image:
     rustfs:
       repository: rustfs/rustfs
-      tag: 1.0.0-rc.6
+      tag: 1.0.0
   # Texera fronts the object store with Envoy Gateway (the `gateway` block
   # below), not with an Ingress -- the upstream chart turns one on by default.
   ingress:
