@@ -31,13 +31,27 @@ import {
   UiUdfParametersParseError,
 } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UI_PARAMETER_TYPES } from "../../service/code-editor/ui-udf-parameter";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
+import { fieldOperatorID, renderedInFormView, renderedReadOnly } from "../../util/custom-formly-type";
+import { subFieldLabel, subFieldsInView } from "../../../common/formly/sub-field-view";
 
-type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
+/**
+ * A column of the table. `path` is the column's sub-field path in the row, which is also the path
+ * the Form View's author names and hides it under -- the two are the same thing, so the column can
+ * be looked up in what the form published (see sub-field-view).
+ */
+type UiUdfParameterColumn = Readonly<{
+  label: string;
+  key: string;
+  parentKey?: string;
+  path: string;
+  disabled: boolean;
+}>;
 
-const VALUE_COLUMN: UiUdfParameterColumn = { label: "Value", key: "value", disabled: false };
+const VALUE_COLUMN: UiUdfParameterColumn = { label: "Value", key: "value", path: "value", disabled: false };
 const RESOURCE_VALUE_EDITOR = "resourcevalue";
 const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DATASET_INPUT_TYPE]);
 
@@ -69,9 +83,23 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
 
   readonly fieldColumns: UiUdfParameterColumn[] = [
     VALUE_COLUMN,
-    { label: "Name", key: "attributeName", parentKey: "attribute", disabled: true },
-    { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
+    { label: "Name", key: "attributeName", parentKey: "attribute", path: "attribute.attributeName", disabled: true },
+    { label: "Type", key: "attributeType", parentKey: "attribute", path: "attribute.attributeType", disabled: true },
   ];
+
+  /**
+   * The columns in view: all three on the operator property panel, and on a Form View card the ones
+   * the author left (subFieldsInView, which keeps the array's identity so the header's ngFor does
+   * not redraw). All three come back while the draft row is open: that row names and types the
+   * parameter being added, so it needs them whatever the author hid, and a filtered header over its
+   * three cells put the name box under the wrong heading (Copilot on #8846).
+   *
+   * Read live rather than fixed at populate: the form publishes its decisions on the field, which
+   * this widget is handed after its first check.
+   */
+  get columns(): readonly UiUdfParameterColumn[] {
+    return this.draftVisible ? this.fieldColumns : subFieldsInView(this.field ?? {}, this.fieldColumns);
+  }
 
   readonly addParameterTypeOptions = UI_PARAMETER_TYPES;
   draftVisible = false;
@@ -79,18 +107,58 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
   constructor(
     private workflowActionService: WorkflowActionService,
     private uiUdfParametersSyncService: UiUdfParametersSyncService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
     super();
   }
 
-  get workflowModificationEnabled(): boolean {
-    return this.workflowActionService.checkWorkflowModificationEnabled();
+  /** Whether this is a Form View card rather than the operator property panel; see editable. */
+  get onFormView(): boolean {
+    return renderedInFormView(this.field ?? {});
   }
 
-  /** Inserts the declaration into shared UDF code; the row then appears through the normal code sync. */
+  /**
+   * Whether the table takes a new parameter here. On the operator property panel that is the
+   * canvas's rule, as it always was: the workflow may be modified (write access, no run in flight).
+   *
+   * A Form View card asks those two halves separately, because the canvas's flag does not answer
+   * either one there. Write access: the card is not a reader's, which the form marks on the field
+   * itself (props.disabled, its one lock on a card; see renderedReadOnly). A writer's card is
+   * editable in and out of edit mode, as every value on it is (adding a parameter is adding a row),
+   * and the flag is not that -- the Form View holds it off outside edit mode, against structural
+   * edits through its page, which hid the button on a card whose values could still be edited. No
+   * run in flight: asked of the execute service, which owns that rule, since the flag that would
+   * otherwise carry it is held off for the reason above. Adding a parameter inserts a declaration
+   * into the UDF's own code, straight into the shared document, and code is what a run must not have
+   * rewritten under it -- the property panel and the canvas code editor both refuse it then.
+   *
+   * The mark decides rather than the table's own control, which does not answer the question:
+   * formly disables the leaf controls under a disabled field, not the array itself, so a reader's
+   * table with no parameters yet reads as enabled (a reader's table with rows reads as disabled only
+   * because every row's controls are).
+   */
+  get editable(): boolean {
+    if (!this.onFormView) {
+      return this.workflowActionService.checkWorkflowModificationEnabled();
+    }
+    return !renderedReadOnly(this.field) && !this.executeWorkflowService.isExecutionInFlight();
+  }
+
+  /**
+   * Inserts the declaration into the operator's Python code; the row then appears through the normal
+   * code sync. The operator is the one the field is bound to on a Form View card (nothing is
+   * highlighted there, or another step is); on the operator property panel it is the highlighted one,
+   * as it always was.
+   */
   addParameter(nameInput: HTMLInputElement, attributeType: string): void {
-    const operatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    // The button is hidden then too; the check belongs with the edit, not only with the button.
+    if (!this.editable) {
+      return;
+    }
+    const operatorId =
+      fieldOperatorID(this.field ?? {}) ??
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     try {
       this.uiUdfParametersSyncService.addParameter(operatorId, nameInput.value, attributeType as AttributeType);
       this.draftVisible = false;
@@ -105,7 +173,18 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     this.dropRowsWhoseResourceChanged(field, this.parameterRows(field));
     super.onPopulate(field);
     const rows = this.parameterRows(field);
-    field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType));
+    // A reader's card arrives with props.disabled on the field (the Form View's lock); the value
+    // column's "editable" below must not undo it.
+    const locked = field.props?.disabled === true;
+    field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType, locked));
+  }
+
+  /**
+   * A column's header: the author's name for it on a Form View card, the fixed label otherwise --
+   * not the schema's own title, which the operator property panel does not show either.
+   */
+  columnLabel(column: UiUdfParameterColumn): string {
+    return subFieldLabel(this.field ?? {}, column.path, column.label);
   }
 
   /**
@@ -132,8 +211,8 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     this.configureRowColumns(rowField, this.setDisabledMetadata.bind(this));
   }
 
-  private configureRowFields(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
-    this.configureRowColumns(rowField, this.configureDisabledState.bind(this));
+  private configureRowFields(rowField: FormlyFieldConfig | undefined, inputType?: string, locked = false): void {
+    this.configureRowColumns(rowField, (field, disabled) => this.configureDisabledState(field, disabled || locked));
     this.configureValueEditor(rowField, inputType);
   }
 
