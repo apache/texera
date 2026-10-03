@@ -1,6 +1,5 @@
-// Derived from ScalaPB's scalapb.proto
-// (https://github.com/scalapb/ScalaPB/blob/v0.11.20/protobuf/scalapb/scalapb.proto),
-// with local adjustments: reformatted; go_package option removed.
+// Vendored from ScalaPB v0.11.4.
+// Source: https://github.com/scalapb/ScalaPB/blob/v0.11.4/protobuf/scalapb/scalapb.proto
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
