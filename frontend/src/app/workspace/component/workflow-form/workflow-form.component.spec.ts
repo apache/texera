@@ -954,6 +954,22 @@ describe("WorkflowFormComponent", () => {
       expect(component.rendered[0].fields[0].type).toBe("huggingface");
     });
 
+    // Projection's column list is the drag-reorder widget on the canvas; the form renders the same
+    // widget, with its drag, rather than falling back to a plain list (#8761).
+    it("renders Projection's attributes through the drag-reorder widget, as the canvas does", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "Projection" });
+      (component as any).formlyJsonschema = {
+        toFieldConfig: (_schema: any, opts: any) => ({
+          fieldGroup: [{ key: "attributes", type: "array", props: { label: "Attributes" } }].map(opts.map),
+        }),
+      };
+
+      renderOne("attributes");
+
+      expect(component.rendered[0].fields[0].type).toBe("repeat-section-dnd");
+    });
+
     it("renders a file property through its own picker type", () => {
       build(formViewWorkflow).ngOnInit();
 
