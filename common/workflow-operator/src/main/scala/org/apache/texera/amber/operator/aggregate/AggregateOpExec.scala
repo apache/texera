@@ -23,12 +23,20 @@ import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets.UTF_8
 import scala.collection.mutable
 
 /**
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
   */
-class AggregateOpExec(descString: String) extends OperatorExecutor {
+class AggregateOpExec protected (
+    descString: String,
+    emitPartials: Boolean,
+    mergePartials: Boolean
+) extends OperatorExecutor {
+  def this(descString: String) = this(descString, emitPartials = false, mergePartials = false)
+
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
   private var keyedPartialAggregates: mutable.HashMap[List[Object], List[Object]] = _
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
@@ -52,12 +60,14 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
         // result does not depend on any input attribute. Every other function resolves
         // the input attribute (failing fast if it is missing/invalid).
         val attrType =
-          if (
+          if (mergePartials) tuple.getSchema.getAttribute(agg.resultAttribute).getType
+          else if (
             agg.aggFunction == AggregationFunction.COUNT &&
             (agg.attribute == null || agg.attribute.trim.isEmpty)
           ) null
           else tuple.getSchema.getAttribute(agg.attribute).getType
-        agg.getAggFunc(attrType)
+        if (mergePartials) agg.getAggFunc(attrType)
+        else agg.getAggFunc(attrType, tuple.getSchema)
       }
     }
 
@@ -69,8 +79,25 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
       keyedPartialAggregates.getOrElseUpdate(key, distributedAggregations.map(_.init()))
 
     // Update the partial aggregates with the current tuple
-    val updatedAggregates = (distributedAggregations zip partialAggregates).map {
-      case (aggregation, partial) => aggregation.iterate(partial, tuple)
+    val updatedAggregates = (distributedAggregations zip partialAggregates).zipWithIndex.map {
+      case ((aggregation, partial), index) =>
+        if (mergePartials) {
+          val operation = desc.aggregations(index)
+          val value = tuple.getField[Object](operation.resultAttribute)
+          val incoming = operation.aggFunction match {
+            case AggregationFunction.AVERAGE =>
+              val buffer = ByteBuffer.wrap(value.asInstanceOf[Array[Byte]])
+              AveragePartialObj(buffer.getDouble(), buffer.getDouble())
+            case AggregationFunction.CONCAT =>
+              val buffer = ByteBuffer.wrap(value.asInstanceOf[Array[Byte]])
+              val leadingEmptyCount = buffer.getLong()
+              val text = new Array[Byte](buffer.remaining())
+              buffer.get(text)
+              ConcatPartialObj(new String(text, UTF_8), leadingEmptyCount)
+            case _ => value
+          }
+          aggregation.merge(partial, incoming)
+        } else aggregation.iterate(partial, tuple)
     }
 
     keyedPartialAggregates(key) = updatedAggregates
@@ -83,9 +110,31 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
     keyedPartialAggregates.iterator.map {
       case (key, partials) =>
         val finalAggregates = partials.zipWithIndex.map {
-          case (partial, index) => distributedAggregations(index).finalAgg(partial)
+          case (partial, index) =>
+            if (!emitPartials) distributedAggregations(index).finalAgg(partial)
+            else
+              partial match {
+                // Carry both sum and count over the typed transport; finalize only
+                // after merging every worker, including workers with no matches.
+                case avg: AveragePartialObj =>
+                  ByteBuffer.allocate(16).putDouble(avg.sum).putDouble(avg.count).array()
+                case concat: ConcatPartialObj =>
+                  val text = concat.value.getBytes(UTF_8)
+                  ByteBuffer
+                    .allocate(8 + text.length)
+                    .putLong(concat.leadingEmptyCount)
+                    .put(text)
+                    .array()
+                case value => value
+              }
         }
         TupleLike(key ++ finalAggregates)
     }
   }
 }
+
+class PartialAggregateOpExec(descString: String)
+    extends AggregateOpExec(descString, emitPartials = true, mergePartials = false)
+
+class FinalAggregateOpExec(descString: String)
+    extends AggregateOpExec(descString, emitPartials = false, mergePartials = true)

@@ -41,8 +41,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     a
   }
 
-  // Each test builds a FRESH desc: getPhysicalPlan mutates `aggregations` (getFinal),
-  // so the descriptor is intentionally not idempotent across calls.
+  // Keep each test's configuration independent.
   private def descWith(keys: List[String], aggs: AggregationOperation*): AggregateOpDesc = {
     val d = new AggregateOpDesc
     d.groupByKeys = keys
