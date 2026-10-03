@@ -101,6 +101,24 @@ describe("FormBindingService", () => {
 
       expect(workflowActionService.getTexeraGraph().getOperator(scanId).operatorProperties["keep"]).toBe("me");
     });
+
+    // A card's widget may change siblings along with the bound property, as it does on the panel;
+    // they land in one edit, over the operator's current properties.
+    it("writes several properties at once, over the current ones", () => {
+      workflowActionService.setOperatorProperty(scanId, { tableName: "twitter", keep: "me", limit: 5 });
+
+      service.writeProperties(scanId, { tableName: "reddit", limit: 10 });
+
+      expect(workflowActionService.getTexeraGraph().getOperator(scanId).operatorProperties).toEqual({
+        tableName: "reddit",
+        keep: "me",
+        limit: 10,
+      });
+    });
+
+    it("writing several properties to a missing operator is a no-op", () => {
+      expect(() => service.writeProperties("gone", { x: 1 })).not.toThrow();
+    });
   });
 
   describe("resolving against the live graph", () => {
