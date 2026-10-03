@@ -26,6 +26,8 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { OperatorColorPickerComponent } from "../../component/workflow-editor/operator-color-picker/operator-color-picker.component";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -79,7 +81,8 @@ export class OperatorMenuService {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private notificationService: NotificationService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private executeWorkflowService: ExecuteWorkflowService,
+    private modalService: NzModalService
   ) {
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     const texeraGraph = this.workflowActionService.getTexeraGraph();
@@ -108,6 +111,28 @@ export class OperatorMenuService {
     )
       .pipe(untilDestroyed(this))
       .subscribe(() => this.recomputeMenuState());
+  }
+
+  public get isOperatorColorClickable(): boolean {
+    const ids = this._highlightedOperators$.value;
+    return (
+      ids.length > 0 &&
+      this.workflowActionService.checkWorkflowModificationEnabled() &&
+      !this.workflowActionService.getWorkflowMetadata().readonly &&
+      ids.every(id => this.workflowActionService.getTexeraGraph().hasOperator(id))
+    );
+  }
+
+  public openOperatorColorPicker(): void {
+    if (!this.isOperatorColorClickable) return;
+    this.modalService.create({
+      nzTitle: "Operator color",
+      nzContent: OperatorColorPickerComponent,
+      nzData: { operatorIDs: [...this._highlightedOperators$.value] },
+      nzWidth: 420,
+      nzOkText: null,
+      nzCancelText: "Done",
+    });
   }
 
   /**

@@ -18,6 +18,7 @@
  */
 
 import { JSONSchema7 } from "json-schema";
+import { WorkflowColor } from "./workflow-color";
 
 /**
  * This file contains multiple type declarations related to workflow-graph.
@@ -76,6 +77,8 @@ export interface OperatorPredicate
     viewResult?: boolean;
     markedForReuse?: boolean;
     customDisplayName?: string;
+    /** Presentation only; absent in legacy workflows or after reset. */
+    color?: WorkflowColor;
   }> {}
 
 export interface Comment

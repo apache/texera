@@ -23,6 +23,13 @@
 <ul nz-menu>
   <li
     nz-menu-item
+    data-testid="operator-color-menu-item"
+    *ngIf="canModify && operatorMenuService.isOperatorColorClickable && !hasHighlightedLinks()"
+    (click)="operatorMenuService.openOperatorColorPicker()">
+    operator color
+  </li>
+  <li
+    nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   !hasHighlightedLinks()"
