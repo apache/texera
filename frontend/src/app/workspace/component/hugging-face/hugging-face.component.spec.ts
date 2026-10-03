@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, tick } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { By } from "@angular/platform-browser";
-import { FormControl, FormGroup } from "@angular/forms";
+import { FormControl, FormGroup, UntypedFormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
 import { Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
@@ -224,6 +224,70 @@ describe("HuggingFaceComponent (TestBed)", () => {
     flushIconRequests();
   }
 
+  // ── On a Form View card ──
+  // The card keys the bound field `modelId` and carries the operator's other properties as plain
+  // controls and in the model; nothing else is built. A task change must reach the card's form the
+  // way it reaches the panel's, since the card writes back what changed on its form and model.
+  describe("on a Form View card", () => {
+    const taskScopedKeys = [
+      "task",
+      "promptColumn",
+      "imageInput",
+      "audioInput",
+      "inputImageColumn",
+      "inputAudioColumn",
+      "candidateLabels",
+      "sentencesColumn",
+      "contextColumn",
+      "systemPrompt",
+      "maxNewTokens",
+      "temperature",
+    ];
+
+    function formCard(task: string, modelId: string) {
+      const model: Record<string, unknown> = { task, modelId, promptColumn: "prompt" };
+      const formGroup = new UntypedFormGroup({ modelId: new FormControl(modelId) });
+      for (const key of taskScopedKeys) {
+        formGroup.addControl(key, new FormControl(model[key] ?? null));
+      }
+      const field = {
+        key: "modelId",
+        formControl: formGroup.get("modelId")!,
+        form: formGroup,
+        model,
+        props: {},
+        parent: { fieldGroup: [] },
+        options: buildFormlyOptions(),
+      } as unknown as FieldTypeConfig;
+      return { field, formGroup, model };
+    }
+
+    it("writes a task change to the card's form and resets the model with it, as on the panel", () => {
+      const { field, formGroup, model } = formCard("image-classification", "google/vit-base-patch16-224");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+      const emissions: unknown[] = [];
+      formGroup.valueChanges.subscribe(value => emissions.push(value));
+
+      component.onTaskSelected("text-generation");
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2, "qwen"));
+      flushIconRequests();
+
+      expect(model.task).toBe("text-generation");
+      expect(formGroup.get("task")!.value).toBe("text-generation");
+      // The task-scoped fields are reset for the new task, the model's own value included.
+      expect(model.modelId).toBe("");
+      expect(formGroup.get("modelId")!.value).toBe("");
+      expect(model.promptColumn).toBe("");
+      // The card's form heard it; that is what the card's write-back listens to.
+      expect(emissions.length).toBeGreaterThan(0);
+    });
+  });
+
   // ── Creation ──
 
   it("should create the component", () => {
@@ -237,6 +301,143 @@ describe("HuggingFaceComponent (TestBed)", () => {
   });
 
   // ── Task loading ──
+
+  // The task can change under the widget: a co-editor on the canvas, or the Form View, writes the
+  // operator, and the change arrives on this field's model (the panel hands formly a fresh model;
+  // the schema's own task field is hidden there, so no control carries it). The selector used to
+  // keep showing the task it was built with, and its model list with it.
+  describe("following a task change that arrives on the model", () => {
+    it("shows the new task and loads its models", () => {
+      const { field } = buildFieldWithFormGroup("image-classification");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+
+      (field.model as Record<string, unknown>)["task"] = "text-generation";
+      fixture.detectChanges();
+
+      const reload = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+      expect(reload.request.url).toContain("task=text-generation");
+      reload.flush(buildModels(2, "qwen"));
+      expect(component.selectedTaskTag).toBe("text-generation");
+    });
+
+    // A slow first fetch of one task can land after the widget has moved on: a task whose models
+    // are already cached is shown at once, by a path that returns before the request still out is
+    // cancelled (Copilot on #8839). Whatever comes back for a task the widget has left is cached
+    // for the next asker and not shown here.
+    it("ignores a response for a task it has already left", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      // text-generation is cached from here on.
+      http.expectOne(req => req.url.includes("task=text-generation")).flush(buildModels(2, "qwen"));
+      flushIconRequests();
+
+      // Away to a task that has to be fetched: its request is still out.
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      const slow = http.expectOne(req => req.url.includes("task=image-classification"));
+
+      // Back to the cached task, which is shown at once and leaves the request out.
+      (field.model as Record<string, unknown>)["task"] = "text-generation";
+      fixture.detectChanges();
+      flushIconRequests();
+      expect(component.selectedTaskTag).toBe("text-generation");
+      const shown = component.pagedModels;
+
+      // The left task's response lands last; it must not paint over the task now shown.
+      slow.flush(buildModels(3, "resnet"));
+      flushIconRequests();
+
+      expect(component.selectedTaskTag).toBe("text-generation");
+      expect(component.pagedModels).toBe(shown);
+      expect(component.pagedModels.every(model => !model.id.includes("resnet"))).toBe(true);
+    });
+
+    it("ignores a failure for a task it has already left", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.includes("task=text-generation")).flush(buildModels(2, "qwen"));
+      flushIconRequests();
+
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      const slow = http.expectOne(req => req.url.includes("task=image-classification"));
+
+      (field.model as Record<string, unknown>)["task"] = "text-generation";
+      fixture.detectChanges();
+      flushIconRequests();
+
+      slow.error(new ProgressEvent("error"));
+      flushIconRequests();
+
+      // The error belongs to the task that was left; the one on show is fine.
+      expect(component.errorMessage).toBeNull();
+      expect(component.pagedModels.length).toBe(2);
+    });
+
+    // A load that waits on another instance's request polls for it; that poll belongs to the task
+    // it was started for, and the next load stops it whichever path the next load takes.
+    it("stops a poll left from an earlier task", () => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      // text-generation is cached; its request is no longer in flight.
+      http.expectOne(req => req.url.includes("task=text-generation")).flush(buildModels(2, "qwen"));
+      flushIconRequests();
+
+      // A task whose request stays out: it is now the in-flight one.
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      const slow = http.expectOne(req => req.url.includes("task=image-classification"));
+
+      // Asking for it again waits on that request instead of firing a second one: a poll.
+      (field.model as Record<string, unknown>)["task"] = "text-generation";
+      fixture.detectChanges();
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      http.expectNone(req => req.url.includes("task=image-classification"));
+      expect((component as any).modelPollInterval).not.toBeNull();
+
+      // Moving to the cached task stops that poll, by a path that returns before the in-flight one.
+      (field.model as Record<string, unknown>)["task"] = "text-generation";
+      fixture.detectChanges();
+      flushIconRequests();
+
+      expect((component as any).modelPollInterval).toBeNull();
+      slow.flush(buildModels(3, "resnet"));
+      flushIconRequests();
+      expect(component.selectedTaskTag).toBe("text-generation");
+    });
+
+    it("does nothing for the task it already shows, or for a blank", () => {
+      const { field } = buildFieldWithFormGroup("image-classification");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+
+      fixture.detectChanges();
+      (field.model as Record<string, unknown>)["task"] = "";
+      fixture.detectChanges();
+
+      http.expectNone(req => req.url.startsWith(`${API}/huggingface/models`));
+      expect(component.selectedTaskTag).toBe("image-classification");
+    });
+  });
 
   describe("task loading", () => {
     it("should fetch tasks from the API on init", () => {
@@ -609,6 +810,66 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(component.pagedModels.length).toBe(1);
       expect(component.pagedModels[0].id).toBe("special-model/v1");
       expect(component.searchLoading).toBe(false);
+    }));
+
+    // A task change clears the search but cannot cancel one already out: switchMap only drops a
+    // search the next search replaces (Copilot on #8839).
+    it("ignores search results for a task it has already left", fakeAsync(() => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http
+        .expectOne(req => req.url.includes("task=text-generation"))
+        .flush(buildModels(5), { headers: { "X-Texera-Truncated": "true" } });
+
+      component.onSearchInput("special-model");
+      tick(300);
+      const search = http.expectOne(req => req.url.includes("search=special-model"));
+
+      // The task changes while that search is out, and its own models arrive.
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      http.expectOne(req => req.url.includes("task=image-classification")).flush(buildModels(2, "resnet"));
+      expect(component.selectedTaskTag).toBe("image-classification");
+      const shown = component.pagedModels;
+
+      search.flush([{ id: "special-model/v1", label: "special-model/v1" }]);
+
+      expect(component.pagedModels).toBe(shown);
+      expect(component.pagedModels.every(model => !model.id.includes("special-model"))).toBe(true);
+    }));
+
+    // The search ends with the task it was made for: its answer is dropped for being the other
+    // task's, so nothing else would turn the spinner off and the widget would read as searching
+    // for an empty string (Copilot on #8839).
+    it("stops showing a search when the task changes under one that is still out", fakeAsync(() => {
+      const { field } = buildFieldWithFormGroup("text-generation");
+      component.field = field;
+      fixture.detectChanges();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http
+        .expectOne(req => req.url.includes("task=text-generation"))
+        .flush(buildModels(5), { headers: { "X-Texera-Truncated": "true" } });
+
+      component.onSearchInput("special-model");
+      tick(300);
+      const search = http.expectOne(req => req.url.includes("search=special-model"));
+      expect(component.searchLoading).toBe(true);
+      expect(component.isSearching).toBe(true);
+
+      (field.model as Record<string, unknown>)["task"] = "image-classification";
+      fixture.detectChanges();
+      http.expectOne(req => req.url.includes("task=image-classification")).flush(buildModels(2, "resnet"));
+
+      expect(component.searchText).toBe("");
+      expect(component.searchLoading).toBe(false);
+      expect(component.isSearching).toBe(false);
+
+      // The answer that arrives afterwards is still the other task's, and changes nothing.
+      search.flush([{ id: "special-model/v1", label: "special-model/v1" }]);
+      expect(component.isSearching).toBe(false);
+      expect(component.pagedModels.every(model => !model.id.includes("special-model"))).toBe(true);
     }));
 
     it("should reset pagination to page 0 on search", () => {
