@@ -238,6 +238,37 @@ describe("ExecuteWorkflowService", () => {
     });
   });
 
+  // A caller that must refuse a structural edit mid-run asks here rather than re-listing the states,
+  // and a view whose own lock no longer means "a run is on" -- the Form View clamps it off outside
+  // edit mode -- has nowhere else honest to ask.
+  describe("isExecutionInFlight", () => {
+    it("answers for each state exactly as the graph lock does", () => {
+      const actionService = service["workflowActionService"];
+      const disable = vi.spyOn(actionService, "disableWorkflowModification");
+
+      expect(service.isExecutionInFlight()).toBe(false); // Uninitialized
+
+      for (const state of [
+        ExecutionState.Initializing,
+        ExecutionState.Running,
+        ExecutionState.Pausing,
+        ExecutionState.Paused,
+        ExecutionState.Resuming,
+        ExecutionState.Recovering,
+      ]) {
+        disable.mockClear();
+        emitWsEvent({ type: "WorkflowStateEvent", state });
+        expect(service.isExecutionInFlight(), state).toBe(true);
+        expect(disable, state).toHaveBeenCalled();
+      }
+
+      for (const state of [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.Killed]) {
+        emitWsEvent({ type: "WorkflowStateEvent", state });
+        expect(service.isExecutionInFlight(), state).toBe(false);
+      }
+    });
+  });
+
   it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
     (service as any).currentState = { state: ExecutionState.Running };
     (service as any).assignedWorkerIds.set("op1", ["w1", "w2"]);
