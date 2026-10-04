@@ -20,7 +20,7 @@
 import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, tick } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { By } from "@angular/platform-browser";
-import { FormControl, FormGroup } from "@angular/forms";
+import { FormControl, FormGroup, UntypedFormGroup } from "@angular/forms";
 import { FieldTypeConfig } from "@ngx-formly/core";
 import { Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
@@ -224,6 +224,70 @@ describe("HuggingFaceComponent (TestBed)", () => {
     flushIconRequests();
   }
 
+  // ── On a Form View card ──
+  // The card keys the bound field `modelId` and carries the operator's other properties as plain
+  // controls and in the model; nothing else is built. A task change must reach the card's form the
+  // way it reaches the panel's, since the card writes back what changed on its form and model.
+  describe("on a Form View card", () => {
+    const taskScopedKeys = [
+      "task",
+      "promptColumn",
+      "imageInput",
+      "audioInput",
+      "inputImageColumn",
+      "inputAudioColumn",
+      "candidateLabels",
+      "sentencesColumn",
+      "contextColumn",
+      "systemPrompt",
+      "maxNewTokens",
+      "temperature",
+    ];
+
+    function formCard(task: string, modelId: string) {
+      const model: Record<string, unknown> = { task, modelId, promptColumn: "prompt" };
+      const formGroup = new UntypedFormGroup({ modelId: new FormControl(modelId) });
+      for (const key of taskScopedKeys) {
+        formGroup.addControl(key, new FormControl(model[key] ?? null));
+      }
+      const field = {
+        key: "modelId",
+        formControl: formGroup.get("modelId")!,
+        form: formGroup,
+        model,
+        props: {},
+        parent: { fieldGroup: [] },
+        options: buildFormlyOptions(),
+      } as unknown as FieldTypeConfig;
+      return { field, formGroup, model };
+    }
+
+    it("writes a task change to the card's form and resets the model with it, as on the panel", () => {
+      const { field, formGroup, model } = formCard("image-classification", "google/vit-base-patch16-224");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+      const emissions: unknown[] = [];
+      formGroup.valueChanges.subscribe(value => emissions.push(value));
+
+      component.onTaskSelected("text-generation");
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2, "qwen"));
+      flushIconRequests();
+
+      expect(model.task).toBe("text-generation");
+      expect(formGroup.get("task")!.value).toBe("text-generation");
+      // The task-scoped fields are reset for the new task, the model's own value included.
+      expect(model.modelId).toBe("");
+      expect(formGroup.get("modelId")!.value).toBe("");
+      expect(model.promptColumn).toBe("");
+      // The card's form heard it; that is what the card's write-back listens to.
+      expect(emissions.length).toBeGreaterThan(0);
+    });
+  });
+
   // ── Creation ──
 
   it("should create the component", () => {
@@ -237,6 +301,44 @@ describe("HuggingFaceComponent (TestBed)", () => {
   });
 
   // ── Task loading ──
+
+  // The task can change under the widget: a co-editor on the canvas, or the Form View, writes the
+  // operator, and the change arrives on the task control. The selector used to keep showing the
+  // task it was built with, and its model list with it.
+  describe("following a task change that arrives on the task control", () => {
+    it("shows the new task and loads its models", () => {
+      const { field, formGroup } = buildFieldWithFormGroup("image-classification");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+
+      formGroup.get("task")!.setValue("text-generation");
+
+      const reload = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+      expect(reload.request.url).toContain("task=text-generation");
+      reload.flush(buildModels(2, "qwen"));
+      expect(component.selectedTaskTag).toBe("text-generation");
+    });
+
+    it("does nothing for the task it already shows, or for a blank", () => {
+      const { field, formGroup } = buildFieldWithFormGroup("image-classification");
+      component.field = field;
+      fixture.detectChanges();
+      flushIconRequests();
+      http.expectOne(`${API}/huggingface/tasks`).flush(buildTaskResponse());
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush(buildModels(2));
+      flushIconRequests();
+
+      formGroup.get("task")!.setValue("image-classification");
+      formGroup.get("task")!.setValue("");
+
+      http.expectNone(req => req.url.startsWith(`${API}/huggingface/models`));
+      expect(component.selectedTaskTag).toBe("image-classification");
+    });
+  });
 
   describe("task loading", () => {
     it("should fetch tasks from the API on init", () => {

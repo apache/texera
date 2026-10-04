@@ -192,12 +192,32 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.loadTasks();
     this.loadAllModels();
     this.setupServerSearch();
+    this.followTaskControl();
     // Formly can attach sibling controls after this field initializes.
     // Re-sync once the control tree settles so a fresh operator starts in a valid task state.
     this.initTimeout = setTimeout(
       () => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false),
       0
     );
+  }
+
+  /**
+   * The task can change under this widget: a co-editor's edit, or the Form View's, lands on the
+   * operator and from there on the `task` control (the panel reloads its model; the form card
+   * carries the control). Follow it as a local pick is followed -- show the task, load its models --
+   * instead of keeping the selector on what it showed when it was built.
+   */
+  private followTaskControl(): void {
+    const taskControl = this.field.form?.get("task") ?? this.formControl?.parent?.get("task");
+    taskControl?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(tag => {
+      if (typeof tag !== "string" || !tag || tag === this.selectedTaskTag) {
+        return;
+      }
+      this.selectedTaskTag = tag;
+      this.searchText = "";
+      this.filteredModels = null;
+      this.loadAllModels();
+    });
   }
 
   ngOnDestroy(): void {
