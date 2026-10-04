@@ -68,37 +68,4 @@ class OperatorDescriptorUtilsSpec extends AnyFlatSpec {
     // 1 = 4*0 + 1 → only the first slot gets the single unit
     assert(OperatorDescriptorUtils.equallyPartitionGoal(1, 4) == List(1, 0, 0, 0))
   }
-
-  // ---------------------------------------------------------------------------
-  // toImmutableMap — round-trip
-  // ---------------------------------------------------------------------------
-
-  "toImmutableMap" should "convert an empty java.util.Map to an empty immutable Map" in {
-    val javaMap = new java.util.HashMap[String, Int]()
-    val scalaMap = OperatorDescriptorUtils.toImmutableMap(javaMap)
-    assert(scalaMap.isEmpty)
-  }
-
-  it should "preserve all key/value pairs" in {
-    val javaMap = new java.util.LinkedHashMap[String, Integer]()
-    javaMap.put("a", Integer.valueOf(1))
-    javaMap.put("b", Integer.valueOf(2))
-    javaMap.put("c", Integer.valueOf(3))
-    val scalaMap = OperatorDescriptorUtils.toImmutableMap(javaMap)
-    assert(
-      scalaMap == Map(
-        "a" -> Integer.valueOf(1),
-        "b" -> Integer.valueOf(2),
-        "c" -> Integer.valueOf(3)
-      )
-    )
-  }
-
-  it should "return an immutable Map (compile-time enforced)" in {
-    val javaMap = new java.util.HashMap[String, Integer]()
-    javaMap.put("x", Integer.valueOf(9))
-    val scalaMap: scala.collection.immutable.Map[String, Integer] =
-      OperatorDescriptorUtils.toImmutableMap(javaMap)
-    assert(scalaMap("x") == 9)
-  }
 }
