@@ -97,7 +97,26 @@ interface RenderedField {
   fields: FormlyFieldConfig[];
   form: FormGroup;
   model: Record<string, unknown>;
+  /** The operator schema the card was built from, serialized: a compilation that leaves it as it
+   *  is has nothing to rebuild for this card. Empty for a broken card. */
+  schemaKey: string;
+  /** The operator's other properties the card was seeded with, serialized: the context a custom
+   *  widget reads to decide what to show (the HuggingFace picker reads `task`). Only a rebuild
+   *  re-seeds it, so a change there has to count as a change the card shows. The card's own
+   *  property is left out -- that one is compared on its own, and the card's pending edit must not
+   *  read as a change. Empty for a broken card. */
+  contextKey: string;
+  /** An edit the card holds that its debounced write-back has not written to the operator yet. */
+  pendingWrite: boolean;
+  /** Write the card's value to the operator now, if it differs (what the debounced write-back does);
+   *  absent on a read-only card. */
+  flushWrite?: () => void;
 }
+
+/** Whether two property values are the same, taking an empty string and an absent value as one (formly's
+ *  blank default for a property the operator never had). */
+const sameValue = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a === "" ? null : a ?? null) === JSON.stringify(b === "" ? null : b ?? null);
 
 /** One row of the "which results to show" picker: a candidate step and whether it is currently shown. */
 interface ResultChoice {
@@ -479,15 +498,16 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
 
     // Attribute boxes become dropdowns only after compilation writes the column enums into each
-    // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
+    // operator's dynamic schema -- which lands after these cards were built. Follow the
     // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page is created anew
-    // on every Canvas<->Form switch, mid-session) gets the current state at once. Held, not dropped, while
+    // on every Canvas<->Form switch, mid-session) gets the current state at once, and rebuild when
+    // it changed something the cards show (see onCompilationChanged). Held, not dropped, while
     // someone is typing (see rebuildFormOrDefer), so it neither throws away a half-entered value
     // under the cursor nor goes missing.
     this.workflowCompilingService
       .getCompilationStateInfoChangedStream()
       .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
-      .subscribe(() => this.rebuildFormOrDefer(false));
+      .subscribe(() => this.onCompilationChanged());
 
     // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
     // to follow at once, which is the whole point of editing them side by side. Today this fires for
@@ -838,10 +858,100 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * exposed property. Each input gets its own form keyed by binding id.
    */
   private buildForm(): void {
+    // A rebuild ends every card's write-back subscription, so an edit whose debounced write has not
+    // fired yet is written now, and the rebuilt card is seeded with it rather than without it.
+    this.rendered.forEach(card => card.pendingWrite && card.flushWrite?.());
     this.formsRebuilt.next();
     this.rendered = this.visibleFields
       .map(field => this.renderField(field))
       .filter((r): r is RenderedField => r !== undefined);
+  }
+
+  /**
+   * A compilation result rebuilds the cards only when it changed something they show: a card's
+   * operator schema (the column enums compilation writes into it, which turn an attribute box into a
+   * dropdown), the set of inputs (an operator deleted on the canvas makes its card broken), or an
+   * operator value a card does not hold (a co-editor's edit; the card's own edit, written back or
+   * still on its way, is not that). Most compilations change none of these -- the one a card's own
+   * write triggers, for one -- and used to rebuild every card regardless: the controls were redrawn
+   * under the reader's eyes, the focus went with them, and a click made in the last moments before
+   * the rebuild was lost, since the rebuild cancelled that card's pending write. The canvas's
+   * property panel redraws only for a schema change; the form does the same. The result picker and
+   * the shown results still follow the graph either way.
+   */
+  private onCompilationChanged(): void {
+    if (this.cardsNeedRebuild()) {
+      this.rebuildFormOrDefer(false);
+      return;
+    }
+    this.refreshShownResults();
+    this.rebuildResultChoices();
+    this.cdr.markForCheck();
+  }
+
+  private cardsNeedRebuild(): boolean {
+    const fields = this.visibleOf(this.formBindingService.resolveFields());
+    const sameInputs =
+      fields.length === this.rendered.length &&
+      fields.every((field, i) => {
+        const shown = this.rendered[i].resolved;
+        return field.binding.id === shown.binding.id && (field.brokenReason ?? "") === (shown.brokenReason ?? "");
+      });
+    if (!sameInputs) {
+      return true;
+    }
+    return this.rendered.some(card => {
+      const { binding, brokenReason } = card.resolved;
+      if (brokenReason) {
+        return false;
+      }
+      if (this.schemaKeyFor(binding.operatorID) !== card.schemaKey) {
+        return true;
+      }
+      // The widget context the card was seeded with: checked before the pending-write skip below,
+      // which is only about the card's own property, and safe to rebuild through because buildForm
+      // flushes a pending write first.
+      if (this.contextKeyFor(binding.operatorID) !== card.contextKey) {
+        return true;
+      }
+      // The card's own edit is on its way to the operator; the two agree once it is written.
+      if (card.pendingWrite) {
+        return false;
+      }
+      return !sameValue(
+        card.model[binding.id],
+        this.formBindingService.readValue(binding.operatorID, binding.propertyKey)
+      );
+    });
+  }
+
+  private schemaKeyFor(operatorID: string): string {
+    return JSON.stringify(this.operatorSchemaFor(operatorID) ?? null);
+  }
+
+  /**
+   * The operator's properties other than the one a card is bound to, serialized with the keys
+   * sorted so a rewrite that only reorders them is not a change. This is the context the card is
+   * seeded with (see renderField): a widget reads a sibling to decide what to show, and nothing
+   * but a rebuild re-seeds it, so the card goes stale when the canvas or a co-editor changes one.
+   */
+  private contextKeyFor(operatorID: string): string {
+    const graph = this.workflowActionService.getTexeraGraph();
+    // getOperator throws for an operator that is gone, so it is only safe behind hasOperator.
+    const properties = graph.hasOperator(operatorID) ? graph.getOperator(operatorID)?.operatorProperties ?? {} : {};
+    // Every property an input is bound to is left out, this card's own and any other card's on the
+    // same operator: each is compared against the card that shows it, one by one. Counting them as
+    // context too would make one card's edit a change to every other card of that operator, and a
+    // form with two inputs from one step would rebuild wholesale on every keystroke's compilation --
+    // the churn this PR exists to stop (Copilot).
+    const bound = new Set(
+      this.parameters.filter(field => field.binding.operatorID === operatorID).map(field => field.binding.propertyKey)
+    );
+    return JSON.stringify(
+      Object.entries(properties)
+        .filter(([key]) => !bound.has(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+    );
   }
 
   private renderField(resolved: ResolvedField): RenderedField | undefined {
@@ -850,12 +960,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // sees it (visibleFields drops it for readers), rendered as an empty card so the author can
     // remove it; a reader never reaches here for one.
     if (resolved.brokenReason) {
-      return { resolved, fields: [], form: new FormGroup({}), model: {} };
+      return {
+        resolved,
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+        schemaKey: "",
+        contextKey: "",
+        pendingWrite: false,
+      };
     }
     const schema = this.operatorSchemaFor(binding.operatorID);
     if (!schema) {
       return undefined;
     }
+    const schemaKey = JSON.stringify(schema);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(binding.operatorID);
     const operatorType = operator?.operatorType;
     const full = this.formlyJsonschema.toFieldConfig(cloneDeep(schema) as never, {
@@ -903,30 +1022,47 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       ...cloneDeep(operator?.operatorProperties ?? {}),
       [binding.id]: cloneDeep(resolved.value),
     };
+    const card: RenderedField = {
+      resolved,
+      fields: [field],
+      form,
+      model,
+      schemaKey,
+      contextKey: this.contextKeyFor(binding.operatorID),
+      pendingWrite: false,
+    };
     if (this.canEdit) {
+      card.flushWrite = () => {
+        card.pendingWrite = false;
+        // Formly emits the schema's empty default while building the control, before any edit;
+        // writing that back silently wiped the operator's real value (both views edit one
+        // workflow). So only accept a dirtied form, or a value that differs from the operator's
+        // without being emptier (some controls set values without marking dirty).
+        const next = model[binding.id];
+        const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
+        const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
+        const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
+        if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
+          return;
+        }
+        // Write straight onto the operator (the same edit the canvas makes) and refresh this
+        // card's snapshot, which the template reads.
+        this.formBindingService.writeValue(binding, next);
+        this.parameters = this.formBindingService.resolveFields();
+        const refreshed = this.parameters.find(p => p.binding.id === binding.id);
+        if (refreshed) {
+          card.resolved = refreshed;
+        }
+      };
+      // The card holds an unwritten edit from the first change until the debounced write below has
+      // run (or a rebuild has flushed it, see buildForm).
+      form.valueChanges.pipe(takeUntil(this.formsRebuilt), untilDestroyed(this)).subscribe(() => {
+        card.pendingWrite = true;
+      });
       form.valueChanges
         .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), takeUntil(this.formsRebuilt), untilDestroyed(this))
         .subscribe(() => {
-          // Formly emits the schema's empty default while building the control, before any edit;
-          // writing that back silently wiped the operator's real value (both views edit one
-          // workflow). So only accept a dirtied form, or a value that differs from the operator's
-          // without being emptier (some controls set values without marking dirty).
-          const next = model[binding.id];
-          const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
-          const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
-          const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
-          if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
-            return;
-          }
-          // Write straight onto the operator (the same edit the canvas makes) and refresh this
-          // card's snapshot, which the template reads.
-          this.formBindingService.writeValue(binding, next);
-          this.parameters = this.formBindingService.resolveFields();
-          const refreshed = this.parameters.find(p => p.binding.id === binding.id);
-          const card = this.rendered.find(r => r.resolved.binding.id === binding.id);
-          if (refreshed && card) {
-            card.resolved = refreshed;
-          }
+          card.flushWrite?.();
           this.cdr.detectChanges();
         });
     } else {
@@ -939,7 +1075,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
 
     this.applyFieldOverrides(field, binding, schemaLabel);
-    return { resolved, fields: [field], form, model };
+    return card;
   }
 
   /**
@@ -1159,9 +1295,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * (below), to repair or remove them.
    */
   public get visibleFields(): ResolvedField[] {
-    // A reader never sees a broken input (its operator is gone, so filling it could not affect the
-    // run); an author sees it, to repair or remove it.
-    return this.authoring ? this.parameters : this.parameters.filter(field => !field.brokenReason);
+    return this.visibleOf(this.parameters);
+  }
+
+  /** A reader never sees a broken input (its operator is gone, so filling it could not affect the run);
+   *  an author sees it, to repair or remove it. */
+  private visibleOf(fields: ResolvedField[]): ResolvedField[] {
+    return this.authoring ? fields : fields.filter(field => !field.brokenReason);
   }
 
   public trackByRendered(_: number, rendered: RenderedField): string {
