@@ -41,4 +41,4 @@ pg8000==1.31.5
 pympler==1.1
 boto3==1.42.90
 requests==2.34.2
-urllib3==2.7.0
+urllib3==2.8.0
