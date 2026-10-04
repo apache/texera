@@ -94,9 +94,9 @@ export class SearchService {
           // The unified-search response can carry resource types this client does not model:
           // rows from a feature being removed server-side later than here, or a type the backend
           // gains first. Both `convertToName` and `DashboardEntry` throw on an unrecognised
-          // payload, and the autocomplete subscribes without an error handler, so a single such
-          // row would otherwise kill the subscription for the rest of the session. Dropping them
-          // at the funnel every consumer calls keeps a stale row merely invisible.
+          // payload, so a single such row would otherwise cost the autocomplete every suggestion
+          // for that query. Dropping them at the funnel every consumer calls keeps a stale row
+          // merely invisible.
           //
           // Known trade-off: the server counted these rows against offset/limit, and
           // `SearchResultsComponent.loadMore` starts the next page at `entries.length` and appends
