@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import typing
 from loguru import logger
 from overrides import overrides
@@ -51,6 +52,11 @@ class RangeBasedShufflePartitioner(Partitioner):
         )
 
     def get_receiver_index(self, column_val) -> int:
+        if isinstance(column_val, float):
+            if math.isnan(column_val):
+                column_val = 0
+            elif math.isfinite(column_val):
+                column_val = int(column_val)
         if column_val < self.range_min:
             return 0
         elif column_val > self.range_max:
