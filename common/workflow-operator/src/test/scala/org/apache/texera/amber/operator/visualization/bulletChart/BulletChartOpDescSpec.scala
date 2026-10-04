@@ -133,4 +133,11 @@ class BulletChartOpDescSpec extends AnyFlatSpec with Matchers {
       op.generatePythonCode()
     }
   }
+
+  "BulletChartOpDesc.generateStandaloneCode" should "reject empty required fields" in {
+    val op = new BulletChartOpDesc
+    assertThrows[AssertionError] {
+      op.generateStandaloneCode()
+    }
+  }
 }
