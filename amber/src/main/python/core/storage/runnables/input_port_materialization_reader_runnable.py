@@ -110,10 +110,12 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         }
         the_partitioning: Partitioning = get_one_of(partitioning)
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
+        # A one-to-one partitioner picks the channel whose sender is the given
+        # worker; this reader sends as its virtual actor, not as the worker.
         self.partitioner: Partitioner = (
             partitioner(the_partitioning)
             if partitioner != OneToOnePartitioner
-            else partitioner(the_partitioning, self.worker_actor_id)
+            else partitioner(the_partitioning, from_actor_id.name)
         )
 
     def finished(self) -> bool:

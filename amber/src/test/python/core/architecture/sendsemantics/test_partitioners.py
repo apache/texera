@@ -418,6 +418,38 @@ class TestOneToOnePartitioner:
         ecm = EmbeddedControlMessage()
         assert list(partitioner.flush(_worker("A"), ecm)) == [ecm]
 
+    # Z receives another link; X receives another sender's channel of this
+    # link, which is in the partitioning because every sender gets all of it.
+    _NON_RECEIVERS = pytest.mark.parametrize(
+        "non_receiver", ["Z", "X"], ids=["other_link", "other_sender"]
+    )
+
+    @_NON_RECEIVERS
+    def test_flush_to_non_receiver_emits_nothing(self, partitioner, non_receiver):
+        # OutputManager.emit_ecm flushes every link for each output channel, so
+        # a flush aimed at another worker must not send this link's pending
+        # tuples or the ECM there.
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))
+        ecm = EmbeddedControlMessage()
+        assert list(partitioner.flush(_worker(non_receiver), ecm)) == []
+
+    @_NON_RECEIVERS
+    def test_flush_to_non_receiver_with_empty_batch_emits_nothing(
+        self, partitioner, non_receiver
+    ):
+        ecm = EmbeddedControlMessage()
+        assert list(partitioner.flush(_worker(non_receiver), ecm)) == []
+
+    @_NON_RECEIVERS
+    def test_flush_to_non_receiver_keeps_pending_batch_for_receiver(
+        self, partitioner, non_receiver
+    ):
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))
+        ecm = EmbeddedControlMessage()
+        list(partitioner.flush(_worker(non_receiver), ecm))
+        assert partitioner.batch == [_tuple(k=1)]
+        assert list(partitioner.flush(_worker("A"), ecm)) == [[_tuple(k=1)], ecm]
+
     def test_flush_state_emits_pending_batch_then_state(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=1)))
         state = State()
