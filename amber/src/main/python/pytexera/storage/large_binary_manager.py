@@ -24,6 +24,7 @@ and LargeBinaryInputStream/LargeBinaryOutputStream instead.
 
 import threading
 import uuid
+from botocore.exceptions import ClientError
 from loguru import logger
 from core.storage.storage_config import StorageConfig
 
@@ -84,10 +85,16 @@ class LargeBinaryManager:
         s3 = self._get_s3_client()
         try:
             s3.head_bucket(Bucket=bucket)
-        except s3.exceptions.NoSuchBucket:
+        except ClientError as error:
+            if error.response["Error"]["Code"] not in ("404", "NoSuchBucket"):
+                raise
             logger.debug(f"Bucket {bucket} not found, creating it")
-            s3.create_bucket(Bucket=bucket)
-            logger.info(f"Created bucket: {bucket}")
+            try:
+                s3.create_bucket(Bucket=bucket)
+            except ClientError as error:
+                if error.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
+                    raise
+            logger.info(f"Bucket ready: {bucket}")
 
     def create(self) -> str:
         """Append a unique suffix to the coordinator-provided base URI.
