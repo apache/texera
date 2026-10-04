@@ -232,6 +232,12 @@ This product bundles code derived from TypeFox monaco-languageclient:
   Source: https://github.com/TypeFox/monaco-languageclient
   License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
 
+This product bundles code derived from inner-class:
+  - amber/src/main/python/core/util/customized_queue/inner.py
+  Copyright (c) 2019 sebkeim
+  Source: https://github.com/sebkeim/inner-class
+  License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
+
 This product includes an icon from Google's Material Symbols:
   - frontend/src/app/common/icon/model-icon.ts ("hub")
   Copyright (c) Google LLC
