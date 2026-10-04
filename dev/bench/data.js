@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791036546777,
+  "lastUpdate": 1791125361728,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -16906,6 +16906,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 1031.2626111910713,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "2082021a8073c26bc38aeac7d654bdc661d4ff87",
+          "message": "refactor(frontend): remove the unreachable agent panel shadow (#8829)\n\n### What changes were proposed in this PR?\n\nRemoves a class binding in `AgentPanelComponent` that can never apply.\n**+1/−11 lines.** There is no behaviour change.\n\n`<ul id=\"return-button\">` has `[ngClass]=\"{'shadow': !width}\"` and\n`*ngIf=\"width\"` on the **same element**. `*ngIf` creates the element\nonly while `width` is truthy, and `!width` is then always `false`. So\n`shadow` is never set on a rendered element. `width` is a `number` that\nis only ever 0, the 400px minimum, a resize width, or a range-checked\nstored width, so there is no value that is both truthy and falsy.\n\nThe PR removes:\n\n- the binding;\n- the `.shadow` rule, which nothing else in this component's template\nuses (the styles are encapsulated);\n- `NgClass` from the imports, because this was the template's only\n`ngClass`.\n\nThe `*ngIf` and every live style on the element stay.\n\n### History\n\n| | |\n| --- | --- |\n| **Introduced by** | #4020 (2025-11-25), \"feat: introduce the LLM-based\nworkflow copilot\": the binding, the `*ngIf` and the `.shadow` rule\ntogether. #4873 (2026-05-03) later added the `NgClass` import when the\ncomponent became standalone |\n| **Usage removed by** | **never used**. The binding has been\nunreachable since the line was written. #4495 only moved the files |\n\nIt has never applied, in the ten months since it was added.\n\n### Any related issues, documentation, discussions?\n\nCloses #8828\n\n### How was this PR tested?\n\nNo new tests; no spec referenced the class.\n\nFrom `frontend/`:\n\n- `npx ng test --watch=false\n--include='**/agent-panel.component.spec.ts'\n--include='**/workspace.component.spec.ts'`: 2 files, 86 tests, all\npass. These are the only specs that render the panel.\n- `yarn format:ci`: clean.\n- `npx ng build`: success.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-10-03T23:42:05Z",
+          "url": "https://github.com/apache/texera/commit/2082021a8073c26bc38aeac7d654bdc661d4ff87"
+        },
+        "date": 1791125361001,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 632.1581879271516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1085.3997175281208,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1149.9731543611376,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 778.070557212907,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1111.36123635543,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1141.7708809096248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 851.1426901495125,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1117.9924337318614,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1135.296498325917,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 682.5111095208375,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 899.3106747480801,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 926.374155135936,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 726.394099460052,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 914.4231466294655,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 926.6788213558942,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 717.2168571416889,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 881.5968245819693,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 920.9338002619784,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 445.6518330111894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 520.0978542216599,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 527.1483224366016,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 448.05753741261617,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 514.4737244411192,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 522.1444196484246,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 433.8500403001784,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 499.511037761212,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 501.61562922986354,
             "unit": "tuples/sec"
           }
         ]
