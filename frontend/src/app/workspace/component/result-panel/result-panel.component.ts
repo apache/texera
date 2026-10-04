@@ -97,6 +97,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   componentOutlets!: ElementRef;
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
+  // The docked panel sits this far above the workspace's bottom edge. The return position is
+  // computed against the default height, so the two have to be the same number.
+  protected readonly defaultHeight = DEFAULT_HEIGHT;
   id = -1;
   width = DEFAULT_WIDTH;
   height = DEFAULT_HEIGHT;
