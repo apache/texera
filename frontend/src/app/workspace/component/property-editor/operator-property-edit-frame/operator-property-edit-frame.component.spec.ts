@@ -22,7 +22,7 @@ import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
@@ -35,11 +35,17 @@ import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockHuggingFacePredicate,
+  mockLoopEndPredicate,
+  mockLoopStartPredicate,
+  mockLoopStartScalaExecutorLink,
   mockPoint,
   mockResultPredicate,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
   mockScanPredicate,
 } from "../../../service/workflow-graph/model/mock-workflow-data";
 import {
+  mockScalaExecutorSchema,
   mockScanSourceSchema,
   mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
@@ -2037,6 +2043,224 @@ describe("OperatorPropertyEditFrameComponent", () => {
         properties: { code: { type: "string", description: "Input your code here" } },
       });
       expect(getField("code")?.type).toBe("codearea");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Loop-variable references ($name) for an operator inside a control block
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("loop-variable references inside a control block", () => {
+    // The body is an operator backed by a Scala executor, the kind on which the backend binds a reference.
+    const body = mockScalaExecutorPredicate;
+    const control = (value: unknown) => ({ value }) as AbstractControl;
+
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function openBody(): void {
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, body.operatorID, true),
+      });
+      fixture.detectChanges();
+    }
+
+    /** Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. */
+    function addBlockAroundBody(closed = true): void {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      if (closed) {
+        workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      }
+    }
+
+    it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
+      addBlockAroundBody();
+      openBody();
+
+      for (const key of ["limit", "fraction", "prefix", "caseSensitive"]) {
+        const field = getField(key);
+        expect(field?.type, key).toBe("loopvariableinput");
+        expect(field?.props?.["loopVariableOptions"], key).toEqual(["$K"]);
+        expect(field?.validators?.["type"].expression(control("$K"), field), key).toBe(true);
+        expect(field?.validators?.["loopVariableReference"].expression(control("$foo"), field), key).toBe(false);
+      }
+      // typed text is stored as the field's primitive; a reference stays the literal string
+      expect(getField("limit")?.parsers?.[0]("7")).toBe(7);
+      expect(getField("limit")?.parsers?.[0]("$K")).toBe("$K");
+      expect(getField("fraction")?.parsers?.[0]("0.5")).toBe(0.5);
+      expect(getField("caseSensitive")?.parsers?.[0]("true")).toBe(true);
+      // a plain wrong value is still a type error
+      expect(getField("limit")?.validators?.["type"].expression(control("abc"), getField("limit"))).toBe(false);
+      expect(getField("caseSensitive")?.validators?.["type"].expression(control("maybe"))).toBe(false);
+    });
+
+    it("keeps a custom widget, an enum and an array on their own controls inside a block", () => {
+      addBlockAroundBody();
+      openBody();
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("fileName")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("order")?.type).toBe("enum");
+      expect(getField("order")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("columns")?.type).toBe("array");
+      expect(getField("columns")?.validators?.["loopVariableReference"]).toBeUndefined();
+    });
+
+    it("keeps today's controls and validators for an operator outside every block", () => {
+      workflowActionService.addOperator(body, mockPoint);
+      openBody();
+
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("fraction")?.type).toBe("number");
+      expect(getField("prefix")?.type).toBe("string");
+      expect(getField("caseSensitive")?.type).toBe("boolean");
+      expect(getField("limit")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
+    });
+
+    it("rebuilds the open form when a link or the Loop Start's variables change its scope", () => {
+      addBlockAroundBody(false);
+      openBody();
+      expect(getField("limit")?.type).toBe("integer");
+
+      // closing the block puts the open operator inside it
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // renaming the variable changes what the field offers
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[N]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
+
+      // an edit that leaves the scope as it is does not rebuild the form
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[0]",
+      });
+      expect(rerender).not.toHaveBeenCalled();
+
+      // opening the block again takes the operator out of it
+      workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(rerender).toHaveBeenCalledTimes(1);
+      expect(getField("limit")?.type).toBe("integer");
+    });
+
+    describe("a field with value rules", () => {
+      // the body given a sklearn trainer's hyperparameter rows, whose value's rules follow the parameter
+      const valueRules: ValueRuleSet = {
+        allOf: [
+          { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", exclusiveMinimum: 0 } },
+          { if: { parameter: { valEnum: ["kernel"] } }, then: { enum: ["rbf", "linear"] } },
+        ],
+      };
+      const trainerSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            paraList: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  parameter: { type: "string", enum: ["C", "kernel"] },
+                  value: { type: "string", valueRules },
+                },
+              },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      /** Opens the body with the trainer's schema (or the one given); every other operator keeps its own. */
+      function openBodyAsTrainer(schema = trainerSchema): void {
+        const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+        const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
+        vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
+          operatorID === body.operatorID ? schema : ownSchema(operatorID)
+        );
+        openBody();
+      }
+
+      /** A field of a hyperparameter row, which formly builds only when asked for a row. */
+      function rowField(key: string): FormlyFieldConfig | undefined {
+        const arrayField = getField("paraList")!;
+        const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+        return row.fieldGroup?.find(f => f.key === key);
+      }
+
+      /** The field as formly hands it to a validator in a row whose parameter is the one given. */
+      const inRow = (field: FormlyFieldConfig | undefined, parameter: string) =>
+        ({ ...field, parent: { model: { parameter } } }) as FormlyFieldConfig;
+
+      it("takes a $reference inside a block and still holds every other value to the rules", () => {
+        addBlockAroundBody();
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("loopvariableinput");
+        expect(value?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(value?.props?.["valueRules"]).toEqual(valueRules);
+        for (const name of ["type", "valueRules", "loopVariableReference"]) {
+          expect(value?.validators?.[name].expression(control("$K"), inRow(value, "C")), name).toBe(true);
+        }
+        expect(value?.validators?.["loopVariableReference"].expression(control("$foo"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("-1"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+        expect(value?.validators?.["valueRules"].expression(control("poly"), inRow(value, "kernel"))).toBe(false);
+        // the row's parameter, chosen from a set, keeps its dropdown
+        expect(rowField("parameter")?.type).toBe("enum");
+      });
+
+      it("leaves a field with value rules and a schema enum, or a custom widget, on its own control inside a block", () => {
+        const withOwnControls = {
+          ...trainerSchema,
+          jsonSchema: {
+            ...trainerSchema.jsonSchema,
+            properties: {
+              ...trainerSchema.jsonSchema.properties,
+              paraList: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    parameter: { type: "string", enum: ["C", "kernel"] },
+                    value: { type: "string", enum: ["rbf", "linear"], valueRules },
+                    fileName: { type: "string", valueRules },
+                  },
+                },
+              },
+            },
+          } as CustomJSONSchema7,
+        };
+        addBlockAroundBody();
+        openBodyAsTrainer(withOwnControls);
+
+        expect(rowField("value")?.type).toBe("constrainedvalue");
+        expect(rowField("value")?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(rowField("fileName")?.type).toBe("inputautocomplete");
+        expect(rowField("fileName")?.props?.["loopVariableOptions"]).toBeUndefined();
+      });
+
+      it("keeps the rules' own control and validator outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("constrainedvalue");
+        expect(value?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(value?.validators?.["loopVariableReference"]).toBeUndefined();
+        expect(value?.validators?.["valueRules"].expression(control("$K"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+      });
     });
   });
 
