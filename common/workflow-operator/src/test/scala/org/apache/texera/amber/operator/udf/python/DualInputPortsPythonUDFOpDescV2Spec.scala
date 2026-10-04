@@ -26,6 +26,7 @@ import org.apache.texera.amber.core.workflow.{PortIdentity, UnknownPartition}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -208,5 +209,48 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     r.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
     r.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
     r.uiParameters.map(_.value) shouldBe List("7")
+  }
+
+  private def defaultCode: String =
+    classOf[DualInputPortsPythonUDFOpDescV2]
+      .getDeclaredField("code")
+      .getAnnotation(classOf[JsonProperty])
+      .defaultValue()
+
+  private def activeLines(code: String): List[String] =
+    code.linesIterator.map(_.trim).filterNot(l => l.isEmpty || l.startsWith("#")).toList
+
+  // Uncomment the template lines from `# class <name>` up to the next commented class.
+  private def uncommentClass(code: String, className: String): String = {
+    var inBlock = false
+    code.linesIterator
+      .map { line =>
+        if (line.startsWith("# class ")) inBlock = line.startsWith(s"# class $className")
+        if (inBlock && line.startsWith("#")) line.stripPrefix("#").stripPrefix(" ") else line
+      }
+      .mkString("\n")
+  }
+
+  "DualInputPortsPythonUDFOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
+    activeLines(defaultCode) shouldBe List("from pytexera import *")
+    defaultCode should include("Keep exactly ONE class")
+    defaultCode should include("never `return`")
+    defaultCode should include("super().__init__()")
+    defaultCode should include("UDFOperatorV2 -> process_tuple")
+    defaultCode should include("UDFBatchOperator -> process_batch")
+    defaultCode should include("UDFTableOperator -> process_table")
+    defaultCode should include("Port 0 (model) is read completely before port 1 (tuples)")
+    defaultCode should include("UiParameter")
+  }
+
+  it should "leave exactly one active class after uncommenting any one template class" in {
+    for (
+      className <- List("ProcessTupleOperator", "ProcessBatchOperator", "ProcessTableOperator")
+    ) {
+      val active = activeLines(uncommentClass(defaultCode, className))
+      active.head shouldBe "from pytexera import *"
+      active.count(_.startsWith("class ")) shouldBe 1
+      active.exists(_.startsWith(s"class $className(")) shouldBe true
+    }
   }
 }
