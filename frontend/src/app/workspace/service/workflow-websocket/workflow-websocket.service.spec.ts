@@ -283,6 +283,155 @@ describe("WorkflowWebsocketService", () => {
       }
     }));
 
+    /** A frame from the server, which is what marks the connection up. */
+    const serverSends = (socket: FakeWebSocket) =>
+      socket.onmessage?.(
+        new MessageEvent("message", { data: JSON.stringify({ type: "WorkflowStateEvent", state: "RUNNING" }) })
+      );
+
+    /** A server-side close frame as the browser reports it: already CLOSED, wasClean true. */
+    const serverCloses = (socket: FakeWebSocket, code: number) => {
+      socket.readyState = FakeWebSocket.CLOSED;
+      socket.onclose?.(new CloseEvent("close", { wasClean: true, code, reason: "" }));
+    };
+
+    /** Clean-close scenario shared by the per-close-code tests below; runs inside the caller's fakeAsync zone. */
+    const expectCleanCloseRedials = (code: number) => {
+      const statuses: boolean[] = [];
+      const statusSubscription = service.getConnectionStatusStream().subscribe(value => statuses.push(value));
+
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+        serverSends(openedSockets[0]);
+        expect(statuses).toEqual([false, true]);
+
+        serverCloses(openedSockets[0], code);
+
+        expect(statuses).toEqual([false, true, false]);
+        expect(service.isConnected).toBe(false);
+
+        tick(WS_RECONNECT_INTERVAL_MS - 1);
+        expect(openedSockets.length).toBe(1);
+        tick(1);
+        flushMicrotasks();
+        expect(openedSockets.length).toBe(2);
+      } finally {
+        statusSubscription.unsubscribe();
+        service.closeWebsocket();
+      }
+    };
+
+    // fakeAsync bodies cannot be wrapped by it.each (no ProxyZone), so one it per close code.
+    it("a clean server-side close reports the drop and redials after WS_RECONNECT_INTERVAL_MS (code 1000)", fakeAsync(() =>
+      expectCleanCloseRedials(1000)));
+    it("a clean server-side close reports the drop and redials after WS_RECONNECT_INTERVAL_MS (code 1001)", fakeAsync(() =>
+      expectCleanCloseRedials(1001)));
+    it("a clean server-side close reports the drop and redials after WS_RECONNECT_INTERVAL_MS (code 1005)", fakeAsync(() =>
+      expectCleanCloseRedials(1005)));
+    it("a clean server-side close reports the drop and redials after WS_RECONNECT_INTERVAL_MS (code 1012)", fakeAsync(() =>
+      expectCleanCloseRedials(1012)));
+
+    it("closeWebsocket() does not redial", fakeAsync(() => {
+      service.openWebsocket(1, 1, 1);
+      flushMicrotasks();
+
+      service.closeWebsocket();
+      tick(WS_RECONNECT_INTERVAL_MS * 5);
+      flushMicrotasks();
+
+      expect(openedSockets.length).toBe(1);
+      expect(openedSockets[0].readyState).toBe(FakeWebSocket.CLOSED);
+    }));
+
+    it("redials after each of two consecutive clean server-side closes", fakeAsync(() => {
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+        serverSends(openedSockets[0]);
+        expect(service.isConnected).toBe(true);
+
+        serverCloses(openedSockets[0], 1001);
+        expect(service.isConnected).toBe(false);
+        tick(WS_RECONNECT_INTERVAL_MS);
+        flushMicrotasks();
+        expect(openedSockets.length).toBe(2);
+
+        serverSends(openedSockets[1]);
+        expect(service.isConnected).toBe(true);
+
+        // The redialed chain has to carry the same completion handling as the first dial.
+        serverCloses(openedSockets[1], 1001);
+        expect(service.isConnected).toBe(false);
+        tick(WS_RECONNECT_INTERVAL_MS);
+        flushMicrotasks();
+        expect(openedSockets.length).toBe(3);
+      } finally {
+        service.closeWebsocket();
+      }
+    }));
+
+    it("re-opening during the reconnect gap cancels the pending redial", fakeAsync(() => {
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+        serverCloses(openedSockets[0], 1001);
+        tick(1000);
+
+        service.openWebsocket(1, 1, 2);
+        flushMicrotasks();
+        tick(5000);
+        flushMicrotasks();
+
+        // Only the explicit re-open dials; the cancelled redial never opens a cuid=1 socket.
+        expect(openedSockets.length).toBe(2);
+        expect(openedSockets[1].url).toContain("cuid=2");
+      } finally {
+        service.closeWebsocket();
+      }
+    }));
+
+    it("a clean close before any message still redials", fakeAsync(() => {
+      const statuses: boolean[] = [];
+      const statusSubscription = service.getConnectionStatusStream().subscribe(value => statuses.push(value));
+
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+        serverCloses(openedSockets[0], 1008);
+
+        // The connection was never up, so no duplicate false is published.
+        expect(statuses).toEqual([false]);
+        expect(service.isConnected).toBe(false);
+
+        tick(WS_RECONNECT_INTERVAL_MS);
+        flushMicrotasks();
+        expect(openedSockets.length).toBe(2);
+      } finally {
+        statusSubscription.unsubscribe();
+        service.closeWebsocket();
+      }
+    }));
+
+    it("a request sent during the reconnect gap is delivered once the socket redials", fakeAsync(() => {
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+        serverSends(openedSockets[0]);
+        serverCloses(openedSockets[0], 1001);
+
+        service.send("RetryRequest", { workers: ["worker-a"] });
+
+        tick(WS_RECONNECT_INTERVAL_MS);
+        flushMicrotasks(); // the redialed fake socket reaches OPEN on a microtask
+
+        expect(openedSockets.length).toBe(2);
+        expect(openedSockets[1].sent).toContain(JSON.stringify({ type: "RetryRequest", workers: ["worker-a"] }));
+      } finally {
+        service.closeWebsocket();
+      }
+    }));
+
     it("merges the request payload into the frame it puts on the wire", async () => {
       service.openWebsocket(1, 1, 1);
       await Promise.resolve(); // the fake socket reaches OPEN on a microtask

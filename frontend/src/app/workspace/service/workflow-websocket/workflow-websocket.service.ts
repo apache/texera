@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, interval, Observable, Subject, Subscription, timer } from "rxjs";
+import { BehaviorSubject, concatWith, interval, Observable, Subject, Subscription, throwError, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
   TexeraWebsocketEvent,
@@ -117,6 +117,9 @@ export class WorkflowWebsocketService {
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
+      // A server-side close with a close frame completes the socket instead of erroring;
+      // turn the completion into an error so the retry below reports the drop and redials.
+      concatWith(throwError(() => new Error("websocket closed by the server"))),
       retryWhen(errors =>
         errors.pipe(
           tap(_ => this.updateConnectionStatus(false)), // update connection status
