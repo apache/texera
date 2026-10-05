@@ -56,10 +56,12 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
   }
 
-  it should "open" in {
+  it should "prepare the dictionary at the first tuple, not at open()" in {
     opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    assert(opExec.dictionaryEntries != null)
+    assert(opExec.dictionaryEntries == null)
+    opExec.processTuple(tuple, 0).next()
+    assert(opExec.dictionaryEntries == List(dictionaryScan))
   }
 
   /**
@@ -319,6 +321,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
+    opExec.processTuple(tuple, 0).next()
     assert(opExec.tokenizedDictionaryEntries.nonEmpty)
     opExec.close()
     // Asserts emptiness only, never null: close() nulls the other two fields but
