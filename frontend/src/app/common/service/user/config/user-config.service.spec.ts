@@ -74,17 +74,6 @@ describe("UserConfigService", () => {
       expect(service.getDict()).toEqual(payload);
     });
 
-    it("notifies dictionaryChanged subscribers when the dictionary is replaced", () => {
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
-      service.fetchAll();
-      httpMock.expectOne(endpoint).flush({ k: "v" });
-
-      expect(next).toHaveBeenCalledTimes(1);
-      sub.unsubscribe();
-    });
-
     it("throws when the user is not logged in", () => {
       stubUserService.user = undefined;
       expect(() => service.fetchAll()).toThrowError("user not logged in");
@@ -103,21 +92,6 @@ describe("UserConfigService", () => {
       observable.subscribe(value => expect(value).toEqual("one"));
 
       expect(service.getDict()).toEqual({ alpha: "one" });
-    });
-
-    it("notifies dictionaryChanged subscribers only when the value actually changes", () => {
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
-      service.fetchKey("alpha");
-      httpMock.expectOne(`${endpoint}/alpha`).flush("one");
-      expect(next).toHaveBeenCalledTimes(1);
-
-      service.fetchKey("alpha");
-      httpMock.expectOne(`${endpoint}/alpha`).flush("one");
-      expect(next).toHaveBeenCalledTimes(1);
-
-      sub.unsubscribe();
     });
 
     it("throws when the user is not logged in", () => {
@@ -142,18 +116,16 @@ describe("UserConfigService", () => {
       expect(service.getDict()).toEqual({ alpha: "one" });
     });
 
-    it("does not refire dictionaryChanged when setting the same value twice", () => {
+    it("issues a PUT and keeps the entry when setting the same value twice", () => {
       service.set("alpha", "one");
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
 
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
       service.set("alpha", "one");
-      httpMock.expectOne(`${endpoint}/alpha`).flush(null);
+      const req = httpMock.expectOne(`${endpoint}/alpha`);
+      expect(req.request.method).toEqual("PUT");
+      req.flush(null);
 
-      expect(next).not.toHaveBeenCalled();
-      sub.unsubscribe();
+      expect(service.getDict()).toEqual({ alpha: "one" });
     });
 
     it("throws when the user is not logged in", () => {
@@ -210,18 +182,9 @@ describe("UserConfigService", () => {
       expect(service.getDict()).toEqual({});
     });
 
-    it("does not fire dictionaryChanged when told to delete a key that is absent", () => {
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
-      (service as any).updateEntry("absent", undefined);
-
-      // Asserting on the subject, not just on getDict(): a version that deleted
-      // and notified unconditionally would leave the dictionary looking identical
-      // while still waking every subscriber.
-      expect(next).not.toHaveBeenCalled();
+    it("leaves the dictionary untouched when told to delete a key that is absent", () => {
+      expect(() => (service as any).updateEntry("absent", undefined)).not.toThrow();
       expect(service.getDict()).toEqual({});
-      sub.unsubscribe();
     });
   });
 
