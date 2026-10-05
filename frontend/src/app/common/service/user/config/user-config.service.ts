@@ -19,7 +19,7 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, of, Subject } from "rxjs";
+import { Observable, of } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
 import { UserService } from "../user.service";
 import { shareReplay, tap } from "rxjs/operators";
@@ -34,7 +34,6 @@ export type UserConfig = {
 export class UserConfigService {
   public static readonly USER_DICTIONARY_ENDPOINT = "user/config";
 
-  private dictionaryChangedSubject = new Subject<void>();
   private localUserDictionary: UserConfig = {};
 
   constructor(
@@ -154,18 +153,15 @@ export class UserConfigService {
     if (value === undefined) {
       if (key in this.localUserDictionary) {
         delete this.localUserDictionary[key];
-        this.dictionaryChangedSubject.next();
       }
     } else {
       if (this.localUserDictionary[key] !== value) {
         this.localUserDictionary[key] = value;
-        this.dictionaryChangedSubject.next();
       }
     }
   }
 
   private updateDict(newDict: UserConfig) {
     this.localUserDictionary = newDict;
-    this.dictionaryChangedSubject.next();
   }
 }

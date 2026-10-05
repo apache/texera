@@ -31,6 +31,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -46,7 +47,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -194,13 +195,9 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     if (hasHeader)
       reader.readNext()
 
-    // A window of no rows is still a window on this file, and the file's columns
-    // do not depend on how many of its rows were asked for. Reading the sample
-    // through the limit left a Limit of 0 nothing to infer from, and the types
-    // came back empty while the header below still asked each column for one.
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
+        .take(inferSampleSize)
         .map(seq => seq.toArray)
     )
 

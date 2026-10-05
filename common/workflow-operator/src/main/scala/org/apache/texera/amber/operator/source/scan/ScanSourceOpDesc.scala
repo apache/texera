@@ -80,6 +80,18 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonIgnore
   def windowLimit: Option[Int] = limit.map(_.max(0))
 
+  /** Rows actually used for type inference: INFER_READ_LIMIT, capped by `windowLimit`
+    * when smaller.
+    *
+    * A window of no rows is still a window on this file, and the file's columns do
+    * not depend on how many of its rows were asked for, so a Limit of 0 samples as
+    * if no limit were set. Capping by it left nothing to infer from, and the
+    * operator declared a schema of no columns at all.
+    */
+  @JsonIgnore
+  def inferSampleSize: Int =
+    windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+
   override def sourceSchema(): Schema = null
 
   override def operatorInfo: OperatorInfo = {

@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -44,7 +45,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
-  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")
@@ -182,25 +183,19 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
     val header = if (hasHeader) 1 else 0
-    // A window of no rows is still a window on this file, and the file's columns
-    // do not depend on how many of its rows were asked for. Reading the sample
-    // through the limit left a Limit of 0 nothing to infer from, and the types
-    // came back empty while the header below still asked each column for one.
     // The header and the offset are dropped one after the other, as the executor
     // drops them, since their sum is past what an Int holds at the largest offset.
-    val sampleSize = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val windowRows = reader.iterator
       .drop(header)
       .drop(windowOffset)
-      .take(sampleSize)
+      .take(inferSampleSize)
       .map(_.toArray[Any])
       .toSeq
     reader.close()
-    // The same holds for an offset past the last row: the window is empty, and
-    // the types came back empty too, so the header below asked a column for a
-    // type that was never there and the operator threw. The sample is then taken
-    // from the first row, and a file holding no row at all types every column
-    // as text.
+    // An offset past the last row leaves the window empty, and the types came
+    // back empty too, so the header below asked a column for a type that was
+    // never there and the operator threw. The sample is then taken from the
+    // first row, and a file holding no row at all types every column as text.
     val sampleRows =
       if (windowRows.nonEmpty) windowRows
       else {

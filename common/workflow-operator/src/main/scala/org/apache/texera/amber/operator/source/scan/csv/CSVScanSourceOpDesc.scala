@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -43,14 +44,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
 
   // One character: every reader narrows this with charAt(0), because univocity's
   // setDelimiter and scala-csv's DefaultCSVFormat both take a Char.
-  //
-  // `examples` names a delimiter the fixture's rows do not contain, so the
-  // verification config generator does not pick one that parses them ragged.
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """{ "maxLength": 1, "examples": [","] }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -122,11 +120,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     parser.beginParsing(inputReader)
 
     var data: Array[Array[String]] = Array()
-    // A window of no rows is still a window on this file, and the file's columns
-    // do not depend on how many of its rows were asked for. Reading the sample
-    // through the limit left a Limit of 0 nothing to infer from, and the operator
-    // declared a schema of no columns at all.
-    val readLimit = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val readLimit = inferSampleSize
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {
