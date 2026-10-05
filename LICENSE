@@ -254,6 +254,26 @@ This product includes SVG icons from SVGRepo:
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
 
+BSD 2-Clause License
+--------------------------------------
+
+This product bundles the Yarn package manager release used by the frontend
+build:
+  - frontend/.yarn/releases/yarn-4.14.1.cjs
+  Copyright (c) 2016-present, Yarn Contributors
+  Source: https://github.com/yarnpkg/berry
+  License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
+
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+--------------------------------------
+
+This product bundles the Iris example dataset:
+  - bin/single-node/examples/datasets/iris-species/Iris.csv
+  Creator: R. A. Fisher (1936)
+  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
+  DOI: 10.24432/C56C76
+  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
+
 Trademarks
 --------------------------------------
 
