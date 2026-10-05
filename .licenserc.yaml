@@ -39,6 +39,7 @@ header:
     - '**/bun.lock'
     # Third-party code with MIT license - see LICENSE file for attribution
     - 'common/workflow-operator/src/main/scala/com/kjetland/**'
+    - 'amber/src/main/python/core/util/customized_queue/inner.py'
     # TypeFox monaco-languageclient derived files (MIT License)
     - 'pyright-language-service/src/main.ts'
     - 'pyright-language-service/src/language-server-runner.ts'
