@@ -19,20 +19,45 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
+import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.storage.VFSURIFactory
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
+  GlobalPortIdentity,
+  HashPartition,
+  InputPort,
+  OutputPort,
+  PartitionInfo,
+  PhysicalLink,
+  PhysicalOp,
   PhysicalPlan,
   PortIdentity,
   WorkflowContext,
   WorkflowSettings
 }
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
+  OutputPortConfig
+}
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
+  HashBasedShufflePartitioning,
+  RoundRobinPartitioning
+}
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.union.UnionOpDesc
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URI
 import scala.jdk.CollectionConverters._
 
 class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
@@ -677,4 +702,219 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
   }
 
+  // ---------------------------------------------------------------------------
+  // Input ports that read saved results
+  // ---------------------------------------------------------------------------
+
+  private def csvKeywordWorkflow(context: WorkflowContext) = {
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    buildWorkflow(
+      List(csv, keyword),
+      List(
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(0),
+          keyword.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      context
+    )
+  }
+
+  "CostBasedScheduleGenerator" should "add the reader URIs of cache read inputs to the input port configs" in {
+    val context = new WorkflowContext(WorkflowIdentity(3L), ExecutionIdentity(2L))
+    val workflow = csvKeywordWorkflow(context)
+    val plan = workflow.physicalPlan
+    val link = plan.links.head
+    val keywordOp = plan.getOperator(link.toOpId)
+    // the part of the plan that runs when the csv operator is skipped: the keyword operator
+    // alone. Its upstream link leaves the plan, while its own link list still names it.
+    val retainedPart = plan.getSubPlan(Set(keywordOp.id))
+    assert(retainedPart.links.isEmpty)
+    assert(retainedPart.getOperator(keywordOp.id).getInputLinks() == List(link))
+    val inputPort = GlobalPortIdentity(keywordOp.id, PortIdentity(0), input = true)
+    val readerUri = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(3L),
+      ExecutionIdentity(1L),
+      GlobalPortIdentity(link.fromOpId, link.fromPortId)
+    )
+
+    val (withCacheRead, _) = new CostBasedScheduleGenerator(
+      context,
+      retainedPart,
+      COORDINATOR,
+      CacheReadInputs(Map(inputPort -> List(readerUri)))
+    ).generate()
+    val regions = withCacheRead.getRegions
+    assert(regions.size == 1)
+    regions.head.resourceConfig.get.portConfigs(inputPort) match {
+      case InputPortConfig(pairs) => assert(pairs.map(_._1) == List(readerUri))
+      case other                  => fail(s"expected a reader for the saved result, got $other")
+    }
+    // the operator reads from storage, so it starts first, as after a materialized link
+    assert(regions.head.getStarterOperators.map(_.id) == Set(keywordOp.id))
+
+    val (withoutCacheRead, _) =
+      new CostBasedScheduleGenerator(context, retainedPart, COORDINATOR).generate()
+    assert(!withoutCacheRead.getRegions.head.resourceConfig.get.portConfigs.contains(inputPort))
+  }
+
+  /**
+    * Two csv scans into the one input port of a union, with the first scan skipped: the part
+    * of the plan that runs is the second scan and the union, and the union's input port reads
+    * the first scan's saved result besides the second scan's link. The union's own link list
+    * still names the first scan's link. Returns the schedule the generator makes for that part
+    * in `executionMode`, the second scan, the union's input port and the saved result's
+    * location.
+    */
+  private def scheduleUnionReadingOneInputFromCache(executionMode: ExecutionMode) = {
+    val context = new WorkflowContext(
+      WorkflowIdentity(3L),
+      ExecutionIdentity(2L),
+      WorkflowSettings(executionMode = executionMode)
+    )
+    val csv1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val csv2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val union = new UnionOpDesc()
+    val workflow = buildWorkflow(
+      List(csv1, csv2, union),
+      List(csv1, csv2).map(csv =>
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(0),
+          union.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      context
+    )
+    val plan = workflow.physicalPlan
+    def idOf(op: LogicalOp) = plan.getPhysicalOpsOfLogicalOp(op.operatorIdentifier).head.id
+    val skippedLink = plan.links.find(_.fromOpId == idOf(csv1)).get
+    val retainedPart = plan.getSubPlan(Set(idOf(csv2), idOf(union)))
+    val unionInput = GlobalPortIdentity(idOf(union), PortIdentity(0), input = true)
+    val savedUri = VFSURIFactory.createPortBaseURI(
+      WorkflowIdentity(3L),
+      ExecutionIdentity(1L),
+      GlobalPortIdentity(skippedLink.fromOpId, skippedLink.fromPortId)
+    )
+    val (schedule, _) = new CostBasedScheduleGenerator(
+      context,
+      retainedPart,
+      COORDINATOR,
+      CacheReadInputs(Map(unionInput -> List(savedUri)))
+    ).generate()
+    (schedule, idOf(csv2), unionInput, savedUri)
+  }
+
+  it should "give an input port both the location of a materialized link and a saved result" in {
+    // In materialized mode the second scan writes its output in an earlier region, and the
+    // union's input port reads that output as well as the first scan's saved result.
+    val (schedule, csv2, unionInput, savedUri) =
+      scheduleUnionReadingOneInputFromCache(ExecutionMode.MATERIALIZED)
+    val regionOf = schedule.levelSets.toList.flatMap {
+      case (level, regions) => regions.map(region => region -> level)
+    }
+    val (csv2Region, csv2Level) = regionOf.find(_._1.getOperators.exists(_.id == csv2)).get
+    val (unionRegion, unionLevel) =
+      regionOf.find(_._1.getOperators.exists(_.id == unionInput.opId)).get
+    assert(csv2Level < unionLevel)
+    val csv2OutputUri =
+      csv2Region.resourceConfig.get.portConfigs(GlobalPortIdentity(csv2, PortIdentity(0))) match {
+        case config: OutputPortConfig => config.storageURIBase
+        case other                    => fail(s"expected an output URI for the scan, got $other")
+      }
+    unionRegion.resourceConfig.get.portConfigs(unionInput) match {
+      case InputPortConfig(pairs) =>
+        assert(pairs.size == 2)
+        assert(pairs.map(_._1).toSet == Set(csv2OutputUri, savedUri))
+      case other => fail(s"expected a reader for both locations, got $other")
+    }
+  }
+
+  it should "give an input port with a pipelined link only the location of the saved result" in {
+    // In pipelined mode the second scan and the union share a region and the scan's rows reach
+    // the union over the link, so the union's input port reads only the saved result.
+    val (schedule, csv2, unionInput, savedUri) =
+      scheduleUnionReadingOneInputFromCache(ExecutionMode.PIPELINED)
+    val regions = schedule.getRegions
+    assert(regions.size == 1)
+    val region = regions.head
+    assert(region.getOperators.map(_.id) == Set(csv2, unionInput.opId))
+    assert(
+      region.getLinks.map(link => (link.fromOpId, link.toOpId)) == Set((csv2, unionInput.opId))
+    )
+    region.resourceConfig.get.portConfigs(unionInput) match {
+      case InputPortConfig(pairs) => assert(pairs.map(_._1) == List(savedUri))
+      case other                  => fail(s"expected a reader for the saved result, got $other")
+    }
+  }
+
+  it should "put the context's warehouse on every new output URI" in {
+    val context =
+      new WorkflowContext(WorkflowIdentity(3L), ExecutionIdentity(2L), warehouse = Some("wh1"))
+    val workflow = csvKeywordWorkflow(context)
+    val (schedule, _) =
+      new CostBasedScheduleGenerator(context, workflow.physicalPlan, COORDINATOR).generate()
+    val outputUris = schedule.getRegions.flatMap(_.resourceConfig.get.portConfigs.values).collect {
+      case config: OutputPortConfig => config.storageURIBase.toString
+    }
+    assert(outputUris.nonEmpty)
+    assert(outputUris.forall(_.contains("/wh/wh1/")))
+  }
+
+  /**
+    * y requires a hash partition on its input and reads it from a saved result: x and the
+    * x -> y link are not in the plan, though y's own link list still names x -> y. The link from
+    * y to z must be partitioned as behind a materialized link, as the allocator does when the
+    * generator tells it which operators read saved results.
+    */
+  it should "partition the output of an operator that reads a saved result as behind a materialized link" in {
+    val context = new WorkflowContext(WorkflowIdentity(3L), ExecutionIdentity(2L))
+    def id(name: String) = PhysicalOpIdentity(OperatorIdentity(name), "main")
+    def parallelOp(name: String, requirement: Option[PartitionInfo]): PhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(id(name), context.workflowId, context.executionId, OpExecInitInfo.Empty)
+        .withInputPorts(List(InputPort(PortIdentity(0))))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))))
+        .withParallelizable(true)
+        .withSuggestedWorkerNum(2)
+        .withPartitionRequirement(List(requirement))
+    val xy = PhysicalLink(id("x"), PortIdentity(0), id("y"), PortIdentity(0))
+    val yz = PhysicalLink(id("y"), PortIdentity(0), id("z"), PortIdentity(0))
+    val y = parallelOp("y", Some(HashPartition(List("k")))).addInputLink(xy).addOutputLink(yz)
+    val z = parallelOp("z", None).addInputLink(yz)
+    val retainedPart = PhysicalPlan(Set(y, z), Set(yz))
+    val yInput = GlobalPortIdentity(id("y"), PortIdentity(0), input = true)
+    val savedLocation = VFSURIFactory.createPortBaseURI(
+      context.workflowId,
+      ExecutionIdentity(1L),
+      GlobalPortIdentity(id("x"), PortIdentity(0))
+    )
+    def partitioningOfYZ(cacheReadInputs: CacheReadInputs) =
+      new CostBasedScheduleGenerator(context, retainedPart, COORDINATOR, cacheReadInputs)
+        .generate()
+        ._1
+        .getRegions
+        .flatMap(_.resourceConfig.get.linkConfigs.get(yz))
+        .map(_.partitioning.getClass)
+
+    assert(
+      partitioningOfYZ(CacheReadInputs(Map(yInput -> List(savedLocation)))) ==
+        List(classOf[RoundRobinPartitioning])
+    )
+    // Told nothing, the generator plans y as a source: its output claims its input's hash
+    // partitioning, and z gets a hash shuffle it never gets when the whole plan runs.
+    assert(partitioningOfYZ(CacheReadInputs()) == List(classOf[HashBasedShufflePartitioning]))
+  }
+
+  "CacheReadInputs" should "refuse reader URIs keyed by an output port" in {
+    val outputPort =
+      GlobalPortIdentity(PhysicalOpIdentity(OperatorIdentity("x"), "main"), PortIdentity(0))
+    assertThrows[IllegalArgumentException](
+      CacheReadInputs(Map(outputPort -> List(new URI("vfs:///x"))))
+    )
+  }
 }
