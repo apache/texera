@@ -18,7 +18,7 @@
  */
 
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, interval, Observable, of, Subject, Subscription } from "rxjs";
+import { BehaviorSubject, EMPTY, interval, Observable, of, Subject, Subscription } from "rxjs";
 import { catchError, distinctUntilChanged, filter, map, switchMap, take, tap } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -95,7 +95,8 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll = interval(this.REFRESH_INTERVAL_MS)
       .pipe(
         // each tick → get fresh data for *this* cuid
-        switchMap(() => this.computingUnitService.getComputingUnit(cuid)),
+        // A failed fetch ends only that request, not the polling stream.
+        switchMap(() => this.computingUnitService.getComputingUnit(cuid).pipe(catchError(() => EMPTY))),
         untilDestroyed(this)
       )
       .subscribe(unit => {
@@ -145,7 +146,8 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.refreshSubscription = this.refreshComputingUnitListSignal
       .pipe(
-        switchMap(() => this.computingUnitService.listComputingUnits()),
+        // A failed fetch ends only that request, not the refresh stream.
+        switchMap(() => this.computingUnitService.listComputingUnits().pipe(catchError(() => EMPTY))),
         untilDestroyed(this)
       )
       .subscribe(units => {
