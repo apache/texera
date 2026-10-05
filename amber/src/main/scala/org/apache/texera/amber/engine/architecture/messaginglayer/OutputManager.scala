@@ -149,6 +149,26 @@ class OutputManager(
   }
 
   /**
+    * Point this link's least-loaded sender at a different receiver.
+    *
+    * Deliberately not routed through addPartitionerWithPartitioning: that
+    * rebuilds the partitioner and replaces every NetworkOutputBuffer for the
+    * link, discarding whatever those buffers were holding. A preference moves
+    * on every statistics poll, so it has to be a field update on the existing
+    * partitioner, not a reconfiguration.
+    *
+    * Silently ignores a link with no partitioner or a partitioner of another
+    * kind: the coordinator sends these on a timer and a link can be torn down
+    * between the poll and its delivery.
+    */
+  def updateRoutingPreference(link: PhysicalLink, receiverIndex: Int): Unit = {
+    partitioners.get(link).foreach {
+      case p: LeastLoadedPartitioner => p.setPreferredReceiverIndex(receiverIndex)
+      case _                         => // not a steerable link
+    }
+  }
+
+  /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     *

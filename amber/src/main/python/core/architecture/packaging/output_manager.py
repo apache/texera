@@ -301,6 +301,23 @@ class OutputManager:
             else partitioner(the_partitioning)
         )
 
+    def update_routing_preference(self, tag: PhysicalLink, receiver_index: int) -> None:
+        """
+        Point this link's least-loaded sender at a different receiver.
+
+        Deliberately not routed through add_partitioning: that rebuilds the
+        partitioner, discarding the batch it had accumulated so far. A preference
+        changes on every statistics poll, so it has to be a field update on the
+        existing partitioner rather than a reconfiguration.
+
+        Silently ignores a link with no partitioner or one of another kind: these
+        arrive on a timer, and a link can be torn down between the coordinator's
+        poll and this message's delivery.
+        """
+        partitioner = self._partitioners.get(tag)
+        if isinstance(partitioner, LeastLoadedPartitioner):
+            partitioner.set_preferred_receiver_index(receiver_index)
+
     def tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:

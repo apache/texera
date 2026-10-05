@@ -51,4 +51,5 @@ service WorkerService {
   rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatedValue);
   rpc NoOperation(EmptyRequest) returns (EmptyReturn);
   rpc UpdateExecutor(UpdateExecutorRequest) returns (EmptyReturn);
+  rpc UpdateRoutingPreference(UpdateRoutingPreferenceRequest) returns (EmptyReturn);
 }
