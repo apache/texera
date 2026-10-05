@@ -54,3 +54,8 @@ header:
     - 'frontend/src/app/common/type/proto/org/apache/texera/amber/core/workflow.ts'
     - 'frontend/src/app/common/type/proto/google/protobuf/descriptor.ts'
     - 'frontend/src/app/common/type/proto/scalapb/scalapb.ts'
+<<<<<<< HEAD
+=======
+    - 'amber/src/main/python/core/util/customized_queue/inner.py'
+    - 'common/workflow-core/src/main/protobuf/scalapb/scalapb.proto'
+>>>>>>> 1df2c567a (fix(licensing): restore the ScalaPB notice on the vendored scalapb.proto (#8806))
