@@ -24,7 +24,7 @@ import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
-import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NgIf, NgFor } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -53,7 +53,6 @@ import { AgentChatComponent } from "./agent-chat/agent-chat.component";
     CdkDrag,
     NzResizableDirective,
     NzMenuDirective,
-    NgClass,
     NzMenuItemComponent,
     CdkDragHandle,
     NzTabsComponent,

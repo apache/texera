@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -43,7 +44,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -115,7 +116,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     parser.beginParsing(inputReader)
 
     var data: Array[Array[String]] = Array()
-    val readLimit = windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val readLimit = inferSampleSize
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {

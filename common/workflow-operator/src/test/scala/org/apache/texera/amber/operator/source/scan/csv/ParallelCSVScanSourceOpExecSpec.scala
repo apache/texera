@@ -75,12 +75,31 @@ class ParallelCSVScanSourceOpExecSpec extends AnyFlatSpec {
     assert(rows(1)(2) == null)
   }
 
-  it should "discard all-null (blank) lines" in {
+  it should "discard all-null (blank) lines without reporting them as parse failures" in {
     val exec =
       new ParallelCSVScanSourceOpExec(descString(writeCsv("name,city\nAlice,NYC\n\nBob,LA\n")))
     val rows = drain(exec)
     assert(rows.size == 2)
     assert(rows.map(_.head) == Seq("Alice", "Bob"))
+    // A blank line is a legitimate silent skip, not a parse failure to surface.
+    assert(exec.getWarnings.isEmpty)
+  }
+
+  it should "skip a post-inference row that does not parse and report value and column" in {
+    // 100 clean integer rows fix the column type at INTEGER (INFER_READ_LIMIT=100);
+    // the later non-integer row must be skipped but reported. This scan is
+    // byte-partitioned across workers, so no row number is expected in the message.
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val exec = new ParallelCSVScanSourceOpExec(descString(writeCsv(s"a\n$clean\noops\n")))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.startsWith("WARNING: "))
+    assert(warnings.head.contains("'oops'"))
+    assert(warnings.head.contains("column 'a'"))
+    assert(warnings.head.contains("INTEGER"))
   }
 
   it should "partition a headerless file across workers by byte range" in {
