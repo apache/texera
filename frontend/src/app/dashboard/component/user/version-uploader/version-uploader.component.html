@@ -161,11 +161,17 @@
           (keydown.enter)="onClickCreateVersion()"
           class="version-input" />
       </div>
+      <div
+        *ngIf="versionNameHasSlash"
+        class="version-name-error">
+        A version description cannot contain '/'.
+      </div>
       <div>
         <button
           nz-button
           nzType="primary"
           [nzLoading]="isCreatingVersion"
+          [disabled]="versionNameHasSlash"
           (click)="onClickCreateVersion()"
           class="create-version-button">
           Submit

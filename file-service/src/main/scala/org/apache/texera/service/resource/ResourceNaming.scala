@@ -55,6 +55,22 @@ object ResourceNaming {
   }
 
   /**
+    * Rejects a version description containing "/". The version name is a segment of the logical
+    * path /<prefix>/ownerEmail/resourceName/versionName/file, which FileResolver splits on "/", so
+    * none of such a version's files could be opened. A null or empty description is allowed: the
+    * version is then named by its number alone.
+    *
+    * @throws jakarta.ws.rs.BadRequestException if the description contains a "/".
+    */
+  def validateVersionDescription(description: String): Unit =
+    if (description != null && description.contains("/")) {
+      throw new BadRequestException(
+        "Invalid version description: '/' is not allowed because the version name is part of " +
+          "the paths of its files."
+      )
+    }
+
+  /**
     * Validates a file path supplied for a resource's contents.
     *
     * The counterpart to [[validateName]]: the same "reject bad user input with a 400" contract,

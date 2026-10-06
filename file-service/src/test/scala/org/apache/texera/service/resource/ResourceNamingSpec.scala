@@ -23,9 +23,9 @@ import jakarta.ws.rs.BadRequestException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-// Focused unit tests for ResourceNaming.validateAndNormalizeFilePathOrThrow, which guards
-// every upload/lookup path. These call the pure helper directly and avoid the heavy
-// DatasetResourceSpec integration harness (DB + LakeFS).
+// Focused unit tests for ResourceNaming's pure validators: validateAndNormalizeFilePathOrThrow,
+// which guards every upload/lookup path, and validateVersionDescription. These call the helpers
+// directly and avoid the heavy DatasetResourceSpec integration harness (DB + LakeFS).
 class ResourceNamingSpec extends AnyFlatSpec with Matchers {
 
   "validateAndNormalizeFilePathOrThrow" should "reject a null path" in {
@@ -75,5 +75,26 @@ class ResourceNamingSpec extends AnyFlatSpec with Matchers {
     ResourceNaming.validateAndNormalizeFilePathOrThrow(
       "a/./b/../c.csv"
     ) shouldBe "a/c.csv"
+  }
+
+  "validateVersionDescription" should "reject a description containing a slash anywhere" in {
+    Seq("/", "2024/01 snapshot", "/leading", "trailing/", "a//b").foreach { description =>
+      val ex = intercept[BadRequestException] {
+        ResourceNaming.validateVersionDescription(description)
+      }
+      ex.getMessage should include("'/'")
+    }
+  }
+
+  it should "accept a null or empty description, which names the version by its number alone" in {
+    ResourceNaming.validateVersionDescription(null)
+    ResourceNaming.validateVersionDescription("")
+  }
+
+  it should "accept any description without a slash" in {
+    Seq("second upload", "2024-01 snapshot", "a\\b", "naïve 数据 \uD83D\uDE00", " ")
+      .foreach {
+        ResourceNaming.validateVersionDescription
+      }
   }
 }

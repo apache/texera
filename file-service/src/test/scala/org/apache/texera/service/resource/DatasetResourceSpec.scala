@@ -3881,4 +3881,26 @@ class DatasetResourceSpec
       .get
       .getFilePath should startWith("/dataset/")
   }
+
+  "createDatasetVersion" should "reject a description containing a slash without committing" in {
+    val dataset = seedDataset(s"version-slash-${System.nanoTime()}", ownerUser.getUid)
+    LakeFSStorageClient.initRepo(dataset.getRepositoryName)
+    LakeFSStorageClient.writeFileToRepo(
+      dataset.getRepositoryName,
+      "staged.txt",
+      new ByteArrayInputStream("content".getBytes(StandardCharsets.UTF_8))
+    )
+
+    val ex = intercept[WebApplicationException] {
+      datasetResource.createDatasetVersion("2024/01 snapshot", dataset.getDid, sessionUser)
+    }
+    assertStatus(ex, 400)
+
+    // Nothing was committed: the file is still staged and no version row exists, so the retry
+    // with a usable description succeeds as the first version.
+    datasetResource
+      .createDatasetVersion("2024-01 snapshot", dataset.getDid, sessionUser)
+      .datasetVersion
+      .getName shouldBe "v1 - 2024-01 snapshot"
+  }
 }

@@ -1175,6 +1175,25 @@ describe("VersionUploaderComponent", () => {
         expect(createVersionSpy).toHaveBeenCalledWith("second cut");
       });
 
+      it("explains why a name with a slash is refused and keeps Submit from sending it", () => {
+        const el = withPendingChanges();
+        const submit = q<HTMLButtonElement>(el, ".create-version-button");
+
+        const input = typeName(el, "/");
+
+        expect(text(q<HTMLElement>(el, ".version-name-error"))).toBe("A version description cannot contain '/'.");
+        expect(submit.disabled).toBe(true);
+        // Enter submits straight from the field, so it must not get around the disabled button.
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        expect(createVersionSpy).not.toHaveBeenCalled();
+
+        // Fixing the name takes the error away and re-enables Submit.
+        typeName(el, "2024-01 snapshot");
+
+        expect(el.querySelector(".version-name-error")).toBeNull();
+        expect(submit.disabled).toBe(false);
+      });
+
       it("submits the version straight from the name field with Enter", () => {
         const el = withPendingChanges();
 
