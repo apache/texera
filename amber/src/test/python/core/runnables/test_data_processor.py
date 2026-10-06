@@ -349,3 +349,53 @@ class TestUDFOutputMistakes:
         message = str(exc_info.value)
         assert "expected but missing" in message
         assert "Extra output column(s)" in message
+
+
+class _FinishReturningExecutor:
+    """on_finish uses `return` instead of `yield`."""
+
+    def produce_state_on_finish(self, port_id):
+        return None
+
+    def on_finish(self, port_id):
+        return {"x": 1}
+
+
+class TestUDFOutputMistakesFollowUp:
+    def _use_schema(self, context, monkeypatch, raw_schema):
+        schema = Schema(raw_schema=raw_schema)
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+
+    def test_dict_holding_a_dataframe_into_a_binary_column_still_works(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # BINARY columns pickle any value, so this is valid output on main.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        data_processor._set_output_tuple(
+            iter([{"result": pandas.DataFrame({"x": [1]})}])
+        )
+        assert context.tuple_processing_manager.finished_current.is_set()
+
+    def test_wrong_column_type_points_to_output_columns(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(iter([{"x": "not a number"}]))
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'x'" in message
+        assert "Extra output column(s)" in message
+
+    @pytest.mark.timeout(2)
+    def test_on_finish_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _FinishReturningExecutor()
+        data_processor.process_internal_marker(EndChannel(0))
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "on_finish must `yield` results, not `return` them" in str(exc_info[1])

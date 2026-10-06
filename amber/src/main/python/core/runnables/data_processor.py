@@ -79,7 +79,9 @@ class DataProcessor(Runnable, Stoppable):
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
-                self._set_output_tuple(executor.on_finish(port_id))
+                self._set_output_tuple(
+                    require_yielded(executor.on_finish(port_id), "on_finish")
+                )
 
     def process_state(self, state: State) -> None:
         """
@@ -137,32 +139,41 @@ class DataProcessor(Runnable, Stoppable):
         """
         for output in output_iterator:
             # output could be a None, a TupleLike, or a TableLike.
-            if isinstance(output, dict) and any(
-                isinstance(value, pandas.DataFrame) for value in output.values()
-            ):
-                raise TypeError(
-                    "A dict of DataFrames was yielded: yield the DataFrame itself, "
-                    "not a dict of DataFrames."
-                )
             for output_tuple in all_output_to_tuple(output):
                 if output_tuple is not None:
                     try:
                         output_tuple.finalize(
                             self._context.output_manager.get_port().get_schema()
                         )
-                    except KeyError as error:
-                        raise KeyError(
-                            f"{error.args[0]} The yielded columns must match the "
-                            "operator's output columns. For a Python UDF, check "
-                            "'Retain input columns' and 'Extra output column(s)' "
-                            "in the property panel."
-                        ) from error
+                    except (KeyError, TypeError) as error:
+                        # Only explain on failure, so valid rows are not inspected.
+                        raise self._explain_schema_mismatch(output, error) from error
                 self._switch_context()
                 self._context.tuple_processing_manager.current_output_tuple = (
                     output_tuple
                 )
                 self._switch_context()
         self._context.tuple_processing_manager.finished_current.set()
+
+    @staticmethod
+    def _explain_schema_mismatch(output, error: Exception) -> Exception:
+        """
+        Rebuild a schema check failure with a hint on how to fix the output.
+        A dict holding DataFrames is valid for BINARY columns (they are
+        pickled), so it is only called out once the schema check has failed.
+        """
+        if isinstance(output, dict) and any(
+            isinstance(value, pandas.DataFrame) for value in output.values()
+        ):
+            return TypeError(
+                "A dict of DataFrames was yielded: yield the DataFrame itself, "
+                "not a dict of DataFrames."
+            )
+        return type(error)(
+            f"{error.args[0]} The yielded columns and their types must match the "
+            "operator's output columns. For a Python UDF, check 'Retain input "
+            "columns' and 'Extra output column(s)' in the property panel."
+        )
 
     def _set_output_state(self, output_state: State) -> None:
         """

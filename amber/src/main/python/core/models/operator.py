@@ -31,9 +31,11 @@ import base64
 
 def require_yielded(result, method_name: str):
     """
-    Check that a user method such as process_table produced an iterator.
-    Using `return` instead of `yield` hands back a single value (or None),
-    which would otherwise fail later with a confusing error.
+    Catch the common case of a user method such as process_table using
+    `return` instead of `yield`: it rejects a returned None, Tuple, dict or
+    DataFrame, which would otherwise fail later with a confusing error.
+    Other values (e.g. a list, or a pandas Series) are passed through
+    unchecked.
     """
     if result is None or isinstance(result, (Tuple, dict, pandas.DataFrame)):
         raise TypeError(
@@ -211,7 +213,6 @@ class BatchOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
         self._validate_batch_size(self.BATCH_SIZE)
 
     @staticmethod
@@ -225,8 +226,8 @@ class BatchOperator(TupleOperatorV2):
             raise ValueError("BATCH_SIZE should be positive.")
 
     def _get_batch_data(self) -> MutableMapping[int, List[Tuple]]:
-        # Created lazily so a subclass whose __init__ skips super().__init__()
-        # still works, like Operator._get_template_decoder.
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
         if not hasattr(self, "_BatchOperator__batch_data"):
             self._validate_batch_size(self.BATCH_SIZE)
             self.__batch_data = defaultdict(list)
@@ -291,11 +292,10 @@ class TableOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self._Operator__internal_is_source: bool = False
-        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
 
     def _get_table_data(self) -> Mapping[int, List[Tuple]]:
-        # Created lazily so a subclass whose __init__ skips super().__init__()
-        # still works, like Operator._get_template_decoder.
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
         if not hasattr(self, "_TableOperator__table_data"):
             self.__table_data = defaultdict(list)
         return self.__table_data

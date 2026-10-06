@@ -603,3 +603,25 @@ class TestCommonUDFMistakes:
         with pytest.raises(TypeError) as exc_info:
             list(op.on_finish(0))
         assert "produce must `yield` results" in str(exc_info.value)
+
+
+class TestBufferCreatedOnlyByGetter:
+    def test_table_operator_has_no_buffer_until_first_tuple(self):
+        op = _TableWithoutSuperInit()
+        assert "_TableOperator__table_data" not in op.__dict__
+
+        class _WithSuper(TableOperator):
+            def process_table(self, table, port):
+                yield table
+
+        assert "_TableOperator__table_data" not in _WithSuper().__dict__
+
+    def test_batch_operator_still_rejects_a_bad_batch_size_at_construction(self):
+        class _BadSize(BatchOperator):
+            BATCH_SIZE = 0
+
+            def process_batch(self, batch, port):
+                yield batch
+
+        with pytest.raises(ValueError):
+            _BadSize()
