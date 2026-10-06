@@ -270,6 +270,9 @@ class DatasetResource extends LazyLogging {
   // varchar(246) on DBs upgraded through sql/updates/18.sql, narrower than model's.
   private val COVER_IMAGE_MAX_PATH_LENGTH = 246
 
+  // Matches dataset_version.name VARCHAR(128).
+  private val MAX_VERSION_NAME_LENGTH = 128
+
   private val resourceType = ResourceType.Dataset
 
   /**
@@ -448,6 +451,17 @@ class DatasetResource extends LazyLogging {
         s"v${versionCount + 1}"
       } else {
         s"v${versionCount + 1} - $sanitizedVersionName"
+      }
+
+      // Before the commit: the commit is outside this transaction, so a name the insert
+      // rejects would leave a commit no version points at and strand the staged files.
+      // Code points, not String.length: VARCHAR(n) counts characters, so an emoji counts once.
+      val newVersionNameLength = newVersionName.codePointCount(0, newVersionName.length)
+      if (newVersionNameLength > MAX_VERSION_NAME_LENGTH) {
+        throw new BadRequestException(
+          s"Version name is too long: $newVersionNameLength characters, " +
+            s"maximum is $MAX_VERSION_NAME_LENGTH."
+        )
       }
 
       // Create a commit in LakeFS
