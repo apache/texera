@@ -1137,12 +1137,14 @@ class ResultExportServiceSpec
     doc.get().map(_.getField[String]("name")).toList shouldBe List("a", "b")
   }
 
-  it should "refuse a result stored in a per-user warehouse while the feature is off" in {
+  it should "refuse a result whose warehouse the URI cannot resolve" in {
     val execution = insertExecution()
     // No table is needed: the WarehouseReadGuard check (#6930) fires on the URI,
-    // before any catalog access. warehouseEnabled ships (and runs in CI) as
-    // false; WarehouseReadGuardSpec pins both settings of the flag directly.
-    insertResultUri(execution.getEid, resultUriOf(execution.getEid, "rexs-wh", Some("byo")))
+    // before any catalog access. An unresolvable /wh/ prefix is refused in either
+    // flag state, so this pins the wiring rather than the shipping default;
+    // WarehouseReadGuardSpec pins the enabled and disabled behaviour itself.
+    val resolvable = resultUriOf(execution.getEid, "rexs-wh", Some("byo"))
+    insertResultUri(execution.getEid, resolvable.toString.replace("/wh/byo/", "/wh/a%2Fb/"))
 
     val ex = intercept[WarehouseUnavailableException] {
       exportService invokePrivate getOperatorDocument(
@@ -1150,7 +1152,7 @@ class ResultExportServiceSpec
         testComputingUnit.getCuid.intValue()
       )
     }
-    ex.getMessage should include("warehouse 'byo'")
+    ex.getMessage should include("unresolvable warehouse URI")
   }
 
   // -- generateFileName --------------------------------------------------------

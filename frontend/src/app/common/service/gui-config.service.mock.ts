@@ -49,6 +49,7 @@ export class MockGuiConfigService {
     defaultExecutionMode: ExecutionMode.PIPELINED,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,
+    warehouseEnabled: false,
     operatorConsoleMessageBufferSize: 1000,
     defaultLocalUser: { username: "", password: "" },
     activeTimeInMinutes: 15,

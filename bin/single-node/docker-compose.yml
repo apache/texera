@@ -29,6 +29,7 @@ services:
     environment:
       - RUSTFS_ACCESS_KEY=${STORAGE_S3_AUTH_USERNAME}
       - RUSTFS_SECRET_KEY=${STORAGE_S3_AUTH_PASSWORD}
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*
       # Must match STORAGE_S3_REGION: the region is part of the SigV4 scope, and
       # LakeFS sends its blockstore region on every request.
       - RUSTFS_REGION=${STORAGE_S3_REGION}

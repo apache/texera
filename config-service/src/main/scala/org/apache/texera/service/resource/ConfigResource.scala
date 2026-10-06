@@ -30,6 +30,7 @@ import org.apache.texera.common.config.{
   ComputingUnitConfig,
   DefaultsConfig,
   GuiConfig,
+  StorageConfig,
   UserSystemConfig
 }
 import org.apache.texera.dao.{SiteSettings, SqlServer}
@@ -95,6 +96,7 @@ class ConfigResource {
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
+      "warehouseEnabled" -> StorageConfig.warehouseEnabled,
       "operatorConsoleMessageBufferSize" -> GuiConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,

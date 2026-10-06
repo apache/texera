@@ -62,7 +62,7 @@ export class ValidationWorkflowService {
   public static readonly VALIDATION_OPERATOR_OUTPUT_MESSAGE = "outputs";
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-  // stream of an individual's validation status is updated, whether it's validation sucess or validation error
+  // stream of an individual's validation status is updated, whether it's validation success or validation error
   private readonly operatorValidationStream = new Subject<{
     operatorID: string;
     validation: Validation;
@@ -79,7 +79,7 @@ export class ValidationWorkflowService {
   private workflowEmpty: boolean = false;
 
   /**
-   * subcribe the add opertor event, delete operator event, add link event, delete link event
+   * subscribe the add operator event, delete operator event, add link event, delete link event
    * and change operator property event. observe each change and record changes in operatorValidationStream
    * @param texeraGraph
    * @param workflowActionService

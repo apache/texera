@@ -165,11 +165,10 @@
           *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
           nz-button
           (click)="onClickExpandJupyterNotebookPanel()"
-          title="expand Jupyter notebook">
-          <img
-            class="jupyter-notebook-icon"
-            src="assets/notebook_migration_tool/jupyter-logo.svg"
-            alt="Jupyter" />
+          title="expand uploaded source code">
+          <i
+            nz-icon
+            nzType="code"></i>
         </button>
       </nz-space-compact>
       <ng-template #utilities>
@@ -420,6 +419,7 @@
         <button
           nz-button
           id="share-button"
+          [disabled]="!workflowId"
           (click)="onClickOpenShareAccess()">
           <span
             nz-icon
@@ -451,7 +451,7 @@
           [nzPopoverTrigger]="'hover'"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || selectedComputingUnit?.accessPrivilege !== Privilege.WRITE"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || (selectedComputingUnit !== null && selectedComputingUnit.accessPrivilege !== Privilege.WRITE)"
           id="run-button"
           nz-button
           nzType="primary">

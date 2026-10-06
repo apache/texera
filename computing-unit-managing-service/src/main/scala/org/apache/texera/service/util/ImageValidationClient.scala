@@ -125,12 +125,12 @@ object ImageValidationClient extends LazyLogging {
        |  echo "$$START_CMD"
        |  exit 1
        |fi
-       |echo "Start command: $$START_CMD"
+       |echo "Start command: $$(printf '%s' "$$START_CMD" | tr '\n' ' ')"
        |
        |if ! echo "$$START_CMD" | grep -qF '${CuratedImageConfig.requiredCommand}'; then
        |  echo ""
        |  echo "ERROR: $$SOURCE_REF does not look like a Texera computing-unit image."
-       |  echo "Its start command is: $$START_CMD"
+       |  echo "Its start command is: $$(printf '%s' "$$START_CMD" | tr '\n' ' ')"
        |  echo "A computing-unit image starts '${CuratedImageConfig.requiredCommand}'."
        |  exit 1
        |fi
@@ -335,11 +335,16 @@ object ImageValidationClient extends LazyLogging {
 
   /** The digest the source tag resolved to, as printed by a successful job. */
   def sourceDigestFrom(log: String): Option[String] =
+    // The job prints this as its very last line, so the last match is the one it wrote.
+    // Reading the first would let anything echoed earlier -- the image's own start
+    // command, which its author controls -- name the digest a unit is pinned to.
     log.linesIterator
       .map(_.trim)
-      .find(_.startsWith(DigestMarker))
+      .filter(_.startsWith(DigestMarker))
       .map(_.drop(DigestMarker.length).trim)
       .filter(_.nonEmpty)
+      .toSeq
+      .lastOption
 
   /**
     * The reference a unit starts from: the administrator's repository at the resolved

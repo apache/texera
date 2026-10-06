@@ -36,13 +36,28 @@ import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { Privilege } from "../../../type/share-access.interface";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+import { ResourceDescriptor } from "../../../type/resource-descriptor";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 interface SetupOptions {
   type?: string;
   id?: number;
   inWorkspace?: boolean;
   currentEmail?: string | undefined;
+  /** What the registry answers for the kind, in place of the shipped descriptor. */
+  descriptor?: ResourceDescriptor;
 }
+
+/**
+ * A registered kind that cannot be published. Every shipped kind can, so the checks for publishing
+ * need this one.
+ */
+const UNPUBLISHABLE_DESCRIPTOR: ResourceDescriptor = {
+  type: EntityType.Dataset,
+  iconType: "database",
+  isOwner: () => true,
+};
 
 describe("ShareAccessComponent", () => {
   let gmailSpy: { sendEmail: ReturnType<typeof vi.fn> };
@@ -105,6 +120,9 @@ describe("ShareAccessComponent", () => {
         { provide: WorkflowActionService, useValue: workflowActionSpy },
       ],
     });
+    if (opts.descriptor) {
+      vi.spyOn(TestBed.inject(ResourceRegistryService), "find").mockReturnValue(opts.descriptor);
+    }
     fixture = TestBed.createComponent(ShareAccessComponent);
     fixture.detectChanges();
     return fixture.componentInstance;
@@ -181,6 +199,33 @@ describe("ShareAccessComponent", () => {
       expect(c.isPublic).toBe(false);
     });
 
+    // isPublic staying null hides the Private/Public choice, which is right for a kind that cannot
+    // be published and wrong when the request merely failed: the dialog then looked complete while
+    // silently offering one control fewer, and the only way to find out was the network tab.
+    it("says so when the publish state cannot be read, instead of hiding the choice silently", () => {
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(throwError(() => new Error("boom")));
+
+      const c = setupComponent({ type: "workflow", id: 9 });
+
+      expect(c.isPublic).toBeNull();
+      expect(notificationSpy.error).toHaveBeenCalled();
+    });
+
+    // ngOnInit is re-entered as a refresh after an access change, so a value from the previous read
+    // is still here when the second one fails. Keeping it would leave the buttons on screen showing
+    // a state nothing has confirmed, while the toast says the choice is not shown.
+    it("drops a previously read publish state when the refresh fails, rather than leaving it stale", () => {
+      workflowPublished = true;
+      const c = setupComponent({ type: "workflow", id: 9 });
+      expect(c.isPublic).toBe(true);
+
+      workflowPersistSpy.getWorkflowIsPublished.mockReturnValue(throwError(() => new Error("boom")));
+      c.ngOnInit();
+
+      expect(c.isPublic).toBeNull();
+      expect(notificationSpy.error).toHaveBeenCalled();
+    });
+
     it("loads publish state for dataset via DatasetService.getDataset", () => {
       datasetPublished = true;
       const c = setupComponent({ type: "dataset", id: 12 });
@@ -188,8 +233,8 @@ describe("ShareAccessComponent", () => {
       expect(c.isPublic).toBe(true);
     });
 
-    it("does not query publish state for non-workflow/dataset types", () => {
-      setupComponent({ type: "file", id: 4 });
+    it("does not query publish state for a kind that cannot be published", () => {
+      setupComponent({ type: "dataset", id: 4, descriptor: UNPUBLISHABLE_DESCRIPTOR });
       expect(workflowPersistSpy.getWorkflowIsPublished).not.toHaveBeenCalled();
       expect(datasetServiceSpy.getDataset).not.toHaveBeenCalled();
     });
@@ -574,10 +619,11 @@ describe("ShareAccessComponent", () => {
     });
 
     it("does nothing for a registered kind that cannot be published", () => {
-      const c = setupComponent({ type: "file", id: 4 });
+      const c = setupComponent({ type: "dataset", id: 4, descriptor: UNPUBLISHABLE_DESCRIPTOR });
       c.setPublished(true);
       expect(c.isPublic).toBeNull();
       expect(notificationSpy.success).not.toHaveBeenCalled();
+      expect(datasetServiceSpy.updateDatasetPublicity).not.toHaveBeenCalled();
     });
 
     it("does nothing for a kind the registry does not carry at all", () => {

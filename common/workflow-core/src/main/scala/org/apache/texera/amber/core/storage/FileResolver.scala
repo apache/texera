@@ -102,21 +102,22 @@ object FileResolver {
   private def parsePrefixedPath(
       fileName: String
   ): Option[(ResourceType.Value, String, String, String, Array[String])] = {
-    val filePath = Paths.get(fileName)
+    if (Option(fileName).forall(_.trim.isEmpty)) return None
+    val filePath = Paths.get(fileName.trim)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
     pathSegments.headOption.flatMap(ResourceType.fromPrefix) match {
       case Some(resourceType) =>
-        // Prefixed: /<prefix>/ownerEmail/resourceName/versionName/<file> (>= 5 segments).
-        if (pathSegments.length < 5) None
+        // Prefixed: /<prefix>/ownerEmail/resourceName/versionName, then the file path if any.
+        if (pathSegments.length < 4) None
         else
           Some(
             (resourceType, pathSegments(1), pathSegments(2), pathSegments(3), pathSegments.drop(4))
           )
       case None =>
-        // Legacy unprefixed dataset path (backward compat): /ownerEmail/datasetName/versionName/<file>.
+        // Legacy unprefixed dataset path (backward compat): /ownerEmail/datasetName/versionName.
         // TODO(dataset-prefix): require the prefix once all stored paths are migrated (36.sql).
-        if (pathSegments.length >= 4)
+        if (pathSegments.length >= 3)
           Some(
             (
               ResourceType.Dataset,
@@ -147,9 +148,11 @@ object FileResolver {
     */
   private def versionedResourceResolveFunc(fileName: String): URI = {
     val (resourceType, ownerEmail, resourceName, versionName, fileRelativePathSegments) =
-      parsePrefixedPath(fileName).getOrElse(
-        throw new FileNotFoundException(s"Versioned-resource file $fileName not found.")
-      )
+      parsePrefixedPath(fileName)
+        .filter { case (_, _, _, _, file) => file.nonEmpty }
+        .getOrElse(
+          throw new FileNotFoundException(s"Versioned-resource file $fileName not found.")
+        )
 
     val (scheme, repositoryName, versionHash) = resourceType match {
       case ResourceType.Dataset =>
@@ -283,6 +286,50 @@ object FileResolver {
     }
 
   /**
+    * Resolves a version path to the repository and commit backing it — the pair that addresses
+    * a mount, a mount being a whole repository pinned to one commit.
+    *
+    * Resolves only; the mount authority checks read access before mounting.
+    */
+  def resolveRepositoryVersion(versionPath: String): (String, String) = {
+    // Nothing may follow the version: a longer path names a file, a different request.
+    val (resourceType, ownerEmail, resourceName, versionName) =
+      parsePrefixedPath(versionPath) match {
+        case Some((resourceType, ownerEmail, resourceName, versionName, file)) if file.isEmpty =>
+          (resourceType, ownerEmail, resourceName, versionName)
+        case _ =>
+          throw new FileNotFoundException(
+            s"Versioned-resource version path '$versionPath' is invalid; expected " +
+              s"/<${ResourceType.values.mkString("|")}>/ownerEmail/resourceName/versionName."
+          )
+      }
+
+    try {
+      resourceType match {
+        case ResourceType.Dataset =>
+          lookupDataset(ownerEmail, resourceName, versionName, versionPath)
+        case ResourceType.Model =>
+          lookupModel(ownerEmail, resourceName, versionName, versionPath)
+        case other =>
+          throw new FileNotFoundException(
+            s"Unsupported resource type $other for version path $versionPath."
+          )
+      }
+    } catch {
+      case e: Throwable => throw unwrapNotFound(e)
+    }
+  }
+
+  // withTransaction rethrows whatever the block threw wrapped in a DataAccessException, which
+  // would reach the caller as an opaque database error instead of "no such version".
+  private def unwrapNotFound(e: Throwable): Throwable =
+    Iterator
+      .iterate(e)(_.getCause)
+      .takeWhile(_ != null)
+      .collectFirst { case notFound: FileNotFoundException => notFound }
+      .getOrElse(e)
+
+  /**
     * Checks if a given file path has a valid scheme.
     *
     * @param filePath The file path to check.
@@ -306,7 +353,8 @@ object FileResolver {
       return None
     }
     parsePrefixedPath(path).collect {
-      case (ResourceType.Dataset, ownerEmail, datasetName, _, _) => (ownerEmail, datasetName)
+      case (ResourceType.Dataset, ownerEmail, datasetName, _, file) if file.nonEmpty =>
+        (ownerEmail, datasetName)
     }
   }
 }

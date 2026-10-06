@@ -74,6 +74,11 @@ spec:
             # Must be the namespace the pool runs in; validation jobs go there.
             - name: TEXERA_CURATED_IMAGE_VALIDATION_NAMESPACE
               value: {{ .Values.workflowComputingUnitPool.namespace }}
+            - name: TEXERA_CURATED_IMAGE_PREPULL_ENABLED
+              value: "{{ .Values.curatedImages.prepull.enabled }}"
+            # Not the release namespace, which holds the privileged mounter.
+            - name: TEXERA_CURATED_IMAGE_PREPULL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
             - name: KUBERNETES_IMAGE_NAME
               value: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
             - name: KUBERNETES_MOUNTER_ENABLED
@@ -81,6 +86,13 @@ spec:
             {{- if .Values.mounter.enabled }}
             - name: KUBERNETES_MOUNTER_HOST_ROOT
               value: "{{ .Values.mounter.hostMountRoot }}"
+            # These two are passed straight on to each computing-unit pod, which the chart
+            # cannot reach itself: the pod runs in the pool namespace and is created at
+            # runtime, so the address is qualified rather than a bare service name.
+            - name: TEXERA_MOUNT_IN_POD_ROOT
+              value: "{{ .Values.mounter.podMountRoot }}"
+            - name: ACCESS_CONTROL_SERVICE_URL
+              value: http://{{ .Values.accessControlService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.accessControlService.service.port }}
             {{- end }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
