@@ -20,6 +20,7 @@ on:
     types: [opened, edited, closed]
 
 permissions:
+  contents: read
   issues: write
   pull-requests: write
 
@@ -159,6 +160,12 @@ jobs:
         # also land on the person being protected. Only a human can tell
         # an agreed takeover from a duplicate. And nothing re-runs this
         # when the other PR closes, so a failure would go stale.
+        #
+        # Overlapping opened/edited runs can each post a copy before seeing
+        # the other's. Every run keeps the oldest copy and deletes the rest
+        # (claimCommentChanges), so racing runs settle on one comment. A
+        # concurrency group isn't used: with the default queue it cancels a
+        # waiting run, and the sync and credit steps need every event.
         if: >-
           contains(fromJSON('["opened","edited"]'), github.event.action)
           && github.event.pull_request.state == 'open'
@@ -166,7 +173,7 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const { CLAIM_MARKER, findClaimConflicts, renderClaimComment } =
+            const { findClaimConflicts, renderClaimComment, claimCommentChanges } =
               require('./.github/scripts/issue-claims.js');
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
@@ -182,7 +189,7 @@ jobs:
                         state
                         repository { nameWithOwner }
                         assignees(first: 20) { nodes { login } }
-                        closedByPullRequestsReferences(first: 20) {
+                        closedByPullRequestsReferences(first: 100) {
                           nodes { number state author { login } repository { nameWithOwner } }
                         }
                       }
@@ -202,40 +209,48 @@ jobs:
               return;
             }
 
-            let existing = null;
+            const body = conflicts.length ? renderClaimComment(conflicts) : null;
+            const listComments = () => github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            let changes;
             try {
-              const comments = await github.paginate(
-                github.rest.issues.listComments,
-                { owner, repo, issue_number, per_page: 100 },
-              );
-              existing = comments.find((c) => c.user?.type === 'Bot' && (c.body || '').includes(CLAIM_MARKER));
+              changes = claimCommentChanges(await listComments(), body);
             } catch (e) {
               // Without the comment list we can't safely de-dupe; bail to
               // avoid posting a second copy.
               core.warning(`listComments on #${issue_number} failed: ${e.message}`);
               return;
             }
+            if (!changes.create && !changes.update && !changes.remove.length) {
+              core.info(body ? `Claim comment is already current.` : `No linked issue is claimed by someone else.`);
+              return;
+            }
 
             try {
-              if (conflicts.length) {
-                const body = renderClaimComment(conflicts);
-                if (!existing) {
-                  await github.rest.issues.createComment({ owner, repo, issue_number, body });
-                  core.info(`Posted claim comment on #${issue_number}.`);
-                } else if (existing.body !== body) {
-                  await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-                  core.info(`Updated claim comment ${existing.id}.`);
-                } else {
-                  core.info(`Claim comment ${existing.id} is already current.`);
-                }
-              } else if (existing) {
-                await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
-                core.info(`No linked issue is claimed elsewhere any more; deleted comment ${existing.id}.`);
-              } else {
-                core.info(`No linked issue is claimed by someone else.`);
+              if (changes.create) {
+                await github.rest.issues.createComment({ owner, repo, issue_number, body });
+                core.info(`Posted claim comment on #${issue_number}.`);
+                // List again so a run racing this one keeps the same copy.
+                // Never post twice: the list can lag behind our own comment.
+                changes = { ...claimCommentChanges(await listComments(), body), create: false };
+              }
+              if (changes.update) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: changes.update, body });
+                core.info(`Updated claim comment ${changes.update}.`);
               }
             } catch (e) {
               core.warning(`Updating the claim comment on #${issue_number} failed: ${e.message}`);
+            }
+            for (const comment_id of changes.remove) {
+              try {
+                await github.rest.issues.deleteComment({ owner, repo, comment_id });
+                core.info(`Deleted claim comment ${comment_id}.`);
+              } catch (e) {
+                // A racing run may have deleted it first.
+                core.warning(`Deleting claim comment ${comment_id} failed: ${e.message}`);
+              }
             }
 
       - name: Unassign PR opener from linked issues on PR close without merge
@@ -311,7 +326,7 @@ jobs:
                         number
                         repository { nameWithOwner }
                         assignees(first: 20) { nodes { login } }
-                        closedByPullRequestsReferences(first: 20) {
+                        closedByPullRequestsReferences(first: 100) {
                           nodes { number state author { login } repository { nameWithOwner } }
                         }
                       }

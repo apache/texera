@@ -19,7 +19,8 @@
 // runs the GraphQL queries and makes every API call; these functions only
 // decide, so test_issue_claims.sh can unit-test them. Each `issue` is a
 // `closingIssuesReferences` node carrying `state`, `repository`, `assignees`
-// and `closedByPullRequestsReferences`, as the workflow's queries fetch it.
+// and `closedByPullRequestsReferences`, as the workflow's queries fetch it;
+// `comments` are the PR's REST issue comments.
 
 "use strict";
 
@@ -110,4 +111,28 @@ function creditChanges(issue, { repo, prNumber, credited }) {
   };
 }
 
-module.exports = { CLAIM_MARKER, findClaimConflicts, renderClaimComment, creditChanges };
+// What to do with the PR's comments so that exactly one claim comment holding
+// `body` is left, or none when `body` is null. Overlapping opened/edited runs
+// can each post a copy before seeing the other's, so every run keeps the
+// oldest copy and deletes the rest, and racing runs settle on the same one.
+// Returns { create, update: comment id or null, remove: [comment ids] }.
+function claimCommentChanges(comments, body) {
+  const ours = comments
+    .filter((c) => c.user?.type === "Bot" && (c.body || "").includes(CLAIM_MARKER))
+    .sort((a, b) => a.id - b.id);
+  if (body === null) return { create: false, update: null, remove: ours.map((c) => c.id) };
+  const [keep, ...extras] = ours;
+  return {
+    create: !keep,
+    update: keep && keep.body !== body ? keep.id : null,
+    remove: extras.map((c) => c.id),
+  };
+}
+
+module.exports = {
+  CLAIM_MARKER,
+  findClaimConflicts,
+  renderClaimComment,
+  creditChanges,
+  claimCommentChanges,
+};

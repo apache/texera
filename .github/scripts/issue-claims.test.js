@@ -16,8 +16,8 @@
 // under the License.
 
 // Unit tests for issue-claims.js, run by test_issue_claims.sh. Fixtures mirror
-// the GraphQL nodes pr-assignment.yml fetches; the named cases replay the real
-// incidents from #8676.
+// the GraphQL nodes and REST issue comments pr-assignment.yml fetches; the
+// named cases replay the real incidents from #8676.
 
 "use strict";
 
@@ -28,6 +28,7 @@ const {
   findClaimConflicts,
   renderClaimComment,
   creditChanges,
+  claimCommentChanges,
 } = require("./issue-claims.js");
 
 const REPO = "apache/texera";
@@ -281,5 +282,66 @@ test("creditChanges", async (t) => {
       toAdd: [],
       kept: [],
     });
+  });
+});
+
+test("claimCommentChanges", async (t) => {
+  const comment = (id, body, type = "Bot") => ({ id, body, user: { type } });
+  const BODY = renderClaimComment([
+    { issue: 1, claimants: [{ login: "a", assigned: true, prs: [] }] },
+  ]);
+  const STALE = `${CLAIM_MARKER}\nold text`;
+  const none = { create: false, update: null, remove: [] };
+
+  await t.test("no claim comment yet: create one", () => {
+    assert.deepEqual(claimCommentChanges([], BODY), { create: true, update: null, remove: [] });
+  });
+
+  await t.test("a current claim comment is left alone", () => {
+    assert.deepEqual(claimCommentChanges([comment(5, BODY)], BODY), none);
+  });
+
+  await t.test("a stale claim comment is rewritten in place", () => {
+    assert.deepEqual(claimCommentChanges([comment(5, STALE)], BODY), {
+      create: false,
+      update: 5,
+      remove: [],
+    });
+  });
+
+  await t.test("copies posted by racing runs keep the oldest, whatever the list order", () => {
+    assert.deepEqual(claimCommentChanges([comment(9, BODY), comment(5, BODY)], BODY), {
+      create: false,
+      update: null,
+      remove: [9],
+    });
+    assert.deepEqual(claimCommentChanges([comment(9, BODY), comment(5, STALE)], BODY), {
+      create: false,
+      update: 5,
+      remove: [9],
+    });
+  });
+
+  await t.test("nothing to flag: every copy is removed", () => {
+    assert.deepEqual(claimCommentChanges([comment(9, BODY), comment(5, STALE)], null), {
+      create: false,
+      update: null,
+      remove: [5, 9],
+    });
+  });
+
+  await t.test("nothing to flag and no copy: no-op", () => {
+    assert.deepEqual(claimCommentChanges([], null), none);
+  });
+
+  await t.test("human comments, unmarked bot comments and empty bodies are never ours", () => {
+    const others = [
+      comment(1, `quoting ${CLAIM_MARKER} in a reply`, "User"),
+      comment(2, "<!-- texera:template-compliance -->\nunrelated bot note"),
+      comment(3, null),
+      { id: 4, body: CLAIM_MARKER, user: null },
+    ];
+    assert.deepEqual(claimCommentChanges(others, BODY), { create: true, update: null, remove: [] });
+    assert.deepEqual(claimCommentChanges(others, null), none);
   });
 });
