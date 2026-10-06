@@ -126,7 +126,7 @@
     "eslint-plugin-rxjs-angular": "2.0.1",
     "jsdom": "25.0.1",
     "nodecat": "2.0.0",
-    "nx": "23.0.2",
+    "nx": "23.2.1",
     "playwright": "1.59.1",
     "prettier": "3.2.5",
     "prettier-eslint-cli": "8.0.1",
