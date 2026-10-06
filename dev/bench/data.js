@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791205544586,
+  "lastUpdate": 1791291982999,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -17220,6 +17220,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 553.6598946448589,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b43d46520365a42e8a5df892520bead6b2fb6cfe",
+          "message": "refactor(frontend): remove dead computing-unit modal leftovers (#8827)\n\n### What changes were proposed in this PR?\n\nRemoves two leftovers from `ComputingUnitCreateModalComponent`. **−2\nlines.** There is no behaviour change.\n\n- `<ng-template #addComputeUnitModalTitle>`. The modal's title comes\nfrom `[nzTitle]=\"getCreateModalTitle()\"`. Nothing else reads the\ntemplate: there is no `@ViewChild`, no outlet, and neither of the two\nhosts that open the modal passes it. `nz-modal` only picks up its\ntitle/content/footer directives, never a plain `#ref` template.\n- The `selectedShmSize` field. The create payload builds `shmSize` from\n`shmSizeValue` / `shmSizeUnit`, which stay.\n\n### History\n\n| | |\n| --- | --- |\n| **Introduced by** | #3315 (2025-03-13), \"Add computing unit manager\nfrontend\": the title template. #3451 (2025-05-28), \"Enable adjusting\nshared memory for the computing unit\": `selectedShmSize` |\n| **Usage removed by** | #3400 (2025-05-26) switched the title to\n`getCreateModalTitle()`. #4331 (2026-04-09), \"add full computing unit\ntab\", dropped the field's last write and read. #6082 later moved both,\nstill unread, into this shared component |\n\nThe title template has been unused for sixteen months, and the field for\nsix.\n\n### Any related issues, documentation, discussions?\n\nCloses #8826\n\n### How was this PR tested?\n\nNo new tests; no spec referenced either item.\n\nFrom `frontend/`:\n\n- `npx ng test --watch=false\n--include='**/computing-unit-create-modal.component.spec.ts'\n--include='**/user-computing-unit.component.spec.ts'\n--include='**/computing-unit-selection.component.spec.ts'`: 3 files, 248\ntests, all pass. The other two specs cover the modal's two hosts.\n- `yarn format:ci`: clean.\n- `npx ng build`: success.\n\nTo re-check:\n\n```\ngit grep -n \"addComputeUnitModalTitle\\|selectedShmSize\" -- frontend   # no hits\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-10-06T05:32:13Z",
+          "url": "https://github.com/apache/texera/commit/b43d46520365a42e8a5df892520bead6b2fb6cfe"
+        },
+        "date": 1791291982326,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 668.3383003884941,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1135.6199091420367,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1198.770859771767,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 852.0624480641045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1167.8496846068151,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1209.578793558071,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 891.9239176857241,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1178.903086795881,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1199.784056993679,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 745.8271426324272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 943.3511860237222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 969.6293191976605,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 755.2316250306641,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 944.6092547663261,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 963.4389095835136,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 754.7131514612273,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 932.3309761088373,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 948.6880330816608,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 461.2103171031311,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 537.642738538124,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 543.3914627865081,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 462.36892399893065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 529.4152364584069,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 541.1264293151771,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 457.38435963927657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 517.7108709299463,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 518.4714873302626,
             "unit": "tuples/sec"
           }
         ]
