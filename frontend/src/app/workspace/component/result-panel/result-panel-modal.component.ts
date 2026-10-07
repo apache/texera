@@ -55,8 +55,12 @@ export class RowModalComponent implements OnChanges, OnDestroy {
     [];
   private readonly allocatedBlobUrls: string[] = [];
   // Index of current displayed row in currentResult
-  private readonly modalData: { operatorId: string; rowIndex: number; rowData?: Record<string, unknown> } =
-    inject(NZ_MODAL_DATA);
+  private readonly modalData: {
+    operatorId: string;
+    rowIndex: number;
+    pageSize?: number;
+    rowData?: Record<string, unknown>;
+  } = inject(NZ_MODAL_DATA);
   readonly operatorId: string = this.modalData.operatorId;
   rowIndex: number = this.modalData.rowIndex;
   currentDisplayRowData: Record<string, unknown> = {};
@@ -89,7 +93,7 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   ngOnChanges(): void {
     this.workflowResultService
       .getPaginatedResultService(this.operatorId)
-      ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
+      ?.selectTuple(this.rowIndex, this.modalData.pageSize ?? this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
         if (res?.tuple) {
