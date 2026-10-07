@@ -37,7 +37,8 @@ const CODE =
 
 // A UDF traceback as the Python worker sends it: the whole stack in one string,
 // so the regexes must match a line inside it rather than the start of the message.
-const KEY_ERROR = `Traceback (most recent call last):\n  File "udf.py", line 3\n    yield t['email']\nKeyError: 'email'`;
+const KEY_ERROR =
+  "Traceback (most recent call last):\n  File \"udf.py\", line 3\n    yield t['email']\nKeyError: 'email'";
 
 describe("AiWorkflowFixerService", () => {
   let service: AiWorkflowFixerService;
@@ -171,6 +172,27 @@ describe("AiWorkflowFixerService", () => {
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("error");
     });
+  });
+
+  it("ignores a slow analysis that a newer one has superseded", async () => {
+    // A frame whose operator does not own the state renders idle, so its Analyze button
+    // stays live while another operator is mid-analysis and two requests can overlap.
+    // The first one landing last must not replace the newer result.
+    let resolveFirst: (value: { text: string }) => void = () => {};
+    const slowFirst = new Promise<{ text: string }>(resolve => (resolveFirst = resolve));
+    vi.spyOn(service as any, "callModel")
+      .mockReturnValueOnce(slowFirst)
+      .mockResolvedValueOnce({ text: suggestion({ explanation: "for the second operator" }) });
+
+    const first = service.analyzeError("op-first", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError("op-second", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    expect(state().operatorId).toEqual("op-second");
+
+    resolveFirst({ text: suggestion({ explanation: "for the first operator" }) });
+    await first;
+
+    expect(state().operatorId).toEqual("op-second");
+    expect(state().suggestedFix?.explanation).toEqual("for the second operator");
   });
 
   describe("applyFix", () => {

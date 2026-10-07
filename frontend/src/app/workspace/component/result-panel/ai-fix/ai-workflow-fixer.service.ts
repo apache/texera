@@ -102,6 +102,11 @@ export class AiWorkflowFixerService {
     return this.stateSubject.asObservable();
   }
 
+  // Numbers the analyses so a slow reply cannot overwrite a newer one. A frame whose
+  // operator does not own the state renders idle, so its Analyze button stays live while
+  // another operator is mid-analysis -- two requests can be in flight at once.
+  private analysisSeq = 0;
+
   public async analyzeError(
     operatorId: string,
     errorMessage: string,
@@ -125,12 +130,19 @@ export class AiWorkflowFixerService {
       return;
     }
 
+    const seq = ++this.analysisSeq;
     this.stateSubject.next(base);
     try {
       const { text } = await this.callModelWithTimeout(buildFixPrompt(errorMessage, code, schema, properties));
+      if (seq !== this.analysisSeq) {
+        return;
+      }
       this.stateSubject.next({ ...base, status: "ready", suggestedFix: this.toFix(text, properties) });
     } catch (err) {
       console.error("AI workflow fixer: analysis failed", err);
+      if (seq !== this.analysisSeq) {
+        return;
+      }
       this.stateSubject.next({ ...base, status: "error" });
     }
   }
