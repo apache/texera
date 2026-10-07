@@ -288,6 +288,10 @@ class TableOperator(TupleOperatorV2):
         table = Table(self.__table_data[port])
         yield from self.process_table(table, port)
 
+    def _collected_table(self, port: int) -> Table:
+        """The table collected on ``port`` so far."""
+        return Table(self.__table_data[port])
+
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
@@ -314,7 +318,9 @@ class TableOperator(TupleOperatorV2):
 # base URI is setup config, not state (see ``loopStartPortUris`` on the
 # ``InitializeExecutorRequest`` proto).
 _TABLE_KEY = "table"
-_RESERVED_STATE_KEYS: frozenset = frozenset({_TABLE_KEY})
+# The paper calls the loop's input data D; the primitives may use either name.
+_D_KEY = "D"
+_RESERVED_STATE_KEYS: frozenset = frozenset({_TABLE_KEY, _D_KEY})
 
 
 def _reserved_name_error(name: str) -> ValueError:
@@ -346,7 +352,7 @@ def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     ``all(x > threshold for x in items)``. The namespace is discarded, so the
     ``__builtins__`` that ``eval`` injects into it does not matter here.
     """
-    namespace = {**state, _TABLE_KEY: table}
+    namespace = {**state, _TABLE_KEY: table, _D_KEY: table}
     return eval(expr, namespace)
 
 
@@ -385,6 +391,13 @@ class LoopStartOperator(TableOperator):
 
     @overrides.final
     def run_initialization(self, initialization_code: str) -> None:
+        # init() reads the input data D, which has not arrived when open() runs, so it is
+        # kept and run once D is complete (see _initialize).
+        self._initialization_code = initialization_code
+        self._initialized = False
+        self.variables = State()
+
+    def _initialize(self, table: Table) -> None:
         # Run the user's `initialization` to seed the loop variables, then keep
         # them as self.variables. The namespace is passed as exec globals (not a
         # locals-only mapping) so a comprehension / generator expression /
@@ -395,13 +408,24 @@ class LoopStartOperator(TableOperator):
         # State materialization on the back-edge). A user variable named
         # `table` is left in place so produce_state_on_finish flags the
         # collision rather than silently dropping it.
-        namespace: dict = {}
-        exec(initialization_code, namespace)
+        if self._initialized:
+            return
+        self._initialized = True
+        namespace: dict = {_TABLE_KEY: table, _D_KEY: table}
+        exec(self._initialization_code, namespace)
         namespace.pop("__builtins__", None)
-        self.variables = State(namespace)
+        for key in _RESERVED_STATE_KEYS:
+            if namespace.get(key) is not table:
+                raise _reserved_name_error(key)
+        variables = _strip_reserved(State(namespace))
+        # A value that arrived before, on the back edge, replaces the one init() set.
+        variables.update(self.variables)
+        self.variables = State(variables)
 
     @overrides.final
-    def eval_output(self, output_expr: str, table: Table) -> TableLike:
+    def eval_output(self, output_expr: str, table: Table) -> Optional[TableLike]:
+        # provideData() may return None: then the body gets no data, only the state.
+        self._initialize(table)
         return _eval_loop_expr(output_expr, self.variables, table)
 
     @overrides.final
@@ -412,8 +436,10 @@ class LoopStartOperator(TableOperator):
         # (loopStartPortUris). A user loop variable named `table` would be
         # silently shadowed by that injected table in the LoopEnd's
         # update/condition namespaces, so flag the collision here.
-        if _TABLE_KEY in self.variables:
-            raise _reserved_name_error(_TABLE_KEY)
+        self._initialize(self._collected_table(port))
+        for key in _RESERVED_STATE_KEYS:
+            if key in self.variables:
+                raise _reserved_name_error(key)
         return State(self.variables)
 
 
@@ -493,7 +519,7 @@ class LoopEndOperator(TableOperator):
         # Take it: a later iteration that never got a table must raise above
         # rather than silently run the update against the previous one.
         self._attached_table = None
-        namespace = {**state, _TABLE_KEY: input_table}
+        namespace = {**state, _TABLE_KEY: input_table, _D_KEY: input_table}
         # Pass the namespace as exec globals (not a locals-only mapping) so a
         # comprehension / generator expression / lambda in the user's `update`
         # resolves its free variables -- a locals-only namespace raises
@@ -504,8 +530,9 @@ class LoopEndOperator(TableOperator):
         # `table` is runtime-owned; a user `update` that rebinds (or deletes)
         # it (a loop variable named `table`) would be silently dropped by the
         # strip below, so flag the collision instead.
-        if namespace.get(_TABLE_KEY) is not input_table:
-            raise _reserved_name_error(_TABLE_KEY)
+        for key in _RESERVED_STATE_KEYS:
+            if namespace.get(key) is not input_table:
+                raise _reserved_name_error(key)
         self._loop_table = input_table
         self.variables = _strip_reserved(namespace)
 

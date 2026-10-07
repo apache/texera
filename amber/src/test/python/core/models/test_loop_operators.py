@@ -383,7 +383,7 @@ class TestReservedStateKeysConstant:
         # reserved -- they ride the StateFrame envelope and never touch user
         # state. Neither is "output": loop expressions are eval'd directly,
         # so it is an ordinary user variable.
-        assert _RESERVED_STATE_KEYS == frozenset({"table"})
+        assert _RESERVED_STATE_KEYS == frozenset({"table", "D"})
         assert isinstance(_RESERVED_STATE_KEYS, frozenset)
 
 
@@ -471,8 +471,9 @@ class TestLoopExpressionScoping:
             initialization="floor = 0\nok = all(v > floor for v in [1, 2, 3])"
         )
         op.open()
-        assert op.variables["ok"] is True
-        assert op.variables["floor"] == 0
+        produced = op.produce_state_on_finish(port=0)
+        assert produced["ok"] is True
+        assert produced["floor"] == 0
 
     def test_initialized_state_has_no_builtins_leak(self):
         # exec with a globals namespace injects ``__builtins__``; it must not
@@ -551,12 +552,12 @@ class TestGeneratedCodeShape:
 
         op = namespace["ProcessLoopStartOperator"]()
         op.open()
+        # init() runs once the input table has arrived.
+        (out,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert list(out["msg"]) == ["quote ' here"]
         assert op.variables["i"] == 0
         # The apostrophe survived base64 -> decode_python_template -> exec.
         assert op.variables["note"] == "it's fine"
-
-        (out,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
-        assert list(out["msg"]) == ["quote ' here"]
 
     def test_generated_loop_end_execs_tricky_expressions(self):
         update_expr = "i += 1"
@@ -575,3 +576,72 @@ class TestGeneratedCodeShape:
         assert op.process_state(incoming, port=0) is None
         assert op.variables["i"] == 2  # update ran
         assert op.condition() is True  # quoted condition round-tripped
+
+
+# ---------------------------------------------------------------------------
+# LoopStartOperator -- init() sees the input data D; provideData() may be None
+# ---------------------------------------------------------------------------
+
+
+class TestLoopStartInitializationSeesInputData:
+    """The files example (paper Figure 5): init `i = 0; file = D.path[0]`,
+    provideData `None`. init() runs once the input table D has arrived, and a
+    value that arrived on the back edge replaces the one init() set."""
+
+    @staticmethod
+    def _files_start() -> _StubLoopStart:
+        op = _StubLoopStart(
+            initialization="i = 0\nfile = D.path[0]", output_expr="None"
+        )
+        op.open()
+        for path in ("a.txt", "b.txt"):
+            list(op.process_tuple(Tuple({"path": path}), port=0))
+        return op
+
+    def test_initialization_reads_the_input_table_as_D(self):
+        produced = self._files_start().produce_state_on_finish(port=0)
+        assert produced["i"] == 0
+        assert produced["file"] == "a.txt"
+        assert "D" not in produced and "table" not in produced
+
+    def test_a_back_edge_value_replaces_the_initial_one(self):
+        op = _StubLoopStart(
+            initialization="i = 0\nfile = D.path[0]", output_expr="None"
+        )
+        op.open()
+        op.process_state(State({"i": 1, "file": "b.txt"}), port=0)
+        list(op.process_tuple(Tuple({"path": "a.txt"}), port=0))
+        produced = op.produce_state_on_finish(port=0)
+        assert (produced["i"], produced["file"]) == (1, "b.txt")
+
+    def test_provide_data_none_feeds_the_body_nothing(self):
+        op = self._files_start()
+        op.produce_state_on_finish(port=0)
+        assert [out for out in op.on_finish(port=0) if out is not None] == []
+
+    def test_output_sees_the_initialized_variables_whichever_callback_runs_first(self):
+        op = _StubLoopStart(initialization="k = len(D)", output_expr="D.iloc[[k - 1]]")
+        op.open()
+        for v in (1, 2, 3):
+            list(op.process_tuple(Tuple({"v": v}), port=0))
+        emitted = [out for out in op.on_finish(port=0) if out is not None]
+        assert len(emitted) == 1 and int(emitted[0]["v"].iloc[0]) == 3
+        assert op.produce_state_on_finish(port=0)["k"] == 3
+
+    def test_initialization_may_not_rebind_D(self):
+        op = _StubLoopStart(initialization="D = 1", output_expr="None")
+        op.open()
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        with pytest.raises(ValueError, match="'D' is reserved by the loop runtime"):
+            op.produce_state_on_finish(port=0)
+
+    def test_loop_end_update_and_condition_see_D(self):
+        end = _StubLoopEnd(
+            update="i += 1\nfile = D.path.get(i)", condition_expr="i < len(D)"
+        )
+        end.attach_loop_table(
+            Table([Tuple({"path": "a.txt"}), Tuple({"path": "b.txt"})])
+        )
+        end.process_state(State({"i": 0, "file": "a.txt"}), port=0)
+        assert end.variables["file"] == "b.txt"
+        assert end.condition() is True

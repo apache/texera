@@ -297,7 +297,8 @@ class TestProcessState:
 
         assert executor.state is state
         assert state == State({"seed": 7}), "the registered message is unchanged"
-        assert executor.variables == State({"i": 0, "seed": 7})
+        # init() runs once the input data has arrived; the merged value stays.
+        assert executor.produce_state_on_finish(0) == State({"i": 0, "seed": 7})
         # LoopStart forwards nothing on first entry.
         assert context.state_processing_manager.current_output_state is None
         assert not context.exception_manager.has_exception()
