@@ -68,9 +68,8 @@ class ExecutionReconfigurationService(
       ModifyLogicResponse(
         opId.id,
         isValid = false,
-        s"${currentOp.operatorInfo.userFriendlyName} refers to loop variables, so it cannot be " +
-          "modified while the workflow runs: its executor would be rebuilt from placeholders, " +
-          "after the loop state that sets them has arrived"
+        s"${currentOp.operatorInfo.userFriendlyName} refers to loop variables, so it can't be " +
+          "changed while the workflow runs."
       )
     } else {
       val reconfiguredPhysicalOp =
