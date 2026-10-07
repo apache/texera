@@ -51,7 +51,7 @@ function makeUnit(over: Partial<DashboardWorkflowComputingUnit> = {}): Dashboard
     metrics: { cpuUsage: "NaN", memoryUsage: "NaN" },
     isOwner: false,
     accessPrivilege: "WRITE",
-    ownerGoogleAvatar: "",
+    ownerAvatar: "",
     ownerName: "alice",
     ...over,
   };
@@ -212,6 +212,27 @@ describe("AdminComputingUnitComponent", () => {
       const pending = makeUnit({ status: "Pending" });
       expect(component.filterByStatus(["Pending"], pending)).toBe(true);
       expect(component.filterByStatus(["Pending"], makeUnit())).toBe(false);
+    });
+
+    // Failed units are the ones an admin opens this page to reclaim, so each status the backend
+    // can report must be selectable, not just the healthy ones.
+    it("offers a status filter for every reportable status", () => {
+      const reportable: DashboardWorkflowComputingUnit["status"][] = [
+        "Running",
+        "Pending",
+        "Failed",
+        "Unknown",
+        "Terminating",
+      ];
+      expect(component.statusFilters.map(f => f.value)).toEqual(reportable);
+      for (const status of reportable) {
+        expect(component.filterByStatus([status], makeUnit({ status }))).toBe(true);
+      }
+    });
+
+    it("shows an admin the reason a unit failed in the status tooltip", () => {
+      const failed = makeUnit({ status: "Failed", statusReason: "OOMKilled" });
+      expect(component.getStatusTooltip(failed)).toBe("OOMKilled");
     });
   });
 });

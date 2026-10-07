@@ -296,9 +296,31 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs and Models) + 5 admin links (incl. CU Images)
-    // + 1 about link + 1 feedback link = 14
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(14);
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 6 admin links (incl. Computing Units
+    // and CU Images) + 1 about link + 1 feedback link = 15
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(15);
+  });
+
+  describe("admin computing units tab", () => {
+    const computingUnitsMenuItem = () =>
+      fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(de => (de.nativeElement.textContent || "").trim() === "Computing Units");
+
+    beforeEach(() => {
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+    });
+
+    it("shows the Computing Units item to admins only", () => {
+      component.isAdmin = false;
+      fixture.detectChanges();
+      expect(computingUnitsMenuItem()).toBeUndefined();
+
+      component.isAdmin = true;
+      fixture.detectChanges();
+      expect(computingUnitsMenuItem()).toBeTruthy();
+    });
   });
 
   describe("warehouse tab gating (#6933)", () => {

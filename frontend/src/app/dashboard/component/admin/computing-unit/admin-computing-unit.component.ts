@@ -93,6 +93,9 @@ export class AdminComputingUnitComponent implements OnInit {
   readonly statusFilters = [
     { text: "Running", value: "Running" },
     { text: "Pending", value: "Pending" },
+    { text: "Failed", value: "Failed" },
+    { text: "Unknown", value: "Unknown" },
+    { text: "Terminating", value: "Terminating" },
   ];
 
   readonly sortByName: NzTableSortFn<DashboardWorkflowComputingUnit> = (a, b) =>
