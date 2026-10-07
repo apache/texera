@@ -163,9 +163,12 @@ jobs:
         #
         # Overlapping opened/edited runs can each post a copy before seeing
         # the other's. Every run keeps the oldest copy and deletes the rest
-        # (claimCommentChanges), so racing runs settle on one comment. A
-        # concurrency group isn't used: with the default queue it cancels a
-        # waiting run, and the sync and credit steps need every event.
+        # (claimCommentChanges), so racing runs settle on one comment. A run
+        # can also read the state before an edit and write after a newer
+        # run, so after writing it reads the state again and repeats until
+        # nothing changes (syncClaimComment). A concurrency group isn't
+        # used: with the default queue it cancels a waiting run, and the
+        # sync and credit steps need every event.
         if: >-
           contains(fromJSON('["opened","edited"]'), github.event.action)
           && github.event.pull_request.state == 'open'
@@ -173,85 +176,53 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const { findClaimConflicts, renderClaimComment, claimCommentChanges } =
+            const { findClaimConflicts, renderClaimComment, syncClaimComment } =
               require('./.github/scripts/issue-claims.js');
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
             const issue_number = pr.number;
 
-            const { repository: { pullRequest: prq } } = await github.graphql(`
-              query($owner: String!, $repo: String!, $pr: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    closingIssuesReferences(first: 50) {
-                      nodes {
-                        number
-                        state
-                        repository { nameWithOwner }
-                        assignees(first: 20) { nodes { login } }
-                        closedByPullRequestsReferences(first: 100) {
-                          nodes { number state author { login } repository { nameWithOwner } }
+            // The claim comment for the PR as it is now, not as this event saw it.
+            const readBody = async () => {
+              const { repository: { pullRequest: prq } } = await github.graphql(`
+                query($owner: String!, $repo: String!, $pr: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $pr) {
+                      closingIssuesReferences(first: 50) {
+                        nodes {
+                          number
+                          state
+                          repository { nameWithOwner }
+                          assignees(first: 20) { nodes { login } }
+                          closedByPullRequestsReferences(first: 100) {
+                            nodes { number state author { login } repository { nameWithOwner } }
+                          }
                         }
                       }
                     }
                   }
-                }
-              }`, { owner, repo, pr: issue_number });
+                }`, { owner, repo, pr: issue_number });
+              const conflicts = findClaimConflicts(prq.closingIssuesReferences.nodes, {
+                repo: `${owner}/${repo}`, prNumber: issue_number, opener: pr.user.login,
+              });
+              for (const { issue, claimants } of conflicts) {
+                core.info(`Issue #${issue} claimed by: ${claimants.map((c) => `${c.login} (assigned=${c.assigned}, prs=[${c.prs.join(',')}])`).join('; ')}`);
+              }
+              return conflicts.length ? renderClaimComment(conflicts) : null;
+            };
 
-            const conflicts = findClaimConflicts(prq.closingIssuesReferences.nodes, {
-              repo: `${owner}/${repo}`, prNumber: issue_number, opener: pr.user.login,
+            await syncClaimComment({
+              readBody,
+              listComments: () => github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
+              ),
+              createComment: (body) => github.rest.issues.createComment({ owner, repo, issue_number, body }),
+              updateComment: (comment_id, body) => github.rest.issues.updateComment({ owner, repo, comment_id, body }),
+              deleteComment: (comment_id) => github.rest.issues.deleteComment({ owner, repo, comment_id }),
+              log: core,
+              skipIfClear: context.payload.action === 'opened',
             });
-            for (const { issue, claimants } of conflicts) {
-              core.info(`Issue #${issue} claimed by: ${claimants.map((c) => `${c.login} (assigned=${c.assigned}, prs=[${c.prs.join(',')}])`).join('; ')}`);
-            }
-            if (!conflicts.length && context.payload.action === 'opened') {
-              core.info(`No linked issue is claimed by someone else.`);
-              return;
-            }
-
-            const body = conflicts.length ? renderClaimComment(conflicts) : null;
-            const listComments = () => github.paginate(
-              github.rest.issues.listComments,
-              { owner, repo, issue_number, per_page: 100 },
-            );
-            let changes;
-            try {
-              changes = claimCommentChanges(await listComments(), body);
-            } catch (e) {
-              // Without the comment list we can't safely de-dupe; bail to
-              // avoid posting a second copy.
-              core.warning(`listComments on #${issue_number} failed: ${e.message}`);
-              return;
-            }
-            if (!changes.create && !changes.update && !changes.remove.length) {
-              core.info(body ? `Claim comment is already current.` : `No linked issue is claimed by someone else.`);
-              return;
-            }
-
-            try {
-              if (changes.create) {
-                await github.rest.issues.createComment({ owner, repo, issue_number, body });
-                core.info(`Posted claim comment on #${issue_number}.`);
-                // List again so a run racing this one keeps the same copy.
-                // Never post twice: the list can lag behind our own comment.
-                changes = { ...claimCommentChanges(await listComments(), body), create: false };
-              }
-              if (changes.update) {
-                await github.rest.issues.updateComment({ owner, repo, comment_id: changes.update, body });
-                core.info(`Updated claim comment ${changes.update}.`);
-              }
-            } catch (e) {
-              core.warning(`Updating the claim comment on #${issue_number} failed: ${e.message}`);
-            }
-            for (const comment_id of changes.remove) {
-              try {
-                await github.rest.issues.deleteComment({ owner, repo, comment_id });
-                core.info(`Deleted claim comment ${comment_id}.`);
-              } catch (e) {
-                // A racing run may have deleted it first.
-                core.warning(`Deleting claim comment ${comment_id} failed: ${e.message}`);
-              }
-            }
 
       - name: Unassign PR opener from linked issues on PR close without merge
         # When a PR is closed without merging, the opener was added to

@@ -29,6 +29,7 @@ const {
   renderClaimComment,
   creditChanges,
   claimCommentChanges,
+  syncClaimComment,
 } = require("./issue-claims.js");
 
 const REPO = "apache/texera";
@@ -343,5 +344,151 @@ test("claimCommentChanges", async (t) => {
     ];
     assert.deepEqual(claimCommentChanges(others, BODY), { create: true, update: null, remove: [] });
     assert.deepEqual(claimCommentChanges(others, null), none);
+  });
+});
+
+// An in-memory PR conversation with the REST calls syncClaimComment makes.
+// `lag` hides comments from listComments, like a list that hasn't caught up.
+function fakeConversation({ lag = new Set() } = {}) {
+  const comments = [];
+  let nextId = 100;
+  const warnings = [];
+  const api = {
+    listComments: async () => comments.filter((c) => !lag.has(c.id)).map((c) => ({ ...c })),
+    createComment: async (body) => {
+      const c = { id: nextId++, body, user: { type: "Bot" } };
+      comments.push(c);
+      return c.id;
+    },
+    updateComment: async (id, body) => {
+      const c = comments.find((x) => x.id === id);
+      if (!c) throw new Error(`comment ${id} not found`);
+      c.body = body;
+    },
+    deleteComment: async (id) => {
+      const i = comments.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error(`comment ${id} not found`);
+      comments.splice(i, 1);
+    },
+    log: { info: () => {}, warning: (m) => warnings.push(m) },
+  };
+  return { comments, api, warnings };
+}
+
+test("syncClaimComment", async (t) => {
+  const claim = (login) =>
+    renderClaimComment([{ issue: 1, claimants: [{ login, assigned: true, prs: [] }] }]);
+  const OLD = claim("old-claimant");
+  const NEW = claim("new-claimant");
+  const bodies = (conv) => conv.comments.map((c) => c.body);
+
+  await t.test("posts the claim comment once and stops when it is current", async () => {
+    const conv = fakeConversation();
+    let reads = 0;
+    await syncClaimComment({ ...conv.api, readBody: async () => (reads++, NEW) });
+    assert.deepEqual(bodies(conv), [NEW]);
+    assert.equal(reads, 2, "re-reads the state once after writing, then stops");
+  });
+
+  await t.test("a current comment is left alone after one read", async () => {
+    const conv = fakeConversation();
+    await conv.api.createComment(NEW);
+    let reads = 0;
+    await syncClaimComment({ ...conv.api, readBody: async () => (reads++, NEW) });
+    assert.deepEqual(bodies(conv), [NEW]);
+    assert.equal(reads, 1);
+  });
+
+  await t.test("a delayed run does not leave a warning the newer run removed", async () => {
+    // Run A reads the state before an edit drops the closing keyword; run B
+    // reads it after, finds nothing to flag, and finishes before A writes.
+    const conv = fakeConversation();
+    let state = OLD;
+    let aReads = 0;
+    await syncClaimComment({
+      ...conv.api,
+      readBody: async () => {
+        if (aReads++ > 0) return state;
+        const seen = state;
+        state = null;
+        await syncClaimComment({ ...conv.api, readBody: async () => state });
+        return seen;
+      },
+    });
+    assert.deepEqual(bodies(conv), []);
+  });
+
+  await t.test("a delayed run does not overwrite the newer run's text", async () => {
+    // Run B posts NEW between run A reading OLD and A writing it.
+    const conv = fakeConversation();
+    let state = OLD;
+    let aReads = 0;
+    await syncClaimComment({
+      ...conv.api,
+      readBody: async () => {
+        if (aReads++ > 0) return state;
+        const seen = state;
+        state = NEW;
+        await syncClaimComment({ ...conv.api, readBody: async () => state });
+        return seen;
+      },
+    });
+    assert.deepEqual(bodies(conv), [NEW]);
+  });
+
+  await t.test("never posts twice when the re-list lags behind its own comment", async () => {
+    const conv = fakeConversation({ lag: new Set([100]) });
+    await syncClaimComment({ ...conv.api, readBody: async () => NEW });
+    assert.deepEqual(bodies(conv), [NEW]);
+  });
+
+  await t.test("skipIfClear: nothing to flag means no list and no writes", async () => {
+    const conv = fakeConversation();
+    let listed = false;
+    await syncClaimComment({
+      ...conv.api,
+      listComments: async () => ((listed = true), []),
+      readBody: async () => null,
+      skipIfClear: true,
+    });
+    assert.equal(listed, false);
+  });
+
+  await t.test("a failed list bails without writing", async () => {
+    const conv = fakeConversation();
+    await syncClaimComment({
+      ...conv.api,
+      listComments: async () => {
+        throw new Error("boom");
+      },
+      readBody: async () => NEW,
+    });
+    assert.deepEqual(bodies(conv), []);
+    assert.equal(conv.warnings.length, 1);
+  });
+
+  await t.test("a copy a racing run already deleted is only a warning", async () => {
+    const conv = fakeConversation();
+    await conv.api.createComment(NEW);
+    await conv.api.createComment(NEW);
+    const deleteComment = async (id) => {
+      await conv.api.deleteComment(id);
+      throw new Error("already gone");
+    };
+    await syncClaimComment({ ...conv.api, deleteComment, readBody: async () => NEW });
+    assert.deepEqual(bodies(conv), [NEW]);
+  });
+
+  await t.test("gives up after maxPasses if the state keeps changing", async () => {
+    const conv = fakeConversation();
+    let reads = 0;
+    await syncClaimComment({
+      ...conv.api,
+      readBody: async () => (reads++ % 2 ? OLD : NEW),
+      maxPasses: 3,
+    });
+    assert.equal(reads, 3);
+    assert.equal(conv.comments.length, 1);
+    assert.match(conv.warnings.at(-1), /3 passes/);
   });
 });

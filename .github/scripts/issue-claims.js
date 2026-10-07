@@ -129,10 +129,78 @@ function claimCommentChanges(comments, body) {
   };
 }
 
+// Bring the PR's claim comment in line with `readBody()`, the comment body for
+// the live PR state (null when nothing is claimed). Runs for opened/edited
+// events overlap, and a run can read the state before an edit and write after
+// a newer run has finished, so after any write it reads the state again and
+// repeats until a pass changes nothing. The run that writes last then also
+// reads last, after every edit, and corrects a stale write. `skipIfClear`
+// skips listing comments when a first read finds nothing to flag (a new PR
+// has no claim comment yet). REST calls go through the injected functions;
+// write failures are logged and the pass goes on.
+async function syncClaimComment({
+  readBody,
+  listComments,
+  createComment,
+  updateComment,
+  deleteComment,
+  log,
+  skipIfClear = false,
+  maxPasses = 3,
+}) {
+  let posted = false;
+  for (let pass = 1; pass <= maxPasses; pass++) {
+    const body = await readBody();
+    if (pass === 1 && body === null && skipIfClear) {
+      log.info("No linked issue is claimed by someone else.");
+      return;
+    }
+    let changes;
+    try {
+      changes = claimCommentChanges(await listComments(), body);
+    } catch (e) {
+      // Without the comment list we can't safely de-dupe; bail to avoid
+      // posting a second copy.
+      log.warning(`Listing comments failed: ${e.message}`);
+      return;
+    }
+    // Never post twice: the list can lag behind our own comment.
+    if (posted) changes.create = false;
+    if (!changes.create && !changes.update && !changes.remove.length) {
+      log.info(body ? "Claim comment is current." : "No claim comment needed.");
+      return;
+    }
+    try {
+      if (changes.create) {
+        await createComment(body);
+        posted = true;
+        log.info("Posted claim comment.");
+      }
+      if (changes.update) {
+        await updateComment(changes.update, body);
+        log.info(`Updated claim comment ${changes.update}.`);
+      }
+    } catch (e) {
+      log.warning(`Writing the claim comment failed: ${e.message}`);
+    }
+    for (const id of changes.remove) {
+      try {
+        await deleteComment(id);
+        log.info(`Deleted claim comment ${id}.`);
+      } catch (e) {
+        // A racing run may have deleted it first.
+        log.warning(`Deleting claim comment ${id} failed: ${e.message}`);
+      }
+    }
+  }
+  log.warning(`Claim comment still changing after ${maxPasses} passes; the next edit refreshes it.`);
+}
+
 module.exports = {
   CLAIM_MARKER,
   findClaimConflicts,
   renderClaimComment,
   creditChanges,
   claimCommentChanges,
+  syncClaimComment,
 };
