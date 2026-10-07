@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
@@ -245,11 +246,19 @@ object WorkflowResource {
     */
   def assignNewOperatorIds(workflowContent: String): String = {
     val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
-    val operatorIdMap = objectMapper
-      .readValue(workflowContent, classOf[Map[String, List[Map[String, String]]]])("operators")
+    val canvas = objectMapper.readTree(workflowContent).asInstanceOf[ObjectNode]
+    // Pinned dependency graphs keep their definition IDs, even when a canvas ID is identical.
+    val dependencies = canvas.remove("macroDependencies")
+    val operators = Option(canvas.get("operators"))
+      .filter(_.isArray)
+      .getOrElse(throw new IllegalArgumentException("Missing operators array"))
+    val operatorIdMap = operators
+      .elements()
+      .asScala
       .map(operator => {
-        val oldOperatorId = operator("operatorID")
-        val operatorType = operator("operatorType")
+        require(operator.path("operatorID").isTextual && operator.path("operatorType").isTextual)
+        val oldOperatorId = operator.get("operatorID").asText()
+        val operatorType = operator.get("operatorType").asText()
         // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
         val newOperatorId = s"$operatorType-operator-${UUID.randomUUID()}"
         oldOperatorId -> newOperatorId
@@ -257,10 +266,17 @@ object WorkflowResource {
       .toMap
 
     // replace all old operator ids with new operator ids
-    operatorIdMap.foldLeft(workflowContent) {
+    val rewritten = operatorIdMap.foldLeft(canvas.toString) {
       case (updatedContent, (oldId, newId)) =>
         updatedContent.replace(oldId, newId)
     }
+    val result = objectMapper.readTree(rewritten).asInstanceOf[ObjectNode]
+    if (dependencies != null)
+      result.set[com.fasterxml.jackson.databind.JsonNode]("macroDependencies", dependencies)
+    Option(result.get("macroInterface")).filter(_.isObject).foreach { boundary =>
+      boundary.asInstanceOf[ObjectNode].put("id", UUID.randomUUID().toString)
+    }
+    result.toString
   }
 
   def baseWorkflowSelect(): SelectOnConditionStep[Record10[

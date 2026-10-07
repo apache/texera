@@ -26,6 +26,7 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { expandMacros, isMacro, MacroDefinition, macroType } from "../../../common/util/workflow-macro";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -42,6 +43,7 @@ type SerializedString = {
   operatorPositions: OperatorPositions;
   links: OperatorLink[];
   commentBoxes: CommentBox[];
+  macroDependencies?: MacroDefinition[];
 };
 
 /**
@@ -210,6 +212,8 @@ export class OperatorMenuService {
     });
 
     serializedString.operators = operatorsCopy;
+    if (operatorsCopy.some(isMacro))
+      serializedString.macroDependencies = this.workflowActionService.getMacroDependencies();
     serializedString.operatorPositions = operatorPositionsCopy;
 
     // get all the highlighted links, and sort them by their layers
@@ -296,6 +300,26 @@ export class OperatorMenuService {
         ) as OperatorPositions;
         // get all the operators from the clipboard, which are already sorted by their layers
         let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
+        let dependencies: MacroDefinition[] | undefined;
+        if (copiedOps.some(isMacro)) {
+          try {
+            const bundled = [
+              ...this.workflowActionService.getMacroDependencies(),
+              ...(elementsInClipboard.get("macroDependencies") ?? []),
+            ];
+            expandMacros({
+              ...this.workflowActionService.getWorkflowContent(),
+              operators: copiedOps,
+              links: linksInClipboard,
+              macroInterface: undefined,
+              macroDependencies: bundled,
+            });
+            dependencies = [...new Map(bundled.map(d => [macroType(d), d])).values()];
+          } catch (error) {
+            this.notificationService.error(error instanceof Error ? error.message : String(error));
+            return;
+          }
+        }
 
         let linksCopy: LinkWithID = {};
         copiedOps.forEach(copiedOperator => {
@@ -352,7 +376,12 @@ export class OperatorMenuService {
 
         // actually add all operators and links to the workflow
         try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+          const add = () => {
+            if (dependencies) this.workflowActionService.setMacroDependencies(dependencies);
+            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+          };
+          if (dependencies) this.workflowActionService.bundleMacroActions(add);
+          else add();
         } catch (e) {
           this.notificationService.info(
             "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."

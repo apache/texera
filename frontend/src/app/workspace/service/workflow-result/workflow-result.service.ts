@@ -42,6 +42,17 @@ import { SchemaAttribute } from "../../types/workflow-compiling.interface";
   providedIn: "root",
 })
 export class WorkflowResultService {
+  private macroAliases: () => Record<string, string> = () => ({});
+  public setMacroAliases(provider: () => Record<string, string>): void {
+    this.macroAliases = provider;
+  }
+  private withMacroAliases<T>(event: Record<string, T>): Record<string, T> {
+    const aliases = this.macroAliases();
+    if (!Object.keys(aliases).length) return event;
+    const result = { ...event };
+    for (const [alias, id] of Object.entries(aliases)) if (event[id] !== undefined) result[alias] = event[id];
+    return result;
+  }
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
@@ -109,11 +120,11 @@ export class WorkflowResultService {
   }
 
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
-    return this.paginatedResultServices.get(operatorID);
+    return this.paginatedResultServices.get(this.macroAliases()[operatorID] ?? operatorID);
   }
 
   public getResultService(operatorID: string): OperatorResultService | undefined {
-    return this.operatorResultServices.get(operatorID);
+    return this.operatorResultServices.get(this.macroAliases()[operatorID] ?? operatorID);
   }
 
   /**
@@ -143,7 +154,7 @@ export class WorkflowResultService {
         this.paginatedResultServices.delete(operatorID);
       }
     });
-    this.resultUpdateStream.next(event);
+    this.resultUpdateStream.next(this.withMacroAliases(event));
   }
 
   private handleTableStatsUpdate(event: WorkflowResultTableStats): void {
@@ -151,7 +162,7 @@ export class WorkflowResultService {
       const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
       paginatedResultService.handleStatsUpdate(event[operatorID]);
     });
-    this.resultTableStats.next(event);
+    this.resultTableStats.next(this.withMacroAliases(event));
   }
 
   private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {

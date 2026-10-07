@@ -57,6 +57,9 @@ import {
   TexeraWebsocketEvent,
 } from "../../types/workflow-websocket.interface";
 import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
+import { macroInstance } from "../../../common/util/workflow-macro";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 
@@ -110,6 +113,139 @@ describe("ExecuteWorkflowService", () => {
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("sends a flat plan with leaf port ordinals and result IDs for a pinned macro", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const d = {
+      id: "analysis",
+      version: 8,
+      name: "Analysis",
+      content: {
+        ...actions.getWorkflowContent(),
+        operators: [mockSentimentPredicate],
+        macroInterface: {
+          id: "analysis",
+          inputs: [
+            { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
+          ],
+          outputs: [
+            { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
+          ],
+        },
+      },
+    };
+    const macro = { ...macroInstance(d, "m"), viewResult: true, markedForReuse: true };
+    const graph = new WorkflowGraph(
+      [mockScanPredicate, macro],
+      [
+        {
+          linkID: "input",
+          source: {
+            operatorID: mockScanPredicate.operatorID,
+            portID: "output-0",
+          },
+          target: { operatorID: "m", portID: "input-0" },
+        },
+      ]
+    );
+    try {
+      const plan = ExecuteWorkflowService.getLogicalPlanRequest(graph, "m", [d]);
+      expect(plan.operators.map(o => o.operatorType).sort()).toEqual(["NlpSentiment", "ScanSource"]);
+      const leaf = plan.operators.find(o => o.operatorType === "NlpSentiment")!;
+      expect(plan.links[0].toOpId).toBe(leaf.operatorID);
+      expect(plan.links[0].toPortId).toEqual({ id: 0, internal: false });
+      expect(plan.opsToViewResult).toEqual([leaf.operatorID]);
+      expect(plan.opsToReuseResult).toEqual([leaf.operatorID]);
+      expect(() => ExecuteWorkflowService.getLogicalPlanRequest(graph)).toThrow(/macro version/i);
+    } finally {
+      graph.sharedModel.destroy();
+    }
+  });
+
+  it("rejects a macro cycle even when the canvas has no terminal operator", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const d = {
+      id: "cycle",
+      version: 1,
+      name: "Cycle",
+      content: {
+        ...actions.getWorkflowContent(),
+        operators: [mockSentimentPredicate],
+        macroInterface: {
+          id: "cycle",
+          inputs: [
+            { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
+          ],
+          outputs: [
+            { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
+          ],
+        },
+      },
+    };
+    const graph = new WorkflowGraph(
+      [macroInstance(d, "m")],
+      [
+        {
+          linkID: "cycle",
+          source: { operatorID: "m", portID: "output-0" },
+          target: { operatorID: "m", portID: "input-0" },
+        },
+      ]
+    );
+    try {
+      expect(() => ExecuteWorkflowService.getLogicalPlanRequest(graph, undefined, [d])).toThrow(/cycle/i);
+    } finally {
+      graph.sharedModel.destroy();
+    }
+  });
+
+  it("reconfigures a paused macro using flat leaf operators and rejects missing versions before sending", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const definition = {
+      id: "live",
+      version: 1,
+      name: "Live",
+      content: {
+        ...actions.getWorkflowContent(),
+        operators: [mockSentimentPredicate],
+        macroInterface: {
+          id: "live",
+          inputs: [
+            { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
+          ],
+          outputs: [
+            { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
+          ],
+        },
+        formBinding: {
+          fields: [
+            {
+              id: "attribute",
+              operatorID: mockSentimentPredicate.operatorID,
+              propertyKey: "attribute",
+              displayName: "Attribute",
+            },
+          ],
+        },
+      },
+    };
+    actions.setMacroDependencies([definition]);
+    actions.addOperator(
+      { ...macroInstance(definition, "m"), operatorProperties: { attribute: "new column" } },
+      { x: 0, y: 0 }
+    );
+    (service as any).currentState = { state: ExecutionState.Paused };
+    const send = vi.spyOn(TestBed.inject(WorkflowWebsocketService), "send");
+    service.modifyOperatorLogic("m");
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith("ModifyLogicRequest", {
+      operator: expect.objectContaining({ operatorType: "NlpSentiment", attribute: "new column" }),
+    });
+    send.mockClear();
+    actions.setMacroDependencies([]);
+    expect(() => service.modifyOperatorLogic("m")).toThrow(/macro version/i);
+    expect(send).not.toHaveBeenCalled();
+  });
 
   // A view handed a session mid-run subscribes after the last state change, and the stream carries
   // no current value, so it heard nothing about the run: it showed Run for a workflow that was

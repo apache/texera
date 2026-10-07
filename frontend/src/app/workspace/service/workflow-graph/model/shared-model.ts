@@ -29,6 +29,7 @@ import {
 } from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
 import { FormBindingConfig, WorkflowSettings } from "../../../../common/type/workflow";
+import { MacroDefinition, MacroInterface } from "../../../../common/util/workflow-macro";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
@@ -38,10 +39,10 @@ import { YType } from "../../../types/shared-editing.interface";
  * the shared doc. Keyed "settings" (WorkflowSettings) and "formBinding" (the Form View
  * definition); the union keeps the map off `unknown` and rejects unrelated values.
  */
-export type ContentMetaValue = WorkflowSettings | FormBindingConfig;
+export type ContentMetaValue = WorkflowSettings | FormBindingConfig | MacroInterface | MacroDefinition[];
 
 /** The keys `contentMetaMap` holds. */
-export type ContentMetaKey = "settings" | "formBinding";
+export type ContentMetaKey = "settings" | "formBinding" | "macroInterface" | "macroDependencies";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -91,7 +92,7 @@ export class SharedModel {
 
     // Initialize Y-undo manager by aggregating intended  Y-structures. Only structures included here will be undoable.
     this.undoManager = new Y.UndoManager(
-      [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap],
+      [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.contentMetaMap],
       {
         captureTimeout: 100,
       }

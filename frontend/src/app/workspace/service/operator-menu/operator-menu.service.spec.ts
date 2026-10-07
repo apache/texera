@@ -39,6 +39,7 @@ import {
 import { CommentBox } from "../../types/workflow-common.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { expandMacros, macroInstance } from "../../../common/util/workflow-macro";
 import { Subscription } from "rxjs";
 
 describe("OperatorMenuService", () => {
@@ -360,6 +361,38 @@ describe("OperatorMenuService", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("Copy failed. You don't have the permission to write to the clipboard.");
     });
+
+    it("bundles pinned definitions when copying a macro to another workflow", async () => {
+      const d = {
+        id: "clipboard-macro",
+        version: 4,
+        name: "Scan",
+        content: {
+          ...workflowActionService.getWorkflowContent(),
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          macroInterface: { id: "clipboard-macro", inputs: [], outputs: [] },
+        },
+      };
+      workflowActionService.setMacroDependencies([d]);
+      const instance = macroInstance(d, "macro-instance");
+      workflowActionService.addOperator(instance, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(instance.operatorID);
+      service.saveHighlightedElements();
+      const saved = writeText.mock.calls[0][0];
+      expect(JSON.parse(saved).macroDependencies).toEqual([d]);
+      workflowActionService.clearWorkflow();
+      Object.defineProperty(navigator, "clipboard", {
+        value: { readText: vi.fn().mockResolvedValue(saved) },
+        configurable: true,
+      });
+      service.performPasteOperation();
+      await flushAsync();
+      const content = workflowActionService.getWorkflowContent();
+      expect(content.operators).toHaveLength(1);
+      expect(content.operators[0].operatorID).not.toBe(instance.operatorID);
+      expect(expandMacros(content).content.operators[0].operatorType).toBe(mockScanPredicate.operatorType);
+    });
   });
 
   describe("performPasteOperation", () => {
@@ -424,6 +457,23 @@ describe("OperatorMenuService", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("You haven't copied any element yet.");
       expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
+    });
+
+    it("refuses a clipboard macro with a missing definition before changing the graph", async () => {
+      const invalid = { ...mockScanPredicate, operatorType: "WorkflowMacro:missing:1" };
+      readText.mockResolvedValue(
+        JSON.stringify({
+          operators: [invalid],
+          links: [],
+          commentBoxes: [],
+          operatorPositions: { [invalid.operatorID]: mockPoint },
+        })
+      );
+      const error = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      service.performPasteOperation();
+      await flushAsync();
+      expect(error).toHaveBeenCalledWith(expect.stringMatching(/macro version/i));
+      expect(workflowActionService.getTexeraGraph().getAllOperators()).toEqual([]);
     });
 
     it("notifies the user when reading the clipboard is rejected", async () => {

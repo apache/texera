@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import * as Y from "yjs";
-import { isEqual } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import {
   ExecutionMode,
@@ -54,6 +54,15 @@ import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ContentMetaKey, ContentMetaValue } from "./shared-model";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {
+  expandMacros,
+  isMacro,
+  macroResultAliases,
+  macroType,
+  MacroDefinition,
+  MacroExpansion,
+  MacroInterface,
+} from "../../../../common/util/workflow-macro";
 
 /** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
  *  listening for the sync it waits on once it is superseded or cancelled. */
@@ -112,6 +121,8 @@ export class WorkflowActionService {
   public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowResetSubject = new Subject<void>();
+  public readonly macroChanged$ = new Subject<void>();
+  private macroExpansionCache?: { key: string; expanded: MacroExpansion };
 
   // The Form View definition. Presentation, not structure, but it still lives in the shared
   // doc (shared-model contentMetaMap, key "formBinding") so a co-editor sees it live and no
@@ -148,6 +159,7 @@ export class WorkflowActionService {
     private config: GuiConfigService
   ) {
     this.texeraGraph = new WorkflowGraph();
+    this.operatorMetadataService.setMacroProvider(() => this.getMacroDependencies());
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
 
@@ -204,6 +216,13 @@ export class WorkflowActionService {
       if (event.changes.keys.has("formBinding") && this.announces("formBinding")) {
         this.formBindingChangeSubject.next(this.getFormBinding());
       }
+      if (
+        ["macroInterface", "macroDependencies"].some(
+          key => event.changes.keys.has(key) && this.announces(key as ContentMetaKey)
+        )
+      ) {
+        this.macroChanged$.next();
+      }
       // Settings are announced the same way, so a co-editor's change reaches the settings panel,
       // which refreshes from this stream, instead of sitting stale until an unrelated edit. Not
       // through workflowChanged, though: the panel persists a settings change itself, and the
@@ -214,6 +233,20 @@ export class WorkflowActionService {
     };
     contentMetaMap.observe(this.contentMetaObserver);
     this.observedContentMetaMap = contentMetaMap;
+    const shared = this.texeraGraph.sharedModel;
+    shared.undoManager.on("stack-item-popped", ({ stackItem, type }) => {
+      const snapshots = stackItem.meta.get("macroContent");
+      if (!snapshots) return;
+      shared.yDoc.transact(() => {
+        for (const [key, value] of snapshots[type === "undo" ? "before" : "after"]) {
+          this.seedContentMeta(key, value, true);
+        }
+      }, "macro-content-undo");
+      this.formBindingChangeSubject.next(this.getFormBinding());
+      this.macroChanged$.next();
+      const destination = type === "undo" ? shared.undoManager.redoStack : shared.undoManager.undoStack;
+      destination.at(-1)?.meta.set("macroContent", snapshots);
+    });
   }
 
   /** Whether a change to a key in the shared map is announced: not a seed's own write, which is an
@@ -300,6 +333,13 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+    let dependencies: MacroDefinition[] | undefined;
+    if (isMacro(operator) && !this.getMacroDependencies().some(d => macroType(d) === operator.operatorType)) {
+      const definition = this.operatorMetadataService.getMacroDefinition(operator.operatorType);
+      if (!definition) throw new Error("Missing pinned macro version");
+      dependencies = [...this.getMacroDependencies(), definition, ...(definition.content.macroDependencies ?? [])];
+    }
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
     // check that the operator doesn't exist
@@ -310,6 +350,7 @@ export class WorkflowActionService {
     }
 
     this.texeraGraph.bundleActions(() => {
+      if (dependencies) this.setMacroDependencies([...new Map(dependencies.map(d => [macroType(d), d])).values()]);
       // add operator to texera graph
       this.texeraGraph.addOperator(operator);
       this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
@@ -801,6 +842,8 @@ export class WorkflowActionService {
       const workflowContent: WorkflowContent = workflow.content;
       this.hydrateSettings(workflowContent.settings);
       this.hydrateFormBinding(workflowContent.formBinding);
+      this.seedContentMeta("macroInterface", workflowContent.macroInterface);
+      this.seedContentMeta("macroDependencies", workflowContent.macroDependencies);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -855,6 +898,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
       this.formBindingChanged$,
+      this.macroChanged$,
       this.workflowResetSubject.asObservable()
     );
   }
@@ -976,7 +1020,7 @@ export class WorkflowActionService {
       this.seedingContentMetaKeys.add(key);
       try {
         if (!isEqual(shared.contentMetaMap.get(key), stored)) {
-          shared.contentMetaMap.set(key, stored);
+          shared.yDoc.transact(() => shared.contentMetaMap.set(key, stored), "content-meta-seed");
         }
       } finally {
         this.seedingContentMetaKeys.delete(key);
@@ -1064,6 +1108,59 @@ export class WorkflowActionService {
     return this.workflowMetadata;
   }
 
+  public getMacroDependencies(): MacroDefinition[] {
+    return (this.readContentMeta("macroDependencies") as MacroDefinition[]) ?? [];
+  }
+
+  public getMacroExpansion(): MacroExpansion | undefined {
+    const content = this.getWorkflowContent();
+    if (!content.operators.some(isMacro)) return undefined;
+    const key = JSON.stringify([content.operators, content.links, content.macroDependencies]);
+    if (this.macroExpansionCache?.key === key) return this.macroExpansionCache.expanded;
+    try {
+      const expanded = expandMacros(content);
+      this.macroExpansionCache = { key, expanded };
+      return expanded;
+    } catch {
+      return undefined;
+    } // Compilation reports malformed edits; keep the runtime streams alive meanwhile.
+  }
+
+  public getMacroResultAliases(): Record<string, string> {
+    const expanded = this.getMacroExpansion();
+    return expanded ? macroResultAliases(this.getWorkflowContent(), expanded) : {};
+  }
+
+  public setMacroDependencies(definitions: MacroDefinition[]): void {
+    this.operatorMetadataService.registerMacros(definitions);
+    this.writeContentMeta("macroDependencies", definitions, () => this.macroChanged$.next());
+  }
+
+  /** Pending metadata has not entered Yjs yet; attach it to the same undo item as the collapse. */
+  public bundleMacroActions(action: () => void): void {
+    const keys: ContentMetaKey[] = ["formBinding", "macroDependencies", "macroInterface"];
+    const shared = this.texeraGraph.sharedModel;
+    const pending = shared.wsProvider.shouldConnect && !shared.wsProvider.synced;
+    const before = keys.map(key => [key, cloneDeep(this.readContentMeta(key))]);
+    shared.undoManager.stopCapturing();
+    this.texeraGraph.bundleActions(action);
+    if (pending)
+      shared.undoManager.undoStack.at(-1)?.meta.set("macroContent", {
+        before,
+        after: keys.map(key => [key, cloneDeep(this.readContentMeta(key))]),
+      });
+    shared.undoManager.stopCapturing();
+  }
+
+  public getMacroInterface(): MacroInterface | undefined {
+    return this.readContentMeta("macroInterface") as MacroInterface | undefined;
+  }
+
+  public setMacroInterface(boundary: MacroInterface): void {
+    if (!this.checkWorkflowModificationEnabled()) return;
+    this.writeContentMeta("macroInterface", boundary, () => this.macroChanged$.next());
+  }
+
   public getWorkflowContent(): WorkflowContent {
     // collect workflow content
     const texeraGraph = this.getTexeraGraph();
@@ -1089,6 +1186,8 @@ export class WorkflowActionService {
       links,
       commentBoxes,
       settings,
+      ...(this.getMacroInterface() ? { macroInterface: this.getMacroInterface() } : {}),
+      ...(this.getMacroDependencies().length ? { macroDependencies: this.getMacroDependencies() } : {}),
       // Carry formBinding only when the workflow has one (opened with it, or an author
       // populated it since), so a plain workflow's content is unchanged and its save cuts no
       // needless version. hasContentMeta stands in for the old "loaded" flag: hydrate sets the

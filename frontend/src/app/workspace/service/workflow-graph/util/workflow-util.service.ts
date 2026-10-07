@@ -27,6 +27,7 @@ import {
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { InputPortInfo, OperatorSchema, OutputPortInfo } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
+import { isMacro, macroInstance } from "../../../../common/util/workflow-macro";
 import { v4 as uuid } from "uuid";
 import Ajv from "ajv";
 
@@ -85,6 +86,12 @@ export class WorkflowUtilService {
    * @returns a new OperatorPredicate of the operatorType
    */
   public getNewOperatorPredicate(operatorType: string, customDisplayName?: string): OperatorPredicate {
+    const macro = this.operatorMetadataService.getMacroDefinition?.(operatorType);
+    if (macro)
+      return {
+        ...macroInstance(macro, `WorkflowMacro-${this.getOperatorRandomUUID()}`),
+        customDisplayName: customDisplayName ?? macro.name,
+      };
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
@@ -184,6 +191,7 @@ export class WorkflowUtilService {
   }
 
   public updateOperatorVersion(op: OperatorPredicate) {
+    if (isMacro(op)) return op;
     const operatorType = op.operatorType;
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {

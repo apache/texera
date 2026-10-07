@@ -94,6 +94,38 @@ describe("WorkflowActionService", () => {
     expect(injectedService).toBeTruthy();
   }));
 
+  it("undoes macro metadata together with its graph transaction", () => {
+    syncSharedDoc();
+    const boundary = { id: "macro", inputs: [], outputs: [] };
+    texeraGraph.bundleActions(() => {
+      service.setMacroInterface(boundary);
+      service.addOperator(mockScanPredicate, mockPoint);
+    });
+    expect(service.getWorkflowContent().macroInterface).toEqual(boundary);
+    undoRedo.undoAction();
+    expect(texeraGraph.getAllOperators()).toEqual([]);
+    expect(service.getMacroInterface()).toBeUndefined();
+    undoRedo.redoAction();
+    expect(service.getMacroInterface()).toEqual(boundary);
+    expect(texeraGraph.getAllOperators()).toHaveLength(1);
+  });
+
+  it("undoes and redoes macro bindings while the shared document is waiting to sync", () => {
+    const original = { fields: [{ id: "field", operatorID: "old", propertyKey: "value", displayName: "Value" }] };
+    service.setFormBinding(original);
+    service.bundleMacroActions(() => {
+      service.setFormBinding({ fields: [{ ...original.fields[0], operatorID: "new" }] });
+      service.addOperator(mockScanPredicate, mockPoint);
+    });
+    undoRedo.undoAction();
+    expect(service.getFormBinding()).toEqual(original);
+    undoRedo.redoAction();
+    expect(service.getFormBinding().fields[0].operatorID).toBe("new");
+    syncSharedDoc();
+    undoRedo.undoAction();
+    expect(service.getFormBinding()).toEqual(original);
+  });
+
   // The operator canvas and the Form View hand one open workflow between them; the arriving view
   // asks this before loading, because seeding a second document for the same workflow would leave
   // the co-editing room and rejoin it.

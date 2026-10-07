@@ -144,6 +144,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    this.workflowResultService.setMacroAliases?.(() => this.workflowActionService.getMacroResultAliases());
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.

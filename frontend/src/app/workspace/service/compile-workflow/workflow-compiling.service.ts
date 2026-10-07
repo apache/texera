@@ -20,13 +20,13 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { JSONSchema7Definition } from "json-schema";
-import { EMPTY, merge, Observable, ReplaySubject } from "rxjs";
+import { defer, EMPTY, merge, Observable, of, ReplaySubject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { AppSettings } from "../../../common/app-setting";
 import { areOperatorSchemasEqual, OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { catchError, debounceTime, mergeMap } from "rxjs/operators";
+import { catchError, debounceTime, map, mergeMap } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import {
   AttributeType,
@@ -43,6 +43,8 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { addCompilationError, areAllPortSchemasEqual } from "../../../common/util/workflow-compilation-utils";
 import { parseLogicalOperatorPortID } from "../../../common/util/logical-operator-port-serde";
+import { expandMacros, isMacro, portKey } from "../../../common/util/workflow-macro";
+import { WorkflowContent } from "../../../common/type/workflow";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -90,17 +92,43 @@ export class WorkflowCompilingService {
       this.workflowActionService.getTexeraGraph().getOperatorAddStream(),
       this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
-      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+      this.workflowActionService.macroChanged$ ?? EMPTY
     )
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
-        mergeMap(() => {
-          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-            this.validationWorkflowService.getValidTexeraGraph(),
-            undefined
-          );
-          return this.compile(logicalPlan);
-        })
+        mergeMap(() =>
+          defer(() => {
+            const content = this.workflowActionService.getWorkflowContent();
+            const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+              this.validationWorkflowService.getValidTexeraGraph(),
+              undefined,
+              this.workflowActionService.getMacroDependencies?.() ?? []
+            );
+            return this.compile(logicalPlan).pipe(map(response => this.mapMacroSchemas(response, content)));
+          }).pipe(
+            catchError((error: unknown) => {
+              const graph = this.workflowActionService.getTexeraGraph();
+              const operatorID =
+                graph.getAllOperators().find(isMacro)?.operatorID ??
+                graph.getAllOperators()[0]?.operatorID ??
+                "workflow";
+              return of({
+                operatorOutputSchemas: {},
+                operatorErrors: {
+                  [operatorID]: {
+                    message: error instanceof Error ? error.message : String(error),
+                    details: "",
+                    operatorId: operatorID,
+                    workerId: "",
+                    type: { name: "MacroValidation" },
+                    timestamp: { nanos: 0, seconds: 0 },
+                  },
+                },
+              } as WorkflowCompilationResponse);
+            })
+          )
+        )
       )
       .subscribe(response => {
         if (response.physicalPlan) {
@@ -122,6 +150,36 @@ export class WorkflowCompilingService {
 
   public getWorkflowCompilationState(): CompilationState {
     return this.currentCompilationStateInfo.state;
+  }
+
+  private mapMacroSchemas(
+    response: WorkflowCompilationResponse,
+    content: WorkflowContent
+  ): WorkflowCompilationResponse {
+    if (!content.operators.some(isMacro)) return response;
+    const expanded = expandMacros(content);
+    const schemas = { ...response.operatorOutputSchemas };
+    const errors = { ...response.operatorErrors };
+    for (const op of content.operators.filter(isMacro)) {
+      const outputs: Record<string, PortSchema | undefined> = {};
+      op.outputPorts.forEach((port, index) => {
+        const target = expanded.ports[portKey(op.operatorID, "outputs", port.portID)]?.[0];
+        const leaf = expanded.content.operators.find(o => o.operatorID === target?.operatorID);
+        const ordinal = leaf?.outputPorts.findIndex(p => p.portID === target?.portID);
+        const schema =
+          target && ordinal !== undefined
+            ? schemas[target.operatorID]?.[serializePortIdentity({ id: ordinal, internal: false })]
+            : undefined;
+        if (schema) outputs[serializePortIdentity({ id: index, internal: false })] = schema;
+      });
+      schemas[op.operatorID] = outputs;
+    }
+    for (const [id, error] of Object.entries(response.operatorErrors ?? {})) {
+      const path = expanded.paths[id];
+      if (path?.length > 1)
+        errors[path[0]] = { ...error, operatorId: path[0], message: `${path.slice(1).join(" / ")}: ${error.message}` };
+    }
+    return { ...response, operatorOutputSchemas: schemas, operatorErrors: errors };
   }
 
   public getWorkflowCompilationErrors(): Readonly<Record<string, WorkflowFatalError>> {

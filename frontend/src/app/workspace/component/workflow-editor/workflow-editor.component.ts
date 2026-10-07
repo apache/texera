@@ -56,6 +56,8 @@ import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { MacroService } from "../../service/macro/macro.service";
+import { isMacro } from "../../../common/util/workflow-macro";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -173,7 +175,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private elementRef: ElementRef,
     private config: GuiConfigService,
     private agentService: AgentService,
-    private jupyterPanelService: JupyterPanelService
+    private jupyterPanelService: JupyterPanelService,
+    private macroService: MacroService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -908,7 +911,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.openResultPanel();
+            if (isMacro(this.workflowActionService.getTexeraGraph().getOperator(elementID))) {
+              this.macroService.inspect$.next(elementID);
+            } else this.workflowActionService.openResultPanel();
           }
         }
       });

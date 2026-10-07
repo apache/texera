@@ -51,6 +51,8 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { expandMacros, isMacro, MacroDefinition, portKey } from "../../../common/util/workflow-macro";
+import { WorkflowContent } from "../../../common/type/workflow";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -117,6 +119,10 @@ export class ExecuteWorkflowService {
     private warehouseService: WarehouseService,
     private config: GuiConfigService
   ) {
+    this.workflowStatusService.setMacroProvider(() => {
+      const expanded = this.workflowActionService.getMacroExpansion?.();
+      return expanded ? { expanded, content: this.workflowActionService.getWorkflowContent() } : undefined;
+    });
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
         case "RegionUpdateEvent":
@@ -196,7 +202,12 @@ export class ExecuteWorkflowService {
         return {
           state: ExecutionState.Failed,
           errorMessages: event.fatalErrors.map(err => {
-            return { ...err, message: err.message.replace("\\n", "<br>") };
+            const path = this.workflowActionService.getMacroExpansion?.()?.paths[err.operatorId];
+            return {
+              ...err,
+              operatorId: path && path.length > 1 ? path[0] : err.operatorId,
+              message: err.message.replace("\\n", "<br>"),
+            };
           }),
         };
       default:
@@ -263,10 +274,8 @@ export class ExecuteWorkflowService {
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
   ): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-      this.workflowActionService.getTexeraGraph(),
-      targetOperatorId
-    );
+    const logicalPlan = this.executionPlan(targetOperatorId);
+    if (!logicalPlan) return;
     const settings = this.workflowActionService.getWorkflowSettings();
     if (this.refuseToRunOnUnavailableUnit()) {
       return;
@@ -284,7 +293,8 @@ export class ExecuteWorkflowService {
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const logicalPlan = this.executionPlan();
+    if (!logicalPlan) return;
     const settings = this.workflowActionService.getWorkflowSettings();
     if (this.refuseToRunOnUnavailableUnit()) {
       return;
@@ -324,6 +334,29 @@ export class ExecuteWorkflowService {
         : "The selected computing unit is unavailable. Select a running unit or create a new one."
     );
     return true;
+  }
+
+  private executionPlan(targetOperatorId?: string): LogicalPlan | undefined {
+    if (this.workflowActionService.getMacroInterface?.()) {
+      this.notificationService.error("A macro runs through a workflow. Add it to a workflow to execute it.");
+      return;
+    }
+    try {
+      const dependencies = this.workflowActionService.getMacroDependencies?.() ?? [];
+      return dependencies.length
+        ? ExecuteWorkflowService.getLogicalPlanRequest(
+            this.workflowActionService.getTexeraGraph(),
+            targetOperatorId,
+            dependencies
+          )
+        : targetOperatorId
+          ? ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph(), targetOperatorId)
+          : ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    } catch (error) {
+      if (!this.workflowActionService.getMacroDependencies?.().length) throw error;
+      this.notificationService.error(error instanceof Error ? error.message : String(error));
+      return;
+    }
   }
 
   /**
@@ -442,12 +475,18 @@ export class ExecuteWorkflowService {
       throw new Error("cannot modify logic, the current execution state is " + this.currentState.state);
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    const operator: LogicalOperator = {
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-    };
-    this.workflowWebsocketService.send("ModifyLogicRequest", { operator });
+    const expanded = isMacro(op) ? expandMacros(this.workflowActionService.getWorkflowContent()) : undefined;
+    const operators = expanded
+      ? expanded.content.operators.filter(o => expanded.paths[o.operatorID][0] === operatorID)
+      : [op];
+    for (const leaf of operators) {
+      const operator: LogicalOperator = {
+        ...leaf.operatorProperties,
+        operatorID: leaf.operatorID,
+        operatorType: leaf.operatorType,
+      };
+      this.workflowWebsocketService.send("ModifyLogicRequest", { operator });
+    }
   }
 
   public getExecutionStateStream(): Observable<{
@@ -540,15 +579,47 @@ export class ExecuteWorkflowService {
    * @param workflowGraph
    * @param targetOperatorId
    */
-  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, targetOperatorId?: string): LogicalPlan {
+  public static getLogicalPlanRequest(
+    workflowGraph: WorkflowGraphReadonly,
+    targetOperatorId?: string,
+    dependencies: MacroDefinition[] = []
+  ): LogicalPlan {
+    let subDAG = workflowGraph.getSubDAG(targetOperatorId);
+    let resultIDs = [...workflowGraph.getOperatorsToViewResult()];
+    let reuseIDs = [...workflowGraph.getOperatorsMarkedForReuseResult()];
+    if (workflowGraph.getAllOperators().some(isMacro)) {
+      const expanded = expandMacros({
+        operators: workflowGraph.getAllOperators(),
+        links: workflowGraph.getAllLinks(),
+        macroDependencies: dependencies,
+      } as WorkflowContent);
+      const original = subDAG.operators;
+      const selected = new Set(original.map(o => o.operatorID));
+      const operators = expanded.content.operators.filter(o => selected.has(expanded.paths[o.operatorID][0]));
+      const ids = new Set(operators.map(o => o.operatorID));
+      subDAG = {
+        operators,
+        links: expanded.content.links.filter(l => ids.has(l.source.operatorID) && ids.has(l.target.operatorID)),
+      };
+      resultIDs = resultIDs.flatMap(id => {
+        const op = original.find(o => o.operatorID === id);
+        return op && isMacro(op)
+          ? op.outputPorts.flatMap(p => expanded.ports[portKey(id, "outputs", p.portID)] ?? []).map(p => p.operatorID)
+          : [id];
+      });
+      resultIDs.push(...subDAG.operators.filter(o => o.viewResult).map(o => o.operatorID));
+      reuseIDs = subDAG.operators
+        .filter(o => o.markedForReuse || reuseIDs.includes(expanded.paths[o.operatorID]?.[0]))
+        .map(o => o.operatorID);
+    }
+    const byID = new Map(subDAG.operators.map(op => [op.operatorID, op]));
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-      return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
+      return byID.get(operatorID)!.inputPorts.findIndex(port => port.portID === inputPortID);
     };
 
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-      return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
+      return byID.get(operatorID)!.outputPorts.findIndex(port => port.portID === outputPortID);
     };
-    const subDAG = workflowGraph.getSubDAG(targetOperatorId);
 
     const operators: LogicalOperator[] = subDAG.operators.map(op => ({
       ...op.operatorProperties,
@@ -571,16 +642,24 @@ export class ExecuteWorkflowService {
 
     const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
-    const opsToViewResult: string[] = Array.from(intersection(operatorIds, workflowGraph.getOperatorsToViewResult()));
+    const opsToViewResult: string[] = Array.from(intersection(operatorIds, new Set(resultIDs)));
 
-    const opsToReuseResult: string[] = Array.from(
-      intersection(operatorIds, workflowGraph.getOperatorsMarkedForReuseResult())
-    );
+    const opsToReuseResult: string[] = Array.from(intersection(operatorIds, new Set(reuseIDs)));
 
     return { operators, links, opsToViewResult, opsToReuseResult };
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {
+    const expanded = this.workflowActionService.getMacroExpansion?.();
+    if (
+      expanded &&
+      this.workflowActionService.getTexeraGraph().hasOperator(operatorId) &&
+      isMacro(this.workflowActionService.getTexeraGraph().getOperator(operatorId))
+    ) {
+      return Object.entries(expanded.paths)
+        .filter(([, path]) => path[0] === operatorId)
+        .flatMap(([id]) => this.assignedWorkerIds.get(id) ?? []);
+    }
     return this.assignedWorkerIds.get(operatorId) || [];
   }
 }

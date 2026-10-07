@@ -303,7 +303,9 @@ export class ValidationWorkflowService {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
 
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    const operatorSchema =
+      this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType) ??
+      this.operatorMetadataService.getOperatorSchema(operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }

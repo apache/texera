@@ -36,6 +36,7 @@ import { FormsModule } from "@angular/forms";
 import { NgFor, NgTemplateOutlet } from "@angular/common";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { MacroPanelComponent } from "./macro-panel.component";
 
 @UntilDestroy()
 @Component({
@@ -43,6 +44,7 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
   templateUrl: "operator-menu.component.html",
   styleUrls: ["operator-menu.component.scss"],
   imports: [
+    MacroPanelComponent,
     NzSpaceCompactItemDirective,
     NzInputDirective,
     FormsModule,

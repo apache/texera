@@ -22,11 +22,17 @@ import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { OperatorRuntimeStatus, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
+import { MacroExpansion, rollupMacroStatus } from "../../../common/util/workflow-macro";
+import { WorkflowContent } from "../../../common/type/workflow";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowStatusService {
+  private macroProvider?: () => { content: WorkflowContent; expanded: MacroExpansion } | undefined;
+  public setMacroProvider(provider: typeof this.macroProvider): void {
+    this.macroProvider = provider;
+  }
   // The engine streams operator state and operator statistics bundled in one
   // wire object (OperatorRuntimeStatus); this service splits them into two
   // separate sub-concepts, each with its own stream and snapshot. Derived
@@ -70,6 +76,8 @@ export class WorkflowStatusService {
 
   /** Splits a bundled runtime-status map into the two sub-concept emissions. */
   private ingestRuntimeStatus(runtimeStatus: Record<string, OperatorRuntimeStatus>): void {
+    const macro = this.macroProvider?.();
+    if (macro) runtimeStatus = rollupMacroStatus(macro.content, runtimeStatus, macro.expanded);
     const state: Record<string, OperatorState> = {};
     const statistics: Record<string, OperatorStatistics> = {};
     for (const [operatorId, update] of Object.entries(runtimeStatus)) {

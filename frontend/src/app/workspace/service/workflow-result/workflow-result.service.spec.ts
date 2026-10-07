@@ -151,6 +151,22 @@ describe("WorkflowResultService", () => {
     expect(initiated).toEqual(["pagOp", "dataOp"]);
   });
 
+  it("resolves a macro result to the existing leaf service and forwards boundary updates", () => {
+    service.setMacroAliases(() => ({ macro: "leaf" }));
+    const updates: Record<string, unknown>[] = [];
+    service.getResultUpdateStream().subscribe(update => updates.push(update));
+    pushWsEvent(TestBed.inject(WorkflowWebsocketService), {
+      type: "WebResultUpdateEvent",
+      updates: { leaf: snapshotUpdate([{ a: 1 }]) },
+      tableStats: {},
+    });
+    expect(service.getResultService("macro")).toBe(service.getResultService("leaf"));
+    expect(service.hasNonEmptyResult("macro")).toBe(true);
+    expect(updates[0]["macro"]).toBe(updates[0]["leaf"]);
+    service.clearResults();
+    expect(service.hasAnyResult("macro")).toBe(false);
+  });
+
   it("creates no result service for a cleared operator entry but still forwards the update record", () => {
     const ws = TestBed.inject(WorkflowWebsocketService);
     const updateEvents: Record<string, unknown>[] = [];

@@ -53,6 +53,18 @@ Tests come first — write the failing test before the source change.
 
 The full testing reference (Vitest stack, recipes, anti-patterns, coverage troubleshooting) is in [`TESTING.md`](TESTING.md).
 
+## Workflow macros
+
+Select operators, open **Operators → Macros**, enter a name, and choose **Create from selection**.
+Drag saved macros from that panel into any workflow. Macros may contain other macros.
+Each instance pins an immutable definition version; **Adopt latest compatible version** is explicit
+and preserves connections and property values. Breaking interfaces or incompatible values require a new instance.
+Double-click an instance to inspect its graph, navigate nested macros, or open its definition for editing.
+**Save editable copy** creates an independent definition, including for imported macros.
+In the definition's Macros panel, configure input/output mappings and exposed operator properties.
+A macro definition runs through a workflow. Compilation recursively expands it into ordinary operators.
+Workflow JSON exports include pinned definitions, so importing does not depend on the original deployment.
+
 ## Project layout
 
 | Path                                           | What lives here                                                                                             |

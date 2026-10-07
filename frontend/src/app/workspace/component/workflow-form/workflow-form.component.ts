@@ -327,6 +327,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.workflowResultService.setMacroAliases?.(() => this.workflowActionService.getMacroResultAliases());
     const wid = Number(this.route.snapshot.params.id);
     if (!Number.isFinite(wid)) {
       void this.router.navigate([USER_WORKFLOW]);

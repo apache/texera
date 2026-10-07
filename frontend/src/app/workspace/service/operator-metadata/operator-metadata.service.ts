@@ -23,6 +23,7 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { shareReplay } from "rxjs/operators";
+import { MacroDefinition, macroSchema, macroType } from "../../../common/util/workflow-macro";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
@@ -46,6 +47,19 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
   providedIn: "root",
 })
 export class OperatorMetadataService {
+  private macros = new Map<string, MacroDefinition>();
+  private schemaStack = new Set<string>();
+  private macroProvider: () => MacroDefinition[] = () => [];
+
+  public setMacroProvider(provider: () => MacroDefinition[]): void {
+    this.macroProvider = provider;
+  }
+  public registerMacros(definitions: MacroDefinition[]): void {
+    definitions.forEach(d => this.macros.set(macroType(d), d));
+  }
+  public getMacroDefinition(type: string): MacroDefinition | undefined {
+    return this.macroProvider().find(d => macroType(d) === type) ?? this.macros.get(type);
+  }
   // holds the current version of operator metadata
   private currentOperatorMetadata: OperatorMetadata | undefined;
 
@@ -54,7 +68,7 @@ export class OperatorMetadataService {
     .pipe(shareReplay(1));
 
   constructor(private httpClient: HttpClient) {
-    this.getOperatorMetadata().subscribe(data => {
+    this.operatorMetadataObservable.subscribe(data => {
       this.currentOperatorMetadata = data;
     });
   }
@@ -75,6 +89,16 @@ export class OperatorMetadataService {
     }
     const operatorSchema = this.currentOperatorMetadata.operators.find(schema => schema.operatorType === operatorType);
     if (!operatorSchema) {
+      const definition = this.getMacroDefinition(operatorType);
+      if (definition) {
+        if (this.schemaStack.has(operatorType)) throw new Error("Recursive macro property schema");
+        this.schemaStack.add(operatorType);
+        try {
+          return macroSchema(definition, type => this.getOperatorSchema(type));
+        } finally {
+          this.schemaStack.delete(operatorType);
+        }
+      }
       throw new Error(`can\'t find operator schema of type ${operatorType}`);
     }
     return operatorSchema;
@@ -94,6 +118,7 @@ export class OperatorMetadataService {
     userFriendlyNameFilter: boolean = false,
     caseInsensitive: boolean = false
   ): boolean {
+    if (this.getMacroDefinition(operatorType)) return true;
     if (!this.currentOperatorMetadata) {
       return false;
     }
