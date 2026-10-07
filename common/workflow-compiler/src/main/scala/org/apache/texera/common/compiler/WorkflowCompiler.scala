@@ -165,7 +165,17 @@ object WorkflowCompiler {
       errorList: ArrayBuffer[(OperatorIdentity, Throwable)]
   ): Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] = {
 
-    // Collect output schemas per physical operator
+    // Internal outputs can carry the originating validation error while a later
+    // stage only knows that its schema is unavailable. Collect errors in
+    // dependency order before hiding internal ports from the public schema map.
+    physicalPlan.topologicalIterator().map(physicalPlan.getOperator).foreach { physicalOp =>
+      physicalOp.outputPorts.values.foreach {
+        case (_, _, Left(err)) => errorList.append((physicalOp.id.logicalOpId, err))
+        case _                 =>
+      }
+    }
+
+    // Collect only user-visible output schemas per physical operator.
     val physicalOutputSchemas =
       physicalPlan.operators.map { physicalOp =>
         val portSchemas = physicalOp.outputPorts.values
@@ -173,8 +183,7 @@ object WorkflowCompiler {
           .map {
             case (port, _, schema) =>
               schema match {
-                case Left(err) =>
-                  errorList.append((physicalOp.id.logicalOpId, err))
+                case Left(_) =>
                   port.id -> None
                 case Right(validSchema) =>
                   port.id -> Some(validSchema)
