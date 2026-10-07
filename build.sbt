@@ -234,6 +234,8 @@ lazy val FileService = (project in file("file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // MockTexeraDB, to force a UDF's execution-time binding
 lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .settings(commonModuleSettings)
   .configs(Test)

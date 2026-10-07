@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormControl } from "@angular/forms";
+import { FormControl, UntypedFormArray } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { FormlyFieldConfig } from "@ngx-formly/core";
@@ -128,6 +128,91 @@ describe("UiUdfParametersComponent", () => {
       expect((field as any).templateOptions?.disabled).toBe(disabled);
       expect((control as FormControl).disabled).toBe(disabled);
     });
+  });
+
+  it("should edit a row that names a resource with that resource's browser, and leave others alone", () => {
+    const columns = () =>
+      rowConfig([
+        { key: "value", formControl: new FormControl("") },
+        { key: "attributeName", formControl: new FormControl("SOURCE") },
+        { key: "attributeType", formControl: new FormControl("string") },
+      ]);
+    const resourceRow = columns();
+    const plainRow = columns();
+    const unknownRow = columns();
+
+    component.onPopulate({
+      model: [{ inputType: "model" }, {}, { inputType: "workflow" }],
+      fieldGroup: [resourceRow, plainRow, unknownRow],
+    } as FormlyFieldConfig);
+
+    const valueOf = (row: FormlyFieldConfig) => component.getColumnField(row, component.fieldColumns[0]);
+    expect(valueOf(resourceRow)?.type).toBe("resourcevalue");
+    expect(valueOf(resourceRow)?.props?.resource).toBe("model");
+    expect(valueOf(plainRow)?.type).toBeUndefined();
+    expect(valueOf(unknownRow)?.type).toBeUndefined();
+  });
+
+  it("should find the rows before Formly narrows the field's model to them", () => {
+    const rows = [{ inputType: "dataset", attribute: { attributeName: "DATA" } }];
+    const operatorProperties = { code: "", uiParameters: rows };
+    const field: FormlyFieldConfig = {
+      key: "uiParameters",
+      props: {},
+      formControl: new UntypedFormArray([]),
+      fieldArray: rowConfig([{ key: "value" }, { key: "attributeName" }, { key: "attributeType" }]),
+      fieldGroup: [],
+    };
+    // Formly hands this field the whole operator's properties and narrows `model` to the
+    // parameter array while the base class populates, so the first read sees the properties.
+    let narrowed = false;
+    Object.defineProperty(field, "model", {
+      get: () => {
+        const model = narrowed ? rows : operatorProperties;
+        narrowed = true;
+        return model;
+      },
+      configurable: true,
+    });
+
+    component.onPopulate(field);
+
+    expect(component.getColumnField(field.fieldGroup![0], component.fieldColumns[0])?.type).toBe("resourcevalue");
+  });
+
+  it("should rebuild a row whose resource changed, so its cell renders the editor it now needs", () => {
+    const columnKeys = [{ key: "value" }, { key: "attributeName" }, { key: "attributeType" }];
+    const rows: object[] = [{ attribute: { attributeName: "DATA" } }, { attribute: { attributeName: "count" } }];
+    const field: FormlyFieldConfig = {
+      model: rows,
+      fieldArray: rowConfig(columnKeys),
+      fieldGroup: [],
+    };
+    const valueOf = (index: number) => component.getColumnField(field.fieldGroup![index], component.fieldColumns[0]);
+
+    component.onPopulate(field);
+    const plainRow = field.fieldGroup![0];
+    expect(valueOf(0)?.type).toBeUndefined();
+
+    // The code now declares DATA with value=Resource.DATASET.
+    rows[0] = { inputType: "dataset", attribute: { attributeName: "DATA" } };
+    component.onPopulate(field);
+    expect(field.fieldGroup![0]).not.toBe(plainRow);
+    expect(valueOf(0)?.type).toBe("resourcevalue");
+    expect(valueOf(0)?.props?.resource).toBe("dataset");
+
+    // Populating again with nothing changed keeps the rows.
+    const resourceRow = field.fieldGroup![0];
+    component.onPopulate(field);
+    expect(field.fieldGroup![0]).toBe(resourceRow);
+
+    // And back to free text: the browser must not linger on the row.
+    rows[0] = { attribute: { attributeName: "DATA" } };
+    component.onPopulate(field);
+    expect(field.fieldGroup![0]).not.toBe(resourceRow);
+    expect(valueOf(0)?.type).toBeUndefined();
+    expect(valueOf(0)?.props?.["resource"]).toBeUndefined();
+    expect(field.fieldGroup).toHaveLength(2);
   });
 
   it("should apply disabled state to rows generated from the field array template", () => {

@@ -165,11 +165,10 @@
           *ngIf="pythonNotebookMigrationEnabled && (jupyterNotebookExists$ | async)"
           nz-button
           (click)="onClickExpandJupyterNotebookPanel()"
-          title="expand Jupyter notebook">
-          <img
-            class="jupyter-notebook-icon"
-            src="assets/notebook_migration_tool/jupyter-logo.svg"
-            alt="Jupyter" />
+          title="expand uploaded source code">
+          <i
+            nz-icon
+            nzType="code"></i>
         </button>
       </nz-space-compact>
       <ng-template #utilities>

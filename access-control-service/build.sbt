@@ -82,5 +82,9 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
+  // Reads the pod a mount is bound for. The okhttp backend is swapped for the JDK one:
+  // it drops three jars and okhttp 3.x, which is end of life.
+  "io.fabric8" % "kubernetes-client" % "6.12.1" exclude ("io.fabric8", "kubernetes-httpclient-okhttp"),
+  "io.fabric8" % "kubernetes-httpclient-jdk" % "6.12.1"
 )
