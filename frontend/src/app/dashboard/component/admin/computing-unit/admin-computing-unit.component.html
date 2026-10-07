@@ -104,25 +104,9 @@
         <td></td>
         <td colspan="6">
           <dl class="spec-detail">
-            <div>
-              <dt>CPU</dt>
-              <dd>{{ displaySpec(unit.computingUnit.resource.cpuLimit) }}</dd>
-            </div>
-            <div>
-              <dt>Memory</dt>
-              <dd>{{ displaySpec(unit.computingUnit.resource.memoryLimit) }}</dd>
-            </div>
-            <div>
-              <dt>GPU</dt>
-              <dd>{{ displaySpec(unit.computingUnit.resource.gpuLimit) }}</dd>
-            </div>
-            <div>
-              <dt>JVM Memory</dt>
-              <dd>{{ displaySpec(unit.computingUnit.resource.jvmMemorySize) }}</dd>
-            </div>
-            <div>
-              <dt>Shared Memory</dt>
-              <dd>{{ displaySpec(unit.computingUnit.resource.shmSize) }}</dd>
+            <div *ngFor="let field of specFields">
+              <dt>{{ field.label }}</dt>
+              <dd>{{ displaySpec(unit.computingUnit.resource[field.key]) }}</dd>
             </div>
           </dl>
         </td>

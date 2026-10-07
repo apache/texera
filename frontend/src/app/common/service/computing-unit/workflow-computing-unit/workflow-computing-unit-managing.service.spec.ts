@@ -18,6 +18,7 @@
  */
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { TestBed } from "@angular/core/testing";
 import { AppSettings } from "../../../app-setting";
 import {
@@ -96,11 +97,16 @@ describe("WorkflowComputingUnitManagingService", () => {
   });
 
   describe("resource parsing", () => {
-    it("falls back to a NaN-filled resource object when the resource JSON is malformed", () => {
+    // A malformed, `NULL` or `"null"` resource gets the placeholder instead of crashing the readers of the unit.
+    it.each([
+      ["malformed JSON", "not-json"],
+      ["null", null],
+      ['the string "null"', "null"],
+    ])("falls back to a NaN-filled resource object when the resource is %s", (_shape, resource) => {
       let result: any;
       service.getComputingUnit(5).subscribe(r => (result = r));
 
-      httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/5`).flush(unitWithResource("not-json"));
+      httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/5`).flush(unitWithResource(resource));
 
       expect(result.computingUnit.resource).toEqual({
         cpuLimit: "NaN",
@@ -164,6 +170,17 @@ describe("WorkflowComputingUnitManagingService", () => {
     req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
 
     expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
+  });
+
+  it("listAllComputingUnits() surfaces an HTTP error, e.g. a non-admin's 403, to the caller", () => {
+    let status: number | undefined;
+    service.listAllComputingUnits().subscribe({ error: (e: unknown) => (status = (e as HttpErrorResponse).status) });
+
+    httpMock
+      .expectOne(`${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`)
+      .flush("forbidden", { status: 403, statusText: "Forbidden" });
+
+    expect(status).toBe(403);
   });
 
   it("renameComputingUnit() PUTs to a URI-encoded rename endpoint", () => {

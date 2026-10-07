@@ -47,21 +47,26 @@ export class WorkflowComputingUnitManagingService {
       resource: string | WorkflowComputingUnitResourceLimit;
     };
 
+    let resource: WorkflowComputingUnitResourceLimit | null = null;
     if (typeof cu.resource === "string") {
       try {
-        cu.resource = JSON.parse(cu.resource) as WorkflowComputingUnitResourceLimit;
+        resource = JSON.parse(cu.resource) as WorkflowComputingUnitResourceLimit | null;
       } catch {
-        // fall back to an empty object, so the UI never crashes
-        cu.resource = {
-          cpuLimit: "NaN",
-          memoryLimit: "NaN",
-          gpuLimit: "NaN",
-          jvmMemorySize: "NaN",
-          shmSize: "NaN",
-          nodeAddresses: [],
-        };
+        // Falls back to the placeholder below.
       }
+    } else {
+      resource = cu.resource;
     }
+    // A `NULL` resource (only a hand-edited row has one) and the string `"null"` get the placeholder too,
+    // since readers use its fields unguarded.
+    cu.resource = resource ?? {
+      cpuLimit: "NaN",
+      memoryLimit: "NaN",
+      gpuLimit: "NaN",
+      jvmMemorySize: "NaN",
+      shmSize: "NaN",
+      nodeAddresses: [],
+    };
     return { ...raw, computingUnit: cu };
   };
 
@@ -188,10 +193,7 @@ export class WorkflowComputingUnitManagingService {
       .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
   }
 
-  /**
-   * List every active computing unit across all users. ADMIN only.
-   * @returns An Observable of a list of DashboardWorkflowComputingUnit.
-   */
+  /** Lists every active computing unit across all users. Admin only. */
   public listAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.http
       .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_ADMIN_LIST_URL}`)

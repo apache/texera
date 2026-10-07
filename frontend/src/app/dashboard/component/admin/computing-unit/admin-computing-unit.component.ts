@@ -20,7 +20,7 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { EMPTY, interval } from "rxjs";
-import { catchError, switchMap } from "rxjs/operators";
+import { catchError, exhaustMap, finalize, startWith } from "rxjs/operators";
 import { DatePipe, NgFor, NgIf } from "@angular/common";
 import {
   NzTableComponent,
@@ -40,17 +40,26 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
-import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
+import {
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitResourceLimit,
+} from "../../../../common/type/workflow-computing-unit";
 import { getComputingUnitBadgeColor, getComputingUnitStatusTooltip } from "../../../../common/util/computing-unit.util";
 import { formatRelativeTime } from "../../../../common/util/format.util";
 import { extractErrorMessage } from "../../../../common/util/error";
 import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
+import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
 
-// Poll cadence for live status, matching the admin executions page.
+// Same cadence as the admin executions page.
 const COMPUTING_UNIT_REFRESH_INTERVAL_MS = 5000;
 
-// Local units have no limits; their specs come back as this placeholder.
+// Local units have no limits, so their specs come back as this placeholder.
 const NOT_APPLICABLE = "NaN";
+
+const hasSpec = (value?: string) => !!value && value !== NOT_APPLICABLE;
+
+// All resource fields except `nodeAddresses`, which is a list.
+type SpecKey = Exclude<keyof WorkflowComputingUnitResourceLimit, "nodeAddresses">;
 
 @UntilDestroy()
 @Component({
@@ -78,25 +87,28 @@ const NOT_APPLICABLE = "NaN";
 export class AdminComputingUnitComponent implements OnInit {
   computingUnits: ReadonlyArray<DashboardWorkflowComputingUnit> = [];
   isLoading: boolean = true;
-  // cuids of rows whose spec detail is expanded.
   readonly expandedCuids = new Set<number>();
 
-  // Expose the shared formatters to the template.
   readonly getBadgeColor = getComputingUnitBadgeColor;
   readonly getStatusTooltip = getComputingUnitStatusTooltip;
   readonly formatRelativeTime = formatRelativeTime;
+
+  readonly specFields: { label: string; key: SpecKey }[] = [
+    { label: "CPU", key: "cpuLimit" },
+    { label: "Memory", key: "memoryLimit" },
+    { label: "GPU", key: "gpuLimit" },
+    { label: "JVM Memory", key: "jvmMemorySize" },
+    { label: "Shared Memory", key: "shmSize" },
+  ];
 
   readonly typeFilters = [
     { text: "Kubernetes", value: "kubernetes" },
     { text: "Local", value: "local" },
   ];
-  readonly statusFilters = [
-    { text: "Running", value: "Running" },
-    { text: "Pending", value: "Pending" },
-    { text: "Failed", value: "Failed" },
-    { text: "Unknown", value: "Unknown" },
-    { text: "Terminating", value: "Terminating" },
-  ];
+  // Every reportable status, so an admin can filter to the `Failed` ones, but not the `NoComputingUnit` sentinel.
+  readonly statusFilters = Object.values(ComputingUnitState)
+    .filter(status => status !== ComputingUnitState.NoComputingUnit)
+    .map(status => ({ text: status, value: status }));
 
   readonly sortByName: NzTableSortFn<DashboardWorkflowComputingUnit> = (a, b) =>
     (a.computingUnit.name ?? "").localeCompare(b.computingUnit.name ?? "");
@@ -119,18 +131,20 @@ export class AdminComputingUnitComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.fetchData();
-
-    // switchMap drops a stale in-flight request; catchError is inside it so one failed poll
-    // shows a message but does not terminate the interval.
+    // `startWith(0)` loads at once. `exhaustMap` rather than `switchMap` lets a response slower than the interval
+    // finish instead of being cancelled by the next tick, so a slow cluster still refreshes. `catchError` sits inside
+    // it, so one failed poll shows a message without ending the stream.
     interval(COMPUTING_UNIT_REFRESH_INTERVAL_MS)
       .pipe(
-        switchMap(() =>
+        startWith(0),
+        exhaustMap(() =>
           this.computingUnitService.listAllComputingUnits().pipe(
             catchError((err: unknown) => {
               this.messageService.error(extractErrorMessage(err));
               return EMPTY;
-            })
+            }),
+            // Also runs after a failed load, so the spinner cannot spin forever.
+            finalize(() => (this.isLoading = false))
           )
         ),
         untilDestroyed(this)
@@ -138,37 +152,11 @@ export class AdminComputingUnitComponent implements OnInit {
       .subscribe(units => (this.computingUnits = units));
   }
 
-  /**
-   * Initial load, with the spinner. Only init calls this, so the poll never re-flashes it.
-   */
-  fetchData(): void {
-    this.isLoading = true;
-    this.computingUnitService
-      .listAllComputingUnits()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: units => {
-          this.computingUnits = units;
-          this.isLoading = false;
-        },
-        error: (err: unknown) => {
-          // Clear the spinner so a failed load doesn't spin forever.
-          this.isLoading = false;
-          this.messageService.error(extractErrorMessage(err));
-        },
-      });
-  }
-
-  /**
-   * Track by cuid so the 5s poll (which replaces every row object) reuses row DOM.
-   */
+  /** A poll replaces every row object, so key the rows by `cuid` to reuse their DOM. */
   trackByCuid(_index: number, unit: DashboardWorkflowComputingUnit): number {
     return unit.computingUnit.cuid;
   }
 
-  /**
-   * Toggle whether a row's full spec detail is shown.
-   */
   onExpandChange(cuid: number, expanded: boolean): void {
     if (expanded) {
       this.expandedCuids.add(cuid);
@@ -177,38 +165,31 @@ export class AdminComputingUnitComponent implements OnInit {
     }
   }
 
-  /**
-   * A local unit has no resource limits (every spec is the "NaN" placeholder).
-   */
   isLocal(unit: DashboardWorkflowComputingUnit): boolean {
     return unit.computingUnit.type === "local";
   }
 
-  /**
-   * The Resources-column summary, e.g. "2 CPU · 4Gi · 1 GPU" (GPU omitted when none).
-   */
+  /** The Resources column, e.g. "2 CPU · 4Gi · 1 GPU", with GPU left out when it is 0. */
   resourceSummary(unit: DashboardWorkflowComputingUnit): string {
     if (this.isLocal(unit)) {
       return "Local — no limits";
     }
     const { cpuLimit, memoryLimit, gpuLimit } = unit.computingUnit.resource;
     const parts: string[] = [];
-    if (cpuLimit && cpuLimit !== NOT_APPLICABLE) {
+    if (hasSpec(cpuLimit)) {
       parts.push(`${cpuLimit} CPU`);
     }
-    if (memoryLimit && memoryLimit !== NOT_APPLICABLE) {
+    if (hasSpec(memoryLimit)) {
       parts.push(memoryLimit);
     }
-    if (gpuLimit && gpuLimit !== NOT_APPLICABLE && gpuLimit !== "0") {
+    if (hasSpec(gpuLimit) && gpuLimit !== "0") {
       parts.push(`${gpuLimit} GPU`);
     }
     return parts.length > 0 ? parts.join(" · ") : "—";
   }
 
-  /**
-   * Present a spec value, rendering the "NaN" placeholder as an em dash.
-   */
+  /** Shows the placeholder or an empty spec as an em dash. */
   displaySpec(value: string): string {
-    return !value || value === NOT_APPLICABLE ? "—" : value;
+    return hasSpec(value) ? value : "—";
   }
 }
