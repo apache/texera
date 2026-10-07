@@ -258,9 +258,10 @@ case class PhysicalPlan(
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
                 .filter(link =>
-                  getOperator(physicalOp.id).isInputLinkDependee(
-                    link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
+                  getOperator(physicalOp.id).isInputLinkDependee(link) ||
+                    // an edge into a control-variable port ends before its receiver starts
+                    getOperator(physicalOp.id).isInputLinkControlVariable(link) ||
+                    getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
                 )
             }
         }

@@ -132,6 +132,75 @@ class PhysicalOpSpec extends AnyFlatSpec {
 
   // ----- exec-code accessors -----
 
+  // ----- control-variable port -----
+
+  "PhysicalOp.withControlVariablePort" should "add the port next to the data ports with an empty schema" in {
+    val op = newOp("f").withInputPorts(List(InputPort(PortIdentity(0)))).withControlVariablePort
+    assert(op.inputPorts.keySet == Set(PortIdentity(0), ControlVariablePort.Id))
+    assert(op.inputPorts(ControlVariablePort.Id)._3 == Right(Schema()))
+    assert(op.withControlVariablePort == op)
+  }
+
+  it should "keep a source a source" in {
+    assert(newOp("s").withControlVariablePort.isSourceOperator)
+    assert(
+      !newOp("f")
+        .withInputPorts(List(InputPort(PortIdentity(0))))
+        .withControlVariablePort
+        .isSourceOperator
+    )
+  }
+
+  it should "mark links into the port without making the port a dependee" in {
+    val op = newOp("f").withInputPorts(List(InputPort(PortIdentity(0)))).withControlVariablePort
+    val controlLink = PhysicalLink(opId("u"), PortIdentity(0), opId("f"), ControlVariablePort.Id)
+    val dataLink = PhysicalLink(opId("u"), PortIdentity(0), opId("f"), PortIdentity(0))
+    assert(op.dependeeInputs.isEmpty)
+    assert(op.isInputLinkControlVariable(controlLink))
+    assert(!op.isInputLinkDependee(controlLink))
+    assert(!op.isInputLinkControlVariable(dataLink))
+  }
+
+  "PhysicalOp.propagateSchema" should "let a source with a control-variable port compute its output schema" in {
+    var seen: Option[Map[PortIdentity, Schema]] = None
+    val src = newOp("s")
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+      .withPropagateSchema(SchemaPropagationFunc { in =>
+        seen = Some(in)
+        Map(PortIdentity(0) -> intSchema)
+      })
+      .withControlVariablePort
+      .propagateSchema()
+    assert(src.outputPorts(PortIdentity(0))._3 == Right(intSchema))
+    assert(seen.contains(Map.empty[PortIdentity, Schema]))
+  }
+
+  it should "ignore the schemas that arrive on the control-variable port" in {
+    val otherSchema = Schema().add(new Attribute("w", AttributeType.STRING))
+    val op = newOp("f")
+      .withInputPorts(List(InputPort(PortIdentity(0))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+      .withControlVariablePort
+      .propagateSchema(Some(ControlVariablePort.Id -> intSchema))
+      .propagateSchema(Some(ControlVariablePort.Id -> otherSchema))
+    assert(op.inputPorts(ControlVariablePort.Id)._3 == Right(Schema()))
+    assert(op.outputPorts(PortIdentity(0))._3.isLeft)
+    val ready = op.propagateSchema(Some(PortIdentity(0) -> intSchema))
+    assert(ready.outputPorts(PortIdentity(0))._3 == Right(intSchema))
+  }
+
+  it should "still reject conflicting schemas on a data port" in {
+    val op = newOp("f")
+      .withInputPorts(List(InputPort(PortIdentity(0))))
+      .withControlVariablePort
+      .propagateSchema(Some(PortIdentity(0) -> intSchema))
+    assertThrows[IllegalArgumentException] {
+      op.propagateSchema(
+        Some(PortIdentity(0) -> Schema().add(new Attribute("w", AttributeType.STRING)))
+      )
+    }
+  }
+
   "PhysicalOp.isPythonBased" should "hold for python and R code executors only" in {
     def withLanguage(language: String): PhysicalOp =
       newOp("p").copy(opExecInitInfo = OpExecWithCode("code", language))
