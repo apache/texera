@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, 
 import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity._
-import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PhysicalLink, PortIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import org.apache.texera.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
@@ -538,6 +538,39 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .collect { case request: ConsoleMessageTriggeredRequest => request.consoleMessage.title }
       .toList
 
+  "data processor" should "turn a tuple on the control-variable port into control variables, without handing it to the operator" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    val feederChannel =
+      ChannelIdentity(
+        ActorVirtualIdentity("Worker:WF1-feeder-main-0"),
+        testWorkerId,
+        isControl = false
+      )
+    dp.inputManager.addPort(ControlVariablePort.Id, Schema(), List.empty, List.empty)
+    dp.inputGateway.getChannel(feederChannel).setPortId(ControlVariablePort.Id)
+    openExecutor(dp)
+
+    val feederSchema = Schema().add("n", AttributeType.LONG).add("other", AttributeType.STRING)
+    def row(n: Long): Tuple =
+      Tuple
+        .builder(feederSchema)
+        .add(feederSchema.getAttribute("n"), n)
+        .add(feederSchema.getAttribute("other"), "x")
+        .build()
+    // The first row becomes the control variables; later rows are dropped.
+    dp.processDataPayload(feederChannel, DataFrame(Array(row(3L), row(7L))))
+    drain(dp)
+
+    assert(exec.tuplesSeen == 0)
+    assert(exec.setting.limit == 3)
+    assert(statesSent(sent).contains(State(Map("n" -> 3L, "other" -> "x"))))
+
+    dp.processECM(senderChannel, startChannelPayload, logManager)
+    dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
+    drain(dp)
+    assert(tuplesSent(sent).size == 3)
+  }
+
   "data processor" should "run an operator whose setting refers to a loop variable as any other, the variable written in as the state arrives" in {
     val (dp, exec, sent) = initializedWith(limitReferringToN)
     // The operator's own executor, built at worker start from the descString with its placeholder.
@@ -576,23 +609,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(!dp.pauseManager.isPaused)
   }
 
-  "data processor" should "fail a state message from the same loop that changes a loop variable" in {
+  "data processor" should "let a later state message from the same loop replace a loop variable" in {
     val (dp, exec, sent) = initializedWith(limitReferringToN)
     openExecutor(dp)
     dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
     dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 3L))))
 
-    // The operator never sees the changed state.
-    assert(exec.calls.map(_._1).toList == List("open", "state"))
-    assert(
-      consoleTitles(sent) == List(
-        new IllegalStateException(
-          "loop variable n got two different values in one iteration, 2 and 3: a loop's " +
-            "variables must not change inside its body"
-        ).toString
-      )
-    )
-    dp.pauseManager.isPaused shouldBe true
+    assert(exec.calls.map(_._1).toList == List("open", "state", "state"))
+    assert(exec.setting.limit == 3)
+    assert(consoleTitles(sent).isEmpty)
+    assert(!dp.pauseManager.isPaused)
   }
 
   "data processor" should "fail the first tuple of an operator whose setting refers to a loop variable no state message carried" in {

@@ -95,34 +95,23 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert(exec.state.contains(outer))
   }
 
-  it should "accept copies from one loop that agree, and fail on one that gives a variable another value, bound or not" in {
-    def conflict(earlier: Any, later: Any): String =
-      s"loop variable n got two different values in one iteration, $earlier and $later: " +
-        "a loop's variables must not change inside its body"
+  it should "let a later value from the same loop replace an earlier one, until the setting is bound" in {
+    // The later value wins: a loop's own variables are assumed read-only in the body, but nothing
+    // enforces it, and a value that arrives on a control-variable port may change one.
     val exec = build(Map("/limit" -> "n", "/name" -> "i"))
-    // Copies from several upstream workers or branches: the same number whatever its boxed type,
-    // and a variable no property refers to may differ.
     exec.registerState(State(Map("n" -> 1L, "unrelated" -> 1)), loopCounter = 1)
-    val copy = State(Map("n" -> 1, "unrelated" -> 2))
-    exec.registerState(copy, loopCounter = 1)
+    exec.registerState(State(Map("n" -> 1, "unrelated" -> 2)), loopCounter = 1)
+    assert(exec.setting.limit == 1)
 
-    assert(
-      intercept[IllegalStateException](
-        exec.registerState(State(Map("i" -> "x", "n" -> 2L)), loopCounter = 1)
-      ).getMessage == conflict(1, 2)
-    )
-    // Nothing of the refused message is written, not even its i, which no message carried yet and
-    // which sorts before n; nor is the message registered.
-    assert((exec.setting.limit, exec.setting.name) == ((1, "$i")))
-    assert(exec.state.contains(copy))
-    exec.registerState(State(Map("i" -> "y")), loopCounter = 1)
+    val later = State(Map("i" -> "x", "n" -> 2L))
+    exec.registerState(later, loopCounter = 1)
+    assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
+    assert(exec.state.contains(later))
+
     exec.bindStateReferences()
-    assert(
-      intercept[IllegalStateException](
-        exec.registerState(State(Map("n" -> "x")), loopCounter = 1)
-      ).getMessage == conflict(1, "x")
-    )
-    assert((exec.setting.limit, exec.setting.name) == ((1, "y")))
+    // Once bound, the setting keeps its values.
+    exec.registerState(State(Map("n" -> 3L, "i" -> "y")), loopCounter = 1)
+    assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
   }
 
   it should "fail at binding, naming every reference no state message carried, until one does" in {

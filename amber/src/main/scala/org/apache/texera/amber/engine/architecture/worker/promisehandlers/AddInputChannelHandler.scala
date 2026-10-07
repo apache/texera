@@ -20,12 +20,16 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.texera.amber.core.workflow.ControlVariablePort
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AddInputChannelRequest,
   AsyncRPCContext
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import org.apache.texera.amber.engine.architecture.worker.{
+  ControlVariablePortPause,
+  DataProcessorRPCHandlerInitializer
+}
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.{
   PAUSED,
   READY,
@@ -41,6 +45,10 @@ trait AddInputChannelHandler {
   ): Future[EmptyReturn] = {
     dp.inputGateway.getChannel(msg.channelId).setPortId(msg.portId)
     dp.inputManager.getPort(msg.portId).channels.add(msg.channelId)
+    if (!ControlVariablePort.is(msg.portId) && dp.inputManager.controlVariablePortPending) {
+      // The data waits until the control variables have arrived.
+      dp.pauseManager.pauseInputChannel(ControlVariablePortPause, List(msg.channelId))
+    }
     dp.stateManager.assertState(READY, RUNNING, PAUSED)
     EmptyReturn()
   }
