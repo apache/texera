@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.typecasting
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.FixedAtCompileTime
 import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
@@ -36,6 +37,7 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("TypeCasting Units")
   @JsonPropertyDescription("Multiple type castings")
+  @FixedAtCompileTime
   var typeCastingUnits: List[TypeCastingUnit] = List.empty
 
   override def getPhysicalOp(

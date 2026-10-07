@@ -37,6 +37,7 @@ import org.apache.texera.amber.core.workflow.{
   OutputPort,
   PhysicalOp,
   PhysicalPlan,
+  PortIdentity,
   WorkflowContext
 }
 import org.apache.texera.amber.engine.architecture.coordinator.{
@@ -48,11 +49,17 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.WorkflowR
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.{LogicalOp, StateTransferFunc}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.common.compiler.model.LogicalPlan
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan}
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
 import org.apache.texera.web.model.websocket.response.{
@@ -468,6 +475,100 @@ class ExecutionReconfigurationServiceSpec
     // A rejected edit neither queues itself nor discards work that was already pending.
     val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
     queued.map(_._1.id) shouldBe List(alreadyQueued.id)
+  }
+
+  // ---------------------------------------------------------------------------
+  // An operator that refers to loop variables
+  // ---------------------------------------------------------------------------
+
+  private def loopStartOp(): LoopStartOpDesc = {
+    val op = new LoopStartOpDesc
+    op.initialization = "i = 0"
+    op.output = "table.iloc[i]"
+    op
+  }
+
+  private def loopEndOp(): LoopEndOpDesc = {
+    val op = new LoopEndOpDesc
+    op.update = "i += 1"
+    op.condition = "i < len(table)"
+    op
+  }
+
+  /** A service over a workflow whose plan is LoopStart -> `deployedOp` -> LoopEnd. */
+  private def insideLoopBlock(deployedOp: LogicalOp): (ExecutionStateStore, WorkflowOnlyService) = {
+    val start = loopStartOp()
+    val end = loopEndOp()
+    def link(from: LogicalOp, to: LogicalOp): LogicalLink =
+      LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
+    val workflow = Workflow(
+      new WorkflowContext(workflowId = testWorkflowId, executionId = testExecutionId),
+      LogicalPlan(
+        List(start, deployedOp, end),
+        List(link(start, deployedOp), link(deployedOp, end))
+      ),
+      PhysicalPlan(Set.empty, Set.empty)
+    )
+    val stateStore = new ExecutionStateStore
+    (stateStore, new WorkflowOnlyService(stateStore, workflow))
+  }
+
+  private def filterOp(opId: String, value: String): SpecializedFilterOpDesc = {
+    val op = new SpecializedFilterOpDesc
+    op.setOperatorId(opId)
+    op.predicates = List(new FilterPredicate("line", ComparisonType.EQUAL_TO, value))
+    op
+  }
+
+  private def refused(name: String): String =
+    s"$name refers to loop variables, so it cannot be modified while the workflow runs: its " +
+      "executor would be rebuilt from placeholders, after the loop state that sets them has arrived"
+
+  "modifyOperatorLogic" should
+    "refuse to modify an operator whose deployed setting refers to a loop variable" in {
+    // The references the compiler left on the deployed operator, as it does inside a loop block.
+    val deployedOp = mkLimitOp("limit-a", 0)
+    deployedOp.stateReferences = Map("/limit" -> "n")
+    val (stateStore, service) = insideLoopBlock(deployedOp)
+
+    service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp("limit-a", 7))) shouldBe
+      ModifyLogicResponse("limit-a", isValid = false, refused("Limit"))
+    stateStore.reconfigurationStore.getState.unscheduledReconfigurations shouldBe empty
+  }
+
+  it should "refuse an edit that makes an operator inside a loop block refer to a loop variable" in {
+    val (typedStore, typed) = insideLoopBlock(mkLimitOp("limit-a", 1))
+    // As the frontend sends it: "$n" in the Int property.
+    val typedEdit = objectMapper.readValue(
+      """{"operatorID":"limit-a","limit":"$n","operatorType":"Limit"}""",
+      classOf[LogicalOp]
+    )
+    typed.modifyOperatorLogic(ModifyLogicRequest(typedEdit)) shouldBe
+      ModifyLogicResponse("limit-a", isValid = false, refused("Limit"))
+    typedStore.reconfigurationStore.getState.unscheduledReconfigurations shouldBe empty
+
+    // A whole-string "$x" refers to a loop variable inside a loop block; the compiler never saw it.
+    val (literalStore, literal) = insideLoopBlock(filterOp("filter-a", "Asia"))
+    literal.modifyOperatorLogic(ModifyLogicRequest(filterOp("filter-a", "$x"))) shouldBe
+      ModifyLogicResponse("filter-a", isValid = false, refused("Filter"))
+    literalStore.reconfigurationStore.getState.unscheduledReconfigurations shouldBe empty
+  }
+
+  it should "still modify an operator inside a loop block that refers to no loop variable, and a '$x' literal outside every block" in {
+    val (insideStore, inside) = insideLoopBlock(mkLimitOp("limit-a", 1))
+    inside.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp("limit-a", 7))) shouldBe
+      ModifyLogicResponse("limit-a", isValid = true, "")
+    insideStore.reconfigurationStore.getState.unscheduledReconfigurations.map {
+      case (op, _) => limitOf(op)
+    } shouldBe List(7)
+
+    // Outside every block "$x" is the literal it is on main.
+    val outsideStore = new ExecutionStateStore
+    val outside =
+      new WorkflowOnlyService(outsideStore, mkWorkflow(List(filterOp("filter-a", "Asia"))))
+    outside.modifyOperatorLogic(ModifyLogicRequest(filterOp("filter-a", "$x"))) shouldBe
+      ModifyLogicResponse("filter-a", isValid = true, "")
+    outsideStore.reconfigurationStore.getState.unscheduledReconfigurations should have size 1
   }
 
   "performReconfigurationOnResume" should

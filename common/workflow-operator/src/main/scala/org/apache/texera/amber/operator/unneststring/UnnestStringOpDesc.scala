@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.unneststring
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.FixedAtCompileTime
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
@@ -58,6 +59,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "Result attribute", required = true, defaultValue = "unnestResult")
   @JsonPropertyDescription("column name of the unnest result")
+  @FixedAtCompileTime
   var resultAttribute: String = _
 
   override def operatorInfo: OperatorInfo =
