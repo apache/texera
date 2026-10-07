@@ -21,7 +21,7 @@
  * Ranks operators by meaning rather than by name.
  *
  * The palette's keyword search only indexes `userFriendlyName`, so a query
- * phrased as an intent ("quitar duplicados") matches nothing even when an
+ * phrased as an intent ("remove repeated rows") matches nothing even when an
  * operator's description says exactly that. This service compares the query
  * against a committed index of every operator's name, group and description.
  *
@@ -54,7 +54,7 @@ export interface SemanticHit {
   score: number;
 }
 
-const INDEX_URL = "assets/operator-embeddings.json";
+export const INDEX_URL = "assets/operator-embeddings.json";
 
 @Injectable({ providedIn: "root" })
 export class SemanticOperatorSearchService {
@@ -75,7 +75,14 @@ export class SemanticOperatorSearchService {
    */
   public ready(): Promise<void> {
     if (!this.warmup) {
-      this.warmup = this.load();
+      // Forget a failed attempt so a later search can make a new one. Holding
+      // on to the rejected promise would leave the ranker disabled until the
+      // page is reloaded, even once the download would succeed. Callers that
+      // arrive while an attempt is in flight still share that one attempt.
+      this.warmup = this.load().catch(error => {
+        this.warmup = undefined;
+        throw error;
+      });
     }
     return this.warmup;
   }
