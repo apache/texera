@@ -27,8 +27,9 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.texera.amber.core.state.StateReferencing.{
-  noLoopVariableReferences,
   literalReferences,
+  noLoopVariableProperties,
+  noLoopVariableReferences,
   referencedVariable
 }
 import org.apache.texera.amber.core.tuple.AttributeType
@@ -205,6 +206,17 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
       literalReferences(tree) ==
         Map("/name" -> "i", "/tags/1" -> "t", "/a~1b~0c/deep/0/v" -> "z")
     )
+  }
+
+  "StateReferencing.noLoopVariableProperties" should "name each property marked @NoLoopVariable by its JSON name, a trait's included" in {
+    assert(
+      noLoopVariableProperties(classOf[PlanBuilding]) ==
+        Set("result attribute", "a/b", "keys", "column")
+    )
+  }
+
+  it should "name nothing for a descriptor with no marked property" in {
+    assert(noLoopVariableProperties(classOf[Bean]).isEmpty)
   }
 
   "StateReferencing.noLoopVariableReferences" should "pick the references under a property marked @NoLoopVariable, renamed, escaped, nested or declared by a trait" in {
