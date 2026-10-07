@@ -117,6 +117,8 @@ describe("ContextMenuComponent", () => {
       viewResultHighlightedOperators: vi.fn(),
       reuseResultHighlightedOperator: vi.fn(),
       executeUpToOperator: vi.fn(),
+      isOperatorColorClickable: false,
+      openOperatorColorPicker: vi.fn(),
     } as unknown as Mocked<OperatorMenuService>;
 
     const validationWorkflowServiceSpy = { validateOperator: vi.fn() };
@@ -159,6 +161,32 @@ describe("ContextMenuComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  it("opens operator colors from the context menu", () => {
+    Object.defineProperty(operatorMenuService, "isOperatorColorClickable", { value: true, configurable: true });
+    highlightedOperatorsSubject.next(["op1"]);
+    fixture.detectChanges();
+    const entry = fixture.debugElement.query(By.css('[data-testid="operator-color-menu-item"]'));
+    expect(entry).not.toBeNull();
+    entry.triggerEventHandler("click", null);
+    expect(operatorMenuService.openOperatorColorPicker).toHaveBeenCalledOnce();
+  });
+
+  it("hides the color entry for a structure-locked Form View even when editing is otherwise enabled", () => {
+    Object.defineProperty(operatorMenuService, "isOperatorColorClickable", { value: true, configurable: true });
+    highlightedOperatorsSubject.next(["op1"]);
+    component.structureLocked = true;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="operator-color-menu-item"]')).toBeNull();
+  });
+
+  it("hides the color entry for an empty or readonly selection", () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="operator-color-menu-item"]')).toBeNull();
+    highlightedOperatorsSubject.next(["op1"]);
+    Object.defineProperty(operatorMenuService, "isOperatorColorClickable", { value: false, configurable: true });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="operator-color-menu-item"]')).toBeNull();
   });
 
   describe("isSelectedOperatorValid", () => {

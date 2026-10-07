@@ -315,6 +315,13 @@
               nzType="cloud-download"></i>
           </button>
           <button
+            nz-button
+            title="operator color"
+            [disabled]="!operatorMenu.isOperatorColorClickable"
+            (click)="operatorMenu.openOperatorColorPicker()">
+            Color
+          </button>
+          <button
             (click)="operatorMenu.disableHighlightedOperators()"
             *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
             [disabled]="!operatorMenu.isDisableOperatorClickable"

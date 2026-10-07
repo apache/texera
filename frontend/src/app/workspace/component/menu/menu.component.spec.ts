@@ -62,6 +62,7 @@ import type { Mocked } from "vitest";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
+import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 
 describe("MenuComponent", () => {
   let component: MenuComponent;
@@ -120,6 +121,21 @@ describe("MenuComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
+  });
+
+  it("offers operator colors from the toolbar and disables it without an editable selection", () => {
+    const open = vi.spyOn(TestBed.inject(OperatorMenuService), "openOperatorColorPicker").mockImplementation(() => {});
+    const button = () => fixture.nativeElement.querySelector('button[title="operator color"]') as HTMLButtonElement;
+    expect(button()).not.toBeNull();
+    expect(button().disabled).toBe(true);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    fixture.detectChanges();
+    expect(button().disabled).toBe(false);
+    button().click();
+    expect(open).toHaveBeenCalledOnce();
+    workflowActionService.disableWorkflowModification();
+    fixture.detectChanges();
+    expect(button().disabled).toBe(true);
   });
 
   it("does not open the Form View for a workflow that has not been saved yet", () => {

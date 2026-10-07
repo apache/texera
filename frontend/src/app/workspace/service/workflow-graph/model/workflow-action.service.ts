@@ -54,6 +54,7 @@ import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ContentMetaKey, ContentMetaValue } from "./shared-model";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { WorkflowColor } from "../../../types/workflow-color";
 
 /** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
  *  listening for the sync it waits on once it is superseded or cancelled. */
@@ -550,6 +551,12 @@ export class WorkflowActionService {
    * @param operatorID
    * @param newProperty
    */
+  /** Color choices change presentation only, but obey the same workflow editing locks. */
+  public setOperatorsColor(operatorIDs: readonly string[], color: WorkflowColor | undefined): void {
+    if (!this.checkWorkflowModificationEnabled() || this.getWorkflowMetadata().readonly) return;
+    this.texeraGraph.setOperatorsColor(operatorIDs, color);
+  }
+
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.setOperatorProperty(operatorID, newProperty);
@@ -851,6 +858,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
+      this.getTexeraGraph().getOperatorColorChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
