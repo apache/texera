@@ -56,6 +56,7 @@ import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
+import org.apache.texera.amber.operator.statistics.OLSAnalysisOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
   SklearnAdvancedKNNClassifierTrainerOpDesc,
   SklearnAdvancedKNNRegressorTrainerOpDesc
@@ -275,6 +276,7 @@ trait StateTransferFunc
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
+    new Type(value = classOf[OLSAnalysisOpDesc], name = "OLSAnalysis"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
