@@ -278,6 +278,26 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(warnings.last.contains("150 total"))
   }
 
+  it should "emit each field as the value of its inferred type" in {
+    val exec = execOver(
+      writeTempCsv("i,d,s,b,l\n1,1.5,x,true,9000000000\n2,2.5,y,false,9000000001\n"),
+      hasHeader = true
+    )
+    exec.open()
+    val tuples =
+      try exec.produceTuple().toList
+      finally exec.close()
+
+    assert(
+      tuples.map(_.getFields.toSeq) == List(
+        Seq[Any](1, 1.5, "x", true, 9000000000L),
+        Seq[Any](2, 2.5, "y", false, 9000000001L)
+      )
+    )
+    assert(tuples.head.getFields(0).isInstanceOf[java.lang.Integer])
+    assert(tuples.head.getFields(4).isInstanceOf[java.lang.Long])
+  }
+
   it should "keep a row whose empty cell parses to null instead of skipping it" in {
     // An empty INTEGER cell parses to null, which is a legitimate value: the row
     // must survive (with the null) and must not be reported as skipped.

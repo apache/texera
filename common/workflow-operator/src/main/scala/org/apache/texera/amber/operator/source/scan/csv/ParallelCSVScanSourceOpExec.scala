@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeTypeUtils, TupleLike}
+import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, TupleLike}
 import org.apache.texera.amber.operator.source.BufferedBlockReader
 import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -30,7 +30,6 @@ import org.tukaani.xz.SeekableFileInputStream
 import java.net.URI
 import java.util
 import java.util.stream.{IntStream, Stream}
-import scala.collection.compat.immutable.ArraySeq
 
 class ParallelCSVScanSourceOpExec private[csv] (
     descString: String,
@@ -41,6 +40,8 @@ class ParallelCSVScanSourceOpExec private[csv] (
     objectMapper.readValue(descString, classOf[ParallelCSVScanSourceOpDesc])
   private var reader: BufferedBlockReader = _
   private val schema = desc.sourceSchema()
+  private lazy val attributeTypes: Array[AttributeType] =
+    schema.getAttributes.map(_.getType).toArray
   private val skippedRows = new SkippedRowReporter()
 
   override def getWarnings: Seq[String] = skippedRows.warnings
@@ -78,13 +79,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
               )
               .toArray()
           // parse Strings into inferred AttributeTypes
-          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
-            fields.asInstanceOf[Array[Any]],
-            schema.getAttributes
-              .map((attr: Attribute) => attr.getType)
-              .toArray
-          )
-          TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
+          TupleLike(AttributeTypeUtils.parseFields(fields.asInstanceOf[Array[Any]], attributeTypes))
         } catch {
           case e: Throwable =>
             // Skip the unparsable row but surface it as a warning instead of
