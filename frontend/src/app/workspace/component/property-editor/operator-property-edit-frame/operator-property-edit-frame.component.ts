@@ -82,6 +82,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { of } from "rxjs";
 import { map, switchMap, take } from "rxjs/operators";
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { isControlVariableLink } from "../../../service/workflow-graph/model/control-variable-port";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -865,16 +866,31 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  /** Whether a link enters the control-variable port of the operator being edited. */
+  private fedThroughControlVariablePort(): boolean {
+    const graph = this.workflowActionService.getTexeraGraph();
+    return (
+      this.currentOperatorId !== undefined &&
+      graph.hasOperator(this.currentOperatorId) &&
+      graph.getInputLinksByOperatorId(this.currentOperatorId).some(isControlVariableLink)
+    );
+  }
+
   /**
    * The loop variables in scope of the operator being edited, or undefined when it is not inside any
-   * control block (or not in the graph at all), so that such operators keep today's form exactly.
+   * control block and has no link into its control-variable port (or is not in the graph at all), so
+   * that such operators keep today's form exactly.
    */
   private loopVariableNamesInScope(): string[] | undefined {
     if (this.currentOperatorId === undefined) {
       return undefined;
     }
     const graph = this.workflowActionService.getTexeraGraph();
-    return graph.hasOperator(this.currentOperatorId) ? loopVariablesInScope(graph, this.currentOperatorId) : undefined;
+    return graph.hasOperator(this.currentOperatorId)
+      ? loopVariablesInScope(graph, this.currentOperatorId, (opID, portID) =>
+          this.workflowCompilingService.outputColumnNames(opID, portID)
+        )
+      : undefined;
   }
 
   /**
@@ -1033,6 +1049,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         (mappedField.type === loopSchemaType || isDefined(mapSource.valueRules)) &&
         !isDefined(mapSource.enum)
       ) {
+        applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
+      } else if (
+        loopVariableNames !== undefined &&
+        customType === "inputautocomplete" &&
+        loopSchemaType === "string" &&
+        this.fedThroughControlVariablePort()
+      ) {
+        // A reader fed through its control-variable port takes its file name from a variable, e.g.
+        // "$file", and opens the file once the variable arrives. The file picker cannot hold a name
+        // (its box is read-only), so the field becomes the variable input.
         applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
 

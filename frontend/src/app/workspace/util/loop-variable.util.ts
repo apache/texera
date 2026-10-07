@@ -18,6 +18,8 @@
  */
 
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
+import { isControlVariableLink } from "../service/workflow-graph/model/control-variable-port";
+import { LOOP_START_OP_TYPE } from "../service/workflow-graph/model/loop-block.util";
 
 /**
  * A plain assignment target: an optional star, an identifier and an optional annotation (`x: int`).
@@ -128,27 +130,43 @@ export function extractLoopVariables(initialization: string): string[] {
   return names;
 }
 
+const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /**
  * The loop variables in scope of an operator: those of every enclosing Loop Start, outermost first,
- * without duplicates. Undefined outside every block, so that one call tells both whether the operator
- * sits in a block and what it may refer to; empty for a block whose Loop Starts declare nothing. A
- * Loop Start whose initialization is missing or not a string contributes nothing.
+ * then the names that arrive on its control-variable port, without duplicates. A Loop Start that feeds
+ * the port offers its variables; any other operator offers its output columns, which `outputColumns`
+ * looks up when given. Undefined when the operator is outside every block and has no link into its
+ * port, so that one call tells both whether it may refer to variables and to which; empty when nothing
+ * declares a name. A Loop Start whose initialization is missing or not a string contributes nothing.
  */
-export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: string): string[] | undefined {
+export function loopVariablesInScope(
+  graph: WorkflowGraphReadonly,
+  operatorID: string,
+  outputColumns?: (operatorID: string, portID: string) => string[] | undefined
+): string[] | undefined {
   const loopStartIDs = graph.getEnclosingLoopStarts(operatorID);
-  if (loopStartIDs.length === 0) {
+  const portLinks = (graph.getInputLinksByOperatorId?.(operatorID) ?? []).filter(isControlVariableLink);
+  if (loopStartIDs.length === 0 && portLinks.length === 0) {
     return undefined;
   }
   const names: string[] = [];
-  for (const loopStartID of loopStartIDs) {
-    const initialization: unknown = graph.getOperator(loopStartID).operatorProperties?.["initialization"];
-    if (typeof initialization !== "string") {
-      continue;
+  const add = (name: string) => {
+    if (VARIABLE_NAME.test(name) && !names.includes(name)) {
+      names.push(name);
     }
-    for (const name of extractLoopVariables(initialization)) {
-      if (!names.includes(name)) {
-        names.push(name);
-      }
+  };
+  const loopStartVariables = (loopStartID: string): string[] => {
+    const initialization: unknown = graph.getOperator(loopStartID).operatorProperties?.["initialization"];
+    return typeof initialization === "string" ? extractLoopVariables(initialization) : [];
+  };
+  loopStartIDs.forEach(loopStartID => loopStartVariables(loopStartID).forEach(add));
+  for (const link of portLinks) {
+    const source = link.source.operatorID;
+    if (graph.getOperator(source).operatorType === LOOP_START_OP_TYPE) {
+      loopStartVariables(source).forEach(add);
+    } else {
+      (outputColumns?.(source, link.source.portID) ?? []).forEach(add);
     }
   }
   return names;

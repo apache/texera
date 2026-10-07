@@ -17,6 +17,10 @@
  * under the License.
  */
 
+import {
+  CONTROL_VARIABLE_PORT_GROUP,
+  isControlVariableLink,
+} from "../../service/workflow-graph/model/control-variable-port";
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit } from "@angular/core";
 import { combineLatest, fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -242,6 +246,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleViewAddPort();
     this.handleViewRemovePort();
     this.handlePortClick();
+    this.handleControlVariableLinkColor();
     this.handlePaperPan();
     this.handleOperatorSelectionEvents();
     this.handlePortHighlightEvent();
@@ -1190,6 +1195,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     fromJointPaperEvent(this.paper, "element:magnet:pointerclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
+        // The control-variable port is not a data port: it has nothing to highlight.
+        if (event[2].getAttribute("port-group") === CONTROL_VARIABLE_PORT_GROUP) {
+          return;
+        }
         // set the multi-select mode
         this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
 
@@ -1213,6 +1222,20 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
         }
       });
+  }
+
+  /** A link the user draws into a control-variable port turns the port's purple once it connects. */
+  private handleControlVariableLinkColor(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getLinkAddStream()
+      .pipe(
+        filter(isControlVariableLink),
+        map(link => this.workflowActionService.getJointGraph().getCell(link.linkID)),
+        filter((cell): cell is joint.dia.Link => cell instanceof joint.dia.Link),
+        untilDestroyed(this)
+      )
+      .subscribe(cell => JointUIService.paintControlVariableLink(cell));
   }
 
   private handleOperatorSelectionEvents(): void {

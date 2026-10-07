@@ -56,7 +56,9 @@ import {
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
 } from "../../types/workflow-websocket.interface";
-import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { mockScanPredicate, mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
+import { CONTROL_VARIABLE_PORT_ID } from "../workflow-graph/model/control-variable-port";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 
@@ -256,6 +258,25 @@ describe("ExecuteWorkflowService", () => {
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
+  });
+
+  it("should send a link into the control-variable port to port -1", () => {
+    const graph = new WorkflowGraph(
+      [mockScanPredicate, mockSentimentPredicate],
+      [
+        {
+          linkID: "control-link",
+          source: { operatorID: mockSentimentPredicate.operatorID, portID: "output-0" },
+          target: { operatorID: mockScanPredicate.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+        },
+      ]
+    );
+    const plan = ExecuteWorkflowService.getLogicalPlanRequest(graph);
+    expect(plan.links.map(l => l.toPortId)).toEqual([{ id: -1, internal: false }]);
+    // The port is not a data port: the operator's input ports are unchanged.
+    expect(plan.operators.find(o => o.operatorID === mockScanPredicate.operatorID)?.inputPorts).toEqual(
+      mockScanPredicate.inputPorts
+    );
   });
 
   it("should msg backend when executing workflow", fakeAsync(() => {

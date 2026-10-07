@@ -33,6 +33,7 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph, isSink } from "./workflow-graph";
+import { CONTROL_VARIABLE_PORT_ID } from "./control-variable-port";
 import { Observable } from "rxjs";
 import {
   Comment,
@@ -673,6 +674,17 @@ describe("WorkflowGraph", () => {
         target: { operatorID: "2", portID: "input-0" },
       };
       expect(() => workflowGraph.assertLinkIsValid(badSourcePortLink)).toThrowError(new RegExp("source port"));
+    });
+
+    it("should accept a link into any operator's control-variable port", () => {
+      workflowGraph.addOperator(mockSentimentPredicate); // operator 2
+      workflowGraph.addOperator(mockScanPredicate); // operator 1, has no input ports
+      const controlLink: OperatorLink = {
+        linkID: "control-link",
+        source: { operatorID: "2", portID: mockSentimentPredicate.outputPorts[0].portID },
+        target: { operatorID: "1", portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      expect(() => workflowGraph.assertLinkIsValid(controlLink)).not.toThrow();
     });
 
     it("should validate a link's target port existence", () => {

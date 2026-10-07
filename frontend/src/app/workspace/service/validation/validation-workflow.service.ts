@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { isControlVariableLink } from "../workflow-graph/model/control-variable-port";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -341,7 +342,13 @@ export class ValidationWorkflowService {
           )
       );
       const validateReference = referenceValidator(namesInScope);
-      const undeclared = collectReferences(properties)
+      // A link into the control-variable port brings names that are known only at run time (the
+      // columns of the tuple that arrives); a name missing then is a run-time error.
+      const fedThroughPort = this.workflowActionService
+        .getTexeraGraph()
+        .getInputLinksByOperatorId(operatorID)
+        .some(isControlVariableLink);
+      const undeclared = (fedThroughPort ? [] : collectReferences(properties))
         .map(reference => validateReference(`$${reference.name}`))
         .find(message => message !== undefined);
       if (undeclared !== undefined) {

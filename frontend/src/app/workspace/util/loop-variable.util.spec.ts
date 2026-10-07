@@ -18,6 +18,7 @@
  */
 
 import { extractLoopVariables, loopVariablesInScope } from "./loop-variable.util";
+import { CONTROL_VARIABLE_PORT_ID } from "../service/workflow-graph/model/control-variable-port";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
 
 describe("extractLoopVariables", () => {
@@ -172,5 +173,55 @@ describe("loopVariablesInScope", () => {
   it("tolerates a LoopStart whose initialization is missing or not a string", () => {
     const graph = graphOf(["s1", "s2", "s3"], { s1: undefined, s2: 42, s3: "k = 1" });
     expect(loopVariablesInScope(graph, "body")).toEqual(["k"]);
+  });
+});
+
+describe("loopVariablesInScope with a control-variable port", () => {
+  const link = (source: string, target: string, targetPort: string) => ({
+    linkID: `${source}-${target}`,
+    source: { operatorID: source, portID: "output-0" },
+    target: { operatorID: target, portID: targetPort },
+  });
+  const graphOf = (
+    enclosing: string[],
+    operators: Record<string, { operatorType: string; initialization?: string }>,
+    links: ReturnType<typeof link>[]
+  ): WorkflowGraphReadonly =>
+    ({
+      getEnclosingLoopStarts: () => enclosing,
+      getOperator: (operatorID: string) => ({
+        operatorType: operators[operatorID]?.operatorType,
+        operatorProperties: { initialization: operators[operatorID]?.initialization },
+      }),
+      getInputLinksByOperatorId: (operatorID: string) => links.filter(l => l.target.operatorID === operatorID),
+    }) as unknown as WorkflowGraphReadonly;
+
+  it("offers the variables of a LoopStart that feeds the port, even outside every block", () => {
+    const graph = graphOf(
+      [],
+      {
+        start: { operatorType: "LoopStart", initialization: "i = 0; file = D.path[0]" },
+        reader: { operatorType: "FileScan" },
+      },
+      [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
+    );
+    expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file"]);
+  });
+
+  it("offers the columns of any other operator that feeds the port", () => {
+    const graph = graphOf(
+      ["start"],
+      { start: { operatorType: "LoopStart", initialization: "i = 0" }, stats: { operatorType: "Aggregate" } },
+      [link("stats", "filter", CONTROL_VARIABLE_PORT_ID)]
+    );
+    const columns = (operatorID: string) => (operatorID === "stats" ? ["mean", "not a name"] : undefined);
+    expect(loopVariablesInScope(graph, "filter", columns)).toEqual(["i", "mean"]);
+  });
+
+  it("ignores a link into a data port", () => {
+    const graph = graphOf([], { start: { operatorType: "LoopStart", initialization: "i = 0" } }, [
+      link("start", "reader", "input-0"),
+    ]);
+    expect(loopVariablesInScope(graph, "reader")).toBeUndefined();
   });
 });

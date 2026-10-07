@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CONTROL_VARIABLE_PORT_ID } from "../../../service/workflow-graph/model/control-variable-port";
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
@@ -2107,6 +2108,23 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("order")?.validators?.["loopVariableReference"]).toBeUndefined();
       expect(getField("columns")?.type).toBe("array");
       expect(getField("columns")?.validators?.["loopVariableReference"]).toBeUndefined();
+    });
+
+    it("turns the file name into the variable input once a Loop Start feeds the control-variable port", () => {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addLink({
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      // the other fields take a reference as inside a block; enums and arrays keep their controls
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("order")?.type).toBe("enum");
     });
 
     it("keeps today's controls and validators for an operator outside every block", () => {

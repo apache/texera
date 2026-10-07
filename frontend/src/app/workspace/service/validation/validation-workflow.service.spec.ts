@@ -41,6 +41,7 @@ import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { CONTROL_VARIABLE_PORT_ID } from "../workflow-graph/model/control-variable-port";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
@@ -373,6 +374,20 @@ describe("ValidationWorkflowService", () => {
       expect(validation.isValid).toBe(false);
       expect((validation as ValidationError).messages["type"]).toBe("must be integer");
       expect((validation as ValidationError).messages["loopVariable"]).toBeUndefined();
+    });
+
+    it("accepts any reference on an operator fed through its control-variable port, whose names come at run time", () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$n" } }, mockPoint);
+      workflowActionservice.addLink(link("scan-to-body", mockScanPredicate.operatorID, body.operatorID));
+      // the port is not a data input: the body still needs (and has) its one data input
+      workflowActionservice.addLink({
+        linkID: "sentiment-to-body-control",
+        source: { operatorID: mockSentimentPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
     });
 
     // The canvas state, which the Run button reads, follows edits to other operators.
