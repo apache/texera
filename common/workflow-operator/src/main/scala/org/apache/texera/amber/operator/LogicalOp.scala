@@ -64,6 +64,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrain
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import org.apache.texera.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
 import org.apache.texera.amber.operator.projection.ProjectionOpDesc
+import org.apache.texera.amber.operator.recode.CategoryRecodeOpDesc
 import org.apache.texera.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
@@ -194,6 +195,7 @@ trait StateTransferFunc
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
+    new Type(value = classOf[CategoryRecodeOpDesc], name = "CategoryRecode"),
     new Type(value = classOf[StripChartOpDesc], name = "StripChart"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
