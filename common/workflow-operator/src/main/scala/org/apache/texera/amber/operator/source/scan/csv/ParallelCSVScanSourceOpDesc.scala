@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -42,7 +43,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")

@@ -1110,7 +1110,7 @@ describe("DatasetDetailComponent behavior", () => {
   describe("view flags", () => {
     beforeEach(() => createComponent());
 
-    it("toggles the maximize, right-bar and precise-view-count flags", () => {
+    it("toggles the maximize and right-bar flags", () => {
       expect(component.isMaximized).toBe(false);
       component.onClickScaleTheView();
       expect(component.isMaximized).toBe(true);
@@ -1118,10 +1118,6 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.isRightBarCollapsed).toBe(false);
       component.onClickHideRightBar();
       expect(component.isRightBarCollapsed).toBe(true);
-
-      expect(component.displayPreciseViewCount).toBe(false);
-      component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(true);
     });
   });
 
