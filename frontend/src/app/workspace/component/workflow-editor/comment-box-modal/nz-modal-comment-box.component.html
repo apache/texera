@@ -17,6 +17,21 @@
  under the License.
 -->
 
+<fieldset class="comment-colors">
+  <legend>Comment color</legend>
+  <div class="color-options">
+    <button
+      *ngFor="let option of colorOptions"
+      type="button"
+      [style.background-color]="option.fill"
+      [attr.aria-pressed]="selectedColor === option.id"
+      [disabled]="!canChangeColor"
+      (click)="setColor(option.id)">
+      {{ option.label }}
+    </button>
+  </div>
+</fieldset>
+
 <div class="modal-body">
   <nz-list [nzItemLayout]="'horizontal'">
     <nz-list-item

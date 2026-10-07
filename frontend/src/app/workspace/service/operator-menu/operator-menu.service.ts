@@ -371,6 +371,7 @@ export class OperatorMenuService {
             commentBoxID: newCommentBoxID,
             comments: commentBoxCopy.comments,
             commentBoxPosition: newCommentBoxPosition,
+            ...(commentBoxCopy.color !== undefined ? { color: commentBoxCopy.color } : {}),
           };
           this.workflowActionService.addCommentBox(newCommentBox);
         });

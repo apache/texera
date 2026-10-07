@@ -474,7 +474,16 @@ export class SharedModelChangeHandler {
     this.texeraGraph.sharedModel.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
+          if (!this.texeraGraph.hasCommentBox(event.path[0] as string)) return;
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
+          if (
+            (event.path.length === 1 && event.changes.keys.has("color")) ||
+            (event.path.length === 2 && event.path[1] === "color")
+          ) {
+            const cell = this.jointGraph.getCell(commentBox.commentBoxID);
+            if (cell) this.jointUIService.setCommentColor(cell, commentBox.color);
+            this.texeraGraph.commentBoxColorChangedSubject.next({ commentBox });
+          }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());
