@@ -188,6 +188,21 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("applied");
     });
 
+    it("replaces every occurrence of the snippet, not just the first", async () => {
+      // A UDF that reads the same wrong column twice must come back fixed in both places,
+      // or the re-run fails again on the second read.
+      const twice = CODE + "        yield t['email']\n";
+      operatorProperties = { code: twice, workers: 1 };
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, twice, operatorProperties);
+
+      service.applyFix();
+
+      const patched = setOperatorProperty.mock.calls[0][1].code;
+      expect(patched).not.toContain("t['email']");
+      expect(patched.match(/t\['user_email'\]/g)).toHaveLength(2);
+    });
+
     it("patches the named field for a property change", async () => {
       operatorProperties = { model: "gpt-4-turb", temperature: 0 };
       stubModel(

@@ -343,15 +343,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       component: ErrorFrameComponent,
       componentInputs: { operatorId },
     });
-    // The AI tab only offers the analysis: the model is called when the user asks for it,
-    // never on render, because this method runs again on every re-render of the panel.
-    // The LiteLLM proxy rejects the call outright when the copilot feature is off.
-    if (this.config.env.copilotEnabled) {
-      this.frameComponentConfigs.set("AI Fix", {
-        component: AiFixFrameComponent,
-        componentInputs: { operatorId },
-      });
-    }
   }
 
   displayResult(operatorId: string) {

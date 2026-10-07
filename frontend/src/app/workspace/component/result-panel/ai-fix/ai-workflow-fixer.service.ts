@@ -90,7 +90,6 @@ export function classifyError(errorMessage: string): FixErrorType {
 @Injectable({ providedIn: "root" })
 export class AiWorkflowFixerService {
   private readonly stateSubject = new BehaviorSubject<FixState>(IDLE_STATE);
-  private model: any;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -156,7 +155,9 @@ export class AiWorkflowFixerService {
         if (!code.includes(fix.original)) {
           throw new Error("the code changed since the suggestion was generated");
         }
-        properties.code = code.replace(fix.original, fix.suggested);
+        // split/join replaces every occurrence and keeps the match literal; replace() with a
+        // string argument would patch only the first one and leave the rest failing.
+        properties.code = code.split(fix.original).join(fix.suggested);
       } else {
         const field = String(fix.fieldName);
         // Same staleness guard as the code branch: re-reading the properties keeps the
@@ -198,15 +199,15 @@ export class AiWorkflowFixerService {
   // Seam over the `ai` transport: specs spy this instead of mocking the "ai" module,
   // which leaks across specs sharing the import and hangs on a real network call.
   protected callModel(messages: ModelMessage[], abortSignal?: AbortSignal): Promise<{ text: string }> {
-    if (!this.model) {
-      // The /api/chat/* LiteLLM proxy authenticates with the Texera JWT and swaps in
-      // the master key upstream, so the user's access token is the only credential sent.
-      this.model = createOpenAI({
-        baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
-        apiKey: AuthService.getAccessToken() ?? "",
-      }).chat(AI_FIXER_MODEL);
-    }
-    return generateText({ model: this.model, messages, abortSignal });
+    // Built per call so a refreshed access token is used: caching the provider on this root
+    // singleton would pin the JWT captured on the first Analyze, and a later call after a
+    // token rotation would 401. The /api/chat/* LiteLLM proxy authenticates with the Texera
+    // JWT and swaps in the master key upstream, so that token is the only credential sent.
+    const model = createOpenAI({
+      baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
+      apiKey: AuthService.getAccessToken() ?? "",
+    }).chat(AI_FIXER_MODEL);
+    return generateText({ model, messages, abortSignal });
   }
 
   private callModelWithTimeout(prompt: string): Promise<{ text: string }> {
