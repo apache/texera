@@ -96,10 +96,12 @@ class AggregationOperationSpec extends AnyFlatSpec {
   "CONCAT aggregation merge" should
     "join two non-empty partials with a comma and short-circuit when either is empty" in {
     val agg = op(AggregationFunction.CONCAT).getAggFunc(AttributeType.STRING)
-    assert(agg.merge("foo", "bar") == "foo,bar")
-    assert(agg.merge("", "bar") == "bar")
-    assert(agg.merge("foo", "") == "foo")
-    assert(agg.merge("", "") == "")
+    val foo = agg.iterate(agg.init(), tupleOf("v", AttributeType.STRING, "foo"))
+    val bar = agg.iterate(agg.init(), tupleOf("v", AttributeType.STRING, "bar"))
+    assert(agg.finalAgg(agg.merge(foo, bar)) == "foo,bar")
+    assert(agg.finalAgg(agg.merge(agg.init(), bar)) == "bar")
+    assert(agg.finalAgg(agg.merge(foo, agg.init())) == "foo")
+    assert(agg.finalAgg(agg.merge(agg.init(), agg.init())) == "")
   }
 
   // --- partial + final pipeline ----------------------------------------------

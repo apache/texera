@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -53,12 +53,15 @@ class AggregateOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-    if (groupByKeys == null) groupByKeys = List()
+    val groupKeys = Option(groupByKeys).getOrElse(List.empty)
     // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
     // we are keeping it not annotated as blocking.
     val inputPort = InputPort(PortIdentity())
     val outputPort = OutputPort(PortIdentity(internal = true))
-    val partialDesc = objectMapper.writeValueAsString(this)
+    val executorDesc = new AggregateOpDesc
+    executorDesc.groupByKeys = groupKeys
+    executorDesc.aggregations = aggregations
+    val partialDesc = objectMapper.writeValueAsString(executorDesc)
     val localAggregations = List(aggregations: _*)
     val partialPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
@@ -66,7 +69,7 @@ class AggregateOpDesc extends LogicalOp {
         workflowId,
         executionId,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.aggregate.AggregateOpExec",
+          "org.apache.texera.amber.operator.aggregate.PartialAggregateOpExec",
           partialDesc
         )
       )
@@ -77,8 +80,9 @@ class AggregateOpDesc extends LogicalOp {
         SchemaPropagationFunc(inputSchemas => {
           val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val outputSchema = Schema(
-            groupByKeys.map(key => inputSchema.getAttribute(key)) ++
+            groupKeys.map(key => inputSchema.getAttribute(key)) ++
               localAggregations.map { agg =>
+                agg.compileConditions(inputSchema)
                 // Only COUNT with an empty attribute (COUNT(*)) skips the column lookup:
                 // its result type is INTEGER regardless. Every other function resolves
                 // the input attribute (failing fast if it is missing/invalid).
@@ -88,7 +92,12 @@ class AggregateOpDesc extends LogicalOp {
                     (agg.attribute == null || agg.attribute.trim.isEmpty)
                   ) null
                   else inputSchema.getAttribute(agg.attribute).getType
-                agg.getAggregationAttribute(attrType)
+                if (
+                  agg.aggFunction == AggregationFunction.AVERAGE ||
+                  agg.aggFunction == AggregationFunction.CONCAT
+                )
+                  new Attribute(agg.resultAttribute, AttributeType.BINARY)
+                else agg.getAggregationAttribute(attrType)
               }
           )
           Map(PortIdentity(internal = true) -> outputSchema)
@@ -97,28 +106,37 @@ class AggregateOpDesc extends LogicalOp {
 
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
-    // change aggregations to final
-    aggregations = aggregations.map(aggr => aggr.getFinal)
-    val finalDesc = objectMapper.writeValueAsString(this)
+    // Keep the logical descriptor unchanged: schema checks and replanning must
+    // retain source columns and predicates. The global executor merges partial
+    // states without evaluating source-row conditions or averaging local averages.
 
     val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
         executionId,
-        OpExecWithClassName("org.apache.texera.amber.operator.aggregate.AggregateOpExec", finalDesc)
+        OpExecWithClassName(
+          "org.apache.texera.amber.operator.aggregate.FinalAggregateOpExec",
+          partialDesc
+        )
       )
       .withParallelizable(false)
       .withIsOneToManyOp(true)
       .withInputPorts(List(finalInputPort))
       .withOutputPorts(List(finalOutputPort))
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(operatorInfo.outputPorts.head.id -> inputSchemas(finalInputPort.id))
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          val inputSchema = inputSchemas(finalInputPort.id)
+          val outputSchema = Schema(
+            groupKeys.map(inputSchema.getAttribute) ++ localAggregations.map { agg =>
+              agg.getAggregationAttribute(inputSchema.getAttribute(agg.resultAttribute).getType)
+            }
+          )
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        })
       )
-      .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
-      .withDerivePartition(_ => HashPartition(groupByKeys))
+      .withPartitionRequirement(List(Option(HashPartition(groupKeys))))
+      .withDerivePartition(_ => HashPartition(groupKeys))
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
