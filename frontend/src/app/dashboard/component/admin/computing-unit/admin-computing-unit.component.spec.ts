@@ -148,6 +148,24 @@ describe("AdminComputingUnitComponent", () => {
       expect(component.isLoading).toBe(false);
     });
 
+    it("shows the loading spinner while the first load is pending and hides it once it answers", () => {
+      const first = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(first);
+      const spinner = () => fixture.nativeElement.querySelector(".loading-container");
+
+      fixture.detectChanges();
+      vi.advanceTimersByTime(1);
+      fixture.detectChanges();
+      expect(spinner()).not.toBeNull();
+
+      first.next([makeUnit()]);
+      first.complete();
+      fixture.detectChanges();
+      vi.advanceTimersByTime(1);
+      fixture.detectChanges();
+      expect(spinner()).toBeNull();
+    });
+
     it("clears the loading flag and shows a message when the first load fails", () => {
       vi.mocked(service.listAllComputingUnits).mockReturnValue(failWith("boom"));
 
@@ -202,6 +220,14 @@ describe("AdminComputingUnitComponent", () => {
 
       expect(service.listAllComputingUnits).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("labels a unit whose owner has no name as Unknown", () => {
+    vi.mocked(service.listAllComputingUnits).mockReturnValue(of([makeUnit({ ownerName: "" })]));
+
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector(".owner-cell")?.textContent).toContain("Unknown");
   });
 
   const specDetail = () => fixture.nativeElement.querySelector("dl.spec-detail") as HTMLElement | null;
@@ -315,7 +341,9 @@ describe("AdminComputingUnitComponent", () => {
       const noName = makeUnit(withCu({ name: undefined as unknown as string }));
       const noOwner = makeUnit({ ownerName: undefined as unknown as string });
       expect(component.sortByName(noName, makeUnit())).toBeLessThan(0);
+      expect(component.sortByName(makeUnit(), noName)).toBeGreaterThan(0);
       expect(component.sortByOwner(noOwner, makeUnit())).toBeLessThan(0);
+      expect(component.sortByOwner(makeUnit(), noOwner)).toBeGreaterThan(0);
     });
 
     it("sorts by owner, type and status", () => {
