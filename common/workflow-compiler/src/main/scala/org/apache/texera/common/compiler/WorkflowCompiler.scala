@@ -30,7 +30,10 @@ import org.apache.texera.common.compiler.WorkflowCompiler.{
 }
 import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.state.StateReferencing.{fixedAtCompileTime, literalReferences}
+import org.apache.texera.amber.core.state.StateReferencing.{
+  literalReferences,
+  noLoopVariableReferences
+}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -82,18 +85,19 @@ object WorkflowCompiler {
   /**
     * Makes `logicalOp`'s `stateReferences` sidecar final, before its physical plan serializes it
     * into the executor's descString. Inside a loop block it adds every whole-string `$name` value
-    * of the operator's JSON (`StateReferencing.literalReferences`), and an entry in a property the
-    * compiled plan is built from is an error (`referencesFixedAtCompileTime`). Outside every block
-    * a string such as "$AAPL" stays a literal, and a typed placeholder (the user wrote "$n" for an
-    * Int), which nothing would bind, is an error; it stays in the sidecar, so a recompile reports
-    * it too.
+    * of the operator's JSON (`StateReferencing.literalReferences`), and an entry in a property that
+    * cannot hold a loop variable is an error (`referencesInNoLoopVariableProperties`). Outside
+    * every block a string such as "$AAPL" stays a literal, and a typed placeholder (the user wrote
+    * "$n" for an Int), which nothing would bind, is an error; it stays in the sidecar, so a
+    * recompile reports it too.
     */
   def normalizeStateReferences(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] =
     if (plan.operatorsInsideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
       logicalOp.stateReferences =
         literalReferences(objectMapper.valueToTree[ObjectNode](logicalOp)) ++
           logicalOp.stateReferences
-      referencesFixedAtCompileTime(logicalOp).orElse(inputsAheadOfLoopState(logicalOp, plan))
+      referencesInNoLoopVariableProperties(logicalOp)
+        .orElse(inputsAheadOfLoopState(logicalOp, plan))
     } else {
       Option.when(logicalOp.stateReferences.nonEmpty) {
         new IllegalArgumentException(
@@ -105,19 +109,19 @@ object WorkflowCompiler {
 
   /**
     * The loop state writes a loop variable into the operator's setting only once the workflow runs,
-    * but a property marked `FixedAtCompileTime` -- the name or type of an output column, or what an
+    * but a property marked `NoLoopVariable` -- the name or type of an output column, or what an
     * input is partitioned on -- has been built into the plan by then: from the placeholder. A
     * Projection alias "$a" would output a column named "$a", null in every row; a SortPartitions
     * domain would stay 0 to 0. A reference there is an error instead.
     */
-  private def referencesFixedAtCompileTime(logicalOp: LogicalOp): Option[Throwable] = {
-    val fixed = fixedAtCompileTime(logicalOp)
-    Option.when(fixed.nonEmpty) {
-      val those = if (fixed.size == 1) "that property" else "those properties"
+  private def referencesInNoLoopVariableProperties(logicalOp: LogicalOp): Option[Throwable] = {
+    val references = noLoopVariableReferences(logicalOp)
+    Option.when(references.nonEmpty) {
+      val those = if (references.size == 1) "that property" else "those properties"
       new IllegalArgumentException(
         s"${logicalOp.operatorInfo.userFriendlyName} cannot refer to loop variables " +
-          s"(${formatReferences(fixed)}): its output schema or partitioning is built from $those " +
-          "when the workflow is compiled, before the loop runs"
+          s"(${formatReferences(references)}): its output schema or partitioning is built from " +
+          s"$those when the workflow is compiled, before the loop runs"
       )
     }
   }

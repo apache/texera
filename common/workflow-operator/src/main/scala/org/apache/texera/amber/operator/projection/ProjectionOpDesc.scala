@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.projection
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.state.FixedAtCompileTime
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
@@ -38,14 +38,14 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Drop Option")
   @JsonPropertyDescription("check to drop the selected attributes")
-  @FixedAtCompileTime
+  @NoLoopVariable
   var isDrop: Boolean = false
 
   // Named explicitly, without `required`: the form already asks for these and must go
   // on accepting an empty list, but a field carrying no annotation is invisible to
   // anything reading the operator's config by reflection.
   @JsonProperty
-  @FixedAtCompileTime
+  @NoLoopVariable
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(

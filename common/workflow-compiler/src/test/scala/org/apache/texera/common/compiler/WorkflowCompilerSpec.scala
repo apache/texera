@@ -1035,7 +1035,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     * type, or what the input is partitioned on: the operator as the frontend sends it, its name,
     * and the references the error names.
     */
-  private val referencesFixedAtCompileTime: List[(String, String, String)] = List(
+  private val referencesInNoLoopVariableProperties: List[(String, String, String)] = List(
     (
       """{"isDrop":false,"attributes":[{"originalAttribute":"line","alias":"$a"}],
         |"operatorType":"Projection"}""".stripMargin,
@@ -1101,7 +1101,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // Built from the placeholder, the plan would never see the loop's value: a Projection alias
     // "$a" would output a column named "$a", every row null; a SortPartitions domain would stay
     // 0 to 0. Reported before the physical plan, ahead of a schema error the placeholder causes.
-    referencesFixedAtCompileTime.foreach {
+    referencesInNoLoopVariableProperties.foreach {
       case (json, name, references) =>
         val those = if (references.contains(", ")) "those properties" else "that property"
         val message = s"$name cannot refer to loop variables ($references): its output schema " +
@@ -1143,7 +1143,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   it should "keep a '$a' Projection alias outside every loop block the literal column name it is on main" in {
     val src = textInputOp("0")
-    val projection = parsed(referencesFixedAtCompileTime.head._1)
+    val projection = parsed(referencesInNoLoopVariableProperties.head._1)
 
     val result = new WorkflowCompiler(newContext()).compile(
       pojo(List(src, projection), List(linked(src, projection)))

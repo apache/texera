@@ -35,7 +35,7 @@ import scala.util.Try
   * loop variable `K`, which reaches the operator in the iteration's state message. The
   * `stateReferences` sidecar maps each such property's JSON pointer to the variable name: the
   * parse records the typed ones (`StateReferenceModule`), the compiler adds the string ones and
-  * rejects one in a property the compiled plan is built from (`FixedAtCompileTime`,
+  * rejects one in a property that cannot hold a loop variable (`NoLoopVariable`,
   * `WorkflowCompiler.normalizeStateReferences`), and the worker writes the variables there
   * (`OperatorExecutor.registerState`). The property panel never shows it.
   */
@@ -61,22 +61,23 @@ object StateReferencing {
     }
 
   /**
-    * The entries of `descriptor`'s sidecar that fall under a property marked `FixedAtCompileTime`,
-    * however deep: the compiled plan is built from that property, so nothing binds them.
+    * The entries of `descriptor`'s sidecar that fall under a property marked `NoLoopVariable`,
+    * however deep: the plan is built from that property before the loop runs, so nothing binds
+    * them.
     */
-  def fixedAtCompileTime(descriptor: StateReferencing): Map[String, String] = {
-    val fixed = objectMapper.getSerializationConfig
+  def noLoopVariableReferences(descriptor: StateReferencing): Map[String, String] = {
+    val marked = objectMapper.getSerializationConfig
       .introspect(objectMapper.constructType(descriptor.getClass))
       .findProperties()
       .asScala
       .filter(property =>
-        Option(property.getField).exists(_.hasAnnotation(classOf[FixedAtCompileTime]))
+        Option(property.getField).exists(_.hasAnnotation(classOf[NoLoopVariable]))
       )
       .map(_.getName)
       .toSet
     descriptor.stateReferences.filter {
       case (pointer, _) =>
-        Try(JsonPointer.compile(pointer).getMatchingProperty).toOption.exists(fixed.contains)
+        Try(JsonPointer.compile(pointer).getMatchingProperty).toOption.exists(marked.contains)
     }
   }
 
