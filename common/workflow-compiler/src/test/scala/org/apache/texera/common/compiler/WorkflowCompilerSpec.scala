@@ -20,7 +20,11 @@
 package org.apache.texera.common.compiler
 
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName}
+import org.apache.texera.amber.core.executor.{
+  ExecFactory,
+  OpExecWithClassName,
+  SourceOperatorExecutor
+}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
@@ -43,6 +47,7 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
@@ -989,6 +994,36 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(plan.getBlockingAndDependeeLinks.contains(controlLink))
     val (_, descString) = executorInit(result, scan)
     assert(sidecarOf(descString) == Map("/fileName" -> "file"))
+  }
+
+  it should "read the file a control variable names once its state binds '$file', end to end" in {
+    val numbers = s"${TestOperators.parentDir}/src/test/resources/numbers.txt"
+    val src = textInputOp(numbers)
+    val start = loopStartOp()
+    val scan = fileScanOp("$file")
+    scan.attributeType = FileAttributeType.INTEGER
+    scan.attributeName = "n"
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(src, start, scan, end),
+        List(linked(src, start), controlLinked(start, scan), linked(scan, end))
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, scan)
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.open()
+    exec.registerState(State(Map("file" -> numbers)))
+    exec.bindStateReferences()
+    val values = exec
+      .asInstanceOf[SourceOperatorExecutor]
+      .produceTuple()
+      .map(_.getFields.head)
+      .toList
+    assert(values == (1 to 10).toList)
   }
 
   it should "reject a control-variable link into an operator that runs code" in {
