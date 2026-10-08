@@ -260,6 +260,17 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  it should "keep a whole file's CRLF in the export, as the engine does" in {
+    // The engine decodes the bytes as they are. The text reader's default turns a
+    // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("""newline="""""))
+
+    // Lines keep the default, which ends a line where the engine's reader does.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    assert(!fileScanSourceOpDesc.generateStandaloneCode().contains("newline="))
+  }
+
   "FileScanSourceOpDesc.getPhysicalOp" should
     "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
     val physical =

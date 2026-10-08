@@ -207,6 +207,21 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(bareLines.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
   }
 
+  it should "keep a whole file's CRLF in the export, as the engine does" in {
+    // The engine decodes the bytes as they are. The text reader's default turns a
+    // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
+    fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    assert(
+      fileScanOpDesc
+        .generateStandaloneCode()
+        .contains("""    with open(_fn, "r", encoding="utf-8", newline="") as _f:""")
+    )
+
+    // Lines keep the default, which ends a line where the engine's reader does.
+    fileScanOpDesc.attributeType = FileAttributeType.STRING
+    assert(!fileScanOpDesc.generateStandaloneCode().contains("newline="))
+  }
+
   it should "open binary attribute types in binary mode" in {
     Seq(FileAttributeType.BINARY, FileAttributeType.LARGE_BINARY).foreach { attrType =>
       fileScanOpDesc.attributeType = attrType

@@ -136,7 +136,13 @@ class FileScanOpDesc
           s"io.TextIOWrapper(_f, encoding=$encLit)"
         )
       } else {
-        val openArgs = if (isBinary) """"rb"""" else s""""r", encoding=$encLit"""
+        // A whole file reads with `newline=""`: the engine decodes its bytes as they
+        // are, so a CRLF stays a CRLF, where the text reader's default would turn it
+        // into a LF. Lines keep the default, which ends a line where the engine does.
+        val openArgs =
+          if (isBinary) """"rb""""
+          else if (attributeType.isSingle) s""""r", encoding=$encLit, newline="""""
+          else s""""r", encoding=$encLit"""
         buf += s"    with open(_fn, $openArgs) as _f:"
         (" " * 8, "_fn", "_f.read()", "_f")
       }

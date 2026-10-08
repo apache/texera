@@ -148,9 +148,11 @@ class FileScanSourceOpDesc
       if (emitFilename) buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
       else buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
     } else if (attributeType.isSingle) {
+      // `newline=""`: the engine decodes the file's bytes as they are, so a CRLF
+      // stays a CRLF. The text reader's default would turn it into a LF.
       val openArgs =
         if (isBinary) s"""$SourceFilePlaceholder, "rb""""
-        else s"""$SourceFilePlaceholder, "r", encoding=$encLit"""
+        else s"""$SourceFilePlaceholder, "r", encoding=$encLit, newline="""""
       val dfCols =
         if (emitFilename) s"""{"filename": $SourceFilePlaceholder, $colLit: [_f.read()]}"""
         else s"""{$colLit: [_f.read()]}"""
