@@ -25,7 +25,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, AttributeTy
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,6 +38,8 @@ import scala.io.Source
 import scala.util.Try
 
 class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -98,11 +102,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     tc.typeCastingUnits.head.resultType shouldBe AttributeType.STRING
   }
 
-  // The values a cast reads differently on the two sides. Python's own `bool`
-  // answers true for every non-empty string, so "false" and "0" are where the
-  // script used to disagree with the run it came from; text that is neither a
-  // boolean nor a number, and an empty cell, are the two ends of the range.
-  private val boolCases = Seq("true", "false", "0", "1", "not a boolean", null)
+  // Text that is neither a boolean nor a number, which the engine refuses. The
+  // verification only compares runs that both produced something, so it cannot
+  // ask this; the values both sides read are its `str_to_bool` column.
+  private val boolCases = Seq("not a boolean")
 
   /** What the engine answers, as the string the Python side prints back: the
     * literal, or `error` for a value `parseField` refuses.
@@ -112,7 +115,7 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .map(v => if (v == null) "null" else v.toString)
       .getOrElse("error")
 
-  it should "cast to boolean the way AttributeTypeUtils does" in {
+  it should "refuse a boolean the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -167,58 +170,186 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"cases=${boolCases.mkString(", ")}\nscript said $fromScript\n") {
       fromScript shouldBe fromEngine
     }
-    // The pairs that made the review: "false" is not true, and "0" is not true.
-    fromEngine shouldBe Seq("true", "false", "false", "true", "error", "null")
+    fromEngine shouldBe Seq("error")
   }
 
-  // One column per source type, since what the text looks like follows the
-  // column and not the value: a whole double keeps its point, an integer never
-  // grows one, and a boolean is lower case.
-  private val stringColumns: Seq[(String, String, Seq[AnyRef])] = Seq(
-    ("dbl", "float64", Seq(Double.box(6.0), Double.box(7.25))),
-    ("int", "int64", Seq(Int.box(6), Int.box(7))),
-    ("flag", "bool", Seq(Boolean.box(true), Boolean.box(false)))
+  // The moments where the two sides used to part. pandas parses into nanoseconds
+  // by default, which reach only 1677 to 2262, so everything past that edge was
+  // emptied where the engine holds a java.sql.Timestamp and reads it like any
+  // other moment. The first three rows are ordinary ones, and they are also three
+  // different formats in one column: the engine hands DateParserUtils a field at
+  // a time, so a row states its own format rather than the column's first one.
+  // Two of them state an offset, which DateParserUtils reads and java.sql.Timestamp
+  // then keeps no zone for: the moment is held as the wall clock of the machine's
+  // own zone. The expectation is taken from the engine rather than written down,
+  // so the pair says the same thing wherever the suite runs. Two carry digits
+  // past the millisecond, which DateParserUtils reads into a java.util.Date and
+  // so drops.
+  private val timestampCases = Seq(
+    "2024-03-05 14:09:07",
+    "2024-03-05T14:09:07",
+    "March 5, 2024",
+    "2024-03-05T14:09:07Z",
+    "2024-03-05T14:09:07+05:30",
+    "2024-03-05 14:09:07.123456",
+    "2024-03-05 14:09:07.9999",
+    "1677-09-22 00:12:44",
+    "2262-04-11 23:47:16",
+    "2500-01-01 00:00:00",
+    "1500-06-15 08:30:00",
+    "9999-12-31 23:59:59"
   )
 
-  it should "cast to string the way AttributeTypeUtils does" in {
+  /** A printed moment as the wall clock it names. `java.sql.Timestamp.toString`
+    * trims its fraction and writes ".0" for none, where Python pads it to six
+    * digits or leaves it out.
+    */
+  private def moment(text: String): Any =
+    Try(java.time.LocalDateTime.parse(text.replace(' ', 'T'))).getOrElse(text)
+
+  /** The cells the driver printed, told apart from anything pandas wrote to
+    * stderr, which this process merges into the same stream.
+    */
+  private def cellsOf(out: String): Seq[String] =
+    out.linesIterator.filter(_.startsWith("cell ")).map(_.drop("cell ".length)).toSeq
+
+  it should "cast text to a timestamp the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
-    op.typeCastingUnits = stringColumns.map {
-      case (name, _, _) => castUnit(name, AttributeType.STRING)
-    }.toList
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
 
-    val frame = stringColumns
-      .map {
-        case (name, dtype, values) =>
-          val cells = values
-            .map {
-              case b: java.lang.Boolean => if (b) "True" else "False"
-              case other                => other.toString
-            }
-            .mkString("[", ", ", "]")
-          s"""    "$name": pd.Series($cells, dtype="$dtype"),"""
-      }
-      .mkString("\n")
+    // One frame rather than a row at a time, unlike the casts that refuse a
+    // value: this one coerces, and the column is where a format that is not the
+    // first row's would be lost.
+    val values = timestampCases.map(v => "\"" + v + "\"").mkString("[", ", ", "]")
     val driver =
       s"""import pandas as pd
          |
          |${op.standaloneHelpers().mkString("\n\n")}
          |
          |
-         |in1df = pd.DataFrame({
-         |$frame
-         |})
+         |in1df = pd.DataFrame({"v": $values})
          |${op.generateStandaloneCode()}
-         |for column in ${stringColumns.map(c => "\"" + c._1 + "\"").mkString("[", ", ", "]")}:
-         |    for cell in out1df[column]:
-         |        print("null" if pd.isna(cell) else cell)
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-string-", ".py")
+    val script = Files.createTempFile("typecast-timestamp-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    // Only the printed cells, so nothing else written to the merged stderr is
+    // read as one.
+    val fromScript = cellsOf(out)
+    val fromEngine = timestampCases.map(v => engineAnswer(v, AttributeType.TIMESTAMP))
+    withClue(s"cases=${timestampCases.mkString(", ")}\nscript said $fromScript\n") {
+      fromScript.map(moment) shouldBe fromEngine.map(moment)
+    }
+    // The rows that made the issue: a moment either side of the nanosecond edge.
+    fromEngine.takeRight(3).map(moment) shouldBe
+      Seq("2500-01-01 00:00:00", "1500-06-15 08:30:00", "9999-12-31 23:59:59").map(moment)
+    // And the pair that states an offset, which reaches the same moment by two
+    // spellings: five and a half hours apart in the text, and so in the reading.
+    val zoned = fromScript.slice(3, 5)
+    java.time.Duration
+      .between(
+        java.time.LocalDateTime.parse(zoned(1).replace(' ', 'T')),
+        java.time.LocalDateTime.parse(zoned(0).replace(' ', 'T'))
+      )
+      .toMinutes shouldBe 330
+  }
+
+  // A column that is already a moment is not text and is not re-read: parseField
+  // hands a java.sql.Timestamp back untouched, and that class counts nanoseconds,
+  // so narrowing the column here would fold two moments the run tells apart into
+  // one. The pair below differs only past the microsecond.
+  private val nanosecondCases = Seq(
+    "2024-03-05 14:09:07.123456789",
+    "2024-03-05 14:09:07.123456001"
+  )
+
+  it should "keep the resolution a timestamp column arrived in" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
+    // The declared type is what sends this down the branch under test: a column
+    // the engine already holds as a moment, cast to the type it already has.
+    val input = Schema().add(new Attribute("v", AttributeType.TIMESTAMP))
+    val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
+
+    val values = nanosecondCases.map(v => "\"" + v + "\"").mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": pd.to_datetime($values)})
+         |$generated
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-timestamp-nanos-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromScript = cellsOf(out)
+    val fromEngine =
+      nanosecondCases.map(v => engineAnswer(java.sql.Timestamp.valueOf(v), AttributeType.TIMESTAMP))
+    withClue(s"script said $fromScript\n") { fromScript shouldBe fromEngine }
+    // What the two answers have to carry: the rows stay apart.
+    fromEngine shouldBe nanosecondCases
+  }
+
+  // The one place the script is meant to differ, and the reason it cannot simply
+  // parse strictly: the engine accepts a set of formats no single pandas call
+  // states, so text neither can read leaves an empty cell instead of ending an
+  // exported run halfway.
+  it should "leave a cell it cannot read empty rather than refusing it" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": ["not a date", None, "2024-03-05 14:09:07"]})
+         |${op.generateStandaloneCode()}
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-timestamp-unreadable-", ".py")
     script.toFile.deleteOnExit()
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
@@ -228,15 +359,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     process.waitFor(120, TimeUnit.SECONDS)
     withClue(s"python said:\n$out\nscript:\n$driver") {
       process.exitValue() shouldBe 0
+      cellsOf(out) shouldBe Seq("null", "null", "2024-03-05 14:09:07")
     }
-
-    val fromEngine = stringColumns.flatMap(_._3).map(v => engineAnswer(v, AttributeType.STRING))
-    withClue(s"script said ${out.trim.linesIterator.toSeq}\n") {
-      out.trim.linesIterator.toSeq shouldBe fromEngine
-    }
-    // The pair that made the review: a double keeps its point at 6.0, where the
-    // integer 6 has none.
-    fromEngine shouldBe Seq("6.0", "7.25", "6", "7", "true", "false")
+    // The engine refuses the same text, which is the difference this coercion is.
+    engineAnswer("not a date", AttributeType.TIMESTAMP) shouldBe "error"
   }
 
   // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path

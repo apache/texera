@@ -129,11 +129,13 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
           // reads NaN as True: NaN is a non-zero float.
           s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_boolean(x)).astype("boolean")"""
         case AttributeType.TIMESTAMP =>
-          // A number is an instant in milliseconds and needs its own reading;
-          // see the helper. Text keeps the parser it already had.
+          // A number is an instant in milliseconds and needs its own reading.
+          // Text is read a cell at a time, and over the years the engine
+          // reaches rather than the ones pandas parses into by default; see
+          // the helpers.
           if (declared.get(unit.attribute).contains(AttributeType.LONG))
             s"""_texera_epoch_millis_to_timestamp(out1df[$colLit])"""
-          else s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
+          else s"""_texera_text_to_timestamp(out1df[$colLit])"""
         case _ => s"""out1df[$colLit]"""
       }
       lines += s"""out1df[$colLit] = $expr"""
