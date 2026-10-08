@@ -71,14 +71,15 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
       .getType shouldBe AttributeType.INTEGER
   }
 
-  it should "throw when the configured ground-truth attribute is absent from the input schema" in {
+  it should "name the configured ground-truth attribute when it is absent from the input schema" in {
     val d = new SklearnPredictionOpDesc
     d.resultAttribute = "prediction"
     d.groundTruthAttribute = "missing"
     val data = Schema().add("feature", AttributeType.STRING)
-    intercept[NoSuchElementException] {
+    val e = intercept[RuntimeException] {
       d.getOutputSchemas(Map(PortIdentity(1) -> data))
     }
+    e.getMessage shouldBe "Ground Truth column 'missing' is not in the input table"
   }
 
   "SklearnPredictionOpDesc.generatePythonCode" should "emit the model-applying tuple operator" in {

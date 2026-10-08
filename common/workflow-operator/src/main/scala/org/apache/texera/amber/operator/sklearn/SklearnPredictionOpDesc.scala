@@ -92,8 +92,11 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCo
     var resultType = AttributeType.STRING
     val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
     if (groundTruthAttribute != "") {
-      resultType =
-        inputSchema.attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
+      if (!inputSchema.containsAttribute(groundTruthAttribute))
+        throw new RuntimeException(
+          s"Ground Truth column '$groundTruthAttribute' is not in the input table"
+        )
+      resultType = inputSchema.getAttribute(groundTruthAttribute).getType
     }
     Map(
       operatorInfo.outputPorts.head.id -> inputSchema
