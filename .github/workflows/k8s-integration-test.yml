@@ -1,0 +1,111 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Deploys the Helm chart into a k3d cluster and drives one user flow through the
+# gateway: upload a dataset, create a workflow, run it on a Kubernetes computing
+# unit, and check its result. It deploys published images rather than building
+# them, so it tests the chart in this checkout against those images.
+name: K8s integration test
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_registry:
+        description: 'Registry prefix of the Texera images (e.g., ghcr.io/apache, docker.io/apache)'
+        required: false
+        default: 'ghcr.io/apache'
+        type: string
+      image_tag:
+        description: 'Tag of the Texera images'
+        required: false
+        default: 'latest'
+        type: string
+  # Once the nightly build has published fresh ghcr.io/apache/*:latest images.
+  workflow_run:
+    workflows: ['Build and push images']
+    types: [completed]
+  pull_request:
+    paths:
+      - 'bin/k8s/**'
+      - '.github/workflows/k8s-integration-test.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  K3D_VERSION: v5.9.0
+  HELM_VERSION: v4.3.0
+  KUBECTL_VERSION: v1.35.5
+
+jobs:
+  k3d:
+    runs-on: ubuntu-latest
+    # A manually dispatched image build pushes some other tag, so only the nightly one
+    # leaves `latest` worth testing.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'schedule' &&
+       github.event.workflow_run.conclusion == 'success')
+    timeout-minutes: 60
+    env:
+      IMAGE_REGISTRY: ${{ github.event.inputs.image_registry || 'ghcr.io/apache' }}
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+      DIAGNOSTICS_DIR: ${{ github.workspace }}/k8s-integration-diagnostics
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v7
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/android
+          df -h /
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install -r bin/k8s/tests/integration/requirements.txt
+
+      - name: Install k3d, kubectl and helm
+        run: |
+          bin_dir="$RUNNER_TEMP/k8s-tools"
+          mkdir -p "$bin_dir"
+          curl -fsSL --retry 5 -o "$bin_dir/k3d" \
+            "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64"
+          curl -fsSL --retry 5 -o "$bin_dir/kubectl" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl -fsSL --retry 5 "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz -C "$bin_dir" --strip-components=1 linux-amd64/helm
+          chmod +x "$bin_dir/k3d" "$bin_dir/kubectl" "$bin_dir/helm"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: Deploy to k3d and run the integration test
+        run: bin/k8s/tests/integration/run_k3d_integration_test.sh
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: k8s-integration-diagnostics
+          path: ${{ env.DIAGNOSTICS_DIR }}
+          retention-days: 7
