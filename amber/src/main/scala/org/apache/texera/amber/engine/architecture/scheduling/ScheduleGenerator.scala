@@ -31,7 +31,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 abstract class ScheduleGenerator(
     workflowContext: WorkflowContext,
-    var physicalPlan: PhysicalPlan
+    var physicalPlan: PhysicalPlan,
+    cacheReadInputs: CacheReadInputs
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
   val resourceAllocator =
@@ -39,7 +40,8 @@ abstract class ScheduleGenerator(
       physicalPlan,
       executionClusterInfo,
       workflowContext.workflowSettings,
-      cuid = workflowContext.cuid
+      cuid = workflowContext.cuid,
+      operatorsReadingFromCache = cacheReadInputs.operatorsReadingFromCache
     )
 
   def generate(): (Schedule, PhysicalPlan)
