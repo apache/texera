@@ -1,0 +1,94 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Authoring: the label is the input, so what you type is what the reader reads. Written through on
+     every keystroke (input, not change): the hidden label below and the saved name follow the box as
+     it is typed, so nothing is lost if the page is left while the box still has the focus. -->
+<div
+  class="lbl-row"
+  *ngIf="props.authoring">
+  <input
+    class="lbl-input"
+    [value]="props.authorName"
+    [placeholder]="props.schemaLabel"
+    (input)="onRename($event)"
+    [attr.aria-label]="'Label shown above this input'"
+    [title]="'Shown above this box. Empty keeps ' + props.schemaLabel" />
+  <!-- An input the reader can only lose by removing it altogether has no eye: offering
+       one here would be a second place to decide the same thing. -->
+  <!-- A toggle button: the name stays constant and aria-pressed carries the state (a name that
+       changed with the state would announce the opposite of what the state says). -->
+  <button
+    *ngIf="props.canHide !== false"
+    type="button"
+    class="lbl-eye"
+    [class.off]="props.authorHidden"
+    (click)="onToggleHidden()"
+    [attr.aria-pressed]="props.authorHidden === true"
+    aria-label="Hide from the form"
+    [title]="props.authorHidden ? 'Hidden from the form' : 'Shown on the form'">
+    <i
+      nz-icon
+      [nzType]="props.authorHidden ? 'eye-invisible' : 'eye'"
+      nzTheme="outline"></i>
+  </button>
+</div>
+
+<!-- The name box above edits the label; it is not the label. The control below still needs a
+     programmatic name (decorate blanks formly's own), so it gets one that follows the current name,
+     present for assistive technology only. A repeated field has no labelable control carrying the
+     field id (the array widget renders rows and buttons), so its name is given to the rows as a
+     group (role="group" + aria-labelledby) rather than through `for`, which would point at nothing. -->
+<label
+  class="lbl-sr-only"
+  *ngIf="props.authoring && !props.labelsGroup"
+  [attr.for]="id">
+  {{ props.authorName || props.schemaLabel }}
+</label>
+<span
+  class="lbl-sr-only"
+  *ngIf="props.authoring && props.labelsGroup"
+  [id]="id + '-label'">
+  {{ props.authorName || props.schemaLabel }}
+</span>
+
+<!-- Everyone else just reads it. This wrapper blanks formly's own label (decorate sets label to ""),
+     so this one has to do that label's job in full: `for` ties it to the control (formly gives the
+     control the field id), or the reader's input would show a name and announce none. The static
+     label is also what a later row of a repeated section shows while authoring: it follows the first
+     row's name box and eye (and fades with them when hidden), without controls of its own. -->
+<label
+  class="lbl-static"
+  *ngIf="!props.authoring && !props.labelsGroup && (props.authorName || props.schemaLabel)"
+  [attr.for]="id">
+  {{ props.authorName || props.schemaLabel }}
+</label>
+<span
+  class="lbl-static"
+  *ngIf="!props.authoring && props.labelsGroup && (props.authorName || props.schemaLabel)"
+  [id]="id + '-label'">
+  {{ props.authorName || props.schemaLabel }}
+</span>
+
+<div
+  [class.dimmed]="props.authorHidden"
+  [attr.role]="props.labelsGroup ? 'group' : null"
+  [attr.aria-labelledby]="props.labelsGroup ? id + '-label' : null">
+  <ng-container #fieldComponent></ng-container>
+</div>

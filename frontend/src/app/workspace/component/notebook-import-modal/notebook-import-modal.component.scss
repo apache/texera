@@ -18,9 +18,23 @@
  */
 
 .import-modal {
-  // Tighten the default form-item spacing so the modal fits without scrolling.
-  &-form nz-form-item {
-    margin-bottom: 12px;
+  &-form {
+    // Takes up the slack under the fixed-height body so the footer stays at the bottom,
+    // and scrolls only if a tab's content ever outgrows the box.
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+
+    // Tighten the default form-item spacing so the modal fits without scrolling.
+    nz-form-item {
+      margin-bottom: 12px;
+    }
+
+    // Tabs sit flush with the modal body; the default pane padding would double the
+    // spacing already provided by the diagram and form items inside each tab.
+    ::ng-deep .ant-tabs-tabpane {
+      padding-top: 4px;
+    }
   }
 
   &-diagram {
@@ -79,9 +93,15 @@
     width: 50%;
   }
 
-  // Positioning context for the loading overlay, so covering the form does not resize the modal.
+  // Positioning context for the loading overlay. The fixed height is sized to the taller tab so
+  // switching tabs does not resize the modal; max-height clamps it on short viewports, where the
+  // form's own overflow-y takes over.
   &-content {
     position: relative;
+    height: 620px;
+    max-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
   }
 
   &-loading {
@@ -122,6 +142,7 @@
 
   &-footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;

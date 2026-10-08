@@ -28,7 +28,8 @@
 # because this workflow runs on `pull_request`, whose token is read-only on
 # fork PRs (renovate, external contributors) and so cannot create check runs.
 # Post-merge, Direct Backport Push reads the neutral/success check and the
-# backport build legs to decide push-straight vs. open-a-draft-PR.
+# backport build legs to decide whether the backport PR it opens is ready for
+# review or a draft for its author to finish.
 name: Backport Checks
 
 on:

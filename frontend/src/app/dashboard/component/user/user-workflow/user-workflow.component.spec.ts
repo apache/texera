@@ -57,7 +57,6 @@ import {
   testWorkflowFileNameConflictEntries,
 } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
-import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
@@ -72,7 +71,10 @@ import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 import { NotebookMigrationService } from "../../../../workspace/service/notebook-migration/notebook-migration.service";
-import { LlmRequestTimeoutError } from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  LlmRequestTimeoutError,
+  LlmResponseTruncatedError,
+} from "../../../../workspace/service/notebook-migration/migration-llm";
 import { NotebookImportModalComponent } from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import type { Mocked } from "vitest";
@@ -104,7 +106,6 @@ describe("SavedWorkflowSectionComponent", () => {
         UserWorkflowComponent,
         ShareAccessComponent,
         FiltersComponent,
-        UserWorkflowListItemComponent,
         SearchResultsComponent,
         FormsModule,
         RouterTestingModule,
@@ -317,17 +318,20 @@ describe("SavedWorkflowSectionComponent", () => {
 
   describe("AI generate workflow (dashboard entry point)", () => {
     const ipynbFile = { name: "analysis.ipynb" } as NzUploadFile;
-    const AI_BUTTON_SELECTOR = 'button[title="AI generate a workflow from a Python notebook"]';
+    const AI_BUTTON_SELECTOR = 'button[title="AI generate a workflow from source code"]';
 
     // Opens the modal and returns the requestImport callback the component handed to it; calling
     // it runs the full generation (true => generation succeeded and navigated, false => stay open).
-    function getRequestImport(): (file: NzUploadFile, model: string) => Promise<boolean> {
+    function getRequestImport(): (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean> {
       const modalService = TestBed.inject(NzModalService);
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as unknown as NzModalRef);
       component.openAiGenerateModal();
       const config = createSpy.mock.calls[0][0] as ModalOptions;
-      return (config.nzData as { requestImport: (file: NzUploadFile, model: string) => Promise<boolean> })
-        .requestImport;
+      return (
+        config.nzData as {
+          requestImport: (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean>;
+        }
+      ).requestImport;
     }
 
     // Wires the NotebookMigrationService + persistence mocks for a successful generation.
@@ -353,7 +357,9 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(createSpy).toHaveBeenCalledTimes(1);
       const config = createSpy.mock.calls[0][0] as ModalOptions;
       expect(config.nzContent).toBe(NotebookImportModalComponent);
+      expect(config.nzTitle).toBe("AI Generate Workflow from Source Code");
       expect(config.nzFooter).toBeNull();
+      expect(config.nzBodyStyle).toEqual({ paddingTop: "4px" });
       expect(typeof (config.nzData as { requestImport: unknown }).requestImport).toBe("function");
     });
 
@@ -399,15 +405,248 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(proceed).toBe(true);
     });
 
-    it("rejects a non-ipynb file: errors, resolves false, and generates nothing", async () => {
-      const parseSpy = vi.spyOn(TestBed.inject(NotebookMigrationService), "parseAndTagNotebook");
+    it("rejects an unsupported extension: errors, resolves false, and generates nothing", async () => {
+      const migration = TestBed.inject(NotebookMigrationService);
+      const notebookSpy = vi.spyOn(migration, "parseAndTagNotebook");
+      const scriptSpy = vi.spyOn(migration, "parseScriptFile");
       const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
 
       const proceed = await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Please upload a valid Jupyter Notebook (.ipynb) file.");
-      expect(parseSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
+      expect(notebookSpy).not.toHaveBeenCalled();
+      expect(scriptSpy).not.toHaveBeenCalled();
+    });
+
+    // A .py takes the other branch: read as text, converted by the script method, and the
+    // notebook it stores is the one the LLM derived rather than an uploaded file.
+    describe("Python file input", () => {
+      const pyFile = { name: "analysis.py" } as NzUploadFile;
+      const derivedNotebook = { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] };
+
+      function mockScriptGenerationSuccess(wid = 42) {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        const convertSpy = vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockResolvedValue({
+          workflowContent: { operators: [] },
+          mappingContent: { operator_to_cell: {}, cell_to_operator: {} },
+          notebook: derivedNotebook,
+        } as any);
+        const storeSpy = vi.spyOn(migration, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid } }));
+        return { convertSpy, storeSpy, persist };
+      }
+
+      it("converts the script, stores the derived notebook, navigates, and resolves true", async () => {
+        const { convertSpy, storeSpy, persist } = mockScriptGenerationSuccess(42);
+        const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(convertSpy).toHaveBeenCalledWith("x = 1\n", "gpt-4");
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("analysis_GENERATED_BY_LLM");
+        // The stored notebook is the derived one; nothing else could have supplied it.
+        expect(storeSpy).toHaveBeenCalledWith(42, expect.anything(), derivedNotebook);
+        expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 42], { queryParams: { autolayout: 1 } });
+        expect(proceed).toBe(true);
+      });
+
+      it("never reaches the notebook path for a .py", async () => {
+        mockScriptGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        const migration = TestBed.inject(NotebookMigrationService);
+        const notebookParse = vi.spyOn(migration, "parseAndTagNotebook");
+        const notebookConvert = vi.spyOn(migration, "sendToAIGenerateWorkflow");
+
+        await getRequestImport()(pyFile, "gpt-4");
+
+        expect(notebookParse).not.toHaveBeenCalled();
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("reports an unreadable or empty file and resolves false without calling the LLM", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockRejectedValue(new Error("The Python file is empty."));
+        const convertSpy = vi.spyOn(migration, "sendScriptToAIGenerateWorkflow");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Failed to read the Python file. Please upload a valid, non-empty .py file."
+        );
+        expect(convertSpy).not.toHaveBeenCalled();
+      });
+
+      it("names the script in the timeout message so the advice matches the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockRejectedValue(new LlmRequestTimeoutError(10));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the script"));
+      });
+
+      it("reports a generation failure and resolves false", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockRejectedValue(new Error("LLM down"));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Error while communicating with the LLM, check console for details.");
+      });
+    });
+
+    // A folder arrives as the whole picked list rather than one file, which is what selects this
+    // branch; from the assembled document onward it behaves like the .py path.
+    describe("Python folder input", () => {
+      const derivedNotebook = { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] };
+      const assembled = {
+        source: "# ===== FILE: main.py =====\nx = 1",
+        forcedBoundaries: [1],
+        files: [],
+        tree: "proj/\n  main.py",
+      };
+
+      // What beforeUpload hands over: ng-zorro attaches a uid to the browser File itself, and only
+      // wraps it in originFileObj later. A fixture that wraps it up front would pass while the
+      // real picker produced no path at all.
+      function pickedFile(relativePath: string): NzUploadFile {
+        const file = new File([""], relativePath.split("/").pop() ?? relativePath);
+        Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+        (file as unknown as NzUploadFile).uid = relativePath;
+        return file as unknown as NzUploadFile;
+      }
+
+      const selection = [pickedFile("proj/main.py"), pickedFile("proj/pkg/train.py")];
+
+      function mockFolderGenerationSuccess(wid = 77) {
+        const migration = TestBed.inject(NotebookMigrationService);
+        const parseSpy = vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        const convertSpy = vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockResolvedValue({
+          workflowContent: { operators: [] },
+          mappingContent: { operator_to_cell: {}, cell_to_operator: {} },
+          notebook: derivedNotebook,
+        } as any);
+        const storeSpy = vi.spyOn(migration, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid } }));
+        return { parseSpy, convertSpy, storeSpy, persist };
+      }
+
+      it("converts the folder, names the workflow after it, stores the derived notebook, and navigates", async () => {
+        const { parseSpy, convertSpy, storeSpy, persist } = mockFolderGenerationSuccess(77);
+        const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        // The Files themselves are what carry webkitRelativePath, so those are what get passed on.
+        expect(parseSpy.mock.calls[0][0]).toEqual(selection);
+        expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4");
+        // Named after the selected folder, with no extension to strip.
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("proj_GENERATED_BY_LLM");
+        expect(storeSpy).toHaveBeenCalledWith(77, expect.anything(), derivedNotebook);
+        expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 77], { queryParams: { autolayout: 1 } });
+        expect(proceed).toBe(true);
+      });
+
+      it("never reaches the single-file paths for a folder", async () => {
+        mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        const migration = TestBed.inject(NotebookMigrationService);
+        const scriptParse = vi.spyOn(migration, "parseScriptFile");
+        const notebookParse = vi.spyOn(migration, "parseAndTagNotebook");
+
+        await getRequestImport()(selection, "gpt-4");
+
+        expect(scriptParse).not.toHaveBeenCalled();
+        expect(notebookParse).not.toHaveBeenCalled();
+      });
+
+      it("shows parseFolder's own message, which names what was wrong with the selection", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockRejectedValue(
+          new Error("No Python files were found in the selected folder.")
+        );
+        const convertSpy = vi.spyOn(migration, "sendFolderToAIGenerateWorkflow");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("No Python files were found in the selected folder.");
+        expect(convertSpy).not.toHaveBeenCalled();
+      });
+
+      it("tells the user the reply was cut off, naming the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockRejectedValue(new LlmResponseTruncatedError());
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cut off"));
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("folder"));
+      });
+
+      it("falls back to a generic message when something other than an Error is thrown", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockRejectedValue("not an Error");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Failed to read the selected folder.");
+      });
+
+      it("names the folder in the timeout message so the advice matches the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockRejectedValue(new LlmRequestTimeoutError(10));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the folder"));
+      });
+
+      it("names the workflow after the folder when the file arrives wrapped", async () => {
+        const inner = pickedFile("wrapped_proj/main.py");
+        const { persist } = mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        await getRequestImport()(
+          [{ uid: "1", name: "main.py", originFileObj: inner } as unknown as NzUploadFile],
+          "gpt-4"
+        );
+
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("wrapped_proj_GENERATED_BY_LLM");
+      });
+
+      it("falls back to the default workflow name when the picker reported no path", async () => {
+        const { persist } = mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        // A real File, just one carrying no webkitRelativePath, so there is no folder to name it
+        // after. A bare {uid, name} wrapper would be rejected before reaching the naming step.
+        const pathless = new File([""], "main.py") as unknown as NzUploadFile;
+
+        await getRequestImport()([pathless], "gpt-4");
+
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe(`${DEFAULT_WORKFLOW_NAME}_GENERATED_BY_LLM`);
+      });
     });
 
     it("reports a parse failure and resolves false without calling the LLM", async () => {
@@ -745,10 +984,25 @@ describe("SavedWorkflowSectionComponent", () => {
         const result = await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
         expect(result).toBe(false);
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf");
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf", undefined);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toContain("wf");
         expect(searchSpy).toHaveBeenCalledWith(true);
         expect(successSpy).toHaveBeenCalledWith("Upload Successful");
+      });
+
+      it("restores a form-default workflow's landing view, keeping it out of the content", async () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(43, "form-wf")));
+        vi.spyOn(component, "search").mockResolvedValue(undefined);
+        vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => undefined as any);
+        const content = testWorkflowContent([]);
+        const file = new File([JSON.stringify({ ...content, defaultView: "FORM" })], "form-wf.json");
+        setEntries([]);
+
+        await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
+
+        // defaultView is pulled out and passed on its own; the content stored is unchanged.
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "form-wf", "FORM");
       });
 
       it("toasts an error and errors the stream when the file is not JSON", async () => {
@@ -773,7 +1027,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME);
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME, undefined);
       });
 
       it("imports every workflow file inside an uploaded .zip", async () => {
@@ -1105,7 +1359,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
           await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext");
+          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext", undefined);
         });
 
         it("errors the upload stream and does not toast success when createWorkflow fails", async () => {

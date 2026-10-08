@@ -35,9 +35,9 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Suites tagged @org.apache.texera.common.tags.NonParallelTest must not run concurrently with one
-// another. They share a JVM-wide singleton backed by an external resource — the MinIO-backed
+// another. They share a JVM-wide singleton backed by an external resource — the RustFS-backed
 // suites mixing S3StorageTestBase share one S3StorageClient.s3Client and one
-// StorageConfig.s3Endpoint pointed at a single MinIO container — so ScalaTest's parallel suite
+// StorageConfig.s3Endpoint pointed at a single RustFS container — so ScalaTest's parallel suite
 // distributor otherwise runs them together, they contend, and intermittently time out (flaky; see
 // issue #7049). The Global Tags.limit(Tags.Test, 1) above only bounds sbt task concurrency, not
 // ScalaTest's in-JVM distributor.
@@ -125,8 +125,9 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
+  // RustFS has no dedicated testcontainers-scala module; RustFSContainer builds it on the
+  // GenericContainer that testcontainers-scala-core (pulled in by -scalatest) provides.
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
-  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
   "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test   // Postgres Testcontainer (LakeFS metadata store)
 )
 

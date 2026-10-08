@@ -19,8 +19,10 @@
 
 package org.apache.texera.amber.core.executor
 
-import org.apache.texera.amber.core.state.State
+import com.fasterxml.jackson.annotation.JsonProperty
+import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 class CoreExecutorReflectionSpec extends AnyFlatSpec {
@@ -136,6 +138,19 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
     assert(exec.onFinishMultiPort(0).isEmpty)
   }
 
+  "OperatorExecutor.state" should "be None until a state is registered, then the latest one registered" in {
+    val exec = new IdentityExec
+    assert(exec.state.isEmpty)
+    val first = State(Map[String, Any]("i" -> 1))
+    val second = State(Map[String, Any]("i" -> 2))
+    exec.registerState(first)
+    assert(exec.state.contains(first))
+    exec.registerState(second)
+    assert(exec.state.contains(second))
+    // Kept per executor: another one has seen no state.
+    assert(new IdentityExec().state.isEmpty)
+  }
+
   // ---------------------------------------------------------------------------
   // SourceOperatorExecutor trait defaults
   // ---------------------------------------------------------------------------
@@ -242,6 +257,91 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
+  // ExecFactory.newExecFromJavaClassName with loop-variable references
+  // ---------------------------------------------------------------------------
+
+  private val referencingDesc = """{"limit":0,"stateReferences":{"/limit":"n"}}"""
+
+  it should "build the operator's own executor, from the descString with its placeholders, when the sidecar names a loop variable" in {
+    val exec = ExecFactory.newExecFromJavaClassName(
+      classOf[CoreExecutorReflectionSpec.LimitExec].getName,
+      referencingDesc,
+      idx = 2,
+      workerCount = 3
+    )
+    // No wrapper: the worker calls every callback on the operator itself, at the usual time.
+    assert(exec.getClass == classOf[CoreExecutorReflectionSpec.LimitExec])
+    val typed = exec.asInstanceOf[CoreExecutorReflectionSpec.LimitExec]
+    assert(typed.setting.limit == 0)
+    assert((typed.idx, typed.workerCount) == ((2, 3)))
+    // The setting it holds is the one the state writes into.
+    exec.registerState(State(Map[String, Any]("n" -> 4L)))
+    assert(typed.setting.limit == 4)
+  }
+
+  it should "leave a '$name' outside every loop block the literal it is, with nothing to write" in {
+    // Outside every loop block the sidecar is empty, and "$AAPL" is the literal the operator
+    // compares against, as it was before loop variables existed.
+    Seq("""{"name":"$AAPL"}""", """{"name":"$AAPL","stateReferences":{}}""").foreach { desc =>
+      val exec = ExecFactory.newExecFromJavaClassName(
+        classOf[CoreExecutorReflectionSpec.NameExec].getName,
+        desc
+      )
+      val typed = exec.asInstanceOf[CoreExecutorReflectionSpec.NameExec]
+      exec.registerState(State(Map[String, Any]("AAPL" -> "bound")))
+      exec.bindStateReferences()
+      assert(typed.setting.name == "$AAPL", desc)
+    }
+  }
+
+  it should "find the setting in a field its superclass declares" in {
+    val exec = ExecFactory.newExecFromJavaClassName(
+      classOf[CoreExecutorReflectionSpec.InheritedLimitExec].getName,
+      referencingDesc
+    )
+    exec.registerState(State(Map[String, Any]("n" -> 3L)))
+    assert(exec.asInstanceOf[CoreExecutorReflectionSpec.InheritedLimitExec].setting.limit == 3)
+  }
+
+  it should "count a setting held in more than one field once" in {
+    val exec = ExecFactory.newExecFromJavaClassName(
+      classOf[CoreExecutorReflectionSpec.AliasedLimitExec].getName,
+      referencingDesc
+    )
+    exec.registerState(State(Map[String, Any]("n" -> 3L)))
+    assert(exec.asInstanceOf[CoreExecutorReflectionSpec.AliasedLimitExec].alias.limit == 3)
+  }
+
+  it should "refuse, naming the operator, when it holds no setting or more than one" in {
+    val none = classOf[CoreExecutorReflectionSpec.StringArgExec].getName
+    assert(
+      intercept[IllegalStateException](
+        ExecFactory.newExecFromJavaClassName(none, referencingDesc)
+      ).getMessage ==
+        s"$none refers to loop variables (/limit -> $$n), but it holds no descriptor to write " +
+          "them into"
+    )
+    val two = classOf[CoreExecutorReflectionSpec.TwoSettingsExec].getName
+    assert(
+      intercept[IllegalStateException](
+        ExecFactory.newExecFromJavaClassName(two, referencingDesc)
+      ).getMessage ==
+        s"$two refers to loop variables (/limit -> $$n), but it holds 2 descriptors, so which " +
+          "one is its setting is unclear"
+    )
+  }
+
+  it should "look for references only in a descString that is a JSON object" in {
+    Seq("hello", "[1]", "{not json", "null").foreach { desc =>
+      val exec = ExecFactory.newExecFromJavaClassName(
+        classOf[CoreExecutorReflectionSpec.StringArgExec].getName,
+        desc
+      )
+      assert(exec.asInstanceOf[CoreExecutorReflectionSpec.StringArgExec].desc == desc)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // ExecFactory.newExecFromJavaCode
   //
   // `compileCode` passes null compilation options, so the system javac resolves
@@ -279,6 +379,14 @@ class CoreExecutorReflectionSpec extends AnyFlatSpec {
     val second = ExecFactory.newExecFromJavaCode(echoUDFSource)
     assert(first ne second)
     assert(first.getClass.getName == second.getClass.getName)
+  }
+
+  it should "register a state on a Java class implementing the trait, which holds no fields for it" in {
+    val exec = ExecFactory.newExecFromJavaCode(echoUDFSource)
+    val state = State(Map[String, Any]("i" -> 1))
+    exec.registerState(state)
+    exec.bindStateReferences()
+    assert(exec.state.contains(state))
   }
 
   it should "surface the compiler diagnostics when the java source does not compile" in {
@@ -347,6 +455,69 @@ private object CoreExecutorReflectionSpec {
         tuple: org.apache.texera.amber.core.tuple.Tuple,
         port: Int
     ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  /** A setting with one Int property. */
+  class LimitSetting extends StateReferencing {
+    @JsonProperty var limit: Int = _
+  }
+
+  /** A setting with one String property. */
+  class NameSetting extends StateReferencing {
+    @JsonProperty var name: String = _
+  }
+
+  /** Parses its setting in the class body; only a `(String, Int, Int)` constructor. */
+  class LimitExec(descString: String, val idx: Int, val workerCount: Int) extends OperatorExecutor {
+    val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
+    override def processTuple(
+        tuple: org.apache.texera.amber.core.tuple.Tuple,
+        port: Int
+    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  class NameExec(descString: String) extends OperatorExecutor {
+    val setting: NameSetting = objectMapper.readValue(descString, classOf[NameSetting])
+    override def processTuple(
+        tuple: org.apache.texera.amber.core.tuple.Tuple,
+        port: Int
+    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  /** Equal to every setting of its class with the same limit, as a descriptor's equals is. */
+  class EqualLimitSetting extends LimitSetting {
+    override def equals(other: Any): Boolean =
+      other match {
+        case that: EqualLimitSetting => that.limit == limit
+        case _                       => false
+      }
+    override def hashCode(): Int = limit
+  }
+
+  /** Parses its descString twice, so it has two candidate settings, equal but not the same. */
+  class TwoSettingsExec(descString: String) extends OperatorExecutor {
+    val first: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
+    val second: EqualLimitSetting = objectMapper.readValue(descString, classOf[EqualLimitSetting])
+    override def processTuple(
+        tuple: org.apache.texera.amber.core.tuple.Tuple,
+        port: Int
+    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  abstract class LimitExecBase(descString: String) extends OperatorExecutor {
+    val setting: LimitSetting = objectMapper.readValue(descString, classOf[LimitSetting])
+    override def processTuple(
+        tuple: org.apache.texera.amber.core.tuple.Tuple,
+        port: Int
+    ): Iterator[org.apache.texera.amber.core.tuple.TupleLike] = Iterator.empty
+  }
+
+  /** Its setting is declared only in its superclass. */
+  class InheritedLimitExec(descString: String) extends LimitExecBase(descString)
+
+  /** Its setting is declared in its superclass, and held once more under another name. */
+  class AliasedLimitExec(descString: String) extends LimitExecBase(descString) {
+    val alias: LimitSetting = setting
   }
 
   /** Only a `(Long)` constructor — neither factory branch matches. */

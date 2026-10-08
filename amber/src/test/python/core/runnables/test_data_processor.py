@@ -15,14 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
+from types import SimpleNamespace
+
 import pytest
 
+from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
+from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.managers import Context
-from core.models import State
+from core.models import Schema, State, Tuple
 from core.models.internal_queue import InternalQueue
-from core.models.internal_marker import EndChannel, StartChannel
+from core.models.internal_marker import EndChannel, InternalMarker, StartChannel
 from core.runnables.data_processor import DataProcessor
-from proto.org.apache.texera.amber.engine.architecture.rpc import ConsoleMessageType
+from proto.org.apache.texera.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+    PortIdentity,
+)
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    ConsoleMessageType,
+    EmptyRequest,
+)
 
 
 @pytest.fixture
@@ -69,8 +82,79 @@ class _StubExecutor:
         self.calls.append(("on_finish", port_id))
         return iter([])
 
+    def process_tuple(self, tuple_, port_id):
+        self.calls.append(("process_tuple", port_id))
+        return iter([])
+
 
 class TestProcessInternalMarker:
+    @pytest.mark.parametrize(
+        "marker", [None, InternalMarker(), SimpleNamespace(port_id=1)]
+    )
+    def test_rejects_non_port_markers_before_entering_executor(
+        self, context, data_processor, marker
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+        with pytest.raises(TypeError, match="PortMarker"):
+            data_processor.process_internal_marker(marker)
+        assert executor.calls == []
+        assert data_processor.switch_calls == 0
+
+    @pytest.mark.parametrize("finish", [False, True])
+    @pytest.mark.timeout(2)
+    def test_handlers_route_empty_second_port_to_lifecycle_callbacks(
+        self, context, data_processor, finish
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+        channels = []
+        for port_id in (0, 1):
+            port = PortIdentity(port_id, False)
+            channel = ChannelIdentity(
+                ActorVirtualIdentity(f"upstream-{port_id}"),
+                ActorVirtualIdentity(context.worker_id),
+                False,
+            )
+            context.input_manager.add_input_port(port, Schema(), [], [])
+            context.input_manager.register_input(channel, port)
+            channels.append(channel)
+
+        tpm = context.tuple_processing_manager
+        if finish:
+            context.current_input_channel_id = channels[0]
+            tpm.current_input_port_id = context.input_manager.get_port_id(channels[0])
+            tpm.current_input_tuple = Tuple({"value": 1})
+            data_processor.process_tuple()
+            assert executor.calls == [("process_tuple", 0)]
+        else:
+            assert tpm.current_input_port_id is None
+
+        context.current_input_channel_id = channels[1]
+        if finish:
+            asyncio.run(EndChannelHandler(context).end_channel(EmptyRequest()))
+        else:
+            asyncio.run(StartChannelHandler(context).start_channel(EmptyRequest()))
+        data_processor.process_internal_marker(tpm.get_internal_marker())
+
+        expected = (
+            [("process_tuple", 0), ("produce_state_on_finish", 1), ("on_finish", 1)]
+            if finish
+            else [("produce_state_on_start", 1)]
+        )
+        assert executor.calls == expected
+        assert not context.exception_manager.has_exception()
+        assert not context.input_manager.get_port(PortIdentity(0, False)).completed
+        assert (
+            context.input_manager.get_port(PortIdentity(1, False)).completed is finish
+        )
+
+    @pytest.mark.parametrize("marker", [StartChannel, EndChannel])
+    @pytest.mark.parametrize("port_id", [-1, True, "1"])
+    def test_channel_markers_reject_invalid_port_identity(self, marker, port_id):
+        with pytest.raises(ValueError, match="nonnegative integer"):
+            marker(port_id)
+
     @pytest.mark.timeout(2)
     def test_start_channel_invokes_produce_state_on_start(
         self, context, data_processor
@@ -78,12 +162,12 @@ class TestProcessInternalMarker:
         executor = _StubExecutor()
         context.executor_manager.executor = executor
 
-        data_processor.process_internal_marker(StartChannel())
+        context.tuple_processing_manager.current_input_port_id = object()
+        data_processor.process_internal_marker(StartChannel(2))
 
-        # StartChannel routes to produce_state_on_start with the current
-        # input port id (0 when no upstream is set), and the returned dict
-        # is wrapped into a State on the output slot.
-        assert executor.calls == [("produce_state_on_start", 0)]
+        # The marker owns its port.  A stale data-port slot must not redirect
+        # control to whichever input happened to deliver the last tuple.
+        assert executor.calls == [("produce_state_on_start", 2)]
         out = context.state_processing_manager.current_output_state
         assert isinstance(out, State)
         assert out["phase"] == "start"
@@ -97,15 +181,16 @@ class TestProcessInternalMarker:
         executor = _StubExecutor()
         context.executor_manager.executor = executor
 
-        data_processor.process_internal_marker(EndChannel())
+        context.tuple_processing_manager.current_input_port_id = object()
+        data_processor.process_internal_marker(EndChannel(1))
 
         # EndChannel must call produce_state_on_finish first, switch
         # context to flush that state separately from the on_finish
         # tuple stream, then drain on_finish. The session itself adds
         # its own trailing switch on exit.
         assert executor.calls == [
-            ("produce_state_on_finish", 0),
-            ("on_finish", 0),
+            ("produce_state_on_finish", 1),
+            ("on_finish", 1),
         ]
         # 1 switch from the explicit flush + 1 from `_executor_session`
         # exit. `_set_output_tuple` exits early on an empty iterator and
@@ -198,7 +283,7 @@ class TestRunInvariant:
     def test_two_queued_inputs_raises_invariant_error(self, context, monkeypatch):
         dp = self._drive_run_synchronously(context, monkeypatch)
         # Populate two slots — has_marker + has_tuple == 2.
-        context.tuple_processing_manager.current_internal_marker = StartChannel()
+        context.tuple_processing_manager.current_internal_marker = StartChannel(0)
         context.tuple_processing_manager.current_input_tuple = ("payload",)
         with pytest.raises(RuntimeError) as excinfo:
             dp.run()

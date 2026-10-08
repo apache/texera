@@ -128,9 +128,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           },
         ];
   }
-  get formControlNames(): string[] {
-    return Object.keys(this.form.controls);
-  }
 
   datasetNameSanitization(datasetName: string): string {
     // Remove leading spaces

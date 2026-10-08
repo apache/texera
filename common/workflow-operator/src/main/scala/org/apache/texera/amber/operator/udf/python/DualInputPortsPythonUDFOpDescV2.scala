@@ -37,6 +37,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp with PythonUdfUiParamete
         "# \n" +
         "# Define UiParameter inside open() of ProcessTupleOperator, ProcessBatchOperator, or ProcessTableOperator.\n" +
         "# Example: self.count = self.UiParameter(\"count\", AttributeType.INT).value\n" +
+        "# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.\n" +
         "# See the Python UDF operator documentation for supported types and behavior.\n" +
         "# \n" +
         "# from pytexera import *\n" +
@@ -159,6 +160,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp with PythonUdfUiParamete
         })
       )
       .withPveName(pveName)
+      .withExecutionTimeBinding(executionBinding(code))
   }
 
   override def operatorInfo: OperatorInfo =

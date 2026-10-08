@@ -70,6 +70,11 @@
     "secure": false,
     "changeOrigin": false
   },
+  "/api/cu-image": {
+    "target": "http://localhost:8888",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api": {
     "target": "http://localhost:8080",
     "secure": false,

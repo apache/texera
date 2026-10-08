@@ -570,6 +570,63 @@ describe("ContextMenuComponent", () => {
       expect(spy).toHaveBeenCalledTimes(1);
     });
 
+    // The Form View's edit mode turns modification on for the property panel while its embedded
+    // preview stays structure-locked; the lock has to reach the menu, or right-click on the preview
+    // could still re-shape the graph.
+    describe("under a structure lock", () => {
+      const renderedLabels = () =>
+        fixture.debugElement.queryAll(By.css("li[nz-menu-item]")).map(li => norm(li.nativeElement.textContent));
+
+      it("keeps cut, delete, disable and enable off even with modification enabled", () => {
+        highlightedOperatorsSubject.next(["op1"]);
+        component.isWorkflowModifiable = true;
+        component.structureLocked = true;
+        operatorMenuService.isDisableOperator = true;
+        operatorMenuService.isDisableOperatorClickable = true;
+        operatorMenuService.isToViewResult = true;
+        operatorMenuService.isToViewResultClickable = true;
+        fixture.detectChanges();
+
+        const labels = renderedLabels();
+        expect(labels).not.toContain("cut");
+        expect(labels).not.toContain("delete");
+        expect(labels).not.toContain("disable");
+        // Copying and the result toggle do not re-shape the graph, so they stay.
+        expect(labels).toContain("copy");
+        expect(labels).toContain("view result");
+
+        operatorMenuService.isDisableOperator = false;
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("enable");
+      });
+
+      it("keeps paste and link deletion off", () => {
+        component.isWorkflowModifiable = true;
+        component.structureLocked = true;
+        highlightedOperatorsSubject.next([]);
+        highlightedCommentBoxesSubject.next([]);
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("paste");
+
+        jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.mockReturnValue(["link1"]);
+        fixture.detectChanges();
+        expect(renderedLabels()).not.toContain("delete");
+      });
+
+      it("canModify needs modification on and no structure lock", () => {
+        component.isWorkflowModifiable = true;
+        component.structureLocked = false;
+        expect(component.canModify).toBe(true);
+
+        component.structureLocked = true;
+        expect(component.canModify).toBe(false);
+
+        component.structureLocked = false;
+        component.isWorkflowModifiable = false;
+        expect(component.canModify).toBe(false);
+      });
+    });
+
     it("execute to this operator invokes executeUpToOperator", () => {
       highlightedOperatorsSubject.next(["op1"]);
       component.isWorkflowModifiable = true;

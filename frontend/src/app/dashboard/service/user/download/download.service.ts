@@ -26,7 +26,7 @@ import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import JSZip from "jszip";
-import { Workflow } from "../../../../common/type/workflow";
+import { exportedWorkflow, Workflow } from "../../../../common/type/workflow";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
@@ -315,8 +315,10 @@ export class DownloadService {
    */
   private retrieveWorkflowItem(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ content }) => {
-        const workflowJson = JSON.stringify(content, null, 2);
+      map(({ content, defaultView }) => {
+        // The one export shape (see exportedWorkflow), shared with the canvas menu's export, so
+        // either file uploads alike.
+        const workflowJson = JSON.stringify(exportedWorkflow(content, defaultView), null, 2);
         const fileName = `${name}.json`;
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };

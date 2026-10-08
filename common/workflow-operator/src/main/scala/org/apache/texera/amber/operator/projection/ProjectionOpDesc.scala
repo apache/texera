@@ -26,17 +26,23 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import org.apache.texera.amber.core.workflow._
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.map.MapOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class ProjectionOpDesc extends MapOpDesc {
+class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Drop Option")
   @JsonPropertyDescription("check to drop the selected attributes")
   var isDrop: Boolean = false
 
+  // Named explicitly, without `required`: the form already asks for these and must go
+  // on accepting an empty list, but a field carrying no annotation is invisible to
+  // anything reading the operator's config by reflection.
+  @JsonProperty
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
@@ -97,5 +103,33 @@ class ProjectionOpDesc extends MapOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+  }
+
+  override def generateStandaloneCode(): String = {
+    val units = Option(attributes).getOrElse(List.empty)
+    // The engine refuses an empty selection, so the script says so too. Passing
+    // the frame through would hand back data where a run would have stopped.
+    if (units.isEmpty)
+      return """raise ValueError("Please select at least one attribute to project.")"""
+
+    if (isDrop) {
+      // Drop mode ignores aliases (matches ProjectionOpExec).
+      val cols = units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
+      s"out1df = in1df.drop(columns=$cols)"
+    } else {
+      val originals =
+        units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
+      // AttributeUnit.getAlias returns originalAttribute when alias is blank,
+      // so an explicit rename is only needed when they differ.
+      val renames = units
+        .filter(u => u.getAlias != u.getOriginalAttribute)
+        .map(u => s"""${pyStringLiteral(u.getOriginalAttribute)}: ${pyStringLiteral(u.getAlias)}""")
+      if (renames.isEmpty) {
+        s"out1df = in1df[$originals].copy()"
+      } else {
+        val renameMap = renames.mkString("{", ", ", "}")
+        s"out1df = in1df[$originals].rename(columns=$renameMap)"
+      }
+    }
   }
 }
