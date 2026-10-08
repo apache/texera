@@ -31,6 +31,8 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, ScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -98,16 +100,36 @@ object SourceCategoryRunner {
     * edit here. (ParallelCSV also declares "CSV" and would be covered for free,
     * but it is currently commented out of `@JsonSubTypes`, so the suite doesn't
     * enumerate it.)
+    *
+    * An encoder is handed the op it writes for, because a source's config states
+    * how the bytes look as well as how to read them: a delimiter, like an
+    * encoding, has to be in the file before a reader can be asked to honour it.
     */
-  private val encoderByFileType: Map[String, (Path, Charset, Seq[Tuple]) => Path] = Map(
-    "CSV" -> CanonicalSourceFixture.writeCsv,
-    "CSVOld" -> CanonicalSourceFixture.writeCsv,
-    "JSONL" -> CanonicalSourceFixture.writeJsonl,
+  private val encoderByFileType: Map[String, (Path, ScanSourceOpDesc, Seq[Tuple]) => Path] = Map(
+    "CSV" -> ((dir, op, rows) =>
+      CanonicalSourceFixture.writeCsv(dir, op.fileEncoding.getCharset, delimiterOf(op), rows)
+    ),
+    "CSVOld" -> ((dir, op, rows) =>
+      CanonicalSourceFixture.writeCsv(dir, op.fileEncoding.getCharset, delimiterOf(op), rows)
+    ),
+    "JSONL" -> ((dir, op, rows) =>
+      CanonicalSourceFixture.writeJsonl(dir, op.fileEncoding.getCharset, rows)
+    ),
     // Arrow is binary and its descriptor declares fileEncoding ignored, so the
     // charset a variant asks for has nothing to apply to.
     "Arrow" -> ((dir, _, rows) => CanonicalSourceFixture.writeArrow(dir, rows)),
     "Parquet" -> ((dir, _, rows) => CanonicalSourceFixture.writeParquet(dir, rows))
   )
+
+  /** The delimiter a CSV variant reads with, resolved as the readers resolve it:
+    * the first character, and a comma when the field is empty or unset.
+    */
+  private def delimiterOf(op: ScanSourceOpDesc): Char =
+    (op match {
+      case csv: CSVScanSourceOpDesc       => csv.customDelimiter
+      case csvOld: CSVOldScanSourceOpDesc => csvOld.customDelimiter
+      case _                              => None
+    }).filter(_.nonEmpty).map(_.charAt(0)).getOrElse(',')
 
   /**
     * Sources this runner cannot verify, with the honest reason. Mirrors
@@ -247,7 +269,7 @@ object SourceCategoryRunner {
         ): (String, LogicalOp, Path) = {
           val dir = dirFor(label)
           val op = newScanSource(opDescClass)
-          op.fileName = Some(encoder(dir, op.fileEncoding.getCharset, rows).toUri.toString)
+          op.fileName = Some(encoder(dir, op, rows).toUri.toString)
           op.offset = window._1
           op.limit = window._2
           (label, op, dir)
@@ -284,7 +306,7 @@ object SourceCategoryRunner {
   private def skippedBadLine(
       opDescClass: Class[_ <: LogicalOp],
       fileType: String,
-      encoder: (Path, Charset, Seq[Tuple]) => Path,
+      encoder: (Path, ScanSourceOpDesc, Seq[Tuple]) => Path,
       dirFor: String => Path
   ): Seq[(String, LogicalOp, Path)] =
     if (fileType != "JSONL") Seq.empty
@@ -292,7 +314,7 @@ object SourceCategoryRunner {
       val label = "window: skips a bad line"
       val dir = dirFor(label)
       val op = newScanSource(opDescClass)
-      val path = encoder(dir, op.fileEncoding.getCharset, CanonicalSourceFixture.rows)
+      val path = encoder(dir, op, CanonicalSourceFixture.rows)
       val body = new String(Files.readAllBytes(path), op.fileEncoding.getCharset)
       Files.write(path, ("not json at all\n" + body).getBytes(op.fileEncoding.getCharset))
       op.fileName = Some(path.toUri.toString)
@@ -309,7 +331,9 @@ object SourceCategoryRunner {
     * `fileEncoding` is swept like any other enum, and the fixture FOLLOWS it: each
     * variant's file is written in the charset that variant declares. Encoding is a
     * statement about the bytes, so a UTF_16 config over a file left in UTF-8 would
-    * only compare how each path fails.
+    * only compare how each path fails. A CSV delimiter is swept the same way and
+    * followed the same way: a semicolon config over a comma file reads each line as
+    * one field on both paths, and agreeing on that tests no semicolon at all.
     *
     * Variants that serialize identically are dropped — an operator that ignores
     * `fileEncoding` (Arrow declares `@JsonIgnoreProperties`) would otherwise run the
@@ -317,7 +341,7 @@ object SourceCategoryRunner {
     */
   private def generatedVariants(
       opDescClass: Class[_ <: LogicalOp],
-      encoder: (Path, Charset, Seq[Tuple]) => Path,
+      encoder: (Path, ScanSourceOpDesc, Seq[Tuple]) => Path,
       dirFor: String => Path
   ): Seq[(String, LogicalOp, Path)] = {
     val seen = mutable.Set.empty[String]
@@ -341,9 +365,7 @@ object SourceCategoryRunner {
             // the generator's, which additionally fills limit and offset.
             val name = if (label == "default") "auto-base" else label
             val dir = dirFor(name)
-            scan.fileName = Some(
-              encoder(dir, scan.fileEncoding.getCharset, CanonicalSourceFixture.rows).toUri.toString
-            )
+            scan.fileName = Some(encoder(dir, scan, CanonicalSourceFixture.rows).toUri.toString)
             Some((name, scan: LogicalOp, dir))
           }
       }
@@ -527,11 +549,12 @@ object CanonicalSourceFixture {
     */
   val holedRows: Seq[Tuple] = SharedFixture.emptyOneCellPerColumn(rows, schema, Set.empty)
 
-  /** Write the rows as a header-first, comma-delimited CSV encoded in `charset`.
+  /** Write the rows as a header-first CSV separated by `delimiter` and encoded in
+    * `charset`.
     *
-    * The charset is a parameter because it describes the BYTES, not the config: a
-    * variant declaring `fileEncoding = UTF_16` over a file left in UTF-8 would
-    * compare nothing but how each path fails.
+    * Both are parameters because they describe the BYTES, not the config: a variant
+    * declaring `fileEncoding = UTF_16` over a file left in UTF-8, or a tab over a
+    * file separated by commas, would compare nothing but how each path misreads it.
     *
     * Two headers are left blank, a timestamp's and a long's, which the reader
     * names column-N and pandas names "Unnamed: N" until it is told otherwise, so
@@ -539,20 +562,20 @@ object CanonicalSourceFixture {
     * position 1 is written as the text "Unnamed: 1", a name a user can really
     * choose and pandas' placeholder for the same place.
     */
-  def writeCsv(dir: Path, charset: Charset, rows: Seq[Tuple]): Path = {
+  def writeCsv(dir: Path, charset: Charset, delimiter: Char, rows: Seq[Tuple]): Path = {
     val path = dir.resolve("sample.csv")
     val blank = Set("start_ts", "a\"b\\c_big")
     val header = schema.getAttributes.zipWithIndex
       .map {
         case (_, 1)                              => "Unnamed: 1"
         case (a, _) if blank.contains(a.getName) => ""
-        case (a, _)                              => csvField(a.getName)
+        case (a, _)                              => csvField(a.getName, delimiter)
       }
-      .mkString(",")
+      .mkString(delimiter.toString)
     val body = rows.map { t =>
       schema.getAttributes
-        .map(a => csvField(Option(t.getField[AnyRef](a.getName)).map(_.toString).orNull))
-        .mkString(",")
+        .map(a => csvField(Option(t.getField[AnyRef](a.getName)).map(_.toString).orNull, delimiter))
+        .mkString(delimiter.toString)
     }
     Files.write(path, ((header +: body).mkString("\n") + "\n").getBytes(charset))
     path
@@ -563,11 +586,13 @@ object CanonicalSourceFixture {
     * The table carries commas inside values — a bracketed edge pair, a
     * comma-delimited list, an ordinary English sentence — and writing those raw
     * shifts every column after them. What the two paths then disagree about is a
-    * broken file rather than anything either of them does.
+    * broken file rather than anything either of them does. The same holds for
+    * whichever character separates the fields: under a space, the sentence needs
+    * its quotes as much as the list does under a comma.
     */
-  private def csvField(value: String): String =
+  private def csvField(value: String, delimiter: Char): String =
     if (value == null) ""
-    else if (value.exists(c => c == ',' || c == '"' || c == '\n' || c == '\r'))
+    else if (value.exists(c => c == delimiter || c == '"' || c == '\n' || c == '\r'))
       "\"" + value.replace("\"", "\"\"") + "\""
     else value
 
