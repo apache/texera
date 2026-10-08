@@ -129,13 +129,18 @@ export function extractLoopVariables(initialization: string): string[] {
 }
 
 /**
- * The loop variables in scope of an operator: those of every enclosing Loop Start, outermost first,
- * without duplicates. Undefined outside every block, so that one call tells both whether the operator
- * sits in a block and what it may refer to; empty for a block whose Loop Starts declare nothing. A
- * Loop Start whose initialization is missing or not a string contributes nothing.
+ * The loop variables in scope of an operator: those of every Loop Start enclosing it, in the order given
+ * (outermost first, as LoopBlockService gives them), without duplicates, each read from the Loop Start's
+ * initialization in the graph. Undefined outside every block, so that one call tells both whether the
+ * operator sits in a block and what it may refer to; empty for a block whose Loop Starts declare nothing.
+ * A Loop Start whose initialization is missing or not a string contributes nothing, and one no longer in
+ * the graph (deleted since the compile result that named it) does not count.
  */
-export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: string): string[] | undefined {
-  const loopStartIDs = graph.getEnclosingLoopStarts(operatorID);
+export function loopVariablesInScope(
+  graph: WorkflowGraphReadonly,
+  enclosingLoopStarts: ReadonlyArray<string>
+): string[] | undefined {
+  const loopStartIDs = enclosingLoopStarts.filter(loopStartID => graph.hasOperator(loopStartID));
   if (loopStartIDs.length === 0) {
     return undefined;
   }

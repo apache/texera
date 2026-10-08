@@ -48,6 +48,7 @@ import { commonTestImports, commonTestProviders } from "../../../common/testing/
 import { firstValueFrom } from "rxjs";
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { OperatorSchema } from "../../types/operator-schema.interface";
+import { LoopBlockService } from "./loop-block.service";
 
 describe("WorkflowCompilingService.dropInvalidAttributeValues", () => {
   // A schema shaped like the Aggregate operator after schema propagation has filled in the
@@ -721,6 +722,80 @@ describe("WorkflowCompilingService compile pipeline", () => {
 
     expect(states).toEqual([CompilationState.Succeeded, CompilationState.Failed]);
     subscription.unsubscribe();
+  }));
+
+  it("records which Loop Starts enclose each operator from every compile result, successful or not", fakeAsync(() => {
+    const loopBlockService = TestBed.inject(LoopBlockService);
+    const recorded: string[][] = [];
+    const subscription = loopBlockService
+      .getCompileResultStream()
+      .subscribe(() => recorded.push([...loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)]));
+
+    buildWorkflowAndCompile().flush({
+      physicalPlan: { operators: [], links: [] },
+      operatorOutputSchemas: {},
+      operatorErrors: {},
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["loop-start"] },
+    });
+    expect(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)).toEqual(["loop-start"]);
+
+    // a failed compile still reports the blocks: they come from the logical plan
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "reddit" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    httpTestingController.expectOne(compileUrl).flush({
+      operatorOutputSchemas: {},
+      operatorErrors: { [mockResultPredicate.operatorID]: { message: "compilation blew up" } },
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["other-loop-start"] },
+    });
+    expect(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)).toEqual(["other-loop-start"]);
+
+    // a response without the field puts every operator outside every block
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "twitter" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    httpTestingController.expectOne(compileUrl).flush({ operatorOutputSchemas: {}, operatorErrors: {} });
+    expect(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)).toEqual([]);
+
+    // the blocks are recorded before the result is announced
+    expect(recorded).toEqual([["loop-start"], ["other-loop-start"], []]);
+    subscription.unsubscribe();
+  }));
+
+  it("records the blocks before the compilation state is announced, so its readers see them", fakeAsync(() => {
+    const loopBlockService = TestBed.inject(LoopBlockService);
+    const seen: ReadonlyArray<string>[] = [];
+    const subscription = service
+      .getCompilationStateInfoChangedStream()
+      .subscribe(() => seen.push(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)));
+
+    buildWorkflowAndCompile().flush({
+      physicalPlan: { operators: [], links: [] },
+      operatorOutputSchemas: {},
+      operatorErrors: {},
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["loop-start"] },
+    });
+
+    expect(seen).toEqual([["loop-start"]]);
+    subscription.unsubscribe();
+  }));
+
+  it("leaves the blocks of the last compile result in place when a compile request fails", fakeAsync(() => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const loopBlockService = TestBed.inject(LoopBlockService);
+
+    buildWorkflowAndCompile().flush({
+      physicalPlan: { operators: [], links: [] },
+      operatorOutputSchemas: {},
+      operatorErrors: {},
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["loop-start"] },
+    });
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "reddit" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    try {
+      httpTestingController.expectOne(compileUrl).flush("boom", { status: 500, statusText: "Server Error" });
+      expect(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)).toEqual(["loop-start"]);
+    } finally {
+      warn.mockRestore();
+    }
   }));
 
   it("swallows a failing compile request and keeps compiling afterwards", fakeAsync(() => {

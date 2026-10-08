@@ -153,24 +153,36 @@ describe("extractLoopVariables", () => {
 });
 
 describe("loopVariablesInScope", () => {
-  const graphOf = (enclosing: string[], initializations: Record<string, unknown>): WorkflowGraphReadonly =>
+  /** A graph holding a LoopStart for each initialization given. */
+  const graphOf = (initializations: Record<string, unknown>): WorkflowGraphReadonly =>
     ({
-      getEnclosingLoopStarts: () => enclosing,
-      getOperator: (operatorID: string) => ({ operatorProperties: { initialization: initializations[operatorID] } }),
+      hasOperator: (operatorID: string) => operatorID in initializations,
+      getOperator: (operatorID: string) => {
+        if (!(operatorID in initializations)) {
+          throw new Error(`operator ${operatorID} does not exist`);
+        }
+        return { operatorProperties: { initialization: initializations[operatorID] } };
+      },
     }) as unknown as WorkflowGraphReadonly;
 
-  it("collects the variables of every enclosing LoopStart, outermost first, without duplicates", () => {
-    const graph = graphOf(["outer", "inner"], { outer: "K = 2; i = 0", inner: "j = 0; K = 5" });
-    expect(loopVariablesInScope(graph, "body")).toEqual(["K", "i", "j"]);
+  it("collects the variables of every enclosing LoopStart, in the order given, without duplicates", () => {
+    const graph = graphOf({ outer: "K = 2; i = 0", inner: "j = 0; K = 5" });
+    expect(loopVariablesInScope(graph, ["outer", "inner"])).toEqual(["K", "i", "j"]);
   });
 
   it("returns undefined for an operator outside every block, telling it from a block that declares nothing", () => {
-    expect(loopVariablesInScope(graphOf([], {}), "lonely")).toBeUndefined();
-    expect(loopVariablesInScope(graphOf(["s"], { s: "print(1)" }), "body")).toEqual([]);
+    expect(loopVariablesInScope(graphOf({}), [])).toBeUndefined();
+    expect(loopVariablesInScope(graphOf({ s: "print(1)" }), ["s"])).toEqual([]);
   });
 
   it("tolerates a LoopStart whose initialization is missing or not a string", () => {
-    const graph = graphOf(["s1", "s2", "s3"], { s1: undefined, s2: 42, s3: "k = 1" });
-    expect(loopVariablesInScope(graph, "body")).toEqual(["k"]);
+    const graph = graphOf({ s1: undefined, s2: 42, s3: "k = 1" });
+    expect(loopVariablesInScope(graph, ["s1", "s2", "s3"])).toEqual(["k"]);
+  });
+
+  it("skips a LoopStart deleted since the compile result that named it, and counts none left as no block", () => {
+    // the compile result is up to a debounce behind the graph
+    expect(loopVariablesInScope(graphOf({ kept: "k = 1" }), ["deleted", "kept"])).toEqual(["k"]);
+    expect(loopVariablesInScope(graphOf({}), ["deleted"])).toBeUndefined();
   });
 });

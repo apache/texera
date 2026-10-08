@@ -22,6 +22,7 @@ import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
@@ -2065,7 +2066,20 @@ describe("OperatorPropertyEditFrameComponent", () => {
       fixture.detectChanges();
     }
 
-    /** Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. */
+    /**
+     * A compile result, which is what tells which operators sit inside a block: the body inside the Loop
+     * Start's block, or inside none when `inside` is false.
+     */
+    function compileWithBodyInside(inside = true): void {
+      TestBed.inject(LoopBlockService).setOperatorLoopStarts(
+        inside ? { [body.operatorID]: [mockLoopStartPredicate.operatorID] } : {}
+      );
+    }
+
+    /**
+     * Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false; then the compile result
+     * that follows those edits.
+     */
     function addBlockAroundBody(closed = true): void {
       workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
       workflowActionService.addOperator(body, mockPoint);
@@ -2074,6 +2088,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       if (closed) {
         workflowActionService.addLink(mockScalaExecutorLoopEndLink);
       }
+      compileWithBodyInside(closed);
     }
 
     it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
@@ -2121,35 +2136,64 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
     });
 
-    it("rebuilds the open form when a link or the Loop Start's variables change its scope", () => {
+    it("counts the operator outside every block until a compile result puts it inside one", () => {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      openBody();
+      expect(getField("limit")?.type).toBe("integer");
+
+      compileWithBodyInside();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+    });
+
+    it("rebuilds the open form when a compile result changes its scope, and only then", () => {
       addBlockAroundBody(false);
       openBody();
       expect(getField("limit")?.type).toBe("integer");
 
-      // closing the block puts the open operator inside it
+      // closing the block puts the open operator inside it, once the compile result says so
       workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("integer");
+      compileWithBodyInside();
       expect(getField("limit")?.type).toBe("loopvariableinput");
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
 
-      // renaming the variable changes what the field offers
+      // renaming the variable changes what the field offers, read from the Loop Start in the graph
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "N = 1",
         output: "table.iloc[N]",
       });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      compileWithBodyInside();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
 
-      // an edit that leaves the scope as it is does not rebuild the form
+      // a compile result that leaves the scope as it is does not rebuild the form
       const rerender = vi.spyOn(component, "rerenderEditorForm");
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "N = 1",
         output: "table.iloc[0]",
       });
+      compileWithBodyInside();
       expect(rerender).not.toHaveBeenCalled();
 
       // opening the block again takes the operator out of it
       workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(rerender).not.toHaveBeenCalled();
+      compileWithBodyInside(false);
       expect(rerender).toHaveBeenCalledTimes(1);
       expect(getField("limit")?.type).toBe("integer");
+    });
+
+    it("rebuilds nothing for a compile result after the open operator was deleted", () => {
+      addBlockAroundBody();
+      openBody();
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.deleteOperator(body.operatorID);
+      compileWithBodyInside();
+      expect(rerender).not.toHaveBeenCalled();
     });
 
     describe("a field with value rules", () => {

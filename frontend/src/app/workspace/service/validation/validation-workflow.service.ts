@@ -23,7 +23,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
-import { filter, map } from "rxjs/operators";
+import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -35,7 +35,7 @@ import {
   valueAtPointer,
 } from "../../util/loop-variable-field.util";
 import { loopVariablesInScope } from "../../util/loop-variable.util";
-import { LOOP_START_OP_TYPE } from "../workflow-graph/model/loop-block.util";
+import { LoopBlockService } from "../compile-workflow/loop-block.service";
 
 export type ValidationError = {
   isValid: false;
@@ -96,7 +96,8 @@ export class ValidationWorkflowService {
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService
+    private dynamicSchemaService: DynamicSchemaService,
+    private loopBlockService: LoopBlockService
   ) {
     // fetch operator schema list
     this.operatorMetadataService.getOperatorMetadata().subscribe(metadata => {
@@ -134,10 +135,18 @@ export class ValidationWorkflowService {
   }
 
   public validateOperator(operatorID: string): Validation {
+    return this.validateOperatorFor(operatorID, false);
+  }
+
+  /**
+   * validateOperator, except that `forCompiler` leaves every loop-variable reference to the compiler; see
+   * getValidTexeraGraph.
+   */
+  private validateOperatorFor(operatorID: string, forCompiler: boolean): Validation {
     if (this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)) {
       return { isValid: true };
     }
-    const jsonSchemaValidation = this.validateJsonSchema(operatorID);
+    const jsonSchemaValidation = this.validateJsonSchema(operatorID, forCompiler);
     const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
     return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
   }
@@ -251,20 +260,13 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
-    // An operator holding a loop-variable reference is judged against the block around it and the
-    // variables its Loop Starts declare, which other operators' links and properties decide: a link two
-    // hops away can close or open its block, and renaming a Loop Start's variable can orphan "$K". So
-    // after every link added or removed, and every property change of a Loop Start, re-validate each
-    // operator holding a reference. Those are the only ones affected: without a reference, an operator
-    // validates the same inside a block and outside every block.
-    merge(
-      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperatorPropertyChangeStream()
-        .pipe(filter(value => value.operator.operatorType === LOOP_START_OP_TYPE))
-    ).subscribe(() => this.revalidateOperatorsWithReferences());
+    // An operator holding a loop-variable reference is judged against the blocks around it, which the
+    // compile result tells (LoopBlockService), and the variables their Loop Starts declare. Other operators'
+    // edits change both: a link two hops away can close or open its block, and renaming a Loop Start's
+    // variable can orphan "$K"; every such edit is followed by a compile. So after every compile result,
+    // re-validate each operator holding a reference. Those are the only ones affected: without a
+    // reference, an operator validates the same inside a block and outside every block.
+    this.loopBlockService.getCompileResultStream().subscribe(() => this.revalidateOperatorsWithReferences());
 
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
@@ -307,7 +309,7 @@ export class ValidationWorkflowService {
    * This method is used to check whether all required properties of the operator have been completed.
    *  If completed correctly, the operator is valid.
    */
-  private validateJsonSchema(operatorID: string): Validation {
+  private validateJsonSchema(operatorID: string, forCompiler: boolean): Validation {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -327,11 +329,18 @@ export class ValidationWorkflowService {
     // Inside a control block a primitive property may hold a loop-variable reference ("$K") that the
     // backend binds at run time (issue #8635), so the schema type check is waived exactly where a
     // reference sits in a property whose schema type is a primitive (the fields the property panel lets
-    // take one), and every reference must name a variable an enclosing Loop Start declares. Outside every
-    // block nothing is waived: a "$K" in an integer property stays a type error, and so does one in an
-    // array or object property anywhere.
-    const namesInScope = loopVariablesInScope(this.workflowActionService.getTexeraGraph(), operatorID);
-    if (namesInScope !== undefined) {
+    // take one), and every reference must name a variable an enclosing Loop Start declares. Which blocks
+    // enclose the operator is what the latest compile result says (LoopBlockService). Outside every block
+    // nothing is waived: a "$K" in an integer property stays a type error, and so does one in an array or
+    // object property anywhere. For the compiler the waiver holds everywhere and no name is checked: it is
+    // what decides which operators sit inside a block, and it reports a reference outside every block.
+    const namesInScope = forCompiler
+      ? undefined
+      : loopVariablesInScope(
+          this.workflowActionService.getTexeraGraph(),
+          this.loopBlockService.getEnclosingLoopStarts(operatorID)
+        );
+    if (forCompiler || namesInScope !== undefined) {
       errors = errors.filter(
         error =>
           !(
@@ -340,6 +349,8 @@ export class ValidationWorkflowService {
             isReference(valueAtPointer(properties, error.instancePath))
           )
       );
+    }
+    if (namesInScope !== undefined) {
       const validateReference = referenceValidator(namesInScope);
       const undeclared = collectReferences(properties)
         .map(reference => validateReference(`$${reference.name}`))
@@ -432,6 +443,11 @@ export class ValidationWorkflowService {
    * Gets a filtered version of the TexeraGraph containing only valid operators and their corresponding links.
    * This method will create a copy of the TexeraGraph and do the validation on top of it.
    *
+   * It is the graph the editing-time compile is sent, and the compile result is what tells which operators
+   * sit inside a loop block, so the loop-variable references in an operator's properties are left to the
+   * compiler: an operator whose only errors are at references is kept. Left out, it would never be placed
+   * inside its block, and with its links gone, neither would the operators around it.
+   *
    * @returns A json-schema-wise valid TexeraGraph
    */
   public getValidTexeraGraph(): WorkflowGraphReadonly {
@@ -441,7 +457,7 @@ export class ValidationWorkflowService {
 
     // Filter valid operators using validation service
     const validOperators = allOperators.filter(operator => {
-      const validation = this.validateOperator(operator.operatorID);
+      const validation = this.validateOperatorFor(operator.operatorID, true);
       return validation.isValid;
     });
 
