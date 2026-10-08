@@ -25,6 +25,8 @@ import org.apache.texera.dao.jooq.generated.tables.records._
 import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.jooq._
 
+import javax.ws.rs.BadRequestException
+
 object EntityTables {
 
   // ==================== THE REGISTRY ====================
@@ -80,6 +82,7 @@ object EntityTables {
 
   def apply(entityType: EntityType): EntityTableSet =
     entityType match {
+      case null                => throw new BadRequestException("Missing entityType")
       case EntityType.Workflow => WorkflowTableSet
       case EntityType.Dataset  => DatasetTableSet
       case EntityType.Model    => ModelTableSet
@@ -92,6 +95,9 @@ object EntityTables {
     val table: Table[R]
     val isPublicColumn: TableField[R, java.lang.Boolean]
     val idColumn: TableField[R, Integer]
+
+    /** The entity joined to its owner's USER row. A def: a val here reads the subclass's fields too early. */
+    def joinWithOwner: Table[_ <: Record]
   }
 
   object BaseEntityTable {
@@ -101,6 +107,13 @@ object EntityTables {
       override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] =
         WORKFLOW.IS_PUBLIC
       override val idColumn: TableField[WorkflowRecord, Integer] = WORKFLOW.WID
+      // Inner: a workflow with no owner row contributes nobody.
+      override def joinWithOwner: Table[_ <: Record] =
+        WORKFLOW
+          .join(WORKFLOW_OF_USER)
+          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+          .join(USER)
+          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
     }
 
     def apply(entityType: EntityType): BaseEntityTable = EntityTables(entityType).base

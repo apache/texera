@@ -160,4 +160,7 @@ object StorageConfig {
   val jupyterInternalURL: String = conf.getString("storage.jupyter.internal-url")
   val jupyterPublicURL: String = conf.getString("storage.jupyter.public-url")
   val jupyterToken: String = conf.getString("storage.jupyter.token")
+
+  // HMAC key for per-user token derivation; empty unless a deployment sets it.
+  val jupyterTokenSecret: String = conf.getString("storage.jupyter.token-secret")
 }

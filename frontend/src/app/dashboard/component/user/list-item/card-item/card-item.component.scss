@@ -232,6 +232,18 @@
     color: #1f1f1f;
     background: #f0f0f0;
   }
+
+  /* The default-view toggle shows its state, the same cue the list row's toggle gives: the accent
+     while the workflow opens in the Form View. */
+  &.default-view-toggle.defaults-to-form-on {
+    color: #1e90ff;
+    background: #e6f7ff;
+
+    &:hover {
+      color: #1e90ff;
+      background: #cceeff;
+    }
+  }
 }
 
 .like-btn {

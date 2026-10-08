@@ -121,6 +121,15 @@ describe("AuthService", () => {
       req.flush({ accessToken: "t" });
     });
 
+    it("orcidAuth() POSTs the raw authorization code with a text/plain content type", () => {
+      service.orcidAuth("auth-code").subscribe();
+      const req = httpMock.expectOne(`${api}/${AuthService.ORCID_LOGIN_ENDPOINT}`);
+      expect(req.request.method).toEqual("POST");
+      expect(req.request.body).toEqual("auth-code");
+      expect(req.request.headers.get("Content-Type")).toEqual("text/plain");
+      req.flush({ accessToken: "t" });
+    });
+
     it("googleAuth() POSTs the raw credential with a text/plain content type", () => {
       service.googleAuth("cred").subscribe();
       const req = httpMock.expectOne(`${api}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`);
@@ -140,6 +149,7 @@ describe("AuthService", () => {
       },
       { name: "auth", call: () => service.auth("alice", "pw"), endpoint: AuthService.LOGIN_ENDPOINT },
       { name: "googleAuth", call: () => service.googleAuth("cred"), endpoint: AuthService.GOOGLE_LOGIN_ENDPOINT },
+      { name: "orcidAuth", call: () => service.orcidAuth("code"), endpoint: AuthService.ORCID_LOGIN_ENDPOINT },
     ];
 
     errorCases.forEach(({ name, call, endpoint }) => {

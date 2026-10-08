@@ -19,20 +19,32 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
+import com.twitter.util.Future
 import org.apache.pekko.actor.ActorSystem
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.core.workflow.{InputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
+  EmptyReturn,
+  ErrorLanguage
+}
 import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionManagerTestSupport._
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  ResourceConfig,
+  WorkerConfig
+}
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -148,6 +160,113 @@ class WorkflowExecutionManagerSpec
     assert(!coordinator.actorRefService.hasActorRef(firstWorkerId))
     assert(rpcProbe.initializedWorkers.contains(secondWorkerId))
     assert(rpcProbe.startedWorkers.contains(secondWorkerId))
+  }
+
+  // Same failure as a Python UDF whose code is missing `from pytexera import *`.
+  private val udfInitError = "NameError: name 'UDFTableOperator' is not defined"
+
+  /**
+    * Mirrors a region like HashJoin-probe + Python UDF: the probe op has a dependee input port,
+    * so the region first runs a dependee phase with only the probe, and launches the remaining
+    * operators (here, the UDF) only once the dependee port completes. That second launch is
+    * triggered from a later advance round.
+    *
+    * Runs round 1, marks the probe's dependee port completed, and returns the round-2 future
+    * together with the probe and the UDF worker id.
+    */
+  private def runTwoPhaseRegion(
+      udfInitFails: Boolean
+  ): (Future[Unit], CoordinatorRpcProbe, ActorVirtualIdentity) = {
+    val probeOp = createSourceOp("probe-op").withInputPorts(
+      List(
+        InputPort(PortIdentity(0)),
+        InputPort(PortIdentity(1), dependencies = List(PortIdentity(0)))
+      )
+    )
+    val probeWorkerId = createWorkerId(probeOp)
+    val udfOp = createSourceOp("udf-op")
+    val udfWorkerId = createWorkerId(udfOp)
+
+    val region = Region(
+      RegionIdentity(1),
+      physicalOps = Set(probeOp, udfOp),
+      physicalLinks = Set.empty,
+      resourceConfig = Some(
+        ResourceConfig(
+          operatorConfigs = Map(
+            probeOp.id -> OperatorConfig(List(WorkerConfig(probeWorkerId))),
+            udfOp.id -> OperatorConfig(List(WorkerConfig(udfWorkerId)))
+          )
+        )
+      )
+    )
+
+    val workflowExecution = WorkflowExecution()
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 101, probeOp, probeWorkerId)
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 102, udfOp, udfWorkerId)
+
+    val rpcProbe = new CoordinatorRpcProbe(
+      endWorkerResponse = _ => Some(EmptyReturn()),
+      initializeExecutorResponse = call =>
+        if (udfInitFails && call.receiver == udfWorkerId)
+          ControlError(
+            errorMessage = udfInitError,
+            errorDetails = "",
+            stackTrace = "",
+            language = ErrorLanguage.PYTHON
+          )
+        else EmptyReturn()
+    )
+    val coordinator = createCoordinatorHarness()
+    registerLiveWorker(coordinator.actorRefService, probeWorkerId)
+    registerLiveWorker(coordinator.actorRefService, udfWorkerId)
+
+    val workflowManager = new WorkflowExecutionManager(
+      workflowExecution,
+      CoordinatorConfig(None, None, None, None),
+      rpcProbe.asyncRPCClient
+    )
+    workflowManager.schedule = Schedule(Map(0 -> Set(region)))
+    workflowManager.setupActorRefService(coordinator.actorRefService)
+
+    // Round 1: only the dependee phase (the probe op) is launched.
+    await(workflowManager.advanceRegionExecutions(coordinator.actorService))
+    assert(rpcProbe.initializedWorkers == Seq(probeWorkerId))
+    assert(rpcProbe.startedWorkers == Seq(probeWorkerId))
+
+    // The probe's dependee port completes (e.g., the hash-join build side is fully read).
+    workflowExecution
+      .getRegionExecution(region.id)
+      .getOperatorExecution(probeOp.id)
+      .getWorkerExecution(probeWorkerId)
+      .getInputPortExecution(PortIdentity(0))
+      .setCompleted()
+
+    // Round 2 launches the non-dependee phase (the UDF).
+    (
+      workflowManager.advanceRegionExecutions(coordinator.actorService),
+      rpcProbe,
+      udfWorkerId
+    )
+  }
+
+  it should "fail coordination when a worker fails to initialize in a later region phase" in {
+    val (round2, rpcProbe, udfWorkerId) = runTwoPhaseRegion(udfInitFails = true)
+
+    val error = intercept[WorkflowRuntimeException](await(round2))
+    assert(error.getMessage.contains(udfInitError))
+    // The failing worker is carried so the surfaced FatalError can point at it.
+    assert(error.relatedWorkerId.contains(udfWorkerId))
+    assert(rpcProbe.initializedWorkers.contains(udfWorkerId))
+    assert(!rpcProbe.startedWorkers.contains(udfWorkerId))
+  }
+
+  it should "launch the later region phase when its workers initialize successfully" in {
+    val (round2, rpcProbe, udfWorkerId) = runTwoPhaseRegion(udfInitFails = false)
+
+    await(round2)
+    assert(rpcProbe.initializedWorkers.contains(udfWorkerId))
+    assert(rpcProbe.startedWorkers.contains(udfWorkerId))
   }
 
   "Jumping to an operator's region" should

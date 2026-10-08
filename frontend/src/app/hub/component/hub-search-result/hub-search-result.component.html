@@ -26,6 +26,7 @@
         (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters
         [entityType]="entityType"
+        ownerScope="public"
         #filters></texera-filters>
       <div
         *ngIf="isVersionedResource"
@@ -65,8 +66,6 @@
 
   <div class="search-result">
     <texera-search-results
-      [showResourceTypes]="true"
-      [searchKeywords]="searchKeywords"
       [currentUid]="this.currentUid"
       [viewMode]="isVersionedResource ? viewMode : 'list'"
       [cardTemplate]="isVersionedResource ? cardTpl : undefined">

@@ -22,10 +22,15 @@ package org.apache.texera.amber.operator.keywordSearch
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.queryparser.classic.QueryParser
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.util.regex.Pattern
+import scala.util.Try
 
 class KeywordSearchOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -77,6 +82,58 @@ class KeywordSearchOpDescSpec extends AnyFlatSpec with Matchers {
     // wiring is caught even when the number of ports is unchanged.
     physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
     physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
+  }
+
+  /** The `pattern` the keyword field injects into its schema, read from the schema
+    * itself rather than restated here, so the test cannot pass against a stale copy.
+    */
+  private val keywordPattern: String = {
+    val property = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[KeywordSearchOpDesc])
+      .path("properties")
+      .path("keyword")
+    property.path("pattern").asText()
+  }
+
+  /** Whether the parser the executor builds accepts the value at all. */
+  private def parses(keyword: String): Boolean =
+    Try(new QueryParser("col", new StandardAnalyzer()).parse(keyword)).isSuccess
+
+  // A value the field should take, and whether the pattern is meant to admit it. Quoting
+  // is the only query syntax in play in each, so the verdict belongs to QueryParser, and
+  // every case is put to it below rather than decided here.
+  private val keywords: Seq[(String, Boolean)] = Seq(
+    "hello" -> true,
+    "\"a b\"" -> true, // a phrase query: the quotes are paired
+    "a \"b\" c" -> true,
+    "\"a\" \"b\"" -> true,
+    "he\\\"llo" -> true, // an escaped quote is a character in a term, not a delimiter
+    "\\\"unclosed" -> true,
+    "\"a \\\" b\"" -> true, // an escaped quote inside a phrase leaves the pair intact
+    "a\\\\\"b\"" -> true, // an escaped backslash, then a phrase
+    "he\"llo" -> false,
+    "\"unclosed" -> false,
+    "x\"y\"z\"" -> false,
+    "\\\\\"" -> false, // the backslash is escaped, so the quote is the bare one
+    "end\\" -> false // a backslash with nothing left to escape
+  )
+
+  behavior of "The keyword pattern"
+
+  it should "be present in the generated schema" in {
+    keywordPattern should not be empty
+  }
+
+  keywords.foreach {
+    case (value, isValid) =>
+      val verb = if (isValid) "accept" else "reject"
+      it should s"$verb '$value', as QueryParser does" in {
+        // find() rather than matches(), because the form validates with
+        // `new RegExp().test`, which searches instead of anchoring. An unanchored
+        // pattern would pass every value here.
+        Pattern.compile(keywordPattern).matcher(value).find() shouldBe isValid
+        parses(value) shouldBe isValid
+      }
   }
 
   "KeywordSearchOpDesc JSON round-trip" should

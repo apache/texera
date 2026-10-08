@@ -22,14 +22,17 @@ package org.apache.texera.amber.operator.keywordSearch
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.filter.FilterOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class KeywordSearchOpDesc extends FilterOpDesc {
+class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
@@ -37,10 +40,19 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @AutofillAttributeName
   var attribute: String = _
 
+  // The value is a Lucene query, and its lexer needs double quotes in pairs: one on its
+  // own opens a phrase that never closes, and `parse` throws before a row is read. The
+  // pattern walks the value the way the lexer does, so a quote a backslash escapes stays
+  // a character in a term. The other syntactic characters are left alone, since which
+  // uses of them parse depends on what follows and a stricter pattern would reject the
+  // phrase and range queries that work today. Anchored, because the form validates with
+  // `test`, which searches.
   @JsonProperty(required = true)
   @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
-  @JsonSchemaInject(json = """{"minLength": 1}""")
+  @JsonSchemaInject(
+    json = """{"minLength": 1, "pattern": "^(?:[^\"\\\\]|\\\\.|\"(?:[^\"\\\\]|\\\\.)*\")*$"}"""
+  )
   var keyword: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
@@ -75,4 +87,38 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    // The engine runs a Lucene query per row; a script matches the terms
+    // themselves, so a query that uses the syntax — a phrase, a boolean, a
+    // wildcard, a fuzzy match — reads here as the words it is written with.
+    val raw = Option(keyword).getOrElse("")
+    val terms = raw.trim.split("\\s+").filter(_.nonEmpty).toList
+    if (terms.isEmpty) return "out1df = in1df"
+
+    val regexSpecials = Set('.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\')
+    val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
+    val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
+    val pyLiteral = pyStringLiteral(pattern)
+    val attrLit = pyStringLiteral(attribute)
+    // Case follows the flag, which picks the analyzer the engine indexes with:
+    // StandardAnalyzer lower-cases both the field and the query, CaseSensitiveAnalyzer
+    // is the same tokenizer with that filter left out.
+    val caseArg = if (isCaseSensitive) "True" else "False"
+
+    // The rows with nothing in the column are dropped before the match rather than
+    // left to `na=False`, which by then has no null to see.
+    //
+    // The terms are matched against the text the engine indexed, not against
+    // whatever pandas made of the column. See [[renderedAsText]].
+    val declared = inputSchemas.values.headOption
+      .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
+      .map(_.getType)
+    val column = renderedAsText(s"in1df[$attrLit]", declared)
+    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+  }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }

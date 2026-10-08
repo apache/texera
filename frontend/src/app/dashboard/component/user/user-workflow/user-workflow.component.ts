@@ -29,7 +29,7 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { ExecutionMode, WorkflowContent } from "../../../../common/type/workflow";
+import { ExecutionMode, ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -43,10 +43,20 @@ import { DownloadService } from "../../../service/user/download/download.service
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import {
-  MappingContent,
+  GeneratedWorkflowContent,
   NotebookMigrationService,
 } from "../../../../workspace/service/notebook-migration/notebook-migration.service";
-import { LlmRequestTimeoutError, Notebook } from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  LlmRequestTimeoutError,
+  LlmResponseTruncatedError,
+  Notebook,
+} from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  FolderDocument,
+  folderRootName,
+  pickedFileObject,
+  pickedFilePath,
+} from "../../../../workspace/service/notebook-migration/folder-assembly";
 import {
   NotebookImportModalComponent,
   NotebookImportModalData,
@@ -280,61 +290,146 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return this.config.env.pythonNotebookMigrationEnabled;
   }
 
-  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromNotebook. */
+  /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromFile. */
   public openAiGenerateModal(): void {
     this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
-      nzTitle: "AI Generate Workflow from Python Notebook",
+      nzTitle: "AI Generate Workflow from Source Code",
       nzContent: NotebookImportModalComponent,
       nzWidth: 700,
       nzFooter: null,
       nzCentered: true,
+      nzBodyStyle: { paddingTop: "4px" },
       nzData: {
-        requestImport: (file, model) => this.generateWorkflowFromNotebook(file, model),
+        requestImport: (selection, model) => this.generateWorkflowFromSelection(selection, model),
       },
     });
   }
 
   /**
-   * Parse the notebook, generate a workflow via the LLM, save it, store the cell mapping, and open it.
-   * Resolves true on success (modal closes), false to keep the modal open on a bad file or a failure.
+   * Generate a workflow from the modal's selection, save it, store the mapping, and open it.
+   * Resolves true on success (modal closes), false to keep it open on a bad selection or failure.
+   *
+   * A folder arrives as the whole picked list, so the selection's shape picks the branch before
+   * the extension does.
    */
-  private async generateWorkflowFromNotebook(file: NzUploadFile, model: string): Promise<boolean> {
-    const fileExtension = file.name.split(".").pop()?.toLowerCase();
-    if (fileExtension !== "ipynb") {
-      this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
+  private async generateWorkflowFromSelection(
+    selection: NzUploadFile | NzUploadFile[],
+    model: string
+  ): Promise<boolean> {
+    if (Array.isArray(selection)) {
+      const generated = await this.generateFromFolder(selection, model);
+      // Null means the step already told the user what went wrong.
+      if (!generated) {
+        return false;
+      }
+      return this.saveAndOpenGenerated(this.deriveFolderName(selection), generated);
+    }
+
+    const fileExtension = selection.name.split(".").pop()?.toLowerCase();
+    if (fileExtension !== "ipynb" && fileExtension !== "py") {
+      this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       return false;
     }
+
+    const generated =
+      fileExtension === "ipynb"
+        ? await this.generateFromNotebook(selection, model)
+        : await this.generateFromScript(selection, model);
+    if (!generated) {
+      return false;
+    }
+
+    return this.saveAndOpenGenerated(this.deriveWorkflowName(selection.name), generated);
+  }
+
+  /** Read and convert an .ipynb. Null after reporting a read or generation failure. */
+  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
     let notebook: Notebook;
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
     } catch (error) {
       this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
       console.error("Notebook parse failed:", error);
-      return false;
+      return null;
     }
 
-    let generated: { workflowContent: WorkflowContent; mappingContent: MappingContent };
     try {
-      generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      const generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      // The uploaded notebook is what gets stored, so it rides along with the generated pair.
+      return { ...generated, notebook };
     } catch (error) {
-      if (error instanceof LlmRequestTimeoutError) {
-        this.notificationService.error(
-          `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the notebook.`
-        );
-      } else {
-        this.notificationService.error("Error while communicating with the LLM, check console for details.");
-      }
-      console.error("LLM generation failed:", error);
-      return false;
+      this.reportGenerationFailure(error, "notebook");
+      return null;
+    }
+  }
+
+  /** Read and convert a .py. The notebook comes back derived, since the upload had no cells. */
+  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
+    let scriptSource: string;
+    try {
+      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
+    } catch (error) {
+      this.notificationService.error("Failed to read the Python file. Please upload a valid, non-empty .py file.");
+      console.error("Python file read failed:", error);
+      return null;
     }
 
+    try {
+      return await this.notebookMigrationService.sendScriptToAIGenerateWorkflow(scriptSource, model);
+    } catch (error) {
+      this.reportGenerationFailure(error, "script");
+      return null;
+    }
+  }
+
+  /** Read and convert a picked directory. The notebook comes back derived, as it does for a .py. */
+  private async generateFromFolder(files: NzUploadFile[], model: string): Promise<GeneratedWorkflowContent | null> {
+    let folder: FolderDocument;
+    try {
+      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject));
+    } catch (error) {
+      // parseFolder names what was wrong with the selection, so its message is shown as-is.
+      this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
+      console.error("Folder read failed:", error);
+      return null;
+    }
+
+    try {
+      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model);
+    } catch (error) {
+      this.reportGenerationFailure(error, "folder");
+      return null;
+    }
+  }
+
+  // A timeout is worth telling apart from a transport error: the user can act on it by picking
+  // a faster model or trimming the input.
+  private reportGenerationFailure(error: unknown, input: "notebook" | "script" | "folder"): void {
+    if (error instanceof LlmResponseTruncatedError) {
+      this.notificationService.error(`${error.message} This ${input} may be too large to convert.`);
+    } else if (error instanceof LlmRequestTimeoutError) {
+      this.notificationService.error(
+        `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
+      );
+    } else {
+      this.notificationService.error("Error while communicating with the LLM, check console for details.");
+    }
+    console.error("LLM generation failed:", error);
+  }
+
+  /**
+   * Persist the generated workflow, attach its notebook and mapping, then open it. Shared by all
+   * three inputs: once a conversion has produced a workflow and a notebook, nothing downstream
+   * differs.
+   */
+  private async saveAndOpenGenerated(name: string, generated: GeneratedWorkflowContent): Promise<boolean> {
     // Commit point: persisting captures the expensive LLM result. On failure nothing was created,
     // so returning false to let the user retry is safe.
     let wid: number;
     try {
       // workflow.name is VARCHAR(128); cap the base so base + suffix fits the column.
       const generatedSuffix = "_GENERATED_BY_LLM";
-      const generatedName = this.deriveWorkflowName(file.name).slice(0, 128 - generatedSuffix.length);
+      const generatedName = name.slice(0, 128 - generatedSuffix.length);
       const createdWorkflow = await firstValueFrom(
         this.workflowPersistService.createWorkflow(generated.workflowContent, generatedName + generatedSuffix)
       );
@@ -351,7 +446,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     // Best-effort follow-ups: never discard the created workflow, so log/warn and still open it.
     try {
       await firstValueFrom(
-        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, notebook)
+        this.notebookMigrationService.storeNotebookAndMapping(wid, generated.mappingContent, generated.notebook)
       );
     } catch (error) {
       this.notificationService.warning(
@@ -372,6 +467,13 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       this.notificationService.warning("Workflow created. You can open it from your dashboard.");
     }
     return true;
+  }
+
+  // The workflow is named after the selected folder. Nothing to strip: a folder name has no
+  // extension, which is why this does not go through deriveWorkflowName.
+  private deriveFolderName(files: NzUploadFile[]): string {
+    const folderName = folderRootName(pickedFilePath(files[0])) ?? "";
+    return folderName.trim() === "" ? DEFAULT_WORKFLOW_NAME : folderName;
   }
 
   // Strips the extension from a file name, falling back to DEFAULT_WORKFLOW_NAME when empty.
@@ -417,13 +519,39 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           return entry;
         });
 
-        this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
+        this.searchResultsComponent.entries = [
+          ...(await firstValueFrom(this.withWorkflowSizes(newEntries))),
+          ...this.searchResultsComponent.entries,
+        ];
       } catch (err: unknown) {
         console.log("Error duplicating workflow:", err);
         // @ts-ignore // TODO: fix this with notification component
         alert((err as any).error);
       }
     }
+  }
+
+  /**
+   * A DashboardEntry built from a duplicate response carries no size — only search asks the
+   * backend for one — so it would render as an empty workflow. Fill the sizes in before the
+   * rows go on screen, since the list items read the size once on binding.
+   */
+  private withWorkflowSizes(entries: DashboardEntry[]): Observable<DashboardEntry[]> {
+    const wids = entries.map(e => e.workflow.workflow.wid).filter((wid): wid is number => wid != null);
+    if (wids.length === 0) {
+      return of(entries);
+    }
+    return this.workflowPersistService.getSizes(wids).pipe(
+      map(sizes => {
+        entries.forEach(entry => {
+          const wid = entry.workflow.workflow.wid;
+          if (wid != null && sizes[wid] != null) {
+            entry.setSize(sizes[wid]);
+          }
+        });
+        return entries;
+      })
+    );
   }
 
   /**
@@ -514,9 +642,11 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           if (typeof result !== "string") {
             throw new Error("Incorrect format: file is not a string");
           }
-          const workflowContent = JSON.parse(result) as WorkflowContent;
+          // The landing view rides as a sibling key next to the content (see exportedWorkflow);
+          // pull it back out so it is stored on the workflow row, not inside content.
+          const { defaultView, ...workflowContent } = JSON.parse(result) as ExportedWorkflow;
           this.workflowPersistService
-            .createWorkflow(workflowContent, this.deriveWorkflowName(name))
+            .createWorkflow(workflowContent, this.deriveWorkflowName(name), defaultView)
             .pipe(untilDestroyed(this))
             .subscribe({
               next: uploadedWorkflow => {
@@ -582,13 +712,15 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     if (targetWids.length > 0) {
       this.workflowPersistService
         .duplicateWorkflow(targetWids)
-        .pipe(untilDestroyed(this))
+        .pipe(
+          switchMap(duplicatedWorkflowsInfo =>
+            this.withWorkflowSizes(duplicatedWorkflowsInfo.map(info => new DashboardEntry(info)))
+          ),
+          untilDestroyed(this)
+        )
         .subscribe({
-          next: duplicatedWorkflowsInfo => {
-            this.searchResultsComponent.entries = [
-              ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-              ...this.searchResultsComponent.entries,
-            ];
+          next: sizedEntries => {
+            this.searchResultsComponent.entries = [...sizedEntries, ...this.searchResultsComponent.entries];
 
             // this.searchResultsComponent.clearAllSelections();
           }, // TODO: fix this with notification component

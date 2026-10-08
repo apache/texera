@@ -29,7 +29,7 @@ import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -45,6 +45,7 @@ import {
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
@@ -59,11 +60,13 @@ import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-gr
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
 import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
 import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
 import { of, Subject, throwError } from "rxjs";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import * as Y from "yjs";
 
 const { marbles } = configure({ run: false });
 
@@ -159,6 +162,82 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
+
+  it("broadcasts currentlyEditing and syncs the operator version by default when an operator opens", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const spy = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    expect(spy).toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, expect.anything());
+  });
+
+  it("writes nothing at all when actsAsEditor is false (read-only inspect)", fakeAsync(() => {
+    // The Form View mounts this frame with actsAsEditor=false so that a reader inspecting a
+    // step is not announced as editing the graph and, more importantly, so that merely OPENING the
+    // step writes nothing: rerenderEditorForm runs ajv with useDefaults, which fills in any new
+    // schema defaults and then emits a form change, and that change is a property write like any
+    // other. Ticking past the debounce is what makes this test see that path at all.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    const awareness = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    component.onFormChanges({ tableName: "someone_else_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(awareness).not.toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).not.toHaveBeenCalled();
+    expect(propertySpy).not.toHaveBeenCalled();
+    // The stored properties are the ones the author left, untouched by the visit.
+    expect(workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+      mockScanPredicate.operatorProperties
+    );
+    discardPeriodicTasks();
+  }));
+
+  it("stays non-interactive when writes are not allowed, even after modification is re-enabled", () => {
+    // A finished run re-enables workflow modification for the canvas's sake, and the runtime unlock
+    // button calls setInteractivity(true) directly. Neither may turn a viewer mount editable.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    component.setInteractivity(true);
+    expect(component.interactive).toBe(false);
+
+    component.allowModifyOperatorLogic();
+    expect(component.interactive).toBe(false);
+    expect(component.formlyFormGroup?.disabled).toBe(true);
+  });
+
+  it("writes the same form change when writes are allowed (the gate is what stops it)", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.onFormChanges({ tableName: "the_author_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(propertySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { tableName: "the_author_typed_this" });
+    discardPeriodicTasks();
+  }));
 
   /**
    * test if the property editor correctly receives the operator highlight stream,
@@ -269,6 +348,36 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
       tableName: "after",
       uiParameters: inferredParameters,
+    });
+    discardPeriodicTasks();
+  }));
+
+  it("shows code-inferred UI parameters read-only without writing them to the workflow", fakeAsync(() => {
+    // The inferred parameters are worth showing to a reader -- they are what the step's script now
+    // declares -- but a viewer mount must not persist them, so the model updates and the graph
+    // does not.
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "before",
+      uiParameters: [],
     });
     discardPeriodicTasks();
   }));
@@ -1796,6 +1905,62 @@ describe("OperatorPropertyEditFrameComponent", () => {
       vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
       expect(validator.expression({ value: { attr: "colA", mode: "loose" } } as any, rootField())).toBe(true);
     });
+
+    // A property that takes several columns holds a list of names, and the rule
+    // has to reach each of them rather than the list as a whole.
+    const multiColumnSchema: CustomJSONSchema7 = {
+      type: "object",
+      properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+      attributeTypeRules: { attrs: { enum: ["integer"] } },
+    };
+
+    it("enum rule passes when every column a multi-column property names matches", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("integer");
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, rootField())).toBe(true);
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colA");
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colB");
+    });
+
+    it("enum rule names the one column of a multi-column property that violates it", () => {
+      const validator = bindSchema(multiColumnSchema);
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "integer" : "string"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain(
+        "The type of 'colB' is string, but it's expected to be integer"
+      );
+    });
+
+    it("enum rule names the timestamp among columns a trainer cannot fit together", () => {
+      // The shape the sklearn advanced trainers are in: a timestamp fits on its own but
+      // raises DTypePromotionError beside any other column, so the accepted set leaves it
+      // out and the warning has to name the timestamp rather than the numeric column.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attrs: { enum: ["integer", "long", "double", "boolean"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "when" ? "timestamp" : "double"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["amount", "when"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("The type of 'when' is timestamp");
+    });
+
+    it("enum rule is skipped when a multi-column property names nothing", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attrs: [] } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1817,6 +1982,36 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(validator!.expression({ value: "red" } as any)).toBe(true);
       expect(validator!.message(null, { formControl: { value: "blue" } } as any)).toBe(
         '"blue" is no longer a valid option'
+      );
+    });
+
+    it("adds a uniqueAmongRows validator that rejects a value another row already holds", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          paraList: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { parameter: { type: "string", uniqueAmongRows: true } },
+            },
+          },
+        },
+      } as CustomJSONSchema7);
+      // A row's own fields exist only once formly is asked to build a row.
+      const arrayField = getField("paraList")!;
+      const rowField = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      const validator = rowField.fieldGroup?.find(f => f.key === "parameter")?.validators?.["uniqueAmongRows"];
+      expect(validator).toBeDefined();
+
+      const twoRowsSettingC = {
+        key: "parameter",
+        parent: { parent: { model: [{ parameter: "C" }, { parameter: "C" }] } },
+      } as any;
+      expect(validator!.expression({ value: "C" } as any, twoRowsSettingC)).toBe(false);
+      expect(validator!.expression({ value: "kernel" } as any, twoRowsSettingC)).toBe(true);
+      expect(validator!.message(null, { formControl: { value: "C" } } as any)).toBe(
+        '"C" is already set by another row'
       );
     });
 
@@ -2224,6 +2419,77 @@ describe("OperatorPropertyEditFrameComponent", () => {
       setupPreview({ kind: "text", title: "T", pills: [] });
       expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
     });
+
+    // Two rows holding one parameter mark each other, so the row that resolves the duplicate
+    // has to clear the row it left behind. Only a rendered form has the second row to clear.
+    describe("uniqueAmongRows across rendered rows", () => {
+      function renderTwoRows(first: string, second: string): void {
+        // A form the frame holds locked is disabled, and Angular does not validate a disabled control.
+        realComponent.interactive = true;
+        realComponent.setFormlyFormBinding({
+          type: "object",
+          properties: {
+            paraList: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { parameter: { type: "string", uniqueAmongRows: true } },
+              },
+            },
+          },
+        } as CustomJSONSchema7);
+        realComponent.formData = { paraList: [{ parameter: first }, { parameter: second }] };
+        realFixture.detectChanges();
+      }
+
+      function rowControl(index: number): AbstractControl {
+        return realComponent.formlyFormGroup!.get(["paraList", String(index), "parameter"])!;
+      }
+
+      function typeIntoRow(index: number, parameter: string): void {
+        const input = realFixture.debugElement.queryAll(By.css("input"))[index].nativeElement as HTMLInputElement;
+        input.value = parameter;
+        input.dispatchEvent(new Event("input"));
+        realFixture.detectChanges();
+      }
+
+      it("marks both rows that name one parameter", () => {
+        renderTwoRows("C", "C");
+        expect(realFixture.debugElement.queryAll(By.css("input")).length).toBe(2);
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(true);
+      });
+
+      it("clears the row left behind when the other row picks a free parameter", () => {
+        renderTwoRows("C", "C");
+
+        typeIntoRow(1, "kernel");
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(false);
+      });
+
+      it("clears the row left behind when the duplicate row is deleted", () => {
+        renderTwoRows("C", "C");
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+
+        const removeButtons = realFixture.debugElement.queryAll(By.css("button[nzDanger]"));
+        removeButtons[1].nativeElement.click();
+        realFixture.detectChanges();
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+      });
+
+      it("marks the row already holding the parameter a row is changed onto", () => {
+        renderTwoRows("C", "kernel");
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+
+        typeIntoRow(1, "C");
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(true);
+      });
+    });
   });
 
   describe("onFormChanges null handling", () => {
@@ -2574,23 +2840,32 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(rerenderSpy).not.toHaveBeenCalled();
     });
 
-    it("the status-update subscription records the update for the selected operator", () => {
+    // Wire-shaped payload: the service splits it into the state and statistics concepts.
+    const runningStatus = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+
+    it("the state-update subscription records the state for the selected operator", () => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       component.currentOperatorId = mockScanPredicate.operatorID;
       fixture.detectChanges(); // ngOnInit registers the subscription
 
-      emitOperatorStatistics({ [mockScanPredicate.operatorID]: { some: "status" } });
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: runningStatus });
 
-      expect(component.currentOperatorStatus).toEqual({ some: "status" });
+      expect(component.currentOperatorState).toBe(OperatorState.Running);
     });
 
-    it("the status-update subscription ignores updates while no operator is selected", () => {
+    it("the state-update subscription ignores updates while no operator is selected", () => {
       fixture.detectChanges(); // ngOnInit registers the subscription
       component.currentOperatorId = undefined;
 
-      emitOperatorStatistics({ "op-1": { some: "status" } });
+      emitOperatorStatistics({ "op-1": runningStatus });
 
-      expect(component.currentOperatorStatus).toBeUndefined();
+      expect(component.currentOperatorState).toBeUndefined();
     });
 
     it("the ui-parameter subscription ignores events addressed to a different operator", () => {
@@ -2934,6 +3209,245 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("child")?.expressions?.["templateOptions.description"]).toBe(
         "[\"eventTime\"].includes(model.parent)? 'Input a datetime string' : 'Input a positive number'"
       );
+    });
+  });
+
+  describe("choosing which properties the Form View exposes", () => {
+    it("wires each top-level tick box to the exposure service", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      const setExposed = vi.spyOn(formBindingService, "setExposed");
+      component.exposeChoosing = true;
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+
+      const field = component.formlyFields?.[0]?.fieldGroup?.find(f => f.props?.["toggleExposed"] !== undefined);
+      (field!.props as any).toggleExposed(true);
+
+      expect(setExposed).toHaveBeenCalledWith(mockScanPredicate.operatorID, field!.key, true);
+    });
+
+    // The tick box belongs to top-level properties only; a nested field must not get one,
+    // not even one whose key collides with a top-level property name.
+    it("never puts a tick box on a nested field, including one whose name collides with a root property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-nested";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          tableName: { type: "string" },
+          group: {
+            type: "object",
+            properties: { tableName: { type: "string" }, value: { type: "string" } },
+          },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const decoratedTop = topLevel
+        .filter(f => f.props?.["toggleExposed"] !== undefined)
+        .map(f => f.key)
+        .sort();
+      expect(decoratedTop).toEqual(["group", "tableName"]);
+
+      // the nested tableName (same name as a root property) is not decorated
+      const nested = topLevel.find(f => f.key === "group")?.fieldGroup ?? [];
+      const nestedTableName = nested.find(f => f.key === "tableName");
+      expect(nestedTableName).toBeDefined();
+      expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
+    });
+
+    // Writing code is not "filling in a value", so a code-editor property is never offered for
+    // exposure; an ordinary property beside it still is.
+    it("does not offer exposure on a code-editor property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-code";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          code: { type: "string", description: "input your code here" },
+          limit: { type: "number" },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const codeField = topLevel.find(f => f.key === "code");
+      expect(codeField?.type).toBe("codearea");
+      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
+      // an ordinary property is still offered
+      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
+      expect(decorated).toEqual(["limit"]);
+    });
+  });
+
+  /**
+   * The spec's default TestBed swaps the template for a stub, so the collaborative title editor —
+   * the Quill instance the component mounts on `#customName` and the keyboard bindings it configures
+   * — is never built by anything above. This block renders the real template and drives that editor.
+   * It comes last in the file deliberately: Quill 2 has no `destroy()`, so each instance leaves a
+   * MutationObserver and document listeners behind for `fixture.destroy()` to detach, and it must not
+   * be combined with `fakeAsync` (zone.js patches MutationObserver).
+   */
+  describe("quill title editing", () => {
+    let quillFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let quillComponent: OperatorPropertyEditFrameComponent;
+    let texeraGraph: WorkflowGraph;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      quillFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      quillComponent = quillFixture.componentInstance;
+      // Downcast to the concrete graph: `getSharedOperatorType` is not on the readonly view.
+      texeraGraph = TestBed.inject(WorkflowActionService).getTexeraGraph() as WorkflowGraph;
+      quillFixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      quillFixture.destroy();
+    });
+
+    /** Opens the editor the only way a user can — the title section's edit button. */
+    function openEditorFromButton(): Y.Text {
+      const sharedOperator = new Y.Doc().getMap("operator");
+      quillComponent.currentOperatorId = mockScanPredicate.operatorID;
+      // `interactive` defaults to false, which renders the edit button disabled — a disabled button
+      // swallows the click silently and the editor would never mount.
+      quillComponent.interactive = true;
+      vi.spyOn(texeraGraph, "getSharedOperatorType").mockReturnValue(sharedOperator as any);
+      quillFixture.detectChanges();
+
+      quillFixture.debugElement.query(By.css("#formly-title button")).nativeElement.click();
+      quillFixture.detectChanges();
+
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
+      // The map genuinely lacked the key, so this Y.Text can only have come from the connect call.
+      const sharedTitle = sharedOperator.get("customDisplayName");
+      expect(sharedTitle).toBeInstanceOf(Y.Text);
+      return sharedTitle as Y.Text;
+    }
+
+    /**
+     * An operator display name is a single-line value, so the editor binds Enter to "commit and
+     * close" instead of letting Quill insert a newline. Everything typed here goes straight into the
+     * shared Y.Text, so a stray "\n" is published to every co-editor, persisted with the workflow,
+     * and read back on each later open. Quill 2 buckets keyboard bindings by `event.key` and runs its
+     * built-in `handleEnter` ahead of anything registered under the legacy `13` keycode, which is how
+     * the suppression stopped working when the frontend moved to Quill 2 (#8053). The template's
+     * `(keyup.enter)` closes the editor either way — a keydown-only press is what separates a working
+     * binding from a broken one, in both the text left behind and `editingTitle`.
+     */
+    const ENTER: KeyboardEventInit = { key: "Enter", keyCode: 13, which: 13 };
+
+    /**
+     * Quill's keydown listener returns early unless the editor `hasFocus()` and reports a selection,
+     * so both have to be real here — without them no binding runs at all and every assertion below
+     * would pass vacuously. `keyCode` / `which` mirror what a browser sends: Quill matches a binding
+     * on either, and jsdom's default of 0 would make a `13`-keyed binding unreachable rather than
+     * merely out-prioritised, hiding the very defect these tests pin.
+     */
+    function pressKey(caret: number, init: KeyboardEventInit): KeyboardEvent {
+      quillComponent.quill.root.focus();
+      quillComponent.quill.setSelection(caret, 0);
+      const keyPress = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+      quillComponent.quill.root.dispatchEvent(keyPress);
+      quillFixture.detectChanges();
+      return keyPress;
+    }
+
+    it("should show a remote rename in the mounted editor", () => {
+      const sharedTitle = openEditorFromButton();
+
+      sharedTitle.insert(0, "renamed remotely");
+
+      // Without this the keyboard tests below could pass against an editor wired to nothing.
+      expect((document.getElementById("customName") as HTMLElement).textContent).toContain("renamed remotely");
+    });
+
+    it("should commit the rename on Enter without appending a newline to the shared name", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      // `editingTitle` is what proves the editor's own binding ran: no keyup was dispatched, so the
+      // template's fallback cannot be the thing that closed the editor.
+      expect(quillComponent.editingTitle).toBe(false);
+      expect(quillComponent.quillBinding).toBeUndefined();
+    });
+
+    it("should not split the shared name when Enter is pressed mid-word", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(3, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave an untouched name empty when Enter commits it", () => {
+      const sharedTitle = openEditorFromButton();
+
+      pressKey(0, ENTER);
+
+      // The empty document is the case Quill's own handler turns into a lone "\n" — a display name
+      // that reads as blank but is no longer equal to the empty string it started as.
+      expect(sharedTitle.toString()).toBe("");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should commit on Shift+Enter without appending a newline either", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, { ...ENTER, shiftKey: true });
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave ordinary typing alone", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      const keyPress = pressKey(sharedTitle.length, { key: "a", keyCode: 65, which: 65 });
+
+      // Suppressing Enter must not become suppressing the keyboard: an ordinary character is left
+      // for the browser to insert, and the editor stays open so the rename can continue.
+      expect(keyPress.defaultPrevented).toBe(false);
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
     });
   });
 });

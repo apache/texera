@@ -77,9 +77,9 @@ class StubSortButtonComponent {
 })
 class StubFiltersComponent {
   @Input() entityType?: EntityType;
+  @Input() ownerScope?: string;
   masterFilterList: ReadonlyArray<string> = [];
   masterFilterListChange = new Subject<ReadonlyArray<string>>();
-  getSearchKeywords = vi.fn(() => [] as string[]);
   getSearchFilterParameters = vi.fn(() => ({}));
 }
 
@@ -89,8 +89,6 @@ class StubFiltersComponent {
   template: "",
 })
 class StubSearchResultsComponent {
-  @Input() showResourceTypes?: boolean;
-  @Input() searchKeywords?: string[];
   @Input() currentUid?: number;
   @Input() viewMode?: string;
   @Input() cardTemplate?: TemplateRef<unknown>;
@@ -108,7 +106,6 @@ class StubCardItemComponent {
 
 interface FiltersMock {
   masterFilterList: ReadonlyArray<string>;
-  getSearchKeywords: ReturnType<typeof vi.fn>;
   getSearchFilterParameters: ReturnType<typeof vi.fn>;
   masterFilterListChange: Subject<ReadonlyArray<string>>;
 }
@@ -163,7 +160,6 @@ describe("HubSearchResultComponent", () => {
   function makeFiltersMock(list: ReadonlyArray<string> = ["a"]): FiltersMock {
     return {
       masterFilterList: list,
-      getSearchKeywords: vi.fn(() => ["k"]),
       getSearchFilterParameters: vi.fn(() => ({})),
       masterFilterListChange: new Subject<ReadonlyArray<string>>(),
     };
@@ -307,7 +303,7 @@ describe("HubSearchResultComponent", () => {
 
       await component.search();
 
-      expect(filters.getSearchKeywords).not.toHaveBeenCalled();
+      expect(filters.getSearchFilterParameters).not.toHaveBeenCalled();
       expect(searchServiceMock.executeSearch).not.toHaveBeenCalled();
     });
 
@@ -322,7 +318,6 @@ describe("HubSearchResultComponent", () => {
       expect(results.reset).toHaveBeenCalledTimes(1);
       expect(typeof results.reset.mock.calls[0][0]).toBe("function");
       expect(results.loadMore).toHaveBeenCalledTimes(1);
-      expect(component.searchKeywords).toEqual(["k"]);
     });
 
     it("skips a repeated search with the same filter list and sortMethod, but honors forced=true", async () => {
@@ -636,19 +631,11 @@ describe("HubSearchResultComponent rendered template", () => {
     expect(results().cardTemplate).toBeUndefined();
   });
 
-  it("hands the resource types, the filter keywords and the signed-in uid to the results list", () => {
+  it("hands the signed-in uid to the results list", () => {
     render(EntityType.Workflow);
-    const filters = fixture.debugElement.query(By.directive(FiltersComponent)).componentInstance as FiltersComponent;
 
-    // Committing a filter list is what the real filter bar does on every change, and it
-    // is what makes the component republish its keywords.
-    filters.masterFilterList = ["alpha"];
-    fixture.detectChanges();
-
-    // Asserted on the child inputs rather than the DOM because all three only reach the
+    // Asserted on the child input rather than the DOM because currentUid only reaches the
     // markup through texera-list-item, which is not rendered while the result list is empty.
-    expect(results().showResourceTypes).toBe(true);
-    expect(results().searchKeywords).toEqual(["alpha"]);
     expect(results().currentUid).toBe(MOCK_USER_ID);
   });
 });

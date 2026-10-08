@@ -42,7 +42,7 @@ platform — there is nothing to configure:
 
 | Concern | macOS | Linux |
 | --- | --- | --- |
-| Host LAN IP (the MinIO endpoint) | `route get default`, `ipconfig getifaddr` | `ip route show default`, `ip -4 addr show scope global` |
+| Host LAN IP (the RustFS endpoint) | `route get default`, `ipconfig getifaddr` | `ip route show default`, `ip -4 addr show scope global` |
 | Artifact mtime (`watch`'s ARTIFACT MTIME column) | BSD `stat -f` | GNU `stat -c` |
 | Port → PID | `lsof` | `lsof`, falling back to `ss` |
 
@@ -83,7 +83,7 @@ bin/local-dev/
 ├── main.sh                       shell engine — sbt builds, service lifecycle, port checks
 ├── tui.py                        Textual dashboard surfaced by `bin/local-dev.sh -i`
 ├── docker-compose.override.yml   overlay on top of bin/single-node/docker-compose.yml
-│                                 (host-LAN-IP MinIO endpoint, Lakekeeper warehouse, etc.)
+│                                 (host-LAN-IP RustFS endpoint, Lakekeeper warehouse, etc.)
 └── tests/
     ├── test_local_dev_sh.sh      bash smoke: license header, syntax, version, --help,
     │                             error-on-bad-input, regression guards
@@ -114,9 +114,9 @@ invocation.
 
 `jupyter` is the only managed service that runs from a Texera-built image instead of
 natively, so edits to its customizations under
-`notebook-migration-service/src/main/resources/` (`custom.js`, `custom.css`,
-`start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI publishes it, but a
-local edit needs a local build under the same tag:
+`notebook-migration-service/src/main/resources/` (`custom.js`, `custom-preload.js`,
+`custom.css`, `start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI
+publishes it, but a local edit needs a local build under the same tag:
 
 ```sh
 docker build -f bin/dockerfiles/jupyter.dockerfile -t ghcr.io/apache/texera-jupyter:latest .

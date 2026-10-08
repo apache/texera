@@ -25,7 +25,7 @@ import { UdfDebugService } from "../../service/operator-debug/udf-debug.service"
 import { Subject } from "rxjs";
 import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { OperatorState } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import type { MonacoBreakpoint } from "monaco-breakpoints";
@@ -38,14 +38,14 @@ describe("CodeDebuggerComponent", () => {
   let mockWorkflowStatusService: Mocked<WorkflowStatusService>;
   let mockUdfDebugService: Mocked<UdfDebugService>;
 
-  let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
+  let stateUpdateStream: Subject<Record<string, OperatorState>>;
   let debugState: Y.Map<BreakpointInfo>;
 
   const operatorId = "test-operator-id";
 
   beforeEach(async () => {
     // Initialize streams and spy objects
-    statusUpdateStream = new Subject<Record<string, OperatorStatistics>>();
+    stateUpdateStream = new Subject<Record<string, OperatorState>>();
     // Y.Map observers only fire when the map is attached to a Y.Doc (the doc
     // owns the transaction lifecycle that drives observation). A standalone
     // `new Y.Map()` accepts `.set()` but never notifies observers — production
@@ -53,8 +53,8 @@ describe("CodeDebuggerComponent", () => {
     // doc, but the spec used to construct a detached map.
     debugState = new Y.Doc().getMap<BreakpointInfo>("debug");
 
-    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
-    mockWorkflowStatusService.getStatusUpdateStream.mockReturnValue(statusUpdateStream.asObservable());
+    mockWorkflowStatusService = { getStateUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    mockWorkflowStatusService.getStateUpdateStream.mockReturnValue(stateUpdateStream.asObservable());
 
     mockUdfDebugService = {
       getDebugState: vi.fn(),
@@ -85,7 +85,7 @@ describe("CodeDebuggerComponent", () => {
 
   afterEach(() => {
     // Clean up streams to prevent memory leaks
-    statusUpdateStream.complete();
+    stateUpdateStream.complete();
     component.monacoEditor?.dispose();
   });
 
@@ -103,15 +103,7 @@ describe("CodeDebuggerComponent", () => {
     const rerenderSpy = vi.spyOn(component, "rerenderExistingBreakpoints").mockImplementation(() => {});
 
     // Emit a Running state event
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Running,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
 
     tick();
     fixture.detectChanges(); // Trigger change detection
@@ -120,15 +112,7 @@ describe("CodeDebuggerComponent", () => {
     expect(rerenderSpy).toHaveBeenCalled();
 
     // Emit the same state again (should not trigger setup again)
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Running,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
 
     tick();
     fixture.detectChanges(); // Trigger change detection
@@ -137,15 +121,7 @@ describe("CodeDebuggerComponent", () => {
     expect(rerenderSpy).toHaveBeenCalledTimes(1); // No additional call
 
     // Emit the paused state (should not trigger setup)
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Paused,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Paused });
 
     tick();
     fixture.detectChanges(); // Trigger change detection
@@ -154,15 +130,7 @@ describe("CodeDebuggerComponent", () => {
     expect(rerenderSpy).toHaveBeenCalledTimes(1); // No additional call
 
     // Emit the running state once more (should not trigger setup)
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Paused,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Paused });
 
     tick();
     fixture.detectChanges(); // Trigger change detection
@@ -175,30 +143,14 @@ describe("CodeDebuggerComponent", () => {
     const removeSpy = vi.spyOn(component, "removeMonacoBreakpointMethods");
 
     // Emit an Uninitialized state event
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Uninitialized,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Uninitialized });
 
     fixture.detectChanges(); // Trigger change detection
 
     expect(removeSpy).toHaveBeenCalled();
 
     // Emit the same state again (should not trigger removal again)
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Uninitialized,
-        aggregatedOutputRowCount: 0,
-        aggregatedInputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Uninitialized });
 
     expect(removeSpy).toHaveBeenCalledTimes(1); // No additional call
   });
@@ -499,7 +451,7 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
       providers: [
         {
           provide: WorkflowStatusService,
-          useValue: { getStatusUpdateStream: vi.fn(() => new Subject().asObservable()) },
+          useValue: { getStateUpdateStream: vi.fn(() => new Subject().asObservable()) },
         },
         { provide: UdfDebugService, useValue: debugService },
         ...commonTestProviders,

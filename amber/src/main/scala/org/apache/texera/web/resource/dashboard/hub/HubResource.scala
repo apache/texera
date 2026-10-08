@@ -39,6 +39,7 @@ import org.jooq.impl.DSL
 import org.jooq.{Record, Table, TableField}
 
 import java.util.regex.Pattern
+import javax.annotation.security.RolesAllowed
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
@@ -331,6 +332,20 @@ class HubResource {
       .from(table)
       .where(isPublicColumn.eq(true))
       .fetchOne(0, classOf[Integer])
+  }
+
+  /** Owners of the published entities of one kind; the `*-owners` endpoints answer who granted the caller. */
+  @GET
+  @Path("/owners")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def getPublicOwners(@QueryParam("entityType") entityType: EntityType): java.util.List[String] = {
+    val entityTables = EntityTables(entityType).base
+
+    context
+      .selectDistinct(USER.EMAIL)
+      .from(entityTables.joinWithOwner)
+      .where(entityTables.isPublicColumn.eq(true))
+      .fetchInto(classOf[String])
   }
 
   @GET

@@ -179,15 +179,20 @@ export class FormBindingService {
   }
 
   /**
-   * Choose whether an operator's output is shown on the form after a run. This records the
-   * form's own selection only and never changes the canvas's view-result flags: the form
-   * offers exactly the operators the workflow already views, so their results are already
-   * materialised and nothing here needs to touch the graph. Read-only, one direction.
+   * Choose which steps' results the form shows after a run, as the default for everyone. The saved
+   * list (shownResultIds) is exhaustive: absent, the final steps show, as on the canvas; once the
+   * author has chosen, exactly the listed steps show, and an empty list means none. So the first
+   * choice starts from the default handed in (the final steps at that moment) and flips the one step;
+   * later choices flip within the saved list. One list means nothing can contradict it and "no
+   * results" is a state it can store; the accepted cost is that a step which becomes final after the
+   * author has chosen does not appear by itself. This records the form's own selection only and never
+   * changes the canvas's view-result flags: the picker offers steps whose results are already
+   * materialised, so nothing here needs to touch the graph.
    */
-  public toggleResultOperator(operatorID: string): void {
-    const shown = this.getConfig().resultOperatorIds;
+  public toggleShownResult(operatorID: string, defaultIds: readonly string[]): void {
+    const shown = this.getConfig().shownResultIds ?? [...defaultIds];
     const next = shown.includes(operatorID) ? shown.filter(id => id !== operatorID) : [...shown, operatorID];
-    this.updateConfig({ resultOperatorIds: next });
+    this.updateConfig({ shownResultIds: next });
   }
 
   // ---------------------------------------------------------------------------

@@ -19,15 +19,17 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, of, throwError } from "rxjs";
 import { ResourceRegistryService } from "./resource-registry.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { EntityType } from "../../../../hub/service/hub.service";
+import { EntityType, HubService } from "../../../../hub/service/hub.service";
+import { OwnerScope } from "../../../type/owner-scope";
 import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { DownloadService } from "../download/download.service";
-import { FileResourceDescriptor } from "./file-resource.descriptor";
+import { ModelResourceDescriptor } from "./model-resource.descriptor";
+import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import {
   HUB_DATASET_RESULT_DETAIL,
   HUB_MODEL_RESULT_DETAIL,
@@ -48,6 +50,7 @@ describe("ResourceRegistryService", () => {
   let datasetService: { [k: string]: ReturnType<typeof vi.fn> };
   let modelService: { [k: string]: ReturnType<typeof vi.fn> };
   let downloadService: { [k: string]: ReturnType<typeof vi.fn> };
+  let hubService: { [k: string]: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     // Partial spies on purpose: the descriptors must not touch these until a caller asks.
@@ -80,11 +83,15 @@ describe("ResourceRegistryService", () => {
       downloadDataset: vi.fn().mockReturnValue(of(new Blob())),
       downloadModel: vi.fn().mockReturnValue(of(new Blob())),
     };
+    hubService = {
+      getPublicOwners: vi.fn((type: EntityType) => of([`${type}-publisher`])),
+    };
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         { provide: DownloadService, useValue: downloadService },
+        { provide: HubService, useValue: hubService },
         { provide: WorkflowPersistService, useValue: workflowPersistService },
         { provide: DatasetService, useValue: datasetService },
         { provide: ModelService, useValue: modelService },
@@ -94,12 +101,57 @@ describe("ResourceRegistryService", () => {
     registry = TestBed.inject(ResourceRegistryService);
   });
 
+  // ─── owners for the filter facet ──────────────────────────────────────────
+
+  /** Collects what ownersFor emits, which is synchronous for these doubles. */
+  const ownersOf = (type: EntityType | null, scope: OwnerScope): string[] => {
+    let names: string[] = [];
+    registry.ownersFor(type, scope).subscribe(list => (names = list));
+    return names;
+  };
+
+  it("asks only the access-scoped endpoint for a Your Work page", () => {
+    expect(ownersOf(EntityType.Dataset, "accessible")).toEqual(["ds-owner"]);
+    expect(hubService["getPublicOwners"]).not.toHaveBeenCalled();
+  });
+
+  it("asks only the published endpoint for a hub page", () => {
+    expect(ownersOf(EntityType.Dataset, "public")).toEqual(["dataset-publisher"]);
+    expect(datasetService["retrieveOwners"]).not.toHaveBeenCalled();
+  });
+
+  it("merges both for unified search, which lists both", () => {
+    expect(ownersOf(EntityType.Dataset, "accessibleAndPublic")).toEqual(["ds-owner", "dataset-publisher"]);
+  });
+
+  it("names a person once when they own several kinds", () => {
+    workflowPersistService["retrieveOwners"].mockReturnValue(of(["shared@test.com"]));
+    datasetService["retrieveOwners"].mockReturnValue(of(["shared@test.com"]));
+    modelService["retrieveOwners"].mockReturnValue(of(["shared@test.com"]));
+
+    expect(ownersOf(null, "accessible")).toEqual(["shared@test.com"]);
+  });
+
+  it("unions every kind for a page that lists them all", () => {
+    expect(ownersOf(null, "accessible")).toEqual(["wf-owner", "ds-owner", "m-owner"]);
+  });
+
+  it("lets a kind whose request fails contribute nothing, rather than blanking the facet", () => {
+    // One 500 must not cost the other kinds their owners.
+    datasetService["retrieveOwners"].mockReturnValue(throwError(() => new Error("boom")));
+
+    expect(ownersOf(null, "accessible")).toEqual(["wf-owner", "m-owner"]);
+  });
+
+  it("offers nothing for a kind the registry does not carry", () => {
+    expect(ownersOf(EntityType.ComputingUnit, "accessible")).toEqual([]);
+  });
+
   // ─── lookup ───────────────────────────────────────────────────────────────
 
   it("resolves every kind the dashboard renders", () => {
     expect(registry.get(EntityType.Workflow).iconType).toBe("project");
     expect(registry.get(EntityType.Dataset).iconType).toBe("database");
-    expect(registry.get(EntityType.File).iconType).toBe("folder-open");
     expect(registry.get(EntityType.Model).iconType).toBe(MODEL_ICON);
   });
 
@@ -117,23 +169,16 @@ describe("ResourceRegistryService", () => {
 
   // ─── capability checks ────────────────────────────────────────────────────
 
-  it("exposes rename and description only for the kinds that support them", () => {
+  it("exposes rename and description for every kind", () => {
     for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
       expect(registry.get(type).rename).toBeDefined();
       expect(registry.get(type).updateDescription).toBeDefined();
     }
-    for (const type of [EntityType.File]) {
-      expect(registry.get(type).rename).toBeUndefined();
-      expect(registry.get(type).updateDescription).toBeUndefined();
-    }
   });
 
-  it("offers a download and a file preview only for the kinds that hold files", () => {
+  it("offers a download for every kind and a file preview only for the kinds that hold files", () => {
     for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
       expect(registry.get(type).download).toBeDefined();
-    }
-    for (const type of [EntityType.File]) {
-      expect(registry.get(type).download).toBeUndefined();
     }
     // Workflows are one file, not a version tree, so nothing previews them.
     expect(registry.get(EntityType.Workflow).retrieveSingleFile).toBeUndefined();
@@ -141,14 +186,12 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Model).retrieveSingleFile).toBeDefined();
   });
 
-  it("offers publishing and covers only to the kinds the backend supports", () => {
+  it("offers publishing to every kind and covers only to the file-backed kinds", () => {
     for (const type of [EntityType.Workflow, EntityType.Dataset, EntityType.Model]) {
       expect(registry.get(type).retrieveOwners).toBeDefined();
       expect(registry.get(type).isPublic).toBeDefined();
       expect(registry.get(type).setPublished).toBeDefined();
     }
-    expect(registry.get(EntityType.File).isPublic).toBeUndefined();
-    expect(registry.get(EntityType.File).setPublished).toBeUndefined();
     // A workflow cover is a data URL on the entry, so only the file-backed kinds resolve one.
     expect(registry.get(EntityType.Workflow).coverUrl).toBeUndefined();
     expect(registry.get(EntityType.Dataset).coverUrl).toBeDefined();
@@ -219,8 +262,6 @@ describe("ResourceRegistryService", () => {
     expect(registry.get(EntityType.Workflow).isOwner(entry({ workflow: { isOwner: false } }))).toBe(false);
     expect(registry.get(EntityType.Dataset).isOwner(entry({ dataset: { isOwner: true } }))).toBe(true);
     expect(registry.get(EntityType.Model).isOwner(entry({ model: { isOwner: false } }))).toBe(false);
-    // File entries carry no ownership payload at all, so theirs must not read one.
-    expect(registry.get(EntityType.File).isOwner(entry({}))).toBe(true);
   });
 
   // ─── entryLink ────────────────────────────────────────────────────────────
@@ -243,20 +284,12 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(model, 99)).toEqual([HUB_MODEL_RESULT_DETAIL, "9"]);
   });
 
-  it("leaves an unroutable or unsaved entry unlinked", () => {
-    expect(registry.entryLink(entry({ type: EntityType.File, id: 8 }), 42)).toEqual([]);
-    expect(registry.entryLink(entry({ type: EntityType.Dataset, id: undefined }), 42)).toEqual([]);
-    expect(registry.entryLink(entry({ type: EntityType.Workflow, id: "draft" }), 42)).toEqual([]);
-  });
-
   /**
-   * `hubRoute` is optional on the descriptor contract, and the shipped kinds happen to declare
-   * both routes or neither — so nothing had ever asked what a private-page-only kind links to.
-   * The answer must not depend on the viewer: with nowhere else to send them, the private page is
-   * the only link there is, and the access check further down would otherwise route an outsider to
-   * `undefined`. Descriptors reach the registry by injection, so the kind is supplied as one.
+   * Both routes are optional on the descriptor contract, but every shipped kind declares both, so
+   * only a stand-in descriptor can exercise a kind that lacks one. Descriptors reach the registry by
+   * injection, so the stand-in is supplied in place of the model descriptor.
    */
-  it("links a kind with a private page and no hub page straight to its private page", () => {
+  const registryWithModelAs = (descriptor: ResourceDescriptor): ResourceRegistryService => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -265,24 +298,38 @@ describe("ResourceRegistryService", () => {
         { provide: WorkflowPersistService, useValue: workflowPersistService },
         { provide: DatasetService, useValue: datasetService },
         { provide: ModelService, useValue: modelService },
-        {
-          provide: FileResourceDescriptor,
-          useValue: {
-            type: EntityType.File,
-            iconType: "folder-open",
-            privateRoute: "/private-files",
-            isOwner: () => true,
-          },
-        },
+        { provide: ModelResourceDescriptor, useValue: descriptor },
         ...commonTestProviders,
       ],
     });
-    const privatePageOnly = TestBed.inject(ResourceRegistryService);
-    const file = entry({ type: EntityType.File, id: 7, accessibleUserIds: [42] });
+    return TestBed.inject(ResourceRegistryService);
+  };
 
-    expect(privatePageOnly.entryLink(file, 42)).toEqual(["/private-files", "7"]);
+  it("leaves an unroutable or unsaved entry unlinked", () => {
+    expect(registry.entryLink(entry({ type: EntityType.Dataset, id: undefined }), 42)).toEqual([]);
+    expect(registry.entryLink(entry({ type: EntityType.Workflow, id: "draft" }), 42)).toEqual([]);
+
+    const unrouted = registryWithModelAs({ type: EntityType.Model, iconType: MODEL_ICON, isOwner: () => true });
+    expect(unrouted.entryLink(entry({ type: EntityType.Model, id: 8 }), 42)).toEqual([]);
+  });
+
+  /**
+   * The answer must not depend on the viewer: with nowhere else to send them, the private page is
+   * the only link there is, and the access check further down would otherwise route an outsider to
+   * `undefined`.
+   */
+  it("links a kind with a private page and no hub page straight to its private page", () => {
+    const privatePageOnly = registryWithModelAs({
+      type: EntityType.Model,
+      iconType: MODEL_ICON,
+      privateRoute: "/private-models",
+      isOwner: () => true,
+    });
+    const model = entry({ type: EntityType.Model, id: 7, accessibleUserIds: [42] });
+
+    expect(privatePageOnly.entryLink(model, 42)).toEqual(["/private-models", "7"]);
     // Same link for a viewer with no access, and for an anonymous one.
-    expect(privatePageOnly.entryLink(file, 99)).toEqual(["/private-files", "7"]);
-    expect(privatePageOnly.entryLink(file, undefined)).toEqual(["/private-files", "7"]);
+    expect(privatePageOnly.entryLink(model, 99)).toEqual(["/private-models", "7"]);
+    expect(privatePageOnly.entryLink(model, undefined)).toEqual(["/private-models", "7"]);
   });
 });
