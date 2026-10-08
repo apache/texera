@@ -25,12 +25,18 @@ import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.jdk.CollectionConverters.{IterableHasAsScala, SetHasAsScala}
 
 /**
   * Resource-layer tests for `/compile`. Owns only what the REST envelope
@@ -171,5 +177,113 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     val rootNode = objectMapper.readTree(responseBody)
     assertThat(rootNode.get("type").asText()).isEqualTo("failure")
     assertThat(rootNode.has("operatorErrors")).isTrue
+  }
+
+  // -------------------- operatorLoopStarts --------------------
+
+  private def textInputOp(): TextInputSourceOpDesc = {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = "0\n1"
+    op
+  }
+
+  private def loopStartOp(): LoopStartOpDesc = {
+    val op = new LoopStartOpDesc()
+    op.initialization = "i = 0"
+    op.output = "table.iloc[i]"
+    op
+  }
+
+  private def loopEndOp(): LoopEndOpDesc = {
+    val op = new LoopEndOpDesc()
+    op.update = "i += 1"
+    op.condition = "i < len(table)"
+    op
+  }
+
+  private def limitOp(): LimitOpDesc = {
+    val op = new LimitOpDesc()
+    op.limit = 1
+    op
+  }
+
+  private def chainedPlan(operators: LogicalOp*): LogicalPlanPojo =
+    LogicalPlanPojo(
+      operators = operators.toList,
+      links = operators
+        .sliding(2)
+        .map(pair =>
+          LogicalLink(
+            pair.head.operatorIdentifier,
+            PortIdentity(0),
+            pair.last.operatorIdentifier,
+            PortIdentity(0)
+          )
+        )
+        .toList,
+      opsToViewResult = List.empty,
+      opsToReuseResult = List.empty
+    )
+
+  /** The response's `type` and its `operatorLoopStarts`, read from the raw JSON on the wire. */
+  private def loopStartsOf(response: Response): (String, Map[String, List[String]]) = {
+    assertThat(response.getStatus).isEqualTo(200)
+    val body = objectMapper.readTree(response.readEntity(classOf[String]))
+    assert(body.has("operatorLoopStarts"), s"no operatorLoopStarts in $body")
+    val loopStarts = body
+      .get("operatorLoopStarts")
+      .properties()
+      .asScala
+      .map(entry => entry.getKey -> entry.getValue.asScala.map(_.asText()).toList)
+      .toMap
+    (body.get("type").asText(), loopStarts)
+  }
+
+  it should "report the loop starts around each operator inside a loop block, and none for one outside" in {
+    // text -> outer -> inner -> body -> innerEnd -> outerEnd -> after
+    val text = textInputOp()
+    val outer = loopStartOp()
+    val inner = loopStartOp()
+    val body = limitOp()
+    val innerEnd = loopEndOp()
+    val outerEnd = loopEndOp()
+    val after = limitOp()
+
+    val (responseType, loopStarts) =
+      loopStartsOf(postCompile(chainedPlan(text, outer, inner, body, innerEnd, outerEnd, after)))
+
+    assert(responseType == "success")
+    val (outerId, innerId) = (outer.operatorIdentifier.id, inner.operatorIdentifier.id)
+    // Sorted, so the JSON is the same on every compile of the same workflow.
+    assert(
+      loopStarts == Map(
+        body.operatorIdentifier.id -> List(outerId, innerId).sorted,
+        inner.operatorIdentifier.id -> List(outerId),
+        innerEnd.operatorIdentifier.id -> List(outerId)
+      )
+    )
+  }
+
+  it should "report the loop starts around each operator inside a loop block when the compile fails" in {
+    // The editor compiles half-built workflows: a Projection on a column the input does not have
+    // fails the compile, and the panel still needs to know it is inside the block.
+    val text = textInputOp()
+    val start = loopStartOp()
+    val broken = projectOp(List("no_such_column"))
+    val end = loopEndOp()
+
+    val (responseType, loopStarts) =
+      loopStartsOf(postCompile(chainedPlan(text, start, broken, end)))
+
+    assert(responseType == "failure")
+    assert(loopStarts == Map(broken.operatorIdentifier.id -> List(start.operatorIdentifier.id)))
+  }
+
+  it should "report no loop starts for a plan without a loop block" in {
+    val (responseType, loopStarts) =
+      loopStartsOf(postCompile(chainedPlan(csvOp(realCsvPath), projectOp(List("Region")))))
+
+    assert(responseType == "success")
+    assert(loopStarts.isEmpty)
   }
 }
