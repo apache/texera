@@ -572,6 +572,21 @@ case class PhysicalOp(
   }
 
   /**
+    * The partitioning this operator needs on input port `portId`. Every worker needs the control
+    * variables, so whatever arrives on the control-variable port goes to every worker.
+    */
+  def inputPartitionRequirement(portId: PortIdentity): PartitionInfo =
+    if (ControlVariablePort.is(portId)) BroadcastPartition()
+    else partitionRequirement.lift(portId.id).flatten.getOrElse(UnknownPartition())
+
+  /**
+    * Whether input port `portId` is read in its region's dependee phase. The control-variable port
+    * is read before every data port, so it joins that phase whenever the operator has one.
+    */
+  def readsInDependeePhase(portId: PortIdentity): Boolean =
+    dependeeInputs.contains(portId) || (ControlVariablePort.is(portId) && dependeeInputs.nonEmpty)
+
+  /**
     * Tells whether the output on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples.
     */

@@ -225,11 +225,7 @@ case class PhysicalPlan(
     )
 
     // partition requirement of this PhysicalOp on this input port
-    val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement
-        .lift(link.toPortId.id)
-        .flatten
-        .getOrElse(UnknownPartition())
+    val requiredPartitionInfo = toPhysicalOp.inputPartitionRequirement(link.toPortId)
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (

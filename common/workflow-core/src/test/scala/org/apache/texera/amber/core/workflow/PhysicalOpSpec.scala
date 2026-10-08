@@ -161,6 +161,38 @@ class PhysicalOpSpec extends AnyFlatSpec {
     assert(!op.isInputLinkControlVariable(dataLink))
   }
 
+  "PhysicalOp.inputPartitionRequirement" should "send the control-variable port's input to every worker" in {
+    val op = newOp("f")
+      .withInputPorts(List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))))
+      .withPartitionRequirement(List(Some(HashPartition(List("k"))), None))
+      .withControlVariablePort
+    assert(op.inputPartitionRequirement(ControlVariablePort.Id) == BroadcastPartition())
+    assert(op.inputPartitionRequirement(PortIdentity(0)) == HashPartition(List("k")))
+    assert(op.inputPartitionRequirement(PortIdentity(1)) == UnknownPartition())
+    assert(op.inputPartitionRequirement(PortIdentity(2)) == UnknownPartition())
+  }
+
+  "PhysicalOp.readsInDependeePhase" should "read the control-variable port with the dependee ports when there are any" in {
+    val join = newOp("j")
+      .withInputPorts(
+        List(
+          InputPort(PortIdentity(0)),
+          InputPort(PortIdentity(1), dependencies = Seq(PortIdentity(0)))
+        )
+      )
+      .withControlVariablePort
+    assert(join.readsInDependeePhase(PortIdentity(0)))
+    assert(join.readsInDependeePhase(ControlVariablePort.Id))
+    assert(!join.readsInDependeePhase(PortIdentity(1)))
+    // the port is still not a dependee: it does not change the region's dependee links
+    assert(!join.dependeeInputs.contains(ControlVariablePort.Id))
+
+    val filter =
+      newOp("f").withInputPorts(List(InputPort(PortIdentity(0)))).withControlVariablePort
+    assert(!filter.readsInDependeePhase(ControlVariablePort.Id))
+    assert(!filter.readsInDependeePhase(PortIdentity(0)))
+  }
+
   "PhysicalOp.propagateSchema" should "let a source with a control-variable port compute its output schema" in {
     var seen: Option[Map[PortIdentity, Schema]] = None
     val src = newOp("s")
