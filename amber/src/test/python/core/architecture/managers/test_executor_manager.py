@@ -441,3 +441,228 @@ class TestUpdateExecutor:
 
         assert initialized_manager.executor.counter == 42
         assert initialized_manager.executor.added_after_update is True
+
+
+WRONG_METHOD_CODE = """
+from pytexera import *
+
+class WrapperClass(UDFOperatorV2):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield table
+"""
+
+MISSING_IMPORT_CODE = """
+class ProcessTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_, port):
+        yield tuple_
+"""
+
+WRONG_METHOD_WITH_OVERRIDES_CODE = """
+from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+    @overrides
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield table
+"""
+
+SYNTAX_ERROR_CODE = """from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int)
+        yield tuple_
+"""
+
+RUNTIME_ERROR_AT_LOAD_CODE = """from pytexera import *
+
+LOOKUP = {}["missing"]
+
+class ProcessTupleOperator(UDFOperatorV2):
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+"""
+
+
+def shown(error: BaseException) -> str:
+    """The error text as the RPC server sends it: the message plus any notes."""
+    return " ".join(
+        part for part in (str(error), *getattr(error, "__notes__", ())) if part
+    )
+
+
+class TestActionableLoadErrors:
+    """Load errors must name the cause and the fix for the UDF author."""
+
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_no_class_says_to_keep_one_class(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(NO_OPERATOR_CODE)
+        message = str(exc_info.value)
+        assert "one and only one Operator" in message
+        assert "No Operator class was found" in message
+
+    def test_abstract_class_names_missing_method_and_matching_base(
+        self, executor_manager
+    ):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(WRONG_METHOD_CODE)
+        message = str(exc_info.value)
+        assert "one and only one Operator" in message
+        assert "WrapperClass subclasses UDFOperatorV2" in message
+        assert "does not implement process_tuple" in message
+        assert "If you meant process_table, subclass UDFTableOperator" in message
+
+    def test_two_classes_are_named(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(TWO_OPERATORS_CODE)
+        message = str(exc_info.value)
+        assert "one and only one Operator" in message
+        assert "FirstOperator, SecondOperator" in message
+        assert "Keep one" in message
+
+    def test_missing_import_suggests_pytexera_import(self, executor_manager):
+        with pytest.raises(NameError) as exc_info:
+            executor_manager.load_executor_definition(MISSING_IMPORT_CODE)
+        message = shown(exc_info.value)
+        assert "name 'UDFOperatorV2' is not defined" in message
+        assert "Add `from pytexera import *` at the top of the UDF" in message
+        assert "line 2" in message
+
+    def test_non_pytexera_name_error_has_no_import_hint(self, executor_manager):
+        code = "from pytexera import *\n\nundefined_thing\n"
+        with pytest.raises(NameError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        message = shown(exc_info.value)
+        assert "from pytexera import *" not in message
+        assert "line 3" in message
+
+    def test_overrides_mismatch_explains_method_pairing(self, executor_manager):
+        with pytest.raises(TypeError) as exc_info:
+            executor_manager.load_executor_definition(WRONG_METHOD_WITH_OVERRIDES_CODE)
+        message = shown(exc_info.value)
+        assert "No super class method found" in message
+        assert "UDFTableOperator -> process_table" in message
+
+    def test_syntax_error_reports_user_line(self, executor_manager):
+        with pytest.raises(SyntaxError) as exc_info:
+            executor_manager.load_executor_definition(SYNTAX_ERROR_CODE)
+        assert exc_info.value.lineno == 4
+        assert "line 4" in str(exc_info.value)
+
+    def test_runtime_error_while_loading_reports_user_line(self, executor_manager):
+        with pytest.raises(KeyError) as exc_info:
+            executor_manager.load_executor_definition(RUNTIME_ERROR_AT_LOAD_CODE)
+        # KeyError quotes its message, so the line is attached as a note.
+        assert "line 3" in "".join(exc_info.value.__notes__)
+
+    def test_error_without_user_line_or_hint_gets_no_note(self):
+        error = ValueError("boom")
+        ExecutorManager._add_user_code_hint(error, "/not/the/udf.py")
+        assert not hasattr(error, "__notes__")
+
+    def test_error_that_cannot_be_rebuilt_is_kept_as_is(self, executor_manager):
+        # UnicodeDecodeError needs five constructor arguments, so the hint
+        # can't be added by rebuilding it; the original error must survive.
+        code = 'from pytexera import *\n\nb"\\xff".decode("utf-8")\n'
+        with pytest.raises(UnicodeDecodeError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert exc_info.value.object == b"\xff"
+
+
+class TestLoadErrorHintEdgeCases:
+    """Hints must not garble or misdescribe the user's original error."""
+
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_key_error_message_is_not_wrapped_in_its_quotes(self, executor_manager):
+        code = 'from pytexera import *\n\nLOOKUP = {}["missing"]\n'
+        with pytest.raises(KeyError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert exc_info.value.args == ("missing",)
+        assert "line 3 of the UDF code" in "".join(exc_info.value.__notes__)
+
+    def test_custom_exception_keeps_its_own_message(self, executor_manager):
+        code = (
+            "class CodeError(Exception):\n"
+            "    def __init__(self, code):\n"
+            "        self.code = code\n"
+            "    def __str__(self):\n"
+            "        return f'code={self.code}'\n"
+            "\n"
+            "raise CodeError(5)\n"
+        )
+        with pytest.raises(Exception) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert str(exc_info.value) == "code=5"
+        assert exc_info.value.code == 5
+
+    def test_name_error_keeps_its_name(self, executor_manager):
+        with pytest.raises(NameError) as exc_info:
+            executor_manager.load_executor_definition(MISSING_IMPORT_CODE)
+        assert exc_info.value.name == "UDFOperatorV2"
+        assert "Add `from pytexera import *`" in shown(exc_info.value)
+
+    def test_empty_message_gets_no_leading_space(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition("assert False\n")
+        assert str(exc_info.value) == ""
+        assert shown(exc_info.value) == "(line 1 of the UDF code)"
+
+    def test_unchanged_error_is_not_its_own_cause(self, executor_manager):
+        code = 'from pytexera import *\n\nb"\\xff".decode("utf-8")\n'
+        with pytest.raises(UnicodeDecodeError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert exc_info.value.__cause__ is not exc_info.value
+
+    def test_two_pytexera_bases_are_flagged(self, executor_manager):
+        code = (
+            "from pytexera import *\n\n"
+            "class X(UDFOperatorV2, UDFTableOperator):\n"
+            "    def process_tuple(self, tuple_, port):\n"
+            "        yield tuple_\n"
+        )
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        message = str(exc_info.value)
+        assert "X uses more than one base class" in message
+        assert "If you meant" not in message
+
+    def test_non_udf_operator_gets_no_udf_pairing_list(self, executor_manager):
+        code = "from pytexera import *\n\nclass MyLoop(LoopEndOperator):\n    pass\n"
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        message = str(exc_info.value)
+        assert "MyLoop does not implement" in message
+        assert "Each base class needs its own method" not in message
+
+    def test_class_alias_is_not_counted_twice(self, executor_manager):
+        code = (
+            "from pytexera import *\n\n"
+            "class X(UDFOperatorV2):\n"
+            "    def process_tuple(self, tuple_, port):\n"
+            "        yield tuple_\n\n"
+            "Y = X\n"
+        )
+        assert executor_manager.load_executor_definition(code).__name__ == "X"
+
+    def test_two_classes_message_does_not_forbid_helper_bases(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(TWO_OPERATORS_CODE)
+        message = str(exc_info.value)
+        assert "Keep one" in message
+        assert "Helper classes must not subclass" not in message
+
+    def test_no_class_message_says_import_at_the_top(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(NO_OPERATOR_CODE)
+        assert "at the top" in str(exc_info.value)
+        assert "as the first line" not in str(exc_info.value)

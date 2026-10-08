@@ -20,12 +20,20 @@ import inspect
 import itertools
 import sys
 import tempfile
+import traceback
 from cached_property import cached_property
 from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional
 
 from core.models import Operator, SourceOperator
+
+
+def pytexera_names() -> set:
+    """Names that `from pytexera import *` brings into a UDF."""
+    import pytexera
+
+    return set(pytexera.__all__)
 
 
 class ExecutorManager:
@@ -119,14 +127,134 @@ class ExecutorManager:
         # gen_module_file_name guarantees module_name is unique across
         # the process, so import_module will always cleanly load source
         # from the tmp directory we just wrote — no re-import / reload dance.
-        executor_module = importlib.import_module(module_name)
+        try:
+            executor_module = importlib.import_module(module_name)
+        except SyntaxError:
+            # SyntaxError already carries the user's line number.
+            raise
+        except Exception as error:
+            self._add_user_code_hint(error, str(file_path))
+            raise
         self.operator_module_name = module_name
 
+        # Deduplicate by identity: an alias such as `Y = X` is the same class.
         executors = list(
-            filter(self.is_concrete_operator, executor_module.__dict__.values())
+            {
+                id(value): value
+                for value in executor_module.__dict__.values()
+                if self.is_concrete_operator(value)
+            }.values()
         )
-        assert len(executors) == 1, "There should be one and only one Operator defined"
+        assert len(executors) == 1, (
+            "There should be one and only one Operator defined. "
+            + self._explain_operator_count(executors, executor_module)
+        )
         return executors[0]
+
+    # Each pytexera base class and the one method a subclass must implement.
+    _BASE_CLASS_METHODS = {
+        "UDFOperatorV2": "process_tuple",
+        "UDFBatchOperator": "process_batch",
+        "UDFTableOperator": "process_table",
+        "UDFSourceOperator": "produce",
+    }
+
+    @classmethod
+    def _base_class_pairing(cls) -> str:
+        return ", ".join(
+            f"{base} -> {method}" for base, method in cls._BASE_CLASS_METHODS.items()
+        )
+
+    @classmethod
+    def _explain_operator_count(cls, executors: list, module) -> str:
+        """
+        Explain why a UDF module does not define exactly one concrete Operator,
+        naming the classes involved and how to fix them.
+        """
+        if len(executors) > 1:
+            names = ", ".join(executor.__name__ for executor in executors)
+            return (
+                f"Found {len(executors)}: {names}. Keep one and delete or comment "
+                "out the others."
+            )
+
+        abstract_classes = [
+            value
+            for value in module.__dict__.values()
+            if inspect.isclass(value)
+            and issubclass(value, Operator)
+            and value.__module__ == module.__name__
+        ]
+        if not abstract_classes:
+            return (
+                "No Operator class was found. Uncomment or write exactly one class, "
+                "e.g. `class ProcessTupleOperator(UDFOperatorV2):`, and keep "
+                "`from pytexera import *` at the top."
+            )
+
+        explanations = []
+        mentions_udf_bases = False
+        for abstract_class in abstract_classes:
+            name = abstract_class.__name__
+            missing = sorted(abstract_class.__abstractmethods__)
+            udf_bases = [
+                base.__name__
+                for base in abstract_class.__mro__
+                if base.__name__ in cls._BASE_CLASS_METHODS
+            ]
+            if len(udf_bases) > 1:
+                mentions_udf_bases = True
+                explanations.append(
+                    f"{name} uses more than one base class ({', '.join(udf_bases)}). "
+                    "Subclass exactly one."
+                )
+            elif len(udf_bases) == 1:
+                mentions_udf_bases = True
+                base_name = udf_bases[0]
+                explanation = (
+                    f"{name} subclasses {base_name} but does not implement "
+                    f"{', '.join(missing)}."
+                )
+                for other_base, method in cls._BASE_CLASS_METHODS.items():
+                    if other_base != base_name and method in abstract_class.__dict__:
+                        explanation += (
+                            f" If you meant {method}, subclass {other_base} instead."
+                        )
+                explanations.append(explanation)
+            else:
+                explanations.append(f"{name} does not implement {', '.join(missing)}.")
+        pairing = (
+            f" Each base class needs its own method: {cls._base_class_pairing()}."
+            if mentions_udf_bases
+            else ""
+        )
+        return " ".join(explanations) + pairing
+
+    @classmethod
+    def _add_user_code_hint(cls, error: Exception, file_path: str) -> None:
+        """
+        Attach a note to an error raised while importing user code, saying
+        which line of the UDF failed and, for common mistakes, how to fix it.
+        The error itself is left unchanged, so its type, message and
+        attributes stay exactly as raised; the note is shown with it.
+        """
+        location = ""
+        user_lines = [
+            frame.lineno
+            for frame in traceback.extract_tb(error.__traceback__)
+            if frame.filename == file_path
+        ]
+        if user_lines:
+            location = f"(line {user_lines[-1]} of the UDF code)"
+        fix = ""
+        if isinstance(error, NameError) and error.name in pytexera_names():
+            fix = "Add `from pytexera import *` at the top of the UDF."
+        elif "No super class method found" in str(error):
+            fix = f"The method must match the base class: {cls._base_class_pairing()}."
+        if fix:
+            error.add_note(f"{location}. {fix}" if location else fix)
+        elif location:
+            error.add_note(location)
 
     def close(self) -> None:
         """
