@@ -83,3 +83,9 @@ spec:
             - name: {{ .name }}
               value: "{{ .value }}"
             {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.fileService.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
