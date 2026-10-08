@@ -98,18 +98,18 @@ def _parse_bool(v):
 
 
 def _parse_timestamp(v):
+    # A TIMESTAMP reaches a worker as a wall clock with no zone, so a value
+    # parsed here holds none either and compares with a row's. An offset is
+    # moved to the machine's zone first, as the engine's DateParserUtils does.
     if _is_empty_value(v):
-        return datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+        return datetime.datetime(1970, 1, 1)
 
     normalized_value = str(v)
     if normalized_value.endswith("Z"):
         normalized_value = normalized_value[:-1] + "+00:00"
     parsed_value = datetime.datetime.fromisoformat(normalized_value)
-    if (
-        parsed_value.tzinfo is None
-        or parsed_value.tzinfo.utcoffset(parsed_value) is None
-    ):
-        return parsed_value.replace(tzinfo=datetime.timezone.utc)
+    if parsed_value.utcoffset() is not None:
+        return parsed_value.astimezone().replace(tzinfo=None)
     return parsed_value
 
 
