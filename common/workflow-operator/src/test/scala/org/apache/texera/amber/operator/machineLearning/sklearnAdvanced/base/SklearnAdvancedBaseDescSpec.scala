@@ -366,6 +366,17 @@ class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
     thrown.getMessage should include("n_neighbors")
   }
 
+  it should "refuse two rows setting one parameter when the workflow is exported" in {
+    val d = newOp(
+      List(
+        hyperParam("n_neighbors", "int", fromWorkflow = false, value = "5"),
+        hyperParam("n_neighbors", "int", fromWorkflow = true, attribute = "k_col")
+      )
+    )
+    val thrown = the[IllegalArgumentException] thrownBy d.generateStandaloneCode()
+    thrown.getMessage should include("n_neighbors")
+  }
+
   it should "accept rows setting different parameters" in {
     val d = new TestSklearnMLOp
     val paraList = List(

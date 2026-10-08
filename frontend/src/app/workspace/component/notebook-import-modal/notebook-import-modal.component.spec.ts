@@ -24,8 +24,9 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { of, Subject } from "rxjs";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 
-import { NotebookImportModalComponent } from "./notebook-import-modal.component";
+import { DROP_REJECTION_LATCH_MS, NotebookImportModalComponent } from "./notebook-import-modal.component";
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("NotebookImportModalComponent", () => {
@@ -119,7 +120,7 @@ describe("NotebookImportModalComponent", () => {
     await createWith(of([{ name: "gpt-4" }]));
     const file = { name: "x.ipynb" } as NzUploadFile;
 
-    const result = component.beforeUpload(file);
+    const result = component.beforeUpload(file, [file]);
 
     expect(result).toBe(false);
     expect(component.importForm.get("file")?.value).toBe(file);
@@ -397,7 +398,7 @@ describe("NotebookImportModalComponent", () => {
   it("selects the Python tab from a click on its header, not just a direct call", async () => {
     await createWith(of([{ name: "gpt-4" }]));
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll(".ant-tabs-tab");
-    expect(headers.length).toBe(2);
+    expect(headers.length).toBe(3);
 
     (headers[1] as HTMLElement).click();
     // nz-tabs emits nzSelectedIndexChange from a microtask inside ngAfterContentChecked,
@@ -430,5 +431,191 @@ describe("NotebookImportModalComponent", () => {
 
     expect(pane().querySelector("input[type='file']")?.getAttribute("accept")).toBe(".ipynb");
     expect(submit().disabled).toBe(false);
+  });
+  describe("Python folder tab", () => {
+    // What beforeUpload actually receives: ng-zorro's attachUid tacks a uid onto the browser File
+    // and hands that over. originFileObj is only set later, when it builds the display list, so a
+    // fixture that wraps the File does not exercise the path the real picker takes.
+    function pickedFile(relativePath: string): NzUploadFile {
+      const file = new File([""], relativePath.split("/").pop() ?? relativePath);
+      Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+      (file as unknown as NzUploadFile).uid = relativePath;
+      return file as unknown as NzUploadFile;
+    }
+
+    // The wrapped shape, which the same code has to keep reading.
+    function wrappedFile(relativePath: string): NzUploadFile {
+      const file = pickedFile(relativePath);
+      return { uid: relativePath, name: file.name, originFileObj: file } as unknown as NzUploadFile;
+    }
+
+    it("renders its own diagram and a directory-picking input", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      const root = fixture.nativeElement as HTMLElement;
+
+      component.onTabChange(2);
+      fixture.detectChanges();
+
+      const pane = root.querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+      expect(pane.querySelector("img[alt='Python Folder to Workflow']")).not.toBeNull();
+      // webkitdirectory is what makes the picker select a folder rather than a file.
+      expect(pane.querySelector("input[type='file']")?.hasAttribute("webkitdirectory")).toBe(true);
+      // No accept filter, so a folder with no .py still reaches the service, which explains why.
+      expect(pane.querySelector("input[type='file']")?.getAttribute("accept")).toBeFalsy();
+    });
+
+    it("stores the whole picked list, not the single file it was called with", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      const files = [pickedFile("proj/main.py"), pickedFile("proj/pkg/train.py")];
+
+      const result = component.beforeUpload(files[0], files);
+
+      expect(result).toBe(false);
+      expect(component.importForm.get("file")?.value).toBe(files);
+    });
+
+    it("patches the form once for a whole directory pick", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      const files = [pickedFile("proj/a.py"), pickedFile("proj/b.py"), pickedFile("proj/c.py")];
+      const patch = vi.spyOn(component.importForm, "patchValue");
+
+      // The picker calls beforeUpload once per file, handing the same list every time.
+      files.forEach(file => component.beforeUpload(file, files));
+
+      expect(patch).toHaveBeenCalledTimes(1);
+    });
+
+    it("names the selected folder rather than listing its files", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      component.importForm.patchValue({ file: [pickedFile("proj/main.py"), pickedFile("proj/pkg/train.py")] });
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("Selected folder: proj");
+    });
+
+    it("names the folder just the same when the file arrives wrapped", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      component.importForm.patchValue({ file: [wrappedFile("proj/main.py")] });
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("Selected folder: proj");
+    });
+
+    it("hands the whole list to requestImport on submit", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      const files = [pickedFile("proj/main.py")];
+      component.importForm.setValue({ file: files, model: "gpt-4" });
+
+      await component.onSubmit();
+
+      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4");
+      expect(modalRef.close).toHaveBeenCalledWith();
+    });
+
+    // A dropped directory reaches beforeUpload one file at a time, each in its own one-element
+    // list, and ng-zorro attaches no path to any of them. Modelled exactly, because the picker
+    // fixtures above would never catch this.
+    function droppedFile(name: string): NzUploadFile {
+      const file = new File([""], name);
+      (file as unknown as NzUploadFile).uid = name;
+      return file as unknown as NzUploadFile;
+    }
+
+    it("stages nothing when a folder is dropped instead of picked", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      const dropped = [droppedFile("main.py"), droppedFile("train.py")];
+
+      dropped.forEach(file => expect(component.beforeUpload(file, [file])).toBe(false));
+      fixture.detectChanges();
+
+      // Accepting one would convert a single arbitrary file as if it were the whole project.
+      expect(component.importForm.get("file")?.value).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("Selected folder");
+    });
+
+    it("tells the user once per drop, not once per dropped file", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      const error = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      const dropped = Array.from({ length: 5 }, (_unused, index) => droppedFile(`f${index}.py`));
+
+      dropped.forEach(file => component.beforeUpload(file, [file]));
+
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][0]).toContain("Drop is not supported");
+    });
+
+    it("keeps the message latched however long the directory walk takes", async () => {
+      vi.useFakeTimers();
+      try {
+        await createWith(of([{ name: "gpt-4" }]));
+        component.onTabChange(2);
+        const error = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        // One slow walk: files keep arriving, each gap shorter than the latch but the whole
+        // walk far longer, which is what a fixed throttle rate would get wrong.
+        for (let index = 0; index < 5; index++) {
+          component.beforeUpload(droppedFile(`f${index}.py`), [droppedFile(`f${index}.py`)]);
+          vi.advanceTimersByTime(DROP_REJECTION_LATCH_MS - 500);
+        }
+
+        expect(error).toHaveBeenCalledTimes(1);
+
+        // Once the burst goes quiet the latch releases, so a second drop is reported again.
+        vi.advanceTimersByTime(DROP_REJECTION_LATCH_MS + 500);
+        component.beforeUpload(droppedFile("again.py"), [droppedFile("again.py")]);
+
+        expect(error).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("still accepts a dropped file on the single-file tabs", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(1);
+      const dropped = droppedFile("script.py");
+
+      expect(component.beforeUpload(dropped, [dropped])).toBe(false);
+      expect(component.importForm.get("file")?.value).toBe(dropped);
+    });
+
+    it("names a single picked file without the plural", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      component.importForm.patchValue({ file: [{ uid: "1", name: "a.py" } as NzUploadFile] });
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain("Selected folder: 1 file");
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("1 files");
+    });
+
+    it("shows nothing for an empty list, rather than naming a folder with no files", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      component.importForm.patchValue({ file: [] });
+      fixture.detectChanges();
+
+      expect(component.selectionSummary).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("Selected folder");
+    });
+
+    it("drops a folder selection when switching away", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+      component.onTabChange(2);
+      component.importForm.patchValue({ file: [pickedFile("proj/main.py")] });
+
+      component.onTabChange(1);
+      fixture.detectChanges();
+
+      expect(component.importForm.get("file")?.value).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("Selected folder");
+    });
   });
 });
