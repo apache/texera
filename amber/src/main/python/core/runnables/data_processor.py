@@ -22,7 +22,7 @@ from threading import Event
 from typing import Iterator, Optional
 
 from core.architecture.managers import Context
-from core.models import State, TupleLike
+from core.models import AttributeType, Schema, State, TupleLike
 from core.models.internal_marker import EndChannel, PortMarker, StartChannel
 from core.models.operator import require_yielded
 from core.models.table import all_output_to_tuple
@@ -141,13 +141,14 @@ class DataProcessor(Runnable, Stoppable):
             # output could be a None, a TupleLike, or a TableLike.
             for output_tuple in all_output_to_tuple(output):
                 if output_tuple is not None:
+                    schema = self._context.output_manager.get_port().get_schema()
                     try:
-                        output_tuple.finalize(
-                            self._context.output_manager.get_port().get_schema()
-                        )
+                        output_tuple.finalize(schema)
                     except (KeyError, TypeError) as error:
                         # Only explain on failure, so valid rows are not inspected.
-                        raise self._explain_schema_mismatch(output, error) from error
+                        raise self._explain_schema_mismatch(
+                            output, schema, error
+                        ) from error
                 self._switch_context()
                 self._context.tuple_processing_manager.current_output_tuple = (
                     output_tuple
@@ -156,23 +157,32 @@ class DataProcessor(Runnable, Stoppable):
         self._context.tuple_processing_manager.finished_current.set()
 
     @staticmethod
-    def _explain_schema_mismatch(output, error: Exception) -> Exception:
+    def _explain_schema_mismatch(output, schema: Schema, error: Exception) -> Exception:
         """
-        Rebuild a schema check failure with a hint on how to fix the output.
-        A dict holding DataFrames is valid for BINARY columns (they are
-        pickled), so it is only called out once the schema check has failed.
+        Rebuild a schema check failure with a hint on how to fix the output,
+        keeping the original message. The schema check reports missing or
+        extra columns (KeyError) before wrong types (TypeError), so only a
+        TypeError can be caused by a DataFrame sitting in a column; a
+        DataFrame is valid in a BINARY column, where it is pickled.
         """
-        if isinstance(output, dict) and any(
-            isinstance(value, pandas.DataFrame) for value in output.values()
-        ):
-            return TypeError(
-                "A dict of DataFrames was yielded: yield the DataFrame itself, "
-                "not a dict of DataFrames."
-            )
+        message = error.args[0] if error.args else str(error)
+        if isinstance(error, TypeError) and isinstance(output, dict):
+            columns = set(schema.get_attr_names())
+            for key, value in output.items():
+                if (
+                    isinstance(value, pandas.DataFrame)
+                    and key in columns
+                    and schema.get_attr_type(key) != AttributeType.BINARY
+                ):
+                    return TypeError(
+                        f"{message} A DataFrame was put in column '{key}'. To "
+                        "output its rows, yield the DataFrame itself instead of "
+                        "a dict; to keep it as one value, make the column binary."
+                    )
         return type(error)(
-            f"{error.args[0]} The yielded columns and their types must match the "
-            "operator's output columns. For a Python UDF, check 'Retain input "
-            "columns' and 'Extra output column(s)' in the property panel."
+            f"{message} The yielded columns and their types must match the "
+            "operator's output columns: 'Retain input columns' and 'Extra output "
+            "column(s)' for a Python UDF, or 'Columns' for a 1-out Python UDF."
         )
 
     def _set_output_state(self, output_state: State) -> None:

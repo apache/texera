@@ -335,11 +335,9 @@ class TestUDFOutputMistakes:
 
         with pytest.raises(TypeError) as exc_info:
             data_processor._set_output_tuple(
-                iter([{"a": pandas.DataFrame({"x": [1]})}])
+                iter([{"x": pandas.DataFrame({"x": [1]})}])
             )
-        assert "yield the DataFrame itself, not a dict of DataFrames" in str(
-            exc_info.value
-        )
+        assert "yield the DataFrame itself instead of a dict" in str(exc_info.value)
 
     def test_schema_mismatch_points_to_output_columns(
         self, data_processor, output_schema
@@ -399,3 +397,71 @@ class TestUDFOutputMistakesFollowUp:
         exc_info = context.exception_manager.get_exc_info()
         assert exc_info[0] is TypeError
         assert "on_finish must `yield` results, not `return` them" in str(exc_info[1])
+
+    def test_misspelled_column_next_to_a_dataframe_gets_the_column_hint(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The DataFrame is fine (BINARY column); the column name is wrong.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"res": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Extra output column(s)" in message
+        assert "dict of DataFrames" not in message
+
+    def test_dataframe_in_a_non_binary_column_says_to_yield_the_dataframe(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"result": "STRING"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"result": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself" in str(exc_info.value)
+
+    def test_missing_column_is_reported_even_with_a_dataframe_in_another_column(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The real problem is the missing "count" column, not the DataFrame.
+        self._use_schema(
+            context,
+            monkeypatch,
+            {"name": "STRING", "count": "INTEGER", "stats": "STRING"},
+        )
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"name": "a", "stats": pandas.DataFrame({"v": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "'count'" in message and "expected but missing" in message
+        assert "DataFrame" not in message.split("]")[-1]
+
+    def test_dataframe_hint_names_the_column_and_keeps_the_original_error(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"r": "LARGE_BINARY"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"r": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'r'" in message
+        assert "column 'r'" in message
+
+    def test_column_hint_mentions_the_source_udf_columns_setting(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        assert "'Columns'" in str(exc_info.value)
