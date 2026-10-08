@@ -62,6 +62,6 @@ A new unit shows a gold dot while it starts. You can select it once the dot turn
 
 | Message | What to do |
 |---|---|
-| `You may only have N computing-unit(s) running at the same time` | Reuse one of your running units, or terminate one you no longer need (trash icon). |
+| `You may only have N computing-unit(s) running at the same time` | Reuse a running unit, terminate a cloud unit, or disconnect a local unit you no longer need (trash icon). |
 | `Insufficient CPU / memory / GPU available in the server` | Ask for less RAM, fewer cores or GPUs, or try again later. |
 | **Run** is disabled | You only have read access to the selected unit. Pick a unit you own. |

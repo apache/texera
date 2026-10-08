@@ -70,10 +70,10 @@ Almost every UDF problem comes from breaking one of these.
 
 | # | Rule | If you break it |
 |---|---|---|
-| 1 | The first line is `from pytexera import *` | `name 'UDFOperatorV2' is not defined` |
+| 1 | `from pytexera import *` is at the top (the template already has it) | `name 'UDFOperatorV2' is not defined` |
 | 2 | Exactly **one** class. Delete or comment out the others. | `There should be one and only one Operator defined` |
 | 3 | The method name must match the class you inherit from (table below) | `... No super class method found`, or rule 2's error |
-| 4 | Send results with `yield`, never `return` | ``process_tuple must `yield` results, not `return` them`` |
+| 4 | Send results with `yield`, never `return` a value | ``process_tuple must `yield` results, not `return` them`` |
 | 5 | The columns you yield must match the output columns (step 3) | `expected but missing` or `unexpected field` |
 
 ## How your code receives data
@@ -198,12 +198,12 @@ List every column (here `number`, type `integer`) under **Columns** in the prope
 
 | Error message contains | Cause | Fix |
 |---|---|---|
-| `name 'UDFOperatorV2' is not defined` (or `Tuple`, `Table`, …) | Missing import | Add `from pytexera import *` as the first line |
+| `name 'UDFOperatorV2' is not defined` (or `Tuple`, `Table`, …) | Missing import | Add `from pytexera import *` at the top |
 | `There should be one and only one Operator defined` | No class, more than one, or a class whose method doesn't match its base. The rest of the message names the class and the fix. | Keep exactly one class, uncommented, with the matching method |
 | `No super class method found` | Method doesn't match the class (e.g. `process_table` in a `UDFOperatorV2`) | Use the pair from [the table](#how-your-code-receives-data) |
 | ``must `yield` results, not `return` them`` (older versions: `MatchError: '_' not provided` or `'NoneType' object is not iterable`) | `return` used instead of `yield` | Replace `return x` with `yield x` |
 | `_TableOperator__table_data` (older versions) | `__init__` without `super().__init__()` | Add `super().__init__()`, or use `open()` |
-| `yield the DataFrame itself, not a dict of DataFrames` | A dict containing DataFrames was yielded | `yield` the DataFrame directly |
+| `A DataFrame was put in column 'X'` | A DataFrame is in a column whose type isn't binary | To output its rows, `yield` the DataFrame itself; to keep it as one value, make the column binary |
 | `expected but missing in the Tuple` | A declared output column is missing from what you yield | Yield that column, or remove it from **Extra output column(s)** |
 | `contains unexpected field` | You yield a column that isn't declared | Add it under **Extra output column(s)**, or stop yielding it |
 | `Column name X already exists!` | An extra output column has the same name as an input column | Rename it, or uncheck **Retain input columns** |
