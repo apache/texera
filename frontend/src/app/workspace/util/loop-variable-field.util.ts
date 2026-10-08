@@ -19,6 +19,7 @@
 
 import { AbstractControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { CustomJSONSchema7 } from "../types/custom-json-schema.interface";
 
 /**
  * A loop-variable reference: a dollar sign and a name, as the whole value. The same grammar the backend
@@ -167,6 +168,105 @@ export function valueAtPointer(data: unknown, pointer: string): unknown {
 
 function escapePointerToken(key: string): string {
   return key.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+/**
+ * The schema keyword the backend sets on each operator property the plan is built from: the compiler
+ * rejects a reference there inside a block, since nothing binds it before the plan is built.
+ */
+const NO_LOOP_VARIABLE_KEYWORD = "noLoopVariable";
+
+/** The keywords whose value is a schema or a list of schemas. */
+const SUBSCHEMA_KEYWORDS = [
+  "items",
+  "additionalItems",
+  "additionalProperties",
+  "contains",
+  "propertyNames",
+  "not",
+  "if",
+  "then",
+  "else",
+  "allOf",
+  "anyOf",
+  "oneOf",
+] as const;
+
+/** The keywords whose value maps names to schemas. */
+const SUBSCHEMA_MAP_KEYWORDS = ["properties", "patternProperties", "dependencies", "definitions"] as const;
+
+type SchemaNode = Record<string, unknown>;
+
+const isSchemaNode = (value: unknown): value is SchemaNode =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+/**
+ * A copy of an operator's schema in which every schema nested under a property marked `noLoopVariable`
+ * carries the mark as well. The keyword sits on a top-level property only, but the property panel meets
+ * each nested schema on its own (a Projection's `attributes[].alias` as the row's `alias`), so it is
+ * spread down to them for the panel to see. A `$ref` under a marked property is pointed at a marked copy
+ * of the schema it names, kept beside the original under `definitions`, so a definition that an
+ * unmarked property shares stays unmarked; the copy is made once per `$ref`, so a definition that names
+ * itself ends. Values a schema holds rather than is made of (`default`, `enum`, `valueRules`, ...) are
+ * left as they are, and the schema given is not changed.
+ */
+export function inheritNoLoopVariable(schema: CustomJSONSchema7): CustomJSONSchema7 {
+  const markedDefinitions: SchemaNode = {};
+  const markedRefs = new Map<string, string>();
+
+  const markedRef = (ref: string): string => {
+    const known = markedRefs.get(ref);
+    if (known !== undefined) {
+      return known;
+    }
+    const target = ref.startsWith("#/") ? valueAtPointer(schema, ref.slice(1)) : undefined;
+    if (!isSchemaNode(target)) {
+      return ref;
+    }
+    const name = `${NO_LOOP_VARIABLE_KEYWORD}:${ref.slice(2).replace(/\//g, ".")}`;
+    const copyRef = `#/definitions/${name}`;
+    // recorded before the copy is made, so a definition that names itself points at the copy and ends
+    markedRefs.set(ref, copyRef);
+    markedDefinitions[name] = visit(target, true);
+    return copyRef;
+  };
+
+  const visit = (node: unknown, marked: boolean): unknown => {
+    if (Array.isArray(node)) {
+      return node.map(item => visit(item, marked));
+    }
+    if (!isSchemaNode(node)) {
+      return node;
+    }
+    const isMarked = marked || node[NO_LOOP_VARIABLE_KEYWORD] === true;
+    const copy: SchemaNode = { ...node };
+    if (isMarked) {
+      copy[NO_LOOP_VARIABLE_KEYWORD] = true;
+      if (typeof node["$ref"] === "string") {
+        copy["$ref"] = markedRef(node["$ref"]);
+      }
+    }
+    for (const keyword of SUBSCHEMA_KEYWORDS) {
+      if (keyword in node) {
+        copy[keyword] = visit(node[keyword], isMarked);
+      }
+    }
+    for (const keyword of SUBSCHEMA_MAP_KEYWORDS) {
+      const schemas = node[keyword];
+      if (isSchemaNode(schemas)) {
+        copy[keyword] = Object.fromEntries(
+          Object.entries(schemas).map(([name, subschema]) => [name, visit(subschema, isMarked)])
+        );
+      }
+    }
+    return copy;
+  };
+
+  const result = visit(schema, false) as SchemaNode;
+  if (markedRefs.size > 0) {
+    result["definitions"] = { ...(result["definitions"] as SchemaNode | undefined), ...markedDefinitions };
+  }
+  return result as CustomJSONSchema7;
 }
 
 /** The message shown when the text is neither the field's primitive nor a reference. */

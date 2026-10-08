@@ -24,6 +24,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
@@ -2203,6 +2204,97 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(rerender).not.toHaveBeenCalled();
     });
 
+    /** Opens the body with the schema given; every other operator keeps its own. */
+    function openBodyWithSchema(schema: OperatorSchema): void {
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
+      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
+        operatorID === body.operatorID ? schema : ownSchema(operatorID)
+      );
+      openBody();
+    }
+
+    /** A field of a row of the array property given, which formly builds only when asked for a row. */
+    function rowFieldOf(arrayKey: string, key: string): FormlyFieldConfig | undefined {
+      const arrayField = getField(arrayKey)!;
+      const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      return row.fieldGroup?.find(f => f.key === key);
+    }
+
+    describe("a setting the plan is built from", () => {
+      // the body given settings the backend marks `noLoopVariable` (#8750): a Projection's drop option, an
+      // output column's name, and the rows of columns to keep, whose alias sits in a shared definition;
+      // `renames` takes the same rows unmarked, and `limit` is the body's own unmarked setting
+      const planSchema: OperatorSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            isDrop: { type: "boolean", title: "drop option", noLoopVariable: true },
+            resultAttribute: { type: "string", title: "result attribute", noLoopVariable: true },
+            attributes: { type: "array", noLoopVariable: true, items: { $ref: "#/definitions/AttributeUnit" } },
+            renames: { type: "array", items: { $ref: "#/definitions/AttributeUnit" } },
+          },
+          definitions: {
+            AttributeUnit: {
+              type: "object",
+              properties: { alias: { type: "string", title: "alias" }, width: { type: "integer", title: "width" } },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      it("offers no $reference in a marked setting or anywhere under one, and still does beside them", () => {
+        addBlockAroundBody();
+        openBodyWithSchema(planSchema);
+
+        expect(getField("isDrop")?.type).toBe("boolean");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "width")?.type).toBe("integer");
+        for (const field of [
+          getField("isDrop"),
+          getField("resultAttribute"),
+          rowFieldOf("attributes", "alias"),
+          rowFieldOf("attributes", "width"),
+        ]) {
+          expect(field?.props?.["loopVariableOptions"], String(field?.key)).toBeUndefined();
+          expect(field?.props?.["loopVariableWarning"], String(field?.key)).toBeUndefined();
+        }
+        // the unmarked control: the body's own setting, and the same rows under an unmarked property
+        expect(getField("limit")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(rowFieldOf("renames", "width")?.type).toBe("loopvariableinput");
+      });
+
+      it("leaves a $reference a marked setting already holds in its plain field, for the compiler to name", () => {
+        addBlockAroundBody();
+        workflowActionService.setOperatorProperty(body.operatorID, {
+          limit: 5,
+          resultAttribute: "$K",
+          attributes: [{ alias: "$K" }],
+        });
+        openBodyWithSchema(planSchema);
+
+        expect(component.formData["resultAttribute"]).toBe("$K");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(getField("resultAttribute")?.props?.["loopVariableWarning"]).toBeUndefined();
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+      });
+
+      it("keeps every control as it was outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyWithSchema(planSchema);
+
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("string");
+        expect(getField("limit")?.type).toBe("integer");
+      });
+    });
+
     describe("a field with value rules", () => {
       // the body given a sklearn trainer's hyperparameter rows, whose value's rules follow the parameter
       const valueRules: ValueRuleSet = {
@@ -2231,21 +2323,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
         } as CustomJSONSchema7,
       };
 
-      /** Opens the body with the trainer's schema (or the one given); every other operator keeps its own. */
+      /** Opens the body with the trainer's schema (or the one given). */
       function openBodyAsTrainer(schema = trainerSchema): void {
-        const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
-        const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
-        vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
-          operatorID === body.operatorID ? schema : ownSchema(operatorID)
-        );
-        openBody();
+        openBodyWithSchema(schema);
       }
 
-      /** A field of a hyperparameter row, which formly builds only when asked for a row. */
+      /** A field of a hyperparameter row. */
       function rowField(key: string): FormlyFieldConfig | undefined {
-        const arrayField = getField("paraList")!;
-        const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
-        return row.fieldGroup?.find(f => f.key === key);
+        return rowFieldOf("paraList", key);
       }
 
       /** The field as formly hands it to a validator in a row whose parameter is the one given. */

@@ -104,4 +104,8 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
 
   // no two rows of the enclosing list may hold the same value for this field
   uniqueAmongRows?: boolean;
+
+  // the operator's plan is built from this property before a loop runs, so it may not hold a
+  // loop-variable reference ("$K"), nor may anything under it
+  noLoopVariable?: boolean;
 }

@@ -39,7 +39,11 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
-import { applyLoopVariableField, primitiveSchemaType } from "../../../util/loop-variable-field.util";
+import {
+  applyLoopVariableField,
+  inheritNoLoopVariable,
+  primitiveSchemaType,
+} from "../../../util/loop-variable-field.util";
 import { loopVariablesInScope } from "../../../util/loop-variable.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -1018,14 +1022,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       // is what tells a plain primitive from a field formly or a widget already resolved otherwise. A
       // field with value rules is a primitive too, on the rules' control (setValueRules above): the text
       // input replaces that control, keeps its rules for every value but a reference, and offers the
-      // values they accept next to the variables.
+      // values they accept next to the variables. A setting the plan is built from, and every field under
+      // one (`noLoopVariable`, spread down by inheritNoLoopVariable below), keeps its plain control: the
+      // compiler rejects a reference there, so none is offered, and one it already holds is left for the
+      // compiler's error to name.
       const loopSchemaType = primitiveSchemaType(mapSource.type);
       if (
         loopVariableNames !== undefined &&
         customType === undefined &&
         loopSchemaType !== undefined &&
         (mappedField.type === loopSchemaType || isDefined(mapSource.valueRules)) &&
-        !isDefined(mapSource.enum)
+        !isDefined(mapSource.enum) &&
+        mapSource.noLoopVariable !== true
       ) {
         applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
@@ -1499,10 +1507,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
-      map: jsonSchemaMapIntercept,
-    });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object;
+    // inside a block, a copy that also marks every field under a setting the plan is built from
+    const field = this.formlyJsonschema.toFieldConfig(
+      cloneDeep(loopVariableNames === undefined ? schema : inheritNoLoopVariable(schema)),
+      { map: jsonSchemaMapIntercept }
+    );
     field.hooks = {
       onInit: fieldConfig => {
         if (!this.interactive) {

@@ -19,10 +19,12 @@
 
 import { AbstractControl, FormControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { cloneDeep } from "lodash-es";
 import {
   applyLoopVariableField,
   coerceOrReference,
   collectReferences,
+  inheritNoLoopVariable,
   isReference,
   LOOP_VARIABLE_INPUT_TYPE,
   loopVariableOptions,
@@ -32,7 +34,7 @@ import {
   valueAtPointer,
 } from "./loop-variable-field.util";
 import { setValueRules } from "../../common/formly/formly-utils";
-import { ValueRuleSet } from "../types/custom-json-schema.interface";
+import { CustomJSONSchema7, ValueRuleSet } from "../types/custom-json-schema.interface";
 
 describe("isReference / referenceName", () => {
   it("accepts a dollar sign followed by an identifier, as the whole value", () => {
@@ -213,6 +215,159 @@ describe("collectReferences / valueAtPointer", () => {
     expect(valueAtPointer(properties, "/nested/a~1b")).toBe("$z");
     expect(valueAtPointer(properties, "")).toBe(properties);
     expect(valueAtPointer(properties, "/missing/path")).toBeUndefined();
+  });
+});
+
+describe("inheritNoLoopVariable", () => {
+  /** The schema a `$ref` in `schema` names, as formly's mapper looks it up from the root. */
+  const resolve = (schema: CustomJSONSchema7, ref: unknown): any => {
+    expect(typeof ref === "string" && ref.startsWith("#/"), String(ref)).toBe(true);
+    return valueAtPointer(schema, (ref as string).slice(1));
+  };
+
+  it("marks every schema nested under a marked property, and nothing beside it", () => {
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: {
+        isDrop: { type: "boolean", noLoopVariable: true },
+        columns: {
+          type: "array",
+          noLoopVariable: true,
+          items: { type: "object", properties: { name: { type: "string" }, size: { type: ["integer", "null"] } } },
+        },
+        limit: { type: "integer" },
+      },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+    expect(marked.properties.isDrop.noLoopVariable).toBe(true);
+    expect(marked.properties.columns.noLoopVariable).toBe(true);
+    expect(marked.properties.columns.items.noLoopVariable).toBe(true);
+    expect(marked.properties.columns.items.properties.name).toEqual({ type: "string", noLoopVariable: true });
+    expect(marked.properties.columns.items.properties.size.noLoopVariable).toBe(true);
+    expect(marked.properties.limit).toEqual({ type: "integer" });
+    expect(marked.noLoopVariable).toBeUndefined();
+  });
+
+  it("follows a $ref to a marked copy of what it names, leaving the one an unmarked property shares alone", () => {
+    // Projection's `attributes` against a sibling that takes the same rows and may hold a reference
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: {
+        attributes: { type: "array", noLoopVariable: true, items: { $ref: "#/definitions/AttributeUnit" } },
+        renames: { type: "array", items: { $ref: "#/definitions/AttributeUnit" } },
+      },
+      definitions: {
+        AttributeUnit: {
+          type: "object",
+          properties: { originalAttribute: { type: "string" }, alias: { type: "string" } },
+        },
+      },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+
+    const markedUnit = resolve(marked, marked.properties.attributes.items.$ref);
+    expect(markedUnit.noLoopVariable).toBe(true);
+    expect(markedUnit.properties.alias).toEqual({ type: "string", noLoopVariable: true });
+    expect(markedUnit.properties.originalAttribute.noLoopVariable).toBe(true);
+
+    expect(marked.properties.renames.items.$ref).toBe("#/definitions/AttributeUnit");
+    const sharedUnit = resolve(marked, marked.properties.renames.items.$ref);
+    expect(sharedUnit.noLoopVariable).toBeUndefined();
+    expect(sharedUnit.properties.alias).toEqual({ type: "string" });
+  });
+
+  it("marks what a marked property's own $ref names, since formly keeps only the named schema's keywords", () => {
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: { domain: { $ref: "#/definitions/Domain", title: "domain", noLoopVariable: true } },
+      definitions: { Domain: { type: "object", properties: { min: { type: "integer" }, max: { type: "integer" } } } },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+    expect(marked.properties.domain.title).toBe("domain");
+    const domain = resolve(marked, marked.properties.domain.$ref);
+    expect(domain.noLoopVariable).toBe(true);
+    expect(domain.properties.min.noLoopVariable).toBe(true);
+    expect(domain.properties.max.noLoopVariable).toBe(true);
+  });
+
+  it("reaches the alternatives of a nullable or merged schema", () => {
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: {
+        bound: {
+          noLoopVariable: true,
+          oneOf: [{ type: "null" }, { type: "object", properties: { low: { type: "number" } } }],
+          allOf: [{ properties: { high: { type: "number" } } }],
+        },
+      },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+    expect(marked.properties.bound.oneOf[1].properties.low.noLoopVariable).toBe(true);
+    expect(marked.properties.bound.allOf[0].properties.high.noLoopVariable).toBe(true);
+  });
+
+  it("ends at a definition that names itself, pointing the copy at itself", () => {
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: { tree: { $ref: "#/definitions/Node", noLoopVariable: true } },
+      definitions: {
+        Node: {
+          type: "object",
+          properties: { label: { type: "string" }, children: { type: "array", items: { $ref: "#/definitions/Node" } } },
+        },
+      },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+    const node = resolve(marked, marked.properties.tree.$ref);
+    expect(node.properties.label.noLoopVariable).toBe(true);
+    expect(node.properties.children.items.$ref).toBe(marked.properties.tree.$ref);
+    // the original definition stays as it was
+    expect(marked.definitions.Node.properties.label).toEqual({ type: "string" });
+  });
+
+  it("leaves the values a marked schema holds, rather than is made of, as they were", () => {
+    const valueRules: ValueRuleSet = {
+      allOf: [{ if: { parameter: { valEnum: ["C"] } }, then: { type: "number", exclusiveMinimum: 0 } }],
+    };
+    const schema: CustomJSONSchema7 = {
+      type: "object",
+      properties: {
+        options: {
+          type: "object",
+          noLoopVariable: true,
+          default: { mode: { type: "x" } },
+          examples: [{ mode: "fast" }],
+          properties: { mode: { type: "string", enum: ["fast", "slow"], valueRules } },
+        },
+      },
+    };
+    const marked: any = inheritNoLoopVariable(schema);
+    expect(marked.properties.options.default).toEqual({ mode: { type: "x" } });
+    expect(marked.properties.options.examples).toEqual([{ mode: "fast" }]);
+    expect(marked.properties.options.properties.mode).toEqual({
+      type: "string",
+      enum: ["fast", "slow"],
+      valueRules,
+      noLoopVariable: true,
+    });
+  });
+
+  it("changes nothing in a schema without the keyword, and never the schema it is given", () => {
+    const plain: CustomJSONSchema7 = {
+      type: "object",
+      properties: { limit: { type: "integer" }, rows: { type: "array", items: { $ref: "#/definitions/Row" } } },
+      definitions: { Row: { type: "object", properties: { name: { type: "string" } } } },
+    };
+    expect(inheritNoLoopVariable(plain)).toEqual(plain);
+
+    const withMark: CustomJSONSchema7 = {
+      type: "object",
+      properties: { rows: { type: "array", noLoopVariable: true, items: { $ref: "#/definitions/Row" } } },
+      definitions: { Row: { type: "object", properties: { name: { type: "string" } } } },
+    };
+    const before = cloneDeep(withMark);
+    inheritNoLoopVariable(withMark);
+    expect(withMark).toEqual(before);
   });
 });
 
