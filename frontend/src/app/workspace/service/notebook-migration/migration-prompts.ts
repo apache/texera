@@ -68,9 +68,9 @@ Batch API consumes a batch of tuples at a time. Similar to Table, a Batch is als
   All three APIs can return an empty iterator by yield None.
 
   The template code for a Python UDF follows: MAKE SURE TO USE THE CLASS NAMES AND FUNCTIONS DEFINED, THIS IS A MUST FOR THE PROGRAM TO WORK. SELECT 1 OUT OF THE 3 PROCESSING OPERATOR FUNCTIONS TO BUILD DEPENDING ON THE CONTEXT OF CODE TRANSLATION.
-# Choose from the following templates:
-  #
-# from pytexera import *
+# Keep exactly ONE class below: uncomment it and delete the others.
+#
+from pytexera import *
 #
 # class ProcessTupleOperator(UDFOperatorV2):
 #

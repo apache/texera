@@ -44,14 +44,23 @@ tags: [user-defined-functions, python]
 **Python script**
 
 ```python
-# Choose from the following templates:
-#
+# Keep exactly ONE class below: uncomment it and delete the others.
+# Its method must match its base class:
+#   UDFOperatorV2 -> process_tuple, UDFBatchOperator -> process_batch,
+#   UDFTableOperator -> process_table
+# Always `yield` results (never `return` a value). Put setup code in open();
+# if you override __init__, call super().__init__() first.
+# 
+# Port 0 (model) is read completely before port 1 (tuples) starts.
+# Use the `port` argument to tell them apart, e.g. `if port == 0:`.
+# 
 # Define UiParameter inside open() of ProcessTupleOperator, ProcessBatchOperator, or ProcessTableOperator.
 # Example: self.count = self.UiParameter("count", AttributeType.INT).value
+# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.
 # See the Python UDF operator documentation for supported types and behavior.
-# 
-# from pytexera import *
-# 
+
+from pytexera import *
+
 # class ProcessTupleOperator(UDFOperatorV2):
 #     
 #     @overrides
