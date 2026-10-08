@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ResourceRegistryService } from "../../../../../service/user/resource-registry/resource-registry.service";
 import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -165,9 +165,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   @Input()
   isLogin: boolean = false;
-
-  @Output()
-  loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
   constructor(
     private resourceRegistry: ResourceRegistryService,
