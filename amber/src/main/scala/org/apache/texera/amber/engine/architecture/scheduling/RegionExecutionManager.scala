@@ -237,21 +237,26 @@ class RegionExecutionManager(
         }
         .within(killTimeout)
 
-    // 3. Clean up only after graceful termination succeeds.
+    // 3. Clean up only after graceful termination succeeds, and only on the coordinator's own
+    // thread
     terminationAttempt.transform {
       case Return(_) =>
         logger.debug(s"Region ${region.id.id} successfully terminated.")
         val allWorkerIds = regionExecution.getAllOperatorExecutions.toSeq.flatMap {
           case (_, opExec) => opExec.getWorkerIds
         }
-        regionExecution.getAllOperatorExecutions.foreach {
-          case (_, opExec) =>
-            opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).forceTerminate()
-            }
-        }
         val cleanupPromise = Promise[Unit]()
-        actorService.self ! Coordinator.CleanupWorkerChannels(allWorkerIds, cleanupPromise)
+        actorService.self ! Coordinator.CleanupWorkerChannels(
+          allWorkerIds,
+          forceTerminateWorkers = () =>
+            regionExecution.getAllOperatorExecutions.foreach {
+              case (_, opExec) =>
+                opExec.getWorkerIds.foreach { workerId =>
+                  opExec.getWorkerExecution(workerId).forceTerminate()
+                }
+            },
+          cleanupPromise
+        )
         cleanupPromise
       case Throw(err) =>
         logger.warn(s"Error when terminating region ${region.id}.")

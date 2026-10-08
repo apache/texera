@@ -59,6 +59,7 @@ import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
+import java.util.concurrent.CountDownLatch
 import scala.collection.mutable
 
 object RegionExecutionManagerTestSupport {
@@ -162,7 +163,26 @@ object RegionExecutionManagerTestSupport {
     override def receive: Receive = { case _ => () }
   }
 
-  class CoordinatorHarness(rpcProbe: CoordinatorRpcProbe) extends WorkflowActor(None, COORDINATOR) {
+  object BlockingActor {
+    case object Block
+  }
+
+  /**
+    * Stays alive but jams its own mailbox on `Block`, so a `PoisonPill` sent afterward (e.g. by
+    * `gracefulStop`) queues behind it and is never processed until `gate` counts down. Lets a test
+    * force `gracefulStop` itself to time out deterministically, rather than racing a real actor
+    * stop against a short test timeout.
+    */
+  class BlockingActor(gate: CountDownLatch) extends Actor {
+    override def receive: Receive = {
+      case BlockingActor.Block => gate.await()
+    }
+  }
+
+  class CoordinatorHarness(
+      rpcProbe: CoordinatorRpcProbe,
+      beforeCleanup: () => Unit = () => ()
+  ) extends WorkflowActor(None, COORDINATOR) {
     override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ()
 
     override def getQueuedCredit(channelId: ChannelIdentity): Long = 0
@@ -177,7 +197,9 @@ object RegionExecutionManagerTestSupport {
       handleCleanupWorkerChannels orElse super.receive
 
     private def handleCleanupWorkerChannels: Receive = {
-      case Coordinator.CleanupWorkerChannels(workerIds, completionPromise) =>
+      case Coordinator.CleanupWorkerChannels(workerIds, forceTerminateWorkers, completionPromise) =>
+        beforeCleanup()
+        forceTerminateWorkers()
         Coordinator.cleanupWorkerChannels(
           workerIds,
           rpcProbe.asyncRPCClient,
@@ -264,9 +286,10 @@ trait RegionExecutionManagerTestSupport { self: TestKit =>
   import RegionExecutionManagerTestSupport._
 
   protected def createCoordinatorHarness(
-      rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None)
+      rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None),
+      beforeCleanup: () => Unit = () => ()
   ): CoordinatorHarnessFixture = {
-    val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe))
+    val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe, beforeCleanup))
     coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
       Array(coordinatorRef.path.address)
     CoordinatorHarnessFixture(
