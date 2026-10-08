@@ -18,6 +18,7 @@
  */
 
 import { extractLoopVariables, loopVariablesInScope } from "./loop-variable.util";
+import { referenceValidator } from "./loop-variable-field.util";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
 
 describe("extractLoopVariables", () => {
@@ -115,13 +116,59 @@ describe("extractLoopVariables", () => {
     expect(extractLoopVariables("if a:\n    def f():\n        local = 1\n    K = 2")).toEqual(["K"]);
   });
 
-  it("excludes the names of an except clause, a with statement, an import, a def and a class", () => {
-    // none of these is a value the loop state can carry (State.to_json raises on a module, a function or
-    // a handle), and `except ... as e` unbinds e when the handler ends
+  it("excludes the names of an except clause, a with statement, a def and a class", () => {
+    // none of these is a value the loop state can carry (State.to_json raises on a function or a handle),
+    // and `except ... as e` unbinds e when the handler ends
     expect(extractLoopVariables("try:\n    pass\nexcept Exception as e:\n    pass")).toEqual([]);
     expect(extractLoopVariables("with open(p) as fh:\n    pass")).toEqual([]);
-    expect(extractLoopVariables("import numpy as np\nfrom math import pi")).toEqual([]);
     expect(extractLoopVariables("def f():\n    pass\nclass C:\n    pass")).toEqual([]);
+  });
+
+  // exec puts what an import binds into the globals it keeps as the loop state, like an assignment, so
+  // `from math import pi` gives the loop a variable `pi`
+  it("reads the names a from-import binds, taking an alias instead of the name it renames", () => {
+    expect(extractLoopVariables("from math import pi")).toEqual(["pi"]);
+    expect(extractLoopVariables("from m import a, b as c")).toEqual(["a", "c"]);
+    expect(extractLoopVariables("from . import x")).toEqual(["x"]);
+    expect(extractLoopVariables("from ..pkg.mod import x")).toEqual(["x"]);
+  });
+
+  it("reads a parenthesized from-import spread over several lines", () => {
+    expect(extractLoopVariables("from m import (a,\n    b)")).toEqual(["a", "b"]);
+    expect(extractLoopVariables("from m import (\n    a,  # first\n    b as c,\n)\nk = 0")).toEqual(["a", "c", "k"]);
+  });
+
+  it("reads the name an import binds: the module, the first part of a dotted one, or the alias", () => {
+    expect(extractLoopVariables("import m")).toEqual(["m"]);
+    expect(extractLoopVariables("import a.b.c")).toEqual(["a"]);
+    expect(extractLoopVariables("import m as n")).toEqual(["n"]);
+    expect(extractLoopVariables("import a.b as n")).toEqual(["n"]);
+    expect(extractLoopVariables("import os, numpy as np")).toEqual(["os", "np"]);
+  });
+
+  it("reads several imports on one line separated by semicolons, among assignments", () => {
+    expect(extractLoopVariables("import m; from math import pi; k = 0")).toEqual(["m", "pi", "k"]);
+  });
+
+  it("knows no name a star import binds", () => {
+    expect(extractLoopVariables("from m import *")).toEqual([]);
+    expect(extractLoopVariables("from m import *; k = 0")).toEqual(["k"]);
+  });
+
+  it("reads an import under a compound statement, but not one in a def body", () => {
+    expect(extractLoopVariables("try:\n    import numpy as np\nexcept ImportError:\n    pass")).toEqual(["np"]);
+    expect(extractLoopVariables("try: from math import tau\nexcept: pass")).toEqual(["tau"]);
+    expect(extractLoopVariables("def f():\n    from math import pi\n    return pi")).toEqual([]);
+  });
+
+  it("does not take a name that merely starts with from or import for an import", () => {
+    expect(extractLoopVariables("from_ = 1; import_x = 2")).toEqual(["from_", "import_x"]);
+    expect(extractLoopVariables("from importlib import reload")).toEqual(["reload"]);
+  });
+
+  it("does not offer an imported name a $reference cannot spell", () => {
+    expect(extractLoopVariables("from m import é")).toEqual([]);
+    expect(extractLoopVariables("import m as é")).toEqual([]);
   });
 
   it("never takes a Python keyword for a name", () => {
@@ -173,6 +220,12 @@ describe("loopVariablesInScope", () => {
   it("returns undefined for an operator outside every block, telling it from a block that declares nothing", () => {
     expect(loopVariablesInScope(graphOf({}), [])).toBeUndefined();
     expect(loopVariablesInScope(graphOf({ s: "print(1)" }), ["s"])).toEqual([]);
+  });
+
+  it("makes a name a LoopStart imports a valid reference", () => {
+    const names = loopVariablesInScope(graphOf({ s: "from math import pi" }), ["s"]);
+    expect(names).toEqual(["pi"]);
+    expect(referenceValidator(names ?? [])("$pi")).toBeUndefined();
   });
 
   it("tolerates a LoopStart whose initialization is missing or not a string", () => {

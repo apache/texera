@@ -25,6 +25,18 @@ import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-
  */
 const ASSIGNMENT_TARGET = /^\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]*)?$/;
 
+/** A name a `$name` reference can spell: an ASCII identifier. */
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** An import statement (`import a.b, c as d`); group 1 is its list of modules. */
+const IMPORT_STATEMENT = /^import\s([\s\S]*)$/;
+
+/** A from-import statement (`from .m import a, b as c`); group 1 is what follows its `import` keyword. */
+const FROM_IMPORT_STATEMENT = /^from[\s.][\s\S]*?\bimport\b([\s\S]*)$/;
+
+/** One item of an import's list: group 1 is what it imports, group 2 the alias it binds that to, if any. */
+const IMPORT_ITEM = /^([\s\S]*?)(?:\s+as\s+(\S+))?$/;
+
 /** The characters that, right before `=`, make it part of another operator (`==`, `+=`, `<=`, `:=`, ...). */
 const NOT_AN_ASSIGNMENT_BEFORE = "=!<>+-*/%&|^:@";
 
@@ -93,9 +105,13 @@ interface Statement {
  * Assignments: `i = 0`, `K = 2; prev = float('-inf')`, tuple targets (`a, b = 1, 2`), chained
  * (`a = b = 0`), annotated (`x: int = 0`) and starred (`a, *rest = xs`) ones. Augmented assignments,
  * comparisons, keyword arguments, attribute or subscript targets and comments are not assignments of a
- * loop variable and are ignored, as are the names an import, a def, a class, `with ... as` or
- * `except ... as` binds: none of those is a value the loop state can carry. Separators inside strings or
- * brackets do not split.
+ * loop variable and are ignored, as are the names a def, a class, `with ... as` or `except ... as` binds:
+ * none of those is a value the loop state can carry. Separators inside strings or brackets do not split.
+ *
+ * Imports count, since exec keeps what they bind among those globals just as it keeps an assignment's
+ * target: `from math import pi` gives the loop a variable `pi`. `from m import a, b as c` binds a and c,
+ * parenthesized over several lines or not; `import a.b.c` binds a; `import m as n` binds n. What
+ * `from m import *` binds cannot be told from the code, so it adds no name.
  */
 export function extractLoopVariables(initialization: string): string[] {
   const names: string[] = [];
@@ -216,14 +232,14 @@ function splitStatements(code: string): Statement[] {
 }
 
 /**
- * The names one module-level statement binds: its assignment targets or, for a compound statement, a
- * for loop's targets plus what its one-line body (`try: k = 1`) binds. A compound statement whose body
- * is on the lines below binds nothing itself; those lines are statements of their own.
+ * The names one module-level statement binds: what it imports, its assignment targets or, for a compound
+ * statement, a for loop's targets plus what its one-line body (`try: k = 1`) binds. A compound statement
+ * whose body is on the lines below binds nothing itself; those lines are statements of their own.
  */
 function boundNames(statement: string): string[] {
   const compound = COMPOUND_HEADER.exec(statement);
   if (compound === null) {
-    return assignedNames(statement);
+    return importedNames(statement) ?? assignedNames(statement);
   }
   // the header ends at the first top-level colon that is not the walrus `:=`
   const colon = topLevelPositions(statement, (text, i) => text[i] === ":" && text[i + 1] !== "=")[0];
@@ -234,6 +250,39 @@ function boundNames(statement: string): string[] {
   const loopTargets = compound[1] === "for" ? forTargetNames(header) : [];
   const body = statement.slice(colon + 1).trim();
   return body === "" ? loopTargets : [...loopTargets, ...boundNames(body)];
+}
+
+/**
+ * The names an import statement binds, e.g. `import a.b, c as d` -> a, d and `from m import (x, y as z)`
+ * -> x, z; undefined for a statement that is not an import.
+ */
+function importedNames(statement: string): string[] | undefined {
+  const fromImport = FROM_IMPORT_STATEMENT.exec(statement);
+  if (fromImport !== null) {
+    return splitTopLevelCommas(unwrap(fromImport[1].trim())).flatMap(item => importItemName(item, false));
+  }
+  const plainImport = IMPORT_STATEMENT.exec(statement);
+  if (plainImport !== null) {
+    return splitTopLevelCommas(plainImport[1]).flatMap(item => importItemName(item, true));
+  }
+  return undefined;
+}
+
+/**
+ * The name one item of an import's list binds, as a list of at most one: its alias if it has one
+ * (`b as c` -> c), otherwise the name itself or, for a module (`isModule`), the first part of its dotted
+ * name (`a.b.c` -> a). Nothing for `*`, for the empty item a trailing comma leaves, or for a name a
+ * `$name` reference cannot spell.
+ */
+function importItemName(item: string, isModule: boolean): string[] {
+  const match = IMPORT_ITEM.exec(item.trim());
+  if (match === null) {
+    return [];
+  }
+  const imported = match[1];
+  const alias: string | undefined = match[2];
+  const name = alias ?? (isModule ? imported.split(".")[0].trim() : imported);
+  return IDENTIFIER.test(name) && !PYTHON_KEYWORDS.has(name) ? [name] : [];
 }
 
 /** The names a plain statement assigns, e.g. `a = b = 0` -> a, b; `x += 1` or `f(k=1)` -> nothing. */
