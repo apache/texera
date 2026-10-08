@@ -243,10 +243,17 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
           s"    ${pyStringLiteral(agg.resultAttribute)}: ${aggExprScalar(agg, declaredType)},"
         )
         .mkString("\n")
+      val resultsLit =
+        aggs.map(agg => pyStringLiteral(agg.resultAttribute)).mkString("[", ", ", "]")
+      // The engine opens a group when a row arrives, so with no rows there is no
+      // group to finish and it emits nothing, not one row of COUNT 0.
       s"""$concatHelper
-         |out1df = pd.DataFrame([{
-         |$rowEntries
-         |}])""".stripMargin
+         |if len(in1df):
+         |    out1df = pd.DataFrame([{
+         |${rowEntries.linesIterator.map("    " + _).mkString("\n")}
+         |    }])
+         |else:
+         |    out1df = pd.DataFrame(columns=$resultsLit)""".stripMargin
     } else {
       val keysLit = keys.map(pyStringLiteral).mkString("[", ", ", "]")
       val aggLines = aggs.zipWithIndex

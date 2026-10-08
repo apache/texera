@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -245,6 +246,27 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       // Two groups of one row each, not one group totalling 3.
       out.trim shouldBe "2 [1, 2]"
     }
+  }
+
+  it should "emit no row for an empty input with no group keys, as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val desc = descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "cnt"))
+
+    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    exec.onFinish(0).toList shouldBe empty
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"v": pd.Series([], dtype="int64")})
+         |${desc.generateStandaloneCode()}
+         |print(len(out1df), list(out1df.columns))
+         |""".stripMargin
+    val out = runPython(python, driver, "aggregate-empty-", "UTC")
+    withClue(s"script:\n$driver")(out.trim shouldBe "0 ['cnt']")
   }
 
   // Without a schema the type-led branches cannot be chosen.
