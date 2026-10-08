@@ -24,6 +24,8 @@ import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
@@ -165,6 +167,27 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     }
     withClue(vs.map(_._1)) { optionals shouldBe defined }
     optionals.get.predicates.head.value should not be null
+  }
+
+  it should "run each delimiter the picker offers, and never invent one" in {
+    // The CSV scans list the picker's presets under `examples`. Old CSV's default is
+    // already a comma, so the base fill read as unset and the optionals variant made
+    // the delimiter the canonical "1", which split the fixture's numbers apart.
+    Seq(classOf[CSVScanSourceOpDesc], classOf[CSVOldScanSourceOpDesc]).foreach { opClass =>
+      val vs = variants(opClass, Map.empty)
+      val delimiters = vs.map {
+        case (_, op: CSVScanSourceOpDesc)    => op.customDelimiter
+        case (_, op: CSVOldScanSourceOpDesc) => op.customDelimiter
+        case (_, op)                         => fail(s"unexpected $op")
+      }
+      withClue(s"${opClass.getSimpleName} ${vs.map(_._1)}: ") {
+        delimiters.flatten.toSet shouldBe Set(",", "\t", ";", "|", " ")
+        // The runners name a directory after the label with every other character
+        // folded to `_`, so the labels have to stay apart once folded.
+        val dirs = vs.map(_._1.replaceAll("[^A-Za-z0-9]+", "_"))
+        dirs.distinct.size shouldBe dirs.size
+      }
+    }
   }
 
   it should "give each free-text knob its own hostile value, so two cannot collide" in {

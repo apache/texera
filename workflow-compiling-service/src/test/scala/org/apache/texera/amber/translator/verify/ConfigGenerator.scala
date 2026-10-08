@@ -890,18 +890,19 @@ object ConfigGenerator {
     val unset = current.isMissingNode ||
       current == defaultsOf(owner).path(jsonNameOf(f))
     // A knob whose values the field DECLARES is left to its declaration: the enum
-    // sweep covers a declared value list, and a knob offering an `examples` value
-    // takes that one. Reading `examples` on its own, rather than only alongside a
-    // `pattern`, is the point: a field can state a realistic value ("https://
-    // example.com" for a URL) without having to invent a constraint to hang it on,
-    // and inventing one to steer this generator would reject values the platform
-    // accepts.
+    // sweep covers a declared value list, or a list of `examples`, and a knob
+    // offering one `examples` value takes that one. Reading `examples` on its own,
+    // rather than only alongside a `pattern`, is the point: a field can state a
+    // realistic value ("https://example.com" for a URL) without having to invent a
+    // constraint to hang it on, and inventing one to steer this generator would
+    // reject values the platform accepts.
     // An optional knob is typed by what its Option holds, so `start`/`end` declared
     // as Option[Double] are swept like the bare numbers they are.
     val scalarType = effectiveScalarType(f)
     if (
       hasAutofill(f) || required || !unset ||
-      declaredEnumValues(f).size > 1 || !isFreeScalar(scalarType)
+      declaredEnumValues(f).size > 1 || declaredExamples(f).size > 1 ||
+      !isFreeScalar(scalarType)
     ) None
     else if (declaredExample(f).isDefined) declaredExample(f).map(v => (childPath, v))
     else if (scalarType == classOf[String])
@@ -930,8 +931,15 @@ object ConfigGenerator {
   /** The first value a field offers under `examples` — a legal sample the operator
     * states itself, so nothing here has to invent one.
     */
-  private def declaredExample(f: Field): Option[JsonNode] =
-    schemaKey(f, "examples").filter(_.isArray).flatMap(_.elements().asScala.toSeq.headOption)
+  private def declaredExample(f: Field): Option[JsonNode] = declaredExamples(f).headOption
+
+  /** Every value a field offers under `examples`. More than one is swept like an
+    * `enum` (see [[enumSites]]): each is a value the operator accepts and the UI
+    * offers, and a delimiter's tab takes another path through a reader than its comma.
+    * Unlike an `enum`, it does not refuse a value outside the list.
+    */
+  private def declaredExamples(f: Field): Seq[JsonNode] =
+    schemaKey(f, "examples").filter(_.isArray).toSeq.flatMap(_.elements().asScala.toSeq)
 
   /** One key out of a field's own `@JsonSchemaInject` JSON. */
   private def schemaKey(f: Field, key: String): Option[JsonNode] =
@@ -973,11 +981,20 @@ object ConfigGenerator {
         val baseVal = baseNode.at(site.pointer)
         site.values.filterNot(_ == baseVal).map { v =>
           Variant(
-            s"${site.pointer.stripPrefix("/")}=${v.asText}",
+            s"${site.pointer.stripPrefix("/")}=${labelOf(v.asText)}",
             (site.pointer, v) +: site.companions(v)
           )
         }
       }
+
+  /** A swept value as it reads in a variant's label. A value with no letter or digit
+    * is spelled by its code points: the runners name a variant's directory after its
+    * label with every other character folded to `_`, so a tab, a semicolon and a pipe
+    * all came out as the same `customDelimiter_`.
+    */
+  private def labelOf(value: String): String =
+    if (value.exists(_.isLetterOrDigit)) value
+    else value.codePoints().toArray.map(c => f"U+$c%04X").mkString
 
   /** An enum-typed position in the config JSON: its JSON Pointer plus every
     * possible JSON value (each enum constant serialized via its `@JsonValue`).
@@ -1031,6 +1048,7 @@ object ConfigGenerator {
           val declared = declaredEnumValues(f)
           val nested = scope.descend(jsonName)
           if (declared.size > 1) Seq(EnumSite(childPath, declared))
+          else if (declaredExamples(f).size > 1) Seq(EnumSite(childPath, declaredExamples(f)))
           else if (isList(t))
             elementType(f).toOption.toSeq.flatMap { elem =>
               if (child.isArray)
