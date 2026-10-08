@@ -74,6 +74,24 @@ spec:
               value: {{ .Values.lakekeeperInit.warehouse.region | quote }}
             - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
               value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
+            # Object store a per-user warehouse is registered on in Lakekeeper. Unset, it
+            # defaults to localhost, which Lakekeeper cannot reach.
+            - name: STORAGE_S3_ENDPOINT
+              value: {{ include "texera.s3.endpoint" . }}
+            {{- if .Values.storage.s3.endpoint }}
+            - name: STORAGE_S3_REGION
+              value: {{ .Values.storage.s3.region | quote }}
+            {{- end }}
+            - name: STORAGE_S3_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.accessKeyIdKey" . }}
+            - name: STORAGE_S3_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.secretAccessKeyKey" . }}
           {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"
