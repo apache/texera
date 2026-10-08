@@ -228,6 +228,16 @@ describe("AiFixFrameComponent", () => {
     });
   });
 
+  it("leaves a way out of the not-supported message", () => {
+    // Without the button this state is a dead end: nothing resets it, so after the user
+    // fixes the code and re-runs into a supported error the tab keeps showing the stale
+    // message until some other operator is analyzed.
+    render({ ...READY_CODE_FIX, errorType: "unsupported", suggestedFix: undefined });
+
+    expect(fixture.nativeElement.textContent).toContain(UNSUPPORTED_MESSAGE);
+    expect(query(".ai-fix-analyze")).toBeTruthy();
+  });
+
   it("shows a spinner while analyzing", () => {
     render({ ...READY_CODE_FIX, status: "analyzing", suggestedFix: undefined });
 

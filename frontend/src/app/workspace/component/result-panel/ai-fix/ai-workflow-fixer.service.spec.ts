@@ -45,6 +45,7 @@ describe("AiWorkflowFixerService", () => {
   let setOperatorProperty: ReturnType<typeof vi.fn>;
   let executeWorkflow: ReturnType<typeof vi.fn>;
   let killWorkflow: ReturnType<typeof vi.fn>;
+  let executionState$: Subject<{ previous: any; current: any }>;
   let operatorProperties: Record<string, unknown>;
   let selectedWarehouseId: number | undefined;
   let modificationEnabled: boolean;
@@ -69,6 +70,7 @@ describe("AiWorkflowFixerService", () => {
     setOperatorProperty = vi.fn();
     executeWorkflow = vi.fn();
     killWorkflow = vi.fn();
+    executionState$ = new Subject<{ previous: any; current: any }>();
     operatorProperties = { code: CODE, workers: 1 };
     selectedWarehouseId = undefined;
     modificationEnabled = true;
@@ -87,7 +89,14 @@ describe("AiWorkflowFixerService", () => {
             getWorkflowModificationEnabledStream: () => modificationEnabled$.asObservable(),
           },
         },
-        { provide: ExecuteWorkflowService, useValue: { executeWorkflow, killWorkflow } },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            executeWorkflow,
+            killWorkflow,
+            getExecutionStateStream: () => executionState$.asObservable(),
+          },
+        },
         {
           provide: WarehouseService,
           useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
@@ -264,6 +273,92 @@ describe("AiWorkflowFixerService", () => {
 
     it("leaves a string field alone", () => {
       expect(coerceToFieldType("gpt-4-turb", "gpt-4-turbo")).toEqual("gpt-4-turbo");
+    });
+  });
+
+  it("lets an unsupported error supersede an analysis already in flight", async () => {
+    // The unsupported branch answers without calling the model, but it still replaces the
+    // panel state, so a slower analysis started earlier must not land on top of it.
+    let resolveFirst: (value: { text: string }) => void = () => {};
+    const slowFirst = new Promise<{ text: string }>(resolve => (resolveFirst = resolve));
+    vi.spyOn(service as any, "callModel").mockReturnValueOnce(slowFirst);
+
+    const first = service.analyzeError("op-first", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError("op-second", "ZeroDivisionError: division by zero", SCHEMA, CODE, operatorProperties);
+    expect(state().operatorId).toEqual("op-second");
+    expect(state().errorType).toEqual("unsupported");
+
+    resolveFirst({ text: suggestion() });
+    await first;
+
+    expect(state().operatorId).toEqual("op-second");
+    expect(state().errorType).toEqual("unsupported");
+  });
+
+  it("rejects a reply whose snippets are not strings", async () => {
+    // The template splits these into diff lines; an array would throw inside change
+    // detection, leaving the panel on `ready` with nothing rendered and no way out.
+    stubModel(
+      JSON.stringify({
+        explanation: "the column is user_email",
+        fix_type: "code_change",
+        original_snippet: ["yield t['email']"],
+        suggested_snippet: "yield t['user_email']",
+        confidence: "high",
+      })
+    );
+
+    await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+    expect(state().status).toEqual("error");
+    expect(state().suggestedFix).toBeUndefined();
+  });
+
+  describe("a finished run clears the panel", () => {
+    const ended = (state: string) => executionState$.next({ previous: {}, current: { state } });
+
+    it("drops the applied message once the re-run is over", async () => {
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.applyFix();
+      expect(state().status).toEqual("applied");
+
+      ended("Completed");
+
+      // Otherwise a run that failed again brought the tab back still claiming a re-run.
+      expect(state().status).toEqual("idle");
+    });
+
+    it("drops a suggestion the user never applied", async () => {
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      expect(state().status).toEqual("ready");
+
+      ended("Failed");
+
+      expect(state().status).toEqual("idle");
+    });
+
+    it("never flashes the panel back to idle during an apply", async () => {
+      // applyFix kills a live execution before it writes, and that Killed state reaches
+      // this very subscription. The end state is "applied" either way because the apply
+      // publishes last, so what the guard protects is the moment in between: without it
+      // the panel drops to idle and offers Analyze while the apply is still running.
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      const seen: string[] = [];
+      const watching = service.getState$().subscribe(current => seen.push(current.status));
+
+      const applying = service.applyFix();
+      ended("Killed");
+      modificationEnabled = true;
+      modificationEnabled$.next(true);
+      await applying;
+      watching.unsubscribe();
+
+      expect(seen).toEqual(["ready", "applying", "applied"]);
+      expect(setOperatorProperty).toHaveBeenCalled();
     });
   });
 

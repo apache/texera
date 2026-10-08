@@ -29,6 +29,7 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PortSchema } from "../../../types/workflow-compiling.interface";
+import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 
@@ -64,6 +65,14 @@ export interface FixState {
 export const AI_FIXER_MODEL = "claude-haiku-4.5";
 export const AI_FIXER_TIMEOUT_MS = 120_000;
 export const UNLOCK_TIMEOUT_MS = 15_000;
+
+// A run that reached one of these is over, so anything the panel still shows predates it.
+const TERMINAL_STATES: ReadonlySet<ExecutionState> = new Set([
+  ExecutionState.Completed,
+  ExecutionState.Failed,
+  ExecutionState.Killed,
+  ExecutionState.Terminated,
+]);
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
 export const IDLE_STATE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
@@ -139,7 +148,21 @@ export class AiWorkflowFixerService {
     private warehouseService: WarehouseService,
     private config: GuiConfigService,
     private operatorMetadataService: OperatorMetadataService
-  ) {}
+  ) {
+    // Without this the panel kept whatever it last showed: after Apply the green
+    // "re-running..." message stayed up, so a run that failed again brought the tab back
+    // claiming a re-run that had already finished. Resetting when the run ends rather than
+    // when it starts keeps that message truthful for as long as it is running.
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(
+        filter(event => TERMINAL_STATES.has(event.current.state)),
+        // applyFix kills a live execution before it writes; that kill must not wipe the
+        // state the apply is in the middle of publishing.
+        filter(() => this.stateSubject.getValue().status !== "applying")
+      )
+      .subscribe(() => this.stateSubject.next(IDLE_STATE));
+  }
 
   public getState$(): Observable<FixState> {
     return this.stateSubject.asObservable();
@@ -167,13 +190,18 @@ export class AiWorkflowFixerService {
       status: "analyzing",
     };
 
+    // Numbered before the early return as well: this still supersedes whatever is in flight,
+    // and without the bump a slower analysis for another operator would land on top of it.
+    // Numbered before the early return as well: this still supersedes whatever is in flight,
+    // and without the bump a slower analysis for another operator would land on top of it.
+    const seq = ++this.analysisSeq;
+
     // Out of scope: report it without spending a model call.
     if (errorType === "unsupported") {
       this.stateSubject.next({ ...base, status: "ready" });
       return;
     }
 
-    const seq = ++this.analysisSeq;
     this.stateSubject.next(base);
     try {
       const { text } = await this.callModelWithTimeout(
@@ -344,6 +372,18 @@ export class AiWorkflowFixerService {
     const { explanation, fix_type, original_snippet, suggested_snippet, confidence } = parsed ?? {};
     if (!explanation || !original_snippet || !suggested_snippet) {
       throw new Error("model response is missing a required field");
+    }
+    // Checked as well as present: the template splits these into diff lines, and a reply
+    // that sends an array or an object would throw inside change detection, which leaves the
+    // panel stuck on `ready` with nothing rendered and no way back.
+    for (const [name, value] of [
+      ["explanation", explanation],
+      ["original_snippet", original_snippet],
+      ["suggested_snippet", suggested_snippet],
+    ] as const) {
+      if (typeof value !== "string") {
+        throw new Error(`model returned ${typeof value} for ${name}, expected a string`);
+      }
     }
     const isProperty = fix_type === "property_change";
     return {
