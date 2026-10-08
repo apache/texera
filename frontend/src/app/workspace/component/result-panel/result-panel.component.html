@@ -100,6 +100,12 @@
           <div style="text-align: center">
             <h4>No results available to display.</h4>
             <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>
+            <ng-container *ngIf="!previewWorkflowVersion">
+              <p *ngIf="!currentOperatorId">
+                Click an operator to see its results. If a run fails, its errors show here.
+              </p>
+              <p>Errors an operator hits while running show in that operator's Console.</p>
+            </ng-container>
           </div>
         </nz-tab>
       </div>

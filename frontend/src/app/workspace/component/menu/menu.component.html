@@ -429,6 +429,7 @@
         </button>
         <button
           (click)="handleKill()"
+          title="Stop this run. A stopped run can't be resumed."
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
         executionState === ExecutionState.Completed ||
