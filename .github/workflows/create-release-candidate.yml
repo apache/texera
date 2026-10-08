@@ -67,6 +67,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history for proper tagging
+          # Build with the tag's own create-release-tarballs.sh: the copy a
+          # voter runs to reproduce the artifacts.
+          ref: ${{ github.event.inputs.tag }}
 
       - name: Validate tag exists
         run: |
@@ -133,100 +136,17 @@ jobs:
           echo "Bundled IMAGE_TAG: $IMAGE_TAG"
           echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
 
-      - name: Create source tarball
+      - name: Create source tarball and Docker Compose bundle
         run: |
-          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
-          SRC_TARBALL="${{ steps.vars.outputs.src_tarball }}"
-          VERSION="${{ steps.vars.outputs.version }}"
-
-          TEMP_DIR=$(mktemp -d)
-
-          # Export the git repository at the tag
-          git archive --format=tar --prefix="apache-texera-${VERSION}-src/" "$TAG_NAME" | tar -x -C "$TEMP_DIR"
-
-          # Create tarball
-          cd "$TEMP_DIR"
-          tar -czf "$GITHUB_WORKSPACE/$SRC_TARBALL" "apache-texera-${VERSION}-src"
-
-          cd "$GITHUB_WORKSPACE"
-
-          # Verify tarball was created
-          if [[ ! -f "$SRC_TARBALL" ]]; then
-            echo "Error: Source tarball was not created"
-            exit 1
-          fi
-
-          # Show tarball info
-          ls -lh "$SRC_TARBALL"
-          echo "✓ Created source tarball: $SRC_TARBALL"
-
-      - name: Create Docker Compose deployment bundle
-        run: |
-          VERSION="${{ steps.vars.outputs.version }}"
-          TAG_NAME="${{ steps.vars.outputs.tag_name }}"
-          IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
-          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
-          COMPOSE_TARBALL="${{ steps.vars.outputs.compose_tarball }}"
-
-          TEMP_DIR=$(mktemp -d)
-          BUNDLE_DIR="$TEMP_DIR/apache-texera-${VERSION}-docker-compose"
-          mkdir -p "$BUNDLE_DIR"
-
-          # Export the single-node directory from the tagged source
-          mkdir -p "$TEMP_DIR/_raw"
-          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ NOTICE licenses/LICENSE-CC-BY-4.0.txt | tar -x -C "$TEMP_DIR/_raw"
-
-          # Copy deployment files
-          cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/nginx.conf" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/litellm-config.yaml" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/LICENSE" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/NOTICE" "$BUNDLE_DIR/"
-          cp "$TEMP_DIR/_raw/bin/single-node/DISCLAIMER" "$BUNDLE_DIR/"
-          mkdir -p "$BUNDLE_DIR/licenses"
-          cp "$TEMP_DIR/_raw/licenses/LICENSE-CC-BY-4.0.txt" "$BUNDLE_DIR/licenses/"
-          cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
-
-          # Patch the SQL mount path for the self-contained bundle layout
-          # In the repo it's ../../sql (relative to bin/single-node/), in the bundle it's ./sql
-          sed -i 's|../../sql|./sql|g' "$BUNDLE_DIR/docker-compose.yml"
-
-          # Generate a release-pinned .env file with the version tag
-          # Start from the source .env and ensure IMAGE_REGISTRY and IMAGE_TAG are set
-          cp "$TEMP_DIR/_raw/bin/single-node/.env" "$BUNDLE_DIR/.env"
-          # Replace if line exists, otherwise append
-          if grep -q '^IMAGE_REGISTRY=' "$BUNDLE_DIR/.env"; then
-            sed -i "s|^IMAGE_REGISTRY=.*|IMAGE_REGISTRY=${IMAGE_REGISTRY}|" "$BUNDLE_DIR/.env"
-          else
-            echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}" >> "$BUNDLE_DIR/.env"
-          fi
-          if grep -q '^IMAGE_TAG=' "$BUNDLE_DIR/.env"; then
-            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" "$BUNDLE_DIR/.env"
-          else
-            echo "IMAGE_TAG=${IMAGE_TAG}" >> "$BUNDLE_DIR/.env"
-          fi
-          if grep -q '^TEXERA_SERVICE_LOG_LEVEL=' "$BUNDLE_DIR/.env"; then
-            sed -i "s|^TEXERA_SERVICE_LOG_LEVEL=.*|TEXERA_SERVICE_LOG_LEVEL=ERROR|" "$BUNDLE_DIR/.env"
-          else
-            echo "TEXERA_SERVICE_LOG_LEVEL=ERROR" >> "$BUNDLE_DIR/.env"
-          fi
-
-          # Include the README from the repo
-          cp "$TEMP_DIR/_raw/bin/single-node/README.md" "$BUNDLE_DIR/"
-
-          # Include example datasets, workflows, and the loader script
-          if [ -d "$TEMP_DIR/_raw/bin/single-node/examples" ]; then
-            cp -r "$TEMP_DIR/_raw/bin/single-node/examples" "$BUNDLE_DIR/"
-            echo "✓ Included examples directory (datasets, workflows, load-examples.sh)"
-          fi
-
-          # Create tarball
-          cd "$TEMP_DIR"
-          tar -czf "$GITHUB_WORKSPACE/$COMPOSE_TARBALL" "apache-texera-${VERSION}-docker-compose"
-
-          cd "$GITHUB_WORKSPACE"
-          ls -lh "$COMPOSE_TARBALL"
-          echo "✓ Created Docker Compose bundle: $COMPOSE_TARBALL"
+          # Reproducible: voters can rerun this script on the tag with the
+          # IMAGE_REGISTRY/IMAGE_TAG from the bundle's .env and compare checksums.
+          ./.github/scripts/create-release-tarballs.sh \
+            "${{ steps.vars.outputs.tag_name }}" \
+            "${{ steps.vars.outputs.version }}" \
+            "${{ steps.vars.outputs.image_registry }}" \
+            "${{ steps.vars.outputs.image_tag }}" \
+            "$GITHUB_WORKSPACE"
+          ls -lh "${{ steps.vars.outputs.src_tarball }}" "${{ steps.vars.outputs.compose_tarball }}"
 
       - name: Import GPG key
         run: |
@@ -263,6 +183,7 @@ jobs:
           RC_DIR="${{ steps.vars.outputs.rc_dir }}"
           COMMIT_HASH="${{ steps.vars.outputs.commit_hash }}"
           IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
 
           # Get GPG key ID from the imported key
           GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -n1 | awk '{print $2}' | cut -d'/' -f2)
@@ -280,6 +201,7 @@ jobs:
           sed -i "s|\${GPG_KEY_ID}|${GPG_KEY_ID}|g" vote-email.txt
           sed -i "s|\${GPG_EMAIL}|${GPG_EMAIL}|g" vote-email.txt
           sed -i "s|\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" vote-email.txt
+          sed -i "s|\${IMAGE_TAG}|${IMAGE_TAG}|g" vote-email.txt
 
           echo "✓ Vote email template generated!"
 
