@@ -29,6 +29,22 @@ from .table import all_output_to_tuple
 import base64
 
 
+def require_yielded(result, method_name: str):
+    """
+    Catch the common case of a user method such as process_table using
+    `return` instead of `yield`: it rejects a returned None, Tuple, dict or
+    DataFrame, which would otherwise fail later with a confusing error.
+    Other values (e.g. a list, or a pandas Series) are passed through
+    unchecked.
+    """
+    if result is None or isinstance(result, (Tuple, dict, pandas.DataFrame)):
+        raise TypeError(
+            f"{method_name} must `yield` results, not `return` them. "
+            "Replace `return x` with `yield x`."
+        )
+    return result
+
+
 class Operator(ABC):
     """
     Abstract base class for all operators.
@@ -179,7 +195,7 @@ class SourceOperator(TupleOperatorV2):
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
-        for i in self.produce():
+        for i in require_yielded(self.produce(), "produce"):
             yield from all_output_to_tuple(i)
 
     @overrides.final
@@ -197,7 +213,6 @@ class BatchOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
         self._validate_batch_size(self.BATCH_SIZE)
 
     @staticmethod
@@ -210,26 +225,35 @@ class BatchOperator(TupleOperatorV2):
         if value <= 0:
             raise ValueError("BATCH_SIZE should be positive.")
 
+    def _get_batch_data(self) -> MutableMapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_BatchOperator__batch_data"):
+            self._validate_batch_size(self.BATCH_SIZE)
+            self.__batch_data = defaultdict(list)
+        return self.__batch_data
+
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__batch_data[port].append(tuple_)
-        if (
-            self.BATCH_SIZE is not None
-            and len(self.__batch_data[port]) >= self.BATCH_SIZE
-        ):
+        batch_data = self._get_batch_data()
+        batch_data[port].append(tuple_)
+        if self.BATCH_SIZE is not None and len(batch_data[port]) >= self.BATCH_SIZE:
             yield from self._process_batch(port)
 
     @overrides.final
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        batch_data = self._get_batch_data()
         batch = Batch(
             pandas.DataFrame(
                 [
-                    self.__batch_data[port].pop(0).as_series()
-                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                    batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(batch_data[port]), self.BATCH_SIZE))
                 ]
             )
         )
-        for output_batch in self.process_batch(batch, port):
+        for output_batch in require_yielded(
+            self.process_batch(batch, port), "process_batch"
+        ):
             if output_batch is not None:
                 if isinstance(output_batch, pandas.DataFrame):
                     # TODO: integrate into Batch as a helper function.
@@ -242,7 +266,7 @@ class BatchOperator(TupleOperatorV2):
 
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
-        while len(self.__batch_data[port]) != 0:
+        while len(self._get_batch_data()[port]) != 0:
             yield from self._process_batch(port)
 
     @abstractmethod
@@ -268,16 +292,22 @@ class TableOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self._Operator__internal_is_source: bool = False
-        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+
+    def _get_table_data(self) -> Mapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_TableOperator__table_data"):
+            self.__table_data = defaultdict(list)
+        return self.__table_data
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__table_data[port].append(tuple_)
+        self._get_table_data()[port].append(tuple_)
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(self.__table_data[port])
-        yield from self.process_table(table, port)
+        table = Table(self._get_table_data()[port])
+        yield from require_yielded(self.process_table(table, port), "process_table")
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
