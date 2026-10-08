@@ -753,14 +753,40 @@ describe("ResultPanelComponent", () => {
       expect((fixture.nativeElement as HTMLElement).textContent).toContain("No results available to display.");
     });
 
-    it("tells the user where to find an operator's output and errors in the empty state", () => {
+    it("with nothing selected, says to click an operator and where errors show", () => {
       component.width = DEFAULT_WIDTH;
+      component.currentOperatorId = undefined;
       component.frameComponentConfigs.clear();
       fixture.detectChanges();
 
       const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
-      expect(text).toContain("Click an operator to see its results and Console.");
-      expect(text).toContain("Click an empty spot on the canvas to see errors from all operators.");
+      expect(text).toContain("Click an operator to see its results. If a run fails, its errors show here.");
+      expect(text).toContain("Errors an operator hits while running show in that operator's Console.");
+      expect(text).not.toContain("Click an empty spot");
+    });
+
+    it("with an operator already selected, does not say to click an operator", () => {
+      component.width = DEFAULT_WIDTH;
+      component.currentOperatorId = "op-1";
+      component.frameComponentConfigs.clear();
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+      expect(text).not.toContain("Click an operator");
+      expect(text).toContain("Errors an operator hits while running show in that operator's Console.");
+    });
+
+    it("while previewing a workflow version, shows no click hints", () => {
+      component.width = DEFAULT_WIDTH;
+      component.currentOperatorId = undefined;
+      component.previewWorkflowVersion = true;
+      component.frameComponentConfigs.clear();
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? "";
+      expect(text).toContain("No results available to display.");
+      expect(text).not.toContain("Click an operator");
+      expect(text).not.toContain("Errors an operator hits");
     });
 
     it("renders a tab per frame when frames are present", () => {
