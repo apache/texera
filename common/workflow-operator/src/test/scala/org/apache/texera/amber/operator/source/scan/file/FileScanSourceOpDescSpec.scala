@@ -31,7 +31,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
+import java.nio.file.{Files, Path, Paths}
 
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -187,11 +187,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.close()
   }
 
+  // `encoding` and not the inherited `fileEncoding`: the descriptor drops that
+  // one on the way over, so setting it never reached the executor at all.
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    fileScanSourceOpDesc = describing(
+      Paths.get(TestOperators.TestCRLFTextFilePath),
+      """"encoding":"US_ASCII""""
     )
-    fileScanSourceOpDesc.encoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -258,6 +260,17 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  it should "keep a whole file's CRLF in the export, as the engine does" in {
+    // The engine decodes the bytes as they are. The text reader's default turns a
+    // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("""newline="""""))
+
+    // Lines keep the default, which ends a line where the engine's reader does.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    assert(!fileScanSourceOpDesc.generateStandaloneCode().contains("newline="))
+  }
+
   "FileScanSourceOpDesc.getPhysicalOp" should
     "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
     val physical =
@@ -291,4 +304,15 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(schema.getAttribute("line").getType == AttributeType.STRING)
   }
 
+  /** `extract`, `outputFileName` and `encoding` are vals, so the fields are
+    * deserialized in.
+    */
+  private def describing(file: Path, fields: String*): FileScanSourceOpDesc = {
+    val desc = objectMapper.readValue(
+      (""""operatorType":"FileScan"""" +: fields).mkString("{", ",", "}"),
+      classOf[FileScanSourceOpDesc]
+    )
+    desc.setResolvedFileName(FileResolver.resolve(file.toString))
+    desc
+  }
 }
