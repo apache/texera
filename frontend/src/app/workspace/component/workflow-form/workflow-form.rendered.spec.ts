@@ -329,6 +329,20 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  // Closing an nz-select leaves the focus in its search box, so no focusout fires inside the page:
+  // a rebuild held while the list was open is flushed by the click itself (Copilot on #8839). The
+  // host binding is what makes that true, so it is exercised through a real event on the host.
+  it("flushes a held rebuild when a click reaches the page, not only on focusout", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    const spy = vi.spyOn(fixture.componentInstance, "onInteraction");
+
+    fixture.nativeElement.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.nativeElement.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
   it("switches to the operator canvas when the Canvas control is clicked", () => {
     fixture.detectChanges();
     finishLoad();

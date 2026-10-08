@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from "@angular/core";
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, DoCheck } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
@@ -29,7 +29,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
 import { of, Subject, Subscription } from "rxjs";
-import { catchError, debounceTime, finalize, switchMap, takeUntil } from "rxjs/operators";
+import { catchError, debounceTime, finalize, map, switchMap, takeUntil } from "rxjs/operators";
 
 export interface HuggingFaceModelOption {
   id: string;
@@ -129,7 +129,7 @@ export function invalidateHuggingFaceModelCache(): void {
     FormlyModule,
   ],
 })
-export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
+export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy, DoCheck {
   private readonly taskScopedKeys = [
     "modelId",
     "promptColumn",
@@ -173,6 +173,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   private searchSubscription: Subscription | null = null;
 
   private readonly destroy$ = new Subject<void>();
+  /** Set once ngOnInit has read the model's task, which is what ngDoCheck then follows. */
+  private initialized = false;
   private subscription: Subscription | null = null;
   private taskPollInterval: ReturnType<typeof setInterval> | null = null;
   private modelPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -188,6 +190,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   ngOnInit(): void {
     const savedTag = this.getCurrentTaskTag();
     this.selectedTaskTag = savedTag ?? this.selectedTaskTag;
+    this.initialized = true;
     this.syncTaskSelection(this.selectedTaskTag, false);
     this.loadTasks();
     this.loadAllModels();
@@ -198,6 +201,26 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       () => this.syncTaskSelection(this.getCurrentTaskTag() ?? this.selectedTaskTag, false),
       0
     );
+  }
+
+  /**
+   * The task can change under this widget: a co-editor's edit, or the Form View's, lands on the
+   * operator and from there on this field's model (the panel hands formly a fresh model object; the
+   * form card is rebuilt). The selector shows this widget's own state, and on the panel the schema's
+   * `task` field is hidden, so there is no control to listen to: the model is checked on every
+   * change detection instead, and the selector follows it as a local pick is followed -- show the
+   * task, load its models -- rather than keeping what it showed when it was built.
+   */
+  ngDoCheck(): void {
+    const tag = this.model?.task;
+    if (!this.initialized || typeof tag !== "string" || !tag || tag === this.selectedTaskTag) {
+      return;
+    }
+    this.selectedTaskTag = tag;
+    // A task change ends any search, including one still out: its answer is dropped for being the
+    // other task's, so it is not the one to turn the spinner off (Copilot on #8839).
+    this.resetSearch();
+    this.loadAllModels();
   }
 
   ngOnDestroy(): void {
@@ -314,8 +337,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.snapshotTaskState(previousTask);
     this.syncTaskSelection(tag, true);
     this.restoreTaskState(tag);
-    this.searchText = "";
-    this.filteredModels = null;
+    this.resetSearch();
     this.loadAllModels();
   }
 
@@ -328,6 +350,17 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
    */
   private loadAllModels(): void {
     const tag = this.selectedTaskTag || "text-generation";
+    // Nothing a load produces is applied once the widget has moved to another task: the fast paths
+    // below return before the previous request is cancelled, so a slow first fetch of one task could
+    // land after a cached task was already shown and paint its models under the other task's name
+    // (Copilot on #8839; also reachable on main by picking a second task while the first loads).
+    const stillShowing = () => tag === (this.selectedTaskTag || "text-generation");
+    // A poll left over from an earlier task belongs to that task, whichever path this load takes:
+    // the fast paths below return before the in-flight path's own clear would run.
+    if (this.modelPollInterval !== null) {
+      clearInterval(this.modelPollInterval);
+      this.modelPollInterval = null;
+    }
 
     this.loading = false;
     this.errorMessage = null;
@@ -352,7 +385,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     // Another instance is already fetching this task — wait for it
     if (inFlightByTag.has(tag)) {
       this.loading = true;
-      if (this.modelPollInterval !== null) clearInterval(this.modelPollInterval);
       const poll = setInterval(() => {
         if (allModelsByTag.has(tag) || errorByTag.has(tag)) {
           clearInterval(poll);
@@ -407,6 +439,11 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             truncatedByTag.add(tag);
           }
           allModelsByTag.set(tag, models);
+          // The cache is filled for whoever asks next; this widget shows it only if it is still on
+          // that task.
+          if (!stillShowing()) {
+            return;
+          }
           this.loading = false;
           this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
@@ -416,6 +453,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
+          if (!stillShowing()) {
+            return;
+          }
           this.loading = false;
           this.errorMessage = msg;
           this.cdr.detectChanges();
@@ -477,6 +517,9 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
               HuggingFaceModelOption[]
             >(`${AppSettings.getApiEndpoint()}/huggingface/models?task=${encodeURIComponent(tag)}&search=${encodeURIComponent(query)}`)
             .pipe(
+              // The task the search was made for travels with it: switchMap drops a search the next
+              // search replaces, but a task change is not a search, so its answer can still arrive.
+              map(models => ({ tag, models })),
               catchError((err: unknown) => {
                 console.error("Server-side search failed:", err);
                 this.searchLoading = false;
@@ -488,10 +531,13 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
         takeUntil(this.destroy$)
       )
       .subscribe({
-        next: models => {
-          if (models === null) return;
+        next: result => {
+          if (result === null) return;
+          // Results for a task the widget has left would otherwise be shown under the task it now
+          // shows, which a task change had just cleared (Copilot on #8839).
+          if (result.tag !== (this.selectedTaskTag || "text-generation")) return;
           this.searchLoading = false;
-          this.filteredModels = models;
+          this.filteredModels = result.models;
           this.goToPage(0);
         },
       });
@@ -517,10 +563,15 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   }
 
   clearSearch(): void {
+    this.resetSearch();
+    this.goToPage(0);
+  }
+
+  /** Forget the search: the text, the results it filtered to, and the spinner it was waiting on. */
+  private resetSearch(): void {
     this.searchText = "";
     this.filteredModels = null;
     this.searchLoading = false;
-    this.goToPage(0);
   }
 
   get isSearching(): boolean {

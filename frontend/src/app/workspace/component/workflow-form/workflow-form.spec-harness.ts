@@ -205,6 +205,7 @@ export function setupHarness() {
     resolveFields: vi.fn().mockReturnValue([]),
     readValue: vi.fn().mockReturnValue(undefined),
     writeValue: vi.fn(),
+    writeProperties: vi.fn(),
     // A result card's friendly label; the mock returns the operator's display name or its id.
     operatorLabel: (op: any) => op?.customDisplayName ?? op?.operatorType ?? op?.operatorID,
     // Author-mode writes. Spied so a test can assert the edit was made without needing a real
