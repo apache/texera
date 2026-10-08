@@ -79,7 +79,8 @@ export class MacroService {
     const versions = await firstValueFrom(this.versions.retrieveVersionsOfWorkflow(workflow.wid!));
     const version = Math.max(...versions.map(v => v.vId));
     if (!Number.isSafeInteger(version) || version <= 0) throw new Error("Macro has no saved version");
-    const snapshot = await firstValueFrom(this.versions.retrieveWorkflowByVersion(workflow.wid!, version));
+    // History applies inverse patches inclusively; skip this save's patch to pin its resulting content.
+    const snapshot = await firstValueFrom(this.versions.retrieveWorkflowByVersion(workflow.wid!, version + 1));
     const content = WorkflowUtilService.parseWorkflowInfo(snapshot).content;
     if (!content.macroInterface) throw new Error("Saved version is not a macro definition");
     expandMacros(content);

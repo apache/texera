@@ -78,8 +78,9 @@ describe("MacroService", () => {
     };
     versions = {
       retrieveVersionsOfWorkflow: vi.fn(() => of([{ vId: 5 }])),
-      retrieveWorkflowByVersion: vi.fn((wid: number) =>
-        of({ wid, name: "Clean", content: persist.createWorkflow.mock.calls.at(-1)[0] })
+      // History applies each save's inverse patch inclusively: the creation version returns {}.
+      retrieveWorkflowByVersion: vi.fn((wid: number, vid: number) =>
+        of({ wid, name: "Clean", content: vid > 5 ? persist.createWorkflow.mock.calls.at(-1)[0] : {} })
       ),
     };
     metadata = {
@@ -115,6 +116,12 @@ describe("MacroService", () => {
     await expect(service.createFromSelection("   ")).rejects.toThrow();
   });
 
+  it("rejects a saved snapshot without a macro interface without changing the selection", async () => {
+    versions.retrieveWorkflowByVersion.mockReturnValue(of({ wid: 12, content: {} }));
+    await expect(service.createFromSelection("Clean")).rejects.toThrow("Saved version is not a macro definition");
+    expect(actions.deleteOperatorsAndLinks).not.toHaveBeenCalled();
+  });
+
   it("never overwrites changes made while the creation request is in flight", async () => {
     const response = new Subject<{ workflow: Workflow }>();
     persist.createWorkflow.mockReturnValue(response);
@@ -138,7 +145,7 @@ describe("MacroService", () => {
     versions.retrieveWorkflowByVersion.mockReturnValue(of(macroWorkflow));
     const library = await service.refresh();
     expect(library).toHaveLength(1);
-    expect(versions.retrieveWorkflowByVersion).toHaveBeenCalledWith(12, 5);
+    expect(versions.retrieveWorkflowByVersion).toHaveBeenCalledWith(12, 6);
     expect(library[0].id).toBe(created.id);
   });
 
