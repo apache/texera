@@ -110,7 +110,8 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
 
   override protected def constructWhereClause(
       uid: Integer,
-      params: DashboardResource.SearchQueryParams
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean
   ): Condition = {
     val splitKeywords = params.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
