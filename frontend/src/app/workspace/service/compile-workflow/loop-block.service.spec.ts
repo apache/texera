@@ -53,6 +53,26 @@ describe("LoopBlockService", () => {
     expect(service.getEnclosingLoopStarts("body")).toEqual([]);
   });
 
+  // A compile that is not sent the whole workflow, as while an operator in a block holds "$" on the way to
+  // "$K", misses the blocks around the operator left out and around those whose path runs through it.
+  it("keeps each operator in its blocks while the compile is not sent the whole workflow, adding new ones", () => {
+    service.setOperatorLoopStarts({ body: ["start"], next: ["start"], "inner-start": ["start"] });
+
+    service.setOperatorLoopStarts({ added: ["start"], next: ["inner-start"] }, false);
+    expect(service.getEnclosingLoopStarts("body")).toEqual(["start"]);
+    expect(service.getEnclosingLoopStarts("added")).toEqual(["start"]);
+    expect(service.getEnclosingLoopStarts("next")).toEqual(["start", "inner-start"]);
+    expect(service.getEnclosingLoopStarts("outside")).toEqual([]);
+
+    // what a result for part of the workflow kept stays until a result for the whole of it
+    service.setOperatorLoopStarts({}, false);
+    expect(service.getEnclosingLoopStarts("body")).toEqual(["start"]);
+    service.setOperatorLoopStarts({ added: ["start"] });
+    expect(service.getEnclosingLoopStarts("body")).toEqual([]);
+    expect(service.getEnclosingLoopStarts("next")).toEqual([]);
+    expect(service.getEnclosingLoopStarts("added")).toEqual(["start"]);
+  });
+
   it("does not take an operator id for a property of a plain object", () => {
     service.setOperatorLoopStarts({});
     expect(service.getEnclosingLoopStarts("constructor")).toEqual([]);

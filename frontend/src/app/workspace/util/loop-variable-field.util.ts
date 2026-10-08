@@ -25,7 +25,7 @@ import { CustomJSONSchema7 } from "../types/custom-json-schema.interface";
  * A loop-variable reference: a dollar sign and a name, as the whole value. The same grammar the backend
  * matches when it rewrites the property at parse time (issue #8635).
  */
-export const LOOP_VARIABLE_REFERENCE_PATTERN = /^\$[A-Za-z_][A-Za-z0-9_]*$/;
+const LOOP_VARIABLE_REFERENCE_PATTERN = /^\$[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** A complete integer numeral: an optional sign and digits. */
 const COMPLETE_INTEGER = /^[+-]?\d+$/;
@@ -270,7 +270,7 @@ export function inheritNoLoopVariable(schema: CustomJSONSchema7): CustomJSONSche
 }
 
 /** The message shown when the text is neither the field's primitive nor a reference. */
-export function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
+function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
   const expected = { string: "text", integer: "an integer", number: "a number", boolean: "true or false" }[schemaType];
   return `should be ${expected} or a $variable of an enclosing block`;
 }

@@ -34,7 +34,10 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import {
+  mockLoopEndPredicate,
+  mockLoopStartPredicate,
   mockPoint,
+  mockScalaExecutorPredicate,
   mockScanPredicate,
   mockSentimentPredicate,
   mockMultiInputOutputPredicate,
@@ -797,6 +800,106 @@ describe("WorkflowCompilingService compile pipeline", () => {
       warn.mockRestore();
     }
   }));
+
+  it("drops a compile response that arrives after the response to a later request", fakeAsync(() => {
+    const loopBlockService = TestBed.inject(LoopBlockService);
+    const earlier = buildWorkflowAndCompile();
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "reddit" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    const later = httpTestingController.expectOne(compileUrl);
+
+    later.flush({
+      operatorOutputSchemas: {},
+      operatorErrors: { [mockResultPredicate.operatorID]: { message: "compilation blew up" } },
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["later-loop-start"] },
+    });
+    earlier.flush({
+      physicalPlan: { operators: [], links: [] },
+      operatorOutputSchemas: {},
+      operatorErrors: {},
+      operatorLoopStarts: { [mockResultPredicate.operatorID]: ["earlier-loop-start"] },
+    });
+
+    expect(service.getWorkflowCompilationState()).toBe(CompilationState.Failed);
+    expect(loopBlockService.getEnclosingLoopStarts(mockResultPredicate.operatorID)).toEqual(["later-loop-start"]);
+  }));
+
+  // The compile is sent only the operators the frontend judges valid, so an operator in a block that holds
+  // a value still being typed is left out of it, and with its links gone, the block looks open to the
+  // compiler around the operators after it too.
+  describe("an operator inside a loop block left out of the compile", () => {
+    // Scan -> Loop Start (K = 2) -> body -> next -> Loop End, where `next` holds the reference "$K"
+    const body = mockScalaExecutorPredicate;
+    const next: OperatorPredicate = {
+      ...mockScalaExecutorPredicate,
+      operatorID: "13",
+      operatorProperties: { limit: "$K" },
+    };
+    const link = (linkID: string, from: string, to: string) => ({
+      linkID,
+      source: { operatorID: from, portID: "output-0" },
+      target: { operatorID: to, portID: "input-0" },
+    });
+    const compiledOperatorIDs = (request: TestRequest): string[] =>
+      JSON.parse(request.request.body).operators.map((operator: { operatorID: string }) => operator.operatorID);
+    /** A successful compile response that puts the operators given inside the Loop Start's block. */
+    const resultWithInside = (...operatorIDs: string[]) => ({
+      physicalPlan: { operators: [], links: [] },
+      operatorOutputSchemas: {},
+      operatorErrors: {},
+      operatorLoopStarts: Object.fromEntries(
+        operatorIDs.map(operatorID => [operatorID, [mockLoopStartPredicate.operatorID]])
+      ),
+    });
+
+    it("stays in its block, as do the operators after it, until the compile is sent every operator again", fakeAsync(() => {
+      const loopBlockService = TestBed.inject(LoopBlockService);
+      const validationWorkflowService = TestBed.inject(ValidationWorkflowService);
+      const errorOf = (operatorID: string) =>
+        validationWorkflowService.getCurrentWorkflowValidationError().errors[operatorID]?.messages;
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "twitter" });
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(next, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(
+        link("scan-start", mockScanPredicate.operatorID, mockLoopStartPredicate.operatorID)
+      );
+      workflowActionService.addLink(link("start-body", mockLoopStartPredicate.operatorID, body.operatorID));
+      workflowActionService.addLink(link("body-next", body.operatorID, next.operatorID));
+      workflowActionService.addLink(link("next-end", next.operatorID, mockLoopEndPredicate.operatorID));
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      const whole = httpTestingController.expectOne(compileUrl);
+      expect(compiledOperatorIDs(whole)).toContain(body.operatorID);
+      whole.flush(resultWithInside(body.operatorID, next.operatorID));
+      expect(errorOf(next.operatorID)).toBeUndefined();
+
+      // "$" on the way to "$K" is no reference yet: the body is invalid, so the compile is sent the workflow
+      // without it and finds neither it nor `next` inside the block
+      workflowActionService.setOperatorProperty(body.operatorID, { limit: "$" });
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      const partial = httpTestingController.expectOne(compileUrl);
+      expect(compiledOperatorIDs(partial)).not.toContain(body.operatorID);
+      partial.flush(resultWithInside());
+      expect(loopBlockService.getEnclosingLoopStarts(body.operatorID)).toEqual([mockLoopStartPredicate.operatorID]);
+      expect(loopBlockService.getEnclosingLoopStarts(next.operatorID)).toEqual([mockLoopStartPredicate.operatorID]);
+      expect(errorOf(next.operatorID)).toBeUndefined();
+
+      // once the compile is sent every operator again, what it finds stands: without the Loop End no block
+      // is left, and the reference in `next` is a type error
+      workflowActionService.setOperatorProperty(body.operatorID, { limit: "$K" });
+      workflowActionService.deleteOperator(mockLoopEndPredicate.operatorID);
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      const wholeAgain = httpTestingController.expectOne(compileUrl);
+      expect(compiledOperatorIDs(wholeAgain)).toContain(body.operatorID);
+      wholeAgain.flush(resultWithInside());
+      expect(loopBlockService.getEnclosingLoopStarts(body.operatorID)).toEqual([]);
+      expect(loopBlockService.getEnclosingLoopStarts(next.operatorID)).toEqual([]);
+      expect(errorOf(next.operatorID)).toEqual({ type: "must be integer" });
+    }));
+  });
 
   it("swallows a failing compile request and keeps compiling afterwards", fakeAsync(() => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

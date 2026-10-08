@@ -26,7 +26,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { areOperatorSchemasEqual, OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { catchError, debounceTime, mergeMap } from "rxjs/operators";
+import { catchError, debounceTime, filter, map, mergeMap } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import {
   AttributeType,
@@ -71,6 +71,10 @@ export class WorkflowCompilingService {
     state: CompilationState.Uninitialized,
   };
   private compilationStateInfoChangedStream = new ReplaySubject<CompilationState>(1);
+  // The number of compile requests sent, and that of the one whose response was handled last: requests
+  // run side by side, and a response to an earlier request that arrives after a later one's is dropped.
+  private compileRequestsSent = 0;
+  private lastCompileRequestHandled = 0;
 
   constructor(
     private httpClient: HttpClient,
@@ -98,18 +102,24 @@ export class WorkflowCompilingService {
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
         mergeMap(() => {
-          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-            this.validationWorkflowService.getValidTexeraGraph(),
-            undefined
-          );
-          return this.compile(logicalPlan);
-        })
+          const request = ++this.compileRequestsSent;
+          const validGraph = this.validationWorkflowService.getValidTexeraGraph();
+          // An operator judged invalid is left out of the compile; see LoopBlockService.setOperatorLoopStarts.
+          const wholeWorkflow = this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .every(operator => validGraph.hasOperator(operator.operatorID));
+          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(validGraph, undefined);
+          return this.compile(logicalPlan).pipe(map(response => ({ request, wholeWorkflow, response })));
+        }),
+        filter(({ request }) => request > this.lastCompileRequestHandled)
       )
-      .subscribe(response => {
+      .subscribe(({ request, wholeWorkflow, response }) => {
+        this.lastCompileRequestHandled = request;
         // Recorded first, so that whatever the compilation state change sets off (schema propagation, then
         // re-validation) already sees the blocks of this result. A response without the field puts every
         // operator outside every block.
-        this.loopBlockService.setOperatorLoopStarts(response.operatorLoopStarts ?? {});
+        this.loopBlockService.setOperatorLoopStarts(response.operatorLoopStarts ?? {}, wholeWorkflow);
         if (response.physicalPlan) {
           this.currentCompilationStateInfo = {
             state: CompilationState.Succeeded,

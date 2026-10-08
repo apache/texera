@@ -244,6 +244,10 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     val text = textInputOp()
     val outer = loopStartOp()
     val inner = loopStartOp()
+    // Ids whose sorted order is not the plan's (outer first), so the order the response gives is
+    // the sorting's.
+    outer.setOperatorId("z-outer")
+    inner.setOperatorId("a-inner")
     val body = limitOp()
     val innerEnd = loopEndOp()
     val outerEnd = loopEndOp()
@@ -253,13 +257,12 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
       loopStartsOf(postCompile(chainedPlan(text, outer, inner, body, innerEnd, outerEnd, after)))
 
     assert(responseType == "success")
-    val (outerId, innerId) = (outer.operatorIdentifier.id, inner.operatorIdentifier.id)
     // Sorted, so the JSON is the same on every compile of the same workflow.
     assert(
       loopStarts == Map(
-        body.operatorIdentifier.id -> List(outerId, innerId).sorted,
-        inner.operatorIdentifier.id -> List(outerId),
-        innerEnd.operatorIdentifier.id -> List(outerId)
+        body.operatorIdentifier.id -> List("a-inner", "z-outer"),
+        "a-inner" -> List("z-outer"),
+        innerEnd.operatorIdentifier.id -> List("z-outer")
       )
     )
   }

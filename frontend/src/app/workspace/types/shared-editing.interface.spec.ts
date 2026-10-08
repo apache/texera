@@ -285,6 +285,21 @@ describe("updateYTypeFromObject edge kinds", () => {
     expect(yArray.toJSON()).toEqual(["keep", null]);
   });
 
+  it("replaces a number or boolean outright when it turns into a string", () => {
+    // as a numeric field does when it takes a loop-variable reference ("$K") in place of a number
+    const doc = new Y.Doc();
+    const yMap = attach(doc, "m", createYTypeFromObject({ limit: 5, flag: true, rows: [1, "keep"] }));
+
+    expect(updateYTypeFromObject(yMap, { limit: "$K", flag: "$K", rows: ["$K", "keep"] } as any)).toBe(true);
+
+    const asMap = yMap as unknown as Y.Map<any>;
+    expect(asMap.toJSON()).toEqual({ limit: "$K", flag: "$K", rows: ["$K", "keep"] });
+    expect(asMap.get("limit")).toBeInstanceOf(Y.Text);
+    // and a string that was neither stays out of a Y.Map or Y.Array, which it cannot be written into
+    expect(updateYTypeFromObject(yMap, "text" as any)).toBe(false);
+    expect(asMap.toJSON()).toEqual({ limit: "$K", flag: "$K", rows: ["$K", "keep"] });
+  });
+
   it("replaces an array element outright when its kind changes", () => {
     const doc = new Y.Doc();
     const yArray = attach(doc, "a", createYTypeFromObject([{ a: 1 }, "tail"])) as unknown as Y.Array<any>;

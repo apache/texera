@@ -306,6 +306,30 @@ describe("inheritNoLoopVariable", () => {
     expect(marked.properties.bound.allOf[0].properties.high.noLoopVariable).toBe(true);
   });
 
+  it("reaches a schema under every keyword whose value is a schema, a list of them or a map of them", () => {
+    const leaf: CustomJSONSchema7 = { type: "string" };
+    const markedLeaf = { type: "string", noLoopVariable: true };
+    /** What `value` becomes under `keyword` of a marked setting. */
+    const underMarked = (keyword: string, value: unknown): unknown => {
+      const marked: any = inheritNoLoopVariable({
+        type: "object",
+        properties: { setting: { noLoopVariable: true, [keyword]: value } as CustomJSONSchema7 },
+      });
+      return marked.properties.setting[keyword];
+    };
+
+    const schemaKeywords = ["items", "additionalItems", "additionalProperties", "contains", "propertyNames", "not"];
+    for (const keyword of [...schemaKeywords, "if", "then", "else"]) {
+      expect(underMarked(keyword, leaf), keyword).toEqual(markedLeaf);
+    }
+    for (const keyword of ["items", "allOf", "anyOf", "oneOf"]) {
+      expect(underMarked(keyword, [leaf, leaf]), keyword).toEqual([markedLeaf, markedLeaf]);
+    }
+    for (const keyword of ["properties", "patternProperties", "dependencies", "definitions"]) {
+      expect(underMarked(keyword, { a: leaf }), keyword).toEqual({ a: markedLeaf });
+    }
+  });
+
   it("ends at a definition that names itself, pointing the copy at itself", () => {
     const schema: CustomJSONSchema7 = {
       type: "object",

@@ -31,6 +31,11 @@ import { Observable, Subject } from "rxjs";
  * or change the variables a Loop Start declares, is followed by a compile, so neither needs to know which
  * edits those are.
  *
+ * The compile is sent only the operators ValidationWorkflowService judges valid, so while one is left out,
+ * as an operator in a block is while it holds "$" on the way to "$K", a compile result misses the blocks
+ * around that operator, and around the ones whose path to their Loop End runs through it. Such a result
+ * does not take an operator out of a block; see setOperatorLoopStarts.
+ *
  * Until the first compile result, no operator counts as inside a loop block.
  *
  * A service of its own rather than part of WorkflowCompilingService because ValidationWorkflowService,
@@ -44,12 +49,27 @@ export class LoopBlockService {
   private readonly compileResultStream = new Subject<void>();
 
   /**
-   * Records the `operatorLoopStarts` of a compile response, replacing the previous one, and announces it.
+   * Records the `operatorLoopStarts` of a compile response and announces it.
+   *
+   * A compile of the whole workflow replaces the previous result. What a compile that was not sent every
+   * operator reports still holds, since each path it sees is one in the workflow and one path is enough to
+   * put an operator inside a block; but an operator it finds outside every block may not be. So each
+   * operator also keeps the blocks the previous result put it in, until a compile of the whole workflow.
    * @param operatorLoopStarts for each operator inside a loop block, the Loop Starts of the blocks it is
    *                           inside; an operator outside every block is absent
+   * @param wholeWorkflow whether the compile was sent every operator of the workflow
    */
-  public setOperatorLoopStarts(operatorLoopStarts: Readonly<Record<string, ReadonlyArray<string>>>): void {
-    this.operatorLoopStarts = new Map(Object.entries(operatorLoopStarts));
+  public setOperatorLoopStarts(
+    operatorLoopStarts: Readonly<Record<string, ReadonlyArray<string>>>,
+    wholeWorkflow = true
+  ): void {
+    const reported = new Map(Object.entries(operatorLoopStarts));
+    if (!wholeWorkflow) {
+      this.operatorLoopStarts.forEach((loopStarts, operatorID) =>
+        reported.set(operatorID, [...new Set([...(reported.get(operatorID) ?? []), ...loopStarts])])
+      );
+    }
+    this.operatorLoopStarts = reported;
     this.compileResultStream.next();
   }
 
