@@ -353,15 +353,21 @@ describe("ValidationWorkflowService", () => {
       expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
     });
 
-    it("rejects a reference to a variable no enclosing block declares, naming the first one", () => {
-      addBlockAround({ limit: "$foo", prefix: "$bar" });
-      const validation = validationWorkflowService.validateOperator(body.operatorID);
-      expect(validation.isValid).toBe(false);
-      expect((validation as ValidationError).messages["loopVariable"]).toBe(
-        "$foo is not a variable of an enclosing block"
-      );
-      // the schema type error at the reference is not reported twice
-      expect((validation as ValidationError).messages["type"]).toBeUndefined();
+    // The names are read from the Loop Starts' code, which can set a variable in a way the reading misses,
+    // and a name no Loop Start sets stops the run with the backend's own message, so an unknown name is
+    // only a warning in the property panel and does not keep the workflow from running.
+    it("accepts a reference to a variable no enclosing block declares, which only the panel warns about", () => {
+      addBlockAround({ limit: "$pi", prefix: "$bar" });
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
+      expect(currentError(body.operatorID)).toBeUndefined();
+    });
+
+    it("still rejects a malformed reference, which is no reference at all", () => {
+      addBlockAround({ limit: "$1st" });
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({
+        isValid: false,
+        messages: { type: "must be integer" },
+      });
     });
 
     it("still reports other schema errors next to a reference", () => {
@@ -387,7 +393,6 @@ describe("ValidationWorkflowService", () => {
       const validation = validationWorkflowService.validateOperator(body.operatorID);
       expect(validation.isValid).toBe(false);
       expect((validation as ValidationError).messages["type"]).toBe("must be integer");
-      expect((validation as ValidationError).messages["loopVariable"]).toBeUndefined();
     });
 
     it("counts no operator inside a block until a compile result says so, whatever the graph looks like", () => {
@@ -407,7 +412,7 @@ describe("ValidationWorkflowService", () => {
 
     // The canvas state, which the Run button reads, follows each compile result.
     describe("as compile results change the block around an operator holding a reference", () => {
-      it("flags the reference once the Loop Start's variable is renamed, and clears it once it is back", () => {
+      it("keeps the operator valid when the Loop Start's variable is renamed, which the panel warns about", () => {
         addBlockAround({ limit: "$K" });
         expect(currentError(body.operatorID)).toBeUndefined();
 
@@ -415,24 +420,15 @@ describe("ValidationWorkflowService", () => {
           initialization: "i = 0",
           output: "table.iloc[i]",
         });
-        // the edit itself is not what makes it look again: the compile result that follows it is
-        expect(currentError(body.operatorID)).toBeUndefined();
-        compileWithInside(body.operatorID);
-        expect(currentError(body.operatorID)?.messages["loopVariable"]).toBe(
-          "$K is not a variable of an enclosing block"
-        );
-
-        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
-          initialization: "if True:\n    K = 3",
-          output: "table.iloc[K]",
-        });
         compileWithInside(body.operatorID);
         expect(currentError(body.operatorID)).toBeUndefined();
       });
 
       it("reports the type error once a compile result takes the operator out of the block", () => {
+        // the edit itself is not what makes it look again: the compile result that follows it is
         addBlockAround({ limit: "$K" });
         workflowActionservice.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+        expect(currentError(body.operatorID)).toBeUndefined();
         compileWithInside();
         expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
       });
@@ -466,7 +462,7 @@ describe("ValidationWorkflowService", () => {
     // The compile request carries the operators the frontend judges valid, and the compiler is what tells
     // which of them sit inside a block, so an operator whose only errors are at references must reach it.
     describe("the graph sent to the compiler", () => {
-      it("keeps an operator whose only errors are at references, inside a block or not, known or not", () => {
+      it("keeps an operator whose only errors are at references, and one referring to an unknown name", () => {
         workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
         workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
         workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
@@ -478,10 +474,10 @@ describe("ValidationWorkflowService", () => {
         expect(validGraph.hasOperator(body.operatorID)).toBe(true);
         expect(validGraph.getOperator(body.operatorID).operatorProperties).toEqual({ limit: "$K" });
 
-        // a name no enclosing Loop Start declares is the compiler's to judge as well
+        // a name no enclosing Loop Start declares is no error for either
         compileWithInside(body.operatorID);
         workflowActionservice.setOperatorProperty(body.operatorID, { limit: "$foo" });
-        expect(validationWorkflowService.validateOperator(body.operatorID).isValid).toBe(false);
+        expect(validationWorkflowService.validateOperator(body.operatorID).isValid).toBe(true);
         expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(true);
       });
 

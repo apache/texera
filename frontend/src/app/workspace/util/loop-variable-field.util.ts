@@ -111,16 +111,18 @@ export function coerceOrReference(text: unknown, schemaType: PrimitiveSchemaType
 }
 
 /**
- * Judges a value against the declared loop variables: the error message for a reference to a name none
- * of them declares, undefined for a declared one and for anything that is not a reference.
+ * Judges a value against the declared loop variables: the warning for a reference to a name none of them
+ * declares, undefined for a declared one and for anything that is not a reference. A warning, not an
+ * error: the names are read from the Loop Starts' code, which can set a variable in a way the reading
+ * misses, and a name no Loop Start sets stops the run with the backend's own message.
  */
-export function referenceValidator(names: ReadonlyArray<string>): (value: unknown) => string | undefined {
+export function unknownReferenceWarning(names: ReadonlyArray<string>): (value: unknown) => string | undefined {
   return value => {
     const name = referenceName(value);
     if (name === undefined || names.includes(name)) {
       return undefined;
     }
-    return `${value} is not a variable of an enclosing block`;
+    return `${value} is not a variable of an enclosing block; the run will fail if no Loop Start sets it`;
   };
 }
 
@@ -177,9 +179,9 @@ export function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
  * Turns a primitive property's formly field into one that takes a loop-variable reference: the field
  * renders as the reference-taking text input offering "$" + name for each declared variable, typed text
  * is parsed with {@link coerceOrReference} (a string field keeps the mapper's own parsers and the ""
- * default of its plain control), the schema's type validator lets a reference through, and a reference
- * to an undeclared name is flagged with "$name is not a variable of an enclosing block". Errors show at
- * once rather than after a first edit.
+ * default of its plain control), and the schema's type validator lets a reference through. A reference
+ * to an undeclared name is no error: the input shows the warning `props.loopVariableWarning` gives for it
+ * (see {@link unknownReferenceWarning}). Errors show at once rather than after a first edit.
  *
  * A field given value rules first (setValueRules) keeps them: its rules' validator lets a reference
  * through and judges every other value as before, its hooks stay, and the input offers the values its
@@ -196,6 +198,7 @@ export function applyLoopVariableField(
   // for one object, and replacing it leaves them pointing at different ones
   field.props = field.props ?? {};
   field.props["loopVariableOptions"] = loopVariableOptions(names);
+  field.props["loopVariableWarning"] = unknownReferenceWarning(names);
   if (replacedType === "string" && field.defaultValue === undefined) {
     // what the "string" formly type's defaultOptions give its plain control, lost with the type; a field
     // on the value rules' control had no such default and gets none
@@ -235,7 +238,7 @@ export function applyLoopVariableField(
     message: typeMismatchMessage(schemaType),
   };
   // What a reference stands for is known only at run time, so the value rules let it through and judge
-  // every other value as they did; a reference to an undeclared name is the next validator's to flag.
+  // every other value as they did; a reference to an undeclared name is only warned about.
   const valueRulesCheck = validators["valueRules"];
   if (valueRulesCheck !== undefined) {
     const judgeByRules = typeof valueRulesCheck === "function" ? valueRulesCheck : valueRulesCheck.expression;
@@ -245,11 +248,6 @@ export function applyLoopVariableField(
         isReference(control.value) || Boolean(judgeByRules(control, fieldConfig)),
     };
   }
-  const validate = referenceValidator(names);
-  validators["loopVariableReference"] = {
-    expression: (control: AbstractControl) => validate(control.value) === undefined,
-    message: (_error: unknown, fieldConfig: FormlyFieldConfig) => validate(fieldConfig.formControl?.value) ?? "",
-  };
   field.validators = validators;
   field.validation = { ...field.validation, show: true };
 }

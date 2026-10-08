@@ -18,7 +18,7 @@
  */
 
 import { extractLoopVariables, loopVariablesInScope } from "./loop-variable.util";
-import { referenceValidator } from "./loop-variable-field.util";
+import { unknownReferenceWarning } from "./loop-variable-field.util";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
 
 describe("extractLoopVariables", () => {
@@ -225,7 +225,7 @@ describe("loopVariablesInScope", () => {
   it("makes a name a LoopStart imports a valid reference", () => {
     const names = loopVariablesInScope(graphOf({ s: "from math import pi" }), ["s"]);
     expect(names).toEqual(["pi"]);
-    expect(referenceValidator(names ?? [])("$pi")).toBeUndefined();
+    expect(unknownReferenceWarning(names ?? [])("$pi")).toBeUndefined();
   });
 
   it("tolerates a LoopStart whose initialization is missing or not a string", () => {

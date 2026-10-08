@@ -31,7 +31,6 @@ import {
   collectReferences,
   isReference,
   primitiveSchemaType,
-  referenceValidator,
   valueAtPointer,
 } from "../../util/loop-variable-field.util";
 import { loopVariablesInScope } from "../../util/loop-variable.util";
@@ -260,11 +259,10 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
-    // An operator holding a loop-variable reference is judged against the blocks around it, which the
-    // compile result tells (LoopBlockService), and the variables their Loop Starts declare. Other operators'
-    // edits change both: a link two hops away can close or open its block, and renaming a Loop Start's
-    // variable can orphan "$K"; every such edit is followed by a compile. So after every compile result,
-    // re-validate each operator holding a reference. Those are the only ones affected: without a
+    // An operator holding a loop-variable reference is judged by whether a block surrounds it, which the
+    // compile result tells (LoopBlockService). Other operators' edits change that: a link two hops away
+    // can close or open its block, and every such edit is followed by a compile. So after every compile
+    // result, re-validate each operator holding a reference. Those are the only ones affected: without a
     // reference, an operator validates the same inside a block and outside every block.
     this.loopBlockService.getCompileResultStream().subscribe(() => this.revalidateOperatorsWithReferences());
 
@@ -329,18 +327,18 @@ export class ValidationWorkflowService {
     // Inside a control block a primitive property may hold a loop-variable reference ("$K") that the
     // backend binds at run time (issue #8635), so the schema type check is waived exactly where a
     // reference sits in a property whose schema type is a primitive (the fields the property panel lets
-    // take one), and every reference must name a variable an enclosing Loop Start declares. Which blocks
-    // enclose the operator is what the latest compile result says (LoopBlockService). Outside every block
-    // nothing is waived: a "$K" in an integer property stays a type error, and so does one in an array or
-    // object property anywhere. For the compiler the waiver holds everywhere and no name is checked: it is
-    // what decides which operators sit inside a block, and it reports a reference outside every block.
-    const namesInScope = forCompiler
-      ? undefined
-      : loopVariablesInScope(
-          this.workflowActionService.getTexeraGraph(),
-          this.loopBlockService.getEnclosingLoopStarts(operatorID)
-        );
-    if (forCompiler || namesInScope !== undefined) {
+    // take one). Which blocks enclose the operator is what the latest compile result says
+    // (LoopBlockService). Outside every block nothing is waived: a "$K" in an integer property stays a
+    // type error, and so does one in an array or object property anywhere. For the compiler the waiver
+    // holds everywhere: it is what decides which operators sit inside a block, and it reports a reference
+    // outside every block. A reference to a name no enclosing Loop Start declares is no error, so it does
+    // not keep the workflow from running; the property panel warns about it (unknownReferenceWarning).
+    const insideBlock = () =>
+      loopVariablesInScope(
+        this.workflowActionService.getTexeraGraph(),
+        this.loopBlockService.getEnclosingLoopStarts(operatorID)
+      ) !== undefined;
+    if (forCompiler || insideBlock()) {
       errors = errors.filter(
         error =>
           !(
@@ -349,15 +347,6 @@ export class ValidationWorkflowService {
             isReference(valueAtPointer(properties, error.instancePath))
           )
       );
-    }
-    if (namesInScope !== undefined) {
-      const validateReference = referenceValidator(namesInScope);
-      const undeclared = collectReferences(properties)
-        .map(reference => validateReference(`$${reference.name}`))
-        .find(message => message !== undefined);
-      if (undeclared !== undefined) {
-        validationError["loopVariable"] = undeclared;
-      }
     }
 
     errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));

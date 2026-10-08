@@ -28,7 +28,7 @@ import {
   loopVariableOptions,
   primitiveSchemaType,
   referenceName,
-  referenceValidator,
+  unknownReferenceWarning,
   valueAtPointer,
 } from "./loop-variable-field.util";
 import { setValueRules } from "../../common/formly/formly-utils";
@@ -125,27 +125,33 @@ describe("coerceOrReference", () => {
   });
 });
 
-describe("referenceValidator", () => {
-  const validate = referenceValidator(["K", "prev"]);
+describe("unknownReferenceWarning", () => {
+  const warn = unknownReferenceWarning(["K", "prev"]);
 
-  it("accepts a reference to a declared variable", () => {
-    expect(validate("$K")).toBeUndefined();
-    expect(validate("$prev")).toBeUndefined();
+  it("has nothing to say about a reference to a declared variable", () => {
+    expect(warn("$K")).toBeUndefined();
+    expect(warn("$prev")).toBeUndefined();
   });
 
-  it("names the undeclared variable in the message", () => {
-    expect(validate("$foo")).toBe("$foo is not a variable of an enclosing block");
+  it("names the undeclared variable and what it means for the run", () => {
+    expect(warn("$foo")).toBe(
+      "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+    );
   });
 
   it("does not judge values that are not references", () => {
-    expect(validate(5)).toBeUndefined();
-    expect(validate("foo")).toBeUndefined();
-    expect(validate("")).toBeUndefined();
-    expect(validate(undefined)).toBeUndefined();
+    expect(warn(5)).toBeUndefined();
+    expect(warn("foo")).toBeUndefined();
+    expect(warn("")).toBeUndefined();
+    expect(warn(undefined)).toBeUndefined();
+    // a malformed reference is the type check's to flag
+    expect(warn("$1st")).toBeUndefined();
   });
 
-  it("rejects every reference when no variable is declared", () => {
-    expect(referenceValidator([])("$K")).toBe("$K is not a variable of an enclosing block");
+  it("warns about every reference when no variable is declared", () => {
+    expect(unknownReferenceWarning([])("$K")).toBe(
+      "$K is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+    );
   });
 });
 
@@ -226,14 +232,18 @@ describe("applyLoopVariableField", () => {
     expect(field.props?.label).toBe("limit");
   });
 
-  it("writes the options into the field's own props, which templateOptions also names", () => {
+  it("writes the options and the warning into the field's own props, which templateOptions also names", () => {
     // the JSON-schema mapper hands over a field whose `props` and `templateOptions` are one object
     const props = { label: "limit" };
     const field: FormlyFieldConfig = { key: "limit", type: "integer", props, templateOptions: props };
     applyLoopVariableField(field, "integer", ["K"]);
     expect(field.props).toBe(props);
     expect(field.templateOptions).toBe(props);
-    expect(props).toEqual({ label: "limit", loopVariableOptions: ["$K"] });
+    expect(props).toEqual({
+      label: "limit",
+      loopVariableOptions: ["$K"],
+      loopVariableWarning: expect.any(Function),
+    });
   });
 
   it("parses typed text into the field's primitive or keeps a reference", () => {
@@ -298,16 +308,18 @@ describe("applyLoopVariableField", () => {
     expect(type.message).toBe("should be an integer or a $variable of an enclosing block");
   });
 
-  it("flags a reference to a variable no enclosing block declares", () => {
+  it("warns about a reference to a variable no enclosing block declares, without making it an error", () => {
     const field: FormlyFieldConfig = { key: "limit", type: "integer", validators: { type: integerTypeValidator() } };
     applyLoopVariableField(field, "integer", ["K"]);
-    const reference = field.validators?.loopVariableReference;
-    expect(reference.expression(control("$K"), field)).toBe(true);
-    expect(reference.expression(control(3), field)).toBe(true);
-    expect(reference.expression(control("$foo"), field)).toBe(false);
-    expect(reference.message(undefined, { ...field, formControl: control("$foo") })).toBe(
-      "$foo is not a variable of an enclosing block"
+    const warning = field.props?.["loopVariableWarning"];
+    expect(warning("$K")).toBeUndefined();
+    expect(warning(3)).toBeUndefined();
+    expect(warning("$foo")).toBe(
+      "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
     );
+    // every validator lets the reference through, so the setting stays valid
+    expect(Object.keys(field.validators ?? {})).toEqual(["type"]);
+    expect(field.validators?.type.expression(control("$foo"), field)).toBe(true);
     expect(field.validation?.show).toBe(true);
   });
 
@@ -315,7 +327,9 @@ describe("applyLoopVariableField", () => {
     const field: FormlyFieldConfig = { key: "limit", type: "integer" };
     applyLoopVariableField(field, "integer", []);
     expect(field.validators?.type.expression(control("$K"), field)).toBe(true);
-    expect(field.validators?.loopVariableReference.expression(control("$K"), field)).toBe(false);
+    expect(field.props?.["loopVariableWarning"]("$K")).toBe(
+      "$K is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+    );
   });
 
   it("checks a boolean field itself, since formly's schema type check lets any value through there", () => {
@@ -389,7 +403,7 @@ describe("applyLoopVariableField on a field with value rules", () => {
       expect(validator.expression(control("$K"), inRow("C")), name).toBe(true);
       expect(validator.expression(control("$K"), inRow("kernel")), name).toBe(true);
     }
-    expect(Object.keys(field.validators ?? {}).sort()).toEqual(["loopVariableReference", "type", "valueRules"]);
+    expect(Object.keys(field.validators ?? {}).sort()).toEqual(["type", "valueRules"]);
   });
 
   it("still holds every other value to the rules the row's parameter selects, with the rules' message", () => {
@@ -405,12 +419,11 @@ describe("applyLoopVariableField on a field with value rules", () => {
     expect(valueRules.message(null, inRow("C"))).toBe("must be a number greater than 0");
   });
 
-  it("flags a reference to a variable no enclosing block declares, which the rules leave alone", () => {
-    expect(field.validators?.loopVariableReference.expression(control("$foo"), inRow("C"))).toBe(false);
-    expect(field.validators?.loopVariableReference.message(undefined, { ...field, formControl: control("$foo") })).toBe(
-      "$foo is not a variable of an enclosing block"
+  it("warns about a reference to a variable no enclosing block declares, which the rules leave alone", () => {
+    expect(field.props?.["loopVariableWarning"]("$foo")).toBe(
+      "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
     );
-    // one error for one mistake: the rules do not also call "$foo" a bad number
+    // a warning, not an error: the rules do not call "$foo" a bad number either
     expect(field.validators?.valueRules.expression(control("$foo"), inRow("C"))).toBe(true);
   });
 

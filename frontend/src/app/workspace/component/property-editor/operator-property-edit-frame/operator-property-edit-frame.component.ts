@@ -1013,7 +1013,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       // Inside a control block a primitive property may hold a loop-variable reference ("$K"), which the
       // backend binds at run time (issue #8635): render it as a text input that takes "$K" next to plain
-      // values, offer the variables the enclosing Loop Starts declare, and flag a name none declares.
+      // values, offer the variables the enclosing Loop Starts declare, and warn about a name none declares.
       // Enums and custom widgets keep their controls; `mappedField.type` still equal to the schema type
       // is what tells a plain primitive from a field formly or a widget already resolved otherwise. A
       // field with value rules is a primitive too, on the rules' control (setValueRules above): the text

@@ -2100,7 +2100,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
         expect(field?.type, key).toBe("loopvariableinput");
         expect(field?.props?.["loopVariableOptions"], key).toEqual(["$K"]);
         expect(field?.validators?.["type"].expression(control("$K"), field), key).toBe(true);
-        expect(field?.validators?.["loopVariableReference"].expression(control("$foo"), field), key).toBe(false);
+        // a name none of them declares is only warned about: no validator holds it against the field
+        expect(field?.props?.["loopVariableWarning"]("$foo"), key).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
+        expect(field?.props?.["loopVariableWarning"]("$K"), key).toBeUndefined();
+        for (const [name, validator] of Object.entries(field?.validators ?? {})) {
+          expect(validator.expression(control("$foo"), field), `${key} ${name}`).toBe(true);
+        }
       }
       // typed text is stored as the field's primitive; a reference stays the literal string
       expect(getField("limit")?.parsers?.[0]("7")).toBe(7);
@@ -2117,11 +2124,11 @@ describe("OperatorPropertyEditFrameComponent", () => {
       openBody();
 
       expect(getField("fileName")?.type).toBe("inputautocomplete");
-      expect(getField("fileName")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("fileName")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("order")?.type).toBe("enum");
-      expect(getField("order")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("order")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("columns")?.type).toBe("array");
-      expect(getField("columns")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("columns")?.props?.["loopVariableWarning"]).toBeUndefined();
     });
 
     it("keeps today's controls and validators for an operator outside every block", () => {
@@ -2132,7 +2139,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("fraction")?.type).toBe("number");
       expect(getField("prefix")?.type).toBe("string");
       expect(getField("caseSensitive")?.type).toBe("boolean");
-      expect(getField("limit")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("limit")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
     });
 
@@ -2253,10 +2260,13 @@ describe("OperatorPropertyEditFrameComponent", () => {
         expect(value?.type).toBe("loopvariableinput");
         expect(value?.props?.["loopVariableOptions"]).toEqual(["$K"]);
         expect(value?.props?.["valueRules"]).toEqual(valueRules);
-        for (const name of ["type", "valueRules", "loopVariableReference"]) {
+        for (const name of ["type", "valueRules"]) {
           expect(value?.validators?.[name].expression(control("$K"), inRow(value, "C")), name).toBe(true);
+          expect(value?.validators?.[name].expression(control("$foo"), inRow(value, "C")), name).toBe(true);
         }
-        expect(value?.validators?.["loopVariableReference"].expression(control("$foo"), inRow(value, "C"))).toBe(false);
+        expect(value?.props?.["loopVariableWarning"]("$foo")).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
         expect(value?.validators?.["valueRules"].expression(control("-1"), inRow(value, "C"))).toBe(false);
         expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
         expect(value?.validators?.["valueRules"].expression(control("poly"), inRow(value, "kernel"))).toBe(false);
@@ -2301,7 +2311,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         const value = rowField("value");
         expect(value?.type).toBe("constrainedvalue");
         expect(value?.props?.["loopVariableOptions"]).toBeUndefined();
-        expect(value?.validators?.["loopVariableReference"]).toBeUndefined();
+        expect(value?.props?.["loopVariableWarning"]).toBeUndefined();
         expect(value?.validators?.["valueRules"].expression(control("$K"), inRow(value, "C"))).toBe(false);
         expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
       });
