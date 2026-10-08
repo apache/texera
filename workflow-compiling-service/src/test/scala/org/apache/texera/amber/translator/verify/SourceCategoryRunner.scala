@@ -567,7 +567,7 @@ object CanonicalSourceFixture {
     val blank = Set("start_ts", "a\"b\\c_big")
     val header = schema.getAttributes.zipWithIndex
       .map {
-        case (_, 1)                              => "Unnamed: 1"
+        case (_, 1)                              => csvField("Unnamed: 1", delimiter)
         case (a, _) if blank.contains(a.getName) => ""
         case (a, _)                              => csvField(a.getName, delimiter)
       }
