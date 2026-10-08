@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.csvOld
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.AttributeType
@@ -26,14 +27,21 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -115,6 +123,74 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
     schema.getAttribute("name").getType shouldBe AttributeType.STRING
   }
+
+  // With no header line left after the offset, pandas had nothing to count the
+  // columns from and the script raised where the engine emits no rows.
+  "CSVOldScanSourceOpDesc.generateStandaloneCode" should
+    "read no rows with the schema's columns, as the engine does, when a headerless offset passes the end" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val path = writeCsv("1,a\n2,b\n")
+    val d = describing(path)
+    d.hasHeader = false
+    d.offset = Some(10)
+
+    val exec = new CSVOldScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val engineRows =
+      try exec.produceTuple().toList
+      finally exec.close()
+    engineRows shouldBe empty
+
+    val driver =
+      s"""import pandas as pd
+         |${d.standaloneImports().mkString("\n")}
+         |${d.standaloneHelpers().mkString("\n")}
+         |sourceFile = ${objectMapper.writeValueAsString(path)}
+         |${d.generateStandaloneCode()}
+         |print(len(out1df), list(out1df.columns))
+         |""".stripMargin
+    val script = Files.createTempFile("csv-old-standalone-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe "0 ['column-1', 'column-2']"
+      d.sourceSchema().getAttributeNames shouldBe List("column-1", "column-2")
+    }
+  }
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 
   private def writeCsv(content: String): String = {
     val file = Files.createTempFile("csv-old-", ".csv")

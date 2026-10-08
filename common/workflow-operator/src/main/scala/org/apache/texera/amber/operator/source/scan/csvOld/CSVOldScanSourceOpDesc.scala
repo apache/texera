@@ -132,6 +132,14 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
 
+    // Without a header, an offset at or past the last row left pandas no line to
+    // count the columns from, and it raised where the executor emits no rows.
+    // Named by position, as in the newer CSV scan.
+    if (!hasHeader)
+      Try(sourceSchema()).toOption.map(_.getAttributes.size).filter(_ > 0).foreach { n =>
+        args += s"names=[${(0 until n).mkString(", ")}]"
+      }
+
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 
     // The schema's own names, which every downstream operator was configured

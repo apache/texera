@@ -220,6 +220,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     }
     limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
 
+    // Without a header, an offset at or past the last row left pandas no line to
+    // count the columns from, and it raised EmptyDataError where the executor
+    // emits no rows, so the rename and the typing below never ran. Naming the
+    // columns by position gives it the count and keeps the dtype keys above.
+    if (!hasHeader)
+      Try(sourceSchema()).toOption.map(_.getAttributes.size).filter(_ > 0).foreach { n =>
+        args += s"names=[${(0 until n).mkString(", ")}]"
+      }
+
     val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
 
     // The schema's own names, which every downstream operator was configured
