@@ -26,7 +26,7 @@ import { EntityType } from "../../../../../../hub/service/hub.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
 import { commonTestProviders } from "../../../../../../common/testing/test-utils";
-import { of } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
 import * as Papa from "papaparse";
 import JSZip from "jszip";
 import readXlsxFile from "read-excel-file";
@@ -106,6 +106,40 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(spy).toHaveBeenCalledWith("notes.txt", true);
       expect(component.displayPlainText).toBe(true);
       expect(component.isLoading).toBe(false);
+    });
+
+    it("shows the loading error when the file cannot be fetched", () => {
+      vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockReturnValue(
+        throwError(() => new Error("download failed"))
+      );
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "notes.txt";
+
+      component.reloadFileContent();
+
+      expect(component.isLoading).toBe(false);
+      expect(component.isFileLoadingError).toBe(true);
+    });
+
+    it("drops a slow file once another file is selected", () => {
+      const slowFile = new Subject<Blob>();
+      const notes = new Blob(["notes"], { type: "text/plain" });
+      vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockImplementation(path =>
+        path === "data.csv" ? slowFile : of(notes)
+      );
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = "data.csv";
+      component.reloadFileContent();
+
+      component.filePath = "notes.txt";
+      component.reloadFileContent();
+      slowFile.next(new Blob(["a,b\n1,2"], { type: "text/csv" }));
+
+      expect(slowFile.observed).toBe(false);
+      expect(component.displayCSV).toBe(false);
+      expect(component.currentFile?.size).toBe(notes.size);
     });
 
     it("fetches from the model endpoint when the file belongs to a model", () => {
