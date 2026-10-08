@@ -45,7 +45,7 @@ tags: [user-defined-functions, python]
 ```python
 # Uncomment the class below. Its method must match its base class:
 #   UDFSourceOperator -> produce
-# Always `yield` results (never `return`). Put setup code in open();
+# Always `yield` results (never `return` a value). Put setup code in open();
 # if you override __init__, call super().__init__() first.
 # Keep exactly ONE class in this script.
 # 

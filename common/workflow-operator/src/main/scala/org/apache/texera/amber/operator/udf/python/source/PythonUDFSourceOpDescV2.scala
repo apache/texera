@@ -35,7 +35,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with PythonUdfUiP
     required = true,
     defaultValue = "# Uncomment the class below. Its method must match its base class:\n" +
       "#   UDFSourceOperator -> produce\n" +
-      "# Always `yield` results (never `return`). Put setup code in open();\n" +
+      "# Always `yield` results (never `return` a value). Put setup code in open();\n" +
       "# if you override __init__, call super().__init__() first.\n" +
       "# Keep exactly ONE class in this script.\n" +
       "# \n" +

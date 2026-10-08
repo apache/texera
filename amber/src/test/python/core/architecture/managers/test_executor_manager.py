@@ -320,8 +320,9 @@ class TestExecutorManager:
         assert "tmp_dir" not in manager.__dict__
 
 
-# Shape of the default Python UDF template (PythonUDFOpDescV2.defaultValue):
-# the import is active and every class is commented out.
+# A reduced copy of the default Python UDF template (PythonUDFOpDescV2.
+# defaultValue): the import is active and every class is commented out. The
+# Scala specs check the real template text; this checks how it loads.
 DEFAULT_TEMPLATE_CODE = """# Keep exactly ONE class below: uncomment it and delete the others.
 
 from pytexera import *
@@ -331,6 +332,13 @@ from pytexera import *
 #     @overrides
 #     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
 #         yield tuple_
+#
+# class ProcessBatchOperator(UDFBatchOperator):
+#     BATCH_SIZE = 10 # must be a positive integer
+#
+#     @overrides
+#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+#         yield batch
 #
 # class ProcessTableOperator(UDFTableOperator):
 #
@@ -365,7 +373,8 @@ class TestDefaultTemplate:
         assert "one and only one Operator" in str(exc_info.value)
 
     @pytest.mark.parametrize(
-        "class_name", ["ProcessTupleOperator", "ProcessTableOperator"]
+        "class_name",
+        ["ProcessTupleOperator", "ProcessBatchOperator", "ProcessTableOperator"],
     )
     def test_uncommenting_one_class_loads_without_adding_an_import(
         self, executor_manager, class_name

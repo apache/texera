@@ -37,7 +37,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp with PythonUdfUiParamete
         "# Its method must match its base class:\n" +
         "#   UDFOperatorV2 -> process_tuple, UDFBatchOperator -> process_batch,\n" +
         "#   UDFTableOperator -> process_table\n" +
-        "# Always `yield` results (never `return`). Put setup code in open();\n" +
+        "# Always `yield` results (never `return` a value). Put setup code in open();\n" +
         "# if you override __init__, call super().__init__() first.\n" +
         "# \n" +
         "# Port 0 (model) is read completely before port 1 (tuples) starts.\n" +

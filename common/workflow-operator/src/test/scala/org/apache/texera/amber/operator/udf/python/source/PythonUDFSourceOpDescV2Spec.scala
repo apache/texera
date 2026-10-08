@@ -184,7 +184,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
   "PythonUDFSourceOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
     activeLines(defaultCode) shouldBe List("from pytexera import *")
     defaultCode should include("Keep exactly ONE class")
-    defaultCode should include("never `return`")
+    defaultCode should include("never `return` a value")
     defaultCode should include("super().__init__()")
     defaultCode should include("UDFSourceOperator -> produce")
     defaultCode should include("UiParameter")

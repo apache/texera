@@ -48,7 +48,7 @@ tags: [user-defined-functions, python]
 # Its method must match its base class:
 #   UDFOperatorV2 -> process_tuple, UDFBatchOperator -> process_batch,
 #   UDFTableOperator -> process_table
-# Always `yield` results (never `return`). Put setup code in open();
+# Always `yield` results (never `return` a value). Put setup code in open();
 # if you override __init__, call super().__init__() first.
 # 
 # Define UiParameter inside open() of ProcessTupleOperator, ProcessBatchOperator, or ProcessTableOperator.
