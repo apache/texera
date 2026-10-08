@@ -32,6 +32,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       containers:
         - name: {{ .Values.workflowCompilingService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowCompilingService.imageName }}:{{ .Values.texera.imageTag }}
