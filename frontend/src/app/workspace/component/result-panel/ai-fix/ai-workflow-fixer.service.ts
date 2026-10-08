@@ -28,7 +28,8 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PortSchema } from "../../../types/workflow-compiling.interface";
-import { buildFixPrompt } from "./ai-fix-prompt";
+import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 
 export type FixErrorType = "missing_column" | "type_error" | "null_error" | "model_not_found" | "unsupported";
 export type FixConfidence = "high" | "medium" | "low";
@@ -95,7 +96,8 @@ export class AiWorkflowFixerService {
     private workflowActionService: WorkflowActionService,
     private executeWorkflowService: ExecuteWorkflowService,
     private warehouseService: WarehouseService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private operatorMetadataService: OperatorMetadataService
   ) {}
 
   public getState$(): Observable<FixState> {
@@ -133,7 +135,9 @@ export class AiWorkflowFixerService {
     const seq = ++this.analysisSeq;
     this.stateSubject.next(base);
     try {
-      const { text } = await this.callModelWithTimeout(buildFixPrompt(errorMessage, code, schema, properties));
+      const { text } = await this.callModelWithTimeout(
+        buildFixPrompt(errorMessage, code, schema, withoutSecrets(properties, this.schemaProperties(operatorId)))
+      );
       if (seq !== this.analysisSeq) {
         return;
       }
@@ -234,6 +238,23 @@ export class AiWorkflowFixerService {
     return Promise.race([this.callModel([{ role: "user", content: prompt }], controller.signal), timeout]).finally(() =>
       clearTimeout(timer)
     );
+  }
+
+  /**
+   * The operator's own JSON schema, used to spot the fields it renders as password widgets.
+   * Returns nothing when the operator or its schema cannot be resolved -- `withoutSecrets`
+   * still drops credential-looking names, so a miss here narrows the filter, never removes it.
+   */
+  private schemaProperties(operatorId: string): Record<string, unknown> | undefined {
+    try {
+      const operatorType = this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType;
+      return this.operatorMetadataService.getOperatorSchema(operatorType).jsonSchema.properties as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      return undefined;
+    }
   }
 
   /** Maps the model's JSON contract onto SuggestedFix, rejecting incomplete replies. */

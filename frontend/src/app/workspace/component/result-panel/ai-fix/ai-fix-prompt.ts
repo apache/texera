@@ -19,6 +19,35 @@
 
 import { PortSchema } from "../../../types/workflow-compiling.interface";
 
+// Names that carry a credential even when the operator forgot the password widget.
+const SECRET_NAME = /token|password|secret|credential|api[-_]?key/i;
+
+/**
+ * Drops operator properties whose values are credentials, so they never reach the model.
+ *
+ * Operators keep secrets alongside ordinary settings -- `hfApiToken` on HuggingFaceInference,
+ * `password` on the SQL sources -- and the whole configuration used to be serialized into the
+ * prompt. The operator's own schema marks those fields with the password widget, which is the
+ * reliable signal; the name pattern is a second barrier so a schema that cannot be read, or an
+ * operator missing the annotation, does not leak anyway.
+ *
+ * Dropped rather than masked: none of the four supported fixes touches a credential, so the
+ * model has no reason to know the field is there.
+ */
+export function withoutSecrets(
+  operatorProperties: Readonly<Record<string, unknown>>,
+  schemaProperties?: Readonly<Record<string, unknown>>
+): Record<string, unknown> {
+  const isPasswordWidget = (fieldSchema: unknown): boolean =>
+    (fieldSchema as any)?.widget?.formlyConfig?.templateOptions?.type === "password";
+
+  return Object.fromEntries(
+    Object.entries(operatorProperties).filter(
+      ([name]) => !SECRET_NAME.test(name) && !isPasswordWidget(schemaProperties?.[name])
+    )
+  );
+}
+
 /**
  * Builds the single user message sent to the LLM for one failed operator.
  *

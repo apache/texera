@@ -195,6 +195,21 @@ describe("AiWorkflowFixerService", () => {
     expect(state().suggestedFix?.explanation).toEqual("for the second operator");
   });
 
+  it("never sends a credential property to the model", async () => {
+    // Operators keep secrets beside ordinary settings. This asserts the wiring, not the
+    // filter: ai-fix-prompt.spec covers withoutSecrets itself, and the bug worth catching
+    // here is the service forgetting to call it.
+    operatorProperties = { hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
+    const callModel = vi.spyOn(service as any, "callModel").mockResolvedValue({ text: suggestion() });
+
+    await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+    const prompt = JSON.stringify(callModel.mock.calls[0][0]);
+    expect(prompt).not.toContain("hf_live_abc");
+    expect(prompt).not.toContain("hunter2");
+    expect(prompt).toContain("gpt-4-turb");
+  });
+
   describe("applyFix", () => {
     it("replaces only the snippet, keeps other properties, and re-runs", async () => {
       stubModel(suggestion());
