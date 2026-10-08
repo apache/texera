@@ -114,9 +114,9 @@ invocation.
 
 `jupyter` is the only managed service that runs from a Texera-built image instead of
 natively, so edits to its customizations under
-`notebook-migration-service/src/main/resources/` (`custom.js`, `custom.css`,
-`start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI publishes it, but a
-local edit needs a local build under the same tag:
+`notebook-migration-service/src/main/resources/` (`custom.js`, `custom-preload.js`,
+`custom.css`, `start-texera-jupyter.sh`) do nothing until the image is rebuilt. CI
+publishes it, but a local edit needs a local build under the same tag:
 
 ```sh
 docker build -f bin/dockerfiles/jupyter.dockerfile -t ghcr.io/apache/texera-jupyter:latest .

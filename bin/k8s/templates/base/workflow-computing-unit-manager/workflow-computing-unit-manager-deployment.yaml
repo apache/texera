@@ -32,6 +32,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
       initContainers:
         - name: wait-lakekeeper
