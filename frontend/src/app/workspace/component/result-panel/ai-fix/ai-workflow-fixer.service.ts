@@ -18,7 +18,8 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, firstValueFrom } from "rxjs";
+import { filter, timeout } from "rxjs/operators";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, type ModelMessage } from "ai";
 import { AppSettings } from "../../../../common/app-setting";
@@ -62,23 +63,63 @@ export interface FixState {
 // GuiConfig field for it today, and adding one is a backend change.
 export const AI_FIXER_MODEL = "claude-haiku-4.5";
 export const AI_FIXER_TIMEOUT_MS = 120_000;
+export const UNLOCK_TIMEOUT_MS = 15_000;
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
 export const IDLE_STATE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
 
-// Each pattern matches a line anywhere inside a traceback, not the whole message.
+// Matched against the exception line only, never the frame lines above it.
 const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
   [/KeyError:\s*['"][^'"]+['"]/, "missing_column"],
   [/TypeError:\s*unsupported operand/i, "type_error"],
   [/ValueError:[^\n]*\bNaN\b|NullPointerException/i, "null_error"],
-  // `404` only counts beside a model reference. On its own it also matches a line number
-  // in a traceback, an HTTP status from unrelated user code, or a literal in the data --
-  // all of which would be sent off asking for a model-config fix that makes no sense.
   [/ModelNotFound|\bmodel[^\n]*\b404\b|\b404\b[^\n]*\bmodel/i, "model_not_found"],
 ];
 
+/** Writes the model's string back in the type the field already held. */
+export function coerceToFieldType(currentValue: unknown, suggested: string): unknown {
+  if (typeof currentValue === "number") {
+    const parsed = Number(suggested);
+    if (Number.isNaN(parsed)) {
+      throw new Error(`${suggested} is not a number`);
+    }
+    return parsed;
+  }
+  if (typeof currentValue === "boolean") {
+    if (suggested !== "true" && suggested !== "false") {
+      throw new Error(`${suggested} is not a boolean`);
+    }
+    return suggested === "true";
+  }
+  return suggested;
+}
+
+/**
+ * The exception a traceback ends on.
+ *
+ * Matching the whole message classified on whatever appeared first, which is wrong twice
+ * over: the frame lines carry paths and line numbers that read like patterns -- a path
+ * containing "model" above a `line 404` entry looks like a model 404 -- and a chained
+ * traceback reports the handled exception before the one that actually stopped the worker.
+ * Python puts the real exception last.
+ */
+export function finalExceptionLine(errorMessage: string): string {
+  const lines = errorMessage
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  // Frame lines are the `File "...", line N` entries and the source line under them; the
+  // exception is the last line that is neither that nor the traceback header.
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!/^File\s+"/.test(lines[i]) && !/^Traceback \(/.test(lines[i])) {
+      return lines[i];
+    }
+  }
+  return errorMessage;
+}
+
 export function classifyError(errorMessage: string): FixErrorType {
-  return PATTERNS.find(([pattern]) => pattern.test(errorMessage))?.[1] ?? "unsupported";
+  return PATTERNS.find(([pattern]) => pattern.test(finalExceptionLine(errorMessage)))?.[1] ?? "unsupported";
 }
 
 /**
@@ -155,7 +196,7 @@ export class AiWorkflowFixerService {
    * Applies the suggestion to the live operator and re-runs the workflow.
    * Properties are re-read from the graph so a concurrent edit is not clobbered.
    */
-  public applyFix(): void {
+  public async applyFix(): Promise<void> {
     const current = this.stateSubject.getValue();
     const fix = current.suggestedFix;
     if (!fix || current.status !== "ready") {
@@ -163,6 +204,7 @@ export class AiWorkflowFixerService {
     }
     this.stateSubject.next({ ...current, status: "applying" });
     try {
+      await this.ensureModifiable();
       const properties: Record<string, unknown> = {
         ...this.workflowActionService.getTexeraGraph().getOperator(current.operatorId).operatorProperties,
       };
@@ -176,13 +218,21 @@ export class AiWorkflowFixerService {
         properties.code = code.split(fix.original).join(fix.suggested);
       } else {
         const field = String(fix.fieldName);
+        // The field name comes from the model, so it is checked against the operator before
+        // anything is written. An invented name would add a dead key and leave the real
+        // setting wrong, and "code" would hand the whole UDF source to a property change.
+        if (field === "code" || !Object.prototype.hasOwnProperty.call(properties, field)) {
+          throw new Error(`${field} is not a configuration field of this operator`);
+        }
         // Same staleness guard as the code branch: re-reading the properties keeps the
         // unrelated fields, but the field being replaced can itself have moved on since
         // the suggestion was generated, and overwriting it would discard that newer value.
         if (String(properties[field] ?? "") !== fix.original) {
           throw new Error(`${field} changed since the suggestion was generated`);
         }
-        properties[field] = fix.suggested;
+        // The model always replies with a string; writing it raw would turn a numeric or
+        // boolean setting into one, which the operator then rejects at validation.
+        properties[field] = coerceToFieldType(properties[field], fix.suggested);
       }
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
       if (!this.canStartRun()) {
@@ -237,6 +287,27 @@ export class AiWorkflowFixerService {
     });
     return Promise.race([this.callModel([{ role: "user", content: prompt }], controller.signal), timeout]).finally(() =>
       clearTimeout(timer)
+    );
+  }
+
+  /**
+   * Clears the workflow-modification lock before the fix is written.
+   *
+   * The traceback this panel exists for arrives while the execution is still `Running` --
+   * the worker pauses, it does not fail -- and Texera locks modification for as long as a
+   * run is live, which every other editing feature checks before writing. Killing the run
+   * both lifts the lock and releases the computing unit the paused execution still holds.
+   */
+  private async ensureModifiable(): Promise<void> {
+    if (this.workflowActionService.checkWorkflowModificationEnabled()) {
+      return;
+    }
+    this.executeWorkflowService.killWorkflow();
+    await firstValueFrom(
+      this.workflowActionService.getWorkflowModificationEnabledStream().pipe(
+        filter(enabled => enabled),
+        timeout(UNLOCK_TIMEOUT_MS)
+      )
     );
   }
 

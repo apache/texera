@@ -18,8 +18,8 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { firstValueFrom } from "rxjs";
-import { AiWorkflowFixerService, classifyError, FixState } from "./ai-workflow-fixer.service";
+import { firstValueFrom, Subject } from "rxjs";
+import { AiWorkflowFixerService, classifyError, coerceToFieldType, FixState } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
@@ -44,8 +44,11 @@ describe("AiWorkflowFixerService", () => {
   let service: AiWorkflowFixerService;
   let setOperatorProperty: ReturnType<typeof vi.fn>;
   let executeWorkflow: ReturnType<typeof vi.fn>;
+  let killWorkflow: ReturnType<typeof vi.fn>;
   let operatorProperties: Record<string, unknown>;
   let selectedWarehouseId: number | undefined;
+  let modificationEnabled: boolean;
+  let modificationEnabled$: Subject<boolean>;
 
   // Stub the transport at the class seam (callModel), as migration-llm.spec.ts does:
   // mocking the "ai" module leaks across specs sharing the import and hits the network.
@@ -65,8 +68,11 @@ describe("AiWorkflowFixerService", () => {
   beforeEach(() => {
     setOperatorProperty = vi.fn();
     executeWorkflow = vi.fn();
+    killWorkflow = vi.fn();
     operatorProperties = { code: CODE, workers: 1 };
     selectedWarehouseId = undefined;
+    modificationEnabled = true;
+    modificationEnabled$ = new Subject<boolean>();
 
     TestBed.configureTestingModule({
       providers: [
@@ -75,10 +81,13 @@ describe("AiWorkflowFixerService", () => {
           provide: WorkflowActionService,
           useValue: {
             setOperatorProperty,
-            getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties }) }),
+            getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties, operatorType: "PythonUDFV2" }) }),
+            // Unlocked by default; the locked path has its own test.
+            checkWorkflowModificationEnabled: () => modificationEnabled,
+            getWorkflowModificationEnabledStream: () => modificationEnabled$.asObservable(),
           },
         },
-        { provide: ExecuteWorkflowService, useValue: { executeWorkflow } },
+        { provide: ExecuteWorkflowService, useValue: { executeWorkflow, killWorkflow } },
         {
           provide: WarehouseService,
           useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
@@ -210,12 +219,60 @@ describe("AiWorkflowFixerService", () => {
     expect(prompt).toContain("gpt-4-turb");
   });
 
+  describe("classifying a real traceback", () => {
+    it("reads the exception at the end, not the frames above it", () => {
+      // The frame lines carry paths and line numbers that look like patterns on their own.
+      const traceback = [
+        "Traceback (most recent call last):",
+        '  File "/usr/lib/python3/sklearn/model_selection/_split.py", line 404, in split',
+        "    n = len(indices) // 0",
+        "ZeroDivisionError: integer division or modulo by zero",
+      ].join("\n");
+
+      expect(classifyError(traceback)).toEqual("unsupported");
+    });
+
+    it("classifies a chained traceback on the exception that stopped the worker", () => {
+      const chained = [
+        "Traceback (most recent call last):",
+        "KeyError: " + String.fromCharCode(39) + "email" + String.fromCharCode(39),
+        "",
+        "During handling of the above exception, another exception occurred:",
+        "",
+        "Traceback (most recent call last):",
+        "ZeroDivisionError: integer division or modulo by zero",
+      ].join("\n");
+
+      expect(classifyError(chained)).toEqual("unsupported");
+    });
+
+    it("still classifies the plain case the panel is built for", () => {
+      expect(classifyError(KEY_ERROR)).toEqual("missing_column");
+    });
+  });
+
+  describe("coerceToFieldType", () => {
+    it("keeps a numeric field numeric", () => {
+      expect(coerceToFieldType(0, "4")).toEqual(4);
+      expect(() => coerceToFieldType(0, "four")).toThrow();
+    });
+
+    it("keeps a boolean field boolean", () => {
+      expect(coerceToFieldType(false, "true")).toEqual(true);
+      expect(() => coerceToFieldType(false, "yes")).toThrow();
+    });
+
+    it("leaves a string field alone", () => {
+      expect(coerceToFieldType("gpt-4-turb", "gpt-4-turbo")).toEqual("gpt-4-turbo");
+    });
+  });
+
   describe("applyFix", () => {
     it("replaces only the snippet, keeps other properties, and re-runs", async () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(setOperatorProperty).toHaveBeenCalledWith(OP, {
         code: CODE.replace("yield t['email']", "yield t['user_email']"),
@@ -233,7 +290,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, twice, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       const patched = setOperatorProperty.mock.calls[0][1].code;
       expect(patched).not.toContain("t['email']");
@@ -247,7 +304,7 @@ describe("AiWorkflowFixerService", () => {
       );
       await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(setOperatorProperty).toHaveBeenCalledWith(OP, { model: "gpt-4-turbo", temperature: 0 });
       expect(executeWorkflow).toHaveBeenCalledWith("");
@@ -265,15 +322,15 @@ describe("AiWorkflowFixerService", () => {
       // stale suggestion would silently discard their choice and re-run on it.
       operatorProperties = { model: "claude-haiku-4.5", temperature: 0 };
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
       expect(state().status).toEqual("error");
     });
 
-    it("does nothing without a ready suggestion", () => {
-      service.applyFix();
+    it("does nothing without a ready suggestion", async () => {
+      await service.applyFix();
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
       expect(state().status).toEqual("idle");
@@ -283,7 +340,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(suggestion({ original_snippet: "a line the user already deleted" }));
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
@@ -297,7 +354,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(setOperatorProperty).toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
@@ -310,10 +367,70 @@ describe("AiWorkflowFixerService", () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(executeWorkflow).toHaveBeenCalledWith("");
       expect(state().status).toEqual("applied");
+    });
+
+    it("kills the live execution before writing, since modification is locked while it runs", async () => {
+      // The traceback this panel exists for arrives while the execution is still Running --
+      // the worker pauses, it does not fail -- and Texera locks workflow modification for as
+      // long as a run is live. Writing through the lock is what every other editing feature
+      // avoids by checking first.
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      const applying = service.applyFix();
+      expect(killWorkflow).toHaveBeenCalled();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+
+      modificationEnabled = true;
+      modificationEnabled$.next(true);
+      await applying;
+
+      expect(setOperatorProperty).toHaveBeenCalled();
+      expect(executeWorkflow).toHaveBeenCalledWith("");
+    });
+
+    it("refuses a field the operator does not have", async () => {
+      // The staleness guard does not catch this one: an absent field reads as "" and the
+      // captured original is "" too, so without the check a dead key is written and the
+      // real setting stays wrong.
+      operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
+      stubModel(suggestion({ fix_type: "property_change", original_snippet: "modelName", suggested_snippet: "Qwen" }));
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().status).toEqual("error");
+    });
+
+    it("never rewrites the UDF source through a property change", async () => {
+      // Naming "code" would hand the whole operator source to the property branch, which
+      // shows a one-line diff and has no snippet guard.
+      operatorProperties = { code: "print(1)", workers: 1 };
+      stubModel(suggestion({ fix_type: "property_change", original_snippet: "code", suggested_snippet: "print(2)" }));
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().status).toEqual("error");
+    });
+
+    it("keeps a numeric setting numeric", async () => {
+      // original_snippet carries the field name for a property change; toFix reads the
+      // current value from the operator itself.
+      operatorProperties = { temperature: 0, workers: 1 };
+      stubModel(suggestion({ fix_type: "property_change", original_snippet: "temperature", suggested_snippet: "1" }));
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      await service.applyFix();
+
+      expect(setOperatorProperty.mock.calls[0][1].temperature).toEqual(1);
     });
 
     it("ends in error when the graph rejects the change", async () => {
@@ -323,7 +440,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
-      service.applyFix();
+      await service.applyFix();
 
       expect(state().status).toEqual("error");
       expect(executeWorkflow).not.toHaveBeenCalled();
