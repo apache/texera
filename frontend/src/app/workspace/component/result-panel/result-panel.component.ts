@@ -35,7 +35,7 @@ import { ResultTableFrameComponent } from "./result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
-import { debounceTime, filter } from "rxjs/operators";
+import { distinctUntilChanged, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -136,6 +136,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
+    this.registerOperatorDisplayNameChangeHandler();
     this.registerAutoOpenResultPanel();
     this.registerResultClearedHandler();
     this.handleResultPanelForVersionPreview();
@@ -244,19 +245,58 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.workflowCompilingService.getCompilationStateInfoChangedStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowResultService.getResultInitiateStream(),
-      // A Python UDF that raises while its operator is already selected changes nothing in
-      // the streams above: the execution stays Running and the highlight never moves, so
-      // without this the AI Fix tab would not appear until the user clicked away and back.
-      // Debounced because a chatty UDF's prints share this stream.
-      this.workflowConsoleService.getConsoleMessageUpdateStream().pipe(debounceTime(200))
+      this.workflowResultService.getResultInitiateStream()
     )
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.rerenderResultPanel();
         this.changeDetectorRef.detectChanges();
-        this.registerOperatorDisplayNameChangeHandler();
+        this.updateOperatorTitle();
       });
+
+    // A Python UDF that raises while its operator is already selected moves none of the
+    // streams above: the execution stays Running and the highlight never moves, so the AI
+    // Fix tab would not appear until the user clicked away and back. Only that one tab
+    // depends on the console, so this toggles it instead of calling rerenderResultPanel():
+    // a full rerender rebuilds every frame, losing the Console frame's type filter, scroll
+    // position and debug input, and the Result table, whenever any operator prints.
+    this.workflowConsoleService
+      .getConsoleMessageUpdateStream()
+      .pipe(
+        // Keyed by operator as well as by the flag: comparing the flag alone would block a
+        // second operator's error after the first one's, since both map to `true`.
+        map(() => `${this.currentOperatorId ?? ""}:${this.shouldOfferAiFix()}`),
+        distinctUntilChanged(),
+        untilDestroyed(this)
+      )
+      .subscribe(() => {
+        this.syncAiFixFrame();
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /** True when the selected operator reports an error the AI panel can be opened on. */
+  private shouldOfferAiFix(): boolean {
+    return (
+      this.config.env.copilotEnabled &&
+      this.currentOperatorId !== undefined &&
+      this.hasConsoleError(this.currentOperatorId)
+    );
+  }
+
+  /** Adds or removes the AI Fix entry, leaving every other frame untouched. */
+  private syncAiFixFrame(): void {
+    if (this.shouldOfferAiFix()) {
+      this.frameComponentConfigs.set("AI Fix", {
+        component: AiFixFrameComponent,
+        componentInputs: { operatorId: this.currentOperatorId },
+      });
+    } else {
+      // Mirrors the Static Error frame's teardown: once the operator no longer reports an
+      // error -- a re-run cleared the console, or the selection moved to a healthy operator
+      // -- a tab offering to fix it has nothing to act on.
+      this.frameComponentConfigs.delete("AI Fix");
+    }
   }
 
   rerenderResultPanel(): void {
@@ -306,17 +346,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       // A Python UDF exception never becomes a fatal error: the worker pauses and the
       // traceback arrives as an ERROR console message while the execution stays Running,
       // so the Failed branch above never fires for the case this panel exists to fix.
-      if (this.config.env.copilotEnabled && this.hasConsoleError(this.currentOperatorId)) {
-        this.frameComponentConfigs.set("AI Fix", {
-          component: AiFixFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId },
-        });
-      } else {
-        // Mirrors the Static Error frame's teardown: once the operator no longer reports an
-        // error -- a re-run cleared the console, or the selection moved to a healthy operator
-        // -- a tab offering to fix it has nothing to act on.
-        this.frameComponentConfigs.delete("AI Fix");
-      }
+      this.syncAiFixFrame();
     }
   }
 
@@ -375,20 +405,29 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     return errorMessages;
   }
 
-  private registerOperatorDisplayNameChangeHandler(): void {
+  /** Refreshes the title for whichever operator the panel now shows. */
+  private updateOperatorTitle(): void {
     if (this.currentOperatorId) {
-      const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      this.operatorTitle = operator.customDisplayName ?? "";
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperatorDisplayNameChangedStream()
-        .pipe(untilDestroyed(this))
-        .subscribe(({ operatorID, newDisplayName }) => {
-          if (operatorID === this.currentOperatorId) {
-            this.operatorTitle = newDisplayName;
-          }
-        });
+      this.operatorTitle =
+        this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).customDisplayName ?? "";
     }
+  }
+
+  /**
+   * Registered once from ngOnInit. It used to run on every rerender, which added a
+   * subscription each time without releasing the previous one, so the handler count grew
+   * for as long as the panel lived.
+   */
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, newDisplayName }) => {
+        if (operatorID === this.currentOperatorId) {
+          this.operatorTitle = newDisplayName;
+        }
+      });
   }
 
   private static needRerenderOnStateChange(event: {

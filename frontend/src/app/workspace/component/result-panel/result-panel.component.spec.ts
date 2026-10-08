@@ -470,6 +470,40 @@ describe("ResultPanelComponent", () => {
       expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
     });
 
+    it("toggles only the AI Fix entry on a console update, leaving the other frames alone", () => {
+      // A full rerender rebuilds every frame, so the Console frame's type filter, scroll
+      // position and debug input and the Result table were reset whenever any operator
+      // printed. The console stream must touch the AI Fix entry and nothing else.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("PRINT")]);
+      component.rerenderResultPanel();
+      const consoleFrame = component.frameComponentConfigs.get("Console");
+      expect(consoleFrame).toBeDefined();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+      // Same object, so the frame was never torn down and rebuilt.
+      expect(component.frameComponentConfigs.get("Console")).toBe(consoleFrame);
+    });
+
+    it("registers the display-name handler once rather than on every rerender", () => {
+      // It used to be called from the rerender subscriber, adding a subscription each time
+      // without releasing the previous one, so handlers piled up for the panel's lifetime.
+      const displayNameStream = vi.spyOn(workflowActionService.getTexeraGraph(), "getOperatorDisplayNameChangedStream");
+
+      component.rerenderResultPanel();
+      component.rerenderResultPanel();
+
+      expect(displayNameStream).not.toHaveBeenCalled();
+    });
+
     it("registers no AI fix frame when the operator's console holds no ERROR", () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const consoleService = TestBed.inject(WorkflowConsoleService);
