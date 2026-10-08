@@ -341,6 +341,47 @@ class TestReceiveError:
         assert error.language == ErrorLanguage.PYTHON
 
     @pytest.mark.timeout(2)
+    def test_control_error_includes_exception_notes(self):
+        async def handler_func(stream):
+            error = ValueError("boom")
+            error.add_note("(line 2 of the UDF code)")
+            raise error
+
+        server = _make_server({"explode": _make_handler(handler_func)})
+        server.receive(_make_channel("A", "B"), _make_invocation("Explode", 6))
+
+        error = get_one_of(
+            _return_invocation_of(
+                _drain_single_element(server._output_queue)
+            ).return_value
+        )
+        assert error.error_message == "boom (line 2 of the UDF code)"
+
+    @pytest.mark.timeout(5)
+    def test_udf_load_error_hint_reaches_the_control_error(self):
+        # End to end on the Python side: a UDF that fails to load inside a
+        # control handler must show its hint in the message sent back.
+        from core.architecture.managers.executor_manager import ExecutorManager
+
+        manager = ExecutorManager()
+
+        async def handler_func(stream):
+            manager.load_executor_definition('from pytexera import *\n\nx = {}["k"]\n')
+
+        server = _make_server({"init": _make_handler(handler_func)})
+        try:
+            server.receive(_make_channel("A", "B"), _make_invocation("Init", 7))
+        finally:
+            manager.close()
+
+        error = get_one_of(
+            _return_invocation_of(
+                _drain_single_element(server._output_queue)
+            ).return_value
+        )
+        assert error.error_message == "'k' (line 3 of the UDF code)"
+
+    @pytest.mark.timeout(2)
     def test_unknown_method_replies_with_control_error_instead_of_raising(self):
         server = _make_server({})
         server.receive(_make_channel("A", "B"), _make_invocation("NoSuchMethod", 6))

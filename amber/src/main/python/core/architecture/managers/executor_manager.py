@@ -133,11 +133,17 @@ class ExecutorManager:
             # SyntaxError already carries the user's line number.
             raise
         except Exception as error:
-            raise self._with_user_code_hint(error, str(file_path)) from error
+            self._add_user_code_hint(error, str(file_path))
+            raise
         self.operator_module_name = module_name
 
+        # Deduplicate by identity: an alias such as `Y = X` is the same class.
         executors = list(
-            filter(self.is_concrete_operator, executor_module.__dict__.values())
+            {
+                id(value): value
+                for value in executor_module.__dict__.values()
+                if self.is_concrete_operator(value)
+            }.values()
         )
         assert len(executors) == 1, (
             "There should be one and only one Operator defined. "
@@ -169,7 +175,7 @@ class ExecutorManager:
             names = ", ".join(executor.__name__ for executor in executors)
             return (
                 f"Found {len(executors)}: {names}. Keep one and delete or comment "
-                "out the others. Helper classes must not subclass an Operator."
+                "out the others."
             )
 
         abstract_classes = [
@@ -183,60 +189,72 @@ class ExecutorManager:
             return (
                 "No Operator class was found. Uncomment or write exactly one class, "
                 "e.g. `class ProcessTupleOperator(UDFOperatorV2):`, and keep "
-                "`from pytexera import *` as the first line."
+                "`from pytexera import *` at the top."
             )
 
         explanations = []
+        mentions_udf_bases = False
         for abstract_class in abstract_classes:
-            base_names = [
+            name = abstract_class.__name__
+            missing = sorted(abstract_class.__abstractmethods__)
+            udf_bases = [
                 base.__name__
                 for base in abstract_class.__mro__
                 if base.__name__ in cls._BASE_CLASS_METHODS
             ]
-            base_name = base_names[0] if base_names else "Operator"
-            missing = ", ".join(sorted(abstract_class.__abstractmethods__))
-            explanation = (
-                f"{abstract_class.__name__} subclasses {base_name} but does not "
-                f"implement {missing}."
-            )
-            for other_base, method in cls._BASE_CLASS_METHODS.items():
-                if other_base != base_name and method in abstract_class.__dict__:
-                    explanation += (
-                        f" If you meant {method}, subclass {other_base} instead."
-                    )
-            explanations.append(explanation)
-        return (
-            " ".join(explanations)
-            + f" Each base class needs its own method: {cls._base_class_pairing()}."
+            if len(udf_bases) > 1:
+                mentions_udf_bases = True
+                explanations.append(
+                    f"{name} uses more than one base class ({', '.join(udf_bases)}). "
+                    "Subclass exactly one."
+                )
+            elif len(udf_bases) == 1:
+                mentions_udf_bases = True
+                base_name = udf_bases[0]
+                explanation = (
+                    f"{name} subclasses {base_name} but does not implement "
+                    f"{', '.join(missing)}."
+                )
+                for other_base, method in cls._BASE_CLASS_METHODS.items():
+                    if other_base != base_name and method in abstract_class.__dict__:
+                        explanation += (
+                            f" If you meant {method}, subclass {other_base} instead."
+                        )
+                explanations.append(explanation)
+            else:
+                explanations.append(f"{name} does not implement {', '.join(missing)}.")
+        pairing = (
+            f" Each base class needs its own method: {cls._base_class_pairing()}."
+            if mentions_udf_bases
+            else ""
         )
+        return " ".join(explanations) + pairing
 
     @classmethod
-    def _with_user_code_hint(cls, error: Exception, file_path: str) -> Exception:
+    def _add_user_code_hint(cls, error: Exception, file_path: str) -> None:
         """
-        Rebuild an error raised while importing user code so its message says
+        Attach a note to an error raised while importing user code, saying
         which line of the UDF failed and, for common mistakes, how to fix it.
-        Returns the original error if it cannot be rebuilt with a new message.
+        The error itself is left unchanged, so its type, message and
+        attributes stay exactly as raised; the note is shown with it.
         """
-        message = str(error)
+        location = ""
         user_lines = [
             frame.lineno
             for frame in traceback.extract_tb(error.__traceback__)
             if frame.filename == file_path
         ]
         if user_lines:
-            message += f" (line {user_lines[-1]} of the UDF code)"
+            location = f"(line {user_lines[-1]} of the UDF code)"
+        fix = ""
         if isinstance(error, NameError) and error.name in pytexera_names():
-            message += ". Add `from pytexera import *` at the top of the UDF."
-        elif "No super class method found" in message:
-            message += (
-                f". The method must match the base class: {cls._base_class_pairing()}."
-            )
-        if message == str(error):
-            return error
-        try:
-            return type(error)(message)
-        except Exception:
-            return error
+            fix = "Add `from pytexera import *` at the top of the UDF."
+        elif "No super class method found" in str(error):
+            fix = f"The method must match the base class: {cls._base_class_pairing()}."
+        if fix:
+            error.add_note(f"{location}. {fix}" if location else fix)
+        elif location:
+            error.add_note(location)
 
     def close(self) -> None:
         """
