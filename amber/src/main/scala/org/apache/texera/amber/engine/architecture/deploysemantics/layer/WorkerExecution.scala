@@ -39,7 +39,7 @@ case class WorkerExecution() extends Serializable {
 
   private var state: WorkerState = UNINITIALIZED
   private var stats: WorkerStatistics = {
-    WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
+    WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
   }
   // Logical version of the last applied state, sourced from the worker's
   // WorkerStateManager. Starts below any real version so the first report applies.

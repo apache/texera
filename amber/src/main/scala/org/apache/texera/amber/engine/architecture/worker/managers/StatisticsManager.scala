@@ -43,6 +43,11 @@ class StatisticsManager {
   // AmberProcessor
   private var controlProcessingTime: Long = 0L
 
+  // Tuples counted as they arrive, before being processed. inputStatistics only
+  // grows on consumption, so received - processed is this worker's queued
+  // backlog -- what least-loaded routing ranks receivers by.
+  private var receivedTupleCount: Long = 0L
+
   /**
     * Retrieves the current statistics for the operator.
     * @param operator the operator executor
@@ -60,8 +65,19 @@ class StatisticsManager {
       }.toSeq,
       dataProcessingTime,
       controlProcessingTime,
-      totalExecutionTime - dataProcessingTime - controlProcessingTime
+      totalExecutionTime - dataProcessingTime - controlProcessingTime,
+      receivedTupleCount
     )
+  }
+
+  /**
+    * Records tuples arriving at this worker, counted on arrival rather than on
+    * consumption.
+    * @param count the number of tuples in the arriving batch
+    */
+  def increaseReceivedStatistics(count: Long): Unit = {
+    require(count >= 0, "Received tuple count must be non-negative")
+    receivedTupleCount += count
   }
 
   /**

@@ -48,6 +48,9 @@ from core.architecture.handlers.control.start_worker_handler import StartWorkerH
 from core.architecture.handlers.control.update_executor_handler import (
     UpdateExecutorHandler,
 )
+from core.architecture.handlers.control.update_routing_preference_handler import (
+    UpdateRoutingPreferenceHandler,
+)
 
 
 class AsyncRPCHandlerInitializer(
@@ -68,5 +71,6 @@ class AsyncRPCHandlerInitializer(
     EndChannelHandler,
     NoOperationHandler,
     UpdateExecutorHandler,
+    UpdateRoutingPreferenceHandler,
 ):
     pass
