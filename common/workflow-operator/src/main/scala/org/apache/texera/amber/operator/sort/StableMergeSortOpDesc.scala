@@ -77,9 +77,6 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // The engine runs an incremental stable merge sort with nulls last whichever
   // way a key points. pandas' mergesort is stable too, so the ordering below is
   // the same one.
-  //
-  // A string column parts more narrowly: the engine reads UTF-16 code units and
-  // pandas reads code points, which agree below U+FFFF and can differ above it.
   override def generateStandaloneCode(): String = {
     val criteria = Option(keys).getOrElse(ListBuffer.empty)
     if (criteria.isEmpty) return "out1df = in1df.copy()"
@@ -99,6 +96,10 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
     // the input keeps every column it arrived with: a helper named after the
     // key would overwrite an input column that already answers to that name,
     // and dropping the helper afterwards would take the payload with it.
+    //
+    // A string sorts by its UTF-16 big-endian bytes. The engine compares UTF-16
+    // code units and Python compares code points, and the two disagree once a
+    // character above U+FFFF meets one between U+E000 and U+FFFF.
     s"""_texera_sorted = in1df.reset_index(drop=True)
        |_texera_keys = pd.DataFrame(index=_texera_sorted.index)
        |_texera_by = []
@@ -111,7 +112,12 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |    _texera_keys[_texera_nan] = (
        |        _texera_sorted[_texera_col] != _texera_sorted[_texera_col]
        |    ).fillna(False)
-       |    _texera_keys[_texera_val] = _texera_sorted[_texera_col]
+       |    _texera_v = _texera_sorted[_texera_col]
+       |    if _texera_v.dtype == object or isinstance(_texera_v.dtype, pd.StringDtype):
+       |        _texera_v = _texera_v.map(
+       |            lambda v: v.encode("utf-16-be") if isinstance(v, str) else v
+       |        )
+       |    _texera_keys[_texera_val] = _texera_v
        |    _texera_by += [_texera_null, _texera_nan, _texera_val]
        |    _texera_asc += [True, _texera_a, _texera_a]
        |out1df = _texera_sorted.loc[

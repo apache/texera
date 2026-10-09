@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.sort
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -173,6 +174,79 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
       val lines = out.trim.linesIterator.toSeq
       lines.head shouldBe "['x', '_texera_null_x', '_texera_nan_x']"
       lines(1) shouldBe "['b', 'a'] ['d', 'c']"
+    }
+  }
+
+  // U+1F600 is stored as the surrogate pair D83D DE00, so the engine puts it
+  // before U+FF01, while Python's code-point order puts it after.
+  it should "order strings the way the engine does above U+FFFF" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    def cp(c: Int): String = new String(Character.toChars(c))
+    val values = Seq(cp(0xff01), cp(0x1f600), "a", null, cp(0xffff))
+    def show(v: String): String =
+      if (v == null) "NULL" else v.codePoints().toArray.map(c => f"$c%X").mkString("+")
+
+    val schema = Schema().add(new Attribute("s", AttributeType.STRING))
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = {
+      val unit = new SortCriteriaUnit
+      unit.attributeName = "s"
+      unit.sortPreference = pref
+      val d = new StableMergeSortOpDesc
+      d.keys = ListBuffer(unit)
+      d
+    }
+    def engine(pref: SortPreference): String = {
+      val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
+      exec.open()
+      values.foreach { v =>
+        exec.processTuple(Tuple.builder(schema).add(schema.getAttribute("s"), v).build(), 0)
+      }
+      val out = exec.onFinish(0).map(_.asInstanceOf[Tuple].getField[String]("s")).toList
+      exec.close()
+      out.map(show).mkString(" ")
+    }
+    def block(pref: SortPreference): String =
+      descFor(pref).generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+
+    val literal = values
+      .map(v =>
+        if (v == null) "None"
+        else v.codePoints().toArray.map(c => f"chr(0x$c%X)").mkString("+")
+      )
+      .mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |def show(df):
+         |    return " ".join(
+         |        "NULL" if v is None else "+".join("%X" % ord(c) for c in v) for v in df["s"]
+         |    )
+         |
+         |if True:
+         |    in1df = pd.DataFrame({"s": $literal})
+         |${block(SortPreference.ASC)}
+         |    print(show(out1df))
+         |if True:
+         |    in1df = pd.DataFrame({"s": $literal})
+         |${block(SortPreference.DESC)}
+         |    print(show(out1df))
+         |""".stripMargin
+
+    val script = Files.createTempFile("sort-utf16-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      engine(SortPreference.ASC) shouldBe "61 1F600 FF01 FFFF NULL"
+      lines.head shouldBe engine(SortPreference.ASC)
+      lines(1) shouldBe engine(SortPreference.DESC)
     }
   }
 
