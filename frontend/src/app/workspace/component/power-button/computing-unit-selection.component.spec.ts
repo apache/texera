@@ -49,6 +49,7 @@ import { ComputingUnitCreateModalComponent } from "../../../common/component/com
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -73,6 +74,7 @@ function makeComputingUnit(
     uri: string;
     type: WorkflowComputingUnitType;
     status: string;
+    statusReason: string;
     isOwner: boolean;
   }> = {}
 ): DashboardWorkflowComputingUnit {
@@ -82,6 +84,7 @@ function makeComputingUnit(
     uri = `uri-${cuid}`,
     type = "kubernetes",
     status = "Running",
+    statusReason = undefined,
     isOwner = true,
   } = overrides;
   return {
@@ -103,6 +106,7 @@ function makeComputingUnit(
       },
     },
     status: status as DashboardWorkflowComputingUnit["status"],
+    statusReason,
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner,
     accessPrivilege: "WRITE",
@@ -214,7 +218,12 @@ describe("PowerButtonComponent", () => {
       component.workflowId = 7;
       const selectSpy = vi.spyOn(component, "selectComputingUnit").mockImplementation(() => {});
       const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
-      modal.unitCreated.emit({ computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit);
+      // A new unit is Pending. Pins that the row guard stays out of onPickComputingUnit,
+      // which would otherwise stop a new unit from being selected.
+      modal.unitCreated.emit({
+        computingUnit: { cuid: 42 },
+        status: "Pending",
+      } as unknown as DashboardWorkflowComputingUnit);
       expect(selectSpy).toHaveBeenCalledWith(7, 42);
     });
   });
@@ -1242,6 +1251,28 @@ describe("PowerButtonComponent", () => {
       expect(enableSpy).not.toHaveBeenCalled();
     });
 
+    // "No execution someone else started" is not "nothing is running here": this query asks only
+    // about Running and Initializing, and its answer lands asynchronously, after whatever the page
+    // set on arrival. A view handed a session with a run in flight had just been given the lock;
+    // enabling outright took it away again, leaving a running workflow editable.
+    it("leaves a run already in flight locked, even when the backend reports no executions", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      const disableSpy = vi.spyOn(actionService, "disableWorkflowModification").mockImplementation(() => {});
+      const enableSpy = vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveWorkflowExecutions").mockReturnValue(
+        of([] as WorkflowExecutionsEntry[])
+      );
+      // This page's own execute service is holding a run, as it would after a hand-over.
+      (TestBed.inject(ExecuteWorkflowService) as any).currentState = { state: ExecutionState.Running };
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 7 }));
+
+      expect(disableSpy).toHaveBeenCalled();
+      expect(enableSpy).not.toHaveBeenCalled();
+    });
+
     it("enables workflow modification when there are no ongoing executions", () => {
       const actionService = TestBed.inject(WorkflowActionService);
       vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
@@ -2040,15 +2071,9 @@ describe("PowerButtonComponent", () => {
     it("maps a status to a badge color", () => {
       expect(component.getBadgeColor("Running")).toBe("green");
       expect(component.getBadgeColor("Pending")).toBe("gold");
+      expect(component.getBadgeColor("Terminating")).toBe("gold");
       expect(component.getBadgeColor("Failed")).toBe("red");
-    });
-
-    it("describes a unit's status as a tooltip", () => {
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
-        "Computing unit is starting up"
-      );
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Failed" }))).toBe("Failed");
+      expect(component.getBadgeColor("Unknown")).toBe("red");
     });
   });
 
@@ -2191,6 +2216,39 @@ describe("PowerButtonComponent", () => {
 
       expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
       expect(selectSpy).toHaveBeenCalledWith(5, 2);
+    });
+
+    it.each(["Failed", "Unknown", "Terminating", "Pending"] as const)(
+      "ignores a click on a %s row, which nz-menu only greys out",
+      async status => {
+        // nzDisabled does not stop the (click) on the same <li>, so our own guard must.
+        component.allComputingUnits = [
+          makeComputingUnit({ cuid: 1, name: "Alpha" }),
+          makeComputingUnit({ cuid: 2, name: "Beta", status }),
+        ];
+        fixture.detectChanges();
+        // Spy on the only writer of the key, so the check holds even where Storage is unusable.
+        const rememberSpy = vi.spyOn(component as any, "rememberComputingUnit");
+        const rows = await openDropdown();
+
+        click(rows[1]);
+
+        expect(component.selectedComputingUnit).toBeNull();
+        expect(selectSpy).not.toHaveBeenCalled();
+        expect(rememberSpy).not.toHaveBeenCalled();
+        expect(Object.keys(localStorage)).not.toContain("computing-unit-of-workflow-5");
+      }
+    );
+
+    it("still selects a Running row, and remembers it", async () => {
+      const rememberSpy = vi.spyOn(component as any, "rememberComputingUnit");
+      const rows = await openDropdown();
+
+      click(rows[0]);
+
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(1);
+      expect(selectSpy).toHaveBeenCalledWith(5, 1);
+      expect(rememberSpy).toHaveBeenCalledWith(5, 1);
     });
 
     it("commits a rename when the inline editor loses focus", async () => {

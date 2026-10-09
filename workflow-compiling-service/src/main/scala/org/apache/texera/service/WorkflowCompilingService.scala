@@ -19,12 +19,11 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.util.{JSONUtils, ObjectMapperUtils}
 import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
@@ -45,8 +44,7 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
         new EnvironmentVariableSubstitutor(false)
       )
     )
-    // register scala module to dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    JSONUtils.registerWorkflowModules(bootstrap.getObjectMapper)
   }
 
   override def run(

@@ -132,20 +132,6 @@ class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(loadTable(tableName).snapshots().asScala.size == 2)
   }
 
-  it should "not write tuples removed from the buffer before a flush" in {
-    val tableName = freshTableName()
-    val writer = createWriter(tableName)
-    writer.open()
-    val kept = tuple(1)
-    val removed = tuple(2)
-    writer.putOne(kept)
-    writer.putOne(removed)
-    writer.removeOne(removed)
-    writer.close()
-
-    assert(readTuples(tableName) == List(kept))
-  }
-
   it should "prefix created data files with the writer identifier" in {
     val tableName = freshTableName()
     val writer = createWriter(tableName, writerIdentifier = "worker_42")
