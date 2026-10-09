@@ -82,6 +82,19 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     e.getMessage shouldBe "Ground Truth column 'missing' is not in the input table"
   }
 
+  it should "reject a ground-truth attribute that matches an input column only by case" in {
+    val d = new SklearnPredictionOpDesc
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "Label"
+    val data = Schema()
+      .add("feature", AttributeType.STRING)
+      .add("label", AttributeType.INTEGER)
+    val e = intercept[RuntimeException] {
+      d.getOutputSchemas(Map(PortIdentity(1) -> data))
+    }
+    e.getMessage shouldBe "Ground Truth column 'Label' is not in the input table"
+  }
+
   "SklearnPredictionOpDesc.generatePythonCode" should "emit the model-applying tuple operator" in {
     val d = new SklearnPredictionOpDesc
     d.model = "model"
