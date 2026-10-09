@@ -187,7 +187,7 @@ export class AiWorkflowFixerService {
         // state the apply is in the middle of publishing.
         filter(() => this.stateSubject.getValue().status !== "applying")
       )
-      .subscribe(() => this.stateSubject.next(IDLE_STATE));
+      .subscribe(() => this.reset());
   }
 
   public getState$(): Observable<FixState> {
@@ -306,6 +306,18 @@ export class AiWorkflowFixerService {
   }
 
   public discardFix(): void {
+    this.reset();
+  }
+
+  /**
+   * Clears the panel and supersedes whatever analysis is in flight.
+   *
+   * Publishing IDLE alone was not enough: the reply still matched the sequence it started
+   * with, so it repainted a suggestion the panel had already cleared -- reachable by
+   * analysing a failed operator and then stopping the run before the model answers.
+   */
+  private reset(): void {
+    this.analysisSeq++;
     this.stateSubject.next(IDLE_STATE);
   }
 

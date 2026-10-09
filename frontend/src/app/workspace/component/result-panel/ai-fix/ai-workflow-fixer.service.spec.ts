@@ -342,6 +342,39 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("idle");
     });
 
+    it("does not revive a suggestion the reset already cleared", async () => {
+      // Reachable from the toolbar: analyse a failed operator, then stop the run while the
+      // model is still answering. The panel resets, and the late reply used to repaint a
+      // suggestion for an execution that no longer exists.
+      let resolveAnalysis: (value: { text: string }) => void = () => {};
+      const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
+      vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
+
+      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      ended("Killed");
+      expect(state().status).toEqual("idle");
+
+      resolveAnalysis({ text: suggestion() });
+      await analysing;
+
+      expect(state().status).toEqual("idle");
+      expect(state().suggestedFix).toBeUndefined();
+    });
+
+    it("does not revive a suggestion the user discarded", async () => {
+      let resolveAnalysis: (value: { text: string }) => void = () => {};
+      const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
+      vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
+
+      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      service.discardFix();
+
+      resolveAnalysis({ text: suggestion() });
+      await analysing;
+
+      expect(state().status).toEqual("idle");
+    });
+
     it("never flashes the panel back to idle during an apply", async () => {
       // applyFix kills a live execution before it writes, and that Killed state reaches
       // this very subscription. The end state is "applied" either way because the apply
