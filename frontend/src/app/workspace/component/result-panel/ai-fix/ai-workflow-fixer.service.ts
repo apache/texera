@@ -51,10 +51,7 @@ export interface SuggestedFix {
 
 export interface FixState {
   operatorId: string;
-  errorMessage: string;
   errorType: FixErrorType;
-  originalCode?: string;
-  originalProperties?: object;
   suggestedFix?: SuggestedFix;
   // `applied_without_run`: the fix was written but the deployment refused to start a
   // run (a warehouse is required and none is selected), so the panel must not claim one.
@@ -81,7 +78,7 @@ const TERMINAL_STATES: ReadonlySet<ExecutionState> = new Set([
 ]);
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
-export const IDLE_STATE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
+export const IDLE_STATE: FixState = { operatorId: "", errorType: "unsupported", status: "idle" };
 
 // Matched against the exception line only, never the frame lines above it.
 const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
@@ -214,14 +211,7 @@ export class AiWorkflowFixerService {
     properties: Readonly<Record<string, unknown>>
   ): Promise<void> {
     const errorType = classifyError(errorMessage);
-    const base: FixState = {
-      operatorId,
-      errorMessage,
-      errorType,
-      originalCode: code,
-      originalProperties: properties,
-      status: "analyzing",
-    };
+    const base: FixState = { operatorId, errorType, status: "analyzing" };
 
     // Numbered before the early return as well: this still supersedes whatever is in flight,
     // and without the bump a slower analysis for another operator would land on top of it.

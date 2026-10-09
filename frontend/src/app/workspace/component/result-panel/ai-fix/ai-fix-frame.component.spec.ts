@@ -31,11 +31,10 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
 
-const IDLE: FixState = { operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" };
+const IDLE: FixState = { operatorId: "", errorType: "unsupported", status: "idle" };
 
 const READY_CODE_FIX: FixState = {
   operatorId: "op1",
-  errorMessage: "KeyError: 'email'",
   errorType: "missing_column",
   status: "ready",
   suggestedFix: {

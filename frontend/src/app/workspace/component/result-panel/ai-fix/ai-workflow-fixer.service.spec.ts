@@ -596,6 +596,6 @@ describe("AiWorkflowFixerService", () => {
 
     service.discardFix();
     const after = await firstValueFrom(service.getState$());
-    expect(after).toEqual({ operatorId: "", errorMessage: "", errorType: "unsupported", status: "idle" });
+    expect(after).toEqual({ operatorId: "", errorType: "unsupported", status: "idle" });
   });
 });
