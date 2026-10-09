@@ -33,6 +33,9 @@ from core.architecture.sendsemantics.broad_cast_partitioner import (
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import (
     HashBasedShufflePartitioner,
 )
+from core.architecture.sendsemantics.least_loaded_partitioner import (
+    LeastLoadedPartitioner,
+)
 from core.architecture.sendsemantics.one_to_one_partitioner import OneToOnePartitioner
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
@@ -61,6 +64,7 @@ from proto.org.apache.texera.amber.core import (
 from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
+    LeastLoadedPartitioning,
     OneToOnePartitioning,
     Partitioning,
     RoundRobinPartitioning,
@@ -81,6 +85,7 @@ class OutputManager:
             HashBasedShufflePartitioning: HashBasedShufflePartitioner,
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
+            LeastLoadedPartitioning: LeastLoadedPartitioner,
         }
         self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
@@ -287,10 +292,13 @@ class OutputManager:
                 channel_id.is_control = False
                 self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
+        # Both of these need to know which sender they belong to: one-to-one to
+        # find its own receiver, least-loaded to seed its starting receiver from
+        # this sender's position.
         self._partitioners[tag] = (
-            partitioner(the_partitioning)
-            if partitioner != OneToOnePartitioner
-            else partitioner(the_partitioning, self.worker_id)
+            partitioner(the_partitioning, self.worker_id)
+            if partitioner in (OneToOnePartitioner, LeastLoadedPartitioner)
+            else partitioner(the_partitioning)
         )
 
     def tuple_to_batch(

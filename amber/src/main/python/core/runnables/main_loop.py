@@ -28,6 +28,7 @@ from core.architecture.managers.pause_manager import PauseType
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
+    DataFrame,
     InternalQueue,
     StateFrame,
     Table,
@@ -785,6 +786,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # Update state to RUNNING
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
+
+        # Counted here, on arrival of the whole batch, rather than per tuple
+        # below: that is the consumption point, which input statistics already
+        # track. The gap between the two is this worker's backlog. Only a
+        # DataFrame carries tuples; a StateFrame does not.
+        if isinstance(data_element.payload, DataFrame):
+            self.context.statistics_manager.increase_received_statistics(
+                data_element.payload.frame.num_rows
+            )
 
         self.context.tuple_processing_manager.current_input_tuple_iter = (
             self.context.input_manager.process_data_payload(
