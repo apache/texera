@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { PortSchema } from "../../../types/workflow-compiling.interface";
+import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 
 // Names that carry a credential even when the operator forgot the password widget.
 const SECRET_NAME = /token|password|secret|credential|api[-_]?key/i;
@@ -55,10 +55,28 @@ export function withoutSecrets(
  * still parsed defensively (fenced blocks are unwrapped) because "no markdown"
  * is a request, not a guarantee.
  */
+/**
+ * Renders every input port, not just the first.
+ *
+ * A Python UDF can have several input ports and `process_tuple` is told which one a tuple
+ * came from, so a column that only exists on port 1 is not a typo for one on port 0. Only
+ * port 0 used to be sent, which made the model guess for anything downstream of a join.
+ *
+ * A single port renders exactly as it did before, since that is nearly every operator and
+ * there is nothing to disambiguate.
+ */
+export function formatInputSchema(inputSchemas: OperatorPortSchemaMap | undefined): string {
+  const ports = Object.entries(inputSchemas ?? {}).filter(([, schema]) => schema !== undefined);
+  if (ports.length <= 1) {
+    return JSON.stringify(ports[0]?.[1] ?? [], null, 2);
+  }
+  return ports.map(([key, schema]) => `Port ${key.split("_")[0]}:\n${JSON.stringify(schema, null, 2)}`).join("\n");
+}
+
 export function buildFixPrompt(
   errorMessage: string,
   operatorCode: string | undefined,
-  schema: PortSchema | undefined,
+  inputSchemas: OperatorPortSchemaMap | undefined,
   operatorProperties: Readonly<Record<string, unknown>>
 ): string {
   return `You are a debugging assistant for a Python data processing operator in a workflow engine.
@@ -72,7 +90,7 @@ ${operatorCode ?? "(this operator has no user code)"}
 \`\`\`
 
 Input schema (column names and types)
-${JSON.stringify(schema ?? [], null, 2)}
+${formatInputSchema(inputSchemas)}
 
 Operator configuration
 ${JSON.stringify(operatorProperties, null, 2)}

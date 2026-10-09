@@ -18,7 +18,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
+import { buildFixPrompt, formatInputSchema, withoutSecrets } from "./ai-fix-prompt";
+import { PortSchema } from "../../../types/workflow-compiling.interface";
 
 describe("withoutSecrets", () => {
   const passwordWidget = { widget: { formlyConfig: { templateOptions: { type: "password" } } } };
@@ -51,10 +52,36 @@ describe("withoutSecrets", () => {
   it("never lets a secret reach the built prompt", () => {
     const properties = { hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
 
-    const prompt = buildFixPrompt("404 model not found", undefined, [], withoutSecrets(properties));
+    const prompt = buildFixPrompt("404 model not found", undefined, {}, withoutSecrets(properties));
 
     expect(prompt).not.toContain("hf_live_abc");
     expect(prompt).not.toContain("hunter2");
     expect(prompt).toContain("gpt-4-turb");
+  });
+});
+
+describe("formatInputSchema", () => {
+  const port0: PortSchema = [{ attributeName: "user_email", attributeType: "string" }];
+  const port1: PortSchema = [{ attributeName: "order_total", attributeType: "double" }];
+
+  it("renders a single port exactly as before, with no port label", () => {
+    // Nearly every operator has one input port and there is nothing to disambiguate, so
+    // this keeps the prompt that was verified end to end byte for byte.
+    expect(formatInputSchema({ "0_false": port0 })).toEqual(JSON.stringify(port0, null, 2));
+  });
+
+  it("labels every port once there is more than one", () => {
+    // process_tuple is told which port a tuple came from, so a column that only exists on
+    // port 1 is not a typo for one on port 0.
+    const rendered = formatInputSchema({ "0_false": port0, "1_false": port1 });
+
+    expect(rendered).toContain("Port 0:");
+    expect(rendered).toContain("Port 1:");
+    expect(rendered).toContain("order_total");
+  });
+
+  it("survives an operator whose schema has not been compiled yet", () => {
+    expect(formatInputSchema(undefined)).toEqual("[]");
+    expect(formatInputSchema({ "0_false": undefined })).toEqual("[]");
   });
 });

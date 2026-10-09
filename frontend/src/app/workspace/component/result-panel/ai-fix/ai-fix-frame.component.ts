@@ -108,7 +108,7 @@ export class AiFixFrameComponent {
     void this.aiWorkflowFixerService.analyzeError(
       operatorId,
       errorMessage,
-      this.workflowCompilingService.getPortInputSchema(operatorId, 0),
+      this.workflowCompilingService.getOperatorInputSchemaMap(operatorId),
       properties.code as string | undefined,
       properties
     );

@@ -28,7 +28,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { PortSchema } from "../../../types/workflow-compiling.interface";
+import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
@@ -176,7 +176,7 @@ export class AiWorkflowFixerService {
   public async analyzeError(
     operatorId: string,
     errorMessage: string,
-    schema: PortSchema | undefined,
+    inputSchemas: OperatorPortSchemaMap | undefined,
     code: string | undefined,
     properties: Readonly<Record<string, unknown>>
   ): Promise<void> {
@@ -205,7 +205,7 @@ export class AiWorkflowFixerService {
     this.stateSubject.next(base);
     try {
       const { text } = await this.callModelWithTimeout(
-        buildFixPrompt(errorMessage, code, schema, withoutSecrets(properties, this.schemaProperties(operatorId)))
+        buildFixPrompt(errorMessage, code, inputSchemas, withoutSecrets(properties, this.schemaProperties(operatorId)))
       );
       if (seq !== this.analysisSeq) {
         return;

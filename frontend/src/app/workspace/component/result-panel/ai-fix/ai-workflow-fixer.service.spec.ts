@@ -25,13 +25,15 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { PortSchema } from "../../../types/workflow-compiling.interface";
+import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 
 const OP = "PythonUDFV2-op-1";
-const SCHEMA: PortSchema = [
-  { attributeName: "user_email", attributeType: "string" },
-  { attributeName: "follower_count", attributeType: "integer" },
-];
+const SCHEMA: OperatorPortSchemaMap = {
+  "0_false": [
+    { attributeName: "user_email", attributeType: "string" },
+    { attributeName: "follower_count", attributeType: "integer" },
+  ],
+};
 const CODE =
   "class ProcessTupleOperator(UDFOperatorV2):\n    def process_tuple(self, t, port):\n        yield t['email']\n";
 

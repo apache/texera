@@ -90,7 +90,7 @@ describe("AiFixFrameComponent", () => {
   let discardFix: ReturnType<typeof vi.fn>;
   let getErrorMessages: ReturnType<typeof vi.fn>;
   let getConsoleMessages: ReturnType<typeof vi.fn>;
-  let getPortInputSchema: ReturnType<typeof vi.fn>;
+  let getOperatorInputSchemaMap: ReturnType<typeof vi.fn>;
   let operatorProperties: Record<string, unknown>;
 
   const render = (state: FixState) => {
@@ -109,7 +109,9 @@ describe("AiFixFrameComponent", () => {
     discardFix = vi.fn();
     getErrorMessages = vi.fn().mockReturnValue([]);
     getConsoleMessages = vi.fn().mockReturnValue(undefined);
-    getPortInputSchema = vi.fn().mockReturnValue([{ attributeName: "user_email", attributeType: "string" }]);
+    getOperatorInputSchemaMap = vi
+      .fn()
+      .mockReturnValue({ "0_false": [{ attributeName: "user_email", attributeType: "string" }] });
     operatorProperties = { code: "yield t['email']", workers: 1 };
 
     await TestBed.configureTestingModule({
@@ -124,7 +126,7 @@ describe("AiFixFrameComponent", () => {
           provide: WorkflowActionService,
           useValue: { getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties }) }) },
         },
-        { provide: WorkflowCompilingService, useValue: { getPortInputSchema } },
+        { provide: WorkflowCompilingService, useValue: { getOperatorInputSchemaMap } },
         { provide: WorkflowConsoleService, useValue: { getConsoleMessages } },
         ...commonTestProviders,
       ],
@@ -151,7 +153,8 @@ describe("AiFixFrameComponent", () => {
       expect(analyzeError).toHaveBeenCalledWith(
         "op1",
         "KeyError: 'email'\nTraceback ...",
-        [{ attributeName: "user_email", attributeType: "string" }],
+        // Every input port, not just port 0: a UDF downstream of a join has more than one.
+        { "0_false": [{ attributeName: "user_email", attributeType: "string" }] },
         "yield t['email']",
         operatorProperties
       );
