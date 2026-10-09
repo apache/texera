@@ -318,6 +318,8 @@ class InputManagerSpec extends AnyFlatSpec {
     val alreadyStarted = new NoOpReaderThread
     alreadyStarted.start()
     alreadyStarted.join() // now TERMINATED, so a second start() is guaranteed to fail
+    // Registered first, as addPort always does before building a port's reader threads.
+    mgr.addPort(PortIdentity(0), schema, urisToRead = List.empty, partitionings = List.empty)
     installReaderThreads(mgr, PortIdentity(0), List(alreadyStarted))
 
     val thrown = intercept[RuntimeException] {

@@ -116,20 +116,12 @@ class InputManager(
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
   /**
-    * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
-    * For other ports that connect to upstream links, the completion is marked by the completion the port.
+    * Whether END_CHANNEL has been processed on every channel of the port (`EndChannelHandler` then
+    * marks it completed), for a port read from materialization as well. Its reader thread flags
+    * itself finished only after enqueuing END, so the DP thread can process END before the flag is
+    * set, and the flag can be set while END is still queued.
     */
-  def isPortCompleted(portId: PortIdentity): Boolean = {
-    if (
-      !this.inputPortMaterializationReaderThreads
-        .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
-    ) {
-      this.getPort(portId).completed
-    } else {
-      val existingThread = this.inputPortMaterializationReaderThreads(portId).head
-      existingThread.finished
-    }
-  }
+  def isPortCompleted(portId: PortIdentity): Boolean = this.getPort(portId).completed
 
   def hasUnfinishedInput: Boolean = inputBatch != null && currentInputIdx + 1 < inputBatch.length
 
