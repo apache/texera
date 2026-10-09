@@ -276,6 +276,12 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+  .settings(
+    // WorkflowMetricsRecorderSpec asserts exact counts on the process-wide WorkflowMetrics
+    // instruments; run suites serially so a concurrent execution suite does not record into
+    // them mid-assertion.
+    Test / parallelExecution := false
+  )
 lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
   .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)
