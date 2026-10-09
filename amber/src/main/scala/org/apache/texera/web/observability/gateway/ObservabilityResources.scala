@@ -580,12 +580,88 @@ class TracesResource(ctx: GatewayContext) extends LazyLogging {
   }
 }
 
+@Path("/observability/profiles")
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class ProfilesResource(ctx: GatewayContext) extends LazyLogging {
+
+  @POST
+  @Path("/query")
+  @RolesAllowed(Array("ADMIN"))
+  def query(
+      request: RawProfilesQueryRequest,
+      @Auth user: SessionUser,
+      @Context httpReq: HttpServletRequest
+  ): Response = {
+    logger.debug(s"profiles query requested by user ${user.getUid}")
+    Preflight.run(ctx, user, httpReq) match {
+      case Left(err) => Respond.err(err)
+      case Right(scope) =>
+        validate(request) match {
+          case Invalid(err) => Respond.err(err)
+          case Valid(valid) =>
+            // No workflow-scope guard: profiles are host-wide (no per-workflow
+            // label exists in Parca) and this endpoint is ADMIN-only.
+            val q = ParcaQueryBuilder.build(valid, scope)
+            val fromMs = valid.window.from.toEpochMilli
+            val toMs = valid.window.to.toEpochMilli
+            // The merged top-functions report is the primary result (and the
+            // heavy call). The CPU-over-time timeline is a fast, secondary
+            // metrics query: if it fails we still return the top table.
+            ParcaClient.queryTop(ctx.profilesBaseUrl, q, fromMs, toMs) match {
+              case Left(err) => Respond.err(err)
+              case Right((total, top)) =>
+                val timeline =
+                  ParcaClient.queryTimeline(ctx.profilesBaseUrl, q, fromMs, toMs) match {
+                    case Right(points) => points
+                    case Left(e) =>
+                      logger.warn(s"profiles timeline unavailable: ${e.code}")
+                      Seq.empty
+                  }
+                val parsed =
+                  ProfilesQueryResponse(totalSamples = total, top = top, timeline = timeline)
+                logger.info(
+                  s"profiles query ok for user ${user.getUid}: ${total} sample(s), " +
+                    s"${top.size} top entries, ${timeline.size} timeline points"
+                )
+                AuditLogger.record(
+                  AuditLogger.Entry(
+                    userId = user.getUid.longValue(),
+                    remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+                    endpoint = "/observability/profiles/query",
+                    signal = "profiles",
+                    scope = scope,
+                    query = q,
+                    fromMs = fromMs,
+                    toMs = toMs,
+                    hits = total
+                  )
+                )
+                Respond.json(parsed)
+            }
+        }
+    }
+  }
+
+  private def validate(raw: RawProfilesQueryRequest): ValidationResult[ValidatedProfilesRequest] = {
+    val commOpt = raw.comm.map(_.trim).filter(_.nonEmpty)
+    if (commOpt.exists(c => ValidatedProfilesRequest.CommPattern.findFirstIn(c).isEmpty)) {
+      Invalid(GatewayError.BadComm)
+    } else {
+      TimeWindow.validate(raw.fromMs, raw.toMs) match {
+        case Invalid(e)    => Invalid(e)
+        case Valid(window) => Valid(ValidatedProfilesRequest(commOpt, window))
+      }
+    }
+  }
+}
+
 @Path("/observability/health")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @RolesAllowed(Array("ADMIN"))
   def health(@Auth user: SessionUser): Response = {
     // Light-touch reachability — used by the dashboard to render
     // "Disabled" / "Unreachable" panels. No backend query; just a

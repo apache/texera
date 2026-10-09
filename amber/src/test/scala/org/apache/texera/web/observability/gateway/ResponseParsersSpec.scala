@@ -356,6 +356,9 @@ class ResponseParsersSpec extends AnyFlatSpec with Matchers {
     err.code shouldBe "bad_backend_response"
   }
 
+  // Profiles parsing moved to ParcaClient/PprofStats (gRPC-Web + pprof);
+  // see ParcaClientSpec.
+
   // ----- helper: epoch millis literal --------------------------------
 
   private def Instant(iso: String): Long = java.time.Instant.parse(iso).toEpochMilli

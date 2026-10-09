@@ -87,6 +87,8 @@ object dtos {
       GatewayError("bad_page_size", s"pageSize must be in [1, ${MaxPageSize}]", 400)
     val BadLevel: GatewayError =
       GatewayError("bad_level", "level must be one of TRACE/DEBUG/INFO/WARN/ERROR", 400)
+    val BadComm: GatewayError =
+      GatewayError("bad_comm", "comm must match ^[A-Za-z0-9_.-]{1,64}$", 400)
     val FreeTextTooLong: GatewayError =
       GatewayError("free_text_too_long", s"query must be <= ${MaxFreeTextLen} chars", 400)
     val Forbidden: GatewayError =
@@ -387,22 +389,41 @@ object dtos {
   // ---- profiles --------------------------------------------------------
 
   case class RawProfilesQueryRequest(
-      workflowId: Option[Long],
-      executionId: Option[Long],
+      comm: Option[String],
       fromMs: Long,
       toMs: Long
   )
 
   case class ValidatedProfilesRequest(
-      workflowId: Option[Long],
-      executionId: Option[Long],
+      comm: Option[String],
       window: TimeWindow
   )
 
-  /** Profiles are returned as a tree of frames. We render the tree
-    *  in the UI; the gateway is only responsible for shape + size.
-    */
-  case class FlameFrame(name: String, value: Long, children: Seq[FlameFrame])
+  object ValidatedProfilesRequest {
+    // Linux `comm` is <=15 chars; allow a small safe charset so the value can
+    // be interpolated into a Parca label selector without injection risk.
+    val CommPattern: scala.util.matching.Regex = "^[A-Za-z0-9_.-]{1,64}$".r
+  }
 
-  case class ProfilesQueryResponse(root: Option[FlameFrame], totalSamples: Long)
+  /** One row of the "top functions" table. `flat` is the self CPU spent in the
+    *  function (it was the leaf of a sample); flat sums to the total across all
+    *  rows, so percentages are well-behaved. Unsymbolized frames are bucketed
+    *  under a single "(unsymbolized)" name so the table stays high-level.
+    */
+  case class ProfileTopEntry(name: String, flat: Long)
+
+  /** One point of the CPU-over-time timeline (sample value at a time bucket).
+    *  Symbolization-independent, so it is useful even when frames are not named.
+    */
+  case class ProfileTimelinePoint(timestampMs: Long, value: Long)
+
+  /** High-level profile stats for the dashboard: a CPU timeline plus a ranked
+    *  top-functions table. The full flame graph lives in Parca (linked from the
+    *  panel); rendering it in the browser was a memory hog, so we summarize.
+    */
+  case class ProfilesQueryResponse(
+      totalSamples: Long,
+      top: Seq[ProfileTopEntry],
+      timeline: Seq[ProfileTimelinePoint]
+  )
 }

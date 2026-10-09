@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { of, throwError } from "rxjs";
@@ -271,11 +271,64 @@ describe("MetricsPanelComponent", () => {
     expect(s.trend).toBe("flat");
   });
 
-  it("returns a placeholder summary for an empty response", () => {
+  it("flags an empty response as no-data so the card shows the dash, not a misleading 0", () => {
     mockService.queryMetrics.mockReturnValue(of<MetricsQueryResponse>({ metric: "x", points: [] }));
     fixture.detectChanges();
     const s = component.summaries.runsPerDay!;
+    expect(s.hasData).toBe(false);
     expect(s.latest).toBe(0);
     expect(s.trend).toBe("flat");
   });
+
+  it("follow mode slides the window to end at now on refresh, preserving its duration", () => {
+    const from = new Date(Date.UTC(2020, 0, 1));
+    const to = new Date(Date.UTC(2020, 0, 8)); // 7-day window
+    const durationMs = to.getTime() - from.getTime();
+    component.form.controls.follow.setValue(true);
+    component.form.controls.range.setValue([from, to]);
+
+    const before = Date.now();
+    component.refresh();
+    const after = Date.now();
+
+    const call = mockService.queryMetrics.mock.calls.at(-1)![0] as { fromMs: number; toMs: number };
+    expect(call.toMs).toBeGreaterThanOrEqual(before);
+    expect(call.toMs).toBeLessThanOrEqual(after);
+    expect(call.toMs - call.fromMs).toBe(durationMs); // duration preserved
+    // The picker reflects the shifted window so the user sees the live range.
+    expect(component.form.controls.range.value![1].getTime()).toBe(call.toMs);
+  });
+
+  it("with follow off, refresh queries the exact picked window", () => {
+    const from = new Date(Date.UTC(2020, 0, 1));
+    const to = new Date(Date.UTC(2020, 0, 8));
+    component.form.controls.follow.setValue(false);
+    component.form.controls.range.setValue([from, to]);
+    component.refresh();
+    const call = mockService.queryMetrics.mock.calls.at(-1)![0] as { fromMs: number; toMs: number };
+    expect(call.fromMs).toBe(from.getTime());
+    expect(call.toMs).toBe(to.getTime());
+  });
+
+  it("auto-refresh re-queries on the configured interval and stops when set to off", fakeAsync(() => {
+    // Drive lifecycle without rendering: the date picker's locale-dependent
+    // reformat (ng-zorro defaults to zh_CN, unregistered in the test bed)
+    // is irrelevant to the timer logic under test.
+    component.ngOnInit(); // one fan-out, no timer yet (autoRefreshSec = 0)
+    const perRefresh = component.chartDescriptors.length;
+    const initial = mockService.queryMetrics.mock.calls.length;
+    expect(initial).toBe(perRefresh);
+
+    component.form.controls.autoRefreshSec.setValue(30);
+    tick(30_000);
+    expect(mockService.queryMetrics.mock.calls.length).toBe(initial + perRefresh);
+    tick(30_000);
+    expect(mockService.queryMetrics.mock.calls.length).toBe(initial + 2 * perRefresh);
+
+    component.form.controls.autoRefreshSec.setValue(0); // stop the timer
+    const afterOff = mockService.queryMetrics.mock.calls.length;
+    tick(120_000);
+    expect(mockService.queryMetrics.mock.calls.length).toBe(afterOff);
+    discardPeriodicTasks();
+  }));
 });

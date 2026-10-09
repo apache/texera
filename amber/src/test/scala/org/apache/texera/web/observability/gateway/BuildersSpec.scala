@@ -322,4 +322,32 @@ class BuildersSpec extends AnyFlatSpec with Matchers {
     JaegerQueryBuilder.tracePath(v) shouldBe "/api/traces/0af7651916cd43dd8448eb211c80319c"
   }
 
+  // ----- ParcaQueryBuilder ---------------------------------------------
+
+  "ParcaQueryBuilder" should "always include the deployment=texera selector" in {
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
+    val q = ParcaQueryBuilder.build(req, scope)
+    q should include("""deployment="texera"""")
+  }
+
+  it should "lead with Parca's profile-type identifier, not a Prometheus metric name" in {
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
+    val q = ParcaQueryBuilder.build(req, scope)
+    // Empirical: Parca's QueryService validates the profile selector
+    // against `<name>:<sample-type>:<sample-unit>:<period-type>:<period-unit>:delta`.
+    // The previous "parca_agent_cpu" name was rejected with status 3.
+    q should startWith("parca_agent:samples:count:cpu:nanoseconds:delta{")
+  }
+
+  it should "include a comm selector when one is provided" in {
+    val req = ValidatedProfilesRequest(comm = Some("java"), window = anyWindow)
+    val q = ParcaQueryBuilder.build(req, scope)
+    q should include("""comm="java"""")
+  }
+
+  it should "omit the comm selector when none is provided" in {
+    val req = ValidatedProfilesRequest(comm = None, window = anyWindow)
+    val q = ParcaQueryBuilder.build(req, scope)
+    q should not include "comm="
+  }
 }

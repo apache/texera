@@ -60,6 +60,37 @@ class LogSanitizerSpec extends AnyFlatSpec with Matchers {
     out should include("host=db")
   }
 
+  it should "redact passwords serialized as JSON" in {
+    val out = LogSanitizer.sanitize("""body={"user":"alice","password":"hunter2"}""")
+    out should include("[REDACTED]")
+    out should not include "hunter2"
+    // the non-secret field is preserved
+    out should include("alice")
+  }
+
+  it should "redact token / api_key / secret key-value forms" in {
+    LogSanitizer.sanitize("token=abcdef123456") should not include "abcdef123456"
+    LogSanitizer.sanitize("api_key: deadBEEFcafe") should not include "deadBEEFcafe"
+    LogSanitizer.sanitize("""{"client_secret":"s3cr3tValue"}""") should not include "s3cr3tValue"
+    LogSanitizer.sanitize("token=abcdef123456") should include("[REDACTED]")
+  }
+
+  it should "redact a bare JWT even without a Bearer prefix" in {
+    val jwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N"
+    val out = LogSanitizer.sanitize(s"session restored with $jwt for user 7")
+    out should include("[REDACTED]")
+    out should not include "dozjgNryP4J3jVmNHl0w5N"
+    // surrounding context preserved
+    out should include("user 7")
+  }
+
+  it should "not over-redact ordinary prose that merely mentions a keyword" in {
+    // No key/value delimiter after the keyword, so nothing is redacted.
+    val out = LogSanitizer.sanitize("password reset email sent to alice")
+    out shouldBe "password reset email sent to alice"
+  }
+
   it should "redact AWS access key IDs" in {
     val out = LogSanitizer.sanitize("found key AKIAIOSFODNN7EXAMPLE in env")
     out should include("[REDACTED]")

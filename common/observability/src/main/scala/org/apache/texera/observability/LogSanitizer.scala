@@ -39,14 +39,17 @@ object LogSanitizer {
 
   /** Secret patterns, redacted from bodies. Most specific first. */
   private val SecretPatterns: Seq[scala.util.matching.Regex] = Seq(
-    // Bearer token
+    // Bearer token in header form.
     """(?i)Bearer\s+[A-Za-z0-9._\-/+=]{8,}""".r,
-    // password=... or password: ...
-    """(?i)password\s*[=:]\s*[^\s,;"']+""".r,
-    // AWS access key ID
+    // Bare JWT (header.payload.signature).
+    """eyJ[A-Za-z0-9_\-]{6,}\.eyJ[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{6,}""".r,
+    // AWS access key ID.
     """AKIA[0-9A-Z]{16}""".r,
-    // labelled AWS secret access key
-    """(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{20,}""".r
+    // Labelled AWS secret access key.
+    """(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{20,}""".r,
+    // Labelled credential in key=val, JSON, or quoted form.
+    ("""(?i)(?:password|passwd|pwd|secret|token|api[_-]?key|client[_-]?secret|""" +
+      """access[_-]?token)"?\s*[=:]\s*"?[^\s,;"']+""").r
   )
 
   /** MDC keys never forwarded to OTel log attributes. Default-allow: any key

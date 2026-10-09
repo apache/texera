@@ -302,6 +302,9 @@ object ResponseParsers extends LazyLogging {
     TraceSpanResponse(spanId, parentSpanId, name, startMs, endMs, attributes.toMap)
   }
 
+  // Profiles are not parsed here: ParcaClient talks to Parca over gRPC-Web and
+  // builds the stats (top functions + timeline) directly from the pprof report.
+
   // ---- small helpers -------------------------------------------------
 
   private def textOpt(node: JsonNode, field: String): Option[String] = {
