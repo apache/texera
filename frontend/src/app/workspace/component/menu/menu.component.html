@@ -434,8 +434,7 @@
         executionState === ExecutionState.Completed ||
         executionState === ExecutionState.Killed ||
         executionState === ExecutionState.Failed ||
-        (!workflowWebsocketService.isConnected &&
-       computingUnitStatus !== ComputingUnitState.NoComputingUnit)
+        !workflowWebsocketService.isConnected
       "
           nz-button
           nzDanger

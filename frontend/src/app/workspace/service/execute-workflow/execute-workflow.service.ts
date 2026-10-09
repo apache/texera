@@ -145,6 +145,13 @@ export class ExecuteWorkflowService {
           }
       }
     });
+
+    // Ends an in-flight run when the selected unit is gone; console and results are kept.
+    computingUnitStatusService.getSelectedComputingUnit().subscribe(unit => {
+      if (unit === null && this.isExecutionInFlight()) {
+        this.resetExecutionAndWorkers();
+      }
+    });
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -490,6 +497,26 @@ export class ExecuteWorkflowService {
     // stopped here as well: otherwise the next workflow opens showing the last run's time, and
     // if that run was still going, showing it still counting up.
     this.anchorDuration(0, false);
+  }
+
+  private isExecutionInFlight(): boolean {
+    switch (this.currentState.state) {
+      case ExecutionState.Initializing:
+      case ExecutionState.Running:
+      case ExecutionState.Pausing:
+      case ExecutionState.Paused:
+      case ExecutionState.Resuming:
+      case ExecutionState.Recovering:
+        return true;
+      case ExecutionState.Uninitialized:
+      case ExecutionState.Completed:
+      case ExecutionState.Terminated:
+      case ExecutionState.Failed:
+      case ExecutionState.Killed:
+        return false;
+      default:
+        return exhaustiveGuard(this.currentState);
+    }
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {

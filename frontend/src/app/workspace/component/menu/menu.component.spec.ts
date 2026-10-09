@@ -393,6 +393,68 @@ describe("MenuComponent", () => {
     });
   });
 
+  describe("kill button enablement", () => {
+    const killButton = () => fixture.nativeElement.querySelector("button[nzdanger]") as HTMLButtonElement;
+    const setConnected = (connected: boolean) =>
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => connected,
+        configurable: true,
+      });
+
+    beforeEach(() => {
+      component.executionState = ExecutionState.Running;
+    });
+
+    it("is disabled while the socket is down and no unit is selected", () => {
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      setConnected(false);
+
+      fixture.detectChanges();
+
+      expect(killButton().disabled).toBe(true);
+    });
+
+    it("stays enabled while the socket is up and no unit is selected", () => {
+      component.computingUnitStatus = ComputingUnitState.NoComputingUnit;
+      setConnected(true);
+
+      fixture.detectChanges();
+
+      expect(killButton().disabled).toBe(false);
+    });
+
+    it("is disabled while the socket is down on a running unit", () => {
+      component.computingUnitStatus = ComputingUnitState.Running;
+      setConnected(false);
+
+      fixture.detectChanges();
+
+      expect(killButton().disabled).toBe(true);
+    });
+
+    it("stays enabled while the socket is up on a running unit", () => {
+      component.computingUnitStatus = ComputingUnitState.Running;
+      setConnected(true);
+
+      fixture.detectChanges();
+
+      expect(killButton().disabled).toBe(false);
+    });
+
+    it.each([
+      ["connected", true],
+      ["disconnected", false],
+    ])("is disabled once the execution is over, with the socket %s", (_label, connected) => {
+      component.executionState = ExecutionState.Completed;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      setConnected(connected);
+
+      fixture.detectChanges();
+
+      expect(killButton().disabled).toBe(true);
+    });
+  });
+
   describe("getRunButtonBehavior", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
