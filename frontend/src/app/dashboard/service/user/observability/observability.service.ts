@@ -138,8 +138,13 @@ function assertValidMetrics(req: MetricsQueryRequest): void {
   if (req.toMs <= req.fromMs) {
     throw new ValidationError("bad_time_window", "End time must be after start time.");
   }
-  if (req.stepSec !== undefined && (req.stepSec < 1 || req.stepSec > 3600)) {
-    throw new ValidationError("bad_step", "Step must be between 1 and 3600 seconds.");
+  // Floor only: the panel auto-raises the step above 1h for large windows to
+  // fit the points-per-series cap, so there is no upper bound here.
+  if (req.stepSec !== undefined && req.stepSec < 1) {
+    throw new ValidationError("bad_step", "Step must be at least 1 second.");
+  }
+  if (req.userId !== undefined && req.userId < 0) {
+    throw new ValidationError("bad_user_id", "userId must be non-negative.");
   }
 }
 

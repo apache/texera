@@ -29,6 +29,7 @@ import org.apache.texera.common.config.ObservabilityGatewayConfig
   */
 case class GatewayContext(
     scopeResolver: ScopeResolver,
+    runCounter: WorkflowRunCounter,
     perUserLimiter: RateLimiter,
     perIpLimiter: RateLimiter,
     logsClient: BackendClient,
@@ -55,6 +56,7 @@ object GatewayContext {
   def default(): GatewayContext = {
     GatewayContext(
       scopeResolver = new ScopeResolver.Jooq(),
+      runCounter = new WorkflowRunCounter.Jooq(),
       perUserLimiter = RateLimiter.defaultPerUser(),
       perIpLimiter = RateLimiter.defaultPerIp(),
       logsClient = new BackendClient(ObservabilityGatewayConfig.logsUrl),
