@@ -19,21 +19,28 @@
 
 package org.apache.texera.amber.engine.e2e
 
+import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.Duration
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.Workflow
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType
+}
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
   cleanupWorkflowExecutionData,
   initiateTexeraDBForTestCases,
   runWorkflowAndReadTerminalResults,
-  setUpWorkflowExecutionData
+  setUpWorkflowExecutionData,
+  workerError
 }
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.typecasting.{TypeCastingOpDesc, TypeCastingUnit}
@@ -115,5 +122,42 @@ class TestUtilsSpec
     assert(
       castTuples.forall(_.getSchema.getAttribute("Units Sold").getType == AttributeType.INTEGER)
     )
+  }
+
+  private val workerId = "Worker:WF8-SomeOpDesc-main-0"
+
+  private def consoleMessage(
+      msgType: ConsoleMessageType,
+      message: String = "at Foo.bar(Foo.scala:1)"
+  ): ConsoleMessage =
+    ConsoleMessage(
+      workerId,
+      Timestamp(),
+      msgType,
+      "(Foo.scala:1)",
+      "java.lang.Exception: boom",
+      message
+    )
+
+  "workerError" should "turn an ERROR console message into the worker's error" in {
+    val error = workerError(consoleMessage(ConsoleMessageType.ERROR)).get
+    assert(error.getMessage == "java.lang.Exception: boom\nat Foo.bar(Foo.scala:1)")
+    assert(error.relatedWorkerId.contains(ActorVirtualIdentity(workerId)))
+  }
+
+  it should "leave out an empty stack trace" in {
+    val error = workerError(consoleMessage(ConsoleMessageType.ERROR, message = "")).get
+    assert(error.getMessage == "java.lang.Exception: boom")
+  }
+
+  it should "ignore console messages that are not errors" in {
+    Seq(
+      ConsoleMessageType.PRINT,
+      ConsoleMessageType.COMMAND,
+      ConsoleMessageType.DEBUGGER,
+      ConsoleMessageType.Unrecognized(99)
+    ).foreach { msgType =>
+      assert(workerError(consoleMessage(msgType)).isEmpty, msgType)
+    }
   }
 }
