@@ -526,6 +526,24 @@ describe("AiWorkflowFixerService", () => {
       expect(executeWorkflow).toHaveBeenCalledWith("");
     });
 
+    it("explains a lock that never clears, instead of reporting a bare timeout", async () => {
+      // rxjs reports this as "Timeout has occurred", which says nothing about what the
+      // panel was waiting for.
+      vi.useFakeTimers();
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      const applying = service.applyFix();
+      await vi.advanceTimersByTimeAsync(20_000);
+      await applying;
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().status).toEqual("apply_failed");
+      expect(state().applyError).toContain("stayed locked");
+      vi.useRealTimers();
+    });
+
     it("refuses a field the operator does not have", async () => {
       // The staleness guard does not catch this one: an absent field reads as "" and the
       // captured original is "" too, so without the check a dead key is written and the

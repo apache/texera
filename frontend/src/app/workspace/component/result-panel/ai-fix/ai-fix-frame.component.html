@@ -61,7 +61,7 @@
   <nz-alert
     *ngIf="state.status === 'applied_without_run'"
     nzType="warning"
-    nzMessage="Fix applied. Select a warehouse to run the workflow."></nz-alert>
+    nzMessage="Fix applied, but the re-run was refused. The reason is in the notification; run again once it is resolved."></nz-alert>
 
   <nz-alert
     *ngIf="state.status === 'apply_failed'"

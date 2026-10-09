@@ -268,6 +268,17 @@ describe("AiFixFrameComponent", () => {
     expect(query(".ai-fix-apply")).toBeTruthy();
   });
 
+  it("does not name a reason the panel no longer knows", () => {
+    // The panel asks whether the run started, not why it did not: naming the warehouse
+    // would be wrong whenever the refusal came from a computing unit instead, which is the
+    // contradiction this whole panel exists to avoid.
+    render({ ...READY_CODE_FIX, status: "applied_without_run", suggestedFix: undefined });
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain("the re-run was refused");
+    expect(text).not.toContain("warehouse");
+  });
+
   it("shows a spinner while analyzing", () => {
     render({ ...READY_CODE_FIX, status: "analyzing", suggestedFix: undefined });
 

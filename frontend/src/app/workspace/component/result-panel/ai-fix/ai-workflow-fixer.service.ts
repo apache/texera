@@ -350,12 +350,18 @@ export class AiWorkflowFixerService {
       return;
     }
     this.executeWorkflowService.killWorkflow();
-    await firstValueFrom(
-      this.workflowActionService.getWorkflowModificationEnabledStream().pipe(
-        filter(enabled => enabled),
-        timeout(UNLOCK_TIMEOUT_MS)
-      )
-    );
+    try {
+      await firstValueFrom(
+        this.workflowActionService.getWorkflowModificationEnabledStream().pipe(
+          filter(enabled => enabled),
+          timeout(UNLOCK_TIMEOUT_MS)
+        )
+      );
+    } catch {
+      // rxjs reports this as "Timeout has occurred", which tells the user nothing about
+      // what the panel was waiting for.
+      throw new Error("the running execution did not stop, so the workflow stayed locked");
+    }
   }
 
   /**
