@@ -1,0 +1,125 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.grafana.enabled }}
+# Grafana: dashboard/UI, k8s counterpart of the docker-compose grafana
+# service. Reads the Apache-2.0 backends (Loki, VictoriaMetrics, Jaeger)
+# as pre-provisioned datasources via the ConfigMap below. Grafana is
+# AGPLv3, so it is an optional operator-run component, not part of any
+# Texera release artifact (see bin/observability/README.md). Only this
+# ASF-licensed template lives in the tree. The Service is ClusterIP (no
+# Ingress), matching the rest of the stack; expose it via your own
+# Ingress / port-forward to reach the UI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-grafana-datasources
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-grafana
+data:
+  datasources.yaml: |
+    {{- include "texera.observability.grafanaDatasources" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-grafana
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-grafana
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-grafana
+      annotations:
+        # Roll the pod when the provisioned datasources change.
+        checksum/config: {{ include "texera.observability.grafanaDatasources" . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: {{ .Values.observability.grafana.image }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            # Admin login. Override for any environment reachable beyond
+            # an internal port-forward.
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ .Values.observability.grafana.adminUser | quote }}
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: {{ .Values.observability.grafana.adminPassword | quote }}
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.grafana.port }}
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/grafana
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.observability.grafana.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.grafana.resources | nindent 12 }}
+      volumes:
+        - name: datasources
+          configMap:
+            name: {{ .Release.Name }}-grafana-datasources
+        # Grafana's SQLite state. emptyDir: datasources are re-provisioned
+        # on every start, so no PVC is required for the reference stack.
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-grafana
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-grafana
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.observability.grafana.port }}
+      targetPort: {{ .Values.observability.grafana.port }}
+{{- end }}
