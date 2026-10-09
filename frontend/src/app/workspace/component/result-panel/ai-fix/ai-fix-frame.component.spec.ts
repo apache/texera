@@ -241,6 +241,34 @@ describe("AiFixFrameComponent", () => {
     expect(query(".ai-fix-analyze")).toBeTruthy();
   });
 
+  it("warns when the fix touches more places than the diff shows", () => {
+    // The diff is one -/+ pair however many places change, and a short snippet matched as
+    // plain text can reach lines the user never saw.
+    render({ ...READY_CODE_FIX, suggestedFix: { ...READY_CODE_FIX.suggestedFix!, occurrences: 3 } });
+
+    expect(fixture.nativeElement.textContent).toContain("changes 3 places");
+  });
+
+  it("stays quiet when the fix touches a single place", () => {
+    render({ ...READY_CODE_FIX, suggestedFix: { ...READY_CODE_FIX.suggestedFix!, occurrences: 1 } });
+
+    expect(fixture.nativeElement.textContent).not.toContain("places");
+  });
+
+  it("keeps the suggestion on screen when the write is refused", () => {
+    // A refused write is not a failed analysis: the fix is still good, the operator moved
+    // under it. Hiding the diff sent the user back for another model call to get it again.
+    render({
+      ...READY_CODE_FIX,
+      status: "apply_failed",
+      applyError: "the code changed since the suggestion was generated",
+    });
+
+    expect(fixture.nativeElement.textContent).toContain("the code changed since the suggestion");
+    expect(query(".ai-fix-diff")).toBeTruthy();
+    expect(query(".ai-fix-apply")).toBeTruthy();
+  });
+
   it("shows a spinner while analyzing", () => {
     render({ ...READY_CODE_FIX, status: "analyzing", suggestedFix: undefined });
 

@@ -19,7 +19,13 @@
 
 import { TestBed } from "@angular/core/testing";
 import { firstValueFrom, Subject } from "rxjs";
-import { AiWorkflowFixerService, classifyError, coerceToFieldType, FixState } from "./ai-workflow-fixer.service";
+import {
+  AiWorkflowFixerService,
+  classifyError,
+  coerceToFieldType,
+  FixState,
+  replaceAllIndented,
+} from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
@@ -147,6 +153,8 @@ describe("AiWorkflowFixerService", () => {
         explanation: "the column is user_email",
         confidence: "high",
         fieldName: undefined,
+        // CODE holds the snippet once, and the panel only shows this when it is more.
+        occurrences: 1,
       });
     });
 
@@ -364,6 +372,41 @@ describe("AiWorkflowFixerService", () => {
     });
   });
 
+  describe("replaceAllIndented", () => {
+    it("indents the continuation lines to the line the match was found on", () => {
+      // Without this the first line lands correctly and the rest start at column 0, which
+      // is an IndentationError the moment the fix is applied.
+      const code = "def f():\n    x = read()\n";
+
+      const out = replaceAllIndented(code, "x = read()", "x = read()\nx = x.strip()").code;
+
+      expect(out).toEqual("def f():\n    x = read()\n    x = x.strip()\n");
+    });
+
+    it("keeps the relative indentation the suggestion itself has", () => {
+      const code = "    y = 0\n";
+
+      const out = replaceAllIndented(code, "y = 0", "if True:\n    y = 0").code;
+
+      expect(out).toEqual("    if True:\n        y = 0\n");
+    });
+
+    it("indents each occurrence at its own depth", () => {
+      const code = "  a()\n      a()\n";
+
+      const out = replaceAllIndented(code, "a()", "a()\nb()").code;
+
+      expect(out).toEqual("  a()\n  b()\n      a()\n      b()\n");
+    });
+
+    it("counts the places it changed, and leaves a single-line fix alone", () => {
+      const out = replaceAllIndented("p()\np()\n", "p()", "q()");
+
+      expect(out.code).toEqual("q()\nq()\n");
+      expect(out.count).toEqual(2);
+    });
+  });
+
   describe("applyFix", () => {
     it("replaces only the snippet, keeps other properties, and re-runs", async () => {
       stubModel(suggestion());
@@ -408,7 +451,7 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("applied");
     });
 
-    it("ends in error, without re-running, when the target field changed since the analysis", async () => {
+    it("reports an apply failure, without re-running, when the target field changed since the analysis", async () => {
       operatorProperties = { model: "gpt-4-turb", temperature: 0 };
       stubModel(
         suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
@@ -423,7 +466,7 @@ describe("AiWorkflowFixerService", () => {
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
-      expect(state().status).toEqual("error");
+      expect(state().status).toEqual("apply_failed");
     });
 
     it("does nothing without a ready suggestion", async () => {
@@ -433,7 +476,7 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("idle");
     });
 
-    it("ends in error, without re-running, when the snippet is no longer in the code", async () => {
+    it("reports an apply failure, without re-running, when the snippet is no longer in the code", async () => {
       stubModel(suggestion({ original_snippet: "a line the user already deleted" }));
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
@@ -441,7 +484,7 @@ describe("AiWorkflowFixerService", () => {
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(executeWorkflow).not.toHaveBeenCalled();
-      expect(state().status).toEqual("error");
+      expect(state().status).toEqual("apply_failed");
     });
 
     it("applies without claiming a re-run when a warehouse is required but none is selected", async () => {
@@ -502,7 +545,7 @@ describe("AiWorkflowFixerService", () => {
       await service.applyFix();
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(state().status).toEqual("error");
+      expect(state().status).toEqual("apply_failed");
     });
 
     it("never rewrites the UDF source through a property change", async () => {
@@ -515,7 +558,7 @@ describe("AiWorkflowFixerService", () => {
       await service.applyFix();
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(state().status).toEqual("error");
+      expect(state().status).toEqual("apply_failed");
     });
 
     it("keeps a numeric setting numeric", async () => {
@@ -530,7 +573,7 @@ describe("AiWorkflowFixerService", () => {
       expect(setOperatorProperty.mock.calls[0][1].temperature).toEqual(1);
     });
 
-    it("ends in error when the graph rejects the change", async () => {
+    it("reports an apply failure when the graph rejects the change", async () => {
       setOperatorProperty.mockImplementation(() => {
         throw new Error("read-only workflow");
       });
@@ -539,7 +582,7 @@ describe("AiWorkflowFixerService", () => {
 
       await service.applyFix();
 
-      expect(state().status).toEqual("error");
+      expect(state().status).toEqual("apply_failed");
       expect(executeWorkflow).not.toHaveBeenCalled();
     });
   });

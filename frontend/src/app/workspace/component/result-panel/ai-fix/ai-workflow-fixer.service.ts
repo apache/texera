@@ -37,6 +37,8 @@ export type FixErrorType = "missing_column" | "type_error" | "null_error" | "mod
 export type FixConfidence = "high" | "medium" | "low";
 
 export interface SuggestedFix {
+  /** How many places Apply will touch; the diff only ever shows one -/+ pair. */
+  occurrences?: number;
   type: "code_change" | "property_change";
   original: string;
   suggested: string;
@@ -56,7 +58,11 @@ export interface FixState {
   suggestedFix?: SuggestedFix;
   // `applied_without_run`: the fix was written but the deployment refused to start a
   // run (a warehouse is required and none is selected), so the panel must not claim one.
-  status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "applied_without_run" | "error";
+  // `apply_failed` keeps the suggestion on screen: the analysis was fine, the write was
+  // refused, and re-analysing would spend another model call to produce the same fix.
+  status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "applied_without_run" | "error" | "apply_failed";
+  /** Why the write was refused, shown as-is when the status is `apply_failed`. */
+  applyError?: string;
 }
 
 // Model id as LiteLLM exposes it (bin/single-node/litellm-config.yaml), not the provider's
@@ -84,6 +90,33 @@ const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
   [/ValueError:[^\n]*\bNaN\b|NullPointerException/i, "null_error"],
   [/ModelNotFound|\bmodel[^\n]*\b404\b|\b404\b[^\n]*\bmodel/i, "model_not_found"],
 ];
+
+/**
+ * Replaces every occurrence, keeping each one at the indentation it was found at.
+ *
+ * The snippet the model matches on usually starts mid-line, after the existing indentation,
+ * so a multi-line replacement put its first line in the right place and every line after it
+ * at column 0 -- an IndentationError the moment the fix was "applied". Continuation lines now
+ * take the indentation of the line the match was found on, and keep whatever relative
+ * indentation the suggestion itself had.
+ */
+export function replaceAllIndented(code: string, original: string, suggested: string): { code: string; count: number } {
+  const parts = code.split(original);
+  const count = parts.length - 1;
+  if (count === 0 || !suggested.includes("\n")) {
+    return { code: parts.join(suggested), count };
+  }
+
+  const [head, ...rest] = suggested.split("\n");
+  let out = parts[0];
+  for (const tail of parts.slice(1)) {
+    // Whitespace since the last newline is what this occurrence sits at.
+    const lineStart = out.lastIndexOf("\n") + 1;
+    const indent = (out.slice(lineStart).match(/^[ \t]*/) ?? [""])[0];
+    out += [head, ...rest.map(line => (line.length > 0 ? indent + line : line))].join("\n") + tail;
+  }
+  return { code: out, count };
+}
 
 /** Writes the model's string back in the type the field already held. */
 export function coerceToFieldType(currentValue: unknown, suggested: string): unknown {
@@ -210,7 +243,13 @@ export class AiWorkflowFixerService {
       if (seq !== this.analysisSeq) {
         return;
       }
-      this.stateSubject.next({ ...base, status: "ready", suggestedFix: this.toFix(text, properties) });
+      const suggestedFix = this.toFix(text, properties);
+      // Counted here so the panel can say it before Apply: a short snippet matched as plain
+      // text can appear in lines the user never saw in the diff.
+      if (suggestedFix.type === "code_change") {
+        suggestedFix.occurrences = replaceAllIndented(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
+      }
+      this.stateSubject.next({ ...base, status: "ready", suggestedFix });
     } catch (err) {
       console.error("AI workflow fixer: analysis failed", err);
       if (seq !== this.analysisSeq) {
@@ -241,9 +280,7 @@ export class AiWorkflowFixerService {
         if (!code.includes(fix.original)) {
           throw new Error("the code changed since the suggestion was generated");
         }
-        // split/join replaces every occurrence and keeps the match literal; replace() with a
-        // string argument would patch only the first one and leave the rest failing.
-        properties.code = code.split(fix.original).join(fix.suggested);
+        properties.code = replaceAllIndented(code, fix.original, fix.suggested).code;
       } else {
         const field = String(fix.fieldName);
         // The field name comes from the model, so it is checked against the operator before
@@ -274,7 +311,14 @@ export class AiWorkflowFixerService {
       this.executeWorkflowService.executeWorkflow("");
     } catch (err) {
       console.error("AI workflow fixer: apply failed", err);
-      this.stateSubject.next({ ...current, status: "error" });
+      // Not the same as a failed analysis: the suggestion is still good, the operator moved
+      // under it. Reporting "could not suggest a fix" and hiding the diff sent the user back
+      // for another model call to get the fix they already had.
+      this.stateSubject.next({
+        ...current,
+        status: "apply_failed",
+        applyError: (err as Error).message,
+      });
     }
   }
 

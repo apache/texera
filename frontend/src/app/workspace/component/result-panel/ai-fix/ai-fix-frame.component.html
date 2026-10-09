@@ -64,17 +64,27 @@
     nzMessage="Fix applied. Select a warehouse to run the workflow."></nz-alert>
 
   <nz-alert
+    *ngIf="state.status === 'apply_failed'"
+    nzType="warning"
+    [nzMessage]="'Could not apply: ' + state.applyError + '. Review the diff and try again.'"></nz-alert>
+
+  <nz-alert
     *ngIf="state.status === 'error'"
     nzType="error"
     nzMessage="The AI could not suggest a fix for this error. Check the console for details."></nz-alert>
 
-  <ng-container *ngIf="state.status === 'ready' && state.suggestedFix as fix">
+  <ng-container *ngIf="(state.status === 'ready' || state.status === 'apply_failed') && state.suggestedFix as fix">
     <div class="ai-fix-section-title">🔍 Root cause</div>
     <p class="ai-fix-explanation">{{ fix.explanation }}</p>
 
     <div class="ai-fix-section-title">
       📝 Proposed fix
       <nz-tag [nzColor]="confidenceColor(fix.confidence)">{{ fix.confidence }} confidence</nz-tag>
+      <nz-tag
+        *ngIf="fix.occurrences && fix.occurrences > 1"
+        nzColor="orange"
+        >changes {{ fix.occurrences }} places</nz-tag
+      >
     </div>
 
     <div
