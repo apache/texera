@@ -1310,10 +1310,14 @@ describe("PowerButtonComponent", () => {
   describe("registerWorkflowMetadataSubscription (ngOnInit)", () => {
     // Boots a fresh component with a controlled metadata-change stream and a
     // mutable metadata object so we can flip the wid and re-emit at will.
-    function bootWithMetaStream(): {
+    function bootWithMetaStream(units?: DashboardWorkflowComputingUnit[]): {
       comp: ComputingUnitSelectionComponent;
       emit: (wid: number | undefined) => void;
+      fixture: ComponentFixture<ComputingUnitSelectionComponent>;
     } {
+      if (units) {
+        vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(of(units));
+      }
       const actionService = TestBed.inject(WorkflowActionService);
       const meta$ = new Subject<WorkflowMetadata>();
       vi.spyOn(actionService, "workflowMetaDataChanged").mockReturnValue(meta$.asObservable());
@@ -1325,7 +1329,7 @@ describe("PowerButtonComponent", () => {
         currentMeta = { ...DEFAULT_WORKFLOW, wid };
         meta$.next(currentMeta);
       };
-      return { comp: freshFixture.componentInstance, emit };
+      return { comp: freshFixture.componentInstance, emit, fixture: freshFixture };
     }
 
     it("selects the computing unit from the latest execution when the workflow id changes", () => {
@@ -1333,7 +1337,7 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1347,11 +1351,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         throwError(() => new Error("no execution"))
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [
+      const { comp, emit } = bootWithMetaStream([
         makeComputingUnit({ cuid: 1, status: "Pending" }),
         makeComputingUnit({ cuid: 2, status: "Running" }),
-      ];
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1390,13 +1393,239 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         throwError(() => new Error("no execution"))
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 1, status: "Pending" })];
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 1, status: "Pending" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
 
       expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    // The last execution's unit is only selected while it is still in the loaded list.
+    it("falls back to a Running unit when the last execution's unit is no longer listed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    it("selects nothing when the last execution's unit is gone and no unit is Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 1, status: "Pending" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("still selects the last execution's unit when it is listed but not Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 55, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 2);
+    });
+
+    it("decides from the latest execution only once, on the first loaded list", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+      units$.next([makeComputingUnit({ cuid: 2, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("waits for the unit list before deciding from the latest execution", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      units$.next([]);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("still falls back to a Running unit when the list arrives after the failed lookup", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      units$.next([makeComputingUnit({ cuid: 2, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("drops a latest-execution decision when the list arrives after the workflow changed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
+        of({ cuId: wid === 100 ? 55 : 9 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      emit(101);
+      units$.next([
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+      ]);
+
+      expect(selectSpy).toHaveBeenCalledWith(101, 9);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    it("only preselects the warehouse when the unit was already settled by a remembered choice", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55, whId: 3 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 77, status: "Running" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 77);
+      expect((comp as any).lastExecutionWhid).toBe(3);
+    });
+
+    it("falls back to a Running unit when the latest execution has no unit", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: null } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("falls back to a Running unit when both the remembered and the last execution's unit are gone", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 2, status: "Running" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBeNull();
+    });
+
+    it("drops a pending latest-execution decision once the component is destroyed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit, fixture } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      fixture.destroy();
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it.each(["Pending", "Terminating", "Failed", "Unknown"])("does not fall back to a unit that is %s", status => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("picks the first Running unit in list order when several are Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+        makeComputingUnit({ cuid: 3, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
     });
 
     it("drops a latest-execution answer that arrives after the workflow changed underneath it", () => {
@@ -1405,7 +1634,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
         wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1422,8 +1654,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
         wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 2, status: "Running" })];
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1442,7 +1676,7 @@ describe("PowerButtonComponent", () => {
         .mockReturnValue(of({ cuId: 55 } as unknown as WorkflowExecutionsEntry));
       const { comp, emit } = bootWithMetaStream();
       vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(
-        of([makeComputingUnit({ cuid: 77, status: "Running" })])
+        of([makeComputingUnit({ cuid: 77, status: "Running" }), makeComputingUnit({ cuid: 55, status: "Running" })])
       );
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
@@ -1534,9 +1768,13 @@ describe("PowerButtonComponent", () => {
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
-      // Workflow 101 has nothing remembered, so it decides at once from its latest execution.
+      // Workflow 101 has nothing remembered, so it decides from its latest execution once the
+      // list is in.
       emit(101);
-      units$.next([makeComputingUnit({ cuid: 77, status: "Running" })]);
+      units$.next([
+        makeComputingUnit({ cuid: 77, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
 
       expect(selectSpy).toHaveBeenCalledWith(101, 55);
       expect(selectSpy).not.toHaveBeenCalledWith(100, 77);
@@ -1548,8 +1786,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 77, status: "Running" })];
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 77, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(101);
@@ -1565,7 +1805,7 @@ describe("PowerButtonComponent", () => {
         vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
           of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
         );
-        const { comp, emit } = bootWithMetaStream();
+        const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
         const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
         emit(100);
@@ -1580,7 +1820,7 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
