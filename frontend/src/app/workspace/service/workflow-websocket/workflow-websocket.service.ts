@@ -18,7 +18,18 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, concatWith, interval, Observable, Subject, Subscription, throwError, timer } from "rxjs";
+import {
+  BehaviorSubject,
+  concatWith,
+  defer,
+  EMPTY,
+  interval,
+  Observable,
+  Subject,
+  Subscription,
+  throwError,
+  timer,
+} from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
   TexeraWebsocketEvent,
@@ -114,12 +125,28 @@ export class WorkflowWebsocketService {
       (isDefined(cuId) ? `&cuid=${cuId}` : "") +
       (AuthService.getAccessToken() !== null ? "&access-token=" + AuthService.getAccessToken() : "");
     console.log("websocketUrl", websocketUrl);
-    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
+    const websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
+    this.websocket = websocket;
     // setup reconnection logic
-    const wsWithReconnect = this.websocket.pipe(
-      // A server-side close with a close frame completes the socket instead of erroring;
-      // turn the completion into an error so the retry below reports the drop and redials.
-      concatWith(throwError(() => new Error("websocket closed by the server"))),
+    const wsWithReconnect = defer(() => {
+      // one flag per connection; each redial starts over
+      let receivedMessage = false;
+      return websocket.pipe(
+        tap(() => (receivedMessage = true)),
+        // A server-side close with a close frame completes the socket instead of erroring. If the
+        // server had sent something, turn the completion into an error so the retry below reports the
+        // drop and redials; a close before the server sent anything is a refused session and ends here.
+        concatWith(
+          defer(() => {
+            if (receivedMessage) {
+              return throwError(() => new Error("websocket closed by the server"));
+            }
+            console.log("websocket closed by the server before it sent anything, not reconnecting");
+            return EMPTY;
+          })
+        )
+      );
+    }).pipe(
       retryWhen(errors =>
         errors.pipe(
           tap(_ => this.updateConnectionStatus(false)), // update connection status
