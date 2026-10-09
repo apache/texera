@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791468350064,
+  "lastUpdate": 1791554129575,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -17691,6 +17691,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 503.9446430908928,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "be65bf8564a32eea4196aa0190a04f73884bfe70",
+          "message": "refactor(frontend): remove the unused loadFile output (#8892)\n\n### What changes were proposed in this PR?\n\nRemoves the unused `@Output() loadFile` from\n`UserDatasetFileRendererComponent`, along with `EventEmitter` and\n`Output` from its `@angular/core` import, since nothing else in the file\nuses them. **+1/−4 lines.** There is no behaviour change: the component\nnever emits `loadFile`, and its two hosts (`dataset-detail` and\n`model-detail`) bind only inputs on\n`<texera-user-dataset-file-renderer>`.\n\n### History\n\n| | |\n| --- | --- |\n| **Introduced by** | #2413 (2024-02-26), \"Introduce Dataset GUI\", with\nthe file renderer itself |\n| **Usage removed by** | **never used**. No `(loadFile)` binding or\n`.emit` has ever existed |\n\nIt has been unused for the nineteen months since it was added.\n\n### Any related issues, documentation, discussions?\n\nCloses #8891\n\n### How was this PR tested?\n\nNo new tests; no spec referenced the output.\n\nFrom `frontend/`:\n\n- `npx ng test --watch=false\n--include='**/user-dataset-file-renderer.component.spec.ts'\n--include='**/dataset-detail.component.spec.ts'\n--include='**/model-detail.component.spec.ts'`: 3 files, 286 tests, all\npass. The last two specs cover the renderer's two hosts.\n- `yarn format:ci`: clean.\n- `npx ng build`: success.\n\nTo re-check:\n\n```\ngit grep -n -w \"loadFile\" -- frontend/src   # no hits\n```\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-10-08T07:40:40Z",
+          "url": "https://github.com/apache/texera/commit/be65bf8564a32eea4196aa0190a04f73884bfe70"
+        },
+        "date": 1791554128712,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 587.6821350239497,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1057.8604994353598,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1149.561855773862,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 810.8150060114798,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1114.9937377828996,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1158.8469533748412,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 844.0734173994922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1123.1808063781477,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1161.5372839191132,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 688.7619379568191,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 892.9002600938855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 929.3783627212947,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 696.5984307984891,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 898.3578529209962,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 924.909238222324,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 727.2565221462154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 883.87475723207,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 913.7100238272396,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 431.41761665489156,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 513.6119345531677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 515.4412421243877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 436.026030192401,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 510.5448543944829,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 515.3609085793721,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 419.5252389270072,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 494.19575798622856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 499.3748954396984,
             "unit": "tuples/sec"
           }
         ]
