@@ -26,8 +26,6 @@ import { AppSettings } from "../../../../common/app-setting";
 import { AuthService } from "../../../../common/service/user/auth.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
@@ -175,8 +173,6 @@ export class AiWorkflowFixerService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private warehouseService: WarehouseService,
-    private config: GuiConfigService,
     private operatorMetadataService: OperatorMetadataService
   ) {
     // Without this the panel kept whatever it last showed: after Apply the green
@@ -290,15 +286,12 @@ export class AiWorkflowFixerService {
         properties[field] = coerceToFieldType(properties[field], fix.suggested);
       }
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
-      if (!this.canStartRun()) {
-        // ExecuteWorkflowService refuses the run and shows its own toast; reporting
-        // "re-running" here would contradict it.
-        this.stateSubject.next({ ...current, status: "applied_without_run" });
-        return;
-      }
-      this.stateSubject.next({ ...current, status: "applied" });
-      // Same empty execution name the operator menu uses for an ad-hoc run.
-      this.executeWorkflowService.executeWorkflow("");
+      // Asked rather than predicted: this used to mirror one of ExecuteWorkflowService's
+      // refusal conditions, which left the other one -- an unavailable computing unit --
+      // reported as "re-running" over a toast saying the opposite. The empty execution name
+      // is the one the operator menu uses for an ad-hoc run.
+      const started = this.executeWorkflowService.executeWorkflow("");
+      this.stateSubject.next({ ...current, status: started ? "applied" : "applied_without_run" });
     } catch (err) {
       console.error("AI workflow fixer: apply failed", err);
       // Not the same as a failed analysis: the suggestion is still good, the operator moved
@@ -310,14 +303,6 @@ export class AiWorkflowFixerService {
         applyError: (err as Error).message,
       });
     }
-  }
-
-  /**
-   * Mirrors ExecuteWorkflowService's own entry guard: while the deployment requires a
-   * warehouse and none is selected, a run request is refused before it starts.
-   */
-  private canStartRun(): boolean {
-    return !this.config.env.warehouseEnabled || this.warehouseService.getSelectedWarehouseIdValue() !== undefined;
   }
 
   public discardFix(): void {

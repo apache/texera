@@ -28,7 +28,6 @@ import {
 } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { WarehouseService } from "../../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
@@ -55,7 +54,6 @@ describe("AiWorkflowFixerService", () => {
   let killWorkflow: ReturnType<typeof vi.fn>;
   let executionState$: Subject<{ previous: any; current: any }>;
   let operatorProperties: Record<string, unknown>;
-  let selectedWarehouseId: number | undefined;
   let modificationEnabled: boolean;
   let modificationEnabled$: Subject<boolean>;
 
@@ -76,11 +74,10 @@ describe("AiWorkflowFixerService", () => {
 
   beforeEach(() => {
     setOperatorProperty = vi.fn();
-    executeWorkflow = vi.fn();
+    executeWorkflow = vi.fn().mockReturnValue(true);
     killWorkflow = vi.fn();
     executionState$ = new Subject<{ previous: any; current: any }>();
     operatorProperties = { code: CODE, workers: 1 };
-    selectedWarehouseId = undefined;
     modificationEnabled = true;
     modificationEnabled$ = new Subject<boolean>();
 
@@ -104,10 +101,6 @@ describe("AiWorkflowFixerService", () => {
             killWorkflow,
             getExecutionStateStream: () => executionState$.asObservable(),
           },
-        },
-        {
-          provide: WarehouseService,
-          useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
         },
         ...commonTestProviders,
       ],
@@ -487,23 +480,22 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("apply_failed");
     });
 
-    it("applies without claiming a re-run when a warehouse is required but none is selected", async () => {
-      // MockGuiConfigService ships warehouseEnabled=false; turn the feature on for this case.
-      (TestBed.inject(GuiConfigService).env as any).warehouseEnabled = true;
-      selectedWarehouseId = undefined;
+    it("writes the fix but claims no re-run when the deployment refuses one", async () => {
+      // Whatever the reason -- no warehouse, a computing unit shutting down -- the panel
+      // asks instead of predicting, so it cannot report "re-running" over the toast that
+      // says the run was refused.
+      executeWorkflow.mockReturnValue(false);
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
       expect(setOperatorProperty).toHaveBeenCalled();
-      expect(executeWorkflow).not.toHaveBeenCalled();
       expect(state().status).toEqual("applied_without_run");
     });
 
-    it("re-runs once a warehouse is selected", async () => {
-      (TestBed.inject(GuiConfigService).env as any).warehouseEnabled = true;
-      selectedWarehouseId = 7;
+    it("reports the re-run once the deployment accepts it", async () => {
+      executeWorkflow.mockReturnValue(true);
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
 
