@@ -23,7 +23,6 @@ import { USER_DATASET } from "../../../../../app-routing.constant";
 import { extractErrorMessage } from "../../../../../common/util/error";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService, validateDatasetName } from "../../../../service/user/dataset/dataset.service";
-import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
@@ -58,18 +57,13 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
-import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { NzEmptyComponent } from "ng-zorro-antd/empty";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
-import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
-import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
-import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
-import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
 import { NzInputDirective } from "ng-zorro-antd/input";
+import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -92,29 +86,19 @@ export const THROTTLE_TIME_MS = 1000;
     NzSwitchComponent,
     FormsModule,
     MarkdownDescriptionComponent,
-    NzLayoutComponent,
-    NzContentComponent,
     NzWaveDirective,
-    NzEmptyComponent,
     NzTabsComponent,
     NzTabComponent,
-    UserDatasetFileRendererComponent,
-    NzSiderComponent,
-    NzResizableDirective,
-    NzResizeHandleComponent,
     NzCollapseComponent,
     NzCollapsePanelComponent,
-    NzSelectComponent,
-    NgFor,
-    NzOptionComponent,
-    UserDatasetVersionFiletreeComponent,
     NzDividerComponent,
-    VersionUploaderComponent,
+    NgFor,
     NzInputDirective,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
+    VersionsFilesBrowserComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -136,8 +120,10 @@ export class DatasetDetailComponent implements OnInit {
   public currentFileSize: number | undefined;
   public currentDatasetVersionSize: number | undefined;
 
-  public isRightBarCollapsed = false;
+  // The versions/files browser is presentational; its two toolbar flags live here (maximizing
+  // the file view also hides the page header) and are shared through two-way bindings.
   public isMaximized = false;
+  public isRightBarCollapsed = false;
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
@@ -162,7 +148,8 @@ export class DatasetDetailComponent implements OnInit {
 
   readonly datasetEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
-  @ViewChild(VersionUploaderComponent) private versionUploader?: VersionUploaderComponent;
+  @ViewChild(VersionsFilesBrowserComponent)
+  private versionsFilesBrowser?: VersionsFilesBrowserComponent<DatasetVersion>;
 
   constructor(
     private route: ActivatedRoute,
@@ -181,18 +168,6 @@ export class DatasetDetailComponent implements OnInit {
         this.currentUid = this.userService.getCurrentUser()?.uid;
         this.isLogin = this.userService.isLogin();
       });
-  }
-
-  // item for control the resizeable sider
-  MAX_SIDER_WIDTH = 600;
-  MIN_SIDER_WIDTH = 150;
-  siderWidth = 400;
-  id = -1;
-  onSideResize({ width }: NzResizeEvent): void {
-    cancelAnimationFrame(this.id);
-    this.id = requestAnimationFrame(() => {
-      this.siderWidth = width!;
-    });
   }
 
   ngOnInit(): void {
@@ -415,14 +390,6 @@ export class DatasetDetailComponent implements OnInit {
       .subscribe();
   };
 
-  onClickScaleTheView() {
-    this.isMaximized = !this.isMaximized;
-  }
-
-  onClickHideRightBar() {
-    this.isRightBarCollapsed = !this.isRightBarCollapsed;
-  }
-
   onVersionSelected(version: DatasetVersion | undefined): void {
     this.selectedVersion = version;
     if (this.did && version?.dvid)
@@ -483,7 +450,7 @@ export class DatasetDetailComponent implements OnInit {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
-            this.versionUploader?.notePathStaged(relativePath);
+            this.versionsFilesBrowser?.notePathStaged(relativePath);
           },
           error: (err: unknown) => {
             this.notificationService.error("Failed to delete the file");
@@ -642,19 +609,6 @@ export class DatasetDetailComponent implements OnInit {
           this.notificationService.error(extractErrorMessage(err));
         },
       });
-  }
-
-  async copyCurrentFilePath(): Promise<void> {
-    if (!this.currentDisplayedFileName) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(this.currentDisplayedFileName);
-      this.notificationService.success("File path copied to clipboard");
-    } catch (error) {
-      this.notificationService.error("Failed to copy file path");
-    }
   }
 
   onAddContributor(): void {
