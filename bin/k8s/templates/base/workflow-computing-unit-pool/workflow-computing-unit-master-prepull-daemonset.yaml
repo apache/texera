@@ -31,6 +31,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-computing-unit-master-prepuller
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       restartPolicy: Always
       tolerations:
         - operator: "Exists"

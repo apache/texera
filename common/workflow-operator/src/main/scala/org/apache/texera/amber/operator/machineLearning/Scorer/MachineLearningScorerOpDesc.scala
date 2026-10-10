@@ -171,6 +171,21 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
               s"'$predictValueColumn' (${predictType.getName}) hold different kinds of label, " +
               "so a classification metric cannot compare them"
           )
+        // A matching pair can still be one sklearn refuses as labels. Bytes fail
+        // every metric. Timestamps only fail the per-class ones, since Accuracy
+        // just counts equal rows.
+        val perClass = classificationMetrics.filterNot(_ == classificationMetricsFnc.accuracy)
+        val refusedBy =
+          if (Set(AttributeType.BINARY, AttributeType.LARGE_BINARY).contains(actualType))
+            classificationMetrics
+          else if (actualType == AttributeType.TIMESTAMP) perClass
+          else List()
+        if (refusedBy.nonEmpty)
+          throw new RuntimeException(
+            s"Actual Value '$actualValueColumn' and Predicted Value '$predictValueColumn' are " +
+              s"${actualType.getName} columns, which ${refusedBy.map(_.getName).mkString(", ")} " +
+              "cannot score as labels"
+          )
       }
     }
   }
@@ -196,15 +211,6 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
 
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
-
-//  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
-//  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
 
   private def getMetricName(metric: Any): EncodableString =
     metric match {

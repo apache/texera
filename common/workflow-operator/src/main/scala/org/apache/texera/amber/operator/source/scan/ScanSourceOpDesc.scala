@@ -80,6 +80,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonIgnore
   def windowLimit: Option[Int] = limit.map(_.max(0))
 
+  /** Rows actually used for type inference: INFER_READ_LIMIT, capped by `windowLimit`
+    * when smaller.
+    */
+  @JsonIgnore
+  def inferSampleSize: Int = windowLimit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+
   override def sourceSchema(): Schema = null
 
   override def operatorInfo: OperatorInfo = {
