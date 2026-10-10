@@ -19,7 +19,18 @@
 
 import { Injectable } from "@angular/core";
 import { AppSettings } from "../../../common/app-setting";
-import { Notebook, NotebookMigrationLLM } from "./migration-llm";
+import { Notebook, NotebookMigrationLLM, SourceConversion } from "./migration-llm";
+import {
+  buildFolderDocument,
+  checkFolderByteSize,
+  checkFolderDocument,
+  checkFolderFileCount,
+  FolderDocument,
+  folderRelativePath,
+  folderRootName,
+  isExcludedPath,
+  isMigratablePythonPath,
+} from "./folder-assembly";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -43,6 +54,17 @@ interface LiteLLMModelsResponse {
 export interface MappingContent {
   cell_to_operator: Record<string, string[]>;
   operator_to_cell: Record<string, string[]>;
+}
+
+/**
+ * What a conversion yields, whichever input produced it. `notebook` is the uploaded one for an
+ * .ipynb and the LLM-derived one for a .py or a folder; either way it is what gets stored and
+ * shown in the Jupyter panel.
+ */
+export interface GeneratedWorkflowContent {
+  workflowContent: WorkflowContent;
+  mappingContent: MappingContent;
+  notebook: Notebook;
 }
 
 interface StoreNotebookResponse {
@@ -128,17 +150,45 @@ export class NotebookMigrationService {
   public async sendScriptToAIGenerateWorkflow(
     scriptSource: string,
     modelType: string
-  ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent; notebook: Notebook }> {
+  ): Promise<GeneratedWorkflowContent> {
+    return this.generateFromSource(modelType, "script", migrationLLM =>
+      migrationLLM.convertScriptToWorkflow(scriptSource)
+    );
+  }
+
+  /**
+   * Convert a folder of Python files, already assembled by parseFolder, into a workflow.
+   *
+   * Identical to the script path from the caller's side: the folder is one document by the time
+   * it gets here, so the derived notebook and the mapping have the same shape and are stored the
+   * same way.
+   */
+  public async sendFolderToAIGenerateWorkflow(
+    folder: FolderDocument,
+    modelType: string
+  ): Promise<GeneratedWorkflowContent> {
+    return this.generateFromSource(modelType, "folder", migrationLLM => migrationLLM.convertFolderToWorkflow(folder));
+  }
+
+  /**
+   * Run one conversion of an input that arrives without cells, then unpack it into the shape
+   * callers store. The script and folder paths differ only in which conversion they ask for.
+   */
+  private async generateFromSource(
+    modelType: string,
+    input: "script" | "folder",
+    convert: (migrationLLM: NotebookMigrationLLM) => Promise<SourceConversion>
+  ): Promise<GeneratedWorkflowContent> {
     return this.withMigrationLLM(modelType, async migrationLLM => {
       try {
-        const conversion = await migrationLLM.convertScriptToWorkflow(scriptSource);
+        const conversion = await convert(migrationLLM);
         return {
           workflowContent: conversion.workflowJSON,
           mappingContent: conversion.workflowNotebookMapping,
           notebook: conversion.notebook,
         };
       } catch (error) {
-        console.error("Error converting Python script:", error);
+        console.error(`Error converting Python ${input}:`, error);
         throw error;
       }
     });
@@ -318,26 +368,73 @@ export class NotebookMigrationService {
     delete this.mapping[id];
   }
 
-  // Reads a .py file as text. Rejects on a read error or a file with nothing in it: an empty
-  // script would otherwise cost a full LLM round trip to produce an empty workflow. Uses
-  // FileReader for the same reason parseAndTagNotebook does.
-  public parseScriptFile(file: File): Promise<string> {
+  // Reads a file as text. Uses FileReader for the same reason parseAndTagNotebook does: jsdom
+  // (the test environment) does not implement Blob/File.text(). `description` names the input in
+  // the read-failure message, since the caller knows what the user picked and this does not.
+  private readFileAsText(file: File, description: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onerror = () => reject(new Error("Failed to read the Python file."));
+      reader.onerror = () => reject(new Error(`Failed to read the ${description}.`));
       reader.onload = () => {
         if (typeof reader.result !== "string") {
           reject(new Error("File content is not a valid string."));
-          return;
-        }
-        if (reader.result.trim() === "") {
-          reject(new Error("The Python file is empty."));
           return;
         }
         resolve(reader.result);
       };
       reader.readAsText(file);
     });
+  }
+
+  // Reads a .py file as text. Rejects on a file with nothing in it: an empty script would
+  // otherwise cost a full LLM round trip to produce an empty workflow.
+  public async parseScriptFile(file: File): Promise<string> {
+    const source = await this.readFileAsText(file, "Python file");
+    if (source.trim() === "") {
+      throw new Error("The Python file is empty.");
+    }
+    return source;
+  }
+
+  /**
+   * Read a directory selection into the one document a folder conversion is run against.
+   *
+   * Keeps only project Python source, reads it, and assembles it in a fixed order. The file-count
+   * and byte checks run before anything is read, so an over-broad or oversized selection fails at
+   * once rather than after thousands of reads or one enormous one.
+   */
+  public async parseFolder(files: readonly File[]): Promise<FolderDocument> {
+    const picked = files.map(file => ({ file, path: folderRelativePath(file) }));
+    const selected = picked.filter(entry => isMigratablePythonPath(entry.path));
+    this.refuse(checkFolderFileCount(selected.length));
+    this.refuse(checkFolderByteSize(selected.reduce((sum, entry) => sum + entry.file.size, 0)));
+
+    const sources = await Promise.all(
+      selected.map(async entry => ({
+        // Named so a read failure says which file failed; the caller shows this message as-is.
+        path: entry.path,
+        source: await this.readFileAsText(entry.file, `file ${entry.path}`),
+      }))
+    );
+    const folder = buildFolderDocument(sources, {
+      rootName: folderRootName(files[0]?.webkitRelativePath ?? "") ?? "project",
+      // Named in the layout but never read. Caches and hidden directories stay out entirely.
+      otherPaths: picked
+        .filter(entry => !isMigratablePythonPath(entry.path) && !isExcludedPath(entry.path))
+        .map(entry => entry.path),
+    });
+
+    // Run against what the document actually holds: blank files are dropped during assembly,
+    // and the character cap needs the assembled size.
+    this.refuse(checkFolderDocument(folder));
+    return folder;
+  }
+
+  // Turns a cap check's message into the rejection the caller shows the user as-is.
+  private refuse(message: string | null): void {
+    if (message !== null) {
+      throw new Error(message);
+    }
   }
 
   // Reads and parses an .ipynb file, then tags each cell with a uuid (the mapping keys off these).

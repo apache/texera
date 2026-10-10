@@ -46,7 +46,9 @@ export interface WorkflowComputingUnitMetrics {
 
 export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
-  status: "Running" | "Pending";
+  status: "Running" | "Pending" | "Failed" | "Unknown" | "Terminating";
+  // Explanation of a failing or degraded status. Sent only to authorized viewers; null otherwise.
+  statusReason?: string | null;
   metrics: WorkflowComputingUnitMetrics;
   isOwner: boolean;
   accessPrivilege: "READ" | "WRITE" | "NONE";

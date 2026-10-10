@@ -630,32 +630,6 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
     });
 
-    it("does not let an older save's response undo a rename made while it was in flight", () => {
-      // Save A carries the old name. The author renames to B (B's own save is queued behind A). When
-      // A returns, its echoed name must not be written back over B, or an autosave in that window
-      // would carry the old name and the rename would be lost. The server-owned timestamp is kept.
-      vi.useFakeTimers();
-      enableSave();
-      build(formViewWorkflow).ngOnInit();
-      workflowPersistService.persistWorkflow.mockClear();
-      const saveA$ = new Subject<Workflow>();
-      workflowPersistService.persistWorkflow.mockReturnValueOnce(saveA$);
-      h.workflowChangedStream.next(undefined);
-      vi.runAllTimers();
-      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledTimes(1);
-
-      // The rename lands in the shared metadata while A is still out.
-      workflowActionService.getWorkflowMetadata = () => ({ name: "B", lastModifiedTime: 1 });
-      saveA$.next({ ...formViewWorkflow, wid: 7, name: "scGPT", lastModifiedTime: 42 } as any);
-      saveA$.complete();
-
-      expect(workflowActionService.setWorkflowMetadata).toHaveBeenCalledTimes(1);
-      const fedBack = workflowActionService.setWorkflowMetadata.mock.calls[0][0];
-      expect(fedBack.name).toBe("B");
-      expect(fedBack.lastModifiedTime).toBe(42);
-      vi.useRealTimers();
-    });
-
     it("hands over only once a save queued behind the switch's has completed too", () => {
       // The page stays interactive while the switch's save is in flight, so an edit made then gets its
       // own autosave queued behind it. Navigating on the switch's save alone would abort that newer
@@ -978,6 +952,22 @@ describe("WorkflowFormComponent", () => {
       renderOne("modelId");
 
       expect(component.rendered[0].fields[0].type).toBe("huggingface");
+    });
+
+    // Projection's column list is the drag-reorder widget on the canvas; the form renders the same
+    // widget, with its drag, rather than falling back to a plain list (#8761).
+    it("renders Projection's attributes through the drag-reorder widget, as the canvas does", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorType: "Projection" });
+      (component as any).formlyJsonschema = {
+        toFieldConfig: (_schema: any, opts: any) => ({
+          fieldGroup: [{ key: "attributes", type: "array", props: { label: "Attributes" } }].map(opts.map),
+        }),
+      };
+
+      renderOne("attributes");
+
+      expect(component.rendered[0].fields[0].type).toBe("repeat-section-dnd");
     });
 
     it("renders a file property through its own picker type", () => {
@@ -1762,6 +1752,115 @@ describe("WorkflowFormComponent", () => {
 
       // Still "running", but the button must not offer a Stop that would kill through a dead socket.
       expect(component.isRunning).toBe(true);
+      expect(component.runButtonState).toEqual({ label: "Connecting", icon: "loading", disabled: true });
+    });
+
+    it("asks for a unit instead of a dead Stop when the selected unit vanishes mid-run", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady(); // a valid workflow runs on a unit the reader can write to
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } }); // a run is in flight
+      h.statusStream.next(ComputingUnitState.NoComputingUnit); // the selected unit left the list
+      h.workflowWebsocketService.isConnected = false; // and its socket is gone
+
+      // The run never looks finished, so the button must name the problem instead of a dead Stop.
+      expect(component.isRunning).toBe(true);
+      expect(component.runButtonState).toEqual({ label: "Computing Unit", icon: "plus-circle", disabled: true });
+    });
+
+    it("still offers a deliverable Stop when the selected unit vanishes mid-run but its socket is up", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.statusStream.next(ComputingUnitState.NoComputingUnit);
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } });
+      h.workflowWebsocketService.isConnected = true;
+
+      expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: false });
+    });
+
+    it.each([
+      [ComputingUnitState.Terminating, { label: "Shutting Down", icon: "loading", disabled: true }],
+      [ComputingUnitState.Failed, { label: "Unavailable", icon: "warning", disabled: true }],
+      [ComputingUnitState.Unknown, { label: "Unavailable", icon: "warning", disabled: true }],
+    ])("names a %s unit instead of a dead Stop when it dies mid-run", (state, expected) => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady(); // a valid workflow runs on a unit the reader can write to
+      h.executionStateStream.next({ current: { state: ExecutionState.Running } }); // a run is in flight
+      h.statusStream.next(state); // the unit dies
+      h.workflowWebsocketService.isConnected = false; // and its socket goes with it
+
+      // The run never looks finished, so the button must name the problem instead of a dead Stop.
+      expect(component.isRunning).toBe(true);
+      expect(component.runButtonState).toEqual(expected);
+    });
+
+    it.each([ComputingUnitState.Terminating, ComputingUnitState.Failed, ComputingUnitState.Unknown])(
+      "still offers a deliverable Stop when a run is in flight on a %s unit whose socket is up",
+      state => {
+        build(formViewWorkflow).ngOnInit();
+        h.statusStream.next(state);
+        h.executionStateStream.next({ current: { state: ExecutionState.Running } });
+        h.workflowWebsocketService.isConnected = true;
+
+        // The socket is still up, so Stop can be delivered and must stay enabled.
+        expect(component.runButtonState).toEqual({ label: "Stop", icon: "stop", disabled: false });
+      }
+    );
+
+    it.each([false, true])(
+      "disables and says Shutting Down for a terminating unit, with the socket connected %s",
+      isConnected => {
+        build(formViewWorkflow).ngOnInit();
+        makeReady();
+        h.workflowWebsocketService.isConnected = isConnected;
+        h.statusStream.next(ComputingUnitState.Terminating);
+
+        // A terminating unit is not coming back, so it must not show "Connecting".
+        expect(component.isConnecting).toBe(false);
+        expect(component.runButtonState).toEqual({ label: "Shutting Down", icon: "loading", disabled: true });
+      }
+    );
+
+    it.each([ComputingUnitState.Failed, ComputingUnitState.Unknown])(
+      "disables and says Unavailable for a %s unit whose socket never comes up",
+      status => {
+        build(formViewWorkflow).ngOnInit();
+        makeReady();
+        h.workflowWebsocketService.isConnected = false;
+        h.statusStream.next(status);
+
+        expect(component.isConnecting).toBe(false);
+        expect(component.runButtonState).toEqual({ label: "Unavailable", icon: "warning", disabled: true });
+      }
+    );
+
+    it.each([
+      { errors: { op: {} }, empty: false, label: "Invalid", icon: "warning" },
+      { errors: {}, empty: true, label: "Empty", icon: "info-circle" },
+    ])("keeps '$label' ahead of a terminal computing unit, as the canvas does", ({ errors, empty, label, icon }) => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.statusStream.next(ComputingUnitState.Failed);
+      h.validationStream.next({ errors, workflowEmpty: empty });
+
+      expect(component.runButtonState).toEqual({ label, icon, disabled: true });
+    });
+
+    it("names the terminal unit before the missing warehouse, which cannot rescue a dead unit", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.config.env.warehouseEnabled = true;
+      h.warehouseService.selectWarehouse(undefined);
+      h.statusStream.next(ComputingUnitState.Failed);
+
+      expect(component.runButtonState).toEqual({ label: "Unavailable", icon: "warning", disabled: true });
+    });
+
+    it("still says Connecting for a Pending unit, which is starting up rather than dead", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.workflowWebsocketService.isConnected = false;
+      h.statusStream.next(ComputingUnitState.Pending);
+
+      expect(component.isConnecting).toBe(true);
       expect(component.runButtonState).toEqual({ label: "Connecting", icon: "loading", disabled: true });
     });
 

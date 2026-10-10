@@ -17,17 +17,13 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
-import { ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+.delimiter-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
 
-@Injectable({
-  providedIn: "root",
-})
-export class FileResourceDescriptor implements ResourceDescriptor {
-  readonly type = EntityType.File;
-  readonly iconType = "folder-open";
-  // Files have no page of their own, so entries of this kind stay unrouted.
-
-  isOwner = (): boolean => true;
+.delimiter-select {
+  width: 100%;
 }

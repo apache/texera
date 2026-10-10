@@ -40,6 +40,7 @@ import { EditableLabelWrapperComponent } from "../../../common/formly/editable-l
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -868,9 +869,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           description: (source as { description?: string })?.description,
           currentType: mapped.type,
         });
-        // Canvas-only widgets (code editor, drag-reorder) do not work here; an older workflow may
-        // already carry one, so leave it to formly's default editable control rather than a widget
-        // that cannot function on a form.
+        // A canvas-only widget (the code editor) does not work here; an older workflow may already
+        // carry one, so leave it to formly's default editable control rather than a widget that
+        // cannot function on a form.
         if (customType && !CANVAS_ONLY_FORMLY_TYPES.has(customType)) {
           mapped.type = customType;
         }
@@ -1562,10 +1563,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * A unit is picked but its socket is still coming up -- the same window the operator canvas shows
    * "Connecting" and disables its run button. Read from the exact condition the canvas uses
    * (menu.component's getRunButtonBehavior), so the two stay in step.
+   *
+   * Terminal units are excluded: they are not coming back, so runButtonState names them instead.
    */
   public get isConnecting(): boolean {
     return (
-      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected
+      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit &&
+      unavailableComputingUnitReason(this.computingUnitStatus) === undefined &&
+      !this.workflowWebsocketService.isConnected
     );
   }
 
@@ -1596,6 +1601,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * to Run and Stop, with no pause/resume: while a run is in flight the button stops (kills) it,
    * otherwise it runs. (The canvas offers Pause/Resume/Submitting and a clickable Connect; a form
    * reader does not, and picks the unit in the embedded selector instead.)
+   *
+   * A unit that cannot accept work also disables it, named as on the canvas via
+   * unavailableComputingUnitReason but with shorter labels. One difference: mid-run the canvas shows
+   * "Shutting Down", but here Stop wins while the socket can still deliver it, because Stop is this
+   * button's only run control.
    */
   public get runButtonState(): { label: string; icon: string; disabled: boolean } {
     // Connecting is checked before Stop on purpose: if the socket drops mid-run, a "Stop" would
@@ -1604,7 +1614,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.isConnecting) {
       return { label: "Connecting", icon: "loading", disabled: true };
     }
-    if (this.isRunning) {
+    // Stop is shown only while the socket can deliver the kill. A run on a unit that died or
+    // vanished mid-run falls through, so a later branch names the problem.
+    if (this.isRunning && this.workflowWebsocketService.isConnected) {
       return { label: "Stop", icon: "stop", disabled: false };
     }
     if (!this.isWorkflowValid) {
@@ -1612,6 +1624,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
     if (this.isWorkflowEmpty) {
       return { label: "Empty", icon: "info-circle", disabled: true };
+    }
+    // Before the access and warehouse checks: neither can fix a dead unit.
+    const unavailableReason = unavailableComputingUnitReason(this.computingUnitStatus);
+    if (unavailableReason === "terminating") {
+      return { label: "Shutting Down", icon: "loading", disabled: true };
+    }
+    if (unavailableReason === "unavailable") {
+      return { label: "Unavailable", icon: "warning", disabled: true };
     }
     if (this.hasNoComputingUnit) {
       return { label: "Computing Unit", icon: "plus-circle", disabled: true };
@@ -1972,13 +1992,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           if (this.destroyed) {
             return;
           }
-          // The response reflects the snapshot that was sent. A rename made since must not be undone
-          // by it (its own save is already queued behind this one); what this feedback is for is the
-          // server-owned part, the timestamp above all, and the normalised name when nothing changed.
-          const current = this.workflowActionService.getWorkflowMetadata();
-          this.workflowActionService.setWorkflowMetadata(
-            current.name !== preserved.name ? { ...updatedWorkflow, name: current.name } : updatedWorkflow
-          );
+          // Fed back as it arrives: WorkflowPersistService already relays every response with the
+          // page's current name and description, so an edit made while this save was out is not
+          // undone here. What is left to apply is the server-owned part, the timestamp above all.
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
         },
         // A save that fails silently is the worst thing this page can do: the author walks
         // away believing the form they just built is stored.
