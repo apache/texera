@@ -272,7 +272,10 @@ object dtos {
       services: Seq[String],
       workflowIds: Seq[Long],
       computingUnitIds: Seq[Long],
-      userIds: Seq[Long]
+      userIds: Seq[Long],
+      // id -> display name for the user-id dropdown; ids without a
+      // resolved name are absent and the UI falls back to the id.
+      userNames: Map[Long, String] = Map.empty
   )
 
   // ---- metrics ---------------------------------------------------------

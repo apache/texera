@@ -73,6 +73,9 @@ export interface LogSourcesResponse {
   readonly workflowIds: ReadonlyArray<number>;
   readonly computingUnitIds: ReadonlyArray<number>;
   readonly userIds: ReadonlyArray<number>;
+  /** id -> display name for the user-id dropdown; ids without a name
+   *  are absent and the UI falls back to the id. */
+  readonly userNames?: Readonly<Record<number, string>>;
 }
 
 export interface LogEntry {

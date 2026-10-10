@@ -33,7 +33,11 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.observability.OtelInit
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
-import org.apache.texera.web.observability.gateway.{GatewayContext, ObservabilityHealthResource}
+import org.apache.texera.web.observability.gateway.{
+  GatewayContext,
+  LogsResource,
+  ObservabilityHealthResource
+}
 import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{
   AppleAuthResource,
@@ -179,6 +183,7 @@ class TexeraWebApplication
     // respective PRs (obs/pr10..13).
     logger.debug("Registering observability gateway resources")
     val obsCtx = GatewayContext.default()
+    environment.jersey.register(new LogsResource(obsCtx))
     environment.jersey.register(new ObservabilityHealthResource(obsCtx))
 
     AuthResource.createAdminUser()
