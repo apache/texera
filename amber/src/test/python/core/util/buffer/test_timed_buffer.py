@@ -41,20 +41,21 @@ def _make_message(title: str = "msg") -> ConsoleMessage:
 
 @pytest.fixture
 def clock(monkeypatch):
-    """
-    Replaces the ``datetime`` referenced inside ``timed_buffer`` with a
-    controllable fake so that time-based flushing is fully deterministic
-    (no real sleeps). ``clock.current`` is a real ``datetime`` so that
-    subtraction inside the module yields a real ``timedelta``.
-    """
-    holder = types.SimpleNamespace(current=datetime.datetime(2024, 1, 1, 0, 0, 0))
-    fake = types.SimpleNamespace(now=lambda: holder.current)
-    monkeypatch.setattr(timed_buffer_module, "datetime", fake)
+    """Control elapsed time independently of the wall clock, without sleeping."""
+    holder = types.SimpleNamespace(current=100.0, wall=datetime.datetime(2024, 1, 1))
+    monkeypatch.setattr(timed_buffer_module, "monotonic", lambda: holder.current)
+    monkeypatch.setattr(
+        timed_buffer_module,
+        "datetime",
+        types.SimpleNamespace(now=lambda: holder.wall),
+        raising=False,
+    )
     return holder
 
 
 def _advance(clock, seconds):
-    clock.current = clock.current + datetime.timedelta(seconds=seconds)
+    clock.current += seconds
+    clock.wall += datetime.timedelta(seconds=seconds)
 
 
 class TestPut:
@@ -129,9 +130,30 @@ class TestFlushOnSize:
 
 
 class TestFlushOnTime:
+    def test_subsecond_interval_withholds_before_boundary(self, clock):
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        buffer.put(_make_message())
+        _advance(clock, 0.4)
+        assert list(buffer.get()) == []
+        assert len(buffer._buffer) == 1
+
+    def test_wall_clock_jump_does_not_change_flush_interval(self, clock):
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        message = _make_message()
+        buffer.put(message)
+        clock.wall -= datetime.timedelta(seconds=3600)
+        _advance(clock, 0.5)
+        assert list(buffer.get()) == [message]
+
+    def test_subsecond_interval_triggers_flush(self, clock):
+        buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=500)
+        buffer.put(_make_message())
+        _advance(clock, 0.5)
+        assert len(list(buffer.get())) == 1
+        assert len(buffer._buffer) == 0
+
     def test_elapsed_interval_triggers_flush(self, clock):
-        # Interval of 2000ms -> 2.0s threshold. timedelta.seconds is an
-        # integer, so 3 whole seconds (>= 2.0) triggers the time-based flush.
+        # An elapsed time beyond the 2000 ms threshold triggers the flush.
         buffer = TimedBuffer(max_message_num=100, max_flush_interval_in_ms=2000)
         buffer.put(_make_message())
         _advance(clock, 3)
