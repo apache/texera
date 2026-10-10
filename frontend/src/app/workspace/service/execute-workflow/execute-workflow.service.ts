@@ -56,11 +56,6 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
-export const EXECUTE_WORKFLOW_ENDPOINT = "queryplan/execute";
-
-export const PAUSE_WORKFLOW_ENDPOINT = "pause";
-export const RESUME_WORKFLOW_ENDPOINT = "resume";
-
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
  *  for execution, then receives backend's response and broadcast it to other components.

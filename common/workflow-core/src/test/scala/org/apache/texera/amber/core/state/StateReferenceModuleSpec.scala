@@ -27,8 +27,9 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.texera.amber.core.state.StateReferencing.{
-  fixedAtCompileTime,
   literalReferences,
+  noLoopVariableProperties,
+  noLoopVariableReferences,
   referencedVariable
 }
 import org.apache.texera.amber.core.tuple.AttributeType
@@ -207,7 +208,18 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
     )
   }
 
-  "StateReferencing.fixedAtCompileTime" should "pick the references under a property marked @FixedAtCompileTime, renamed, escaped, nested or declared by a trait" in {
+  "StateReferencing.noLoopVariableProperties" should "name each property marked @NoLoopVariable by its JSON name, a trait's included" in {
+    assert(
+      noLoopVariableProperties(classOf[PlanBuilding]) ==
+        Set("result attribute", "a/b", "keys", "column")
+    )
+  }
+
+  it should "name nothing for a descriptor with no marked property" in {
+    assert(noLoopVariableProperties(classOf[Bean]).isEmpty)
+  }
+
+  "StateReferencing.noLoopVariableReferences" should "pick the references under a property marked @NoLoopVariable, renamed, escaped, nested or declared by a trait" in {
     val descriptor = new PlanBuilding
     descriptor.stateReferences = Map(
       "/result attribute" -> "r",
@@ -218,7 +230,7 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
       "/others/0/count" -> "o"
     )
     assert(
-      fixedAtCompileTime(descriptor) ==
+      noLoopVariableReferences(descriptor) ==
         Map("/result attribute" -> "r", "/a~1b" -> "s", "/keys/0/label" -> "k", "/column" -> "c")
     )
   }
@@ -226,8 +238,8 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
   it should "pick nothing from a descriptor with no marked property, or with no reference" in {
     val bean = new Bean
     bean.stateReferences = Map("/name" -> "i", "/nested/0/count" -> "c")
-    assert(fixedAtCompileTime(bean).isEmpty)
-    assert(fixedAtCompileTime(new PlanBuilding).isEmpty)
+    assert(noLoopVariableReferences(bean).isEmpty)
+    assert(noLoopVariableReferences(new PlanBuilding).isEmpty)
   }
 }
 
@@ -259,14 +271,14 @@ object StateReferenceModuleSpec {
 
   /** As `TextSourceOpDesc`: a property a trait declares and marks. */
   trait NamedColumn {
-    @JsonProperty @FixedAtCompileTime var column: String = "line"
+    @JsonProperty @NoLoopVariable var column: String = "line"
   }
 
   /** Marked properties -- renamed, escaped, a list of beans, a trait's -- and unmarked ones. */
   class PlanBuilding extends StateReferencing with NamedColumn {
-    @JsonProperty("result attribute") @FixedAtCompileTime var resultAttribute: String = _
-    @JsonProperty("a/b") @FixedAtCompileTime var slashed: String = _
-    @JsonProperty @FixedAtCompileTime var keys: List[Nested] = List.empty
+    @JsonProperty("result attribute") @NoLoopVariable var resultAttribute: String = _
+    @JsonProperty("a/b") @NoLoopVariable var slashed: String = _
+    @JsonProperty @NoLoopVariable var keys: List[Nested] = List.empty
     @JsonProperty var value: String = _
     @JsonProperty var others: List[Nested] = List.empty
   }

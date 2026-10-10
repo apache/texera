@@ -25,15 +25,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a descriptor property that the compiled plan is built from: the name or type of an output
- * column, or what an input is partitioned on. The compiler fixes the plan before any loop runs, so
- * the property cannot refer to a loop variable, nor can anything inside it: the loop state would
- * write the value into the operator's setting after the schema or the partitioning was already
- * built from the placeholder. Inside a loop block such a reference is a compile error
+ * Marks a descriptor property that cannot hold a loop variable, nor can anything inside it. The
+ * plan -- the name or type of an output column, or what an input is partitioned on -- is built
+ * from the property when the workflow is compiled, before any loop runs; the loop state writes a
+ * loop variable into the operator's setting only later, so the plan would be built from the
+ * {@code $name} placeholder instead. Inside a loop block such a reference is an error
  * ({@code WorkflowCompiler.normalizeStateReferences}); outside every block a {@code $name} string
  * stays the literal it is.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
-public @interface FixedAtCompileTime {
+public @interface NoLoopVariable {
 }

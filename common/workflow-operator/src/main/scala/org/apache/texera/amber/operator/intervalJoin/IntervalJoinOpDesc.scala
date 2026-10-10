@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.state.FixedAtCompileTime
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
@@ -59,14 +59,14 @@ class IntervalJoinOpDesc extends LogicalOp {
   @JsonSchemaTitle("Left Input attr")
   @JsonPropertyDescription("Choose one attribute in the left table")
   @AutofillAttributeName
-  @FixedAtCompileTime
+  @NoLoopVariable
   var leftAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Right Input attr")
   @JsonPropertyDescription("Choose one attribute in the right table")
   @AutofillAttributeNameOnPort1
-  @FixedAtCompileTime
+  @NoLoopVariable
   var rightAttributeName: String = _
 
   @JsonProperty(required = true, defaultValue = "10")
