@@ -82,4 +82,34 @@ class CSVOldScanSourceOpExecSpec extends AnyFlatSpec {
     val exec = new CSVOldScanSourceOpExec(descString("a\n1\n"))
     exec.close() // reader is still null -> guarded, no exception
   }
+
+  it should "skip a post-inference row that does not parse and report row, value, column, type" in {
+    // 100 clean integer rows fix the column type at INTEGER (INFER_READ_LIMIT=100);
+    // data row 101 holds a non-integer and must be skipped but reported.
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a\n$clean\noops\n"))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    val warnings = exec.getWarnings
+    assert(warnings.size == 1)
+    assert(warnings.head.startsWith("WARNING: "))
+    assert(warnings.head.contains("row 101"))
+    assert(warnings.head.contains("'oops'"))
+    assert(warnings.head.contains("column 'a'"))
+    assert(warnings.head.contains("INTEGER"))
+  }
+
+  it should "report the absolute data-row number when an offset is set" in {
+    // offset=2 shifts both inference and reading to data row 3; the inference sample
+    // (rows 3..102) is all integers, so "oops" at data row 103 is skipped. The
+    // reported number must count from the start of the data, not from the offset.
+    val clean = (1 to 102).map(_.toString).mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a\n$clean\noops\n", offset = Some(2)))
+    val rows = drain(exec)
+
+    assert(rows.size == 100)
+    assert(exec.getWarnings.size == 1)
+    assert(exec.getWarnings.head.contains("row 103"))
+  }
 }

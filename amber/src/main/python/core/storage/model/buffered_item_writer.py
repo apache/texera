@@ -63,13 +63,3 @@ class BufferedItemWriter(ABC, Generic[T]):
         :param item: the data item to be written.
         """
         pass
-
-    @abstractmethod
-    def remove_one(self, item: T) -> None:
-        """
-        Remove one item from the buffer. If the item is not found in the buffer, an
-        appropriate action should be taken,
-        such as throwing an exception or ignoring the request.
-        :param item: the data item to be removed.
-        """
-        pass

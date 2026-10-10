@@ -17,13 +17,6 @@
  * under the License.
  */
 
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: #f4f4f4;
-}
-
 .container {
   width: 80%;
   margin: 30px auto 0;
@@ -47,22 +40,6 @@ h1 {
 }
 .workflow-info div:last-child {
   margin-right: 0;
-}
-.workflow-steps {
-  margin-top: 20px;
-}
-.workflow-step {
-  background-color: #f9f9f9;
-  padding: 15px;
-  margin-bottom: 10px;
-  border-left: 5px solid #007bff;
-}
-.workflow-step h3 {
-  margin: 0;
-  color: #007bff;
-}
-.workflow-step p {
-  margin: 5px 0;
 }
 
 .preview-containers {
