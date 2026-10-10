@@ -23,15 +23,13 @@ import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { ObservableContextManager } from "src/app/common/util/context";
+import { ContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { HeatmapView } from "../../heatmap/heatmap-scoring";
 import { dia } from "jointjs/types/joint";
 import * as _ from "lodash";
 import Selectors = dia.Cell.Selectors;
-
-type linkIDType = { linkID: string };
 
 type JointModelEventInfo = {
   add: boolean;
@@ -128,10 +126,6 @@ export class JointGraphWrapper {
   private jointOperatorHighlightStream = new Subject<readonly string[]>();
   // event stream of un-highlighting an operator
   private jointOperatorUnhighlightStream = new Subject<readonly string[]>();
-  // event stream of highlighting a group
-  private jointGroupHighlightStream = new Subject<readonly string[]>();
-  // event stream of un-highlighting a group
-  private jointGroupUnhighlightStream = new Subject<readonly string[]>();
   // event stream of highlighing a link
   private jointLinkHighlightStream = new Subject<readonly string[]>();
   // event stream of unhighlighing a link
@@ -152,17 +146,10 @@ export class JointGraphWrapper {
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
 
-  // event stream of showing the breakpoint button of a link
-  private jointLinkBreakpointShowStream = new Subject<linkIDType>();
-  // event stream of hiding the breakpoint button of a link
-  private jointLinkBreakpointHideStream = new Subject<linkIDType>();
   // the currently highlighted links' ids
   private currentHighlightedLinks: string[] = [];
-  // the linkIDs of those links with a breakpoint
-
   private currentHighlightedPorts: LogicalPort[] = [];
   // the IDs of ports currently being edited
-  private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -490,13 +477,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * get the ids of all the links that have a breakpoint
-   */
-  public getLinkIDsWithBreakpoint(): readonly string[] {
-    return this.linksWithBreakpoints;
-  }
-
-  /**
    * get the event stream of a link being highlighted.
    */
   public getLinkHighlightStream(): Observable<readonly string[]> {
@@ -508,35 +488,6 @@ export class JointGraphWrapper {
    */
   public getLinkUnhighlightStream(): Observable<readonly string[]> {
     return this.jointLinkUnhighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
-  }
-
-  /**
-   * get the event stream of showing the breakpoint button of a link
-   */
-  public getLinkBreakpointShowStream(): Observable<linkIDType> {
-    return this.jointLinkBreakpointShowStream.asObservable();
-  }
-
-  /**
-   * get the event stream of hiding the breakpoint button of a link
-   */
-  public getLinkBreakpointHideStream(): Observable<linkIDType> {
-    return this.jointLinkBreakpointHideStream.asObservable();
-  }
-
-  /**
-   * Gets the event stream of an operator being dragged.
-   */
-  public getJointGroupHighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
-  }
-
-  /**
-   * Gets the event stream of a group being unhighlighted.
-   * The group could be unhighlighted because it's deleted.
-   */
-  public getJointGroupUnhighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupUnhighlightStream.asObservable().pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   public getJointCommentBoxHighlightStream(): Observable<readonly string[]> {
@@ -866,7 +817,7 @@ export class JointGraphWrapper {
   }
 
   public static jointGraphContextFactory() {
-    class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
+    class JointGraphContext extends ContextManager<JointGraphContextType>(DefaultContext) {
       private static jointPaper: joint.dia.Paper | undefined;
 
       public static async() {

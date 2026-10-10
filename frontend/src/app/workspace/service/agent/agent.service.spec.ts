@@ -1223,15 +1223,6 @@ describe("AgentService", () => {
       expect(seen).toEqual([true, false]);
       expect(service.getShowPortShapes()).toBe(false);
     });
-
-    it("requestScrollToStep broadcasts the scroll target", () => {
-      let target: { agentId: string; messageId: string; stepId: number } | undefined;
-      service.scrollToStep$.subscribe(t => (target = t));
-
-      service.requestScrollToStep("agent-1", "m1", 4);
-
-      expect(target).toEqual({ agentId: "agent-1", messageId: "m1", stepId: 4 });
-    });
   });
 
   // ---------------------------------------------------------------------------
