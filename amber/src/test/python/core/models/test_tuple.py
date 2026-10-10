@@ -98,6 +98,17 @@ class TestTuple:
         assert target_tuple == target_tuple
         assert not Tuple({"x": 2, "y": "a"}) == target_tuple
 
+    def test_tuple_equality_includes_schema(self):
+        int_schema = Schema(raw_schema={"value": "INTEGER"})
+        integer = Tuple({"value": 1}, int_schema)
+        same_integer = Tuple({"value": 1}, int_schema)
+        decimal = Tuple({"value": 1.0}, Schema(raw_schema={"value": "DOUBLE"}))
+
+        assert integer == same_integer
+        assert hash(integer) == hash(same_integer)
+        assert integer != decimal
+        assert integer != Tuple({"value": 1})
+
     def test_tuple_ne(self, target_tuple):
         assert not target_tuple != target_tuple
         assert Tuple({"x": 1, "y": "b"}) != target_tuple

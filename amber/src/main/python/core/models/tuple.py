@@ -441,6 +441,7 @@ class Tuple:
     def __eq__(self, other: Any) -> bool:
         return (
             isinstance(other, Tuple)
+            and self._schema == other._schema
             and self.get_field_names() == other.get_field_names()
             and all(self[i] == other[i] for i in self.get_field_names())
         )
