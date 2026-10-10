@@ -194,6 +194,69 @@ describe("AdminComputingUnitComponent", () => {
       expect(component.computingUnits).toEqual(second);
     });
 
+    it("toasts once while polling keeps failing, and again when it fails after a recovery", () => {
+      vi.mocked(service.listAllComputingUnits)
+        .mockReturnValueOnce(failWith("first"))
+        .mockReturnValueOnce(failWith("second"))
+        .mockReturnValueOnce(of([makeUnit()]))
+        .mockReturnValueOnce(failWith("third"));
+
+      component.ngOnInit();
+      expect(shownError()).toHaveBeenCalledTimes(1);
+      expect(shownError()).toHaveBeenLastCalledWith("first");
+
+      // Still failing: no second toast.
+      vi.advanceTimersByTime(5000);
+      expect(shownError()).toHaveBeenCalledTimes(1);
+
+      // Recovers, then fails again: the next failure is announced afresh.
+      vi.advanceTimersByTime(5000);
+      expect(shownError()).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(5000);
+      expect(shownError()).toHaveBeenCalledTimes(2);
+      expect(shownError()).toHaveBeenLastCalledWith("third");
+    });
+
+    describe("stale-data warning", () => {
+      const warning = () => fixture.nativeElement.querySelector("nz-alert") as HTMLElement | null;
+      const tickAndRender = () => {
+        vi.advanceTimersByTime(5000);
+        fixture.detectChanges();
+      };
+
+      it("appears with the time of the last good load while a refresh fails, and clears on recovery", () => {
+        vi.setSystemTime(new Date(2026, 9, 10, 15, 4, 5));
+        vi.mocked(service.listAllComputingUnits)
+          .mockReturnValueOnce(of([makeUnit()]))
+          .mockReturnValueOnce(failWith("boom"))
+          .mockReturnValueOnce(failWith("boom"))
+          .mockReturnValueOnce(of([makeUnit()]));
+
+        fixture.detectChanges();
+        expect(warning()).toBeNull();
+
+        // The warning stays up for the whole outage, even after the toast has gone.
+        tickAndRender();
+        expect(warning()?.textContent).toContain("Showing data from 3:04:05");
+        tickAndRender();
+        expect(warning()?.textContent).toContain("Showing data from 3:04:05");
+
+        tickAndRender();
+        expect(warning()).toBeNull();
+      });
+
+      it("says the units could not be loaded when the first load fails, rather than showing an empty table as is", () => {
+        vi.mocked(service.listAllComputingUnits).mockReturnValue(failWith("boom"));
+
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+        fixture.detectChanges();
+
+        expect(warning()?.textContent).toContain("Could not load computing units");
+        expect(warning()?.textContent).not.toContain("Showing data from");
+      });
+    });
+
     // `switchMap` would cancel the slow response on every tick, so the table would never refresh.
     it("lets a response slower than the interval finish instead of cancelling it", () => {
       const requests: Subject<DashboardWorkflowComputingUnit[]>[] = [];

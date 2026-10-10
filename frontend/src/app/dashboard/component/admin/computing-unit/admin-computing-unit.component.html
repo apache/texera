@@ -27,6 +27,13 @@
   </h2>
 </nz-card>
 
+<nz-alert
+  *ngIf="pollFailing"
+  class="refresh-warning"
+  nzType="warning"
+  nzShowIcon
+  [nzMessage]="refreshWarning"></nz-alert>
+
 <nz-table
   #cuTable
   nzShowSizeChanger
@@ -114,6 +121,13 @@
     </ng-container>
   </tbody>
 </nz-table>
+
+<ng-template #refreshWarning>
+  <ng-container *ngIf="lastUpdated; else neverLoaded">
+    Showing data from {{ lastUpdated | date: "mediumTime" }}. The refresh is failing, so some units may have changed.
+  </ng-container>
+  <ng-template #neverLoaded>Could not load computing units. The refresh is failing.</ng-template>
+</ng-template>
 
 <ng-template #loadingTemplate>
   <div class="loading-container">

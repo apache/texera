@@ -34,6 +34,7 @@ import {
   NzTableSortFn,
   NzTableFilterFn,
 } from "ng-zorro-antd/table";
+import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
@@ -66,6 +67,7 @@ type SpecKey = Exclude<keyof WorkflowComputingUnitResourceLimit, "nodeAddresses"
   templateUrl: "./admin-computing-unit.component.html",
   styleUrls: ["./admin-computing-unit.component.scss"],
   imports: [
+    NzAlertComponent,
     NzCardComponent,
     NzTableComponent,
     NzTheadComponent,
@@ -87,6 +89,10 @@ type SpecKey = Exclude<keyof WorkflowComputingUnitResourceLimit, "nodeAddresses"
 export class AdminComputingUnitComponent implements OnInit {
   computingUnits: ReadonlyArray<DashboardWorkflowComputingUnit> = [];
   isLoading: boolean = true;
+  // True from the first failed poll until the next one succeeds. While it holds, the rows are the last good snapshot
+  // (or nothing, if the first poll failed), so the page warns instead of passing them off as current.
+  pollFailing = false;
+  lastUpdated?: Date;
   readonly expandedCuids = new Set<number>();
 
   readonly getBadgeColor = getComputingUnitBadgeColor;
@@ -133,14 +139,18 @@ export class AdminComputingUnitComponent implements OnInit {
   ngOnInit(): void {
     // `startWith(0)` loads at once. `exhaustMap` rather than `switchMap` lets a response slower than the interval
     // finish instead of being cancelled by the next tick, so a slow cluster still refreshes. `catchError` sits inside
-    // it, so one failed poll shows a message without ending the stream.
+    // it, so a failed poll does not end the stream. It toasts only when polling starts failing, so a long outage does
+    // not raise a new toast every tick; the warning above the table covers the rest of it.
     interval(COMPUTING_UNIT_REFRESH_INTERVAL_MS)
       .pipe(
         startWith(0),
         exhaustMap(() =>
           this.computingUnitService.listAllComputingUnits().pipe(
             catchError((err: unknown) => {
-              this.messageService.error(extractErrorMessage(err));
+              if (!this.pollFailing) {
+                this.messageService.error(extractErrorMessage(err));
+              }
+              this.pollFailing = true;
               return EMPTY;
             }),
             // Also runs after a failed load, so the spinner cannot spin forever.
@@ -149,7 +159,11 @@ export class AdminComputingUnitComponent implements OnInit {
         ),
         untilDestroyed(this)
       )
-      .subscribe(units => (this.computingUnits = units));
+      .subscribe(units => {
+        this.pollFailing = false;
+        this.lastUpdated = new Date();
+        this.computingUnits = units;
+      });
   }
 
   /** A poll replaces every row object, so key the rows by `cuid` to reuse their DOM. */
