@@ -134,9 +134,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   def exportToLocal(request: ResultExportRequest): Response = {
     if (request.operators.size > 1) {
       val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
-      if (zipStream == null) {
-        throw new RuntimeException("Zip stream is null")
-      }
       val fileName = zipFileNameOpt.getOrElse("operators.zip")
 
       Response
