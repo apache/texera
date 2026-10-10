@@ -48,6 +48,13 @@ object EnvironmentalVariable {
   val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
   val ENV_AUTH_JWT_SECRET = "AUTH_JWT_SECRET"
 
+  // OpenTelemetry observability (see observability.conf)
+  val ENV_OTEL_SDK_DISABLED = "OTEL_SDK_DISABLED"
+  val ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+  val ENV_OTEL_RESOURCE_ATTRIBUTES = "OTEL_RESOURCE_ATTRIBUTES"
+  val ENV_OTEL_METRIC_EXPORT_INTERVAL = "OTEL_METRIC_EXPORT_INTERVAL"
+  val ENV_TEXERA_OTEL_ALLOWED_HOSTS = "TEXERA_OTEL_ALLOWED_HOSTS"
+
   /**
     * Dataset-mount vars injected into the CU pod. The mount is performed by the per-node
     * mounter and reaches the pod through mount propagation, so the pod only needs to know

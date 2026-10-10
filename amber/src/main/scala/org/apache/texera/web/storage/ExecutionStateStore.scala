@@ -27,6 +27,7 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   ExecutionMetadataStore,
   ExecutionStatsStore
 }
+import org.apache.texera.web.observability.WorkflowMetricsRecorder
 import org.apache.texera.web.service.ExecutionsMetadataPersistService
 
 import java.sql.Timestamp
@@ -44,6 +45,9 @@ object ExecutionStateStore {
         execution.setStatus(maptoStatusCode(state))
         execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
     }
+    // Single chokepoint for every state transition: emit lifecycle metrics
+    // once on the first transition into a terminal state.
+    WorkflowMetricsRecorder.onStateChange(metadataStore.executionId, metadataStore.state, state)
     metadataStore.withState(state)
   }
 }

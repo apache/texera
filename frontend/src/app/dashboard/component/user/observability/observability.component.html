@@ -1,0 +1,68 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<div class="texera-observability">
+  <div class="header">
+    <h2>Observability</h2>
+    <nz-alert
+      *ngIf="healthError"
+      nzType="warning"
+      nzMessage="Observability gateway not reachable. Backend services may be disabled."
+      nzShowIcon></nz-alert>
+  </div>
+
+  <nz-tabs [(nzSelectedIndex)]="activeTab">
+    <!-- Each tab renders its signal panel when the backend is reachable,
+         otherwise an explicit disabled/unreachable empty state. -->
+    <nz-tab nzTitle="Logs">
+      <texera-observability-logs-panel *ngIf="isReachable('logs'); else logsDisabled"></texera-observability-logs-panel>
+      <ng-template #logsDisabled>
+        <nz-empty
+          nzNotFoundContent="VictoriaLogs is unreachable or disabled. Enable the observability-logs profile in docker-compose."></nz-empty>
+      </ng-template>
+    </nz-tab>
+
+    <nz-tab nzTitle="Metrics">
+      <texera-observability-metrics-panel
+        *ngIf="isReachable('metrics'); else metricsDisabled"></texera-observability-metrics-panel>
+      <ng-template #metricsDisabled>
+        <nz-empty
+          nzNotFoundContent="VictoriaMetrics is unreachable or disabled. Enable the observability-metrics profile in docker-compose."></nz-empty>
+      </ng-template>
+    </nz-tab>
+
+    <nz-tab nzTitle="Traces">
+      <texera-observability-traces-panel
+        *ngIf="isReachable('traces'); else tracesDisabled"
+        [initialTraceId]="pivotedTraceId"></texera-observability-traces-panel>
+      <ng-template #tracesDisabled>
+        <nz-empty
+          nzNotFoundContent="Jaeger is unreachable or disabled. Enable the observability-traces profile in docker-compose."></nz-empty>
+      </ng-template>
+    </nz-tab>
+
+    <nz-tab nzTitle="Profiles">
+      <texera-observability-profiles-panel
+        *ngIf="isReachable('profiles'); else profilesDisabled"></texera-observability-profiles-panel>
+      <ng-template #profilesDisabled>
+        <nz-empty
+          nzNotFoundContent="Parca is unreachable or disabled. eBPF agent requires a Linux host with privileged container access — non-Linux developers should set TEXERA_OBSERVABILITY_PROFILES=disabled in .env."></nz-empty>
+      </ng-template>
+    </nz-tab>
+  </nz-tabs>
+</div>

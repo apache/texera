@@ -296,9 +296,9 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs and Models) + 5 admin links (incl. CU Images)
-    // + 1 about link + 1 feedback link = 14
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(14);
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 6 admin links (incl. CU Images and Observability)
+    // + 1 about link + 1 feedback link = 15
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(15);
   });
 
   describe("warehouse tab gating (#6933)", () => {
