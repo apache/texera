@@ -613,6 +613,79 @@ class TestEmitChain:
 
         assert list(output_manager.emit_ecm(_worker("A"), ecm)) == [ecm]
 
+    @pytest.mark.parametrize(
+        "one_to_one_first", [True, False], ids=["one_to_one_first", "one_to_one_last"]
+    )
+    def test_emit_ecm_per_channel_keeps_one_to_one_link_on_its_own_channel(
+        self, output_manager, one_to_one_first
+    ):
+        # MainLoop._send_ecm_to_data_channels calls emit_ecm once per output
+        # channel, and emit_ecm flushes every link each time. With a one-to-one
+        # link to C next to a round-robin link to R1 and R2, each channel must
+        # get only its own link's pending tuples, then exactly one ECM.
+        one_to_one_link = PhysicalLink(to_port_id=PortIdentity(id=1))
+        round_robin_link = PhysicalLink(to_port_id=PortIdentity(id=2))
+        add_links = [
+            lambda: self._add_one_to_one(
+                output_manager, one_to_one_link, "C", batch_size=10
+            ),
+            lambda: output_manager.add_partitioning(
+                round_robin_link,
+                set_one_of(
+                    Partitioning,
+                    RoundRobinPartitioning(
+                        batch_size=10,
+                        channels=[_self_channel("R1"), _self_channel("R2")],
+                    ),
+                ),
+            ),
+        ]
+        for add_link in add_links if one_to_one_first else reversed(add_links):
+            add_link()
+        for k, v in ((1, "a"), (2, "b"), (3, "c")):
+            list(output_manager.tuple_to_batch(Tuple({"k": k, "v": v})))
+        ecm = EmbeddedControlMessage()
+
+        received = self._emit_ecm_per_channel(output_manager, ecm)
+
+        assert received == {
+            "C": [{"k": [1, 2, 3], "v": ["a", "b", "c"]}, ecm],
+            "R1": [{"k": [1, 3], "v": ["a", "c"]}, ecm],
+            "R2": [{"k": [2], "v": ["b"]}, ecm],
+        }
+
+    def test_emit_ecm_per_channel_keeps_two_one_to_one_links_apart(
+        self, output_manager
+    ):
+        # An output port feeding two single-worker operators has two one-to-one
+        # links; each receiver must get its pending tuples and one ECM.
+        link_a = PhysicalLink(to_port_id=PortIdentity(id=1))
+        link_b = PhysicalLink(to_port_id=PortIdentity(id=2))
+        self._add_one_to_one(output_manager, link_a, "A", batch_size=10)
+        self._add_one_to_one(output_manager, link_b, "B", batch_size=10)
+        list(output_manager.tuple_to_batch(Tuple({"k": 1, "v": "a"})))
+        ecm = EmbeddedControlMessage()
+
+        received = self._emit_ecm_per_channel(output_manager, ecm)
+
+        assert received == {
+            "A": [{"k": [1], "v": ["a"]}, ecm],
+            "B": [{"k": [1], "v": ["a"]}, ecm],
+        }
+
+    @staticmethod
+    def _emit_ecm_per_channel(om, ecm):
+        # Mirrors MainLoop._send_ecm_to_data_channels: one emit_ecm call per
+        # output channel, in get_output_channel_ids() order, with everything it
+        # yields tagged with that channel. Frames are decoded for comparison.
+        return {
+            channel.to_worker_id.name: [
+                payload.frame.to_pydict() if isinstance(payload, DataFrame) else payload
+                for payload in om.emit_ecm(channel.to_worker_id, ecm)
+            ]
+            for channel in om.get_output_channel_ids()
+        }
+
     def test_emit_state_flushes_pending_batch_then_wraps_state_frame(
         self, output_manager, link
     ):
