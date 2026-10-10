@@ -132,15 +132,15 @@ class CollaborationResource extends LazyLogging {
         try {
           val senderSessId = senderSession.getId
           val senderWid = sessionIdWIdMap(senderSessId)
-          if (wIdLockHolderSessionIdMap(senderWid) != senderSessId) {
-            val holderSessId = wIdLockHolderSessionIdMap(senderWid)
+          val holderSessId = wIdLockHolderSessionIdMap.getOrElse(senderWid, null)
+          if (holderSessId != null && holderSessId != senderSessId) {
             val holderSession = sessionIdSessionMap(holderSessId)
             send(holderSession, ReleaseLockEvent())
             send(senderSession, LockGrantedEvent())
             wIdLockHolderSessionIdMap(senderWid) = senderSessId
             logger.info("Session " + senderSessId + " has lock on " + senderWid)
           } else {
-            send(senderSession, LockGrantedEvent())
+            grantLock(senderSession, senderSessId, senderWid)
           }
         } catch {
           case exception: Exception =>
