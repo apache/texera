@@ -278,6 +278,23 @@ class CanonicalFixtureSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // Each edge column exists for values the ordinary rows never reach, so both
+  // windows have to hold them: a year either side of pandas' nanosecond range,
+  // a double Java writes in E notation at each end, and digits with a leading 0.
+  it should "hold the edge values of each type on every port" in {
+    Seq(CanonicalFixture.port0Rows, CanonicalFixture.port1Rows).foreach { rows =>
+      val years = rows.map(_.getField[java.sql.Timestamp]("edge_ts").toLocalDateTime.getYear)
+      years.count(_ > 2262) should be > 0
+      years.count(_ < 1678) should be > 0
+      val doubles = rows.map(_.getField[java.lang.Double]("edge_double").doubleValue)
+      doubles.count(d => math.abs(d) >= 1e7) should be > 0
+      doubles.count(d => d != 0 && math.abs(d) < 1e-3) should be > 0
+      val digits = rows.map(_.getField[String]("digits"))
+      all(digits) should fullyMatch regex "[0-9]+"
+      digits.count(d => d.length > 1 && d.startsWith("0")) should be > 0
+    }
+  }
+
   it should "write one JSONL fixture per requested input port" in {
     val root = Files.createTempDirectory("canonical-fixture-")
     val inputs = CanonicalFixture.writeInputs(root, inputPortCount = 2)
