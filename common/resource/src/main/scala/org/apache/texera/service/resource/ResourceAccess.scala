@@ -257,6 +257,7 @@ object ResourceAccess {
       throw new BadRequestException(s"No registered user with email $email")
     }
     val granteeUid = grantee.getUid
+    requireNotOwner(ctx, resource, id, granteeUid)
     val granted = PrivilegeEnum.valueOf(privilege)
 
     ctx
@@ -275,7 +276,8 @@ object ResourceAccess {
   /**
     * Removes the user's explicit grant; a no-op when they hold none.
     *
-    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource.
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource, or the
+    *                                          user is its owner.
     */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -286,6 +288,7 @@ object ResourceAccess {
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
     val granteeUid = new UserDao(ctx.configuration()).fetchOneByEmail(email).getUid
+    requireNotOwner(ctx, resource, id, granteeUid)
 
     ctx
       .delete(resource.accessTable)
@@ -309,6 +312,16 @@ object ResourceAccess {
       throw new ForbiddenException(
         s"You do not have permission to modify ${resource.label} $id"
       )
+    }
+
+  private def requireNotOwner[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Unit =
+    if (userOwns(ctx, resource, id, uid)) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
     }
 
   private def requireReadAccess[R <: Record, A <: Record](

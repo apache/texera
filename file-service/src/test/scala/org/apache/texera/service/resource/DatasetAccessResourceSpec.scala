@@ -322,6 +322,26 @@ class DatasetAccessResourceSpec
     userHasReadAccess(getDSLContext, privateDataset.getDid, strangerUser.getUid) shouldBe true
   }
 
+  it should "refuse to change the owner's privilege" in {
+    grantDirectly(privateDataset.getDid, ownerUser.getUid, PrivilegeEnum.WRITE)
+    grantDirectly(privateDataset.getDid, writeGranteeUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.grantAccess(
+        privateDataset.getDid,
+        ownerUser.getEmail,
+        "READ",
+        writeGranteeSession
+      )
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    getDatasetUserAccessPrivilege(
+      getDSLContext,
+      privateDataset.getDid,
+      ownerUser.getUid
+    ) shouldEqual PrivilegeEnum.WRITE
+  }
+
   it should "be forbidden for a user without write access" in {
     val ex = intercept[ForbiddenException] {
       accessResource.grantAccess(
@@ -420,6 +440,21 @@ class DatasetAccessResourceSpec
     )
     response.getStatus shouldEqual 200
     accessList(privateDataset.getDid) shouldBe empty
+  }
+
+  it should "refuse to revoke the owner's access" in {
+    grantDirectly(privateDataset.getDid, ownerUser.getUid, PrivilegeEnum.WRITE)
+    grantDirectly(privateDataset.getDid, writeGranteeUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.revokeAccess(privateDataset.getDid, ownerUser.getEmail, writeGranteeSession)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    getDatasetUserAccessPrivilege(
+      getDSLContext,
+      privateDataset.getDid,
+      ownerUser.getUid
+    ) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {
