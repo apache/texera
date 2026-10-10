@@ -194,21 +194,10 @@ class TestTable:
         # has at least one matching row, so the reduction would come back True).
         assert not numpy.all(table == differing)
 
-    def test_comparing_to_a_data_frame_currently_yields_a_per_column_series(
-        self, comparable_frame
-    ):
-        # CHARACTERIZATION, not a contract. `Table.__eq__` is annotated
-        # `-> bool`, but its non-Table branch returns
-        # `super().__eq__(other).all()`, which for a DataFrame operand reduces
-        # only over rows and leaves a Series indexed by column name. A bare
-        # `assert table == frame` therefore raises "truth value of a Series is
-        # ambiguous". This test records today's shape so that narrowing the
-        # branch to a real bool surfaces here deliberately, with a name that
-        # says so, rather than silently through the behavioural tests above.
+    def test_comparing_to_a_data_frame_returns_a_boolean(self, comparable_frame):
         table = Table(comparable_frame)
         comparison = table == comparable_frame
-        assert isinstance(comparison, pandas.Series)
-        assert list(comparison.index) == ["field1", "field2", "field3"]
+        assert comparison is True
 
     def test_two_tables_with_differing_rows_are_not_equal(self, comparable_frame):
         # The Table-vs-Table arm had only positive coverage: every pre-existing
