@@ -40,7 +40,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData,
   workflowContext
 }
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -48,6 +48,11 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.{
+  SklearnAdvancedSVRParameters,
+  SklearnAdvancedSVRTrainerOpDesc
+}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.HyperParameters
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
@@ -195,6 +200,22 @@ class LoopIntegrationSpec
     op
   }
 
+  /**
+    * An SVM regressor fitting the sales CSV's Unit Cost on its Unit Price, with one hyperparameter
+    * row: `C = c`. A Python operator whose code the descriptor generates before the loop runs; its
+    * `Parameters` output column records each fit's hyperparameters as text ("C = 2.0,").
+    */
+  private def svrTrainer(c: String): SklearnAdvancedSVRTrainerOpDesc = {
+    val op = new SklearnAdvancedSVRTrainerOpDesc()
+    val row = new HyperParameters[SklearnAdvancedSVRParameters]()
+    row.parameter = SklearnAdvancedSVRParameters.C
+    row.value = c
+    op.paraList = List(row)
+    op.selectedFeatures = List("Unit Price")
+    op.groundTruthAttribute = "Unit Cost"
+    op
+  }
+
   /** A Limit whose Int `limit` is `"$name"`, parsed as the editor's JSON is, into a placeholder. */
   private def limitReferringTo(name: String): LogicalOp =
     objectMapper.readValue(s"""{"operatorType":"Limit","limit":"$$$name"}""", classOf[LogicalOp])
@@ -332,6 +353,50 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a Scala operator in the " +
         s"loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a $i loop-variable reference in a Python-generated operator's property on every iteration" in {
+    // Sales CSV -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd(i <= 3).
+    //
+    // The trainer's Python is generated before the loop runs. pyb renders the C value "$i" as an
+    // expression the operator evaluates when it trains, and because the trainer sits inside the
+    // block, the compiler had that expression read `i` from the iteration's state message
+    // (self.loop_variable_text('i')), which the region's input reader replays before the tuples.
+    // LoopStart hands the whole table to both inputs (training, then parameter) every iteration,
+    // so each iteration fits once and the LoopEnd accumulates one row per iteration, its
+    // Parameters naming the C that fit used. The literal "$i" would fail float("$i") and fail
+    // the run; a reference that never rebinds to the new i would repeat one C.
+    val src = TestOperators.smallCsvScanOpDesc()
+    val start = loopStart("i = 1", "table")
+    val trainer = svrTrainer("$i")
+    val end = loopEnd("i += 1", "i <= 3")
+    val results = runWorkflowAndReadResults(
+      system,
+      buildWorkflow(
+        List(src, start, trainer, end),
+        List(
+          link(src, start),
+          link(start, trainer),
+          LogicalLink(
+            start.operatorIdentifier,
+            PortIdentity(),
+            trainer.operatorIdentifier,
+            PortIdentity(1)
+          ),
+          link(trainer, end)
+        ),
+        materializedContext()
+      ),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    )
+    val parameters =
+      results.getOrElse(end.operatorIdentifier, Nil).map(_.getField[String]("Parameters")).sorted
+    assert(
+      parameters == List("C = 1.0,", "C = 2.0,", "C = 3.0,"),
+      s"each iteration's fit must use its own i as C: got $parameters"
     )
   }
 
