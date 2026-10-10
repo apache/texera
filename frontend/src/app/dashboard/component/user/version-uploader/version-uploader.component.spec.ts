@@ -1175,6 +1175,46 @@ describe("VersionUploaderComponent", () => {
         expect(createVersionSpy).toHaveBeenCalledWith("second cut");
       });
 
+      it("explains why a name with a slash is refused and keeps Submit from sending it", () => {
+        const el = withPendingChanges();
+        const submit = q<HTMLButtonElement>(el, ".create-version-button");
+
+        const input = typeName(el, "/");
+
+        expect(text(q<HTMLElement>(el, ".version-name-error"))).toBe("A version description cannot contain '/'.");
+        expect(submit.disabled).toBe(true);
+        // Enter submits straight from the field, so it must not get around the disabled button.
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        expect(createVersionSpy).not.toHaveBeenCalled();
+
+        // Fixing the name takes the error away and re-enables Submit.
+        typeName(el, "2024-01 snapshot");
+
+        expect(el.querySelector(".version-name-error")).toBeNull();
+        expect(submit.disabled).toBe(false);
+      });
+
+      it("announces the slash error to assistive tech and ties it to the name field", () => {
+        const el = withPendingChanges();
+        const input = q<HTMLInputElement>(el, ".version-input");
+        expect(input.getAttribute("aria-invalid")).toBeNull();
+        expect(input.getAttribute("aria-describedby")).toBeNull();
+
+        typeName(el, "/");
+
+        const error = q<HTMLElement>(el, ".version-name-error");
+        expect(error.getAttribute("role")).toBe("alert");
+        expect(input.getAttribute("aria-invalid")).toBe("true");
+        // The input must point at the message that is actually on the page.
+        expect(error.id).not.toBe("");
+        expect(input.getAttribute("aria-describedby")).toBe(error.id);
+
+        typeName(el, "2024-01 snapshot");
+
+        expect(input.getAttribute("aria-invalid")).toBeNull();
+        expect(input.getAttribute("aria-describedby")).toBeNull();
+      });
+
       it("submits the version straight from the name field with Enter", () => {
         const el = withPendingChanges();
 

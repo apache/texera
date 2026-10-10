@@ -3975,4 +3975,21 @@ class DatasetResourceSpec
     assertStatus(ex, 400)
     datasetResource.getDatasetVersionList(dataset.getDid, sessionUser) should have size 1
   }
+
+  it should "reject a description containing a slash without committing" in {
+    val dataset = seedDatasetWithStagedFile("version-slash")
+
+    val ex = intercept[WebApplicationException] {
+      createVersion(dataset, "2024/01 snapshot")
+    }
+    assertStatus(ex, 400)
+
+    // Nothing was committed: the file is still staged and no version row exists, so the retry
+    // with a usable description succeeds as the first version.
+    LakeFSStorageClient
+      .retrieveUncommittedObjects(dataset.getRepositoryName)
+      .map(_.getPath) shouldBe List("staged.txt")
+    val retried = createVersion(dataset, "2024-01 snapshot")
+    retried.datasetVersion.getName shouldBe "v1 - 2024-01 snapshot"
+  }
 }

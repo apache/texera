@@ -423,6 +423,8 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
+      ResourceNaming.validateVersionDescription(versionName)
+
       val dataset = getDatasetByID(ctx, did)
       val datasetName = dataset.getName
       val repositoryName = dataset.getRepositoryName
