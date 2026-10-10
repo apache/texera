@@ -31,13 +31,15 @@
       let-accept="accept"
       let-label="label"
       let-action="action"
-      let-directory="directory">
+      let-directory="directory"
+      let-control="control">
       <nz-form-item>
         <nz-form-label [nzNoColon]="true">
           <span class="import-modal-label">{{ label }}</span>
         </nz-form-label>
         <nz-form-control>
           <div class="import-modal-upload-row">
+            <ng-container *ngTemplateOutlet="control"></ng-container>
             <nz-upload
               [nzAccept]="accept"
               [nzDirectory]="!!directory"
@@ -184,6 +186,57 @@
                 action: 'Upload Python folder',
                 directory: true,
               }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <nz-tab
+        *ngIf="rMigrationEnabled"
+        nzTitle="R Code">
+        <ng-template nz-tab>
+          <div class="import-modal-diagram">
+            <img
+              ngSrc="assets/notebook_migration_tool/r_diagram.png"
+              alt="R to Workflow"
+              width="1350"
+              height="344" />
+          </div>
+
+          <nz-form-item>
+            <p class="import-modal-text">
+              This tool converts an R Jupyter Notebook or an R file into a Texera workflow using LLM capabilities. Every
+              generated operator is an R UDF, so the computing unit that runs the workflow needs the texera-rudf plugin
+              installed. The conversion time depends on the code's complexity and can take 1-5 minutes. Once generation
+              finishes, you are taken to the new workflow, which opens with:
+            </p>
+            <ol class="import-modal-list">
+              <li>
+                The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
+                the workflow).
+              </li>
+              <li>
+                A floating Jupyter window containing your notebook, or your file divided into cells, for reference.
+              </li>
+            </ol>
+            <p class="import-modal-text">
+              Generation runs here after you submit. Please keep this window open while you wait.
+            </p>
+          </nz-form-item>
+
+          <ng-template #rInputKindSwitch>
+            <nz-segmented
+              [nzOptions]="rInputKindOptions"
+              [formControl]="rInputKind"
+              (nzValueChange)="clearSelection()"></nz-segmented>
+          </ng-template>
+
+          <ng-container
+            *ngTemplateOutlet="
+              uploadRow;
+              context:
+                rInputKind.value === 'notebook'
+                  ? { accept: '.ipynb', label: 'Upload R', action: 'Upload R notebook', control: rInputKindSwitch }
+                  : { accept: '.R,.r', label: 'Upload R', action: 'Upload R file', control: rInputKindSwitch }
             "></ng-container>
         </ng-template>
       </nz-tab>

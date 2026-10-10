@@ -28,6 +28,7 @@ import { DROP_REJECTION_LATCH_MS, NotebookImportModalComponent } from "./noteboo
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("NotebookImportModalComponent", () => {
   let fixture: ComponentFixture<NotebookImportModalComponent>;
@@ -38,7 +39,7 @@ describe("NotebookImportModalComponent", () => {
   let requestImport: ReturnType<typeof vi.fn>;
 
   // Configures the modal with the given models$ stream, then creates and renders it.
-  async function createWith(models$: unknown): Promise<void> {
+  async function createWith(models$: unknown, rNotebookMigrationEnabled = false): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [NotebookImportModalComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [
@@ -47,6 +48,7 @@ describe("NotebookImportModalComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
+    TestBed.inject(GuiConfigService).env.rNotebookMigrationEnabled = rNotebookMigrationEnabled;
 
     notebookMigrationService = TestBed.inject(NotebookMigrationService);
     vi.spyOn(notebookMigrationService, "getAvailableModels").mockReturnValue(models$ as any);
@@ -149,7 +151,7 @@ describe("NotebookImportModalComponent", () => {
 
     await component.onSubmit();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalled();
   });
 
@@ -359,7 +361,7 @@ describe("NotebookImportModalComponent", () => {
 
     await component.onSubmit();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalledWith();
   });
 
@@ -391,7 +393,7 @@ describe("NotebookImportModalComponent", () => {
     ).click();
     await fixture.whenStable();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalledWith();
   });
 
@@ -513,7 +515,7 @@ describe("NotebookImportModalComponent", () => {
 
       await component.onSubmit();
 
-      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4");
+      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4", "python");
       expect(modalRef.close).toHaveBeenCalledWith();
     });
 
@@ -616,6 +618,71 @@ describe("NotebookImportModalComponent", () => {
 
       expect(component.importForm.get("file")?.value).toBeNull();
       expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("Selected folder");
+    });
+  });
+
+  describe("R tab", () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pane = () => root().querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+    const accept = () => pane().querySelector("input[type='file']")?.getAttribute("accept");
+
+    async function openRTab(): Promise<void> {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.onTabChange(3);
+      fixture.detectChanges();
+    }
+
+    it("is hidden while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      expect(root().querySelectorAll(".ant-tabs-tab").length).toBe(3);
+    });
+
+    it("shows its diagram and takes R notebooks by default", async () => {
+      await openRTab();
+
+      expect(root().querySelectorAll(".ant-tabs-tab").length).toBe(4);
+      expect(pane().querySelector("img[alt='R to Workflow']")).not.toBeNull();
+      expect(accept()).toBe(".ipynb");
+      expect(root().querySelectorAll(".ant-tabs-tab")[3].textContent?.trim()).toBe("R Code");
+      expect(pane().querySelector(".import-modal-upload-row nz-segmented")).not.toBeNull();
+    });
+
+    it("switches to R files from the switch and drops the staged notebook", async () => {
+      await openRTab();
+      component.importForm.patchValue({ file: { name: "analysis.ipynb" } });
+
+      const fileOption = Array.from(pane().querySelectorAll("label")).find(
+        label => label.textContent?.trim() === "File"
+      ) as HTMLElement;
+      fileOption.click();
+      fixture.detectChanges();
+
+      expect(component.rInputKind.value).toBe("file");
+      expect(accept()).toBe(".R,.r");
+      expect(component.importForm.get("file")?.value).toBeNull();
+    });
+
+    it("keeps the chosen input kind when the tab is re-rendered", async () => {
+      await openRTab();
+      component.rInputKind.setValue("file");
+      component.onTabChange(0);
+      fixture.detectChanges();
+
+      component.onTabChange(3);
+      fixture.detectChanges();
+
+      expect(accept()).toBe(".R,.r");
+    });
+
+    it("submits with the R language", async () => {
+      await openRTab();
+      const file = { name: "analysis.R" } as NzUploadFile;
+      component.importForm.setValue({ file, model: "gpt-4" });
+
+      await component.onSubmit();
+
+      expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "r");
     });
   });
 });
