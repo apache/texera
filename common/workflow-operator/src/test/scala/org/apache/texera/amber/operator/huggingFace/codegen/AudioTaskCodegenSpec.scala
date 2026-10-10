@@ -96,9 +96,40 @@ class AudioTaskCodegenSpec extends AnyFlatSpec with Matchers {
 
   it should "pull recognised text from the ASR response before falling back to JSON" in {
     val out = AudioTaskCodegen.parsePython(makeCtx())
-    out should include("""body["text"]""")
-    out should include("""body["generated_text"]""")
+    out should include("""body.get("text")""")
+    out should include("""body.get("generated_text")""")
     out should include("return json.dumps(body)")
+  }
+
+  // #8869: the parse trusted whatever the provider returned, so a malformed 200
+  // produced a corrupt or non-string cell rather than falling back to the body —
+  // e.g. a null b64_json became the literal "data:audio/mpeg;base64,None".
+  it should "require b64_json to be a string before building a data URL" in {
+    val out = AudioTaskCodegen.parsePython(makeCtx())
+    out should include("""isinstance(b64, str)""")
+    out should not include ("""f"data:audio/mpeg;base64,{audio['b64_json']}"""")
+    out should not include ("""f"data:audio/mpeg;base64,{data[0]['b64_json']}"""")
+  }
+
+  it should "guard the url branches the way the output branch already does" in {
+    // The "output" branch checked isinstance(url, str) while the sibling "audio"
+    // and "data" branches handed whatever they found to _url_to_data_url.
+    val out = AudioTaskCodegen.parsePython(makeCtx())
+    out.split("""isinstance\(url, str\)""").length - 1 should be >= 3
+    out should not include ("""return self._url_to_data_url(audio["url"])""")
+    out should not include ("""return self._url_to_data_url(data[0]["url"])""")
+  }
+
+  it should "check data is a list before indexing it" in {
+    val out = AudioTaskCodegen.parsePython(makeCtx())
+    out should include("""isinstance(data, list)""")
+  }
+
+  it should "return recognised text only when it is a string" in {
+    val out = AudioTaskCodegen.parsePython(makeCtx())
+    out should include("""isinstance(text, str)""")
+    out should not include ("""return body["text"]""")
+    out should not include ("""return body["generated_text"]""")
   }
 
   "AudioTaskCodegen snippets" should "never inline raw CodegenContext string values" in {
