@@ -21,6 +21,7 @@ import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@
 import { ResourceRegistryService } from "../../../../../service/user/resource-registry/resource-registry.service";
 import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
@@ -139,6 +140,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   // control flags
   public isLoading: boolean = false;
+  private fileLoad?: Subscription;
   public isFileSizeUnloadable = false;
   public isFileLoadingError: boolean = false;
   public isFileTypePreviewUnsupported: boolean = false;
@@ -195,6 +197,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   reloadFileContent() {
+    this.fileLoad?.unsubscribe();
     this.turnOffAllDisplay();
 
     // Pre-check - file size
@@ -213,7 +216,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.isLoading = true;
     const retrieveSingleFile = this.resourceRegistry.get(this.resourceType).retrieveSingleFile;
     if (retrieveSingleFile && this.resourceId && this.versionId && this.filePath != "") {
-      retrieveSingleFile(this.filePath, this.isLogin)
+      this.fileLoad = retrieveSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
@@ -295,6 +298,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 break;
             }
           },
+          error: () => this.onFileLoadingError(),
         });
     }
   }
