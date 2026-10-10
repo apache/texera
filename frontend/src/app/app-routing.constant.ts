@@ -92,5 +92,8 @@ export const ADMIN_GMAIL = `${ADMIN}/gmail`;
 export const ADMIN_EXECUTION = `${ADMIN}/execution`;
 export const ADMIN_SETTINGS = `${ADMIN}/settings`;
 export const ADMIN_CU_IMAGE = `${ADMIN}/cu-image`;
+// Observability is an admin-only, system-wide view (logs, metrics, traces,
+// profiles), not a per-user feature.
+export const ADMIN_OBSERVABILITY = `${ADMIN}/observability`;
 
 export const SEARCH = "/search";
