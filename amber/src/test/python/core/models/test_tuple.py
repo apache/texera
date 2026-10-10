@@ -476,7 +476,20 @@ class TestTuple:
         with pytest.raises(TypeError, match="Unmatched type"):
             tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
 
+    @pytest.mark.parametrize(
+        ("milliseconds", "java_hash"), [(-1.5, 32), (0, 31), (500, 531)]
+    )
+    def test_timestamp_hash_matches_java_milliseconds(self, milliseconds, java_hash):
+        timestamp = datetime.datetime.fromtimestamp(milliseconds / 1000, datetime.UTC)
+        tuple_ = Tuple(
+            {"timestamp": timestamp},
+            Schema(raw_schema={"timestamp": "TIMESTAMP"}),
+        )
+
+        assert hash(tuple_) == java_hash
+
     def test_hash(self):
+        utc = datetime.UTC
         schema = Schema(
             raw_schema={
                 "col-int": "INTEGER",
@@ -496,12 +509,12 @@ class TestTuple:
                 "col-bool": True,
                 "col-long": 1123213213213,
                 "col-double": 214214.9969346,
-                "col-timestamp": datetime.datetime.fromtimestamp(100000000),
+                "col-timestamp": datetime.datetime.fromtimestamp(100000000, utc),
                 "col-binary": b"hello",
             },
             schema,
         )
-        assert hash(tuple_) == -1335416166  # calculated with Java
+        assert hash(tuple_) == -1106835869  # calculated with Java
 
         tuple2 = Tuple(
             {
@@ -510,7 +523,7 @@ class TestTuple:
                 "col-bool": False,
                 "col-long": 0,
                 "col-double": 0.0,
-                "col-timestamp": datetime.datetime.fromtimestamp(0),
+                "col-timestamp": datetime.datetime.fromtimestamp(0, utc),
                 "col-binary": b"",
             },
             schema,
@@ -540,12 +553,12 @@ class TestTuple:
                 "col-bool": True,
                 "col-long": -8965536434247,
                 "col-double": 1 / 3,
-                "col-timestamp": datetime.datetime.fromtimestamp(-1990),
+                "col-timestamp": datetime.datetime.fromtimestamp(-1990, utc),
                 "col-binary": None,
             },
             schema,
         )
-        assert hash(tuple4) == -592643630  # calculated with Java
+        assert hash(tuple4) == -531015320  # calculated with Java
 
         tuple5 = Tuple(
             {
@@ -554,12 +567,12 @@ class TestTuple:
                 "col-bool": True,
                 "col-long": 0x7FFFFFFFFFFFFFFF,
                 "col-double": 7 / 17,
-                "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
+                "col-timestamp": datetime.datetime.fromtimestamp(1234567890, utc),
                 "col-binary": b"o" * 4097,
             },
             schema,
         )
-        assert hash(tuple5) == -2099556631  # calculated with Java
+        assert hash(tuple5) == 1729534988  # calculated with Java
 
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
