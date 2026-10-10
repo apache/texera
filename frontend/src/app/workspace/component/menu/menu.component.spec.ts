@@ -819,7 +819,7 @@ describe("MenuComponent", () => {
       component.currentExecutionName = "exec-1";
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 
@@ -846,7 +846,7 @@ describe("MenuComponent", () => {
       component.currentExecutionName = "";
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 
@@ -890,7 +890,7 @@ describe("MenuComponent", () => {
       } as unknown as Mocked<ComputingUnitSelectionComponent>;
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 

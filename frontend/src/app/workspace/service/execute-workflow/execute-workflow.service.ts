@@ -258,29 +258,36 @@ export class ExecuteWorkflowService {
     return [];
   }
 
+  /**
+   * Returns whether the run actually started, so a caller that reports on it does not have
+   * to repeat the refusal conditions. The refusals show their own toast either way; callers
+   * that only fire and forget can keep ignoring the result.
+   */
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void {
+  ): boolean {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
     if (this.refuseToRunOnUnavailableUnit()) {
-      return;
+      return false;
     }
     if (this.refuseToRunWithoutWarehouse()) {
-      return;
+      return false;
     }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+    return true;
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+  /** Returns whether the run started; see executeWorkflowWithEmailNotification. */
+  public executeWorkflow(executionName: string, targetOperatorId?: string): boolean {
+    return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
