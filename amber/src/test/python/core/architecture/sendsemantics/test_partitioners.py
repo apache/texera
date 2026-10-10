@@ -210,6 +210,14 @@ class TestRoundRobinPartitioner:
         # A's batch is now drained, B's pending batch remains untouched
         assert partitioner.receivers[1][1] == [_tuple(k=2)]
 
+    def test_flush_clears_the_flushed_slot(self, partitioner):
+        # Round-robin drains a flushed slot's batch in place
+        # (_clear_batch_on_flush=True), unlike the hash/range shuffles.
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))  # → A (index 0)
+        ecm = EmbeddedControlMessage()
+        list(partitioner.flush(_worker("A"), ecm))
+        assert partitioner.receivers[0][1] == []
+
     def test_flush_to_unknown_receiver_emits_nothing(self, partitioner):
         ecm = EmbeddedControlMessage()
         assert list(partitioner.flush(_worker("Z"), ecm)) == []
@@ -281,6 +289,15 @@ class TestHashBasedShufflePartitioner:
         ecm = EmbeddedControlMessage()
         a_out = _snapshot(p.flush(p.receivers[0][0], ecm))
         assert a_out == [[_hashable_tuple(k=1)], ecm]
+
+    def test_flush_does_not_clear_the_flushed_slot(self):
+        # Hash/range shuffles leave a flushed slot's batch intact
+        # (_clear_batch_on_flush=False), unlike round-robin.
+        p = self._partitioner(batch_size=10)
+        p.receivers[0] = (p.receivers[0][0], [_hashable_tuple(k=1)])
+        ecm = EmbeddedControlMessage()
+        list(p.flush(p.receivers[0][0], ecm))
+        assert p.receivers[0][1] == [_hashable_tuple(k=1)]
 
     def test_flush_state_emits_pending_batches_and_state(self):
         p = self._partitioner(batch_size=10)
