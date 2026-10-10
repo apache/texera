@@ -49,19 +49,19 @@
       <th nzWidth="40px"></th>
       <th
         [nzSortFn]="sortByName"
-        nzWidth="20%">
+        nzWidth="18%">
         Name
       </th>
       <th
         [nzSortFn]="sortByOwner"
-        nzWidth="20%">
+        nzWidth="18%">
         Owner
       </th>
       <th
         [nzSortFn]="sortByType"
         [nzFilters]="typeFilters"
         [nzFilterFn]="filterByType"
-        nzWidth="12%">
+        nzWidth="10%">
         Type
       </th>
       <th
@@ -76,7 +76,8 @@
         nzWidth="16%">
         Created
       </th>
-      <th nzWidth="20%">Resources</th>
+      <th nzWidth="18%">Resources</th>
+      <th nzWidth="8%">Actions</th>
     </tr>
   </thead>
   <tbody>
@@ -106,10 +107,23 @@
           {{ formatRelativeTime(unit.computingUnit.creationTime) }}
         </td>
         <td>{{ resourceSummary(unit) }}</td>
+        <td>
+          <button
+            nz-button
+            nzType="text"
+            nzDanger
+            [nz-tooltip]="terminateTooltip(unit)"
+            [attr.aria-label]="terminateTooltip(unit)"
+            (click)="terminate(unit)">
+            <span
+              nz-icon
+              nzType="delete"></span>
+          </button>
+        </td>
       </tr>
       <tr *ngIf="expandedCuids.has(unit.computingUnit.cuid)">
         <td></td>
-        <td colspan="6">
+        <td colspan="7">
           <dl class="spec-detail">
             <div *ngFor="let field of specFields">
               <dt>{{ field.label }}</dt>
