@@ -25,7 +25,9 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.common.compiler.model.LogicalPlan
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
+import java.util.regex.Matcher
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
@@ -66,6 +68,25 @@ class WorkflowToPythonTranslator extends LazyLogging {
 
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
+
+    // What each source's file is called in the directory the script runs from.
+    // A source offers the last segment of its resolved path, which is the name a
+    // person would give the file, but two sources reading different files can
+    // offer the same one — and did, leaving the script to read one of them twice
+    // and say nothing. The second gets a name of its own, for the same reason a
+    // chart's output file is numbered. Keyed by the resolved path, so one file
+    // read by two operators keeps one name.
+    val sourceFileNames = mutable.Map[String, String]()
+    topoOrder.map(logicalPlan.getOperator).foreach {
+      case gen: StandaloneCodeGenerator =>
+        gen.standaloneSourcePath().foreach { path =>
+          sourceFileNames.getOrElseUpdate(
+            path,
+            distinctName(gen.standaloneSourceName().getOrElse(""), sourceFileNames.values.toSet)
+          )
+        }
+      case _ => ()
+    }
 
     // pandas is the one module every generator uses: an operator body reads and
     // writes frames whatever else it does. Everything beyond that is asked of the
@@ -147,6 +168,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
             inVars,
             outVars,
             fileBase(displayName, fileBaseCounts),
+            gen.standaloneSourcePath().flatMap(sourceFileNames.get).getOrElse(""),
             displayName
           )
 
@@ -214,6 +236,18 @@ class WorkflowToPythonTranslator extends LazyLogging {
     s"${stem}_$n"
   }
 
+  // The offered name if no other source has taken it, otherwise the same name
+  // numbered before its extension: data.csv, then data-2.csv. Numbering the stem
+  // rather than appending keeps the suffix, which is what a reader opens the
+  // file by.
+  private def distinctName(offered: String, taken: Set[String]): String = {
+    if (!taken.contains(offered)) return offered
+    val dot = offered.lastIndexOf('.')
+    val (stem, ext) =
+      if (dot <= 0) (offered, "") else (offered.substring(0, dot), offered.substring(dot))
+    Iterator.from(2).map(n => s"$stem-$n$ext").find(!taken.contains(_)).get
+  }
+
   // Replaces in{N}df / out{N}df placeholders with concrete variable names.
   // Substitutes in reverse index order to prevent partial matches (e.g. in1df
   // inside in10df). Only the code parts are rewritten: a generator writes a
@@ -226,6 +260,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
       inVars: List[String],
       outVars: List[String],
       fileBase: String,
+      sourceFile: String,
       displayName: String
   ): String = {
     def substitute(fragment: String): String = {
@@ -237,6 +272,15 @@ class WorkflowToPythonTranslator extends LazyLogging {
       // carries nothing replaceAll would read as a group reference.
       result = result.replaceAll("""\boutputHtml\b""", "\"" + fileBase + ".html\"")
       result = result.replaceAll("""\boutputJson\b""", "\"" + fileBase + ".json\"")
+
+      // A source names the file it reads sourceFile and gets back the name
+      // assigned where sourceFileNames is built. Quoted through the escaper the
+      // operators use, and then quoted again for the replacement: a file name is
+      // the user's text, so it can hold both a backslash and a `$`.
+      result = result.replaceAll(
+        s"""\\b${StandaloneCodeGenerator.SourceFilePlaceholder}\\b""",
+        Matcher.quoteReplacement(pyStringLiteral(sourceFile))
+      )
 
       // A variadic port takes as many upstream links as the user draws, and an
       // operator reading one cannot name them: `in1df`/`in2df` state a count, and

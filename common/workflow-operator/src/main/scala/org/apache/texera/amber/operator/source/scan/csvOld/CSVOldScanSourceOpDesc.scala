@@ -28,14 +28,18 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
+import scala.util.Try
 
-class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
 
   // One character -- see CSVScanSourceOpDesc.
   @JsonProperty(defaultValue = ",")
@@ -77,6 +81,89 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
       )
   }
 
+  override def standaloneSourcePath(): Option[String] = fileName
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
+  override def generateStandaloneCode(): String = {
+    // First character, empty means comma — the same resolution the reader below does —
+    // and escaped, so every value the field accepts survives being spliced into Python.
+    // See CSVScanSourceOpDesc for what handing pandas the raw value did.
+    val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
+    val headerArg = if (hasHeader) "0" else "None"
+
+    val args = scala.collection.mutable.ArrayBuffer[String]()
+    args += s"filepath_or_buffer=$SourceFilePlaceholder"
+    args += s"sep=${pyStringLiteral(sep)}"
+    args += s"""encoding=${pyStringLiteral(encoding)}"""
+    args += s"header=$headerArg"
+
+    // This reader has NO missing value at all: scala-csv hands an omitted field
+    // back as the empty string, and every other text stands for itself, so a
+    // blank cell is "" and even widens its column to STRING. pandas instead
+    // reads a list of words as missing by default, "NA" and "null" among them,
+    // and reads a blank as NaN. Dropping the default list settles both, and no
+    // na_values is named — where the other CSV readers null a blank, this one
+    // keeps it. See CSVScanSourceOpDesc.
+    args += "keep_default_na=False"
+
+    // Read a LONG column as the nullable integer, so a hole does not widen it
+    // through a float and round the values it carries, and a timestamp as its
+    // text, parsed below the way the engine parses it. By position, header or
+    // not, since a blank header is not yet the schema's name. See
+    // CSVScanSourceOpDesc.
+    val readAs = Map(AttributeType.LONG -> "Int64", AttributeType.TIMESTAMP -> "object")
+    val typedColumns: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq.flatMap(
+        _.getAttributes.zipWithIndex.flatMap {
+          case (attribute, i) => readAs.get(attribute.getType).map(d => s"""$i: "$d"""")
+        }
+      )
+    if (typedColumns.nonEmpty) args += s"dtype={${typedColumns.mkString(", ")}}"
+
+    // Clamped, as in the newer CSV scan: pandas rejects a negative `nrows` where
+    // the executor's `take` keeps no rows, and only the editor refuses one.
+    offset.map(_.max(0)).foreach { o =>
+      // Counted in Long past the header and asked of each line, as in the newer
+      // CSV scan.
+      if (hasHeader) args += s"skiprows=lambda _i: 0 < _i <= ${o.toLong}"
+      else args += s"skiprows=$o"
+    }
+    limit.map(_.max(0)).foreach(l => args += s"nrows=$l")
+
+    // Without a header, an offset at or past the last row left pandas no line to
+    // count the columns from, and it raised where the executor emits no rows.
+    // Named by position, as in the newer CSV scan.
+    if (!hasHeader)
+      Try(sourceSchema()).toOption.map(_.getAttributes.size).filter(_ > 0).foreach { n =>
+        args += s"names=[${(0 until n).mkString(", ")}]"
+      }
+
+    val readCall = s"out1df = pd.read_csv(${args.mkString(", ")})"
+
+    // The schema's own names, which every downstream operator was configured
+    // against: sourceSchema below rewrites a blank header to `column-N`, where
+    // pandas writes `Unnamed: 1`. Taken by position, so a header the user really
+    // did spell `Unnamed: 1` survives too. See CSVScanSourceOpDesc.
+    val schemaNames: Seq[String] =
+      Try(sourceSchema()).toOption.toSeq
+        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+
+    if (schemaNames.nonEmpty)
+      Seq(
+        readCall,
+        s"out1df.columns = [${schemaNames.mkString(", ")}]",
+        StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
+        StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())
+      ).filter(_.nonEmpty).mkString("\n")
+    else if (hasHeader) readCall
+    else
+      // Unresolved file: fall back to Texera's headerless naming.
+      s"""$readCall
+         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+  }
+
   override def sourceSchema(): Schema = {
     val delimiterChar = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0)
     require(
@@ -103,16 +190,28 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     // reopen the file to read from the beginning
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
-    val startOffset = windowOffset + (if (hasHeader) 1 else 0)
-    val endOffset =
-      startOffset + inferSampleSize
-    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader.iterator
-        .slice(startOffset, endOffset)
-        .map(seq => seq.toArray)
-    )
-
+    val header = if (hasHeader) 1 else 0
+    // The header and the offset are dropped one after the other, as the executor
+    // drops them, since their sum is past what an Int holds at the largest offset.
+    val windowRows = reader.iterator
+      .drop(header)
+      .drop(windowOffset)
+      .take(inferSampleSize)
+      .map(_.toArray[Any])
+      .toSeq
     reader.close()
+    // An offset past the last row leaves the window empty, and the types came
+    // back empty too, so the header below asked a column for a type that was
+    // never there and the operator threw. The sample is then taken from the
+    // first row, and a file holding no row at all types every column as text.
+    val sampleRows =
+      if (windowRows.nonEmpty) windowRows
+      else {
+        val fromStart = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
+        try fromStart.iterator.drop(header).take(INFER_READ_LIMIT).map(_.toArray[Any]).toSeq
+        finally fromStart.close()
+      }
+    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(sampleRows.iterator)
 
     // build schema based on inferred AttributeTypes.
     // Auto-rename blank header positions to `column-N` so empty CSV headers
@@ -121,7 +220,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     Schema().add(firstRow.indices.map { i =>
       new Attribute(
         if (hasHeader && firstRow(i).nonEmpty) firstRow(i) else s"column-${i + 1}",
-        attributeTypeList(i)
+        attributeTypeList.lift(i).getOrElse(AttributeType.STRING)
       )
     })
 
