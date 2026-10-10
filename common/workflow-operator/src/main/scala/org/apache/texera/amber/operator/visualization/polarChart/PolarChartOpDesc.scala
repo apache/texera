@@ -25,10 +25,14 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.NotNull
 
@@ -43,7 +47,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class PolarChartOpDesc extends PythonOperatorDescriptor {
+class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
@@ -125,4 +129,39 @@ class PolarChartOpDesc extends PythonOperatorDescriptor {
        |"""
     finalCode.encode
   }
+
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    val rLit = pyStringLiteral(r)
+    val thetaLit = pyStringLiteral(theta)
+    // np.issubdtype cannot read a nullable pandas dtype such as Int64 and raises;
+    // the bool exclusion keeps what np.number refused.
+    s"""from pandas.api.types import is_bool_dtype, is_numeric_dtype
+       |
+       |def _is_number(column):
+       |    return is_numeric_dtype(column) and not is_bool_dtype(column)
+       |
+       |if in1df is None or in1df.empty:
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write('<h3>No data available for Polar Chart</h3>')
+       |elif $rLit not in in1df.columns or $thetaLit not in in1df.columns:
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write('<h3>Selected columns not found in input table</h3>')
+       |elif not _is_number(in1df[$rLit]) or not _is_number(in1df[$thetaLit]):
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write('<h3>Selected columns must be numeric</h3>')
+       |else:
+       |    fig = go.Figure(data=go.Scatterpolargl(
+       |        r=in1df[$rLit].values,
+       |        theta=in1df[$thetaLit].values,
+       |        mode='markers',
+       |        marker=dict(size=10, opacity=0.7, line=dict(color='white'))
+       |    ))
+       |    fig.update_layout(title='Polar Chart', showlegend=False)
+       |    fig.write_json(outputJson)
+       |    fig.write_html(outputHtml)
+       |    print("Polar chart saved to " + outputHtml)""".stripMargin
+  }
+
 }
