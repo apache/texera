@@ -1,0 +1,95 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.collector.enabled }}
+# OpenTelemetry Collector: the single OTLP ingress for all signals,
+# k8s counterpart of the docker-compose otel-collector service. The
+# receiver Ports are exposed only on the ClusterIP Service (no Ingress),
+# mirroring the loopback-only posture of the compose deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-otel-collector
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-otel-collector
+      annotations:
+        # Roll the pod when the rendered config changes.
+        checksum/config: {{ include (print $.Template.BasePath "/base/observability/otel-collector-configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: otel-collector
+          image: {{ .Values.observability.collector.image }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          args: ["--config=/etc/otelcol-contrib/config.yaml"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.observability.collector.grpcPort }}
+            - name: otlp-http
+              containerPort: {{ .Values.observability.collector.httpPort }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol-contrib
+              readOnly: true
+          resources:
+            {{- toYaml .Values.observability.collector.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-otel-collector
+  ports:
+    - name: otlp-grpc
+      protocol: TCP
+      port: {{ .Values.observability.collector.grpcPort }}
+      targetPort: {{ .Values.observability.collector.grpcPort }}
+    - name: otlp-http
+      protocol: TCP
+      port: {{ .Values.observability.collector.httpPort }}
+      targetPort: {{ .Values.observability.collector.httpPort }}
+{{- end }}
