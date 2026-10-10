@@ -366,12 +366,16 @@ class LoopStartOperator(TableOperator):
 
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
-        # First-entry only: merge upstream state into self.state. The nested
-        # pass-through (a frame already stamped with a LoopStartId) and all
-        # loop_counter bookkeeping are owned by the worker runtime
-        # (main_loop._process_state_frame), so this operator never sees the
-        # counter and never mutates the State it is handed.
-        self.state.update(state)
+        # First-entry only: merge non-conflicting upstream state into self.state.
+        # The nested pass-through (a frame already stamped with a LoopStartId) and
+        # all loop_counter bookkeeping are owned by the worker runtime
+        # (main_loop._process_state_frame), so this operator never sees the counter
+        # and never mutates the State it is handed.
+        for key, value in state.items():
+            if key in self.state:
+                raise ValueError(f"Loop state variable cannot be overwritten: '{key}'")
+            self.state[key] = value
+
         return None
 
     @overrides.final
