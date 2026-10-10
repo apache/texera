@@ -158,11 +158,15 @@
           [(ngModel)]="versionName"
           placeholder="Describe the new version (Optional)"
           [disabled]="isCreatingVersion"
+          [attr.aria-invalid]="versionNameHasSlash ? 'true' : null"
+          [attr.aria-describedby]="versionNameHasSlash ? 'version-name-error' : null"
           (keydown.enter)="onClickCreateVersion()"
           class="version-input" />
       </div>
       <div
         *ngIf="versionNameHasSlash"
+        id="version-name-error"
+        role="alert"
         class="version-name-error">
         A version description cannot contain '/'.
       </div>

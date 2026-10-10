@@ -1194,6 +1194,27 @@ describe("VersionUploaderComponent", () => {
         expect(submit.disabled).toBe(false);
       });
 
+      it("announces the slash error to assistive tech and ties it to the name field", () => {
+        const el = withPendingChanges();
+        const input = q<HTMLInputElement>(el, ".version-input");
+        expect(input.getAttribute("aria-invalid")).toBeNull();
+        expect(input.getAttribute("aria-describedby")).toBeNull();
+
+        typeName(el, "/");
+
+        const error = q<HTMLElement>(el, ".version-name-error");
+        expect(error.getAttribute("role")).toBe("alert");
+        expect(input.getAttribute("aria-invalid")).toBe("true");
+        // The input must point at the message that is actually on the page.
+        expect(error.id).not.toBe("");
+        expect(input.getAttribute("aria-describedby")).toBe(error.id);
+
+        typeName(el, "2024-01 snapshot");
+
+        expect(input.getAttribute("aria-invalid")).toBeNull();
+        expect(input.getAttribute("aria-describedby")).toBeNull();
+      });
+
       it("submits the version straight from the name field with Enter", () => {
         const el = withPendingChanges();
 

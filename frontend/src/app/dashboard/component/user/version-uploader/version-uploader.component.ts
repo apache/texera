@@ -457,7 +457,7 @@ export class VersionUploaderComponent implements OnInit {
    * named with one could never have its files opened.
    */
   get versionNameHasSlash(): boolean {
-    return this.versionName?.includes("/") ?? false;
+    return this.versionName.includes("/");
   }
 
   onClickCreateVersion(): void {
