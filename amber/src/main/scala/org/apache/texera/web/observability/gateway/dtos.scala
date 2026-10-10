@@ -283,10 +283,29 @@ object dtos {
   /** Named server-side metric query. We do not let the client send
     *  raw MetricsQL — they pick from a fixed enum.
     */
-  sealed abstract class NamedMetric(val name: String)
+  sealed abstract class NamedMetric(val name: String) {
+
+    /** True when this metric is a single window-wide scalar, evaluated as
+      *  one instant query at the window end, rather than a per-step time
+      *  series. Counting metrics use this so the total is computed once
+      *  over the whole window instead of summing per-step buckets in the
+      *  UI (which stacked one extrapolation/boundary error per bucket).
+      */
+    def instant: Boolean = false
+
+    /** True when this metric is read from the relational store (an exact
+      *  COUNT) instead of the metrics backend. The execution table has one
+      *  row per run, so it is authoritative; the sampled counter can only
+      *  estimate. See [[WorkflowRunCounter]].
+      */
+    def dbBacked: Boolean = false
+  }
   object NamedMetric {
     case object RunsPerDay extends NamedMetric("runsPerDay")
-    case object TotalRuns extends NamedMetric("totalRuns")
+    case object TotalRuns extends NamedMetric("totalRuns") {
+      override val instant: Boolean = true
+      override val dbBacked: Boolean = true
+    }
     case object ActiveWorkflows extends NamedMetric("activeWorkflows")
     case object SuccessRate extends NamedMetric("successRate")
     case object FailureRate extends NamedMetric("failureRate")
@@ -315,13 +334,17 @@ object dtos {
       name: String,
       fromMs: Long,
       toMs: Long,
-      stepSec: Option[Int]
+      stepSec: Option[Int],
+      // Optional filter for DB-backed counts: restrict to runs launched by
+      // this user. Ignored by the metrics-backend templates.
+      userId: Option[Long] = None
   )
 
   case class ValidatedMetricsRequest(
       metric: NamedMetric,
       window: TimeWindow,
-      stepSec: Int
+      stepSec: Int,
+      userId: Option[Long] = None
   )
 
   case class MetricPoint(timestampMs: Long, value: Double)

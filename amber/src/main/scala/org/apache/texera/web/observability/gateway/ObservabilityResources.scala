@@ -100,42 +100,6 @@ private[gateway] object Preflight extends LazyLogging {
   }
 }
 
-@Path("/observability/health")
-@Produces(Array(MediaType.APPLICATION_JSON))
-class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
-
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def health(@Auth user: SessionUser): Response = {
-    // Light-touch reachability — used by the dashboard to render
-    // "Disabled" / "Unreachable" panels. No backend query; just a
-    // HEAD-style ping that surfaces typed-status only.
-    val checks = Map(
-      "logs" -> reachable(ctx.logsClient),
-      "metrics" -> reachable(ctx.metricsClient),
-      "traces" -> reachable(ctx.tracesClient),
-      "profiles" -> reachable(ctx.profilesClient)
-    )
-    val unreachable = checks.collect { case (signal, false) => signal }.toSeq.sorted
-    if (unreachable.nonEmpty)
-      logger.warn(
-        s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}"
-      )
-    else
-      logger.debug(s"observability health check: all backends reachable")
-    Respond.json(Map("status" -> "ok", "checks" -> checks))
-  }
-
-  private def reachable(client: BackendClient): Boolean = {
-    client
-      .get(
-        "/",
-        GatewayScope(userId = 0L, allowedWorkflowIds = Set.empty, allowedProjectIds = Set.empty),
-        "health"
-      )
-      .isRight
-  }
-}
 @Path("/observability/logs")
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -413,5 +377,186 @@ class LogsResource(ctx: GatewayContext) extends LazyLogging {
               }
         }
     }
+  }
+}
+
+@Path("/observability/metrics")
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class MetricsResource(ctx: GatewayContext) extends LazyLogging {
+
+  @POST
+  @Path("/query")
+  @RolesAllowed(Array("ADMIN"))
+  def query(
+      request: RawMetricsQueryRequest,
+      @Auth user: SessionUser,
+      @Context httpReq: HttpServletRequest
+  ): Response = {
+    logger.debug(s"metrics query '${request.name}' requested by user ${user.getUid}")
+    Preflight.run(ctx, user, httpReq) match {
+      case Left(err) => Respond.err(err)
+      case Right(scope) =>
+        validate(request) match {
+          case Invalid(err) => Respond.err(err)
+          case Valid(valid) if valid.metric.dbBacked =>
+            queryDbBacked(valid, scope, user, httpReq)
+          case Valid(valid) =>
+            val q = MetricsQLBuilder.build(valid)
+            logger.debug(
+              s"metrics query '${valid.metric.name}' step=${valid.stepSec}s, MetricsQL: $q"
+            )
+            val encoded = java.net.URLEncoder.encode(q, "UTF-8")
+            // Window-wide scalars (e.g. totalRuns) are one instant query at
+            // the window end. Per-step series use query_range with the step.
+            val path =
+              if (valid.metric.instant)
+                s"/api/v1/query?query=$encoded&time=${valid.window.to.getEpochSecond}"
+              else
+                s"/api/v1/query_range?query=$encoded" +
+                  s"&start=${valid.window.from.getEpochSecond}&end=${valid.window.to.getEpochSecond}" +
+                  s"&step=${valid.stepSec}"
+            ctx.metricsClient.get(path, scope, "metrics") match {
+              case Left(err) => Respond.err(err)
+              case Right(resp) if !resp.isOk =>
+                Respond.err(GatewayError.BackendError("metrics", resp.status))
+              case Right(resp) =>
+                // Don't run resp.redacted here: metrics responses are numeric
+                // time-series (epoch seconds + float values) with server-built
+                // series labels — there are no secrets to scrub. The log-line
+                // sanitizer's 16 KiB body cap truncates any larger query_range
+                // payload mid-value and appends "...[truncated]", whose leading
+                // '.' lands where JSON expects a value → bad_backend_response.
+                ResponseParsers.parseMetrics(resp.body, valid.metric.name) match {
+                  case Left(err) => Respond.err(err)
+                  case Right(parsed) =>
+                    logger.info(
+                      s"metrics query '${valid.metric.name}' ok for user ${user.getUid}: " +
+                        s"${parsed.points.size} point(s)"
+                    )
+                    AuditLogger.record(
+                      AuditLogger.Entry(
+                        userId = user.getUid.longValue(),
+                        remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+                        endpoint = "/observability/metrics/query",
+                        signal = "metrics",
+                        scope = scope,
+                        query = q,
+                        fromMs = valid.window.from.toEpochMilli,
+                        toMs = valid.window.to.toEpochMilli,
+                        hits = parsed.points.size.toLong
+                      )
+                    )
+                    Respond.json(parsed)
+                }
+            }
+        }
+    }
+  }
+
+  /** Answer a DB-backed metric (e.g. totalRuns) from the execution table as
+    *  an exact count, returned as a single window-end point so the UI hero
+    *  stat renders unchanged. No metrics-backend call is made.
+    */
+  private def queryDbBacked(
+      valid: ValidatedMetricsRequest,
+      scope: GatewayScope,
+      user: SessionUser,
+      httpReq: HttpServletRequest
+  ): Response = {
+    Try(ctx.runCounter.countRuns(valid.window, valid.userId)) match {
+      case scala.util.Failure(ex) =>
+        logger.error(s"metrics count '${valid.metric.name}' DB query failed", ex)
+        Respond.err(GatewayError.BackendError("metrics", 500))
+      case scala.util.Success(count) =>
+        val parsed = MetricsQueryResponse(
+          metric = valid.metric.name,
+          points = Seq(MetricPoint(valid.window.to.toEpochMilli, count.toDouble))
+        )
+        logger.info(
+          s"metrics count '${valid.metric.name}' ok for user ${user.getUid}: $count run(s)" +
+            valid.userId.map(u => s" (filtered to user $u)").getOrElse("")
+        )
+        AuditLogger.record(
+          AuditLogger.Entry(
+            userId = user.getUid.longValue(),
+            remoteIp = Option(httpReq.getRemoteAddr).getOrElse("unknown"),
+            endpoint = "/observability/metrics/query",
+            signal = "metrics",
+            scope = scope,
+            query =
+              s"db:count(workflow_executions) user=${valid.userId.map(_.toString).getOrElse("*")}",
+            fromMs = valid.window.from.toEpochMilli,
+            toMs = valid.window.to.toEpochMilli,
+            hits = count
+          )
+        )
+        Respond.json(parsed)
+    }
+  }
+
+  private def validate(raw: RawMetricsQueryRequest): ValidationResult[ValidatedMetricsRequest] = {
+    NamedMetric.parse(raw.name) match {
+      case None => Invalid(GatewayError("bad_metric_name", "unknown metric name", 400))
+      case Some(metric) =>
+        TimeWindow.validate(raw.fromMs, raw.toMs) match {
+          case Invalid(e)    => Invalid(e)
+          case Valid(window) =>
+            // Launder through Number to dodge the Jackson Integer/Long unbox
+            // trap (see ScopeResolver.assertWorkflowAllowed). A negative id is
+            // never a real user, so reject it outright.
+            val rawUid = raw.userId.asInstanceOf[Option[Any]].map {
+              case n: Number => n.longValue()
+              case other     => other.toString.toLong
+            }
+            if (rawUid.exists(_ < 0))
+              Invalid(GatewayError("bad_user_id", "userId must be non-negative", 400))
+            else {
+              // Floor at 1s; no ceiling. The client auto-raises the step for
+              // large windows to fit the points-per-series cap, and a larger
+              // step only means fewer (cheaper) points, so there is nothing to
+              // clamp from above.
+              val step = raw.stepSec.getOrElse(60).max(1)
+              Valid(ValidatedMetricsRequest(metric, window, step, rawUid))
+            }
+        }
+    }
+  }
+}
+
+@Path("/observability/health")
+@Produces(Array(MediaType.APPLICATION_JSON))
+class ObservabilityHealthResource(ctx: GatewayContext) extends LazyLogging {
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def health(@Auth user: SessionUser): Response = {
+    // Light-touch reachability — used by the dashboard to render
+    // "Disabled" / "Unreachable" panels. No backend query; just a
+    // HEAD-style ping that surfaces typed-status only.
+    val checks = Map(
+      "logs" -> reachable(ctx.logsClient),
+      "metrics" -> reachable(ctx.metricsClient),
+      "traces" -> reachable(ctx.tracesClient),
+      "profiles" -> reachable(ctx.profilesClient)
+    )
+    val unreachable = checks.collect { case (signal, false) => signal }.toSeq.sorted
+    if (unreachable.nonEmpty)
+      logger.warn(
+        s"observability health check: unreachable backend(s): ${unreachable.mkString(", ")}"
+      )
+    else
+      logger.debug(s"observability health check: all backends reachable")
+    Respond.json(Map("status" -> "ok", "checks" -> checks))
+  }
+
+  private def reachable(client: BackendClient): Boolean = {
+    client
+      .get(
+        "/",
+        GatewayScope(userId = 0L, allowedWorkflowIds = Set.empty, allowedProjectIds = Set.empty),
+        "health"
+      )
+      .isRight
   }
 }

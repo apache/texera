@@ -1,0 +1,127 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<form
+  [formGroup]="form"
+  class="metrics-panel">
+  <div class="row">
+    <nz-range-picker
+      [nzShowTime]="true"
+      [nzAllowClear]="false"
+      formControlName="range"></nz-range-picker>
+    <input
+      nz-input
+      type="number"
+      formControlName="stepSec"
+      placeholder="Step (s)" />
+    <nz-select
+      formControlName="userId"
+      nzAllowClear
+      nzShowSearch
+      nzPlaceHolder="All users"
+      nz-tooltip="Filter the run count to one user"
+      style="min-width: 180px">
+      <nz-option
+        *ngFor="let u of users"
+        [nzValue]="u.uid"
+        [nzLabel]="u.name + ' (#' + u.uid + ')'"></nz-option>
+    </nz-select>
+    <button
+      nz-button
+      nzType="primary"
+      type="button"
+      [disabled]="loading || form.invalid"
+      (click)="refresh()">
+      Refresh
+    </button>
+  </div>
+
+  <nz-alert
+    *ngIf="errorMessage"
+    nzType="error"
+    [nzMessage]="errorMessage"
+    nzShowIcon></nz-alert>
+
+  <nz-alert
+    *ngIf="stepHint"
+    nzType="info"
+    [nzMessage]="stepHint"
+    nzShowIcon></nz-alert>
+</form>
+
+<div
+  *ngIf="loading"
+  class="loading-indicator">
+  <nz-spin nzSimple></nz-spin>
+  <span>Loading metrics…</span>
+</div>
+
+<div class="charts">
+  <nz-card
+    *ngFor="let desc of chartDescriptors"
+    class="metric-card"
+    [nzTitle]="cardTitle">
+    <ng-template #cardTitle>
+      <span class="card-title-text">{{ desc.title }}</span>
+      <span
+        class="info-icon"
+        nz-tooltip
+        [nzTooltipTitle]="desc.description"
+        nzTooltipPlacement="top"
+        role="img"
+        aria-label="About this metric"
+        >ⓘ</span
+      >
+    </ng-template>
+    <ng-container *ngIf="summaries[desc.name] as s; else loadingHero">
+      <div class="hero">
+        <span class="value">{{ s.latest | number: "1.0-2" }}</span>
+        <span class="unit">{{ desc.unit }}</span>
+        <!-- A window total has no trend vs. a baseline, so skip the marker. -->
+        <span
+          *ngIf="!desc.instant"
+          class="delta"
+          [class.up]="s.trend === 'up'"
+          [class.down]="s.trend === 'down'"
+          [class.flat]="s.trend === 'flat'">
+          {{ s.trend === 'up' ? '▲' : s.trend === 'down' ? '▼' : '▬' }} {{ s.deltaPct | number: "1.0-1" }}%
+        </span>
+      </div>
+    </ng-container>
+    <ng-template #loadingHero>
+      <div class="hero">
+        <span class="value">—</span>
+        <span class="unit">{{ desc.unit }}</span>
+      </div>
+    </ng-template>
+
+    <!-- Instant metrics are a single window-wide scalar: hero number only,
+         no trend chart to draw. -->
+    <ng-container *ngIf="!desc.instant">
+      <div
+        *ngIf="chartOptions[desc.name] as opt; else emptyChart"
+        class="chart"
+        echarts
+        [options]="opt"
+        [autoResize]="true"></div>
+      <ng-template #emptyChart>
+        <div class="chart empty">No data for the selected window.</div>
+      </ng-template>
+    </ng-container>
+  </nz-card>
+</div>

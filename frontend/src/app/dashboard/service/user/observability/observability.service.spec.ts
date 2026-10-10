@@ -146,14 +146,7 @@ describe("ObservabilityService", () => {
     httpMock.expectNone(r => r.url.endsWith("/observability/metrics/query"));
   });
 
-  it("queryMetrics rejects step outside [1, 3600]", () => {
-    const tooBig: MetricsQueryRequest = {
-      name: "runsPerDay",
-      fromMs: 0,
-      toMs: 60_000,
-      stepSec: 99999,
-    };
-    expect(() => service.queryMetrics(tooBig)).toThrow(ValidationError);
+  it("queryMetrics rejects a sub-1s step but allows large steps (auto-relaxed for big windows)", () => {
     const tooSmall: MetricsQueryRequest = {
       name: "runsPerDay",
       fromMs: 0,
@@ -161,6 +154,19 @@ describe("ObservabilityService", () => {
       stepSec: 0,
     };
     expect(() => service.queryMetrics(tooSmall)).toThrow(ValidationError);
+    // A step well above the old 1h ceiling is valid now: the panel raises it
+    // for large windows to stay under the points-per-series cap. It must pass
+    // validation and dispatch (the request only fires on subscribe).
+    const big: MetricsQueryRequest = {
+      name: "runsPerDay",
+      fromMs: 0,
+      toMs: 60_000,
+      stepSec: 99_999,
+    };
+    expect(() => service.queryMetrics(big).subscribe()).not.toThrow();
+    const http = httpMock.expectOne(r => r.url.endsWith("/observability/metrics/query"));
+    expect(http.request.body.stepSec).toBe(99_999);
+    http.flush({ metric: "runsPerDay", points: [] });
   });
 
   it("queryMetrics dispatches a valid request to /metrics/query", () => {
