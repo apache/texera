@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791554132277,
+  "lastUpdate": 1791637611595,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -17848,6 +17848,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 499.3748954396984,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Matthew B.",
+            "username": "Ma77Ball",
+            "email": "mgball@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8bfe034af17f88e8396b4961714658a48f79cff2",
+          "message": "refactor(frontend): extract shared VersionsFilesBrowser component (#8942)\n\n### What changes were proposed in this PR?\n- Extracted the duplicated \"Versions & Files\" tab from `dataset-detail`\nand `model-detail` into one shared presentational component,\n`texera-versions-files-browser` (template, SCSS, toolbar view-state,\nsider resize, and copy-path logic).\n- Both detail pages now render `<texera-versions-files-browser>` with\ninputs/outputs and keep their own data loading and version-selection\nlogic.\n- Kept `isMaximized` and `isRightBarCollapsed` parent-owned as two-way\nbindings, since `isMaximized` also gates the page header outside the\ntab; the child reports toggles rather than owning the flags.\n- Moved the view-state unit tests (sider resize, animation-frame\nscheduling, copy-path, toggle emits) into the new component's spec;\nparent specs keep their integration coverage by rendering the real\nchild.\n### Any related issues, documentation, discussions?\nCloses: #8941\n### How was this PR tested?\n- Run `cd frontend && npx ng test\n--include='**/versions-files-browser.component.spec.ts'\n--include='**/dataset-detail.component.spec.ts'\n--include='**/model-detail.component.spec.ts'`, expect all 231 tests to\npass.\n- Open a dataset detail page, switch to the \"Versions & Files\" tab,\nconfirm the version picker, file tree, file renderer, resize handle,\nmaximize/minimize, hide/show right bar, copy-path, and zip download all\nbehave as before.\n- Repeat on a model detail page and confirm identical behavior, and\nconfirm the model Settings tab (which still uses nz-select) is\nunaffected.\n### Was this PR authored or co-authored using generative AI tooling?\nCo-authored with Claude Opus 4.8 in compliance with ASF\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-10-10T08:50:21Z",
+          "url": "https://github.com/apache/texera/commit/8bfe034af17f88e8396b4961714658a48f79cff2"
+        },
+        "date": 1791637610867,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 643.7046438164554,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1096.9564027768795,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1172.110130987999,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 802.2100295888591,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1128.6418991053188,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1163.9348548534795,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 852.8366325454917,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1080.0313171453681,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1161.6475617837375,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 702.5876312294407,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 911.2153751829078,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 933.282771986935,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 733.3026015012675,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 904.3234800443549,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 934.4021902303616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 739.8215833914472,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 900.3975221070096,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 919.7428986241891,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 447.7774230542248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 523.4540108140131,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 529.265245216922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 452.78488172542694,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 523.6500084093872,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 528.0406967545644,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 427.4505066663612,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 492.68180756110667,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 501.4348106278614,
             "unit": "tuples/sec"
           }
         ]
