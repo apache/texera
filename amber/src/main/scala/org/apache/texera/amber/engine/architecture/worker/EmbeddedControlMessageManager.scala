@@ -71,7 +71,11 @@ class EmbeddedControlMessageManager(
       case ALL_ALIGNMENT =>
         ecmReceivedFromAllChannels
       case PORT_ALIGNMENT =>
-        inputManager.getPort(portId).channels.subsetOf(ecmReceived(ecm.id))
+        inputManager
+          .getPort(portId)
+          .channels
+          .filterNot(_.isControl)
+          .subsetOf(ecmReceived(ecm.id))
       case NO_ALIGNMENT =>
         ecmReceived(ecm.id).size == 1 // only the first ECM triggers
       case _ =>

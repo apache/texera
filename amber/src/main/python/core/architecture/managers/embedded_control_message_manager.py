@@ -57,11 +57,11 @@ class EmbeddedControlMessageManager:
             ecm_completed = ecm_received_from_all_channels
         elif ecm.ecm_type == EmbeddedControlMessageType.PORT_ALIGNMENT:
             port_id = self.input_gateway.get_port_id(from_channel)
-            ecm_completed = (
-                self.input_gateway.get_port(port_id)
-                .get_channels()
-                .issubset(self.ecm_received[ecm.id])
-            )
+            ecm_completed = {
+                channel
+                for channel in self.input_gateway.get_port(port_id).get_channels()
+                if not channel.is_control
+            }.issubset(self.ecm_received[ecm.id])
         elif ecm.ecm_type == EmbeddedControlMessageType.NO_ALIGNMENT:
             ecm_completed = (
                 len(self.ecm_received[ecm.id]) == 1
