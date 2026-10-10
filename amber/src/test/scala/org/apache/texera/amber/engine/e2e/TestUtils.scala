@@ -21,11 +21,13 @@ package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.{Await, Duration, Promise, Return, Throw, Try}
 import org.apache.pekko.actor.ActorSystem
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
   ExecutionIdentity,
   OperatorIdentity,
   WorkflowIdentity
@@ -39,6 +41,8 @@ import org.apache.texera.amber.engine.architecture.coordinator.{
   Workflow
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType,
   EmptyRequest,
   UpdateExecutorRequest,
   WorkflowReconfigureRequest
@@ -138,10 +142,11 @@ object TestUtils {
 
   /**
     * Run `workflow` to COMPLETED, then read the requested operators' materialized
-    * results via `readMaterializedResults`. A FatalError aborts the run and is
-    * surfaced as the exception from the completion await. Specs that drive the
-    * run differently (e.g. a pause/resume flow) read results directly inside
-    * their own completion callback instead.
+    * results via `readMaterializedResults`. A FatalError, or an error a worker
+    * reports (see `workerError`), aborts the run and is surfaced as the exception
+    * from the completion await. Specs that drive the run differently (e.g. a
+    * pause/resume flow) read results directly inside their own completion
+    * callback instead.
     */
   def runWorkflowAndReadResults[T](
       system: ActorSystem,
@@ -168,6 +173,11 @@ object TestUtils {
     )
     try {
       client.registerCallback[FatalError](evt => completion.updateIfEmpty(Throw(evt.e)))
+      // A worker whose executor throws pauses instead of failing the run, so
+      // without this the run would only end at `completionTimeout`.
+      client.registerCallback[ConsoleMessage](msg =>
+        workerError(msg).foreach(e => completion.updateIfEmpty(Throw(e)))
+      )
       // The engine emits `OperatorPortResultUriAvailable` for each
       // materialized output port; production wires this to a DB insert in
       // `ExecutionResultService.persistOperatorPortResultUri`. The e2e
@@ -189,6 +199,26 @@ object TestUtils {
       client.shutdown()
     }
   }
+
+  /**
+    * The error a worker reports in `msg`, or None if `msg` is not an error. A
+    * worker whose executor throws does not raise a FatalError: it sends the
+    * error to the client as an ERROR console message and pauses itself
+    * (`DataProcessor.handleExecutorException`, and `Context.report_exception`
+    * in a Python worker), so the run never reaches COMPLETED.
+    */
+  def workerError(msg: ConsoleMessage): Option[WorkflowRuntimeException] =
+    if (msg.msgType == ConsoleMessageType.ERROR) {
+      Some(
+        new WorkflowRuntimeException(
+          // The title is the error; the message is its stack trace.
+          Seq(msg.title, msg.message).filter(_.nonEmpty).mkString("\n"),
+          Some(ActorVirtualIdentity(msg.workerId))
+        )
+      )
+    } else {
+      None
+    }
 
   /**
     * Mirror the production `OperatorPortResultUriAvailable` → DB write that
