@@ -10,6 +10,7 @@
 
 # test coverage
 /coverage
+/coverage-browser
 
 # generated Vitest JUnit reports
 /junit.xml
