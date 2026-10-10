@@ -27,9 +27,11 @@
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
 
-  // Only the ecosystems dependabot.yml covered; enable more (docker,
-  // gradle, etc.) deliberately in follow-ups rather than by default.
-  enabledManagers: ['npm', 'bun', 'sbt', 'pip_requirements', 'github-actions'],
+  // The ecosystems dependabot.yml covered, plus the Dockerfiles: their base
+  // images are pinned by digest for reproducible builds, and a digest nobody
+  // bumps would freeze OS and JRE security fixes. Enable more (gradle, etc.)
+  // deliberately in follow-ups rather than by default.
+  enabledManagers: ['npm', 'bun', 'sbt', 'pip_requirements', 'github-actions', 'dockerfile'],
 
   timezone: 'Etc/UTC',
   schedule: ['before 8am on monday'],
@@ -86,6 +88,18 @@
       matchFileNames: ['amber/**'],
       matchManagers: ['sbt'],
       semanticCommitScope: 'deps, amber',
+    },
+
+    {
+      matchManagers: ['dockerfile'],
+      semanticCommitScope: 'deps, docker',
+    },
+    // Base-image digest refreshes (a tag moving to a rebuilt image) and
+    // patch/minor tag bumps land together in one weekly PR.
+    {
+      matchManagers: ['dockerfile'],
+      matchUpdateTypes: ['digest', 'patch', 'minor'],
+      groupName: 'docker base images',
     },
 
     // Patch bumps grouped into one weekly PR per area. Minor bumps are

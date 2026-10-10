@@ -32,7 +32,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: setup-lakefs
-          image: curlimages/curl:latest
+          image: curlimages/curl:8.22.0
           env:
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs:8000/api/v1

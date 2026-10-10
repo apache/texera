@@ -519,10 +519,10 @@ jobs:
               -e RUSTFS_ACCESS_KEY=texera_rustfs \
               -e RUSTFS_SECRET_KEY=password \
               -e RUSTFS_REGION=us-west-2 \
-              rustfs/rustfs:1.0.0-rc.6
+              rustfs/rustfs:1.0.0
           else
             curl -sSfL -o /tmp/rustfs.zip \
-              https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0-rc.6.zip
+              https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0.zip
             unzip -q -o /tmp/rustfs.zip -d /tmp/rustfs-bin
             chmod +x /tmp/rustfs-bin/rustfs
             mkdir -p /tmp/rustfs-data
@@ -1059,7 +1059,7 @@ jobs:
             -e RUSTFS_ACCESS_KEY=texera_rustfs \
             -e RUSTFS_SECRET_KEY=password \
             -e RUSTFS_REGION=us-west-2 \
-            rustfs/rustfs:1.0.0-rc.6
+            rustfs/rustfs:1.0.0
           for i in $(seq 1 15); do
             curl -sf http://localhost:9000/health && break
             echo "Waiting for RustFS... (attempt $i)"; sleep 1
