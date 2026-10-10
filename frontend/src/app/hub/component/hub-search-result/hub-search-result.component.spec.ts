@@ -492,7 +492,7 @@ describe("HubSearchResultComponent rendered template", () => {
           provide: DatasetService,
           useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })), retrieveOwners: vi.fn(() => of([])) },
         },
-        { provide: WorkflowCoverService, useValue: { getCover: vi.fn(() => of(undefined)) } },
+        { provide: WorkflowCoverService, useValue: {} },
         NzModalService,
         provideNzI18n(en_US),
         ...commonTestProviders,
