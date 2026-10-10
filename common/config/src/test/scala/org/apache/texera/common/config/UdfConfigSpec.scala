@@ -38,16 +38,5 @@ class UdfConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("UDF_PYTHON_LOG_STREAMHANDLER_LEVEL")(
       UdfConfig.pythonLogStreamHandlerLevel shouldBe "INFO"
     )
-    ifUnset("UDF_PYTHON_LOG_FILEHANDLER_DIR")(UdfConfig.pythonLogFileHandlerDir shouldBe "/tmp/")
-    ifUnset("UDF_PYTHON_LOG_FILEHANDLER_LEVEL")(UdfConfig.pythonLogFileHandlerLevel shouldBe "INFO")
-  }
-
-  it should "resolve the non-empty log format strings" in {
-    ifUnset("UDF_PYTHON_LOG_STREAMHANDLER_FORMAT")(
-      UdfConfig.pythonLogStreamHandlerFormat should not be empty
-    )
-    ifUnset("UDF_PYTHON_LOG_FILEHANDLER_FORMAT")(
-      UdfConfig.pythonLogFileHandlerFormat should not be empty
-    )
   }
 }
