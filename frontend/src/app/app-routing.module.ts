@@ -39,6 +39,7 @@ import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { ObservabilityComponent } from "./dashboard/component/user/observability/observability.component";
 import { UserModelComponent } from "./dashboard/component/user/user-model/user-model.component";
 import { ModelDetailComponent } from "./dashboard/component/user/user-model/user-model-explorer/model-detail.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
@@ -217,6 +218,10 @@ routes.push({
         {
           path: "cu-image",
           component: AdminCuImageComponent,
+        },
+        {
+          path: "observability",
+          component: ObservabilityComponent,
         },
       ],
     },
