@@ -206,7 +206,7 @@ class BatchOperator(TupleOperatorV2):
         if value is None:
             raise ValueError("BATCH_SIZE cannot be None.")
         if type(value) is not int:
-            raise ValueError("BATCH_SIZE cannot be {type(value))}.")
+            raise ValueError(f"BATCH_SIZE cannot be {type(value)}.")
         if value <= 0:
             raise ValueError("BATCH_SIZE should be positive.")
 

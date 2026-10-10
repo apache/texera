@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -43,7 +44,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
   @JsonInclude(JsonInclude.Include.NON_ABSENT)
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -107,12 +108,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     csvSetting.setMaxColumns(maxColumns)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(hasHeader)
-    csvSetting.setNullValue("")
+    // No setNullValue here, so a blank cell reads as null exactly as it does at
+    // execution time (CSVScanSourceOpExec builds its parser without one). Reading it
+    // as "" instead made inferField fall through to STRING, which typed a numeric
+    // column by its one empty cell rather than by its values.
     val parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
 
     var data: Array[Array[String]] = Array()
-    val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    val readLimit = inferSampleSize
     for (_ <- 0 until readLimit) {
       val row = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       if (row != null) {

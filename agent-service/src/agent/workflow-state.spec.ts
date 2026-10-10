@@ -341,6 +341,30 @@ describe("WorkflowState - updateOperatorInputPorts", () => {
   test("returns false for a missing operator", () => {
     expect(new WorkflowState().updateOperatorInputPorts("missing", 2)).toBe(false);
   });
+
+  test("removes links targeting input ports that are dropped", () => {
+    const state = new WorkflowState();
+
+    state.addOperator(makeOperator("src"));
+    state.addOperator(
+      makeOperator("op1", {
+        inputPorts: [
+          { portID: "input-0", displayName: "Input 0" },
+          { portID: "input-1", displayName: "Input 1" },
+        ],
+      })
+    );
+
+    state.addLink({
+      linkID: "l1",
+      source: { operatorID: "src", portID: "output-0" },
+      target: { operatorID: "op1", portID: "input-1" },
+    });
+
+    state.updateOperatorInputPorts("op1", 1);
+
+    expect(state.getAllLinks().map(l => l.linkID)).toEqual([]);
+  });
 });
 
 describe("WorkflowState - workflow content round-trip", () => {
@@ -373,5 +397,38 @@ describe("WorkflowState - workflow content round-trip", () => {
     const out = state.getWorkflowContent();
     expect(out.settings).toEqual({ dataTransferBatchSize: 400 }); // DEFAULT_WORKFLOW_SETTINGS
     expect(out.commentBoxes).toEqual([]);
+  });
+
+  test("carries the Form View definition through an agent save untouched", () => {
+    const state = new WorkflowState();
+    const formBinding = {
+      fields: [{ id: "f1", operatorID: "op1", propertyKey: "limit", displayName: "Limit" }],
+      resultOperatorIds: ["op2"],
+    };
+    state.setWorkflowContent({
+      operators: [makeOperator("op1"), makeOperator("op2")],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+      formBinding,
+    });
+
+    // The agent edits the graph but never the form definition; it must come back intact.
+    state.addOperator(makeOperator("op3"));
+    expect(state.getWorkflowContent().formBinding).toEqual(formBinding);
+  });
+
+  test("adds no formBinding key when the workflow never had one", () => {
+    const state = new WorkflowState();
+    state.setWorkflowContent({
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+    });
+
+    expect("formBinding" in state.getWorkflowContent()).toBe(false);
   });
 });

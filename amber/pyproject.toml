@@ -43,3 +43,12 @@ addopts = "--import-mode=importlib"
 markers = [
     "integration: end-to-end test routed to the amber-integration CI job",
 ]
+
+# Branch coverage. Without this, coverage.py records only whether each
+# statement ran, so a half-taken `if` reads as fully covered and Codecov
+# has no partial-line data for any pyamber file. Setting it here rather
+# than passing `--cov-branch` in CI keeps a local `pytest --cov` run on
+# the same metric as the pipeline — a local-vs-CI split is exactly how a
+# line comes to look green on a laptop and partial on Codecov.
+[tool.coverage.run]
+branch = true

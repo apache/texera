@@ -24,7 +24,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
-import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_MODEL_RESULT, HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
 import { BrowseSectionComponent } from "../browse-section/browse-section.component";
 
@@ -40,9 +40,11 @@ export class LandingPageComponent implements OnInit {
   public currentUid = this.userService.getCurrentUser()?.uid;
   public workflowCount: number = 0;
   public datasetCount: number = 0;
+  public modelCount: number = 0;
   public topLovedWorkflows: DashboardEntry[] = [];
   public topClonedWorkflows: DashboardEntry[] = [];
   public topLovedDatasets: DashboardEntry[] = [];
+  public topLovedModels: DashboardEntry[] = [];
 
   constructor(
     private hubService: HubService,
@@ -60,26 +62,28 @@ export class LandingPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.getWorkflowCount();
+    this.loadCounts();
     this.loadTops();
   }
 
   async loadTops() {
     try {
-      const [workflowEntries, datasetEntries] = await Promise.all([
+      const [workflowEntries, datasetEntries, modelEntries] = await Promise.all([
         this.getTopLovedEntries(EntityType.Workflow, [ActionType.Like, ActionType.Clone]),
         this.getTopLovedEntries(EntityType.Dataset, [ActionType.Like]),
+        this.getTopLovedEntries(EntityType.Model, [ActionType.Like]),
       ]);
 
       this.topLovedWorkflows = workflowEntries["like"] || [];
       this.topClonedWorkflows = workflowEntries["clone"] || [];
       this.topLovedDatasets = datasetEntries["like"] || [];
+      this.topLovedModels = modelEntries["like"] || [];
     } catch (error) {
       console.error("Failed to load top entries:", error);
     }
   }
 
-  getWorkflowCount(): void {
+  loadCounts(): void {
     this.hubService
       .getCount(EntityType.Workflow)
       .pipe(untilDestroyed(this))
@@ -91,6 +95,12 @@ export class LandingPageComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.datasetCount = count;
+      });
+    this.hubService
+      .getCount(EntityType.Model)
+      .pipe(untilDestroyed(this))
+      .subscribe((count: number) => {
+        this.modelCount = count;
       });
   }
 
@@ -119,6 +129,9 @@ export class LandingPageComponent implements OnInit {
         break;
       case "dataset":
         path = HUB_DATASET_RESULT;
+        break;
+      case "model":
+        path = HUB_MODEL_RESULT;
         break;
       default:
         path = HOME;

@@ -24,14 +24,15 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
+class SklearnPredictionOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
   @JsonPropertyDescription("attribute corresponding to ML model")
   @AutofillAttributeName
@@ -62,9 +63,15 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |            input_features = tuple_
        |            if $groundTruthAttribute != "":
        |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != $groundTruthAttribute])
-       |                tuple_[$resultAttribute] = type(tuple_[$groundTruthAttribute])(self.model.predict(Table.from_tuple_likes([input_features]))[0])
+       |            _fitted = getattr(self.model, "feature_names_in_", None)
+       |            if _fitted is not None:
+       |                input_features = input_features.get_partial_tuple(list(_fitted))
+       |            if Table.from_tuple_likes([input_features]).isna().any(axis=None):
+       |                tuple_[$resultAttribute] = None #keep the row, leave the result empty
        |            else:
-       |                tuple_[$resultAttribute] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
+       |                prediction = self.model.predict(Table.from_tuple_likes([input_features]))[0]
+       |                #the output schema names this column's type, so reading one off a row could only disagree with it
+       |                tuple_[$resultAttribute] = prediction if $groundTruthAttribute != "" else str(prediction)
        |            yield tuple_""".encode
 
   override def operatorInfo: OperatorInfo =
@@ -92,5 +99,73 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, resultType)
     )
+  }
+
+  /** Python that narrows `X` to the columns the model was fitted on.
+    *
+    * The fitting side leaves out the columns an estimator cannot fit, so this
+    * side has to leave out the same ones or scikit-learn refuses the frame for
+    * naming features it never saw. Read off the model rather than re-derived:
+    * what it was fitted on is a fact it carries, and asking it cannot drift from
+    * whatever rule the fitting operator applied.
+    */
+  private val narrowToFittedFeatures: String =
+    """_fitted = getattr(model, "feature_names_in_", None)
+      |if _fitted is not None:
+      |    X = X[list(_fitted)]""".stripMargin
+
+  /** Python that predicts on the rows whose features are all present.
+    *
+    * The executor takes a row at a time and leaves the result empty where a
+    * feature is missing, so the row keeps its place. One call over the whole
+    * frame cannot do that: scikit-learn ends the run on the first missing value
+    * rather than leaving a gap. So predict on the complete rows and write those
+    * answers back where they came from. A frame with nothing missing is
+    * assigned in one piece, which keeps the type `predict` returned.
+    */
+  private def predictLeavingIncompleteRowsEmpty(resultLit: String, asText: Boolean): String = {
+    val predicted =
+      if (asText) "[str(_p) for _p in model.predict(X[_complete])]"
+      else "model.predict(X[_complete]).tolist()"
+    s"""_complete = X.notna().all(axis=1)
+       |_predicted = $predicted if _complete.any() else []
+       |if _complete.all():
+       |    out1df[$resultLit] = _predicted
+       |else:
+       |    out1df[$resultLit] = None
+       |    out1df.loc[_complete, $resultLit] = _predicted""".stripMargin
+  }
+
+  /** Python that takes the model the executor predicts with.
+    *
+    * The executor keeps the model of every row the model port hands it, each one
+    * overwriting the last, so the model it predicts with is the one on the final
+    * row. Reading the first row instead would answer with a different model
+    * whenever that port carries more than one. With no data rows the executor
+    * never touches the model, so neither does this: both ports may be empty.
+    */
+  private def takeTheModelTheExecutorKeeps(modelLit: String): String =
+    s"model = in1df[$modelLit].iloc[-1] if len(in2df) else None"
+
+  override def generateStandaloneCode(): String = {
+    val modelLit = pyStringLiteral(model)
+    val resultLit = pyStringLiteral(resultAttribute)
+    if (groundTruthAttribute.nonEmpty) {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |${takeTheModelTheExecutorKeeps(modelLit)}
+         |out1df = in2df.copy()
+         |X = in2df.drop(${pyStringLiteral(groundTruthAttribute)}, axis=1)
+         |$narrowToFittedFeatures
+         |${predictLeavingIncompleteRowsEmpty(resultLit, asText = false)}""".stripMargin
+    } else {
+      s"""from sklearn.pipeline import Pipeline
+         |
+         |${takeTheModelTheExecutorKeeps(modelLit)}
+         |out1df = in2df.copy()
+         |X = in2df
+         |$narrowToFittedFeatures
+         |${predictLeavingIncompleteRowsEmpty(resultLit, asText = true)}""".stripMargin
+    }
   }
 }

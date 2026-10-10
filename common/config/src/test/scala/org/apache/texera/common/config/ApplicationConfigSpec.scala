@@ -131,7 +131,7 @@ class ApplicationConfigSpec extends AnyFlatSpec with Matchers {
       ApplicationConfig.cleanupAllExecutionResults shouldBe false
     )
     ifUnset("MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB")(
-      ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb shouldBe 64
+      ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb shouldBe 1024
     )
   }
 

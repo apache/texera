@@ -17,10 +17,16 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { discardPeriodicTasks, fakeAsync, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
 import { Subscription } from "rxjs";
-import { WorkflowWebsocketService } from "./workflow-websocket.service";
+import {
+  WorkflowWebsocketService,
+  WS_HEARTBEAT_INTERVAL_MS,
+  WS_RECONNECT_INTERVAL_MS,
+} from "./workflow-websocket.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { AuthService } from "../../../common/service/user/auth.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 /** Browser-like WebSocket test double used to verify websocket reopen and subscription cleanup behavior. */
 class FakeWebSocket extends EventTarget {
@@ -46,7 +52,12 @@ class FakeWebSocket extends EventTarget {
   public onerror: ((ev: Event) => unknown) | null = null;
   public onmessage: ((ev: MessageEvent) => unknown) | null = null;
 
-  public send() {}
+  /** Frames written to the socket, so what the service actually put on the wire can be asserted. */
+  public readonly sent: string[] = [];
+
+  public send(frame: string) {
+    this.sent.push(frame);
+  }
 
   public close() {
     if (this.readyState === FakeWebSocket.CLOSED) {
@@ -57,6 +68,16 @@ class FakeWebSocket extends EventTarget {
     const onclose = this.onclose;
     onclose?.(closeEvent);
     this.dispatchEvent(closeEvent);
+  }
+}
+
+/** Every socket the service constructs while `RecordingWebSocket` is installed, in creation order. */
+const openedSockets: RecordingWebSocket[] = [];
+
+class RecordingWebSocket extends FakeWebSocket {
+  constructor(url: string) {
+    super(url);
+    openedSockets.push(this);
   }
 }
 
@@ -163,5 +184,167 @@ describe("WorkflowWebsocketService", () => {
       service.closeWebsocket();
       window.WebSocket = originalWebSocket;
     }
+  });
+
+  /**
+   * The handshake URL is the only place the caller's identity reaches the server, and the
+   * retry pipeline is what keeps a dropped connection from ending the session. Both were
+   * previously unexercised: the suite above only ever opened a socket with every argument
+   * supplied and never faulted one.
+   */
+  describe("handshake URL and reconnection", () => {
+    let originalWebSocket: typeof WebSocket;
+
+    beforeEach(() => {
+      openedSockets.length = 0;
+      originalWebSocket = window.WebSocket;
+      // Without this the real jsdom WebSocket dials ws://localhost:3000 and the test would be
+      // asserting on whatever happens to be listening on this machine.
+      window.WebSocket = RecordingWebSocket as unknown as typeof WebSocket;
+    });
+
+    afterEach(() => {
+      service.closeWebsocket();
+      window.WebSocket = originalWebSocket;
+      AuthService.removeAccessToken();
+      vi.restoreAllMocks();
+    });
+
+    it("defaults the user id to 1 and says so when openWebsocket is called without one", () => {
+      const logSpy = vi.spyOn(console, "log");
+
+      service.openWebsocket(7);
+
+      expect(logSpy).toHaveBeenCalledWith("uId is undefined, defaulting to uId = 1");
+      // The substituted default has to reach the server, not just the log line. Anchored at the
+      // endpoint rather than at `?` so a wrong TEXERA_WEBSOCKET_ENDPOINT is caught too; the host
+      // is deliberately left out, since getWebsocketUrl derives it from document.baseURI.
+      expect(openedSockets[0].url).toContain("/wsapi/workflow-websocket?wid=7&uid=1");
+    });
+
+    it("carries the computing-unit id in the handshake URL, and leaves the parameter out when none is given", () => {
+      // 5 is distinct from both wid and uid, so a swapped slot cannot masquerade as the right value.
+      service.openWebsocket(3, 9, 5);
+      expect(openedSockets[0].url).toContain("/wsapi/workflow-websocket?wid=3&uid=9&cuid=5");
+
+      // The other leg. NOTE: this records what the frontend does today, not a handshake the server
+      // accepts — WorkflowWebsocketResource.myOnOpen reads `cuid` with no Option guard, and
+      // admin-execution.component calls openWebsocket(wid) with no computing unit at all. If that
+      // gap is closed, this half of the test is meant to change with it.
+      service.openWebsocket(3, 9);
+      expect(openedSockets[1].url).toContain("/wsapi/workflow-websocket?wid=3&uid=9");
+      expect(openedSockets[1].url).not.toContain("cuid");
+    });
+
+    it("appends the stored access token to the handshake URL, and nothing when there is none", () => {
+      AuthService.setAccessToken("tok-abc");
+      service.openWebsocket(1, 1, 1);
+      expect(openedSockets[0].url).toContain("&access-token=tok-abc");
+
+      AuthService.removeAccessToken();
+      service.openWebsocket(1, 1, 1);
+      expect(openedSockets[1].url).not.toContain("access-token");
+    });
+
+    it("reports the drop, waits out the reconnect delay, then redials and resends a heartbeat", fakeAsync(() => {
+      const logSpy = vi.spyOn(console, "log");
+      const statuses: boolean[] = [];
+      const statusSubscription = service.getConnectionStatusStream().subscribe(value => statuses.push(value));
+
+      try {
+        service.openWebsocket(1, 1, 1);
+        flushMicrotasks(); // the fake socket reaches OPEN on a microtask
+
+        // an inbound frame is what marks the connection up, so drive one through first —
+        // otherwise the `false` below would be indistinguishable from the seeded state.
+        openedSockets[0].onmessage?.(
+          new MessageEvent("message", { data: JSON.stringify({ type: "WorkflowStateEvent", state: "RUNNING" }) })
+        );
+        expect(statuses).toEqual([false, true]);
+
+        openedSockets[0].onerror?.(new Event("error"));
+
+        // the drop is published immediately...
+        expect(statuses).toEqual([false, true, false]);
+        expect(logSpy).toHaveBeenCalledWith("websocket connection lost, reconnecting in 3 seconds");
+
+        // ...but the redial is held back until the delay elapses
+        tick(WS_RECONNECT_INTERVAL_MS - 1);
+        expect(openedSockets.length).toBe(1);
+        tick(1);
+        flushMicrotasks();
+        expect(openedSockets.length).toBe(2);
+
+        // the heartbeat queued on reconnect is flushed to the new socket once it opens
+        expect(openedSockets[1].sent).toContain(JSON.stringify({ type: "HeartBeatRequest" }));
+      } finally {
+        statusSubscription.unsubscribe();
+        service.closeWebsocket();
+      }
+    }));
+
+    it("merges the request payload into the frame it puts on the wire", async () => {
+      service.openWebsocket(1, 1, 1);
+      await Promise.resolve(); // the fake socket reaches OPEN on a microtask
+
+      service.send("RetryRequest", { workers: ["worker-a", "worker-b"] });
+
+      // The type alone is not enough: everything the caller passed has to survive into the frame.
+      expect(openedSockets[0].sent).toEqual([
+        JSON.stringify({ type: "RetryRequest", workers: ["worker-a", "worker-b"] }),
+      ]);
+    });
+
+    it("keeps the connection alive by sending a heartbeat once every interval", fakeAsync(() => {
+      // The keepalive timer is started by the constructor, so the service has to be built inside
+      // the fake zone for `tick` to reach it — the instance injected in `beforeEach` was
+      // constructed in the real zone and its interval is invisible here.
+      const heartbeatService = new WorkflowWebsocketService(TestBed.inject(GuiConfigService));
+      const heartbeats = () =>
+        openedSockets[0].sent.filter(frame => frame === JSON.stringify({ type: "HeartBeatRequest" })).length;
+
+      try {
+        heartbeatService.openWebsocket(1, 1, 1);
+        flushMicrotasks();
+
+        // nothing before the interval elapses...
+        tick(WS_HEARTBEAT_INTERVAL_MS - 1);
+        expect(heartbeats()).toBe(0);
+
+        // ...one on the tick, and it keeps repeating rather than firing once
+        tick(1);
+        expect(heartbeats()).toBe(1);
+        tick(WS_HEARTBEAT_INTERVAL_MS);
+        expect(heartbeats()).toBe(2);
+      } finally {
+        heartbeatService.closeWebsocket();
+        // the constructor's interval is never unsubscribed, so drain it or fakeAsync fails the test
+        discardPeriodicTasks();
+      }
+    }));
+
+    it("adopts the worker count carried by a ClusterStatusUpdateEvent", async () => {
+      service.openWebsocket(1, 1, 1);
+      await Promise.resolve();
+
+      // 7 is neither the -1 initializer nor the value any other test leaves behind.
+      openedSockets[0].onmessage?.(
+        new MessageEvent("message", { data: JSON.stringify({ type: "ClusterStatusUpdateEvent", numWorkers: 7 }) })
+      );
+
+      expect(service.numWorkers).toBe(7);
+    });
+
+    it("leaves the worker count alone for events that are not cluster status updates", async () => {
+      service.openWebsocket(1, 1, 1);
+      await Promise.resolve();
+      service.numWorkers = 7;
+
+      openedSockets[0].onmessage?.(
+        new MessageEvent("message", { data: JSON.stringify({ type: "WorkflowStateEvent", numWorkers: 99 }) })
+      );
+
+      expect(service.numWorkers).toBe(7);
+    });
   });
 });

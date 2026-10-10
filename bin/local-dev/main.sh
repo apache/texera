@@ -40,6 +40,7 @@
 #   bin/local-dev.sh up [service]
 #                       [--fresh|--build|--skip-build] [--skip=svc1,svc2] [--json]
 #                       [--worktree=PATH | --branch=NAME]
+#                       [--install-missing | --no-install]
 #                                             Default: skip build if no source/lock
 #                                             changes since last build. --build forces
 #                                             incremental sbt dist + yarn/bun install.
@@ -72,11 +73,22 @@
 #                                             branch and run its own local-dev.sh
 #                                             instead (a warning is printed when such
 #                                             drift is detected).
+#                                             TOOLCHAIN: a missing JDK 17 / Node /
+#                                             Python 3.12 is offered for install
+#                                             (distro package manager for the JDK,
+#                                             nvm for Node, pyenv for Python) after
+#                                             asking. --install-missing answers yes
+#                                             without asking, --no-install only ever
+#                                             prints the hint. Without a TTY the
+#                                             prompt is skipped entirely, so scripted
+#                                             and CI runs behave as before. Same flags
+#                                             on `auto`.
 #   bin/local-dev.sh down [service] [--skip=svc1,svc2] [--json]
 #                                             stop every non-skipped service, or just
 #                                             <service> (--json: summary JSON on
 #                                             stdout).
 #   bin/local-dev.sh auto [--skip=svc1,svc2] [--json]
+#                       [--install-missing | --no-install]
 #                                             rebuild + bounce only the services whose
 #                                             source changed since the last build.
 #   bin/local-dev.sh logs <service>           tail this service's log.
@@ -92,12 +104,13 @@
 #   file-service                   :9092  JVM (sbt FileService)
 #   workflow-compiling-service     :9090  JVM (sbt WorkflowCompilingService)
 #   computing-unit-managing-service :8082 JVM (sbt ComputingUnitManagingService)
+#   notebook-migration-service     :9098  JVM (sbt NotebookMigrationService)
 #   texera-web                     :8080  JVM (sbt WorkflowExecutionService, amber)
 #   computing-unit-master          :8085  JVM (rides amber dist; no own sbt project)
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
-# Docker infra (postgres / minio / lakefs / lakekeeper / litellm) IS managed
+# Docker infra (postgres / rustfs / lakefs / lakekeeper / litellm / jupyter) IS managed
 # here: `up` brings it up via `docker compose` (project texera-local-dev) and
 # `down` tears down any docker targets. The script warns if expected ports are
 # unreachable. Before any sbt build the postgres schema is reconciled: a fresh
@@ -288,6 +301,115 @@ amap_append() {
     eval "$_var=\"\${$_var:-}\$_suffix\""
 }
 
+# --------- toolchain versions + consented install ---------
+# The versions this repo needs (AGENTS.md's table, and the CI matrices).
+# Overridable so a contributor can try a newer runtime without editing this.
+TEXERA_PYTHON_VERSION="${TEXERA_PYTHON_VERSION:-3.12}"
+TEXERA_NODE_VERSION="${TEXERA_NODE_VERSION:-24}"
+
+# This block sits above the JDK probe on purpose: the probe is the first thing
+# that can fail on a fresh machine, and it should be able to offer a fix. That
+# also means no colour variables here — those are defined further down, with
+# the rest of the TUI helpers.
+
+# The package manager we'd install with, or non-zero if we don't recognise one.
+_pkg_manager() {
+    case "$(uname -s 2>/dev/null)" in
+        Darwin)
+            command -v brew >/dev/null 2>&1 && { printf 'brew\n'; return 0; }
+            ;;
+        Linux)
+            local m=""
+            for m in apt-get dnf yum pacman zypper; do
+                command -v "$m" >/dev/null 2>&1 && { printf '%s\n' "$m"; return 0; }
+            done
+            ;;
+    esac
+    return 1
+}
+
+# What we would run to install $1. Prints the command and never executes it —
+# that split is what lets us show the user the exact command before asking, and
+# lets CI assert on the decision without installing anything.
+#
+# Java prefers the distro package manager: it is system-wide and the distro
+# patches it. SDKMAN is the fallback when there's no package manager (or no
+# root). Node goes through nvm and Python through pyenv, because the versions
+# this repo needs are newer than most distros ship — and both bootstrap
+# themselves first if absent.
+#
+# docker and sbt are deliberately absent. Docker needs a daemon, group
+# membership and a re-login; that is not something to do behind a y/n prompt.
+_install_cmd_for() {
+    local tool="${1:-}" pm=""
+    pm=$(_pkg_manager) || pm=""
+    case "$tool" in
+        java)
+            case "$pm" in
+                apt-get) printf 'sudo apt-get install -y openjdk-17-jdk\n' ;;
+                dnf)     printf 'sudo dnf install -y java-17-openjdk-devel\n' ;;
+                yum)     printf 'sudo yum install -y java-17-openjdk-devel\n' ;;
+                pacman)  printf 'sudo pacman -S --noconfirm jdk17-openjdk\n' ;;
+                zypper)  printf 'sudo zypper install -y java-17-openjdk-devel\n' ;;
+                brew)    printf 'brew install openjdk@17\n' ;;
+                *)       printf 'curl -s https://get.sdkman.io | bash && sdk install java 17.0.13-tem\n' ;;
+            esac
+            ;;
+        node)
+            if command -v nvm >/dev/null 2>&1 || [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+                printf 'nvm install %s && nvm alias default %s\n' \
+                    "$TEXERA_NODE_VERSION" "$TEXERA_NODE_VERSION"
+            else
+                printf 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && . "$HOME/.nvm/nvm.sh" && nvm install %s && nvm alias default %s\n' \
+                    "$TEXERA_NODE_VERSION" "$TEXERA_NODE_VERSION"
+            fi
+            ;;
+        python)
+            if command -v pyenv >/dev/null 2>&1; then
+                printf 'pyenv install -s %s\n' "$TEXERA_PYTHON_VERSION"
+            else
+                printf 'curl -fsSL https://pyenv.run | bash && export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && pyenv install -s %s\n' \
+                    "$TEXERA_PYTHON_VERSION"
+            fi
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+# Ask before installing anything. Never prompts without a TTY: `up` has to stay
+# scriptable, and AGENTS.md points agents at the non-interactive subcommands, so
+# a non-interactive run keeps the old behaviour of printing a hint and failing.
+#   --install-missing / TEXERA_INSTALL_MISSING=1  assume yes
+#   --no-install      / TEXERA_INSTALL_MISSING=0  never install
+_consent_to_install() {
+    local tool="${1:-}" cmd="${2:-}" reply=""
+    case "${TEXERA_INSTALL_MISSING:-ask}" in
+        1|y|yes|true) return 0 ;;
+        0|n|no|false) return 1 ;;
+    esac
+    [[ -t 0 && -t 1 ]] || return 1
+    printf "\n  %s is missing. I can run:\n\n" "$tool" >&2
+    printf "      %s\n\n" "$cmd" >&2
+    printf "  Run it now? [y/N] " >&2
+    read -r reply || return 1
+    [[ "$reply" == [Yy]* ]]
+}
+
+# Offer to install $1, then report whether it's actually there afterwards.
+# Runs through `bash -lc` so shell functions like nvm / pyenv / sdk resolve.
+_offer_install() {
+    local tool="${1:-}" cmd=""
+    cmd=$(_install_cmd_for "$tool") || return 1
+    _consent_to_install "$tool" "$cmd" || return 1
+    printf "  installing %s ...\n" "$tool" >&2
+    if ! bash -lc "$cmd" >&2; then
+        printf "  %s: install command failed\n" "$tool" >&2
+        return 1
+    fi
+    printf "  %s: installed\n" "$tool" >&2
+    return 0
+}
+
 # --------- toolchain (JDK 17 + node) ---------
 # Detect a JDK 17 installation rather than pinning one path. We try, in
 # order: (1) caller-set $JAVA_HOME if it really is 17, (2) macOS's official
@@ -423,7 +545,13 @@ _diagnose_jdk17() {
     echo "" >&2
 }
 
-JAVA_HOME_DETECTED="$(_find_jdk17)" || {
+JAVA_HOME_DETECTED="$(_find_jdk17)" || JAVA_HOME_DETECTED=""
+# Offer to install it rather than only describing how. Declines, and every
+# non-interactive run, fall through to the hint-and-exit below unchanged.
+if [[ -z "$JAVA_HOME_DETECTED" ]] && _offer_install java; then
+    JAVA_HOME_DETECTED="$(_find_jdk17)" || JAVA_HOME_DETECTED=""
+fi
+if [[ -z "$JAVA_HOME_DETECTED" ]]; then
     echo "FATAL: could not find a JDK 17 install." >&2
     _diagnose_jdk17
     echo "  fix:" >&2
@@ -433,7 +561,7 @@ JAVA_HOME_DETECTED="$(_find_jdk17)" || {
     echo "    or set JAVA_HOME=/path/to/jdk-17 explicitly" >&2
     echo "" >&2
     exit 1
-}
+fi
 export JAVA_HOME="$JAVA_HOME_DETECTED"
 export PATH="$JAVA_HOME/bin:$PATH"
 
@@ -454,12 +582,12 @@ elif [[ -s "$HOME/.volta/load.sh" ]]; then
 fi
 
 # --------- runtime env for backend ---------
-# Detect the host's primary LAN IP so we can use it as the MinIO endpoint.
+# Detect the host's primary LAN IP so we can use it as the RustFS endpoint.
 # It has to be the same string from both directions:
 #   • host-native JVMs need it to reach localhost-published port 9000
 #   • the lakekeeper container needs it to do server-side S3 ops (validation,
 #     compaction) AND to return URLs to clients that *they* can reach
-# `localhost` only works for the host. `texera-minio` only works inside the
+# `localhost` only works for the host. `texera-rustfs` only works inside the
 # docker network. The host's LAN IP works from BOTH (host loopback for the
 # host, docker NAT'd out-and-back for the container).
 #
@@ -502,7 +630,7 @@ _detect_host_lan_ip_linux() {
     # 2. Scan every global IPv4, skipping the interfaces that would defeat the
     #    purpose of this address. A container bridge (docker0, br-*, veth*) is
     #    reachable from the host but not from inside another container's
-    #    network namespace the way MinIO needs; an overlay/VPN address
+    #    network namespace the way RustFS needs; an overlay/VPN address
     #    (tailscale, zerotier) is not reachable from the docker bridge at all.
     while read -r idx dev fam cidr _rest; do
         [[ "$fam" == "inet" ]] || continue
@@ -526,7 +654,7 @@ _detect_host_lan_ip() {
 }
 # Lazy resolver — called from subcommands that actually need to publish a
 # host-reachable S3 endpoint (cmd_up, cmd_auto). Subcommands like
-# `version`, `status`, `--help`, or `-i` don't talk to MinIO and shouldn't
+# `version`, `status`, `--help`, or `-i` don't talk to RustFS and shouldn't
 # refuse to run just because the laptop is offline.
 _require_host_lan_ip() {
     [[ -n "${HOST_LAN_IP:-}" ]] && return 0
@@ -541,7 +669,7 @@ _require_host_lan_ip() {
                     bridge_note=" outside the container bridges" ;;
         esac
         echo "FATAL: could not detect a host LAN IP." >&2
-        echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
+        echo "       RustFS needs an address reachable from both docker (lakekeeper" >&2
         echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
         echo "       of $probes offered a non-loopback IPv4${bridge_note}." >&2
         echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
@@ -557,9 +685,9 @@ export STORAGE_JDBC_URL="${STORAGE_JDBC_URL:-jdbc:postgresql://localhost:5432/te
 export STORAGE_JDBC_USERNAME="${STORAGE_JDBC_USERNAME:-texera}"
 export STORAGE_JDBC_PASSWORD="${STORAGE_JDBC_PASSWORD:-password}"
 # STORAGE_S3_ENDPOINT is set lazily by _require_host_lan_ip — only the
-# subcommands that actually touch MinIO (infra_up + cmd_up + cmd_auto)
+# subcommands that actually touch RustFS (infra_up + cmd_up + cmd_auto)
 # trigger that detection, so `version` / `status` / `-i` work offline.
-export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
+export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_rustfs}"
 export STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 export STORAGE_S3_REGION="${STORAGE_S3_REGION:-us-west-2}"
 export STORAGE_ICEBERG_CATALOG_TYPE="${STORAGE_ICEBERG_CATALOG_TYPE:-rest}"
@@ -573,16 +701,26 @@ export STORAGE_LAKEFS_ENDPOINT="${STORAGE_LAKEFS_ENDPOINT:-http://localhost:8000
 export STORAGE_LAKEFS_AUTH_USERNAME="${STORAGE_LAKEFS_AUTH_USERNAME:-AKIAIOSFOLKFSSAMPLES}"
 export STORAGE_LAKEFS_AUTH_PASSWORD="${STORAGE_LAKEFS_AUTH_PASSWORD:-wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY}"
 export STORAGE_LAKEFS_AUTH_API_SECRET="${STORAGE_LAKEFS_AUTH_API_SECRET:-random_string_for_lakefs}"
-export UDF_PYTHON_PATH="${UDF_PYTHON_PATH:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null)}"
+# UDF_PYTHON_PATH is resolved lazily by _require_udf_python (see below) rather
+# than defaulted to `command -v python3` here: the system interpreter almost
+# never has amber/requirements.txt installed, and picking it silently turned a
+# toolchain problem into import errors inside a Python worker.
 export TEXERA_DASHBOARD_SERVICE_ENDPOINT="${TEXERA_DASHBOARD_SERVICE_ENDPOINT:-http://localhost:8080}"
 export WORKFLOW_COMPILING_SERVICE_ENDPOINT="${WORKFLOW_COMPILING_SERVICE_ENDPOINT:-http://localhost:9090}"
 export WORKFLOW_EXECUTION_SERVICE_ENDPOINT="${WORKFLOW_EXECUTION_SERVICE_ENDPOINT:-http://localhost:8085}"
-export FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT="${FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT:-http://localhost:9092/api/dataset/presign-download}"
+export FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT="${FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT:-http://localhost:9092/api/dataset/presign-download}"
 export FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT="${FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT:-http://localhost:9092/api/dataset/did/upload}"
 export LITELLM_BASE_URL="${LITELLM_BASE_URL:-http://localhost:4000}"
 export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-texera-internal-do-not-share}"
 export LLM_ENDPOINT="${LLM_ENDPOINT:-http://localhost:8080}"
 export LLM_API_KEY="${LLM_API_KEY:-dummy}"
+
+# Email verification ships on, and refuses to issue a code when no SMTP sender is configured
+# rather than logging the code where anyone reading logs could spend it. A local stack has no
+# sender, so leaving the product default in place would mean nobody can register here. Off by
+# default for local dev only; `export USER_SYS_EMAIL_VERIFICATION=true` (with the
+# USER_SYS_GOOGLE_SMTP_* credentials filled in) to exercise the real flow.
+export USER_SYS_EMAIL_VERIFICATION="${USER_SYS_EMAIL_VERIFICATION:-false}"
 
 # --------- texera version (dynamic) ---------
 # The sbt-native-packager dist directory and jar names embed the project
@@ -736,16 +874,18 @@ _sbt_transitive_src_dirs() {
 # --------- service catalog ---------
 SERVICES=(
     postgres
-    minio
+    rustfs
     lakefs
     lakekeeper
     litellm
+    jupyter
     config-service
     access-control-service
     file-service
     workflow-compiling-service
     computing-unit-master
     computing-unit-managing-service
+    notebook-migration-service
     texera-web
     agent-service
     frontend
@@ -759,10 +899,11 @@ SERVICES=(
 # batch through infra_up/infra_down because `docker compose up -d` and
 # `docker compose down` operate at the project level.
 amap_set SVC_TYPE postgres   docker; amap_set SVC_PORT postgres   5432; amap_set SVC_CWD postgres   "."
-amap_set SVC_TYPE minio      docker; amap_set SVC_PORT minio      9000; amap_set SVC_CWD minio      "."
+amap_set SVC_TYPE rustfs     docker; amap_set SVC_PORT rustfs     9000; amap_set SVC_CWD rustfs     "."
 amap_set SVC_TYPE lakefs     docker; amap_set SVC_PORT lakefs     8000; amap_set SVC_CWD lakefs     "."
 amap_set SVC_TYPE lakekeeper docker; amap_set SVC_PORT lakekeeper 8181; amap_set SVC_CWD lakekeeper "."
 amap_set SVC_TYPE litellm    docker; amap_set SVC_PORT litellm    4000; amap_set SVC_CWD litellm    "."
+amap_set SVC_TYPE jupyter    docker; amap_set SVC_PORT jupyter    9100; amap_set SVC_CWD jupyter    "."
 
 amap_set SVC_TYPE       config-service jvm
 amap_set SVC_PORT       config-service 9094
@@ -799,6 +940,15 @@ amap_set SVC_CWD        workflow-compiling-service "."
 amap_set SVC_ZIP_GLOB   workflow-compiling-service "workflow-compiling-service/target/universal/workflow-compiling-service-*.zip"
 amap_set SVC_UNZIP_DEST workflow-compiling-service "target/"
 amap_set SVC_HEALTH     workflow-compiling-service "/api/healthcheck"
+
+amap_set SVC_TYPE       notebook-migration-service jvm
+amap_set SVC_PORT       notebook-migration-service 9098
+amap_set SVC_SBT        notebook-migration-service NotebookMigrationService
+amap_set SVC_LAUNCHER   notebook-migration-service "target/notebook-migration-service-${TEXERA_VERSION}/bin/notebook-migration-service"
+amap_set SVC_CWD        notebook-migration-service "."
+amap_set SVC_ZIP_GLOB   notebook-migration-service "notebook-migration-service/target/universal/notebook-migration-service-*.zip"
+amap_set SVC_UNZIP_DEST notebook-migration-service "target/"
+amap_set SVC_HEALTH     notebook-migration-service "/api/healthcheck"
 
 amap_set SVC_TYPE       computing-unit-managing-service jvm
 amap_set SVC_PORT       computing-unit-managing-service 8082
@@ -853,8 +1003,8 @@ DOCKER_PROJECT="texera-local-dev"
 DOCKER_COMPOSE_FILE="$SELF_ROOT/bin/single-node/docker-compose.yml"
 DOCKER_OVERLAY_FILE="$SELF_ROOT/bin/local-dev/docker-compose.override.yml"
 DOCKER_ENV_FILE="$SELF_ROOT/bin/single-node/.env"
-DOCKER_INFRA_SERVICES=(postgres minio minio-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm)
-DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm)  # exclude one-shot init jobs
+DOCKER_INFRA_SERVICES=(postgres rustfs rustfs-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm jupyter)
+DOCKER_INFRA_LONGLIVED=(postgres rustfs lakefs lakekeeper litellm jupyter)  # exclude one-shot init jobs
 
 # Build the array of -f flags: base single-node compose + local-dev overlay
 # (the overlay publishes infra ports to the host, which the upstream compose
@@ -1211,7 +1361,7 @@ _install_hint() {
             printf "    Linux:   see https://www.scala-sbt.org/download.html\n"
             ;;
         docker)
-            printf "  ${BOLD}install Docker (needed for postgres/minio/lakefs/lakekeeper/litellm):${RESET}\n"
+            printf "  ${BOLD}install Docker (needed for postgres/rustfs/lakefs/lakekeeper/litellm):${RESET}\n"
             printf "    macOS:   download Docker Desktop from https://docker.com/products/docker-desktop\n"
             printf "    Linux:   apt install docker.io docker-compose-v2    ${DIM}# dnf: moby-engine docker-compose${RESET}\n"
             printf "             then sudo usermod -aG docker \"\$USER\" and log back in\n"
@@ -1249,6 +1399,140 @@ _diagnose_node() {
         printf "    ${DIM}none detected (using whatever \`node\` is on PATH)${RESET}\n"
     fi
     printf "\n"
+}
+
+# --------- python for UDF workers ---------
+# "3.12" for an interpreter, or non-zero if it can't be run at all.
+_python_version_of() {
+    local py="${1:-}"
+    [[ -n "$py" && -x "$py" ]] || return 1
+    "$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null
+}
+
+_python_version_ok() {
+    [[ "$(_python_version_of "${1:-}" 2>/dev/null)" == "$TEXERA_PYTHON_VERSION" ]]
+}
+
+# Can this interpreter actually run a Python UDF worker? pyarrow, pandas and
+# loguru are the heavy three from amber/requirements.txt — if they import, the
+# environment was populated.
+_python_deps_ok() {
+    local py="${1:-}"
+    [[ -n "$py" && -x "$py" ]] || return 1
+    "$py" -c 'import pyarrow, pandas, loguru' >/dev/null 2>&1
+}
+
+# Interpreters that might run UDF workers, best first. Prints paths only;
+# suitability is the caller's business. Deduplicated, because the sibling-venv
+# and pyenv guesses overlap on some layouts.
+_udf_python_candidates() {
+    local seen="" base="" root="" d=""
+    # Collapse `..` segments so the path we print and export is the one a
+    # contributor would recognise. `realpath` isn't portable to a stock macOS,
+    # and only the directory is resolved — the final component stays a symlink,
+    # which is what we want for a venv's bin/python.
+    _abspath() {
+        local dir="" leaf=""
+        dir=$(dirname "$1"); leaf=$(basename "$1")
+        [[ -d "$dir" ]] || { printf '%s\n' "$1"; return 0; }
+        printf '%s/%s\n' "$(cd "$dir" && pwd -P)" "$leaf"
+    }
+    _emit() { [[ -n "${1:-}" ]] || return 0; local p=""; p=$(_abspath "$1"); case "$seen" in *"|$p|"*) return 0 ;; esac; seen="$seen|$p|"; printf '%s\n' "$p"; }
+    # An activated venv is the most explicit statement of intent available.
+    [[ -n "${VIRTUAL_ENV:-}" ]] && _emit "$VIRTUAL_ENV/bin/python"
+    # AGENTS.md's layout: <workspace>/{texera, texera-worktrees/<branch>, venv312}
+    for base in "$REPO_ROOT/.." "$REPO_ROOT/../.." "$SELF_ROOT/.." "$SELF_ROOT/../.."; do
+        _emit "$base/venv312/bin/python"
+    done
+    if command -v pyenv >/dev/null 2>&1; then
+        root=$(pyenv root 2>/dev/null) || root="$HOME/.pyenv"
+        while IFS= read -r d; do
+            [[ -n "$d" ]] && _emit "$d/bin/python"
+        done < <(shopt -s nullglob; printf '%s\n' "$root/versions/$TEXERA_PYTHON_VERSION"*)
+    fi
+    _emit "$(command -v "python$TEXERA_PYTHON_VERSION" 2>/dev/null || true)"
+    _emit "$(command -v python3 2>/dev/null || true)"
+}
+
+# Lazy resolver, mirroring _require_host_lan_ip: only the subcommands that
+# actually launch services pay for it, so `status` / `logs` / `--help` don't
+# spawn an interpreter per candidate.
+#
+# Never fatal. The JVM services run fine without a Python toolchain; only
+# Python UDFs don't. So this warns, offers a fix, and carries on.
+_require_udf_python() {
+    [[ -n "${_UDF_PYTHON_RESOLVED:-}" ]] && return 0
+    _UDF_PYTHON_RESOLVED=1
+    # An explicit UDF_PYTHON_PATH always wins — it's the documented override —
+    # but say so if it can't import what a worker needs.
+    if [[ -n "${UDF_PYTHON_PATH:-}" ]]; then
+        if ! _python_deps_ok "$UDF_PYTHON_PATH"; then
+            tui_warn "python: UDF_PYTHON_PATH=$UDF_PYTHON_PATH can't import amber's deps"
+            tui_warn "python: Python UDFs will fail at worker launch"
+        fi
+        export UDF_PYTHON_PATH
+        return 0
+    fi
+    local c="" no_deps=""
+    while IFS= read -r c; do
+        [[ -n "$c" ]] || continue
+        _python_version_ok "$c" || continue
+        if _python_deps_ok "$c"; then
+            export UDF_PYTHON_PATH="$c"
+            tui_ok "python: $c  ${DIM}(runs Python UDFs)${RESET}"
+            return 0
+        fi
+        [[ -z "$no_deps" ]] && no_deps="$c"
+    done < <(_udf_python_candidates)
+    # Distinguish "no 3.12 anywhere" from "3.12 without amber's deps": they need
+    # different fixes, and the old default silently picked the second one.
+    if [[ -n "$no_deps" ]]; then
+        tui_warn "python: $no_deps is $TEXERA_PYTHON_VERSION but can't import amber's deps"
+        printf "  ${BOLD}populate it:${RESET}\n"
+        printf "    %s -m pip install -r %s/amber/requirements.txt -r %s/amber/operator-requirements.txt\n" \
+            "$no_deps" "$REPO_ROOT" "$REPO_ROOT"
+        export UDF_PYTHON_PATH="$no_deps"
+        return 0
+    fi
+    tui_warn "python: no Python $TEXERA_PYTHON_VERSION found — Python UDFs will not run"
+    # Deliberately not `_install_hint python`: that hint is about the `-i`
+    # dashboard's textual dependency, which is a different interpreter and a
+    # different requirements file.
+    printf "  ${BOLD}looked in:${RESET} \$VIRTUAL_ENV, <workspace>/venv312, pyenv, PATH\n"
+    printf "  ${BOLD}or point at one yourself:${RESET} export UDF_PYTHON_PATH=/path/to/python%s\n" \
+        "$TEXERA_PYTHON_VERSION"
+    if _offer_install python; then
+        while IFS= read -r c; do
+            [[ -n "$c" ]] || continue
+            if _python_version_ok "$c"; then
+                export UDF_PYTHON_PATH="$c"
+                tui_ok "python: $c"
+                tui_warn "python: now install amber's deps into it:"
+                printf "    %s -m pip install -r %s/amber/requirements.txt -r %s/amber/operator-requirements.txt\n" \
+                    "$c" "$REPO_ROOT" "$REPO_ROOT"
+                return 0
+            fi
+        done < <(_udf_python_candidates)
+    fi
+    return 0
+}
+
+# Translate --install-missing / --no-install into TEXERA_INSTALL_MISSING. The
+# flags beat the environment variable; the contradiction is refused rather than
+# silently resolved one way.
+_set_install_flag() {
+    local want=""
+    case "${1:-}" in
+        --install-missing) want=1 ;;
+        --no-install)      want=0 ;;
+        *) return 0 ;;
+    esac
+    if [[ -n "${_INSTALL_FLAG_SEEN:-}" && "${_INSTALL_FLAG_SEEN}" != "$want" ]]; then
+        tui_err "--install-missing and --no-install are mutually exclusive" >&2
+        exit 2
+    fi
+    _INSTALL_FLAG_SEEN="$want"
+    export TEXERA_INSTALL_MISSING="$want"
 }
 
 # --------- helpers ---------
@@ -1367,7 +1651,7 @@ _refresh_docker_states_cache() {
     fi
 }
 
-# Per-service state for any of postgres/minio/lakefs/lakekeeper/litellm.
+# Per-service state for any of postgres/rustfs/lakefs/lakekeeper/litellm.
 # Returns one of: running | starting | unhealthy | exited | failed | stopped
 docker_svc_state() {
     local svc="$1"
@@ -1400,7 +1684,7 @@ docker_svc_state() {
 infra_up() {
     # Resolve the host LAN IP now (lazy) — both the docker compose stack
     # (lakekeeper-init reads STORAGE_S3_ENDPOINT) and the host JVMs about
-    # to start need it pointing at a host-reachable MinIO.
+    # to start need it pointing at a host-reachable RustFS.
     _require_host_lan_ip
     if [[ "$(infra_state)" == external:* ]]; then
         tui_err "infra: ports already taken by non-script containers"
@@ -1415,7 +1699,7 @@ infra_up() {
     # --progress=tty forces it even if stdout looks like a pipe.
     docker compose --progress auto -p "$DOCKER_PROJECT" --env-file "$DOCKER_ENV_FILE" "${files[@]}" \
         up -d "${DOCKER_INFRA_SERVICES[@]}"
-    tui_ok "infra: 5 containers up"
+    tui_ok "infra: ${#DOCKER_INFRA_LONGLIVED[@]} containers up"
 }
 
 infra_down() {
@@ -1500,6 +1784,41 @@ parse_changelog_changesets() {
     ' "$changelog"
 }
 
+# True when every error psql reported is a complaint that the object it tried
+# to create is already there — i.e. the changeSet's effect is already in the
+# schema and replaying it was a no-op.
+#
+# Why this is needed: on a fresh volume postgres runs sql/texera_ddl.sql itself
+# (compose mounts ../../sql to /docker-entrypoint-initdb.d), and that DDL is
+# kept in sync with sql/updates/*, so the changeSets we replay right afterwards
+# re-create objects that already exist. The ones incidentally written with
+# IF NOT EXISTS pass; the rest aborted `up` before the build ever started
+# (#7064) — e.g. 28.sql's dataset_owner_uid_name_key, which texera_ddl.sql
+# already creates as the auto-generated name for UNIQUE (owner_uid, name).
+#
+# Deliberately narrow. Only `already exists` counts:
+#   • `duplicate key` is a data conflict, not an applied schema change
+#   • no ERROR line at all means we cannot see why psql failed, and a failure
+#     we can't explain is never assumed harmless
+# Everything else — syntax errors, missing relations, permissions — keeps
+# failing loudly, so a genuinely incomplete schema still stops the build
+# instead of reaching jOOQ codegen.
+#
+# The "already in the schema" equivalence holds only while texera_ddl.sql stays
+# in sync with sql/updates/* (it does, by construction). psql runs with
+# ON_ERROR_STOP=1 and halts at the first error, so "every error is already-exists"
+# proves the whole changeSet is a no-op only when every object it touches is
+# already present. Were the two to drift, a changeSet mixing an existing object
+# (hit first) with a genuinely new one would be recorded as applied without the
+# new object ever being created — surfacing later as a jOOQ codegen failure.
+_sql_errors_all_already_exist() {
+    local f="${1:-}" errs=""
+    [[ -f "$f" ]] || return 1
+    errs=$(grep 'ERROR:' "$f" 2>/dev/null) || return 1
+    [[ -n "$errs" ]] || return 1
+    ! printf '%s\n' "$errs" | grep -qv 'already exists'
+}
+
 # Reconcile sql/updates/* with the live DB so jOOQ codegen (which reads the
 # database at sbt-compile time) sees the schema the checked-out code expects.
 # The repo's official runner is liquibase (sql/docker-compose.yml — manual,
@@ -1567,12 +1886,24 @@ infra_apply_sql_updates() {
                 return 1
             fi
             tui_step "postgres: applying $path (changeSet $id)"
+            # Keep psql's stderr: it holds the one line that explains an abort,
+            # and _sql_errors_all_already_exist needs it to tell "this changeSet
+            # is already in the schema" apart from a real failure.
+            local psql_err="$LOG_DIR/psql-changeset-$id.err"
             if ! sed 's/^\\c.*$//' "$sql_file" \
                     | docker exec -i "$pg" psql -U texera -d texera_db \
-                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>&1; then
-                tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
-                return 1
+                        -v ON_ERROR_STOP=1 -f - >/dev/null 2>"$psql_err"; then
+                if _sql_errors_all_already_exist "$psql_err"; then
+                    # Fall through to the INSERT below so the changeSet is
+                    # recorded as applied and later runs stop retrying it.
+                    tui_skip "postgres: $path already in schema (recording changeSet $id)"
+                else
+                    tui_err "postgres: $path failed -- inspect with: docker exec -i texera-postgres psql -U texera -d texera_db < $path"
+                    sed 's/^/      /' "$psql_err" >&2
+                    return 1
+                fi
             fi
+            rm -f "$psql_err"
         fi
         docker exec "$pg" psql -U texera -d texera_db -qc "
             INSERT INTO public.databasechangelog
@@ -1598,7 +1929,7 @@ infra_apply_sql_updates() {
 #
 # Used by cmd_auto, which only wants to touch what its scan said is
 # dirty. cmd_up uses the heavier infra_up + infra_ensure_db_schema pair
-# instead so minio/lakefs/litellm warm up in parallel with the build.
+# instead so rustfs/lakefs/litellm warm up in parallel with the build.
 ensure_postgres_for_build() {
     if [[ "$(docker_svc_state postgres)" != "running" ]]; then
         tui_step "postgres: starting (required for jOOQ codegen at build time)"
@@ -1848,7 +2179,7 @@ start_one() {
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
     # JVMs and docker services need STORAGE_S3_ENDPOINT exported before
-    # launch (JVM clients dial MinIO; lakekeeper bakes the URL into the
+    # launch (JVM clients dial RustFS; lakekeeper bakes the URL into the
     # warehouse storage profile). yarn/bun watch services don't.
     if [[ "$type" == "jvm" || "$type" == "docker" ]]; then
         _require_host_lan_ip
@@ -2462,6 +2793,7 @@ cmd_up() {
             --skip-build) BUILD=no ;;
             --no-build) tui_err "--no-build was renamed to --skip-build" >&2; exit 2 ;;
             --json)     JSON_OUT=true ;;
+            --install-missing|--no-install) _set_install_flag "$1" ;;
             # Deploy-target selectors are resolved at startup (they must precede
             # the build.sbt parse); accept and ignore them here.
             --worktree=*|--branch=*) selector_seen=true ;;
@@ -2493,6 +2825,10 @@ cmd_up() {
         $JSON_OUT && { emit_status_json >&3 || true; }
         return $ec
     fi
+
+    # Resolve the interpreter the JVM services hand to Python UDF workers
+    # before anything is launched with that environment.
+    _require_udf_python
 
     local n_skip=0
     [[ -n "$SKIP_LIST" ]] && n_skip=$(echo "$SKIP_LIST" | tr ',' '\n' | wc -l | tr -d ' ')
@@ -2550,7 +2886,7 @@ cmd_up() {
     # generator returns Seq.empty and the downstream Scala compile fails
     # on missing Tables/Keys/etc (the generated dir is not git-tracked).
     # Bring infra up first so postgres is ready when the build fires.
-    # As a bonus minio/lakefs/litellm warm up while sbt runs. (#6007)
+    # As a bonus rustfs/lakefs/litellm warm up while sbt runs. (#6007)
     local svc=""
     local has_docker_targets=false
     for svc in "${SERVICES[@]}"; do
@@ -2654,6 +2990,7 @@ cmd_auto() {
         case "$1" in
             --skip=*) SKIP_LIST="${1#--skip=}" ;;
             --json)   JSON_OUT=true ;;
+            --install-missing|--no-install) _set_install_flag "$1" ;;
             # Deploy-target selectors are resolved at startup; accept here.
             --worktree=*|--branch=*) ;;
             *) tui_err "unknown flag: $1" >&2; exit 2 ;;
@@ -2662,6 +2999,8 @@ cmd_auto() {
     done
     # See cmd_up: human progress to stderr, JSON summary on real stdout (fd 3).
     if $JSON_OUT; then exec 3>&1 1>&2; fi
+
+    _require_udf_python
 
     tui_banner "Texera Local Dev — auto bounce" \
         "rebuild + bounce only what changed since last build"
@@ -2968,6 +3307,8 @@ cmd_up_one() {
     fi
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
+    # Docker services never launch Python workers; don't pay for the probe.
+    [[ "$type" == "docker" ]] || _require_udf_python
     case "$type" in
         docker)
             # No source to build — --build degrades to a restart, everything

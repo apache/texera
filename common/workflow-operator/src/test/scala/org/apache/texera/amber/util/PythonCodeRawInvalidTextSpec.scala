@@ -21,15 +21,23 @@ package org.apache.texera.amber.util
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonReflectionTextUtils.truncateBlock
 import org.apache.texera.amber.pybuilder.PythonReflectionUtils
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.util.python.PythonWorkerPool
+import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
+import scala.util.control.NonFatal
 
 /**
   * Regression tests for validation pipeline used for PythonOperatorDescriptor codegen.
@@ -49,8 +57,99 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
   private val MaxDepth: Int = 3
   private val AcceptPackages: Seq[String] = Seq("org.apache.texera.amber.operator")
 
+  /** Budget for one whole fanned-out pass over every descriptor. Deliberately far
+    * above a real run (well under a second), so it only ever fires on a hang.
+    */
+  private val PassTimeout: FiniteDuration = 10.minutes
+
+  /** Runs the given work concurrently and returns the results in submission
+    * order, rethrowing the first failure so it fails the test. Sized to the pool
+    * so the threads match the workers available to serve them.
+    *
+    * Daemon threads: a task parked on a subprocess pipe answers no interrupt, so
+    * `shutdownNow` need not end it, and a non-daemon one left there would hold the
+    * JVM — and the build — open after [[PassTimeout]] has already failed the test.
+    */
+  private def awaitAll[T](work: Seq[() => T]): Seq[T] = {
+    val threads = Executors.newFixedThreadPool(
+      PythonWorkerPool.maxWorkers,
+      (r: Runnable) => {
+        val t = new Thread(r, "py-compile-check")
+        t.setDaemon(true)
+        t
+      }
+    )
+    try {
+      implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(threads)
+      Await.result(Future.sequence(work.map(w => Future(w()))), PassTimeout)
+    } finally threads.shutdownNow()
+  }
+
+  /** Count of checks the pooled path could not serve. Not a failure — the spawn each one
+    * fell back to is the pre-pool behavior — but a number the summary has to
+    * carry, since a check passing says nothing about which path answered it.
+    */
+  private val spawnFallbacks = new AtomicInteger(0)
+
+  /** Syntax-checks one generated module, through a pooled worker when available.
+    *
+    * The worker is launched with the same `-I -S` isolation the one-shot path
+    * uses, so what the check accepts is unchanged; it just stops paying an
+    * interpreter boot — the whole cost of a check whose real work is under a
+    * millisecond — once per descriptor. A worker the pool cannot give out, or
+    * loses mid-job, falls back to the spawn, so behavior is never worse than
+    * before the pool.
+    */
+  private def syntaxCheck(
+      pythonExecutable: String,
+      pythonSource: String,
+      descriptorName: String
+  ): Either[String, Unit] = {
+    def viaPool: Either[String, Unit] = {
+      val request = objectMapper.createObjectNode()
+      request.put("source", pythonSource)
+      request.put("name", s"$descriptorName.py")
+      val outcome = PythonWorkerPool.run(
+        resourcePath = "/python/py_compile_worker.py",
+        launchArgs = Seq.empty,
+        pythonExe = pythonExecutable,
+        request = request,
+        interpreterArgs = Seq("-I", "-S")
+      )
+      if (outcome.exit == 0) Right(())
+      else {
+        val output = if (outcome.stderr.trim.nonEmpty) outcome.stderr.trim else "(no output)"
+        Left(
+          s"py_compile failed (exit=${outcome.exit})\nOutput:\n" +
+            truncateBlock(output, maxLines = 40, maxChars = 8000)
+        )
+      }
+    }
+
+    if (PythonWorkerPool.enabled) {
+      try viaPool
+      catch {
+        // Anything the pooled path throws leaves the spawn as the answer, which is
+        // what makes it never worse than before: not only a worker that died
+        // mid-job, but equally one the pool could not hand out at all. Those
+        // arrive as WorkerDiedException; NonFatal also covers the steps outside
+        // that contract, such as materializing the worker script. Counted, so a
+        // run the pool served none of does not read as a green pooled run.
+        case NonFatal(thrown) =>
+          println(
+            s"[py-compile FALLBACK ${spawnFallbacks.incrementAndGet()}] $descriptorName: " +
+              s"pooled worker unavailable, spawning instead: " +
+              truncateBlock(thrown.toString, maxLines = 3, maxChars = 500)
+          )
+          pyCompile(pythonExecutable, pythonSource)
+      }
+    } else pyCompile(pythonExecutable, pythonSource)
+  }
+
   /**
     * Runs `python -m py_compile` on the provided source, using an isolated interpreter invocation.
+    * Retained as the pooled path's fallback and as the behavior selected by
+    * TEXERA_TEST_PYTHON_WORKER=0.
     *
     * Isolation flags:
     *  - -I : isolate (ignore user site-packages / env)
@@ -225,21 +324,23 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     }
 
     val total = descriptorCandidates.size
-    var ok = 0
-    var checked = 0
+    val ok = new AtomicInteger(0)
+    val checked = new AtomicInteger(0)
 
-    val allFindings = descriptorCandidates.flatMap { descriptorClass =>
-      checked += 1
-
+    // Checked concurrently: the fan-out is what turns the pool's workers into
+    // parallel interpreters rather than a queue in front of one. The executor is
+    // sized to maxWorkers, so nothing runs past the cap.
+    val allFindings = awaitAll(descriptorCandidates.map { descriptorClass => () =>
       val checkResult =
         PythonReflectionUtils.checkDescriptorWithCode(
           descriptorClass,
           rawInvalidText = RawInvalid,
           maxDepth = MaxDepth
         )
+      checked.incrementAndGet()
 
       val pyCompileFindings = checkResult.code.toSeq.flatMap { generatedCode =>
-        pyCompile(pythonExecutable, generatedCode) match {
+        syntaxCheck(pythonExecutable, generatedCode, descriptorClass.getSimpleName) match {
           case Left(errorMessage) =>
             Seq(PythonReflectionUtils.Finding(descriptorClass.getName, "py-compile", errorMessage))
           case Right(()) => Nil
@@ -249,17 +350,55 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
       val findings = checkResult.findings ++ pyCompileFindings
 
       if (findings.isEmpty && checkResult.code.nonEmpty) {
-        ok += 1
-        println(s"[py-compile OK $ok/$total | checked $checked/$total] ${descriptorClass.getName}")
+        println(
+          s"[py-compile OK ${ok.incrementAndGet()}/$total | " +
+            s"checked ${checked.get()}/$total] ${descriptorClass.getName}"
+        )
       }
 
       findings
-    }
+    }).flatten
 
-    println(s"[py-compile SUMMARY] ok=$ok/$total")
+    println(
+      s"[py-compile SUMMARY] ok=${ok.get()}/$total, spawn fallbacks=${spawnFallbacks.get()}"
+    )
 
     if (allFindings.nonEmpty) {
       fail(PythonReflectionUtils.renderReport(allFindings, total = total))
+    }
+  }
+
+  /** py_compile above only parses the emitted code; running it needs the packages
+    * it imports. Tagged, so only amber-integration — the job that installs them —
+    * runs this. There a missing package is a defect; elsewhere it is a local-setup
+    * fact, so cancel rather than fail.
+    */
+  test(
+    "the Python interpreter operator templates run in should import pandas and plotly",
+    Tag(classOf[IntegrationTest].getName)
+  ) {
+    // Same env var and value the build reads to select this subset, in
+    // common/workflow-operator/build.sbt; keep the two in step. Nothing enforces
+    // that from here, since TestFilters is build-scope and cannot be imported: if
+    // the selector is renamed and this string is not, the test keeps running in
+    // amber-integration but cancels instead of failing, which is the non-result
+    // the tag exists to remove.
+    val provisioned = sys.env.get("AMBER_TEST_FILTER").contains("integration-only")
+    def unavailable(message: String): Nothing =
+      if (provisioned) fail(message) else cancel(message)
+
+    val python = loadPythonExeFromUdfConf().getOrElse(unavailable("no runnable python"))
+    val imported = Try {
+      val process = new ProcessBuilder(python, "-c", "import pandas, plotly")
+        .redirectErrorStream(true)
+        .start()
+      // Killed on the way out: a probe that ran out of time is still running, and
+      // would otherwise leak into the rest of the run.
+      if (process.waitFor(60, TimeUnit.SECONDS)) process.exitValue() == 0
+      else { process.destroyForcibly(); false }
+    }
+    if (!imported.getOrElse(false)) {
+      unavailable(s"'$python' cannot import pandas and plotly")
     }
   }
 

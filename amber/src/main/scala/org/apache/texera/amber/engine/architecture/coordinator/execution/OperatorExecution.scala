@@ -52,7 +52,7 @@ case class OperatorExecution() {
     */
   def initWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution = {
     assert(
-      !workerExecutions.contains(workerId),
+      !workerExecutions.containsKey(workerId),
       s"WorkerExecution already exists for workerId: $workerId"
     )
     workerExecutions.put(workerId, WorkerExecution())

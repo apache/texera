@@ -20,7 +20,6 @@
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
-import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 import { Subject } from "rxjs";
 import { ElementRef } from "@angular/core";
 import { By, DomSanitizer } from "@angular/platform-browser";
@@ -30,7 +29,6 @@ describe("JupyterNotebookPanelComponent", () => {
   let fixture: ComponentFixture<JupyterNotebookPanelComponent>;
 
   let mockJupyterPanelService: any;
-  let mockNotebookMigrationService: any;
   let bypassSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
@@ -39,18 +37,12 @@ describe("JupyterNotebookPanelComponent", () => {
       setIframeRef: vi.fn(),
       deleteJupyterNotebook: vi.fn(),
       minimizeJupyterNotebookPanel: vi.fn(),
-    };
-
-    mockNotebookMigrationService = {
-      getJupyterIframeURL: vi.fn().mockResolvedValue("http://localhost:8888"),
+      getJupyterIframeURLForWorkflow: vi.fn().mockResolvedValue("http://localhost:8888"),
     };
 
     await TestBed.configureTestingModule({
       imports: [JupyterNotebookPanelComponent],
-      providers: [
-        { provide: JupyterPanelService, useValue: mockJupyterPanelService },
-        { provide: NotebookMigrationService, useValue: mockNotebookMigrationService },
-      ],
+      providers: [{ provide: JupyterPanelService, useValue: mockJupyterPanelService }],
     }).compileComponents();
   });
 
@@ -98,7 +90,7 @@ describe("JupyterNotebookPanelComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(mockNotebookMigrationService.getJupyterIframeURL).toHaveBeenCalled();
+    expect(mockJupyterPanelService.getJupyterIframeURLForWorkflow).toHaveBeenCalled();
     expect(bypassSpy).toHaveBeenCalledWith("http://localhost:8888");
     expect(component.jupyterUrl).toBe(bypassSpy.mock.results[0].value);
   });
@@ -144,20 +136,20 @@ describe("JupyterNotebookPanelComponent", () => {
   it("should not update jupyterUrl when the iframe URL fetch rejects", async () => {
     vi.spyOn(component, "checkIframeRef").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mockNotebookMigrationService.getJupyterIframeURL.mockRejectedValueOnce(new Error("network error"));
+    mockJupyterPanelService.getJupyterIframeURLForWorkflow.mockRejectedValueOnce(new Error("network error"));
 
     mockJupyterPanelService.jupyterNotebookPanelVisible$.next(true);
 
     await fixture.whenStable();
 
-    expect(mockNotebookMigrationService.getJupyterIframeURL).toHaveBeenCalled();
+    expect(mockJupyterPanelService.getJupyterIframeURLForWorkflow).toHaveBeenCalled();
     expect(component.jupyterUrl).toBeNull();
   });
 
   it("should keep handling visibility emissions after a failed fetch", async () => {
     vi.spyOn(component, "checkIframeRef").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mockNotebookMigrationService.getJupyterIframeURL
+    mockJupyterPanelService.getJupyterIframeURLForWorkflow
       .mockRejectedValueOnce(new Error("network error"))
       .mockResolvedValueOnce("http://localhost:9999");
 
@@ -168,7 +160,7 @@ describe("JupyterNotebookPanelComponent", () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(mockNotebookMigrationService.getJupyterIframeURL).toHaveBeenCalledTimes(2);
+    expect(mockJupyterPanelService.getJupyterIframeURLForWorkflow).toHaveBeenCalledTimes(2);
     expect(bypassSpy).toHaveBeenCalledWith("http://localhost:9999");
     expect(component.jupyterUrl).toBe(bypassSpy.mock.results[0].value);
   });

@@ -27,6 +27,7 @@ import org.apache.commons.io.IOUtils
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
+import org.apache.iceberg.io.CloseableIterator
 import org.apache.iceberg.types.{Conversions, Types}
 import org.apache.iceberg.{FileScanTask, Table}
 
@@ -72,7 +73,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   private val lock = new ReentrantReadWriteLock()
 
-  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
+  // Resolved per use, never held: the catalog cache is bounded and closes evicted
+  // entries (#7290), so a pinned reference could outlive its catalog. A public def
+  // (not a lazy val) also means a replaced/rebuilt catalog is picked up immediately.
+  def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
 
   /**
     * Returns the URI of the table location.
@@ -94,8 +98,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def clear(): Unit =
     withWriteLock(lock) {
       val identifier = TableIdentifier.of(tableNamespace, tableName)
-      if (catalog.tableExists(identifier)) {
-        catalog.dropTable(identifier)
+      // One resolve for the whole check-then-drop: both steps must address the same
+      // catalog even if the cache entry is replaced between them (#7290).
+      val currentCatalog = catalog
+      if (currentCatalog.tableExists(identifier)) {
+        currentCatalog.dropTable(identifier)
       }
     }
 
@@ -141,13 +148,25 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new IcebergTableWriter[T](
       writerIdentifier,
-      catalog,
+      warehouse,
       tableNamespace,
       tableName,
       tableSchema,
       serde
     )
   }
+
+  /**
+    * Opens a Parquet reader over one data file. The iterators returned by the
+    * read methods call this only from `next()`, never from `hasNext`, and close
+    * each reader exactly once. Overridden in tests to count opens and closes.
+    */
+  protected def openDataFile(
+      task: FileScanTask,
+      schema: org.apache.iceberg.Schema,
+      table: Table
+  ): CloseableIterator[Record] =
+    IcebergUtil.readDataFileAsIterator(task.file(), schema, table)
 
   /**
     * Util iterator to get T in certain range
@@ -164,8 +183,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
-        // Load the table instance, initially the table instance may not exist
-        private var table: Option[Table] = loadTableMetadata()
+        // No eager load: the constructor-time seekToUsableFile() below resolves the
+        // table, so loading here would be an immediately-overwritten REST round trip.
+        private var table: Option[Table] = None
 
         // Last seen snapshot id(logically it's like a version number). While reading, new snapshots may be created
         private var lastSnapshotId: Option[Long] = None
@@ -188,6 +208,50 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         private var currentRecordIterator: Iterator[Record] = Iterator.empty
         private var currentRecordIteratorCloser: AutoCloseable = () => ()
 
+        // Next file to read, claimed from usableFileIterator by hasNext but
+        // not opened until next() actually needs a record. hasNext answers
+        // from the file's recordCount metadata alone, so probes such as
+        // isEmpty/nonEmpty (which abandon the iterator right after hasNext)
+        // never leave a Parquet reader / S3 stream open behind them.
+        private var pendingFile: Option[FileScanTask] = None
+
+        // Idempotent release of the active file's reader (and the S3 stream
+        // beneath it). Also resets the record iterator so a closed reader is
+        // never polled again.
+        private def closeCurrentReader(): Unit = {
+          val closer = currentRecordIteratorCloser
+          currentRecordIteratorCloser = () => ()
+          currentRecordIterator = Iterator.empty
+          closer.close()
+        }
+
+        // Open the file claimed by hasNext and point currentRecordIterator at
+        // its records, applying the one-off partial skip for the first file.
+        // Only next() calls this, keeping hasNext free of any Parquet/S3
+        // resource acquisition.
+        private def openPendingFile(): Unit = {
+          val task = pendingFile.getOrElse(
+            throw new IllegalStateException("no pending file to open")
+          )
+          pendingFile = None
+          val schemaToUse = columns match {
+            case Some(cols) => tableSchema.select(cols.asJava)
+            case None       => tableSchema
+          }
+          // Release the prior file's reader before opening the next.
+          closeCurrentReader()
+          val nextIter = openDataFile(task, schemaToUse, table.get)
+          currentRecordIteratorCloser = nextIter
+          currentRecordIterator = nextIter.asScala
+
+          // Skip records within the file if necessary
+          val recordsToSkipInFile = from - numOfSkippedRecords
+          if (recordsToSkipInFile > 0) {
+            currentRecordIterator = currentRecordIterator.drop(recordsToSkipInFile)
+            numOfSkippedRecords += recordsToSkipInFile
+          }
+        }
+
         // Util function to load the table's metadata
         private def loadTableMetadata(): Option[Table] = {
           IcebergUtil.loadTableMetadata(
@@ -203,11 +267,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
               throw new RuntimeException("seek operation should not be called")
             }
 
-            // refresh the table's snapshots
-            if (table.isEmpty) {
-              table = loadTableMetadata()
-            }
-            table.foreach(_.refresh())
+            // Re-resolve the table from the current catalog instead of refreshing a
+            // pinned one (#7290): a Table held across polls keeps its REST operations
+            // bound to a catalog the bounded cache may have closed, and re-resolving
+            // also keeps this warehouse's cache entry live for as long as the reader
+            // polls. Snapshot continuity lives in lastSnapshotId, not in the Table.
+            table = loadTableMetadata()
 
             // Retrieve and sort the file scan tasks by file sequence number.
             // Materialize inside `Using.resource` so the `planFiles()`
@@ -268,8 +333,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         override def hasNext: Boolean = {
           if (numOfReturnedRecords >= totalRecordsToReturn) {
             // Caller-imposed limit reached; release the active file's reader.
-            currentRecordIteratorCloser.close()
-            currentRecordIteratorCloser = () => ()
+            closeCurrentReader()
             return false
           }
 
@@ -279,48 +343,54 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
             return true
           }
 
-          if (!usableFileIterator.hasNext) {
-            usableFileIterator = seekToUsableFile()
-          }
+          // The active file (if any) is exhausted; release its reader before
+          // deciding from metadata whether more records exist.
+          closeCurrentReader()
 
-          while (!currentRecordIterator.hasNext && usableFileIterator.hasNext) {
-            val nextFile = usableFileIterator.next()
-            val schemaToUse = columns match {
-              case Some(cols) => tableSchema.select(cols.asJava)
-              case None       => tableSchema
+          if (pendingFile.isEmpty) {
+            if (!usableFileIterator.hasNext) {
+              usableFileIterator = seekToUsableFile()
             }
-            // Release the prior file's reader before opening the next.
-            currentRecordIteratorCloser.close()
-            val nextIter = IcebergUtil.readDataFileAsIterator(
-              nextFile.file(),
-              schemaToUse,
-              table.get
-            )
-            currentRecordIteratorCloser = nextIter
-            currentRecordIterator = nextIter.asScala
-
-            // Skip records within the file if necessary
-            val recordsToSkipInFile = from - numOfSkippedRecords
-            if (recordsToSkipInFile > 0) {
-              currentRecordIterator = currentRecordIterator.drop(recordsToSkipInFile)
-              numOfSkippedRecords += recordsToSkipInFile
+            // Claim the next file that still has usable records, judging by
+            // recordCount metadata alone (the same field the whole-file skip
+            // in seekToUsableFile already relies on). The partial skip
+            // `from - numOfSkippedRecords` can only be non-zero for the first
+            // claimed file: seekToUsableFile's dropWhile guarantees that file
+            // satisfies recordCount > partial skip, and openPendingFile zeroes
+            // the skip before any later file is judged here.
+            while (pendingFile.isEmpty && usableFileIterator.hasNext) {
+              val task = usableFileIterator.next()
+              if (task.file().recordCount() > from - numOfSkippedRecords) {
+                pendingFile = Some(task)
+              }
             }
           }
 
-          val hasMore = currentRecordIterator.hasNext
-          if (!hasMore) {
-            // All files exhausted; release the last file's reader.
-            currentRecordIteratorCloser.close()
-            currentRecordIteratorCloser = () => ()
-          }
-          hasMore
+          pendingFile.nonEmpty
         }
 
         override def next(): T = {
           if (!hasNext) throw new NoSuchElementException("No more records available")
 
+          // hasNext only claims files by their metadata; the Parquet reader is
+          // opened lazily here. The loop is defensive: should a claimed file
+          // yield nothing after the partial skip, hasNext claims the next one
+          // (or reports exhaustion).
+          while (!currentRecordIterator.hasNext) {
+            openPendingFile()
+            if (!currentRecordIterator.hasNext && !hasNext) {
+              throw new NoSuchElementException("No more records available")
+            }
+          }
+
           val record = currentRecordIterator.next()
           numOfReturnedRecords += 1
+          if (numOfReturnedRecords >= totalRecordsToReturn) {
+            // Bounded read fully served: release the reader now instead of
+            // waiting for a further hasNext call that bounded consumers
+            // (e.g. getRange) rarely make.
+            closeCurrentReader()
+          }
           val schemaToUse = columns match {
             case Some(cols) => tableSchema.select(cols.asJava)
             case None       => tableSchema

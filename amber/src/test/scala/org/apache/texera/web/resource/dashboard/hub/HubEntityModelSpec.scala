@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.hub
 
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.scalatest.flatspec.AnyFlatSpec
 
 class HubEntityModelSpec extends AnyFlatSpec {
@@ -109,12 +110,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
   "EntityType subtypes" should "expose their lowercase string value" in {
     assert(EntityType.Workflow.value == "workflow")
     assert(EntityType.Dataset.value == "dataset")
+    assert(EntityType.Model.value == "model")
   }
 
   it should "have toString equal to value (override pin)" in {
     // Same stable-name pattern as ActionType — don't use the SUT
     // (toString) in the failure message.
-    val all: List[EntityType] = List(EntityType.Workflow, EntityType.Dataset)
+    val all: List[EntityType] = List(EntityType.Workflow, EntityType.Dataset, EntityType.Model)
     all.foreach { e =>
       val name = e.getClass.getSimpleName
       assert(e.toString == e.value, s"$name.toString = '${e.toString}' but value = '${e.value}'")
@@ -124,11 +126,13 @@ class HubEntityModelSpec extends AnyFlatSpec {
   "EntityType.fromString" should "match each subtype exactly" in {
     assert(EntityType.fromString("workflow") == EntityType.Workflow)
     assert(EntityType.fromString("dataset") == EntityType.Dataset)
+    assert(EntityType.fromString("model") == EntityType.Model)
   }
 
   it should "match case-insensitively" in {
     assert(EntityType.fromString("WORKFLOW") == EntityType.Workflow)
     assert(EntityType.fromString("Dataset") == EntityType.Dataset)
+    assert(EntityType.fromString("MODEL") == EntityType.Model)
   }
 
   it should "throw IllegalArgumentException for an unknown kind, naming the input" in {
@@ -164,9 +168,10 @@ class HubEntityModelSpec extends AnyFlatSpec {
     assert(t.idColumn == WORKFLOW.WID)
   }
 
-  it should "dispatch Dataset → DatasetTable" in {
+  it should "dispatch Dataset → the dataset's search descriptor" in {
+    // Datasets have no BaseEntityTable object: VersionedResourceTables implements it.
     val t = EntityTables.BaseEntityTable(EntityType.Dataset)
-    assert(t == EntityTables.BaseEntityTable.DatasetTable)
+    assert(t == VersionedResourceTables.DatasetTables)
     assert(t.table == DATASET)
     assert(t.isPublicColumn == DATASET.IS_PUBLIC)
     assert(t.idColumn == DATASET.DID)

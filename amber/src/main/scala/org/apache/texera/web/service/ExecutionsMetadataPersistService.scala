@@ -73,7 +73,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     // Set computing unit ID if provided
     newExecution.setCuid(computingUnitId)
     // The warehouse this run writes into (#6870); null = the shared default warehouse.
-    warehouseId.foreach(whid => newExecution.setWhid(whid))
+    warehouseId.foreach(id => newExecution.setWhid(id))
 
     try {
       workflowExecutionsDao.insert(newExecution)

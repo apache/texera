@@ -25,7 +25,7 @@
   <div
     class="panel-header"
     cdkDragHandle>
-    <span>Jupyter Notebook</span>
+    <span>Uploaded Source Code</span>
     <div class="panel-buttons">
       <!-- Minimize button -->
       <button
@@ -42,9 +42,9 @@
       <button
         class="delete-button"
         nz-tooltip
-        nzTooltipTitle="Delete notebook"
+        nzTooltipTitle="Delete source code"
         nz-popconfirm
-        nzPopconfirmTitle="Delete this workflow's Jupyter notebook? This cannot be undone."
+        nzPopconfirmTitle="Delete this workflow's uploaded source code? This cannot be undone."
         (nzOnConfirm)="deletePanel()">
         <i
           nz-icon
@@ -59,7 +59,7 @@
       *ngIf="jupyterUrl"
       #iframeRef
       [src]="jupyterUrl"
-      title="Jupyter Notebook"
+      title="Uploaded Source Code"
       width="100%"
       height="100%"
       style="border: none"></iframe>

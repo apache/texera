@@ -183,6 +183,10 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
        |        if table.empty:
        |           yield {'html-content': self.render_error("input table is empty.")}
        |           return
+       |        table = table.dropna(subset=[$comparedColumnName, $categoryColumnName, $measurementColumnName]) #remove missing values
+       |        if table.empty:
+       |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
+       |           return
        |        ${createPlotlyDumbbellLineFigure()}
        |        ${addPlotlyDots()}
        |        # convert fig to html content

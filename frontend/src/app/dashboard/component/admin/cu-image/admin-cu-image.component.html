@@ -1,0 +1,166 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
+
+<nz-card class="section-title">
+  <h2 class="page-title">Computing Unit Images</h2>
+  <div class="help-text">
+    An image a user can start a computing unit from. It must be built <code>FROM</code> the Texera computing-unit image.
+  </div>
+</nz-card>
+
+<nz-alert
+  *ngIf="featureDisabled"
+  nzType="info"
+  nzShowIcon
+  nzMessage="Curated images are not enabled on this deployment"
+  nzDescription="Set curatedImages.enabled in the Helm chart to turn this on."></nz-alert>
+
+<ng-container *ngIf="!featureDisabled">
+  <nz-card nzTitle="Add an image">
+    <div class="add-row">
+      <div class="add-field">
+        <span class="field-label">Name</span>
+        <input
+          nz-input
+          placeholder="AlphaFold 3"
+          [(ngModel)]="newName"
+          (keyup.enter)="add()" />
+        <div class="field-hint">What users see when choosing an image.</div>
+      </div>
+      <div class="add-field add-field-wide">
+        <span class="field-label">Image reference</span>
+        <input
+          nz-input
+          placeholder="texera/cu-alphafold3:1.0"
+          [(ngModel)]="newSourceRef"
+          (keyup.enter)="add()" />
+        <div class="field-hint">
+          A reference, or a Docker Hub page address. Without a tag, <code>latest</code> is used.
+        </div>
+      </div>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="submitting"
+        (click)="add()">
+        <span
+          nz-icon
+          nzType="plus"></span>
+        Add
+      </button>
+    </div>
+  </nz-card>
+
+  <nz-card nzTitle="Images">
+    <nz-table
+      #imageTable
+      [nzData]="images"
+      [nzLoading]="loading"
+      [nzShowPagination]="false"
+      nzSize="middle">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Reference</th>
+          <th>Status</th>
+          <th>What a unit runs</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let image of imageTable.data">
+          <td>{{ image.name }}</td>
+          <td>
+            <code class="ref">{{ image.sourceRef }}</code>
+          </td>
+          <td>
+            <nz-tag [nzColor]="statusColor(image.status)">{{ image.status }}</nz-tag>
+            <span
+              *ngIf="inProgress(image)"
+              nz-icon
+              nzType="loading"
+              class="spinner"></span>
+          </td>
+          <td>
+            <code
+              *ngIf="image.imageTag"
+              class="ref digest"
+              [nz-tooltip]="image.imageTag"
+              >{{ shortRef(image.imageTag) }}</code
+            >
+            <span
+              *ngIf="!image.imageTag"
+              class="muted"
+              >—</span
+            >
+          </td>
+          <td class="actions">
+            <button
+              nz-button
+              nzType="link"
+              nzSize="small"
+              nz-tooltip="What the check reported, including why it refused an image"
+              (click)="showLog(image)">
+              <span
+                nz-icon
+                nzType="file-text"></span>
+              Log
+            </button>
+            <button
+              nz-button
+              nzType="link"
+              nzSize="small"
+              nz-tooltip="Check the same reference again, picking up a moved tag"
+              [disabled]="inProgress(image)"
+              (click)="refresh(image)">
+              <span
+                nz-icon
+                nzType="reload"></span>
+              Refresh
+            </button>
+            <button
+              nz-button
+              nzType="link"
+              nzSize="small"
+              nzDanger
+              nz-popconfirm
+              nzPopconfirmTitle="Remove this image? Units already running on it keep running."
+              (nzOnConfirm)="remove(image)">
+              <span
+                nz-icon
+                nzType="delete"></span>
+              Remove
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-card>
+</ng-container>
+
+<nz-modal
+  [(nzVisible)]="logVisible"
+  [nzTitle]="'Check log — ' + logName"
+  nzWidth="760px"
+  [nzFooter]="null"
+  (nzOnCancel)="closeLog()">
+  <ng-container *nzModalContent>
+    <pre class="log">{{ logText || "No output yet." }}</pre>
+  </ng-container>
+</nz-modal>

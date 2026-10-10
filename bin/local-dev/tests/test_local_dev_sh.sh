@@ -910,5 +910,388 @@ else
     _fail "svc_src_changed still compares directly against \$stamp"
 fi
 
+# 36) A changeSet the DB already satisfies must not abort `up`. On a fresh
+#     volume postgres' own /docker-entrypoint-initdb.d runs sql/texera_ddl.sql,
+#     which is kept in sync with sql/updates/*, so replaying those changeSets
+#     re-creates objects that are already there; the ones not written with
+#     IF NOT EXISTS used to kill `up` before the build ever started (#7064).
+#     `_sql_errors_all_already_exist` is the gate that tells that case apart
+#     from a real failure, so it's tested in both directions: it must say yes
+#     only for "already exists", and no for every other psql error, for a
+#     duplicate-key data conflict, and for input where it can't see any error
+#     at all (never assume harmless).
+tolerate_fn=$(awk '/^_sql_errors_all_already_exist\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ -z "$tolerate_fn" ]]; then
+    _fail "_sql_errors_all_already_exist helper missing"
+else
+    _tol_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldtol)
+    _tol_check() {  # $1=label  $2=expected rc  $3=stderr contents
+        printf '%s' "$3" > "$_tol_dir/err"
+        local rc=0
+        ( eval "$tolerate_fn"; _sql_errors_all_already_exist "$_tol_dir/err" ) || rc=$?
+        if (( rc == $2 )); then
+            _pass "already-applied detector: $1"
+        else
+            _fail "already-applied detector: $1" "expected rc=$2, got rc=$rc"
+        fi
+    }
+    # Positive: the real #7064 failure, and the other spellings postgres uses
+    # for an object that is already present.
+    _tol_check "relation already exists (the #7064 failure)" 0 \
+        'psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists'
+    _tol_check "several already-exists errors, nothing else" 0 \
+        'psql:<stdin>:9: ERROR:  column "x" of relation "dataset" already exists
+psql:<stdin>:12: ERROR:  constraint "y" for relation "dataset" already exists
+psql:<stdin>:15: ERROR:  type "z" already exists'
+    _tol_check "already-exists around harmless NOTICE/ROLLBACK chatter" 0 \
+        'NOTICE:  Renamed 0 duplicate dataset name(s)
+psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists
+ROLLBACK'
+    _tol_check "non-ASCII identifier already exists" 0 \
+        'psql:<stdin>:3: ERROR:  relation "café_naïve_key" already exists'
+    # Negative: anything we can't positively identify as already-applied has to
+    # keep failing loudly, or a genuinely broken schema reaches the sbt build.
+    _tol_check "syntax error" 1 \
+        'psql:<stdin>:7: ERROR:  syntax error at or near "ALTERR"'
+    _tol_check "missing relation" 1 \
+        'psql:<stdin>:7: ERROR:  relation "dataset" does not exist'
+    _tol_check "one already-exists mixed with one real error" 1 \
+        'psql:<stdin>:44: ERROR:  relation "dataset_owner_uid_name_key" already exists
+psql:<stdin>:51: ERROR:  syntax error at or near "COMMITT"'
+    _tol_check "duplicate key is a data conflict, not an applied change" 1 \
+        'psql:<stdin>:44: ERROR:  duplicate key value violates unique constraint "dataset_pkey"'
+    _tol_check "empty stderr" 1 ''
+    _tol_check "no ERROR line at all" 1 \
+        'NOTICE:  table "dataset" does not exist, skipping'
+    # Edge: nothing to read. Guard against the helper "succeeding" on a path
+    # that was never written, which would swallow every failure.
+    rm -f "$_tol_dir/err"
+    rc=0
+    ( eval "$tolerate_fn"; _sql_errors_all_already_exist "$_tol_dir/err" ) || rc=$?
+    if (( rc == 1 )); then
+        _pass "already-applied detector: missing stderr file"
+    else
+        _fail "already-applied detector: missing stderr file" "expected rc=1, got rc=$rc"
+    fi
+    rc=0
+    ( eval "$tolerate_fn"; _sql_errors_all_already_exist ) || rc=$?
+    if (( rc == 1 )); then
+        _pass "already-applied detector: no argument"
+    else
+        _fail "already-applied detector: no argument" "expected rc=1, got rc=$rc"
+    fi
+    rm -rf "$_tol_dir"
+fi
+
+# 37) Wiring for #36: the replay loop must consult the detector instead of
+#     aborting on the first psql failure, and must stop discarding psql's
+#     stderr — the old `2>&1` to /dev/null meant the one line that explains the
+#     abort ("relation ... already exists") never reached the operator, who was
+#     told to re-run the file by hand to find out why.
+updates_body=$(awk '/^infra_apply_sql_updates\(\)/{f=1} f{print} f&&/^}/{exit}' "$MAIN_SH")
+if [[ "$updates_body" == *"_sql_errors_all_already_exist"* ]]; then
+    _pass "infra_apply_sql_updates consults the already-applied detector"
+else
+    _fail "infra_apply_sql_updates aborts without checking for already-applied changeSets"
+fi
+if [[ "$updates_body" == *"ON_ERROR_STOP"* ]] \
+   && ! printf '%s' "$updates_body" | grep -qE '\-f -[[:space:]]*>/dev/null[[:space:]]*2>&1'; then
+    _pass "infra_apply_sql_updates keeps psql stderr for diagnosis"
+else
+    _fail "infra_apply_sql_updates still throws psql stderr away"
+fi
+
+# --------------------------------------------------------------------------
+# Toolchain detection + consented install (#7066).
+# Everything below goes through the *decision* helpers, which are pure: they
+# print what would be done and never install anything. That separation is the
+# reason this is testable in CI at all.
+# --------------------------------------------------------------------------
+_extract_fn() {  # $1=function name → its definition, or empty
+    awk -v fn="$1" 'index($0, fn "()") == 1 {f=1} f{print} f && /^}/{exit}' "$MAIN_SH"
+}
+
+# 38) Which package manager we'd use. On Linux the first of apt-get/dnf/yum/
+#     pacman/zypper on PATH wins; with none present it must refuse rather than
+#     emit a bogus name that a caller would then try to run.
+pm_fn=$(_extract_fn _pkg_manager)
+if [[ -z "$pm_fn" ]]; then
+    _fail "_pkg_manager helper missing"
+else
+    _pm_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldpm)
+    _pm_check() {  # $1=label $2=expected ("" = must refuse) $3..=fake tools
+        local label="$1" expect="$2"; shift 2
+        rm -f "$_pm_dir"/*
+        local t=""
+        for t in "$@"; do printf '#!/bin/sh\nexit 0\n' > "$_pm_dir/$t"; chmod +x "$_pm_dir/$t"; done
+        # PATH is stripped to the fakes so the host's real apt/dnf can't answer,
+        # but _pkg_manager still needs `uname` to know the platform.
+        ln -sf "$(command -v uname)" "$_pm_dir/uname"
+        local got="" rc=0
+        got=$(PATH="$_pm_dir"; eval "$pm_fn"; _pkg_manager) || rc=$?
+        if [[ -z "$expect" ]]; then
+            if (( rc != 0 )) && [[ -z "$got" ]]; then
+                _pass "pkg manager: $label (refuses)"
+            else
+                _fail "pkg manager: $label should refuse" "rc=$rc got='$got'"
+            fi
+        elif [[ "$got" == "$expect" ]]; then
+            _pass "pkg manager: $label → $got"
+        else
+            _fail "pkg manager: $label" "expected '$expect' got '$got'"
+        fi
+    }
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        _pm_check "apt-get" "apt-get" apt-get
+        _pm_check "dnf only" "dnf" dnf
+        _pm_check "pacman only" "pacman" pacman
+        _pm_check "apt-get preferred over dnf" "apt-get" apt-get dnf
+        _pm_check "nothing installed" ""
+    else
+        _pass "skip: package-manager PATH probing is Linux-only on this host"
+    fi
+    rm -rf "$_pm_dir"
+    if [[ "$pm_fn" == *brew* && "$pm_fn" == *Darwin* ]]; then
+        _pass "_pkg_manager keeps the Darwin/brew branch"
+    else
+        _fail "_pkg_manager lost the Darwin/brew branch"
+    fi
+fi
+
+# 39) The command we'd run per tool. Java goes through the distro package
+#     manager first with SDKMAN as the no-sudo fallback; node uses nvm; python
+#     uses pyenv and must pin 3.12, the version AGENTS.md and the CI matrix
+#     both specify. Unknown or deliberately-unsupported tools must refuse
+#     instead of printing something a caller would run.
+cmd_fn=$(_extract_fn _install_cmd_for)
+if [[ -z "$cmd_fn" || -z "$pm_fn" ]]; then
+    _fail "_install_cmd_for helper missing"
+else
+    _ic_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldic)
+    _ic() {  # $1=tool  $2..=fake pkg managers on PATH → prints the command
+        local tool="$1"; shift
+        rm -f "$_ic_dir"/*
+        local t=""
+        for t in "$@"; do printf '#!/bin/sh\nexit 0\n' > "$_ic_dir/$t"; chmod +x "$_ic_dir/$t"; done
+        ln -sf "$(command -v uname)" "$_ic_dir/uname"
+        ( PATH="$_ic_dir"
+          TEXERA_NODE_VERSION=24 TEXERA_PYTHON_VERSION=3.12
+          eval "$pm_fn"; eval "$cmd_fn"; _install_cmd_for "$tool" ) 2>/dev/null
+    }
+    _ic_expect() {  # $1=label $2=needle $3=tool $4..=fake managers
+        local label="$1" needle="$2" tool="$3"; shift 3
+        local got=""
+        got=$(_ic "$tool" "$@")
+        if [[ "$got" == *"$needle"* ]]; then
+            _pass "install cmd: $label"
+        else
+            _fail "install cmd: $label" "expected to contain '$needle', got '$got'"
+        fi
+    }
+    # Which manager answers is platform-dependent: _pkg_manager's Darwin branch
+    # only ever looks for brew, so a faked apt-get on PATH is correctly ignored
+    # there. Assert each platform's own branch.
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        _ic_expect "java via apt names openjdk-17-jdk" "openjdk-17-jdk" java apt-get
+        _ic_expect "java via apt asks for sudo explicitly" "sudo" java apt-get
+        _ic_expect "java via dnf names java-17-openjdk-devel" "java-17-openjdk-devel" java dnf
+    else
+        _ic_expect "java via brew" "brew install openjdk@17" java brew
+    fi
+    # Platform-independent: with no manager at all we fall back to SDKMAN.
+    _ic_expect "java with no package manager falls back to SDKMAN" "sdk" java
+    _ic_expect "node uses nvm" "nvm install" node apt-get
+    _ic_expect "python uses pyenv" "pyenv install" python apt-get
+    _ic_expect "python pins 3.12" "3.12" python apt-get
+    for tool in docker sbt definitely-not-a-tool; do
+        got=""; rc=0
+        got=$( PATH="$_ic_dir"
+               TEXERA_NODE_VERSION=24 TEXERA_PYTHON_VERSION=3.12
+               eval "$pm_fn"; eval "$cmd_fn"; _install_cmd_for "$tool" 2>/dev/null ) || rc=$?
+        if (( rc != 0 )) && [[ -z "$got" ]]; then
+            _pass "install cmd: refuses '$tool'"
+        else
+            _fail "install cmd: should refuse '$tool'" "rc=$rc got='$got'"
+        fi
+    done
+    rm -rf "$_ic_dir"
+fi
+
+# 40) Consent. The prompt is for humans; a non-interactive run (CI, cron, an
+#     agent following AGENTS.md's non-interactive subcommands) must keep the old
+#     behaviour and never block on a read. This is the most important test in
+#     this PR: a regression here hangs every automated `up`.
+consent_fn=$(_extract_fn _consent_to_install)
+if [[ -z "$consent_fn" ]]; then
+    _fail "_consent_to_install helper missing"
+else
+    rc=0
+    ( eval "$consent_fn"; _consent_to_install java "sudo apt-get install -y openjdk-17-jdk" ) \
+        </dev/null >/dev/null 2>&1 || rc=$?
+    if (( rc != 0 )); then
+        _pass "consent: refuses without a TTY (never prompts)"
+    else
+        _fail "consent: granted install without a TTY"
+    fi
+    rc=0
+    ( TEXERA_INSTALL_MISSING=1; eval "$consent_fn"; _consent_to_install java "cmd" ) \
+        </dev/null >/dev/null 2>&1 || rc=$?
+    if (( rc == 0 )); then
+        _pass "consent: TEXERA_INSTALL_MISSING=1 assumes yes"
+    else
+        _fail "consent: TEXERA_INSTALL_MISSING=1 didn't assume yes" "rc=$rc"
+    fi
+    rc=0
+    ( TEXERA_INSTALL_MISSING=0; eval "$consent_fn"; _consent_to_install java "cmd" ) \
+        </dev/null >/dev/null 2>&1 || rc=$?
+    if (( rc != 0 )); then
+        _pass "consent: TEXERA_INSTALL_MISSING=0 refuses"
+    else
+        _fail "consent: TEXERA_INSTALL_MISSING=0 didn't refuse"
+    fi
+fi
+
+# 41) Picking the interpreter that runs Python UDFs. The old default was
+#     `command -v python3` — the system interpreter, which has none of
+#     amber/requirements.txt — so UDFs died at worker launch on import errors
+#     that pointed nowhere near the interpreter choice.
+ver_fn=$(_extract_fn _python_version_of)
+vok_fn=$(_extract_fn _python_version_ok)
+dok_fn=$(_extract_fn _python_deps_ok)
+if [[ -z "$ver_fn" || -z "$vok_fn" || -z "$dok_fn" ]]; then
+    _fail "python probe helpers missing (_python_version_of/_python_version_ok/_python_deps_ok)"
+else
+    _py_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldpy)
+    # `python -c ...` is only ever asked for the version string or an import
+    # check, so scripts that echo a version / set an exit code drive both probes.
+    printf '#!/bin/sh\necho 3.12\n' > "$_py_dir/py312"
+    printf '#!/bin/sh\necho 3.11\n' > "$_py_dir/py311"
+    printf '#!/bin/sh\nexit 0\n'    > "$_py_dir/deps-ok"
+    printf '#!/bin/sh\nexit 1\n'    > "$_py_dir/deps-missing"
+    chmod +x "$_py_dir"/*
+    _py_probe() {  # $1=fn $2=path → rc
+        local rc=0
+        ( TEXERA_PYTHON_VERSION=3.12
+          eval "$ver_fn"; eval "$vok_fn"; eval "$dok_fn"
+          "$1" "$2" ) >/dev/null 2>&1 || rc=$?
+        return $rc
+    }
+    if _py_probe _python_version_ok "$_py_dir/py312"; then
+        _pass "python probe: 3.12 accepted"
+    else
+        _fail "python probe: 3.12 rejected"
+    fi
+    if ! _py_probe _python_version_ok "$_py_dir/py311"; then
+        _pass "python probe: 3.11 rejected"
+    else
+        _fail "python probe: 3.11 accepted (must pin 3.12)"
+    fi
+    if ! _py_probe _python_version_ok "$_py_dir/nonexistent"; then
+        _pass "python probe: missing interpreter rejected"
+    else
+        _fail "python probe: missing interpreter accepted"
+    fi
+    if _py_probe _python_deps_ok "$_py_dir/deps-ok"; then
+        _pass "python probe: importable deps accepted"
+    else
+        _fail "python probe: importable deps rejected"
+    fi
+    if ! _py_probe _python_deps_ok "$_py_dir/deps-missing"; then
+        _pass "python probe: missing deps rejected"
+    else
+        _fail "python probe: missing deps accepted"
+    fi
+    if ! _py_probe _python_deps_ok ""; then
+        _pass "python probe: empty path rejected"
+    else
+        _fail "python probe: empty path accepted"
+    fi
+    rm -rf "$_py_dir"
+fi
+
+# 42) Candidate order. An activated venv must beat the sibling venv312 from
+#     AGENTS.md's layout, and both must beat whatever `python3` happens to be on
+#     PATH — that last one being the old, broken default.
+cand_fn=$(_extract_fn _udf_python_candidates)
+if [[ -z "$cand_fn" ]]; then
+    _fail "_udf_python_candidates helper missing"
+else
+    _cd_dir=$(mktemp -d 2>/dev/null || mktemp -d -t ldcd)
+    mkdir -p "$_cd_dir/active/bin" "$_cd_dir/ws/venv312/bin" "$_cd_dir/ws/texera"
+    : > "$_cd_dir/active/bin/python";        chmod +x "$_cd_dir/active/bin/python"
+    : > "$_cd_dir/ws/venv312/bin/python";    chmod +x "$_cd_dir/ws/venv312/bin/python"
+    order=$( VIRTUAL_ENV="$_cd_dir/active" REPO_ROOT="$_cd_dir/ws/texera" \
+             SELF_ROOT="$_cd_dir/ws/texera" TEXERA_PYTHON_VERSION=3.12
+             eval "$cand_fn"; _udf_python_candidates 2>/dev/null )
+    pos_active=$(printf '%s\n' "$order" | grep -n "active/bin/python" | head -1 | cut -d: -f1)
+    pos_venv=$(printf '%s\n' "$order" | grep -n "venv312/bin/python" | head -1 | cut -d: -f1)
+    pos_sys=$(printf '%s\n' "$order" | grep -nE "/python3$" | tail -1 | cut -d: -f1)
+    if [[ -n "$pos_active" && -n "$pos_venv" ]] && (( pos_active < pos_venv )); then
+        _pass "python candidates: \$VIRTUAL_ENV before sibling venv312"
+    else
+        _fail "python candidates: wrong order" \
+            "active=$pos_active venv312=$pos_venv order=$(printf '%s' "$order" | tr '\n' '|')"
+    fi
+    if [[ -z "$pos_sys" ]] || { [[ -n "$pos_venv" ]] && (( pos_venv < pos_sys )); }; then
+        _pass "python candidates: venv312 before bare python3 on PATH"
+    else
+        _fail "python candidates: bare python3 outranks venv312" \
+            "venv312=$pos_venv sys=$pos_sys order=$(printf '%s' "$order" | tr '\n' '|')"
+    fi
+    rm -rf "$_cd_dir"
+fi
+
+# 43) The resolver must be wired into the paths that launch services, and must
+#     NOT run at source time — `status` / `--help` shouldn't pay for spawning
+#     interpreters.
+if [[ -n "$(_extract_fn _require_udf_python)" ]]; then
+    _pass "_require_udf_python helper is defined"
+else
+    _fail "_require_udf_python helper missing"
+fi
+for fn in cmd_up cmd_auto cmd_up_one; do
+    body=$(_extract_fn "$fn")
+    if [[ "$body" == *"_require_udf_python"* ]]; then
+        _pass "$fn resolves the UDF interpreter before launching"
+    else
+        _fail "$fn doesn't call _require_udf_python"
+    fi
+done
+# The UDF interpreter must not be advertised with the `-i` dashboard's hint:
+# that one is about textual and amber/dev-requirements.txt, a different
+# interpreter and a different requirements file.
+# Comments are stripped: the code explains *why* it doesn't use that hint, and
+# the explanation naturally names it.
+udf_body=$(_extract_fn _require_udf_python | sed 's/^[[:space:]]*#.*$//')
+if [[ "$udf_body" != *"_install_hint python"* ]] \
+   && [[ "$udf_body" == *"UDF_PYTHON_PATH"* ]] \
+   && [[ "$udf_body" == *"amber/requirements.txt"* ]]; then
+    _pass "_require_udf_python points at amber's requirements, not the TUI hint"
+else
+    _fail "_require_udf_python reuses the TUI python hint or omits amber's requirements"
+fi
+if ! grep -qE '^export UDF_PYTHON_PATH="\$\{UDF_PYTHON_PATH:-\$\(command -v python3' "$MAIN_SH"; then
+    _pass "UDF_PYTHON_PATH no longer defaults to bare python3 at source time"
+else
+    _fail "UDF_PYTHON_PATH still defaults to \`command -v python3\` at source time"
+fi
+
+# 44) The new knobs are discoverable, and contradictory ones are refused rather
+#     than silently resolved one way.
+help_out=$("$SCRIPT" --help 2>&1)
+if [[ "$help_out" == *"--install-missing"* && "$help_out" == *"--no-install"* ]]; then
+    _pass "--help documents --install-missing / --no-install"
+else
+    _fail "--help doesn't document the install flags"
+fi
+_im_state=$(mktemp -d 2>/dev/null || mktemp -d -t ldim)
+out=$(TEXERA_LOCAL_DEV_DIR="$_im_state" "$SCRIPT" up --install-missing --no-install 2>&1); rc=$?
+if (( rc == 2 )); then
+    _pass "up rejects --install-missing together with --no-install (rc=2)"
+else
+    _fail "up accepted contradictory install flags" "rc=$rc out=$(echo "$out" | head -1)"
+fi
+rm -rf "$_im_state"
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

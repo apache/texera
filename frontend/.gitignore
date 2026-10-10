@@ -12,6 +12,10 @@
 /coverage
 /coverage-browser
 
+# generated Vitest JUnit reports
+/junit.xml
+/junit-browser.xml
+
 # vitest browser-mode snapshot baselines
 **/__screenshots__/
 

@@ -17,18 +17,16 @@
  * under the License.
  */
 
-import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardEntry } from "./dashboard-entry";
 
 export interface SearchResultItem {
-  resourceType: "workflow" | "project" | "file" | "dataset" | "computing-unit";
+  resourceType: "workflow" | "dataset" | "model" | "computing-unit";
   workflow?: DashboardWorkflow;
-  project?: DashboardProject;
-  file?: DashboardFile;
   dataset?: DashboardDataset;
+  model?: DashboardModel;
 }
 
 export interface SearchResult {

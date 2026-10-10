@@ -19,12 +19,14 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
-class SklearnTrainingOpDesc extends SklearnModelOpDesc {
+class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
   override def getImportStatements = ""
 
@@ -33,16 +35,22 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        rows_read = len(table)
+       |        table = $dropMissingRows #remove missing values
+       |        if len(table) < rows_read:
+       |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
-       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
+       |${dropNonFeatureColumns("X", " " * 8)}
+$reportMissingKept
+       |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
     else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
@@ -58,4 +66,30 @@ class SklearnTrainingOpDesc extends SklearnModelOpDesc {
       inputPorts = List(InputPort(PortIdentity(), "training")),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    val narrowX = dropNonFeatureColumns("X", "")
+
+    s"""${getImportStatements}
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import pandas as pd
+       |
+       |# The same rows the operator drops. A local name rather than a
+       |# reassignment, since the input variable belongs to whichever operator
+       |# produced it.
+       |_train = ${dropMissingRowsStandalone("in1df")}
+       |if len(_train) < len(in1df):
+       |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")
+       |Y = _train[$targetLit]
+       |X = _train.drop($targetLit, axis=1)
+       |$narrowX
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X, Y)
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
+  }
 }

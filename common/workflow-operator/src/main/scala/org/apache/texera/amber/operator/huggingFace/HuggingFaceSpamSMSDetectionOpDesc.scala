@@ -20,17 +20,33 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
+// type constraint: the classification pipeline reads text and refuses anything
+// that is not a string, so the column can only be a string.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "attribute": { "enum": ["string"] }
+  }
+}
+""")
+class HuggingFaceSpamSMSDetectionOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform spam detection on")
   @AutofillAttributeName
+  @SampleColumn("short_text")
   var attribute: EncodableString = _
 
   @JsonProperty(
@@ -51,6 +67,7 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
 
   override def generatePythonCode(): String = {
     pyb"""from transformers import pipeline
+       |import pandas as pd
        |from pytexera import *
        |
        |class ProcessTupleOperator(UDFOperatorV2):
@@ -60,10 +77,47 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        result = self.pipeline(tuple_[$attribute])[0]
+       |        text = tuple_[$attribute]
+       |        # An empty cell arrives as None, and a column the type rule was meant to
+       |        # keep out can carry a NaN of its own. The pipeline rejects both. Keep
+       |        # the row and leave the results empty rather than ending the run over a
+       |        # value the model has nothing to say about.
+       |        if pd.isna(text) or (isinstance(text, str) and not text.strip()):
+       |            tuple_[$resultAttributeSpam] = None
+       |            tuple_[$resultAttributeProbability] = None
+       |            yield tuple_
+       |            return
+       |        result = self.pipeline(text)[0]
        |        tuple_[$resultAttributeSpam] = (result["label"] == "LABEL_1")
        |        tuple_[$resultAttributeProbability] = result["score"]
        |        yield tuple_""".encode
+  }
+
+  // Standalone mirror of generatePythonCode: build the text-classification
+  // pipeline once, run it per row, and add the BOOLEAN spam flag (LABEL_1) and
+  // the DOUBLE score columns (in getOutputSchemas order) to produce out1df.
+  override def generateStandaloneCode(): String = {
+    val attributeLit = pyStringLiteral(attribute)
+    val spamLit = pyStringLiteral(resultAttributeSpam)
+    val probabilityLit = pyStringLiteral(resultAttributeProbability)
+    s"""from transformers import pipeline
+       |import pandas as pd
+       |
+       |_pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
+       |out1df = in1df.copy()
+       |
+       |def _classify(_t):
+       |    # An empty cell reaches the frame as None, or as NaN once a column holds
+       |    # nothing else, and the pipeline rejects both. Keep the row and leave the
+       |    # results empty rather than ending the run over a value the model has
+       |    # nothing to say about.
+       |    if pd.isna(_t) or (isinstance(_t, str) and not _t.strip()):
+       |        return None
+       |    return _pipeline(_t)[0]
+       |
+       |_results = [_classify(_t) for _t in out1df[$attributeLit]]
+       |out1df[$spamLit] = [None if _r is None else _r["label"] == "LABEL_1" for _r in _results]
+       |out1df[$probabilityLit] = [None if _r is None else _r["score"] for _r in _results]""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =
@@ -78,8 +132,13 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
+    if (
+      resultAttributeSpam == null || resultAttributeSpam.trim.isEmpty ||
+      resultAttributeProbability == null || resultAttributeProbability.trim.isEmpty
+    )
+      return null
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
         .add(resultAttributeSpam, AttributeType.BOOLEAN)
         .add(resultAttributeProbability, AttributeType.DOUBLE)
     )

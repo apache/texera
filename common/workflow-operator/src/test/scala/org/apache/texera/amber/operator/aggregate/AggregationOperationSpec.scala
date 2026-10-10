@@ -175,6 +175,35 @@ class AggregationOperationSpec extends AnyFlatSpec {
     assert(finalSum == 36, "single-pass SUM(1+2+3+10+20) == 36")
   }
 
+  it should
+    "keep the type's maximum value when partial MAX results are re-aggregated via getFinal" in {
+    // Regression: the local stage used to finalize a partial equal to
+    // maxValue(attributeType) to null, so the final stage reported the largest
+    // value from the other worker instead of the true maximum.
+    val workerOp = op(AggregationFunction.MAX, attribute = "v", resultAttribute = "max_v")
+    val workerAgg = workerOp.getAggFunc(AttributeType.INTEGER)
+
+    val w1State = Seq[AnyRef](Int.box(1), Int.box(Int.MaxValue))
+      .map(v => tupleOf("v", AttributeType.INTEGER, v))
+      .foldLeft(workerAgg.init())(workerAgg.iterate)
+    val w1Out = workerAgg.finalAgg(w1State)
+    assert(w1Out == Int.box(Int.MaxValue), "worker 1's true maximum is Int.MaxValue")
+
+    val w2State = Seq[AnyRef](Int.box(5), Int.box(2))
+      .map(v => tupleOf("v", AttributeType.INTEGER, v))
+      .foldLeft(workerAgg.init())(workerAgg.iterate)
+    val w2Out = workerAgg.finalAgg(w2State)
+    assert(w2Out == Int.box(5))
+
+    val finalOp = workerOp.getFinal
+    assert(finalOp.aggFunction == AggregationFunction.MAX)
+    val finalAgg = finalOp.getAggFunc(AttributeType.INTEGER)
+    val finalState = Seq(w1Out, w2Out)
+      .map(p => tupleOf("max_v", AttributeType.INTEGER, p))
+      .foldLeft(finalAgg.init())(finalAgg.iterate)
+    assert(finalAgg.finalAgg(finalState) == Int.box(Int.MaxValue))
+  }
+
   // --- AveragePartialObj -----------------------------------------------------
 
   "AveragePartialObj" should "expose its sum and count fields and support value equality" in {
@@ -336,6 +365,17 @@ class AggregationOperationSpec extends AnyFlatSpec {
     val seen = agg.iterate(agg.init(), tupleOf("v", AttributeType.INTEGER, Int.box(7)))
 
     // An empty partial is the sentinel maxValue, so it must lose the comparison.
+    assert(agg.finalAgg(agg.merge(seen, agg.init())) == Int.box(7))
+    assert(agg.finalAgg(agg.merge(agg.init(), seen)) == Int.box(7))
+    // Two empty partials still finalize to null (no rows anywhere).
+    assert(agg.finalAgg(agg.merge(agg.init(), agg.init())) == null)
+  }
+
+  "MAX aggregation merge" should "stay neutral when one side saw no values" in {
+    val agg = op(AggregationFunction.MAX).getAggFunc(AttributeType.INTEGER)
+    val seen = agg.iterate(agg.init(), tupleOf("v", AttributeType.INTEGER, Int.box(7)))
+
+    // An empty partial is the sentinel minValue, so it must lose the comparison.
     assert(agg.finalAgg(agg.merge(seen, agg.init())) == Int.box(7))
     assert(agg.finalAgg(agg.merge(agg.init(), seen)) == Int.box(7))
     // Two empty partials still finalize to null (no rows anywhere).

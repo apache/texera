@@ -44,6 +44,29 @@ case class CleanupReport(sessionsDeleted: Int, objectsReset: Int, errors: Int)
 
 object StagedFileCleanupJob {
   private[util] val DefaultSessionCleanupBatchSize = 500
+
+  /**
+    * Whether a failed LakeFS multipart abort means "this upload is already gone", which the
+    * cleanup job treats as success rather than as an error to retry.
+    *
+    * Two shapes have to be recognised because LakeFS does not normalise its object store's
+    * answer:
+    *
+    *   - `404` — LakeFS itself has no record of the upload.
+    *   - `500` whose body carries the object store's `NoSuchUpload` — LakeFS forwarded the
+    *     abort and the store reported the upload gone. LakeFS wraps that backend status in a
+    *     500 rather than passing the 404 through.
+    *
+    * The second case is what a spec-conforming store returns: `AbortMultipartUpload` on an
+    * unknown upload id is a `NoSuchUpload` error in the S3 API. (MinIO, the store Texera used
+    * before RustFS, answered such an abort with success instead, so this path never ran.)
+    * Matching on the `NoSuchUpload` code rather than on the bare 500 keeps every other server
+    * error an error, so a store that is merely unreachable still rolls the transaction back
+    * and is retried next round.
+    */
+  private[util] def isAlreadyAborted(e: ApiException): Boolean =
+    e.getCode == 404 ||
+      (e.getCode == 500 && Option(e.getResponseBody).exists(_.contains("NoSuchUpload")))
 }
 
 /**
@@ -149,10 +172,11 @@ class StagedFileCleanupJob(
       try {
         // Delete the row and abort the multipart in one transaction, deleting FIRST. LakeFS is
         // external and cannot truly enroll in a DB transaction, but the abort is idempotent
-        // (re-aborting an already-aborted upload returns 404, treated as success below), so the
-        // only risk is the abort failing AFTER the delete is staged. By staging the delete first
-        // and letting a non-404 abort failure roll the whole transaction back, the session row
-        // survives and the next round retries — never leaving an orphaned multipart behind.
+        // (re-aborting an already-aborted upload is treated as success below, see
+        // `isAlreadyAborted`), so the only risk is the abort failing AFTER the delete is staged.
+        // By staging the delete first and letting a genuine abort failure roll the whole
+        // transaction back, the session row survives and the next round retries — never leaving
+        // an orphaned multipart behind.
         SqlServer.withTransaction(ctx) { txn =>
           txn
             .deleteFrom(DATASET_UPLOAD_SESSION)
@@ -169,7 +193,7 @@ class StagedFileCleanupJob(
                 )
               } catch {
                 // Already aborted (or never materialized): safe to delete the session row.
-                case e: ApiException if e.getCode == 404 =>
+                case e: ApiException if StagedFileCleanupJob.isAlreadyAborted(e) =>
                   logger.debug(
                     s"Multipart upload ${session.getUploadId} not found in LakeFS; " +
                       "treating as already aborted"

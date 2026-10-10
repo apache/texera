@@ -32,6 +32,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       containers:
         - name: {{ .Values.workflowCompilingService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowCompilingService.imageName }}:{{ .Values.texera.imageTag }}
@@ -40,7 +43,7 @@ spec:
             - containerPort: {{ .Values.workflowCompilingService.service.port }}
           env:
             # FileService Access
-            - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
+            - name: FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT
               value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             # LakeFS Access
             - name: STORAGE_LAKEFS_ENDPOINT

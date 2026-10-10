@@ -48,7 +48,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports
@@ -74,9 +73,10 @@ libraryDependencies ++= Seq(
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
   "com.novocode" % "junit-interface" % "0.11" % Test,                // SBT interface for JUnit
+  // RustFS has no dedicated testcontainers-scala module; MockLakeFS uses the shared
+  // RustFSContainer from WorkflowCore's test sources (see the test->test dep in build.sbt).
   "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
   "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test,  // PostgreSQL Testcontainer Scala integration
-  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
 )
 
 /////////////////////////////////////////////////////////////////////////////

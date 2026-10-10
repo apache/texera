@@ -47,6 +47,7 @@ For repo-wide testing philosophy (TDD, characterization tests, "every test must 
 | Coverage                 | `@vitest/coverage-v8`                                                                                                                  |
 | Test setup               | `src/test-zone-setup.ts` wraps `it`/`test` in an Angular ProxyZone (Vitest does not provide one and Angular's `fakeAsync` requires it) |
 | Globals                  | `globals: true` in `vitest.config.ts`, so `describe / it / expect / vi / beforeEach` come from the runtime — no per-file imports       |
+| Timeouts                 | Raised over Vitest's defaults because macOS CI runners stall for seconds at a time (#6073, #7713). jsdom: 20s per test / 30s per hook (`vitest.config.ts`, defaults 5s/10s). Browser mode: 30s per test (`vitest.browser.config.ts`), hooks left at the 30s default that `browser.enabled` already resolves — its per-test default is 15s |
 
 `src/main.test.ts` is intentionally a near-empty `export {}`. The `unit-test` builder uses `buildTarget`'s `main` to seed the bundle graph; if it pointed at the real `main.ts`, every component declared in `AppModule` would be type-checked for every spec, surfacing template errors for components no active spec touches. Keeping `main.test.ts` empty narrows the graph to what each spec actually imports.
 

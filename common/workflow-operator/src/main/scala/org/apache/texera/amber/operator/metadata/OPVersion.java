@@ -46,6 +46,10 @@ public class OPVersion {
                 opMap.put(operatorName, version);
             } catch (GitAPIException e) {
                 e.printStackTrace();
+                // Memoize the same sentinel the NullPointerException sibling stores: the
+                // trailing opMap.get() would otherwise hand the caller a null version, and
+                // every later call for this operator would re-run the failing `git log`.
+                opMap.put(operatorName, "N/A");
             } catch (NullPointerException e) {
                 opMap.put(operatorName, "N/A");
             }

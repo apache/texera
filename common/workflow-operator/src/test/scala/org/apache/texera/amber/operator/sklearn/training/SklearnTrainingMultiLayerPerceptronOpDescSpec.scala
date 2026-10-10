@@ -44,7 +44,7 @@ class SklearnTrainingMultiLayerPerceptronOpDescSpec extends AnyFlatSpec with Mat
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingMultiLayerPerceptronOpDesc.getOutputSchemas" should

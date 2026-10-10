@@ -174,6 +174,53 @@ class CongestionControlSpec extends AnyFlatSpec {
     )
   }
 
+  it should "clamp ssThreshold at 1 so repeated timeouts never collapse the window to zero" in {
+    // Five consecutive timed-out acks halve ssThreshold 16→8→4→2→1→0. The clamp
+    // must lift that final 0 back to 1, because windowSize is then set from
+    // ssThreshold and `canSend` is `inTransit.size < windowSize`: a window of 0
+    // can never be satisfied, so the sender would wedge permanently.
+    //
+    // The window is pinned through `canSend` across an empty/full boundary
+    // rather than through the `getStatusReport` text, since it is the sender's
+    // behaviour and not the report's wording that this test is about: a drained
+    // sender that may send, and that one in-transit message then blocks, has a
+    // windowSize of exactly 1. Substring matching on the report could not do
+    // this job — "current window size = 1" is a prefix of "= 16", so it would
+    // pass a clamp that restored 16 — and the report's exact format is pinned
+    // once, in `getStatusReport`'s own test at the bottom of this file. The
+    // report is still built here, as the clue on a failure.
+    val cc = new CongestionControl()
+    (1L to 5L).foreach { i =>
+      cc.markMessageInTransit(msg(i))
+      backdateSentTime(cc, i, 5000) // > ackTimeLimit (3000)
+      cc.ack(i)
+    }
+    assert(
+      cc.getInTransitMessages.isEmpty,
+      s"the acks left messages in transit: ${cc.getStatusReport}"
+    )
+    assert(
+      cc.canSend,
+      s"a fully drained sender must still be permitted to send: ${cc.getStatusReport}"
+    )
+    cc.markMessageInTransit(msg(6L))
+    assert(
+      !cc.canSend,
+      s"one in-transit message must exhaust a window of 1: ${cc.getStatusReport}"
+    )
+
+    // A sixth timeout must keep it pinned at 1 rather than driving it negative.
+    backdateSentTime(cc, 6L, 5000)
+    cc.ack(6L)
+    assert(
+      cc.getInTransitMessages.isEmpty,
+      s"the sixth ack left its message in transit: ${cc.getStatusReport}"
+    )
+    assert(cc.canSend, s"the clamp did not survive a second timeout: ${cc.getStatusReport}")
+    cc.markMessageInTransit(msg(7L))
+    assert(!cc.canSend, s"the window is no longer exactly 1: ${cc.getStatusReport}")
+  }
+
   "CongestionControl.getBufferedMessagesToSend" should "be bounded by remaining window capacity" in {
     val cc = new CongestionControl()
     cc.enqueueMessage(msg(1L))
@@ -236,13 +283,23 @@ class CongestionControlSpec extends AnyFlatSpec {
 
   "CongestionControl.getStatusReport" should
     "format the three core counters in the documented order" in {
-    // Pin the exact format string (separator + ordering) so a reorder of
-    // the three fields or a tab-vs-comma swap fails this spec.
+    // Pin the exact format string: the separator, the label wording, and which
+    // counter each label is actually reading.
+    //
+    // The three counters are driven to three *distinct* values on purpose. With
+    // all three at 1 the string cannot pin the label-to-counter binding at all:
+    // a report that read `toBeSent.size` where it says "in transit" and
+    // `inTransit.size` where it says "waiting" renders byte-identically, so it
+    // would pass. Nothing else in this file catches that swap either — the
+    // report's other assertions only look at the window-size field. 2/1/3 makes
+    // every field distinguishable from the other two.
     val cc = new CongestionControl()
     cc.markMessageInTransit(msg(0L))
-    cc.enqueueMessage(msg(1L))
+    cc.ack(0L) // in-window ack: slow start doubles windowSize 1 -> 2
+    cc.markMessageInTransit(msg(1L))
+    (2L to 4L).foreach(i => cc.enqueueMessage(msg(i)))
     assert(
-      cc.getStatusReport == "current window size = 1 \t in transit = 1 \t waiting = 1",
+      cc.getStatusReport == "current window size = 2 \t in transit = 1 \t waiting = 3",
       s"unexpected format: ${cc.getStatusReport}"
     )
   }

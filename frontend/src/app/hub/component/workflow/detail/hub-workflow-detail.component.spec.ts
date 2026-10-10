@@ -17,13 +17,16 @@
  * under the License.
  */
 
-import { Component, Input } from "@angular/core";
+import { Component, Input, LOCALE_ID } from "@angular/core";
+import { registerLocaleData } from "@angular/common";
+import localeDe from "@angular/common/locales/de";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { ArrowLeftOutline, EyeOutline, LikeOutline, UserOutline } from "@ant-design/icons-angular/icons";
-import { config, of, throwError } from "rxjs";
+import { By } from "@angular/platform-browser";
+import { config, of, Subject, throwError } from "rxjs";
 import { vi } from "vitest";
 
 import { HubWorkflowDetailComponent, THROTTLE_TIME_MS } from "./hub-workflow-detail.component";
@@ -280,6 +283,24 @@ describe("HubWorkflowDetailComponent", () => {
       build({ modalData: { wid: 1 }, userOverride: undefined });
       expect(hubServiceMock.isLiked).not.toHaveBeenCalled();
     });
+
+    it("assigns the fetched description and passes it to the description child", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of("a real description"));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("a real description");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("a real description");
+    });
+
+    it("substitutes a placeholder when the workflow has no description", () => {
+      workflowPersistServiceMock.getWorkflowDescription.mockReturnValue(of(""));
+      build({ modalData: { wid: 1 } });
+      expect(component.workflowDescription).toBe("No description available");
+      expect(
+        fixture.debugElement.query(By.directive(StubMarkdownDescriptionComponent)).componentInstance.description
+      ).toBe("No description available");
+    });
   });
 
   describe("ngAfterViewInit / loadWorkflowWithId", () => {
@@ -421,6 +442,75 @@ describe("HubWorkflowDetailComponent", () => {
       expect(component.isLiked).toBe(false);
       expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
     });
+
+    it("does not flip isLiked when postUnlike returns false", () => {
+      hubServiceMock.postUnlike.mockReturnValue(of(false));
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      hubServiceMock.getCounts.mockClear();
+      component.toggleLike();
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after a like carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = false;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    it("defaults likeCount to 0 when the counts refreshed after an unlike carry none", () => {
+      hubServiceMock.getCounts
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: { like: 4, clone: 0 } }]))
+        .mockReturnValueOnce(of([{ entityId: 1, entityType: EntityType.Workflow, counts: {} }]));
+      build({ modalData: { wid: 1 } });
+      expect(component.likeCount).toBe(4);
+
+      component.isLiked = true;
+      component.toggleLike();
+
+      expect(component.likeCount).toBe(0);
+    });
+
+    // The like/unlike responses are asynchronous in production, so `wid` is re-checked
+    // inside each handler. A subject stands in for the pending request so the id can be
+    // cleared between issuing the call and the response arriving.
+    it("skips the like refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postLike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = false;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(true);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
+
+    it("skips the unlike refresh when wid disappears before the response", () => {
+      const pending = new Subject<boolean>();
+      hubServiceMock.postUnlike.mockReturnValue(pending);
+      build({ modalData: { wid: 1 } });
+      component.isLiked = true;
+      component.toggleLike();
+      hubServiceMock.getCounts.mockClear();
+
+      component.wid = undefined;
+      pending.next(true);
+
+      expect(component.isLiked).toBe(false);
+      expect(hubServiceMock.getCounts).not.toHaveBeenCalled();
+    });
   });
 
   describe("formatCount", () => {
@@ -436,14 +526,52 @@ describe("HubWorkflowDetailComponent", () => {
     });
   });
 
-  describe("changeViewDisplayStyle", () => {
-    it("toggles displayPreciseViewCount", () => {
+  // Asserted on the formatted string rather than on displayPreciseViewCount: the flag flipped on
+  // every click even while nothing read it, so a flag assertion passed with the toggle inert.
+  describe("formatViewCount", () => {
+    it("returns the compact count before the view style is changed", () => {
       build({ modalData: { wid: 1 } });
-      expect(component.displayPreciseViewCount).toBe(false);
+      expect(component.formatViewCount(1234)).toBe("1.2k");
+    });
+
+    it("returns the grouped exact count after one change and the compact count after a second", () => {
+      build({ modalData: { wid: 1 } });
       component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(true);
+      expect(component.formatViewCount(1234)).toBe("1,234");
       component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(false);
+      expect(component.formatViewCount(1234)).toBe("1.2k");
+    });
+
+    it("abbreviates 1000 only in the compact style", () => {
+      build({ modalData: { wid: 1 } });
+      expect(component.formatViewCount(1000)).toBe("1.0k");
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1000)).toBe("1,000");
+    });
+
+    it("renders counts below 1000 the same way in both styles", () => {
+      build({ modalData: { wid: 1 } });
+      expect([0, 1, 999].map(count => component.formatViewCount(count))).toEqual(["0", "1", "999"]);
+      component.changeViewDisplayStyle();
+      expect([0, 1, 999].map(count => component.formatViewCount(count))).toEqual(["0", "1", "999"]);
+    });
+
+    it("keeps every digit of a large count in the exact style", () => {
+      build({ modalData: { wid: 1 } });
+      expect(component.formatViewCount(1234567)).toBe(component.formatCount(1234567));
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1234567)).toBe("1,234,567");
+    });
+
+    it("groups the exact count by the app locale", () => {
+      // The separator comes from LOCALE_ID, like the `number` pipe the rest of the UI uses, rather
+      // than a hard-coded "en-US"; the app sets no LOCALE_ID, so it renders "1,234" today.
+      registerLocaleData(localeDe);
+      configure({ modalData: { wid: 1 } });
+      TestBed.overrideProvider(LOCALE_ID, { useValue: "de" });
+      component = TestBed.createComponent(HubWorkflowDetailComponent).componentInstance;
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1234)).toBe("1.234");
     });
   });
 });
@@ -462,8 +590,11 @@ describe("HubWorkflowDetailComponent", () => {
  */
 describe("HubWorkflowDetailComponent rendered with its real children", () => {
   let fixture: ComponentFixture<HubWorkflowDetailComponent>;
+  // goBack() chains .catch() onto the navigation result, so this has to be a real promise.
+  let renderedRouter: { navigateByUrl: ReturnType<typeof vi.fn>; navigate: ReturnType<typeof vi.fn> };
 
-  function render(opts: { isHub: boolean }): void {
+  function render(opts: { isHub: boolean; viewCount?: number; likeCount?: number }): void {
+    renderedRouter = { navigateByUrl: vi.fn().mockResolvedValue(true), navigate: vi.fn().mockResolvedValue(true) };
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [
@@ -484,12 +615,12 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { params: opts.isHub ? { id: "5" } : {} } },
         },
-        { provide: Router, useValue: { navigateByUrl: vi.fn(), navigate: vi.fn() } },
+        { provide: Router, useValue: renderedRouter },
         {
           provide: HubService,
           useValue: {
-            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: {} }]),
-            postView: () => of(7),
+            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: { like: opts.likeCount } }]),
+            postView: () => of(opts.viewCount ?? 7),
             isLiked: () => of([]),
             postLike: () => of(true),
             postUnlike: () => of(true),
@@ -533,11 +664,70 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
     expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).not.toBeNull();
   });
 
+  it("navigates back to the hub listing when the back button is clicked", () => {
+    // The goBack() unit test above calls the method directly, so nothing pinned the button's
+    // (click) binding: drop it from the template and that test still passes while the arrow
+    // becomes inert.
+    render({ isHub: true });
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(".go-back-button")!.click();
+
+    // Asserted as a literal, not as HUB_WORKFLOW_RESULT: the component navigates with that same
+    // symbol, so a symbolic assertion moves with it and cannot see the destination change. The
+    // route table in app-routing.module.ts spells the segments out as literals and does not import
+    // the constant, so the two really can drift apart into a navigation to a dead route.
+    expect(renderedRouter.navigateByUrl).toHaveBeenCalledWith("/hub/workflow/result");
+    expect(HUB_WORKFLOW_RESULT).toBe("/hub/workflow/result");
+  });
+
   it("hides the back button when the wid arrived as modal data", () => {
     // The converse. Without it the `*ngIf` could be replaced by a constant and the positive case
     // above would still pass.
     render({ isHub: false });
 
     expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).toBeNull();
+  });
+
+  describe("the view button", () => {
+    function countShownBy(title: string): string {
+      const button = (fixture.nativeElement as HTMLElement).querySelector(`button[title='${title}']`)!;
+      return button.querySelector(":scope > span")!.textContent!.trim();
+    }
+
+    function clickView(): void {
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>("button[title='View']")!.click();
+      fixture.detectChanges();
+    }
+
+    it("shows the compact view count until it is clicked", () => {
+      render({ isHub: true, viewCount: 1234 });
+
+      expect(countShownBy("View")).toBe("1.2k");
+    });
+
+    it("shows the exact view count on a click and the compact count on a second click", () => {
+      render({ isHub: true, viewCount: 1234 });
+
+      clickView();
+      expect(countShownBy("View")).toBe("1,234");
+      clickView();
+      expect(countShownBy("View")).toBe("1.2k");
+    });
+
+    it("works the same when the page is opened as a modal", () => {
+      render({ isHub: false, viewCount: 1234 });
+
+      clickView();
+      expect(countShownBy("View")).toBe("1,234");
+    });
+
+    it("leaves the like count compact", () => {
+      // The toggle belongs to the view count alone; the like count shares the formatter, so a
+      // style change that leaked into formatCount would show up here.
+      render({ isHub: true, viewCount: 1234, likeCount: 2500 });
+
+      clickView();
+      expect(countShownBy("Like")).toBe("2.5k");
+    });
   });
 });

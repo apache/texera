@@ -144,12 +144,26 @@ interface FakeEditor {
   getScrolledVisiblePosition: ReturnType<typeof vi.fn>;
   createDecorationsCollection: ReturnType<typeof vi.fn>;
   actions: monaco.editor.IActionDescriptor[];
+  model: { getLineCount: () => number; tokenization: { forceTokenization: ReturnType<typeof vi.fn> } };
 }
 
 function makeFakeEditor(): FakeEditor {
   const actions: monaco.editor.IActionDescriptor[] = [];
+  // The component calls `getModel()` several times per pass (once for the
+  // MonacoBinding, again for the re-tokenize sweep). A single memoized model
+  // keeps those views consistent so a test can assert on what the component
+  // did to it.
+  const model = {
+    getValue: () => "x = 1\ny = 2\n",
+    getValueInRange: () => "x",
+    onDidChangeContent: () => ({ dispose: () => {} }),
+    getOffsetAt: () => 0,
+    getLineCount: () => 3,
+    tokenization: { forceTokenization: vi.fn() },
+  };
   return {
     actions,
+    model,
     addAction: vi.fn((action: monaco.editor.IActionDescriptor) => {
       actions.push(action);
       return { dispose: vi.fn(), id: action.id, label: action.label };
@@ -157,12 +171,7 @@ function makeFakeEditor(): FakeEditor {
     updateOptions: vi.fn(),
     layout: vi.fn(),
     getSelection: vi.fn(() => new monaco.Selection(1, 1, 1, 5)),
-    getModel: vi.fn(() => ({
-      getValue: () => "x = 1\ny = 2\n",
-      getValueInRange: () => "x",
-      onDidChangeContent: () => ({ dispose: () => {} }),
-      getOffsetAt: () => 0,
-    })),
+    getModel: vi.fn(() => model),
     getScrolledVisiblePosition: vi.fn(() => ({ top: 50, left: 100, height: 18 })),
     createDecorationsCollection: vi.fn(() => ({ clear: vi.fn() })),
   };
@@ -355,6 +364,76 @@ describe("CodeEditorComponent (browser)", () => {
     // Empty unannotated list -> processNextVariable never invoked; the
     // multi-variable state stays in its initial shape.
     expect((fixture.componentInstance as any).isMultipleVariables).toBe(false);
+  });
+
+  it("initializeMonacoEditor: leaves the binding unwired when the operator has no shared code", async () => {
+    const { fixture, editor, c } = makeFixtureWithFakes();
+    (c as any).code = undefined;
+
+    fixture.detectChanges();
+    await flush();
+
+    // readOnly still went through, so the subscribe body was entered and then
+    // bailed out at the missing-code guard rather than never running.
+    expect(editor.updateOptions).toHaveBeenCalledWith({ readOnly: false });
+    expect(monacoBindingCalls).toHaveLength(0);
+    expect(editor.addAction).not.toHaveBeenCalled();
+  });
+
+  it("initializeMonacoEditor: force-tokenizes every line so the first paint carries syntax colours", async () => {
+    const { fixture, editor } = makeFixtureWithFakes();
+
+    fixture.detectChanges();
+    await flush();
+
+    // The stand-in model reports three lines, and Monaco line numbers are
+    // 1-based and inclusive, so exactly 1, 2, 3 should be swept.
+    const forceTokenization = editor.model.tokenization.forceTokenization;
+    expect(forceTokenization.mock.calls.map(call => call[0])).toEqual([1, 2, 3]);
+  });
+
+  it("initializeMonacoEditor: replaces the previous binding and detaches the previous listener on re-init", async () => {
+    const { fixture, c } = makeFixtureWithFakes();
+    fixture.detectChanges();
+    await flush();
+    expect(monacoBindingCalls).toHaveLength(1);
+    const firstBinding = (c as any).monacoBinding as { destroy: ReturnType<typeof vi.fn> };
+    const detach = vi.fn();
+    (c as any).detachYCodeListener = detach;
+
+    // Re-emitting on the version stream re-runs the editor bring-up that
+    // ngAfterViewInit subscribed to.
+    displayVersionStream$.next(false);
+    await flush();
+
+    expect(monacoBindingCalls).toHaveLength(2);
+    expect(firstBinding.destroy).toHaveBeenCalledOnce();
+    expect(detach).toHaveBeenCalledOnce();
+  });
+
+  it("initializeDiffEditor: diffs this operator's latest-version code against the shared text", async () => {
+    const { fixture, c } = makeFixtureWithFakes();
+    const sharedText = new Y.Doc().getText("code");
+    sharedText.insert(0, "shared editing text");
+    (c as any).code = sharedText;
+    // The decoy operator is listed FIRST, so picking anything other than the
+    // entry matching `currentOperatorId` surfaces the wrong version.
+    vi.spyOn(workflowActionService, "getTempWorkflow").mockReturnValue({
+      content: {
+        operators: [
+          { operatorID: "a-different-operator", operatorProperties: { code: "some other operator's code" } },
+          { operatorID: fixture.componentInstance.currentOperatorId, operatorProperties: { code: "latest version" } },
+        ],
+      },
+    } as any);
+    displayVersionStream$.next(true);
+
+    fixture.detectChanges();
+    await flush();
+
+    const config = editorAppMock.configs[0] as any;
+    expect(config.codeResources.modified.text).toBe("latest version");
+    expect(config.codeResources.original.text).toBe("shared editing text");
   });
 
   it("onWindowResize: calls editor.layout() through adjustEditorSize", async () => {

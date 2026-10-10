@@ -28,6 +28,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzModalComponent, NzModalContentDirective, NzModalService } from "ng-zorro-antd/modal";
 import { NzOptionComponent, NzSelectComponent } from "ng-zorro-antd/select";
+import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -40,7 +41,6 @@ type PveUserPackageRow = {
   name: string;
   versionOp: "==" | ">=" | "<=";
   version: string;
-  deleteToggle?: boolean;
 };
 
 type PveDraft = {
@@ -67,6 +67,7 @@ type PveDraft = {
     NzSelectComponent,
     NzOptionComponent,
     NzTooltipDirective,
+    NzPopconfirmDirective,
   ],
 })
 export class UserVenvComponent implements OnInit {
@@ -161,8 +162,8 @@ export class UserVenvComponent implements OnInit {
     this.currentDraft?.newPackages.push({ name: "", versionOp: "==", version: "" });
   }
 
-  togglePackageDelete(pkg: PveUserPackageRow): void {
-    pkg.deleteToggle = !pkg.deleteToggle;
+  removePackage(index: number): void {
+    this.currentDraft?.newPackages.splice(index, 1);
   }
 
   saveEnvironment(): void {
@@ -188,7 +189,6 @@ export class UserVenvComponent implements OnInit {
 
     const packages: Record<string, string> = {};
     for (const row of draft.newPackages) {
-      if (row.deleteToggle) continue;
       const pkgName = row.name.trim();
       if (!pkgName) continue;
       const pkgVersion = (row.version ?? "").trim();
