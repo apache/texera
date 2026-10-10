@@ -730,7 +730,7 @@ class WorkflowResourceSpec
     // dataset is dropped during hydration when LakeFS is unreachable, so it cannot be counted
     // here -- DatasetSearchQueryBuilderSpec covers that path against a stub). Asserting that an
     // unrecognised value is rejected pins that resourceType is dispatched on, not ignored.
-    assertThrows[IllegalArgumentException] {
+    assertThrows[BadRequestException] {
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
