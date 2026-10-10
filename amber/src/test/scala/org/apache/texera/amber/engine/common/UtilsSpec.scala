@@ -23,10 +23,48 @@ import com.twitter.util.{Await, Future, Time}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.file.Paths
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable
 
 class UtilsSpec extends AnyFlatSpec {
+
+  // -- amberHomePath --------------------------------------------------------
+
+  "Utils.AMBER_HOME_FOLDER_NAME" should "be the literal directory name `amber`" in {
+    // Pinned on its own so that the search result below can be compared against a
+    // literal rather than against the constant that selected it -- comparing the two
+    // would move both sides of the equality together and detect nothing.
+    assert(Utils.AMBER_HOME_FOLDER_NAME == "amber")
+  }
+
+  "Utils.amberHomePath" should "resolve to an `amber` directory beneath the working directory" in {
+    // The tests run from the repo root, which is not itself amber home, so this
+    // exercises the Files.walk search rather than the early return.
+    //
+    // Only the *file name* is asserted, never the whole path: `findAny` on a
+    // sequential walk returns the first pre-order directory whose name ends in
+    // "amber", and dot-prefixed sibling directories are visited before `amber/`
+    // itself -- so a local `.<tool>/amber` legitimately wins here (the same hazard
+    // ArrowFlightActorBench documents).
+    //
+    // NOT covered here: the `2` in `Files.walk(cwd, 2)`. `amberHomePath` is a lazy
+    // val reading the process working directory, and `amber/` is a direct child of
+    // the repo root, so depth 1 finds it just as well and any depth >= 1 passes every
+    // assertion below. Only depth 0 dies. Pinning the documented grandchild case
+    // would need an injectable start directory in production code.
+    val currentWorkingDirectory = Paths.get(".").toRealPath()
+    val amberHome = Utils.amberHomePath
+
+    // The literal, never `Utils.AMBER_HOME_FOLDER_NAME`: the constant is what decides
+    // which directory the walk accepts, so asserting against it is a tautology.
+    assert(amberHome.getFileName.toString == "amber")
+    // Pinning it as a strict descendant is what keeps the assertion above from
+    // passing vacuously: on the early-return branch the result IS the working
+    // directory, so a run that never reached the walk would fail here.
+    assert(amberHome.startsWith(currentWorkingDirectory))
+    assert(amberHome != currentWorkingDirectory)
+  }
 
   // -- aggregatedStateToString ----------------------------------------------
 

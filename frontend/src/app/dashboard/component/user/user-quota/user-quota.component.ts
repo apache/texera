@@ -342,5 +342,5 @@ export class UserQuotaComponent implements OnInit {
   formatSize = formatSize;
 
   public sortBySize: NzTableSortFn<ExecutionQuota> = (a: ExecutionQuota, b: ExecutionQuota) =>
-    b.resultBytes + b.logBytes + b.runTimeStatsBytes - a.resultBytes - a.logBytes - a.runTimeStatsBytes;
+    a.resultBytes + a.logBytes + a.runTimeStatsBytes - (b.resultBytes + b.logBytes + b.runTimeStatsBytes);
 }

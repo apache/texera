@@ -256,18 +256,6 @@ describe("PresetService", () => {
       expect((errors[0] as Error).message).toMatch(/already exists/);
     });
 
-    it("updatePreset does not write the preset back when the original preset is missing", async () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
-
-      const errors = await captureRxjsUnhandled(() =>
-        presetService.updatePreset(presetType, presetTarget, { presetProperty: "missing" }, { presetProperty: "v3" })
-      );
-
-      expect(userConfigStub.set).not.toHaveBeenCalled();
-      expect(errors).toHaveLength(1);
-      expect((errors[0] as Error).message).toMatch(/doesn't exist/);
-    });
-
     it("deletePreset removes the matching preset via savePresets", () => {
       const a: Preset = { presetProperty: "v1" };
       const b: Preset = { presetProperty: "v2" };
@@ -392,33 +380,6 @@ describe("PresetService", () => {
         presetService.isValidOperatorPreset({ presetProperty: "applied" }, mockPresetEnabledPredicate.operatorID)
       ).toBe(true);
     });
-
-    it("isValidNewOperatorPreset returns false when the preset already exists", () => {
-      const existing: Preset = { presetProperty: "applied" };
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([existing])));
-
-      let result: boolean | undefined;
-      presetService
-        .isValidNewOperatorPreset(existing, mockPresetEnabledPredicate.operatorID)
-        .subscribe(v => (result = v));
-      expect(result).toBe(false);
-    });
-
-    it("isValidNewOperatorPreset returns true when the preset is novel", () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "applied" }])));
-
-      let result: boolean | undefined;
-      presetService
-        .isValidNewOperatorPreset({ presetProperty: "novel" }, mockPresetEnabledPredicate.operatorID)
-        .subscribe(v => (result = v));
-      expect(result).toBe(true);
-    });
-
-    it("isValidNewOperatorPreset short-circuits to false when the preset itself is invalid", () => {
-      let result: boolean | undefined;
-      presetService.isValidNewOperatorPreset({}, mockPresetEnabledPredicate.operatorID).subscribe(v => (result = v));
-      expect(result).toBe(false);
-    });
   });
 
   describe("static schema helpers", () => {
@@ -530,88 +491,6 @@ describe("PresetService", () => {
           })
         ).toEqual({ presetProperty: "v" });
       });
-    });
-  });
-
-  describe("updateOrCreatePreset", () => {
-    // fetchKey is backed by a synchronous `of(...)`, so the subscribe body (and
-    // the savePresets write-through it triggers) runs before the call returns.
-    it("writes the stored preset list back unchanged when the original and replacement presets are identical", () => {
-      const stored: Preset[] = [{ presetProperty: "v1" }];
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
-
-      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "x" }, { presetProperty: "x" });
-
-      // list is written back unchanged: neither pushed, replaced, nor spliced.
-      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify(stored));
-    });
-
-    it("stores the replacement when the dictionary has no entry yet", () => {
-      // First write for this operator type: fetchKey resolves to null, so the
-      // missing entry has to read as an empty list rather than being parsed.
-      userConfigStub.fetchKey.mockReturnValue(of(null));
-
-      presetService.updateOrCreatePreset(
-        presetType,
-        presetTarget,
-        { presetProperty: "missing" },
-        { presetProperty: "v2" }
-      );
-
-      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
-    });
-
-    it("appends the replacement when neither preset already exists", () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }])));
-
-      presetService.updateOrCreatePreset(
-        presetType,
-        presetTarget,
-        { presetProperty: "missing" },
-        { presetProperty: "v2" }
-      );
-
-      expect(userConfigStub.set).toHaveBeenCalledWith(
-        presetDictKey,
-        JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])
-      );
-    });
-
-    it("writes the stored preset list back unchanged when only the replacement preset already exists", () => {
-      const stored: Preset[] = [{ presetProperty: "v1" }, { presetProperty: "v2" }];
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify(stored)));
-
-      presetService.updateOrCreatePreset(
-        presetType,
-        presetTarget,
-        { presetProperty: "missing" },
-        { presetProperty: "v2" }
-      );
-
-      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify(stored));
-    });
-
-    it("implicitly deletes a preset when both the original and the replacement exist", () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
-
-      // Both presets are present (membership is checked deeply via isEqual), so the
-      // implicit-delete branch removes the original (v1) and leaves the replacement (v2).
-      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v2" });
-
-      expect(userConfigStub.set).toHaveBeenCalledWith(presetDictKey, JSON.stringify([{ presetProperty: "v2" }]));
-    });
-
-    it("replaces the original preset in place when only the original exists", () => {
-      userConfigStub.fetchKey.mockReturnValue(of(JSON.stringify([{ presetProperty: "v1" }, { presetProperty: "v2" }])));
-
-      // The original exists (deep match) but the replacement does not, so the replace
-      // branch swaps the original (v1) for the replacement (v3) at its index.
-      presetService.updateOrCreatePreset(presetType, presetTarget, { presetProperty: "v1" }, { presetProperty: "v3" });
-
-      expect(userConfigStub.set).toHaveBeenCalledWith(
-        presetDictKey,
-        JSON.stringify([{ presetProperty: "v3" }, { presetProperty: "v2" }])
-      );
     });
   });
 

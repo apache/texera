@@ -28,6 +28,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { ComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../../../common/type/computing-unit-connection.interface";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 const MODEL: ModelType = { id: "gpt", name: "GPT", description: "desc", icon: "robot" };
@@ -98,6 +99,17 @@ describe("AgentRegistrationComponent", () => {
       expect(component.isLoadingModels).toBe(false);
       expect(component.hasLoadingError).toBe(true);
       expect(notifyError).toHaveBeenCalledWith("Failed to fetch models: boom");
+    });
+
+    it("stringifies a rejection that is not an Error into the same message", () => {
+      // The test above covers `error.message`; an rxjs source is free to reject
+      // with anything, and a bare string has no `.message`, so the component
+      // falls back to String(error) instead of interpolating `undefined`.
+      fetchModelTypes.mockReturnValue(throwError(() => "backend unreachable"));
+      fixture.detectChanges();
+
+      expect(component.hasLoadingError).toBe(true);
+      expect(notifyError).toHaveBeenCalledWith("Failed to fetch models: backend unreachable");
     });
 
     it("marks the computing unit connected only when the status is Running", () => {
@@ -213,6 +225,86 @@ describe("AgentRegistrationComponent", () => {
       expect(component.selectedModelType).toBe("other-model");
       expect((cards[1].nativeElement as HTMLElement).classList).toContain("selected");
       expect((cards[0].nativeElement as HTMLElement).classList).not.toContain("selected");
+    });
+
+    it("writes what the user types in the name box back into customAgentName", async () => {
+      // The name box is `[(ngModel)]`-bound. Every other test in this file only
+      // assigns `customAgentName` on the instance, which is the direction the box
+      // is never driven in; typing is what feeds the name createAgent() sends.
+      fetchModelTypes.mockReturnValue(of([MODEL]));
+      // The input is `[disabled]="!selectedModelType"`, so pick a model before the
+      // first render; ngModel refuses to push a value into a disabled control.
+      component.selectModelType(MODEL.id);
+      fixture.detectChanges();
+      // ngModel pushes the field into the DOM on a microtask rather than
+      // synchronously inside detectChanges, so drain it before reading the box.
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      const input = fixture.debugElement.query(By.css("input[nz-input]")).nativeElement as HTMLInputElement;
+      expect(input.disabled).toBe(false);
+      expect(input.value).toBe("Texera Agent");
+
+      // Typed rather than assigned -- the write-back is the untested direction.
+      input.value = "My Analyst";
+      input.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+
+      expect(component.customAgentName).toBe("My Analyst");
+    });
+
+    it("labels the submit button Creating... while a creation is in flight", () => {
+      fetchModelTypes.mockReturnValue(of([MODEL]));
+      fixture.detectChanges();
+
+      const button = fixture.debugElement.query(By.css("button[nz-button]")).nativeElement as HTMLElement;
+      expect(button.textContent).toContain("Create Agent");
+      // The spinner is bound off the same flag as the label. Asserting only the
+      // label leaves `[nzLoading]` free to be bound inverted, which would spin
+      // the button whenever nothing is happening and stop spinning during the
+      // one request it exists to cover.
+      expect(button.classList).not.toContain("ant-btn-loading");
+
+      component.isCreating = true;
+      fixture.detectChanges();
+
+      expect(button.textContent).toContain("Creating...");
+      expect(button.textContent).not.toContain("Create Agent");
+      expect(button.classList).toContain("ant-btn-loading");
+    });
+
+    it("keeps the submit button shut, and says why, until a model and a computing unit are both there", () => {
+      // canCreate() is unit-tested above; what is pinned here is the template
+      // actually honouring it. Nothing else in this file reads the button's
+      // gate, so an inverted `[disabled]` binding -- Create enabled exactly
+      // when creation is impossible -- passes every other test: createAgent()
+      // re-checks selectedModelType and isCreating but never
+      // computingUnitConnected, so the click would reach the backend.
+      fetchModelTypes.mockReturnValue(of([MODEL]));
+      fixture.detectChanges();
+
+      const buttonEl = fixture.debugElement.query(By.css("button[nz-button]"));
+      const button = buttonEl.nativeElement as HTMLButtonElement;
+      const tooltip = buttonEl.injector.get(NzTooltipDirective);
+
+      // getStatus defaults to Pending, so the gate legitimately starts shut.
+      expect(component.canCreate()).toBe(false);
+      expect(button.disabled).toBe(true);
+      // Both arms of the tooltip ternary are already executed by this suite, so
+      // only comparing the strings notices them being handed to the wrong side.
+      expect(tooltip.title).toBe("Connect to a computing unit first");
+      // The banner carries the same explanation. Its *ngIf arms are likewise
+      // both executed by the suite, so only checking WHICH state renders it
+      // notices the condition being inverted.
+      expect(fixture.debugElement.query(By.css("nz-alert"))).toBeTruthy();
+
+      component.computingUnitConnected = true;
+      component.selectedModelType = MODEL.id;
+      fixture.detectChanges();
+
+      expect(component.canCreate()).toBe(true);
+      expect(button.disabled).toBe(false);
+      expect(tooltip.title).toBe("");
+      expect(fixture.debugElement.query(By.css("nz-alert"))).toBeNull();
     });
   });
 });

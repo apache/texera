@@ -82,4 +82,70 @@ describe("RegistrationRequestModalComponent", () => {
     expect(logo.getAttribute("src")).toBe("assets/logos/full_logo_small.png");
     expect(logo.getAttribute("alt")).toBe("Texera logo");
   });
+
+  /**
+   * The specs above assign the fields on the instance, which is the direction
+   * the form is never driven in: a real request is typed into the two editable
+   * boxes and read back out through getValues(). Nothing pinned that the boxes
+   * write back at all, nor which box feeds which value.
+   */
+  describe("rendered form", () => {
+    /** The four inputs in template order: name, email, affiliation, reason. */
+    async function renderForm(): Promise<{
+      fixture: ComponentFixture<RegistrationRequestModalComponent>;
+      name: HTMLInputElement;
+      email: HTMLInputElement;
+      affiliation: HTMLInputElement;
+      reason: HTMLTextAreaElement;
+    }> {
+      const fixture = await createFixture({ uid: 1, email: "a@b.com", name: "Alice" });
+      fixture.detectChanges();
+      const [name, email, affiliation] = Array.from(
+        fixture.nativeElement.querySelectorAll("input[nz-input]")
+      ) as HTMLInputElement[];
+      const reason = fixture.nativeElement.querySelector("textarea[nz-input]") as HTMLTextAreaElement;
+      return { fixture, name, email, affiliation, reason };
+    }
+
+    /** Types `text` into `element` the way a user would. */
+    function type(element: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+      element.value = text;
+      element.dispatchEvent(new Event("input"));
+    }
+
+    it("shows the signed-in identity read-only and leaves the request fields open", async () => {
+      const { name, email, affiliation, reason } = await renderForm();
+
+      expect(name.value).toBe("Alice");
+      expect(email.value).toBe("a@b.com");
+      // The administrator reviews the account the user is actually signed in as,
+      // so neither identity field may be edited.
+      expect(name.disabled).toBe(true);
+      expect(email.disabled).toBe(true);
+      expect(affiliation.disabled).toBe(false);
+      expect(reason.disabled).toBe(false);
+      expect(affiliation.getAttribute("placeholder")).toBe("e.g. UC Irvine");
+      expect(reason.getAttribute("placeholder")).toBe("Briefly explain why you want access");
+    });
+
+    it("collects what the user typed into each box, trimmed", async () => {
+      const { fixture, affiliation, reason } = await renderForm();
+
+      // Distinct values, so a swapped binding cannot pass.
+      type(affiliation, "  UC Irvine  ");
+      type(reason, "  research collaboration  ");
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.getValues()).toEqual({
+        affiliation: "UC Irvine",
+        reason: "research collaboration",
+      });
+    });
+
+    it("reports an untouched form as empty rather than as the identity fields", async () => {
+      const { fixture } = await renderForm();
+
+      expect(fixture.componentInstance.getValues()).toEqual({ affiliation: "", reason: "" });
+    });
+  });
 });

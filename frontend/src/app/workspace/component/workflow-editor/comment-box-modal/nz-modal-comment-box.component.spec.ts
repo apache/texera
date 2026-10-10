@@ -283,4 +283,221 @@ describe("NzModalCommentBoxComponent", () => {
     expect(addComment.mock.calls[0][0]).toMatchObject({ content: "via host listener" });
     expect(event.defaultPrevented).toBe(true);
   });
+
+  // ─── template wiring ──────────────────────────────────────────────────────
+  // Every test above reaches the component's methods directly, so none of the
+  // template's own event bindings ever run. These drive the rendered DOM.
+  describe("template wiring", () => {
+    // The comment's author is deliberately NOT the signed-in user (makeUser is
+    // uid 1 / "Alice"). If the two shared their id and name, a binding that
+    // handed a handler `user.uid` where the template must hand it
+    // `item['creatorID']` — the classic "whose comment is this" wiring bug —
+    // would be indistinguishable from the correct one.
+    const COMMENT = { content: "original", creatorName: "Bob", creatorID: 7, creationTime: CREATION_TIME };
+
+    async function renderWithOneComment(): Promise<ComponentFixture<NzModalCommentBoxComponent>> {
+      const fixture = await createFixture({ user: makeUser(), comments: [COMMENT] });
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function actionLinks(fixture: ComponentFixture<NzModalCommentBoxComponent>): HTMLAnchorElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll("[nz-list-item-actions] a")) as HTMLAnchorElement[];
+    }
+
+    function footerTextarea(fixture: ComponentFixture<NzModalCommentBoxComponent>): HTMLTextAreaElement {
+      return fixture.nativeElement.querySelector(".modal-footer textarea") as HTMLTextAreaElement;
+    }
+
+    function footerButton(fixture: ComponentFixture<NzModalCommentBoxComponent>): HTMLButtonElement {
+      return fixture.nativeElement.querySelector(".modal-footer button") as HTMLButtonElement;
+    }
+
+    // The per-comment ids embed an ISO timestamp, whose colons and dots are not
+    // legal in a CSS `#id` selector, so match on the attribute instead.
+    function byId<T extends HTMLElement>(fixture: ComponentFixture<NzModalCommentBoxComponent>, id: string): T {
+      return fixture.nativeElement.querySelector(`[id="${id}"]`) as T;
+    }
+
+    it("posts the typed comment when the footer send button is pressed", async () => {
+      const fixture = await renderWithOneComment();
+      const component = fixture.componentInstance;
+      component.inputValue = "from the button";
+      // The button carries [disabled]="!user || !inputValue"; jsdom swallows a
+      // click on a disabled button, so the model has to be flushed first.
+      fixture.detectChanges();
+
+      const button = footerButton(fixture);
+      expect(button.disabled).toBe(false);
+      button.click();
+
+      expect(addComment).toHaveBeenCalledTimes(1);
+      expect(addComment.mock.calls[0][0]).toMatchObject({ content: "from the button" });
+      // onClickAddComment (not addComment) is what clears the box.
+      expect(component.inputValue).toBe("");
+    });
+
+    it("keeps the footer send button disabled while the box is empty", async () => {
+      const fixture = await renderWithOneComment();
+
+      expect(footerButton(fixture).disabled).toBe(true);
+    });
+
+    it("keeps both send buttons disabled while nobody is signed in", async () => {
+      // Everything else in this describe renders with a signed-in user, so the
+      // `!user` operand of both [disabled] expressions is otherwise never seen
+      // from its true side. Without it a signed-out viewer gets an enabled Send
+      // whose click is silently dropped by addComment/editComment's own guard.
+      const fixture = await createFixture({ user: undefined, comments: [COMMENT] });
+      const component = fixture.componentInstance;
+      component.inputValue = "typed while signed out";
+      component.editValue = "edited while signed out";
+      fixture.detectChanges();
+
+      expect(footerButton(fixture).disabled).toBe(true);
+      expect(byId<HTMLButtonElement>(fixture, `editbtn${COMMENT.creatorName}${CREATION_TIME}`).disabled).toBe(true);
+    });
+
+    it("writes the footer textarea back into inputValue through ngModel", async () => {
+      const fixture = await renderWithOneComment();
+      const textarea = footerTextarea(fixture);
+
+      textarea.value = "typed into the box";
+      textarea.dispatchEvent(new Event("input"));
+
+      expect(fixture.componentInstance.inputValue).toBe("typed into the box");
+      expect(fixture.componentInstance.editValue).toBe("");
+    });
+
+    it("submits the footer comment on Enter", async () => {
+      const fixture = await renderWithOneComment();
+      const component = fixture.componentInstance;
+      component.inputValue = "sent with the enter key";
+      fixture.detectChanges();
+
+      const event = new KeyboardEvent("keydown", { key: "Enter", cancelable: true, bubbles: true });
+      footerTextarea(fixture).dispatchEvent(event);
+
+      expect(addComment).toHaveBeenCalledTimes(1);
+      expect(addComment.mock.calls[0][0]).toMatchObject({ content: "sent with the enter key" });
+      // Enter goes through onClickAddComment, so the box is emptied too.
+      expect(component.inputValue).toBe("");
+      // Otherwise Enter would also insert a newline in the box it just cleared.
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("does not submit the footer comment on an ordinary keystroke", async () => {
+      // The binding is (keydown.enter); with the key filter dropped, every
+      // character typed would post the comment and preventDefault the keystroke,
+      // making the box impossible to type in.
+      const fixture = await renderWithOneComment();
+      const component = fixture.componentInstance;
+      component.inputValue = "half typed";
+      fixture.detectChanges();
+
+      const event = new KeyboardEvent("keydown", { key: "a", cancelable: true, bubbles: true });
+      footerTextarea(fixture).dispatchEvent(event);
+
+      expect(addComment).not.toHaveBeenCalled();
+      expect(component.inputValue).toBe("half typed");
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("saves the edited body when the per-comment send button is pressed", async () => {
+      const fixture = await renderWithOneComment();
+      const component = fixture.componentInstance;
+      const button = byId<HTMLButtonElement>(fixture, `editbtn${COMMENT.creatorName}${CREATION_TIME}`);
+      const textarea = byId<HTMLTextAreaElement>(fixture, `txarea${COMMENT.creatorName}${CREATION_TIME}`);
+      // [disabled]="!user || !editValue": an empty edit box cannot be sent.
+      expect(button.disabled).toBe(true);
+
+      // Open the editor the way the UI does rather than assigning editValue, so
+      // the textarea and button are really revealed and the body is loaded.
+      actionLinks(fixture)[1].click();
+      fixture.detectChanges();
+      expect(textarea.hasAttribute("hidden")).toBe(false);
+      expect(button.hasAttribute("hidden")).toBe(false);
+      expect(component.editValue).toBe("original");
+      expect(button.disabled).toBe(false);
+
+      button.click();
+
+      expect(editComment).toHaveBeenCalledWith(COMMENT.creatorID, CREATION_TIME, BOX_ID, "original");
+      expect(deleteComment).not.toHaveBeenCalled();
+      // editComment's DOM tail closes the editor again, and it can only find
+      // those two nodes through the creatorName the template hands it.
+      expect(textarea.hasAttribute("hidden")).toBe(true);
+      expect(button.hasAttribute("hidden")).toBe(true);
+    });
+
+    it("writes the per-comment textarea back into editValue through ngModel", async () => {
+      const fixture = await renderWithOneComment();
+      const textarea = byId<HTMLTextAreaElement>(fixture, `txarea${COMMENT.creatorName}${CREATION_TIME}`);
+
+      textarea.value = "an edit in progress";
+      textarea.dispatchEvent(new Event("input"));
+
+      expect(fixture.componentInstance.editValue).toBe("an edit in progress");
+      expect(fixture.componentInstance.inputValue).toBe("");
+    });
+
+    it("saves the edited body on Enter in the per-comment textarea", async () => {
+      const fixture = await renderWithOneComment();
+      const textarea = byId<HTMLTextAreaElement>(fixture, `txarea${COMMENT.creatorName}${CREATION_TIME}`);
+      const button = byId<HTMLButtonElement>(fixture, `editbtn${COMMENT.creatorName}${CREATION_TIME}`);
+      // Open the editor through the real link, so editComment's DOM tail has an
+      // editor to close -- that tail is the only thing the creatorName argument
+      // this binding passes can be observed through.
+      actionLinks(fixture)[1].click();
+      fixture.componentInstance.editValue = "edited with the enter key";
+      fixture.detectChanges();
+      expect(textarea.hasAttribute("hidden")).toBe(false);
+
+      const event = new KeyboardEvent("keydown", { key: "Enter", cancelable: true, bubbles: true });
+      textarea.dispatchEvent(event);
+
+      expect(editComment).toHaveBeenCalledWith(COMMENT.creatorID, CREATION_TIME, BOX_ID, "edited with the enter key");
+      expect(event.defaultPrevented).toBe(true);
+      expect(textarea.hasAttribute("hidden")).toBe(true);
+      expect(button.hasAttribute("hidden")).toBe(true);
+    });
+
+    it("does not save the edit on an ordinary keystroke in the per-comment textarea", async () => {
+      // Same key filter, same failure mode: without (keydown.enter) every
+      // character typed into the edit box would commit the edit.
+      const fixture = await renderWithOneComment();
+      fixture.componentInstance.editValue = "half edited";
+      fixture.detectChanges();
+
+      const textarea = byId<HTMLTextAreaElement>(fixture, `txarea${COMMENT.creatorName}${CREATION_TIME}`);
+      const event = new KeyboardEvent("keydown", { key: "a", cancelable: true, bubbles: true });
+      textarea.dispatchEvent(event);
+
+      expect(editComment).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.editValue).toBe("half edited");
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("wires the delete, edit and reply action links to their own handlers", async () => {
+      const fixture = await renderWithOneComment();
+      const component = fixture.componentInstance;
+      const [deleteLink, editLink, replyLink] = actionLinks(fixture);
+      expect([deleteLink.textContent, editLink.textContent, replyLink.textContent]).toEqual([
+        "delete",
+        "edit",
+        "reply",
+      ]);
+
+      replyLink.click();
+      // The author, not the viewer: a reply quotes "Bob", never "Alice".
+      expect(component.inputValue).toBe('@Bob:"original"\n');
+
+      // toggleEditInput needs the ids the template itself renders.
+      editLink.click();
+      expect(component.editValue).toBe("original");
+
+      deleteLink.click();
+      expect(deleteComment).toHaveBeenCalledWith(COMMENT.creatorID, CREATION_TIME, BOX_ID);
+    });
+  });
 });

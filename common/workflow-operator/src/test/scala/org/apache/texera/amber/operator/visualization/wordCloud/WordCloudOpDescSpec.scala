@@ -54,4 +54,12 @@ class WordCloudOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val code = opDesc.createWordCloudFigure().plain
     assert(code.contains("my_text"))
   }
+
+  it should "seed the layout so the same text draws the same picture every run" in {
+    opDesc.textColumn = "my_text"
+    val code = opDesc.createWordCloudFigure().plain
+    // Without random_state the words keep their sizes but every position, angle
+    // and colour changes from one run to the next.
+    assert(code.contains("random_state=0"))
+  }
 }

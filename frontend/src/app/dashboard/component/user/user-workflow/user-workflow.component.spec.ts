@@ -31,8 +31,6 @@ import { StubWorkflowPersistService } from "../../../../common/service/workflow-
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
-import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -59,9 +57,6 @@ import {
   testWorkflowFileNameConflictEntries,
 } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
-import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../service/user/project/stub-user-project.service";
 import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
@@ -76,7 +71,10 @@ import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 import { NotebookMigrationService } from "../../../../workspace/service/notebook-migration/notebook-migration.service";
-import { LlmRequestTimeoutError } from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  LlmRequestTimeoutError,
+  LlmResponseTruncatedError,
+} from "../../../../workspace/service/notebook-migration/migration-llm";
 import { NotebookImportModalComponent } from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import type { Mocked } from "vitest";
@@ -93,7 +91,6 @@ describe("SavedWorkflowSectionComponent", () => {
       providers: [
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: UserProjectService, useValue: new StubUserProjectService() },
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: NZ_I18N, useValue: en_US },
@@ -109,7 +106,6 @@ describe("SavedWorkflowSectionComponent", () => {
         UserWorkflowComponent,
         ShareAccessComponent,
         FiltersComponent,
-        UserWorkflowListItemComponent,
         SearchResultsComponent,
         FormsModule,
         RouterTestingModule,
@@ -204,23 +200,6 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.filters.masterFilterList).toEqual(["id: 1", "id: 2", "id: 3"]);
   });
 
-  it("searchByProjects", async () => {
-    component.filters.userProjectsDropdown = [
-      { pid: 1, name: "Project1", checked: false },
-      { pid: 2, name: "Project2", checked: false },
-      { pid: 3, name: "Project3", checked: false },
-    ];
-
-    // If the project filter is applied, only those workflows belonging to those projects should be returned.
-    component.filters.userProjectsDropdown[0].checked = true;
-    component.filters.updateSelectedProjects();
-    await waitForLoading();
-    expect(component.searchResultsComponent.loading).toBe(false);
-    const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
-    expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3"]);
-    expect(component.filters.masterFilterList).toEqual(["project: Project1"]);
-  });
-
   it("searchByCreationTime", async () => {
     // If the creation time filter is applied, only those workflows matching the date range should be returned.
     component.filters.selectedCtime = [new Date(1970, 0, 3), new Date(1981, 2, 13)];
@@ -283,29 +262,22 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByManyParameters", async () => {
-    // Apply the project, ID, owner, and operator filter all at once.
+    // Apply the ID, owner, and operator filters all at once.
     component.filters.masterFilterList = ["1"];
     const operatorGroup = component.filters.operators.get("Analysis");
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
       component.filters.updateSelectedOperators();
-      component.filters.userProjectsDropdown = [
-        { pid: 1, name: "Project1", checked: false },
-        { pid: 2, name: "Project2", checked: false },
-        { pid: 3, name: "Project3", checked: false },
-      ];
 
       component.filters.owners[0].checked = true; //Texera
       component.filters.owners[1].checked = true; //Angular
       component.filters.wids[0].checked = true;
       component.filters.wids[1].checked = true;
       component.filters.wids[2].checked = true; //id 1,2,3
-      component.filters.userProjectsDropdown[0].checked = true; //Project 1
       component.filters.selectedCtime = [new Date(1970, 0, 1), new Date(1973, 2, 11)];
       component.filters.selectedMtime = [new Date(1970, 0, 1), new Date(1982, 3, 14)];
       //add/select new search parameter here
 
-      component.filters.updateSelectedProjects();
       component.filters.updateSelectedIDs();
       component.filters.updateSelectedOwners();
     }
@@ -322,7 +294,6 @@ describe("SavedWorkflowSectionComponent", () => {
         "id: 2",
         "id: 3",
         "operator: Aggregation",
-        "project: Project1",
         "ctime: 1970-01-01 ~ 1973-03-11",
         "mtime: 1970-01-01 ~ 1982-04-14",
       ])
@@ -337,7 +308,6 @@ describe("SavedWorkflowSectionComponent", () => {
       // StubWorkflowPersistService doesn't define createWorkflow — assign the
       // method here so the component's call resolves to a controlled observable.
       persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid: 99 } }));
-      component.pid = undefined;
 
       component.onClickCreateNewWorkflowFromDashboard();
 
@@ -348,17 +318,20 @@ describe("SavedWorkflowSectionComponent", () => {
 
   describe("AI generate workflow (dashboard entry point)", () => {
     const ipynbFile = { name: "analysis.ipynb" } as NzUploadFile;
-    const AI_BUTTON_SELECTOR = 'button[title="AI generate a workflow from a Python notebook"]';
+    const AI_BUTTON_SELECTOR = 'button[title="AI generate a workflow from source code"]';
 
     // Opens the modal and returns the requestImport callback the component handed to it; calling
     // it runs the full generation (true => generation succeeded and navigated, false => stay open).
-    function getRequestImport(): (file: NzUploadFile, model: string) => Promise<boolean> {
+    function getRequestImport(): (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean> {
       const modalService = TestBed.inject(NzModalService);
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as unknown as NzModalRef);
       component.openAiGenerateModal();
       const config = createSpy.mock.calls[0][0] as ModalOptions;
-      return (config.nzData as { requestImport: (file: NzUploadFile, model: string) => Promise<boolean> })
-        .requestImport;
+      return (
+        config.nzData as {
+          requestImport: (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean>;
+        }
+      ).requestImport;
     }
 
     // Wires the NotebookMigrationService + persistence mocks for a successful generation.
@@ -384,14 +357,15 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(createSpy).toHaveBeenCalledTimes(1);
       const config = createSpy.mock.calls[0][0] as ModalOptions;
       expect(config.nzContent).toBe(NotebookImportModalComponent);
+      expect(config.nzTitle).toBe("AI Generate Workflow from Source Code");
       expect(config.nzFooter).toBeNull();
+      expect(config.nzBodyStyle).toEqual({ paddingTop: "4px" });
       expect(typeof (config.nzData as { requestImport: unknown }).requestImport).toBe("function");
     });
 
     it("generates a workflow, stores the notebook and mapping, navigates with autolayout, and resolves true", async () => {
       const { storeSpy, persist } = mockGenerationSuccess(99);
       const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
-      component.pid = undefined;
 
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
@@ -431,28 +405,248 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(proceed).toBe(true);
     });
 
-    it("adds the new workflow to the current project when opened inside one", async () => {
-      mockGenerationSuccess(99);
-      vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
-      const projectService = TestBed.inject(UserProjectService) as any;
-      const addSpy = vi.spyOn(projectService, "addWorkflowToProject").mockReturnValue(of(undefined));
-      component.pid = 5;
-
-      const proceed = await getRequestImport()(ipynbFile, "gpt-4");
-
-      expect(addSpy).toHaveBeenCalledWith(5, 99);
-      expect(proceed).toBe(true);
-    });
-
-    it("rejects a non-ipynb file: errors, resolves false, and generates nothing", async () => {
-      const parseSpy = vi.spyOn(TestBed.inject(NotebookMigrationService), "parseAndTagNotebook");
+    it("rejects an unsupported extension: errors, resolves false, and generates nothing", async () => {
+      const migration = TestBed.inject(NotebookMigrationService);
+      const notebookSpy = vi.spyOn(migration, "parseAndTagNotebook");
+      const scriptSpy = vi.spyOn(migration, "parseScriptFile");
       const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
 
       const proceed = await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Please upload a valid Jupyter Notebook (.ipynb) file.");
-      expect(parseSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
+      expect(notebookSpy).not.toHaveBeenCalled();
+      expect(scriptSpy).not.toHaveBeenCalled();
+    });
+
+    // A .py takes the other branch: read as text, converted by the script method, and the
+    // notebook it stores is the one the LLM derived rather than an uploaded file.
+    describe("Python file input", () => {
+      const pyFile = { name: "analysis.py" } as NzUploadFile;
+      const derivedNotebook = { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] };
+
+      function mockScriptGenerationSuccess(wid = 42) {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        const convertSpy = vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockResolvedValue({
+          workflowContent: { operators: [] },
+          mappingContent: { operator_to_cell: {}, cell_to_operator: {} },
+          notebook: derivedNotebook,
+        } as any);
+        const storeSpy = vi.spyOn(migration, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid } }));
+        return { convertSpy, storeSpy, persist };
+      }
+
+      it("converts the script, stores the derived notebook, navigates, and resolves true", async () => {
+        const { convertSpy, storeSpy, persist } = mockScriptGenerationSuccess(42);
+        const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(convertSpy).toHaveBeenCalledWith("x = 1\n", "gpt-4");
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("analysis_GENERATED_BY_LLM");
+        // The stored notebook is the derived one; nothing else could have supplied it.
+        expect(storeSpy).toHaveBeenCalledWith(42, expect.anything(), derivedNotebook);
+        expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 42], { queryParams: { autolayout: 1 } });
+        expect(proceed).toBe(true);
+      });
+
+      it("never reaches the notebook path for a .py", async () => {
+        mockScriptGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        const migration = TestBed.inject(NotebookMigrationService);
+        const notebookParse = vi.spyOn(migration, "parseAndTagNotebook");
+        const notebookConvert = vi.spyOn(migration, "sendToAIGenerateWorkflow");
+
+        await getRequestImport()(pyFile, "gpt-4");
+
+        expect(notebookParse).not.toHaveBeenCalled();
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("reports an unreadable or empty file and resolves false without calling the LLM", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockRejectedValue(new Error("The Python file is empty."));
+        const convertSpy = vi.spyOn(migration, "sendScriptToAIGenerateWorkflow");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Failed to read the Python file. Please upload a valid, non-empty .py file."
+        );
+        expect(convertSpy).not.toHaveBeenCalled();
+      });
+
+      it("names the script in the timeout message so the advice matches the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockRejectedValue(new LlmRequestTimeoutError(10));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the script"));
+      });
+
+      it("reports a generation failure and resolves false", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x = 1\n");
+        vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockRejectedValue(new Error("LLM down"));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(pyFile, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Error while communicating with the LLM, check console for details.");
+      });
+    });
+
+    // A folder arrives as the whole picked list rather than one file, which is what selects this
+    // branch; from the assembled document onward it behaves like the .py path.
+    describe("Python folder input", () => {
+      const derivedNotebook = { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] };
+      const assembled = {
+        source: "# ===== FILE: main.py =====\nx = 1",
+        forcedBoundaries: [1],
+        files: [],
+        tree: "proj/\n  main.py",
+      };
+
+      // What beforeUpload hands over: ng-zorro attaches a uid to the browser File itself, and only
+      // wraps it in originFileObj later. A fixture that wraps it up front would pass while the
+      // real picker produced no path at all.
+      function pickedFile(relativePath: string): NzUploadFile {
+        const file = new File([""], relativePath.split("/").pop() ?? relativePath);
+        Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+        (file as unknown as NzUploadFile).uid = relativePath;
+        return file as unknown as NzUploadFile;
+      }
+
+      const selection = [pickedFile("proj/main.py"), pickedFile("proj/pkg/train.py")];
+
+      function mockFolderGenerationSuccess(wid = 77) {
+        const migration = TestBed.inject(NotebookMigrationService);
+        const parseSpy = vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        const convertSpy = vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockResolvedValue({
+          workflowContent: { operators: [] },
+          mappingContent: { operator_to_cell: {}, cell_to_operator: {} },
+          notebook: derivedNotebook,
+        } as any);
+        const storeSpy = vi.spyOn(migration, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid } }));
+        return { parseSpy, convertSpy, storeSpy, persist };
+      }
+
+      it("converts the folder, names the workflow after it, stores the derived notebook, and navigates", async () => {
+        const { parseSpy, convertSpy, storeSpy, persist } = mockFolderGenerationSuccess(77);
+        const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        // The Files themselves are what carry webkitRelativePath, so those are what get passed on.
+        expect(parseSpy.mock.calls[0][0]).toEqual(selection);
+        expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4");
+        // Named after the selected folder, with no extension to strip.
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("proj_GENERATED_BY_LLM");
+        expect(storeSpy).toHaveBeenCalledWith(77, expect.anything(), derivedNotebook);
+        expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 77], { queryParams: { autolayout: 1 } });
+        expect(proceed).toBe(true);
+      });
+
+      it("never reaches the single-file paths for a folder", async () => {
+        mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        const migration = TestBed.inject(NotebookMigrationService);
+        const scriptParse = vi.spyOn(migration, "parseScriptFile");
+        const notebookParse = vi.spyOn(migration, "parseAndTagNotebook");
+
+        await getRequestImport()(selection, "gpt-4");
+
+        expect(scriptParse).not.toHaveBeenCalled();
+        expect(notebookParse).not.toHaveBeenCalled();
+      });
+
+      it("shows parseFolder's own message, which names what was wrong with the selection", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockRejectedValue(
+          new Error("No Python files were found in the selected folder.")
+        );
+        const convertSpy = vi.spyOn(migration, "sendFolderToAIGenerateWorkflow");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("No Python files were found in the selected folder.");
+        expect(convertSpy).not.toHaveBeenCalled();
+      });
+
+      it("tells the user the reply was cut off, naming the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockRejectedValue(new LlmResponseTruncatedError());
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cut off"));
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("folder"));
+      });
+
+      it("falls back to a generic message when something other than an Error is thrown", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockRejectedValue("not an Error");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Failed to read the selected folder.");
+      });
+
+      it("names the folder in the timeout message so the advice matches the input", async () => {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseFolder").mockResolvedValue(assembled as any);
+        vi.spyOn(migration, "sendFolderToAIGenerateWorkflow").mockRejectedValue(new LlmRequestTimeoutError(10));
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(selection, "gpt-4");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the folder"));
+      });
+
+      it("names the workflow after the folder when the file arrives wrapped", async () => {
+        const inner = pickedFile("wrapped_proj/main.py");
+        const { persist } = mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        await getRequestImport()(
+          [{ uid: "1", name: "main.py", originFileObj: inner } as unknown as NzUploadFile],
+          "gpt-4"
+        );
+
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe("wrapped_proj_GENERATED_BY_LLM");
+      });
+
+      it("falls back to the default workflow name when the picker reported no path", async () => {
+        const { persist } = mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        // A real File, just one carrying no webkitRelativePath, so there is no folder to name it
+        // after. A bare {uid, name} wrapper would be rejected before reaching the naming step.
+        const pathless = new File([""], "main.py") as unknown as NzUploadFile;
+
+        await getRequestImport()([pathless], "gpt-4");
+
+        expect(persist.createWorkflow.mock.calls[0][1]).toBe(`${DEFAULT_WORKFLOW_NAME}_GENERATED_BY_LLM`);
+      });
     });
 
     it("reports a parse failure and resolves false without calling the LLM", async () => {
@@ -519,25 +713,11 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(storeSpy).not.toHaveBeenCalled();
     });
 
-    it("still opens the workflow when adding it to the project fails (best effort)", async () => {
-      mockGenerationSuccess(99);
-      const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
-      const projectService = TestBed.inject(UserProjectService) as any;
-      vi.spyOn(projectService, "addWorkflowToProject").mockReturnValue(throwError(() => new Error("project down")));
-      component.pid = 5;
-
-      const proceed = await getRequestImport()(ipynbFile, "gpt-4");
-
-      expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 99], { queryParams: { autolayout: 1 } });
-      expect(proceed).toBe(true);
-    });
-
     it("warns but still opens the workflow when storing the notebook fails (no re-generation)", async () => {
       const { storeSpy, persist } = mockGenerationSuccess(99);
       storeSpy.mockReturnValue(throwError(() => new Error("store down")) as any);
       const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
       const warnSpy = vi.spyOn(TestBed.inject(NotificationService), "warning").mockImplementation(() => {});
-      component.pid = undefined;
 
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
@@ -554,7 +734,6 @@ describe("SavedWorkflowSectionComponent", () => {
       mockGenerationSuccess(99);
       vi.spyOn(TestBed.inject(Router), "navigate").mockRejectedValue(new Error("blocked"));
       const warnSpy = vi.spyOn(TestBed.inject(NotificationService), "warning").mockImplementation(() => {});
-      component.pid = undefined;
 
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
@@ -633,7 +812,6 @@ describe("SavedWorkflowSectionComponent", () => {
       isOwner: true,
       ownerName: "Texera",
       accessLevel: "Write",
-      projectIDs: [],
       ownerId: 1,
       coverImage: null,
     });
@@ -654,9 +832,12 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("deleteWorkflow", () => {
-      it("deletes an entry with a wid and removes it from the results", () => {
+      it("deletes an entry with a wid, removes it from the results, and cleans up its pod notebook", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(of(null));
+        const cleanup = vi
+          .spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow")
+          .mockResolvedValue(undefined);
         const target = makeEntry(5, "to delete");
         setEntries([target, makeEntry(6, "keep")]);
 
@@ -664,25 +845,27 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(persist.deleteWorkflow).toHaveBeenCalledWith([5]);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["keep"]);
+        expect(cleanup).toHaveBeenCalledWith(5);
       });
 
       it("does nothing when the entry has no wid", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn();
+        const cleanup = vi.spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow");
 
         component.deleteWorkflow(makeEntry(undefined, "no wid"));
 
         expect(persist.deleteWorkflow).not.toHaveBeenCalled();
+        expect(cleanup).not.toHaveBeenCalled();
       });
     });
 
     describe("onClickDuplicateSelectedWorkflows", () => {
-      it("duplicates checked wids without a pid and prepends the new entries", () => {
+      it("duplicates checked wids and prepends the new entries", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.duplicateWorkflow = vi
           .fn()
           .mockReturnValue(of([makeDashboardWorkflow(101, "dup a"), makeDashboardWorkflow(102, "dup b")]));
-        component.pid = undefined;
         setEntries([makeEntry(1, "wf 1", true), makeEntry(2, "wf 2", true), makeEntry(3, "wf 3", false)]);
 
         component.onClickDuplicateSelectedWorkflows();
@@ -695,17 +878,6 @@ describe("SavedWorkflowSectionComponent", () => {
           "wf 2",
           "wf 3",
         ]);
-      });
-
-      it("passes the pid to duplicateWorkflow when the section belongs to a project", () => {
-        const persist = TestBed.inject(WorkflowPersistService) as any;
-        persist.duplicateWorkflow = vi.fn().mockReturnValue(of([makeDashboardWorkflow(101, "dup a")]));
-        component.pid = 9;
-        setEntries([makeEntry(1, "wf 1", true), makeEntry(2, "wf 2", true)]);
-
-        component.onClickDuplicateSelectedWorkflows();
-
-        expect(persist.duplicateWorkflow).toHaveBeenCalledWith([1, 2], 9);
       });
 
       it("early-returns without calling the service when a checked entry has no wid", () => {
@@ -722,7 +894,6 @@ describe("SavedWorkflowSectionComponent", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.duplicateWorkflow = vi.fn().mockReturnValue(throwError(() => "boom"));
         const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-        component.pid = undefined;
         setEntries([makeEntry(1, "wf 1", true)]);
 
         component.onClickDuplicateSelectedWorkflows();
@@ -732,9 +903,12 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("handleConfirmDeleteSelectedWorkflows", () => {
-      it("deletes checked wids and keeps undefined-wid entries", () => {
+      it("deletes checked wids, keeps undefined-wid entries, and cleans up each pod notebook", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(of(null));
+        const cleanup = vi
+          .spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow")
+          .mockResolvedValue(undefined);
         setEntries([
           makeEntry(1, "a", true),
           makeEntry(2, "b", true),
@@ -746,6 +920,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(persist.deleteWorkflow).toHaveBeenCalledWith([1, 2]);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toEqual(["c", "d"]);
+        expect(cleanup.mock.calls.map(c => c[0])).toEqual([1, 2]);
       });
 
       it("early-returns when a checked entry has no wid", () => {
@@ -758,15 +933,18 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(persist.deleteWorkflow).not.toHaveBeenCalled();
       });
 
-      it("alerts on a deletion error", () => {
+      it("alerts on a deletion error and does not touch the pod", () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.deleteWorkflow = vi.fn().mockReturnValue(throwError(() => "delfail"));
         const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+        const cleanup = vi.spyOn(TestBed.inject(NotebookMigrationService), "deleteNotebookForWorkflow");
         setEntries([makeEntry(1, "a", true)]);
 
         component.handleConfirmDeleteSelectedWorkflows();
 
         expect(alertSpy).toHaveBeenCalledWith("delfail");
+        // The backend delete failed, so the pod file must be left in place.
+        expect(cleanup).not.toHaveBeenCalled();
       });
     });
 
@@ -806,10 +984,25 @@ describe("SavedWorkflowSectionComponent", () => {
         const result = await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
         expect(result).toBe(false);
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf");
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "wf", undefined);
         expect(component.searchResultsComponent.entries.map(e => e.name)).toContain("wf");
         expect(searchSpy).toHaveBeenCalledWith(true);
         expect(successSpy).toHaveBeenCalledWith("Upload Successful");
+      });
+
+      it("restores a form-default workflow's landing view, keeping it out of the content", async () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(43, "form-wf")));
+        vi.spyOn(component, "search").mockResolvedValue(undefined);
+        vi.spyOn(TestBed.inject(NotificationService), "success").mockImplementation(() => undefined as any);
+        const content = testWorkflowContent([]);
+        const file = new File([JSON.stringify({ ...content, defaultView: "FORM" })], "form-wf.json");
+        setEntries([]);
+
+        await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
+
+        // defaultView is pulled out and passed on its own; the content stored is unchanged.
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, "form-wf", "FORM");
       });
 
       it("toasts an error and errors the stream when the file is not JSON", async () => {
@@ -834,7 +1027,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME);
+        expect(persist.createWorkflow).toHaveBeenCalledWith(content, DEFAULT_WORKFLOW_NAME, undefined);
       });
 
       it("imports every workflow file inside an uploaded .zip", async () => {
@@ -928,44 +1121,6 @@ describe("SavedWorkflowSectionComponent", () => {
       });
     });
 
-    describe("project workflow modals", () => {
-      it("opens the add-to-project modal and re-searches after it closes", () => {
-        const modalService = TestBed.inject(NzModalService);
-        const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
-        const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ afterClose: of(undefined) } as any);
-        component.pid = 7;
-
-        component.onClickOpenAddWorkflow();
-
-        expect(createSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            nzContent: NgbdModalAddProjectWorkflowComponent,
-            nzData: { projectId: 7 },
-            nzTitle: "Add Workflows To Project",
-          })
-        );
-        expect(searchSpy).toHaveBeenCalledWith(true);
-      });
-
-      it("opens the remove-from-project modal and re-searches after it closes", () => {
-        const modalService = TestBed.inject(NzModalService);
-        const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
-        const createSpy = vi.spyOn(modalService, "create").mockReturnValue({ afterClose: of(undefined) } as any);
-        component.pid = 3;
-
-        component.onClickOpenRemoveWorkflow();
-
-        expect(createSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            nzContent: NgbdModalRemoveProjectWorkflowComponent,
-            nzData: { projectId: 3 },
-            nzTitle: "Remove Workflows From Project",
-          })
-        );
-        expect(searchSpy).toHaveBeenCalledWith(true);
-      });
-    });
-
     describe("uncovered branch coverage", () => {
       // A FileReader whose result is intentionally not a string, so handleFileUploads
       // exercises its "file is not a string" guard. readAsText fires onload on the next
@@ -1037,32 +1192,15 @@ describe("SavedWorkflowSectionComponent", () => {
         });
       });
 
-      describe("search", () => {
-        it("forces the section's pid into the search filter parameters", async () => {
-          const searchService = TestBed.inject(SearchService) as any;
-          const execSpy = vi.spyOn(searchService, "executeSearch");
-          component.pid = 3;
-
-          await component.search(true);
-
-          expect(execSpy).toHaveBeenCalled();
-          expect((execSpy.mock.calls[0][1] as any).projectIds).toEqual([3]);
-        });
-      });
-
       describe("onClickCreateNewWorkflowFromDashboard", () => {
-        it("adds the new workflow to the project before navigating when a pid is set", () => {
+        it("navigates to the created workflow", () => {
           const router = TestBed.inject(Router);
           const navigateSpy = vi.spyOn(router, "navigate").mockResolvedValue(true);
           const persist = TestBed.inject(WorkflowPersistService) as any;
           persist.createWorkflow = vi.fn().mockReturnValue(of({ workflow: { wid: 55 } }));
-          const projectService = TestBed.inject(UserProjectService) as any;
-          const addSpy = vi.spyOn(projectService, "addWorkflowToProject").mockReturnValue(of({} as any));
-          component.pid = 8;
 
           component.onClickCreateNewWorkflowFromDashboard();
 
-          expect(addSpy).toHaveBeenCalledWith(8, 55);
           expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 55]);
         });
 
@@ -1073,7 +1211,6 @@ describe("SavedWorkflowSectionComponent", () => {
             .spyOn(TestBed.inject(NotificationService), "error")
             .mockImplementation(() => undefined as any);
           const navigateSpy = vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
-          component.pid = undefined;
 
           component.onClickCreateNewWorkflowFromDashboard();
 
@@ -1090,7 +1227,6 @@ describe("SavedWorkflowSectionComponent", () => {
             .mockReturnValue(of([{ ...makeDashboardWorkflow(201, "dup"), ownerId: 2 }]));
           const searchService = TestBed.inject(SearchService) as any;
           const getUserInfoSpy = vi.spyOn(searchService, "getUserInfo");
-          component.pid = undefined;
           component.currentUid = 1;
           setEntries([makeEntry(9, "existing")]);
 
@@ -1105,17 +1241,17 @@ describe("SavedWorkflowSectionComponent", () => {
           expect(entries[0].accessibleUserIds).toEqual([1]);
         });
 
-        it("passes the section pid to duplicateWorkflow when inside a project", async () => {
+        it("asks for the copy's size, which the duplicate response does not carry", async () => {
           const persist = TestBed.inject(WorkflowPersistService) as any;
-          persist.duplicateWorkflow = vi
-            .fn()
-            .mockReturnValue(of([{ ...makeDashboardWorkflow(202, "dp"), ownerId: 2 }]));
-          component.pid = 9;
+          persist.duplicateWorkflow = vi.fn().mockReturnValue(of([makeDashboardWorkflow(201, "dup")]));
+          persist.getSizes = vi.fn().mockReturnValue(of({ 201: 4096 }));
           setEntries([]);
 
           await component.onClickDuplicateWorkflow(makeEntry(5, "orig"));
 
-          expect(persist.duplicateWorkflow).toHaveBeenCalledWith([5], 9);
+          expect(persist.getSizes).toHaveBeenCalledWith([201]);
+          // Without this the row would claim 0 B next to correctly-sized siblings.
+          expect(component.searchResultsComponent.entries[0].size).toBe(4096);
         });
 
         it("skips the user-info lookup and access grant when there is no owner or current user", async () => {
@@ -1125,7 +1261,6 @@ describe("SavedWorkflowSectionComponent", () => {
             .mockReturnValue(of([{ ...makeDashboardWorkflow(203, "no owner"), ownerId: undefined } as any]));
           const searchService = TestBed.inject(SearchService) as any;
           const getUserInfoSpy = vi.spyOn(searchService, "getUserInfo");
-          component.pid = undefined;
           component.currentUid = undefined;
           setEntries([]);
 
@@ -1144,7 +1279,6 @@ describe("SavedWorkflowSectionComponent", () => {
             .mockReturnValue(of([{ ...makeDashboardWorkflow(205, "na"), ownerId: 2 }]));
           const searchService = TestBed.inject(SearchService) as any;
           searchService.getUserInfo = vi.fn().mockReturnValue(of({ 2: { userName: "NoAvatar" } }));
-          component.pid = undefined;
           setEntries([]);
 
           await component.onClickDuplicateWorkflow(makeEntry(5, "orig"));
@@ -1168,7 +1302,6 @@ describe("SavedWorkflowSectionComponent", () => {
           persist.duplicateWorkflow = vi.fn().mockReturnValue(throwError(() => ({ error: "dup error" })));
           const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
           vi.spyOn(console, "log").mockImplementation(() => {});
-          component.pid = undefined;
           setEntries([]);
 
           await component.onClickDuplicateWorkflow(makeEntry(5, "orig"));
@@ -1186,19 +1319,6 @@ describe("SavedWorkflowSectionComponent", () => {
           component.onClickDuplicateSelectedWorkflows();
 
           expect(persist.duplicateWorkflow).not.toHaveBeenCalled();
-        });
-
-        it("alerts on a duplication error in the project (pid) branch", () => {
-          const persist = TestBed.inject(WorkflowPersistService) as any;
-          persist.duplicateWorkflow = vi.fn().mockReturnValue(throwError(() => "pidboom"));
-          const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-          component.pid = 4;
-          setEntries([makeEntry(1, "a", true)]);
-
-          component.onClickDuplicateSelectedWorkflows();
-
-          expect(persist.duplicateWorkflow).toHaveBeenCalledWith([1], 4);
-          expect(alertSpy).toHaveBeenCalledWith("pidboom");
         });
       });
 
@@ -1239,7 +1359,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
           await firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any));
 
-          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext");
+          expect(persist.createWorkflow).toHaveBeenCalledWith(content, "noext", undefined);
         });
 
         it("errors the upload stream and does not toast success when createWorkflow fails", async () => {
@@ -1336,19 +1456,6 @@ describe("SavedWorkflowSectionComponent", () => {
         const spy = vi.spyOn(component, "handleConfirmDeleteSelectedWorkflows").mockImplementation(() => {});
         q('[nzPopconfirmTitle="Confirm to delete selected workflows."]').triggerEventHandler("nzOnConfirm", null);
         expect(spy).toHaveBeenCalled();
-      });
-
-      it("shows and wires the project add/remove buttons when a pid is set", () => {
-        component.pid = 1;
-        fixture.detectChanges();
-        const addSpy = vi.spyOn(component, "onClickOpenAddWorkflow").mockImplementation(() => {});
-        const removeSpy = vi.spyOn(component, "onClickOpenRemoveWorkflow").mockImplementation(() => {});
-
-        q('[title="Add workflow(s) to project"]').triggerEventHandler("click", null);
-        q('[title="Remove workflow(s) from project"]').triggerEventHandler("click", null);
-
-        expect(addSpy).toHaveBeenCalled();
-        expect(removeSpy).toHaveBeenCalled();
       });
 
       it("switches the view type through the List/Card buttons", () => {

@@ -40,27 +40,28 @@ import { By } from "@angular/platform-browser";
 import { MOCK_USER_ID, StubUserService } from "../../../../common/service/user/stub-user.service";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../service/user/project/stub-user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
 // resolves to it, without dragging in FiltersComponent's six service
-// dependencies and backend-touching ngOnInit. `getSearchKeywords()` mirrors the
-// current filter list so route-driven searches can be asserted end to end.
+// dependencies and backend-touching ngOnInit.
 @Component({
   selector: "texera-filters",
   template: "",
   providers: [{ provide: FiltersComponent, useExisting: forwardRef(() => MockFiltersComponent) }],
 })
 class MockFiltersComponent {
+  @Input() entityType: EntityType | null = null;
+  @Input() ownerScope?: string;
   masterFilterListChange = EMPTY;
   masterFilterList: ReadonlyArray<string> = [];
-  getSearchKeywords = (): string[] => [...this.masterFilterList];
   getSearchFilterParameters = () => ({});
+  clearFacetSelections = vi.fn();
 }
 
 @Component({
@@ -68,17 +69,15 @@ class MockFiltersComponent {
   template: "",
 })
 class MockSearchResultsComponent {
-  @Input() showResourceTypes = false;
-  @Input() searchKeywords: string[] = [];
   @Input() currentUid?: number;
 }
 
 // A plain filters double for the unit tests that drive component methods
 // directly (no rendering / no ViewChild).
-function makeFiltersDouble(keywords: string[] = []) {
+function makeFiltersDouble(keywords: string[] = [], masterFilterList: ReadonlyArray<string> = []) {
   return {
     masterFilterListChange: EMPTY,
-    masterFilterList: [] as ReadonlyArray<string>,
+    masterFilterList,
     getSearchKeywords: () => keywords,
     getSearchFilterParameters: () => ({}),
   } as unknown as FiltersComponent;
@@ -138,10 +137,6 @@ describe("SearchComponent", () => {
     expect(() => fixture.detectChanges()).not.toThrow();
   });
 
-  it("starts with an empty searchKeywords list so the template binding is always safe", () => {
-    expect(component.searchKeywords).toEqual([]);
-  });
-
   // ─── filters getter / setter ────────────────────────────────────────────────
 
   it("throws from the filters getter before the ViewChild has resolved", () => {
@@ -166,32 +161,23 @@ describe("SearchComponent", () => {
 
   // ─── ngAfterViewInit / query params ─────────────────────────────────────────
 
-  it("applies the `q` query param to the filters and populates searchKeywords", () => {
+  it("applies the `q` query param to the filters", () => {
     fixture.detectChanges(); // resolves the filters ViewChild and subscribes to queryParams
     queryParams$.next({ q: "foo bar" });
 
     expect(component.searchParam).toBe("foo bar");
-    expect(component.searchKeywords).toEqual(["foo", "bar"]);
+    expect(component.filters.masterFilterList).toEqual(["foo", "bar"]);
   });
 
-  it("leaves searchParam empty and searchKeywords empty when there is no `q` param", () => {
+  it("leaves searchParam and the filters empty when there is no `q` param", () => {
     fixture.detectChanges();
     queryParams$.next({});
 
     expect(component.searchParam).toBe("");
-    expect(component.searchKeywords).toEqual([]);
+    expect(component.filters.masterFilterList).toEqual([]);
   });
 
   // ─── search() ───────────────────────────────────────────────────────────────
-
-  it("syncs searchKeywords from the filters when a search runs", async () => {
-    component.filters = makeFiltersDouble(["alpha", "beta"]);
-    component.searchResultsComponent = makeSearchResultsDouble() as unknown as SearchResultsComponent;
-
-    await component.search();
-
-    expect(component.searchKeywords).toEqual(["alpha", "beta"]);
-  });
 
   it("drives the results component (reset + loadMore) on a fresh search", async () => {
     component.filters = makeFiltersDouble(["x"]);
@@ -218,6 +204,60 @@ describe("SearchComponent", () => {
     expect(results.reset).not.toHaveBeenCalled();
   });
 
+  // The duplicate-search guard above compares list *lengths* and then the terms themselves. With
+  // two empty lists the term comparison never runs at all, so these three drive it with non-empty
+  // lists: equal terms still short-circuit, differing terms do not, and a shorter incoming list
+  // does not sneak past `Array.every` (which is vacuously true on a shorter receiver).
+  //
+  // Every case below deliberately gives the double a *different* keyword list from its filter list.
+  // The guard reads `filters.masterFilterList`, and `filters.getSearchKeywords()` is right next to
+  // it in the same object; with the two set to equal arrays the receiver could be swapped for the
+  // keywords and nothing would notice.
+  it("skips a duplicate search when a non-empty filter list is unchanged", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).not.toHaveBeenCalled();
+  });
+
+  it("re-runs the search when a same-length filter list holds different terms", async () => {
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
+  });
+
+  it("re-runs the search when the new filter list is a prefix of the last one", async () => {
+    // The element-wise comparison alone cannot see this: `["alpha"].every((v, i) => v === ["alpha",
+    // "beta"][i])` is true, so without the length conjunct every narrowing of the filter box -
+    // including clearing it - would be dismissed as "same list" and the panel would keep showing
+    // the previous query's results.
+    component.filters = makeFiltersDouble(["kw"], ["alpha"]);
+    const results = makeSearchResultsDouble();
+    component.searchResultsComponent = results as unknown as SearchResultsComponent;
+    component.masterFilterList = ["alpha", "beta"];
+    component.lastSortMethod = component.sortMethod;
+    component.lastSelectedType = component.selectedType;
+
+    await component.search();
+
+    expect(results.reset).toHaveBeenCalledTimes(1);
+    expect(component.masterFilterList).toEqual(["alpha"]);
+  });
+
   it("throws when the results component is missing", async () => {
     component.filters = makeFiltersDouble(["x"]);
     component.searchResultsComponent = undefined;
@@ -234,6 +274,19 @@ describe("SearchComponent", () => {
 
     expect(component.selectedType).toBe("workflow");
     expect(searchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the previous tab's facet selections before it searches", () => {
+    // search() reads the filter parameters in the same turn, long before the new facet lands, so a
+    // selection cleared afterwards would still go out with the first request.
+    fixture.detectChanges(); // resolves the filters ViewChild
+    const order: string[] = [];
+    vi.spyOn(component.filters, "clearFacetSelections").mockImplementation(() => void order.push("clear"));
+    vi.spyOn(component, "search").mockImplementation(async () => void order.push("search"));
+
+    component.filterByType("dataset");
+
+    expect(order).toEqual(["clear", "search"]);
   });
 
   it("navigates back on goBack", () => {
@@ -293,7 +346,6 @@ describe("SearchComponent rendered template", () => {
         { provide: SearchService, useValue: { executeSearch } },
         { provide: UserService, useClass: StubUserService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService([]) },
         { provide: ActivatedRoute, useValue: { queryParams: new Subject<Params>() } },
         { provide: Location, useValue: locationStub },
@@ -307,14 +359,14 @@ describe("SearchComponent rendered template", () => {
   });
 
   it("renders the four resource-type buttons, each with its own label and icon", () => {
-    expect(labels()).toEqual(["All", "Project", "Workflow", "Dataset"]);
+    expect(labels()).toEqual(["All", "Workflow", "Dataset", "Model"]);
     // nz-icon turns nzType into an `anticon-<type>` class, so this pins the icon
     // each button asks for — and that "All" asks for none.
     const icons = typeButtons().map(button => {
       const icon = button.querySelector("span[nz-icon]");
       return icon && Array.from(icon.classList).find(name => name.startsWith("anticon-"));
     });
-    expect(icons).toEqual([null, "anticon-container", "anticon-project", "anticon-database"]);
+    expect(icons).toEqual([null, "anticon-project", "anticon-database", `anticon-${MODEL_ICON}`]);
   });
 
   it("highlights only the All button before a resource type is chosen", () => {
@@ -332,7 +384,7 @@ describe("SearchComponent rendered template", () => {
   });
 
   it("scopes the search to the clicked resource type", () => {
-    typeButtons()[3].click();
+    typeButtons()[2].click();
     expect(lastSearchedType()).toBe("dataset");
 
     // Back to All: the type filter is cleared rather than left on "dataset".

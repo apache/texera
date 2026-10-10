@@ -8,7 +8,7 @@
         "fileEncoding": "UTF_8",
         "customDelimiter": ",",
         "hasHeader": true,
-        "fileName": "/datasets/texera/iris-species/v1/Iris.csv"
+        "fileName": "/dataset/texera/iris-species/v1/Iris.csv"
       },
       "inputPorts": [],
       "outputPorts": [

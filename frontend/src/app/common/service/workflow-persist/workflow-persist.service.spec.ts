@@ -29,6 +29,7 @@ import {
   WORKFLOW_CREATE_URL,
   WORKFLOW_DUPLICATE_URL,
   WORKFLOW_DELETE_URL,
+  WORKFLOW_SET_DEFAULT_VIEW_URL,
   WORKFLOW_LIST_URL,
   WORKFLOW_UPDATENAME_URL,
   WORKFLOW_UPDATEDESCRIPTION_URL,
@@ -42,8 +43,10 @@ import { jsonCast } from "../../util/storage";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { AppSettings } from "../../app-setting";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
+import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { NotificationService } from "../notification/notification.service";
+import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { last } from "rxjs/operators";
 
 describe("WorkflowPersistService", () => {
@@ -68,9 +71,15 @@ describe("WorkflowPersistService", () => {
     '{"linkID":"link-c94e24a6-2c77-40cf-ba22-1a7ffba64b7d","source":{"operatorID":' +
     '"MySQLSource-operator-1ee619b1-8884-4564-a136-29ef77dfcc50","portID":"output-0"},"target":' +
     '{"operatorID":"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9","portID":"input-0"}}],"breakpoints":{}}';
+  // What the page currently holds as the open workflow's metadata (read at response time to keep
+  // the user's name/description edits). Another workflow by default, so a response is relayed as
+  // is; the tests about local edits point it at the saved workflow.
+  let currentMetadata: { wid: number | undefined; name: string; description: string | undefined };
   beforeEach(() => {
+    currentMetadata = { wid: 999, name: "another workflow", description: undefined };
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [{ provide: WorkflowActionService, useValue: { getWorkflowMetadata: () => currentMetadata } }],
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.inject(HttpTestingController);
@@ -146,7 +155,6 @@ describe("WorkflowPersistService", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     };
     const keywords = ["test"];
     const entry = { workflow: { wid: 1, name: "w", content: '{"operators":[]}' } } as unknown as DashboardWorkflow;
@@ -201,19 +209,196 @@ describe("WorkflowPersistService", () => {
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
       expect(req.request.method).toBe("POST");
+      // The publish flag is not part of a save: the endpoint does not read it, and sending a
+      // stale copy is what used to null the column after the first save.
       expect(req.request.body).toEqual({
         wid: 9,
         name: "my wf",
         description: "a description",
         content: JSON.stringify(validContent),
-        isPublic: true,
       });
 
-      req.flush({ wid: 9, name: "my wf", content: '{"operators":[]}' });
+      // The saved row comes back with the flag under the backend's name; the response the
+      // caller sees carries it as isPublished, so metadata fed back from a save stays complete.
+      req.flush({ wid: 9, name: "my wf", content: '{"operators":[]}', isPublic: true });
 
       // valid workflow -> no error notification, and string content is parsed
       expect(errorSpy).not.toHaveBeenCalled();
       expect(result?.content).toEqual({ operators: [] });
+      expect(result?.isPublished).toBe(1);
+    });
+
+    it("sends saves one at a time, in order, each caller getting its own result", () => {
+      // Two saves in flight at once can land out of order and the older content would win; the
+      // autosave and a Save or a view switch are independent callers, so the ordering lives here.
+      const wf = (name: string) => ({ wid: 9, name, description: "", content: validContent }) as unknown as Workflow;
+      const seen: string[] = [];
+      service.persistWorkflow(wf("first")).subscribe(w => seen.push("first:" + w.name));
+      service.persistWorkflow(wf("second")).subscribe(w => seen.push("second:" + w.name));
+
+      // Only the first request has gone out; the second waits for it.
+      const first = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
+      expect(first.request.body.name).toBe("first");
+      expect(httpTestingController.match(`${API}/${WORKFLOW_PERSIST_URL}`)).toHaveLength(0);
+
+      first.flush({ wid: 9, name: "first", content: "{}" });
+      const second = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
+      expect(second.request.body.name).toBe("second");
+      second.flush({ wid: 9, name: "second", content: "{}" });
+
+      expect(seen).toEqual(["first:first", "second:second"]);
+    });
+
+    it("fails only its own caller when a save fails, and still sends the next", () => {
+      const wf = (name: string) => ({ wid: 9, name, description: "", content: validContent }) as unknown as Workflow;
+      let firstError: unknown;
+      let secondName: string | undefined;
+      service.persistWorkflow(wf("first")).subscribe({ error: (e: unknown) => (firstError = e) });
+      service.persistWorkflow(wf("second")).subscribe(w => (secondName = w.name));
+
+      httpTestingController
+        .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+        .flush("boom", { status: 500, statusText: "Server Error" });
+      expect(firstError).toBeDefined();
+
+      httpTestingController
+        .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+        .flush({ wid: 9, name: "second", content: "{}" });
+      expect(secondName).toBe("second");
+    });
+
+    describe("a response versus an edit made since the save was sent", () => {
+      const wf = (name: string) => ({ wid: 9, name, description: "d1", content: validContent }) as unknown as Workflow;
+
+      it("relays the response with the page's current name and description, not the ones it was saved with", () => {
+        currentMetadata = { wid: 9, name: "renamed meanwhile", description: "described meanwhile" };
+        let result: Workflow | undefined;
+        service.persistWorkflow(wf("old")).subscribe(w => (result = w));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "old", description: "d1", lastModifiedTime: 777, content: "{}" });
+
+        // Feeding this back as the metadata keeps the rename; the server-owned fields still arrive.
+        expect(result?.name).toBe("renamed meanwhile");
+        expect(result?.description).toBe("described meanwhile");
+        expect(result?.lastModifiedTime).toBe(777);
+      });
+
+      it("keeps the local name for a workflow the save has just created (the page still holds the default id)", () => {
+        currentMetadata = { wid: 0, name: "named before the first save answered", description: undefined };
+        let result: Workflow | undefined;
+        service.persistWorkflow({ ...wf("Untitled workflow"), wid: 0 } as Workflow).subscribe(w => (result = w));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 42, name: "Untitled workflow", content: "{}" });
+
+        expect(result?.wid).toBe(42);
+        expect(result?.name).toBe("named before the first save answered");
+      });
+
+      it("leaves the response alone when another workflow is open by the time it answers", () => {
+        currentMetadata = { wid: 10, name: "the other one", description: undefined };
+        let result: Workflow | undefined;
+        service.persistWorkflow(wf("old")).subscribe(w => (result = w));
+
+        httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`).flush({ wid: 9, name: "old", content: "{}" });
+
+        expect(result?.name).toBe("old");
+      });
+
+      it("leaves the response alone when the page was cleared while its save was out", () => {
+        // clearWorkflow puts the default metadata back, so the page holds the default id like a
+        // just-created workflow does; the save went out with the real id, which tells them apart.
+        currentMetadata = { wid: 0, name: "Untitled Workflow", description: undefined };
+        let result: Workflow | undefined;
+        service.persistWorkflow(wf("old")).subscribe(w => (result = w));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "old", description: "d1", content: "{}" });
+
+        expect(result?.name).toBe("old");
+        expect(result?.description).toBe("d1");
+      });
+    });
+
+    describe("whenSavesDrained", () => {
+      const wf = (name: string) => ({ wid: 9, name, description: "", content: validContent }) as unknown as Workflow;
+
+      it("emits at once when no save is pending", () => {
+        let emitted = false;
+        service.whenSavesDrained().subscribe(() => (emitted = true));
+        expect(emitted).toBe(true);
+      });
+
+      it("emits only once the last queued save has answered, not when the first has", () => {
+        service.persistWorkflow(wf("first")).subscribe();
+        service.persistWorkflow(wf("second")).subscribe();
+        let emitted = false;
+        service.whenSavesDrained().subscribe(() => (emitted = true));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "first", content: "{}" });
+        expect(emitted).toBe(false); // the second is still out
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "second", content: "{}" });
+        expect(emitted).toBe(true);
+      });
+
+      it("answers a caller asking from its own save's complete callback once the save queued behind has too", () => {
+        // How the Form View hand-over uses it: its save completes, it asks there, and a rename's save
+        // queued behind must have answered before it is told the queue is drained.
+        let emitted = false;
+        service.persistWorkflow(wf("switch")).subscribe({
+          complete: () => service.whenSavesDrained().subscribe(() => (emitted = true)),
+        });
+        service.persistWorkflow(wf("rename")).subscribe();
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "switch", content: "{}" });
+        expect(emitted).toBe(false); // asked, and the rename's save is still out
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "rename", content: "{}" });
+        expect(emitted).toBe(true);
+      });
+
+      it("answers a call once: a later drain does not reach a caller answered already", () => {
+        // The hand-over's subscription outlives a refused navigation; a drain caused by some later
+        // save must not run its callback again and route without a click.
+        let emissions = 0;
+        service.persistWorkflow(wf("first")).subscribe();
+        service.whenSavesDrained().subscribe(() => emissions++);
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "first", content: "{}" });
+        expect(emissions).toBe(1);
+
+        service.persistWorkflow(wf("second")).subscribe();
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush({ wid: 9, name: "second", content: "{}" });
+        expect(emissions).toBe(1);
+      });
+
+      it("counts a failed save as done, so a failure does not hold the drain forever", () => {
+        service.persistWorkflow(wf("first")).subscribe({ error: () => {} });
+        let emitted = false;
+        service.whenSavesDrained().subscribe(() => (emitted = true));
+
+        httpTestingController
+          .expectOne(`${API}/${WORKFLOW_PERSIST_URL}`)
+          .flush("boom", { status: 500, statusText: "Server Error" });
+
+        expect(emitted).toBe(true);
+      });
     });
 
     it("persistWorkflow notifies the user when the workflow is broken but still POSTs", () => {
@@ -234,7 +419,7 @@ describe("WorkflowPersistService", () => {
       );
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_PERSIST_URL}`);
-      expect(req.request.body.isPublic).toBe(false);
+      expect("isPublic" in req.request.body).toBe(false);
       req.flush({ wid: 1, name: "broken", content: '{"operators":[]}' });
     });
 
@@ -269,6 +454,24 @@ describe("WorkflowPersistService", () => {
       expect(result).toEqual(created);
     });
 
+    it("createWorkflow sends the default view when given one, and omits it otherwise", () => {
+      const content = jsonCast<WorkflowContent>(testContent);
+
+      service.createWorkflow(content, "form default", DefaultView.FORM).subscribe();
+      const withView = httpTestingController.expectOne(`${API}/${WORKFLOW_CREATE_URL}`);
+      expect(withView.request.body).toEqual({
+        name: "form default",
+        content: JSON.stringify(content),
+        defaultView: DefaultView.FORM,
+      });
+      withView.flush({ workflow: { wid: 1 } } as unknown as DashboardWorkflow);
+
+      service.createWorkflow(content, "no view").subscribe();
+      const withoutView = httpTestingController.expectOne(`${API}/${WORKFLOW_CREATE_URL}`);
+      expect(withoutView.request.body).toEqual({ name: "no view", content: JSON.stringify(content) });
+      withoutView.flush({ workflow: { wid: 2 } } as unknown as DashboardWorkflow);
+    });
+
     it("createWorkflow filters out a null response so no value is emitted", () => {
       let emitted = false;
       service.createWorkflow(jsonCast<WorkflowContent>(testContent)).subscribe(() => (emitted = true));
@@ -277,26 +480,17 @@ describe("WorkflowPersistService", () => {
       expect(emitted).toBe(false);
     });
 
-    it("duplicateWorkflow POSTs only wids when no pid is provided", () => {
+    it("duplicateWorkflow POSTs the wids", () => {
       let result: DashboardWorkflow[] | undefined;
       service.duplicateWorkflow([3, 4]).subscribe(r => (result = r));
 
       const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
       expect(req.request.method).toBe("POST");
       expect(req.request.body).toEqual({ wids: [3, 4] });
-      expect(req.request.body).not.toHaveProperty("pid");
 
       const dup = [{ workflow: { wid: 10 } }] as unknown as DashboardWorkflow[];
       req.flush(dup);
       expect(result).toEqual(dup);
-    });
-
-    it("duplicateWorkflow includes pid in the body when provided", () => {
-      service.duplicateWorkflow([5], 42).subscribe();
-
-      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_DUPLICATE_URL}`);
-      expect(req.request.body).toEqual({ wids: [5], pid: 42 });
-      req.flush([{ workflow: { wid: 11 } }]);
     });
 
     it("duplicateWorkflow filters out an empty-array response", () => {
@@ -498,6 +692,26 @@ describe("WorkflowPersistService", () => {
       const sizes = { 24: 100, 25: 200, 26: 300 };
       req.flush(sizes);
       expect(result).toEqual(sizes);
+    });
+
+    it("setDefaultView PUTs the chosen view to the set-default-view url", () => {
+      let responded = false;
+      service.setDefaultView(30, DefaultView.FORM).subscribe(() => (responded = true));
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/30`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.FORM });
+      req.flush(null);
+      expect(responded).toBe(true);
+    });
+
+    it("setDefaultView can set the default back to canvas", () => {
+      service.setDefaultView(31, DefaultView.CANVAS).subscribe();
+
+      const req = httpTestingController.expectOne(`${API}/${WORKFLOW_SET_DEFAULT_VIEW_URL}/31`);
+      expect(req.request.method).toBe("PUT");
+      expect(req.request.body).toEqual({ view: DefaultView.CANVAS });
+      req.flush(null);
     });
   });
 });

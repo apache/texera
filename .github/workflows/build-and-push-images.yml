@@ -264,6 +264,9 @@ jobs:
                 "access-control-service")
                   image_name="texera-access-control-service"
                   ;;
+                "mounter")
+                  image_name="texera-mounter"
+                  ;;
                 "config-service")
                   image_name="texera-config-service"
                   ;;
@@ -278,6 +281,12 @@ jobs:
                   ;;
                 "agent-service")
                   image_name="texera-agent-service"
+                  ;;
+                "notebook-migration-service")
+                  image_name="texera-notebook-migration-service"
+                  ;;
+                "jupyter")
+                  image_name="texera-jupyter"
                   ;;
                 *)
                   # Default: use service name as-is

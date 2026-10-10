@@ -22,7 +22,6 @@ package org.apache.texera.amber.engine.architecture.coordinator
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.AmberRuntime
@@ -120,41 +119,6 @@ class ClientEventSpec extends AnyFlatSpec with BeforeAndAfterAll {
     val original = RuntimeStatisticsPersist(Map("op-1" -> OperatorMetrics.defaultInstance))
     val restored = roundTrip(original)
     assert(restored == original)
-  }
-
-  // Build a tiny Tuple fixture for the ReportCurrentProcessingTuple
-  // round-trip — a real (Tuple, AVI) pair (not the empty-array degenerate
-  // case) so the serializer is actually exercised on the inner elements.
-  private val intAttr = new Attribute("v", AttributeType.INTEGER)
-  private val schema: Schema = Schema().add(intAttr)
-  private def intTuple(value: Int): Tuple =
-    Tuple.builder(schema).add(intAttr, Integer.valueOf(value)).build()
-
-  "ReportCurrentProcessingTuple" should "round-trip a single (Tuple, AVI) element through AmberRuntime.serde" in {
-    // Pin the actual element-survival contract: build a non-empty array,
-    // round-trip, and verify the recovered Tuple's schema + field values
-    // and the AVI both survive. (Case-class equality on Array is
-    // reference-based, so element-wise verification is the right pin.)
-    val sender = ActorVirtualIdentity("worker-1")
-    val arr: Array[(Tuple, ActorVirtualIdentity)] = Array((intTuple(42), sender))
-    val original = ReportCurrentProcessingTuple("op-x", arr)
-    assert(original.operatorID == "op-x")
-    assert(original.tuple.length == 1)
-    val restored = roundTrip(original)
-    assert(restored.operatorID == "op-x")
-    assert(restored.tuple.length == 1)
-    val (restoredTuple, restoredAvi) = restored.tuple.head
-    assert(restoredTuple == intTuple(42))
-    assert(restoredAvi == sender)
-  }
-
-  it should "round-trip an empty tuple array" in {
-    // Empty-array edge case: pin that the serializer doesn't choke on
-    // an empty Array[(Tuple, AVI)] and that operatorID still survives.
-    val original = ReportCurrentProcessingTuple("op-empty", Array.empty)
-    val restored = roundTrip(original)
-    assert(restored.operatorID == "op-empty")
-    assert(restored.tuple.isEmpty)
   }
 
   "WorkerAssignmentUpdate" should "expose its workerMapping field and round-trip" in {

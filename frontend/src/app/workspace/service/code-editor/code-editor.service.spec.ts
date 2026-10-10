@@ -44,6 +44,23 @@ describe("CodeEditorService", () => {
     expect(value).toBe(false);
   });
 
+  it("seeds the state when setEditorState runs before any getEditorState", () => {
+    // Nothing has asked for "fresh" yet, so setEditorState has no subject to push
+    // onto and must create one already carrying the requested value. Every other
+    // test in this file calls getEditorState first, which pre-creates the subject
+    // seeded to false, so this is the only path that exercises the seeding.
+    service.setEditorState("fresh", true);
+
+    let value: boolean | undefined;
+    service.getEditorState("fresh").subscribe(v => (value = v));
+    expect(value).toBe(true);
+
+    // The seeded subject is the same one getEditorState handed out -- a later
+    // write reaches the existing subscriber rather than a replacement.
+    service.setEditorState("fresh", false);
+    expect(value).toBe(false);
+  });
+
   it("should track state independently for different operator IDs", () => {
     let valueA: boolean | undefined;
     let valueB: boolean | undefined;

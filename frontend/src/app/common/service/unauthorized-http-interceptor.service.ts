@@ -31,7 +31,10 @@ import { UserService } from "./user/user.service";
 // gets piggy-backed on login/register/refresh attempts even when the user is
 // trying to *acquire* a session. Treating those 401s as session-invalidation
 // would kick out an already-authenticated user who fat-fingers a re-login.
-const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|refresh|google\/login)(?:\?|$)/;
+// `auth/email` belongs here for the same reason: it is called from a modal that stays open on a
+// refusal so the user can correct the address, and a session-invalidation logout would tear that
+// modal down instead of showing them why.
+const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|refresh|email|google\/login)(?:\?|$)/;
 
 /**
  * Globally handles 401 responses that come back for *authenticated* requests:

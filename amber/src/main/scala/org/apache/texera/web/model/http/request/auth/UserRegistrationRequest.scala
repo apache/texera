@@ -19,4 +19,14 @@
 
 package org.apache.texera.web.model.http.request.auth
 
-case class UserRegistrationRequest(username: String, email: String, password: String)
+/**
+  * A registration, optionally carrying the code that proves the address. The same shape serves both
+  * steps of a verified signup — see `AuthResource.registerVerify` for why the second step repeats
+  * the first one's fields.
+  */
+case class UserRegistrationRequest(
+    username: String,
+    email: String,
+    password: String,
+    code: String = null
+)

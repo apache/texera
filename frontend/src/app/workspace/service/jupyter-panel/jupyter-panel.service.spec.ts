@@ -88,6 +88,9 @@ describe("JupyterPanelService", () => {
       setMapping: vi.fn(),
       getJupyterURL: vi.fn().mockResolvedValue("http://jupyter"),
       deleteNotebookAndMapping: vi.fn().mockReturnValue(of({ success: true, deleted: 1 })),
+      // In the base mock because every successful delete fires it; a missing stub would
+      // throw inside the delete subscription rather than failing a targeted assertion.
+      deleteNotebookForWorkflow: vi.fn().mockResolvedValue(undefined),
     };
 
     mockGuiConfig = { env: { pythonNotebookMigrationEnabled: true } };
@@ -120,7 +123,7 @@ describe("JupyterPanelService", () => {
 
     service.jupyterNotebookPanelVisible$.subscribe(v => (state = v));
 
-    service.openPanel("JupyterNotebookPanel");
+    (service as any).jupyterNotebookPanelVisible.next(true);
     expect(state).toBe(true);
 
     service.deleteJupyterNotebook();
@@ -146,6 +149,13 @@ describe("JupyterPanelService", () => {
     expect(mockWorkflow.unhighlightLinks).toHaveBeenCalled();
   });
 
+  it("deleteJupyterNotebook removes the pod's copy for the current workflow", () => {
+    service.deleteJupyterNotebook();
+
+    // The service derives the filename from the wid, so the panel just passes the wid.
+    expect(mockNotebook.deleteNotebookForWorkflow).toHaveBeenCalledWith(1);
+  });
+
   it("deleteJupyterNotebook keeps the panel open and notifies on failure", () => {
     mockNotebook.deleteNotebookAndMapping.mockReturnValueOnce(throwError(() => new Error("boom")));
     let visible: boolean | null = null;
@@ -157,6 +167,8 @@ describe("JupyterPanelService", () => {
     expect(mockNotification.error).toHaveBeenCalled();
     expect(visible).toBe(true);
     expect(mockNotebook.deleteMapping).not.toHaveBeenCalled();
+    // The notebook is still stored, so its file must stay in the pod.
+    expect(mockNotebook.deleteNotebookForWorkflow).not.toHaveBeenCalled();
   });
 
   it("deleteJupyterNotebook only resets local state for the default wid 0 (no backend call)", () => {
@@ -170,8 +182,10 @@ describe("JupyterPanelService", () => {
 
     service.deleteJupyterNotebook();
 
-    // wid 0 is the unsaved default workflow, so no backend delete should fire.
+    // wid 0 is the unsaved default workflow, so neither backend delete should fire:
+    // nothing is stored and no notebook file was ever uploaded for it.
     expect(mockNotebook.deleteNotebookAndMapping).not.toHaveBeenCalled();
+    expect(mockNotebook.deleteNotebookForWorkflow).not.toHaveBeenCalled();
     expect(visible).toBe(false);
     expect(exists).toBe(false);
   });
@@ -207,38 +221,14 @@ describe("JupyterPanelService", () => {
     expect(state).toBe(true);
   });
 
-  // openPanel
-  it("should open panel only for correct name", () => {
-    let state: boolean | null = false;
-
-    service.jupyterNotebookPanelVisible$.subscribe(v => (state = v));
-
-    service.openPanel("WrongPanel");
-    expect(state).toBe(false);
-
-    service.openPanel("JupyterNotebookPanel");
-    expect(state).toBe(true);
-  });
-
-  it("openPanel flags jupyterNotebookExists$ so the toolbar expand button appears after an in-place import", () => {
-    const states: boolean[] = [];
-    service.jupyterNotebookExists$.subscribe(v => states.push(v));
-    expect(states.at(-1)).toBe(false);
-
-    // Wrong panel name does not flip the flag.
-    service.openPanel("WrongPanel");
-    expect(states.at(-1)).toBe(false);
-
-    // Opening the jupyter panel records that the workflow now has a notebook.
-    service.openPanel("JupyterNotebookPanel");
-    expect(states.at(-1)).toBe(true);
-  });
-
   // HTTP fetchNotebookAndMapping
   it("should return 0 when exists=false", async () => {
-    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1, 1));
+    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1));
 
     const req = httpMock.expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"));
+    // The fetch keys on wid only; no vid is sent (the backend ignores version).
+    expect(req.request.body.wid).toBe(1);
+    expect(req.request.body.vid).toBeUndefined();
     req.flush({ exists: false });
 
     expect(await resultPromise).toBe(0);
@@ -257,7 +247,7 @@ describe("JupyterPanelService", () => {
     const mapping = { cell_to_operator: { cell1: ["A"] }, operator_to_cell: {} };
     const notebook = { cells: [] };
 
-    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1, 1));
+    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1));
     httpMock
       .expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"))
       .flush({ exists: true, mapping, notebook });
@@ -275,7 +265,7 @@ describe("JupyterPanelService", () => {
     mockNotebook.sendNotebookToJupyter = vi.fn().mockResolvedValue(1);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1, 1));
+    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(1));
     httpMock
       .expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"))
       .flush("migration service down", { status: 500, statusText: "Server Error" });
@@ -293,7 +283,7 @@ describe("JupyterPanelService", () => {
     const mapping = { cell_to_operator: {}, operator_to_cell: {} };
     const notebook = { cells: [] };
 
-    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(2, 1));
+    const resultPromise = firstValueFrom((service as any).fetchNotebookAndMapping(2));
     httpMock
       .expectOne(r => r.url.includes("/notebook-migration/fetch-notebook-and-mapping"))
       .flush({ exists: true, mapping, notebook });
@@ -702,19 +692,13 @@ describe("JupyterPanelService", () => {
       expect(mockWorkflow.workflowMetaDataChanged).not.toHaveBeenCalled();
     });
 
-    it("openPanel does not flip the visibility stream", () => {
-      let state: boolean | null = false;
-      service.jupyterNotebookPanelVisible$.subscribe(v => (state = v));
-      service.openPanel("JupyterNotebookPanel");
-      expect(state).toBe(false);
-    });
-
     it("deleteJupyterNotebook does not call the backend or delete the mapping when disabled", () => {
       // When the feature is disabled the method returns early, so neither the
       // backend delete nor the local mapping drop should run.
       service.deleteJupyterNotebook();
       expect(mockNotebook.deleteNotebookAndMapping).not.toHaveBeenCalled();
       expect(mockNotebook.deleteMapping).not.toHaveBeenCalled();
+      expect(mockNotebook.deleteNotebookForWorkflow).not.toHaveBeenCalled();
     });
 
     it("minimizeJupyterNotebookPanel does not flip visibility", () => {

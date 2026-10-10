@@ -301,4 +301,27 @@ class GmailResourceSpec
     }
     assert(ex.getResponse.getStatus == 403)
   }
+
+  "adminRegistrationNotification" should "resolve the requester's stored name by email" in {
+    val requesterEmail = s"gmailspec-requester-$runId@example.com"
+    val requesterName = s"gmailspec_requester_$runId"
+    seedUser("requester", UserRoleEnum.REGULAR, requesterEmail)
+
+    val message = GmailResource.adminRegistrationNotification(
+      "admin@example.com",
+      EmailMessage(receiver = requesterEmail, subject = "", content = "")
+    )
+
+    message.content should include(s"Name: $requesterName")
+    message.content should include(s"Email: $requesterEmail")
+  }
+
+  it should "render the fallback when no user matches the requester email" in {
+    val message = GmailResource.adminRegistrationNotification(
+      "admin@example.com",
+      EmailMessage(receiver = "missing-requester@example.com", subject = "", content = "")
+    )
+
+    message.content should include("Name: Not provided")
+  }
 }

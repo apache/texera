@@ -18,6 +18,8 @@
  */
 
 import {
+  DATASET_INPUT_TYPE,
+  MODEL_INPUT_TYPE,
   UiUdfParametersEditError,
   UiUdfParametersParseError,
   UiUdfParametersParserService,
@@ -153,6 +155,30 @@ describe("UiUdfParametersParserService", () => {
         self.UiParameter("blob", AttributeType.LARGE_BINARY)
       `,
         [],
+      ],
+      [
+        // `"s".` parses as a member access whose receiver is a string literal, so the node carries
+        // no VariableName/PropertyName children at all and the member path it yields is empty
+        // rather than one- or two-part. Such a call has to be dropped, not turned into a parameter
+        // with a fabricated receiver and type.
+        "ignore a type written as a member access with no name parts",
+        `
+        self.UiParameter(name="x", type="s".)
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
+      ],
+      [
+        // A tuple is not a member access, but its direct children are two VariableNames that read
+        // exactly like `AttributeType` + `STRING`. Only the node-kind check in front of the member
+        // path stops `(AttributeType, STRING)` from being accepted as the STRING type, so this is
+        // the case that keeps that check honest.
+        "ignore a type written as a tuple that reads like a member path",
+        `
+        self.UiParameter(name="x", type=(AttributeType, STRING))
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
       ],
     ] as ReadonlyArray<readonly [string, string, UiUdfParameter[]]>
   ).forEach(([description, openBody, expectedParameters]) => {
@@ -429,7 +455,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
   });
 
   it("should handle a declaration on a final line with no trailing newline", () => {
-    // lineEnd() takes its `newline === -1` arm when the statement ends the file
+    // the declaration goes in above `pass`, which is the last line of the file
     const code = "class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        pass";
 
     const updated = insertParameter(service, code, "threshold");
@@ -455,6 +481,92 @@ describe("UiUdfParametersParserService degenerate sources", () => {
     );
 
     expect(service.parse(code)).toEqual([]);
+  });
+
+  it("should ignore a UiParameter call that supplies the same argument twice", () => {
+    // attr_type is an alias of type, so this call carries two types; the positional
+    // "x" is the name, so the second one carries two names. Both are ambiguous, and
+    // guessing which one wins would silently declare the wrong parameter.
+    const twoTypes = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter(name="x", type=AttributeType.DOUBLE, attr_type=AttributeType.INT)'
+    );
+    const twoNames = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter("x", name="y", type=AttributeType.DOUBLE)'
+    );
+
+    expect(service.parse(twoTypes)).toEqual([]);
+    expect(service.parse(twoNames)).toEqual([]);
+  });
+
+  it("should ignore a type given as a plain string instead of an AttributeType member", () => {
+    // "double" is not a member path, so there is nothing to resolve against the
+    // AttributeType receiver — the call is skipped rather than guessed at.
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter(name="x", type="double")'
+    );
+
+    expect(service.parse(code)).toEqual([]);
+  });
+
+  it("should refuse to insert into a class that has no block body at all", () => {
+    // A class header without its colon parses to a ClassDefinition with no Body,
+    // so there is no indented block to put the declaration in.
+    const code = "class ProcessTupleOperator(UDFOperatorV2)\n";
+
+    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(UiUdfParametersEditError);
+    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(
+      "The Python UDF class and open() need an indented block body to declare UiParameter values."
+    );
+  });
+
+  it("should synthesize open() below a class docstring, kept apart from the code after it", () => {
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "    def process(self, tuple_, port):",
+      "        yield tuple_"
+    );
+
+    const updated = insertParameter(service, code, "threshold");
+
+    // The docstring stays first, and the synthesized open() is fenced by a blank
+    // line on both sides: above it because it follows the docstring, below it
+    // because another statement follows.
+    expect(updated.split("\n")).toEqual([
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "",
+      "    def open(self) -> None:",
+      '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE).value',
+      "",
+      "    def process(self, tuple_, port):",
+      "        yield tuple_",
+      "",
+    ]);
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+  });
+
+  it("should append open() after a docstring that ends the file without a newline", () => {
+    // lineEnd() takes its `newline === -1` arm: there is no line break left to
+    // insert in front of, so the declaration goes at the very end of the file.
+    const code = 'class ProcessTupleOperator(UDFOperatorV2):\n    """Doc."""';
+
+    const updated = insertParameter(service, code, "threshold");
+
+    expect(updated.split("\n")).toEqual([
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      '    """Doc."""',
+      "",
+      "    def open(self) -> None:",
+      '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE).value',
+    ]);
+    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 });
 
@@ -502,3 +614,41 @@ ${openStatements}
 function parameter(attributeName: string, attributeType: UiUdfParameter["attribute"]["attributeType"]): UiUdfParameter {
   return { attribute: { attributeName, attributeType }, value: "" };
 }
+
+describe("UiUdfParametersParserService resource parameters", () => {
+  const service = new UiUdfParametersParserService();
+  const inOpen = (...lines: string[]): string =>
+    `class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n${lines.map(line => `        ${line}\n`).join("")}`;
+
+  it("marks a parameter declared with value=Resource.X as naming that resource", () => {
+    expect(
+      service.parse(
+        inOpen(
+          'self.UiParameter("MODEL", AttributeType.STRING, value=Resource.MODEL)',
+          'self.UiParameter(name="DATA", type=AttributeType.STRING, value=Resource.DATASET)',
+          'self.UiParameter("count", AttributeType.INT)'
+        )
+      )
+    ).toEqual([
+      { attribute: { attributeName: "MODEL", attributeType: "string" }, value: "", inputType: MODEL_INPUT_TYPE },
+      { attribute: { attributeName: "DATA", attributeType: "string" }, value: "", inputType: DATASET_INPUT_TYPE },
+      { attribute: { attributeName: "count", attributeType: "integer" }, value: "" },
+    ]);
+  });
+
+  it("ignores a declaration naming a resource it does not know, or not through Resource", () => {
+    expect(
+      service.parse(
+        inOpen(
+          'self.UiParameter("A", AttributeType.STRING, value=Resource.WORKFLOW)',
+          'self.UiParameter("B", AttributeType.STRING, value="model")',
+          'self.UiParameter("C", AttributeType.STRING, value=Other.MODEL)'
+        )
+      )
+    ).toEqual([]);
+  });
+
+  it("ignores a resource parameter that is not a string, since it receives a directory path", () => {
+    expect(service.parse(inOpen('self.UiParameter("MODEL", AttributeType.INT, value=Resource.MODEL)'))).toEqual([]);
+  });
+});

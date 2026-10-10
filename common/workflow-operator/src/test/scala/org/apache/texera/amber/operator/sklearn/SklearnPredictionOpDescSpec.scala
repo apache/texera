@@ -92,6 +92,130 @@ class SklearnPredictionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("yield tuple_")
   }
 
+  // This operator adds a column to the user's rows, so a row it cannot predict
+  // on keeps its place with an empty result rather than disappearing.
+  it should "keep a row with a missing value and leave its result empty" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
+    code should include("isna().any(axis=None)")
+    code should include("] = None")
+  }
+
+  // The ignored column is not read by the model, so a blank there must not cost the
+  // row its prediction: the emptiness test reads the features it actually predicts on.
+  it should "test the features for emptiness rather than the whole row" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("Table.from_tuple_likes([input_features]).isna()")
+    code should not include "Table.from_tuple_likes([tuple_]).isna()"
+  }
+
+  // The output schema names the result column's type and the framework casts to it,
+  // so a per-row cast could only disagree with it on the row where the ignored column
+  // is itself blank and has no type to read off.
+  it should "not read the result's type off the ignored column" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    val code = d.generatePythonCode()
+    code should include("] = prediction if")
+    code should not include "type(tuple_"
+  }
+
+  // Without an ignored column the schema declares the result a string, so this is the
+  // one case where the generated code converts.
+  it should "write the prediction as text when no ignored column is configured" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    val code = d.generatePythonCode()
+    code should include("str(prediction)")
+  }
+
+  // The fitting operators leave out the columns an estimator cannot fit, so this
+  // side has to leave out the same ones or scikit-learn refuses the frame for
+  // naming features it never saw. Read off the model, which carries what it was
+  // fitted on, rather than re-deriving a rule that could drift from theirs: this
+  // path holds one Tuple rather than a frame, where select_dtypes does not apply.
+  it should "narrow the input features to the ones the model was fitted on" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = "y"
+    Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
+      code should include(""""feature_names_in_", None)""")
+      code should include("if _fitted is not None:")
+    }
+    // The two paths narrow with different expressions: this one holds a Tuple,
+    // the standalone one a frame.
+    d.generatePythonCode() should include("input_features.get_partial_tuple(list(_fitted))")
+  }
+
+  // The branch that names no ground truth predicts on the whole frame, so it needs
+  // the same narrowing as the one that drops a column first.
+  it should "narrow the features with no ground-truth column configured too" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    d.groundTruthAttribute = ""
+    val code = d.generateStandaloneCode()
+    code should include(""""feature_names_in_", None)""")
+    code should include("X = X[list(_fitted)]")
+  }
+
+  // The executor leaves a row's result empty where a feature is missing and keeps
+  // the row. Predicting the frame in one call cannot do that: scikit-learn ends the
+  // run on the first missing value, so the exported script would lose every row's
+  // prediction over one blank cell. Both branches predict on the complete rows.
+  it should "predict on the complete rows and leave the rest empty" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    Seq("y", "").foreach { groundTruth =>
+      d.groundTruthAttribute = groundTruth
+      val code = d.generateStandaloneCode()
+      code should include("_complete = X.notna().all(axis=1)")
+      code should include("model.predict(X[_complete])")
+      code should include("out1df[\"prediction\"] = None")
+      code should include("out1df.loc[_complete, \"prediction\"] = _predicted")
+      code should not include "model.predict(X)"
+    }
+  }
+
+  // The executor keeps the model of every row the model port hands it, each one
+  // overwriting the last, so it predicts with the model on the final row. A model
+  // port carrying more than one row is where reading the first row instead would
+  // answer with a different model than the run did.
+  it should "predict with the last model the model port carries, as the executor does" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    // The executor's own line, which holds one model rather than collecting them.
+    d.generatePythonCode() should include("self.model = tuple_[")
+    Seq("y", "").foreach { groundTruth =>
+      d.groundTruthAttribute = groundTruth
+      d.generateStandaloneCode() should include("model = in1df[\"model\"].iloc[-1]")
+    }
+  }
+
+  // The executor predicts once per data row, so with none it never reads the model
+  // and an empty model port is not an error.
+  it should "not read the model when there are no data rows" in {
+    val d = new SklearnPredictionOpDesc
+    d.model = "model"
+    d.resultAttribute = "prediction"
+    Seq("y", "").foreach { groundTruth =>
+      d.groundTruthAttribute = groundTruth
+      d.generateStandaloneCode() should include("iloc[-1] if len(in2df) else None")
+    }
+  }
+
   "SklearnPredictionOpDesc" should
     "round-trip its config fields through the polymorphic base" in {
     val d = new SklearnPredictionOpDesc

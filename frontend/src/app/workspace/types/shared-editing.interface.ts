@@ -246,11 +246,21 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     const keySet = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
     keySet.forEach((k: string) => {
       const newValue = newObj[k as keyof T] as any;
-      if (!_.isEqual(oldObj[k as keyof T], newValue)) {
-        if (!updateYTypeFromObject(oldYObjAsYMap.get(k), newValue)) {
-          if (newValue !== undefined) {
-            oldYObjAsYMap.set(k, createYTypeFromObject(newValue));
-          }
+      if (_.isEqual(oldObj[k as keyof T], newValue)) {
+        return;
+      }
+      // A key the new object does not carry is one the caller removed, and deleting
+      // it is the only way that removal can reach the shared type: the update below
+      // changes a value or adds one, and for a key that is simply gone it did
+      // neither, leaving the old value in place. `in` rather than an undefined check,
+      // so a key explicitly carrying undefined still takes the path below.
+      if (!(k in newObj)) {
+        oldYObjAsYMap.delete(k);
+        return;
+      }
+      if (!updateYTypeFromObject(oldYObjAsYMap.get(k), newValue)) {
+        if (newValue !== undefined) {
+          oldYObjAsYMap.set(k, createYTypeFromObject(newValue));
         }
       }
     });

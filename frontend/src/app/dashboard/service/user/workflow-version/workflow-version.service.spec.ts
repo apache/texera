@@ -374,6 +374,29 @@ describe("WorkflowVersionService", () => {
       expect(service.operatorPropertyDiff).toEqual({});
     });
 
+    it("leaves an operator that is identical in both versions out of the modified list", () => {
+      // The two contents differ overall (so the diff loop runs at all), but one
+      // of the two operators is untouched: it must be reported neither as
+      // modified nor given a property diff. The untouched pair is deliberately
+      // two *distinct* objects with equal contents, so a shallow `!==` in place
+      // of the deep compare would wrongly report it as modified.
+      const untouchedA = buildOperator({ operatorID: "same", operatorProperties: { a: 1 } });
+      const untouchedB = buildOperator({ operatorID: "same", operatorProperties: { a: 1 } });
+      const before = buildOperator({ operatorID: "moved", operatorProperties: { a: 1 } });
+      const after = buildOperator({ operatorID: "moved", operatorProperties: { a: 2 } });
+
+      const diff = service.getWorkflowsDifference(
+        buildContent({ operators: [untouchedA, before] }),
+        buildContent({ operators: [untouchedB, after] })
+      );
+
+      expect(diff.modified).toEqual(["moved"]);
+      expect(diff.added).toEqual([]);
+      expect(diff.deleted).toEqual([]);
+      expect(service.operatorPropertyDiff["same"]).toBeUndefined();
+      expect(service.operatorPropertyDiff["moved"]).toBeDefined();
+    });
+
     it("records per-property and version-bump diffs in operatorPropertyDiff", () => {
       const live = buildOperator({
         operatorID: "x",
@@ -449,6 +472,23 @@ describe("WorkflowVersionService", () => {
       actionSpy.disableWorkflowModification.mockClear();
       service.closeReadonlyWorkflowDisplay();
       expect(actionSpy.disableWorkflowModification).not.toHaveBeenCalled();
+    });
+
+    it("restoreModificationState leaves modification enabled when the snapshot was true", () => {
+      // The mirror of the test above: entering readonly display from an editable
+      // workflow must leave it editable on the way back out, not re-disable it.
+      actionSpy.checkWorkflowModificationEnabled.mockReturnValue(true);
+      service.displayReadonlyWorkflow(buildWorkflow());
+      actionSpy.disableWorkflowModification.mockClear();
+
+      service.closeReadonlyWorkflowDisplay();
+
+      // Only these two are about restoreModificationState. (An assertion on
+      // enableWorkflowModification would say nothing: closeReadonlyWorkflowDisplay
+      // calls it unconditionally, eleven lines before it restores the state.)
+      expect(actionSpy.disableWorkflowModification).not.toHaveBeenCalled();
+      // The snapshot is consumed, so the state is no longer restorable.
+      expect(service.canRestoreVersion).toBe(false);
     });
   });
 

@@ -102,10 +102,6 @@ export class DynamicSchemaService {
     return this.dynamicSchemaMap;
   }
 
-  public dynamicSchemaExists(operatorID: string): boolean {
-    return this.dynamicSchemaMap.has(operatorID);
-  }
-
   /**
    * Based on the operatorID, get the current dynamic operator schema that is created through autocomplete
    */

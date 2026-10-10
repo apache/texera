@@ -30,7 +30,8 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVe
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
-  assignNewOperatorIds
+  assignNewOperatorIds,
+  newUnpublishedWorkflow
 }
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import org.jooq.DSLContext
@@ -83,20 +84,6 @@ object WorkflowVersionResource {
     if (insertingNewWorkflow || !patch.isEmpty) {
       insertNewVersion(wid, patch.toString)
     }
-  }
-
-  /**
-    * This function updates the content of the latest version and inserts a new empty version for the current workflow
-    *
-    * @param patch to update latest version
-    * @param wid
-    */
-  private def updateLatestVersion(patch: String, wid: Integer): Unit = {
-    // get the latest version to update its content
-    val vid = getLatestVersion(wid)
-    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    workflowVersion.setContent(patch)
-    workflowVersionDao.update(workflowVersion)
   }
 
   /**
@@ -428,14 +415,12 @@ class WorkflowVersionResource {
     val newWorkflow: DashboardWorkflow =
       try {
         workflowResource.createWorkflow(
-          new Workflow(
-            null,
+          newUnpublishedWorkflow(
             newWorkflowName,
             workflowVersion.getDescription,
             assignNewOperatorIds(workflowVersion.getContent),
-            null,
-            null,
-            false
+            // carry the workflow's current default-view preference onto the clone
+            workflowVersion.getDefaultView
           ),
           sessionUser
         )

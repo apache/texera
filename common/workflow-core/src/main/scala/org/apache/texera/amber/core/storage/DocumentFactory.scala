@@ -60,8 +60,8 @@ object DocumentFactory {
     */
   def openReadonlyDocument(fileUri: URI): ReadonlyVirtualDocument[_] = {
     fileUri.getScheme match {
-      case DATASET_FILE_URI_SCHEME => new DatasetFileDocument(fileUri)
-      case MODEL_FILE_URI_SCHEME   => new ModelFileDocument(fileUri)
+      case DATASET_FILE_URI_SCHEME => new LakeFSFileDocument(fileUri, ResourceType.Dataset)
+      case MODEL_FILE_URI_SCHEME   => new LakeFSFileDocument(fileUri, ResourceType.Model)
       case "file"                  => new ReadonlyLocalFileDocument(fileUri)
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
@@ -184,8 +184,8 @@ object DocumentFactory {
     */
   def openDocument(uri: URI): (VirtualDocument[_], Option[Schema]) = {
     uri.getScheme match {
-      case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
-      case MODEL_FILE_URI_SCHEME   => (new ModelFileDocument(uri), None)
+      case DATASET_FILE_URI_SCHEME => (new LakeFSFileDocument(uri, ResourceType.Dataset), None)
+      case MODEL_FILE_URI_SCHEME   => (new LakeFSFileDocument(uri, ResourceType.Model), None)
       case VFS_FILE_URI_SCHEME =>
         val IcebergLocation(warehouse, namespace, storageKey) = resolveIcebergLocation(uri)
 
