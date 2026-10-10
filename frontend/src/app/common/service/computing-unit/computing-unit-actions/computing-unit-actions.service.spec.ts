@@ -193,5 +193,51 @@ describe("ComputingUnitActionsService", () => {
 
       expect(notificationService.error).toHaveBeenCalledWith("Failed to terminate computing unit: kaboom");
     });
+
+    // ng-zorro renders string content as HTML, and an admin sees other users' unit names, so a name must reach the
+    // modal and the toast as text.
+    describe("a unit name that holds markup", () => {
+      const markup = '<a href="https://evil.example">Confirm</a> & <b>x</b>';
+      const escaped = "&lt;a href=&quot;https://evil.example&quot;&gt;Confirm&lt;/a&gt; &amp; &lt;b&gt;x&lt;/b&gt;";
+
+      it.each(["kubernetes", "local"])("is escaped in the confirmation modal of a %s unit", type => {
+        service.confirmAndTerminate(7, unit({ type, name: markup }));
+
+        expect(modalService.confirm.mock.calls[0][0].nzContent).toContain(escaped);
+      });
+
+      it("is escaped in the success message", () => {
+        service.confirmAndTerminate(7, unit({ name: markup }));
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(notificationService.success).toHaveBeenCalledWith(`Terminated Computing Unit: ${escaped}`);
+      });
+    });
+
+    describe("onTerminated callback", () => {
+      it("runs once the confirmed termination succeeds, and not before the modal is confirmed", () => {
+        const onTerminated = vi.fn();
+        service.confirmAndTerminate(7, unit(), onTerminated);
+        expect(onTerminated).not.toHaveBeenCalled();
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(onTerminated).toHaveBeenCalledTimes(1);
+      });
+
+      it.each([
+        ["reports failure", of(false)],
+        ["observable errors", throwError(() => new Error("kaboom"))],
+      ])("does not run when the termination %s", (_outcome, termination) => {
+        const onTerminated = vi.fn();
+        statusService.terminateComputingUnit.mockReturnValue(termination);
+        service.confirmAndTerminate(7, unit(), onTerminated);
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(onTerminated).not.toHaveBeenCalled();
+      });
+    });
   });
 });
