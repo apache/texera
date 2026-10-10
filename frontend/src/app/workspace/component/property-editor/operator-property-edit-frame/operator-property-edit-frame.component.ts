@@ -39,9 +39,16 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import {
+  applyLoopVariableField,
+  inheritNoLoopVariable,
+  primitiveSchemaType,
+} from "../../../util/loop-variable-field.util";
+import { loopVariablesInScope } from "../../../util/loop-variable.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -240,6 +247,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
+  // The loop variables the form was last built with, undefined for an operator outside every block;
+  // see registerLoopScopeChangeHandler.
+  private loopVariableScope: string[] | undefined;
 
   readonly huggingFaceTaskPreviewSamples: Record<
     string,
@@ -522,7 +532,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private config: GuiConfigService,
     private workflowPveService: WorkflowPveService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private uiUdfParametersSyncService: UiUdfParametersSyncService
+    private uiUdfParametersSyncService: UiUdfParametersSyncService,
+    private loopBlockService: LoopBlockService
   ) {}
 
   private patchPythonUdfEnvironmentSchema(schema: CustomJSONSchema7, environments: string[]): CustomJSONSchema7 {
@@ -569,6 +580,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerDisableEditorInteractivityHandler();
 
     this.registerOperatorDisplayNameChangeHandler();
+
+    this.registerLoopScopeChangeHandler();
 
     this.workflowStatusSerivce
       .getStateUpdateStream()
@@ -857,6 +870,44 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  /**
+   * The loop variables in scope of the operator being edited, or undefined when it is not inside any
+   * control block (or not in the graph at all), so that such operators keep today's form exactly.
+   */
+  private loopVariableNamesInScope(): string[] | undefined {
+    if (this.currentOperatorId === undefined) {
+      return undefined;
+    }
+    const graph = this.workflowActionService.getTexeraGraph();
+    return graph.hasOperator(this.currentOperatorId)
+      ? loopVariablesInScope(graph, this.loopBlockService.getEnclosingLoopStarts(this.currentOperatorId))
+      : undefined;
+  }
+
+  /**
+   * Which fields take a $reference, and which variables they offer, depend on the blocks around the
+   * operator, which the compile result tells, and on their Loop Starts' variables, which other operators'
+   * links and properties decide; every such edit is followed by a compile. So after every compile result,
+   * the same one on which ValidationWorkflowService re-validates the operators holding a reference,
+   * rebuild the form when the operator's scope is no longer the one it was built with, rather than only
+   * when the operator is next opened.
+   */
+  private registerLoopScopeChangeHandler(): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    this.loopBlockService
+      .getCompileResultStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (
+          this.currentOperatorId !== undefined &&
+          graph.hasOperator(this.currentOperatorId) &&
+          !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope)
+        ) {
+          this.rerenderEditorForm();
+        }
+      });
+  }
+
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -870,6 +921,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     // Read once: the rules describe the whole schema, not one field.
     const conditionalRules = conditionalRequiredRules(this.currentOperatorSchema?.jsonSchema);
+    // The loop variables the operator may refer to as $name, when it sits inside a control block;
+    // undefined outside every block, where the form keeps today's controls untouched.
+    const loopVariableNames = this.loopVariableNamesInScope();
+    this.loopVariableScope = loopVariableNames;
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -958,6 +1013,29 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
       if (customType) {
         mappedField.type = customType;
+      }
+
+      // Inside a control block a primitive property may hold a loop-variable reference ("$K"), which the
+      // backend binds at run time (issue #8635): render it as a text input that takes "$K" next to plain
+      // values, offer the variables the enclosing Loop Starts declare, and warn about a name none declares.
+      // Enums and custom widgets keep their controls; `mappedField.type` still equal to the schema type
+      // is what tells a plain primitive from a field formly or a widget already resolved otherwise. A
+      // field with value rules is a primitive too, on the rules' control (setValueRules above): the text
+      // input replaces that control, keeps its rules for every value but a reference, and offers the
+      // values they accept next to the variables. A setting the plan is built from, and every field under
+      // one (`noLoopVariable`, spread down by inheritNoLoopVariable below), keeps its plain control: the
+      // compiler rejects a reference there, so none is offered, and one it already holds is left for the
+      // compiler's error to name.
+      const loopSchemaType = primitiveSchemaType(mapSource.type);
+      if (
+        loopVariableNames !== undefined &&
+        customType === undefined &&
+        loopSchemaType !== undefined &&
+        (mappedField.type === loopSchemaType || isDefined(mapSource.valueRules)) &&
+        !isDefined(mapSource.enum) &&
+        mapSource.noLoopVariable !== true
+      ) {
+        applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
 
       if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
@@ -1429,10 +1507,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
-      map: jsonSchemaMapIntercept,
-    });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object;
+    // inside a block, a copy that also marks every field under a setting the plan is built from
+    const field = this.formlyJsonschema.toFieldConfig(
+      cloneDeep(loopVariableNames === undefined ? schema : inheritNoLoopVariable(schema)),
+      { map: jsonSchemaMapIntercept }
+    );
     field.hooks = {
       onInit: fieldConfig => {
         if (!this.interactive) {
