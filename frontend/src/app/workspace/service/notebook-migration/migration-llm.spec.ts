@@ -26,6 +26,21 @@ import {
   LlmRequestTimeoutError,
 } from "./migration-llm";
 import { buildFolderDocument } from "./folder-assembly";
+import {
+  TEXERA_OVERVIEW,
+  TUPLE_DOCUMENTATION,
+  TABLE_DOCUMENTATION,
+  OPERATOR_DOCUMENTATION,
+  EXAMPLE_OF_GOOD_CONVERSION,
+  VISUALIZER_DOCUMENTATION,
+  UDF_INPUT_PORT_DOCUMENTATION,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
+  WORKFLOW_PROMPT,
+  MAPPING_PROMPT,
+  SCRIPT_WORKFLOW_PROMPT,
+  SCRIPT_MAPPING_PROMPT,
+} from "./migration-prompts";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AuthService } from "../../../common/service/user/auth.service";
@@ -313,6 +328,61 @@ describe("NotebookMigrationLLM", () => {
       expect(secondConversionMessages).toContain("# START BBB");
       expect(secondConversionMessages).not.toContain("AAA");
       expect(secondConversionMessages).not.toContain("codeAAA");
+    });
+  });
+
+  describe("Python prompts", () => {
+    const workflowResponse = JSON.stringify({ code: { UDF1: "# UDF1" }, edges: [], outputs: {} });
+    const documentation = [
+      TEXERA_OVERVIEW,
+      TUPLE_DOCUMENTATION,
+      TABLE_DOCUMENTATION,
+      OPERATOR_DOCUMENTATION,
+      EXAMPLE_OF_GOOD_CONVERSION,
+      VISUALIZER_DOCUMENTATION,
+      UDF_INPUT_PORT_DOCUMENTATION,
+      EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+    ];
+
+    function contentsFor(role: string): string[] {
+      return (callModelSpy.mock.calls[0][0] as { role: string; content: string }[])
+        .filter(message => message.role === role)
+        .map(message => message.content);
+    }
+
+    it("sends the notebook prelude and prompts unchanged", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: ["CELL1"] }));
+
+      await makeLLM().convertNotebookToWorkflow({ cells: [codeCell("CELL1", "print(1)")] });
+
+      expect(contentsFor("system")).toEqual(documentation);
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(MAPPING_PROMPT);
+    });
+
+    it("sends the script prelude and prompts unchanged", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      await makeLLM().convertScriptToWorkflow("print(1)");
+
+      expect(contentsFor("system")).toEqual(
+        documentation.map(doc =>
+          doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
+        )
+      );
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${SCRIPT_WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(SCRIPT_MAPPING_PROMPT);
+    });
+
+    it("builds PythonUDFV2 operators", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      const { workflowJSON } = await makeLLM().convertScriptToWorkflow("print(1)");
+
+      expect(stubUtil.getNewOperatorPredicate).toHaveBeenCalledWith("PythonUDFV2", "UDF1");
+      expect(workflowJSON.operators[0].operatorType).toBe("PythonUDFV2");
     });
   });
 
