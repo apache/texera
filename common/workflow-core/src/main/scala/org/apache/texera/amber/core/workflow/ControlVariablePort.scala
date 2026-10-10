@@ -17,17 +17,23 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.worker
+package org.apache.texera.amber.core.workflow
 
-import org.apache.texera.amber.core.virtualidentity.EmbeddedControlMessageIdentity
+/**
+  * The control-variable port that every operator has besides its data input ports.
+  *
+  * Whatever arrives on it becomes control variables of the operator: a control message (the
+  * loop's state) is merged in, and a tuple is converted, one variable per column. The port has
+  * no schema. Every edge into it ends before the operator starts, so the scheduler always
+  * materializes such an edge.
+  *
+  * The port uses the reserved id -1, which no data port uses (data ports are numbered from 0),
+  * so it needs no change to the port protos.
+  */
+object ControlVariablePort {
+  val Id: PortIdentity = PortIdentity(-1)
 
-sealed trait PauseType
+  def is(port: PortIdentity): Boolean = port == Id
 
-object UserPause extends PauseType
-
-object OperatorLogicPause extends PauseType
-
-// Holds the data input of an operator until its control-variable port's input has ended.
-object ControlVariablePortPause extends PauseType
-
-case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType
+  val inputPort: InputPort = InputPort(Id, displayName = "control variables")
+}

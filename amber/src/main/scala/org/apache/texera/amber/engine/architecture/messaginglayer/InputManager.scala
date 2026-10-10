@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PortIdentity}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import org.apache.texera.amber.engine.architecture.worker.managers.InputPortMaterializationReaderThread
@@ -91,26 +91,39 @@ class InputManager(
     this.inputPortMaterializationReaderThreads.toMap
   }
 
-  def startInputPortReaderThreads(): Unit = {
+  /** The ports whose reader threads have been started, so that none is started twice. */
+  private val startedReaderPorts = mutable.HashSet[PortIdentity]()
+
+  /** Whether the control-variable port is assigned and its input has not ended yet. */
+  def controlVariablePortPending: Boolean =
+    ports.contains(ControlVariablePort.Id) && !isPortCompleted(ControlVariablePort.Id)
+
+  def startInputPortReaderThreads(): Unit =
+    startInputPortReaderThreads(inputPortMaterializationReaderThreads.keySet.toSet)
+
+  /** Starts the reader threads of `portIds` that are neither started nor completed. */
+  def startInputPortReaderThreads(portIds: Set[PortIdentity]): Unit = {
     this.inputPortMaterializationReaderThreads
+      .filter { case (portId, _) => portIds.contains(portId) && !startedReaderPorts(portId) }
       .filterNot {
         // A completed port should not be started again
         case (portId, _) => this.isPortCompleted(portId)
       }
-      .values
-      .foreach(threadList =>
-        threadList.foreach(readerThread => {
-          try {
-            readerThread.start()
-          } catch {
-            case e: Exception =>
-              throw new RuntimeException(
-                s"Error starting input port materialization reader thread: ${e.getMessage}",
-                e
-              )
-          }
-        })
-      )
+      .foreach {
+        case (portId, threadList) =>
+          startedReaderPorts.add(portId)
+          threadList.foreach(readerThread => {
+            try {
+              readerThread.start()
+            } catch {
+              case e: Exception =>
+                throw new RuntimeException(
+                  s"Error starting input port materialization reader thread: ${e.getMessage}",
+                  e
+                )
+            }
+          })
+      }
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
@@ -120,7 +133,10 @@ class InputManager(
     * For other ports that connect to upstream links, the completion is marked by the completion the port.
     */
   def isPortCompleted(portId: PortIdentity): Boolean = {
-    if (
+    // The port's end has been processed: its reader thread may not have set `finished` yet.
+    if (this.ports.get(portId).exists(_.completed)) {
+      true
+    } else if (
       !this.inputPortMaterializationReaderThreads
         .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
     ) {

@@ -20,8 +20,10 @@
 package org.apache.texera.common.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.workflow.ControlVariablePort
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
@@ -132,6 +134,14 @@ case class LogicalPlan(
   def operatorsInsideLoopBlocks: Set[OperatorIdentity] = enclosingLoopStarts.keySet
 
   /**
+    * The operators that receive control variables: those inside a loop block, whose links carry
+    * the block's state, and those with a link into their control-variable port.
+    */
+  lazy val operatorsReceivingControlVariables: Set[OperatorIdentity] =
+    operatorsInsideLoopBlocks ++
+      links.filter(link => ControlVariablePort.is(link.toPortId)).map(_.toOpId)
+
+  /**
     * Resolves each scan source operator's user-given file name to a URI and sets it on the
     * operator via `setResolvedFileName`.
     *
@@ -150,10 +160,17 @@ case class LogicalPlan(
               "No file selected. Please select a file from the 'File' dropdown in the right panel."
             )
           )
-          val fileUri = FileResolver.resolve(fileName) // Convert to URI
+          // A file name such as "$file" that a control variable supplies is resolved by the
+          // executor once the variable is bound.
+          val boundAtRunTime =
+            StateReferencing.referencedVariable(fileName).isDefined &&
+              operatorsReceivingControlVariables.contains(operator.operatorIdentifier)
+          if (!boundAtRunTime) {
+            val fileUri = FileResolver.resolve(fileName) // Convert to URI
 
-          // Set the URI in the ScanSourceOpDesc
-          scanOp.setResolvedFileName(fileUri)
+            // Set the URI in the ScanSourceOpDesc
+            scanOp.setResolvedFileName(fileUri)
+          }
         } match {
           case Success(_) => // Successfully resolved and set the file URI
 

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.{Await, Duration, Future}
-import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.executor.{OperatorExecutor, SourceOperatorExecutor}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{
   AttributeType,
@@ -36,7 +36,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PhysicalLink, PortIdentity}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   ConsoleMessageTriggeredRequest,
@@ -51,6 +51,7 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import org.apache.texera.amber.engine.architecture.worker.DataProcessorSpec.loopLimitExec
 import org.apache.texera.amber.engine.architecture.worker.{
+  ControlVariablePortPause,
   DataProcessor,
   DataProcessorRPCHandlerInitializer,
   OperatorLogicPause,
@@ -221,6 +222,43 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
   }
 
   behavior of "EndChannelHandler"
+
+  /** Re-points the channel the ECM arrives on to the control-variable port. */
+  private def endingOnControlVariablePort(fixture: Fixture): Fixture = {
+    fixture.dp.inputManager.addPort(ControlVariablePort.Id, Schema(), List.empty, List.empty)
+    fixture.dp.inputGateway.getChannel(currentChannelId).setPortId(ControlVariablePort.Id)
+    fixture
+  }
+
+  it should "end a non-source's control-variable port without finishing the operator, and resume its data input" in {
+    val executor = new RecordingExecutor()
+    val fixture =
+      endingOnControlVariablePort(new Fixture(executor, otherInputPortCompleted = false))
+    fixture.dp.pauseManager.pause(ControlVariablePortPause)
+
+    fixture.endChannel()
+
+    assert(fixture.dp.inputManager.isPortCompleted(ControlVariablePort.Id))
+    // The operator finishes when its data ends, not when its control variables have arrived.
+    assert(executor.statePorts.isEmpty)
+    assert(executor.finishOutputPorts.isEmpty)
+    assert(!fixture.dp.pauseManager.isPaused)
+    assert(fixture.drainOutput() == List(FinalizePort(ControlVariablePort.Id, input = true)))
+  }
+
+  it should "let a source produce once its control-variable port ends" in {
+    val source = new SourceOperatorExecutor {
+      override def produceTuple(): Iterator[TupleLike] = Iterator(TupleLike(1), TupleLike(2))
+    }
+    val fixture = endingOnControlVariablePort(new Fixture(source))
+    fixture.dp.inputManager.getPort(currentPortId).completed = true
+
+    fixture.endChannel()
+
+    val output = fixture.drainOutput()
+    assert(output.take(2).map(_.getFields.toList) == List(List(1), List(2)))
+    assert(output.contains(FinalizePort(ControlVariablePort.Id, input = true)))
+  }
 
   it should "complete the input port of the channel the ECM arrived on, and only that one" in {
     val executor = new RecordingExecutor()

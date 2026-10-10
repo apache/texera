@@ -17,17 +17,24 @@
  * under the License.
  */
 
-package org.apache.texera.amber.engine.architecture.worker
+package org.apache.texera.amber.core.workflow
 
-import org.apache.texera.amber.core.virtualidentity.EmbeddedControlMessageIdentity
+import org.scalatest.flatspec.AnyFlatSpec
 
-sealed trait PauseType
+class ControlVariablePortSpec extends AnyFlatSpec {
 
-object UserPause extends PauseType
+  "ControlVariablePort.Id" should "be a reserved external id that no data port uses" in {
+    assert(ControlVariablePort.Id == PortIdentity(-1, internal = false))
+    assert(ControlVariablePort.is(PortIdentity(-1)))
+    assert(!ControlVariablePort.is(PortIdentity(0)))
+    assert(!ControlVariablePort.is(PortIdentity(-1, internal = true)))
+  }
 
-object OperatorLogicPause extends PauseType
-
-// Holds the data input of an operator until its control-variable port's input has ended.
-object ControlVariablePortPause extends PauseType
-
-case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType
+  "ControlVariablePort.inputPort" should "declare the reserved id with no dependencies" in {
+    val port = ControlVariablePort.inputPort
+    assert(port.id == ControlVariablePort.Id)
+    assert(port.displayName == "control variables")
+    assert(port.dependencies.isEmpty)
+    assert(!port.disallowMultiLinks)
+  }
+}

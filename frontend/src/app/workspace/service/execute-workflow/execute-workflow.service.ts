@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CONTROL_VARIABLE_PORT_IDENTITY, isControlVariableLink } from "../workflow-graph/model/control-variable-port";
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
 import { BehaviorSubject, interval, Observable, Subject, Subscription } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -565,7 +566,7 @@ export class ExecuteWorkflowService {
         fromOpId: link.source.operatorID,
         fromPortId: { id: outputPortIdx, internal: false },
         toOpId: link.target.operatorID,
-        toPortId: { id: inputPortIdx, internal: false },
+        toPortId: isControlVariableLink(link) ? CONTROL_VARIABLE_PORT_IDENTITY : { id: inputPortIdx, internal: false },
       };
     });
 

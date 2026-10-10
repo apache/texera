@@ -203,6 +203,19 @@ class PhysicalPlanSpec extends AnyFlatSpec {
     assert(plan.getNonBridgeNonBlockingLinks.isEmpty)
   }
 
+  // ----- control-variable port -----
+
+  "PhysicalPlan.getBlockingAndDependeeLinks" should "always include links into a control-variable port" in {
+    val controlLink = PhysicalLink(opId("c"), PortIdentity(0), opId("b"), ControlVariablePort.Id)
+    val plan = PhysicalPlan(
+      Set(physicalOp("a"), physicalOp("b").withControlVariablePort, physicalOp("c")),
+      Set.empty
+    ).addLink(link("a", "b")).addLink(link("a", "c")).addLink(controlLink)
+    assert(plan.getBlockingAndDependeeLinks == Set(controlLink))
+    assert(plan.getDependeeLinks.isEmpty)
+    assert(plan.getNonBridgeNonBlockingLinks == Set(link("a", "b"), link("a", "c")))
+  }
+
   // ----- maxChains -----
 
   "PhysicalPlan.maxChains" should "keep only the maximal chain of a straight pipeline" in {

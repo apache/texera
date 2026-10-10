@@ -23,12 +23,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.texera.common.compiler.WorkflowCompiler.{
+  controlVariableLinkError,
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap,
   normalizeStateReferences,
   unbindableStateReferences
 }
-import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.state.StateReferencing.{
   literalReferences,
@@ -37,6 +38,7 @@ import org.apache.texera.amber.core.state.StateReferencing.{
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
+  ControlVariablePort,
   GlobalPortIdentity,
   PhysicalLink,
   PhysicalPlan,
@@ -92,7 +94,7 @@ object WorkflowCompiler {
     * recompile reports it too.
     */
   def normalizeStateReferences(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] =
-    if (plan.operatorsInsideLoopBlocks.contains(logicalOp.operatorIdentifier)) {
+    if (plan.operatorsReceivingControlVariables.contains(logicalOp.operatorIdentifier)) {
       logicalOp.stateReferences =
         literalReferences(objectMapper.valueToTree[ObjectNode](logicalOp)) ++
           logicalOp.stateReferences
@@ -135,7 +137,8 @@ object WorkflowCompiler {
     */
   private def inputsAheadOfLoopState(logicalOp: LogicalOp, plan: LogicalPlan): Option[Throwable] = {
     val around = plan.enclosingLoopStarts
-    val mine = around(logicalOp.operatorIdentifier)
+    // An operator fed only through its control-variable port may sit outside every block.
+    val mine = around.getOrElse(logicalOp.operatorIdentifier, Set.empty)
     val linksByPort = plan.getUpstreamLinks(logicalOp.operatorIdentifier).groupBy(_.toPortId)
     // A LoopStart's link carries its own block's state too.
     def carriesOnlyState(port: PortIdentity): Boolean =
@@ -180,6 +183,43 @@ object WorkflowCompiler {
           "the loop runs"
       )
     }
+
+  /**
+    * The prototype supports control-variable links into operators whose executor the worker
+    * builds from the descriptor. An operator that runs code (a UDF, LoopStart, LoopEnd, or a
+    * descriptor that generates Python) would also need the Python worker to convert what arrives
+    * on the port. One output port may not feed both the control-variable port and a data port of
+    * one operator, since both inputs would share one channel.
+    */
+  def controlVariableLinkError(
+      logicalOp: LogicalOp,
+      subPlan: PhysicalPlan,
+      upstreamLinks: List[LogicalLink]
+  ): Option[Throwable] = {
+    val (controlLinks, dataLinks) =
+      upstreamLinks.partition(link => ControlVariablePort.is(link.toPortId))
+    val name = logicalOp.operatorInfo.userFriendlyName
+    if (controlLinks.isEmpty) None
+    else if (subPlan.operators.exists(_.opExecInitInfo.isInstanceOf[OpExecWithCode]))
+      Some(
+        new UnsupportedOperationException(
+          s"$name cannot receive control variables on its port yet: it runs code"
+        )
+      )
+    else if (
+      controlLinks.exists(control =>
+        dataLinks.exists(data =>
+          data.fromOpId == control.fromOpId && data.fromPortId == control.fromPortId
+        )
+      )
+    )
+      Some(
+        new IllegalArgumentException(
+          s"$name receives one output port on both its control-variable port and a data port"
+        )
+      )
+    else None
+  }
 
   /** A descriptor's references as the compile errors name them: `/pointer -> $name, ...`. */
   private def formatReferences(references: Map[String, String]): String =
@@ -275,9 +315,22 @@ class WorkflowCompiler(
         // Before the code-generation check below: the first error per operator is reported, and
         // code generated from a placeholder may fail on it with a less specific message.
         unbindableStateReferences(logicalOp, subPlan).foreach(report)
+        val controlLinkError = controlVariableLinkError(logicalOp, subPlan, upstreamLinks)
+        controlLinkError.foreach(report)
+        val controlVariablesAccepted = controlLinkError.isEmpty
+        // The operators of the sub-plan that receive its external inputs get the port.
+        val entryOps = subPlan.getSourceOperatorIds
+        val receivesControlVariables =
+          controlVariablesAccepted && upstreamLinks.exists(link =>
+            ControlVariablePort.is(link.toPortId)
+          )
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)
+          .map { op =>
+            if (receivesControlVariables && entryOps.contains(op.id)) op.withControlVariablePort
+            else op
+          }
           .foreach({ physicalOp =>
             {
               val externalLinks = upstreamLinks

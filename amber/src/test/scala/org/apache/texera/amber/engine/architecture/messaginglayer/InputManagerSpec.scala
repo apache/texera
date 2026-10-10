@@ -21,7 +21,7 @@ package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PortIdentity}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
   BroadcastPartitioning,
   Partitioning
@@ -295,5 +295,59 @@ class InputManagerSpec extends AnyFlatSpec {
       thrown.getCause.isInstanceOf[IllegalThreadStateException],
       s"expected the start failure itself as the cause, got: ${thrown.getCause}"
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // control-variable port
+  // ---------------------------------------------------------------------------
+
+  "InputManager.startInputPortReaderThreads(ports)" should
+    "start only the given ports' reader threads, and none of them twice" in {
+    val mgr = freshManager
+    mgr.addPort(
+      ControlVariablePort.Id,
+      Schema(),
+      urisToRead = List.empty,
+      partitionings = List.empty
+    )
+    mgr.addPort(PortIdentity(0), schema, urisToRead = List.empty, partitionings = List.empty)
+    val control = new NoOpReaderThread
+    val data = new NoOpReaderThread
+    installReaderThreads(mgr, ControlVariablePort.Id, List(control))
+    installReaderThreads(mgr, PortIdentity(0), List(data))
+
+    mgr.startInputPortReaderThreads(Set(ControlVariablePort.Id))
+    assert(control.getState != Thread.State.NEW)
+    assert(data.getState == Thread.State.NEW)
+
+    control.join() // TERMINATED: a second start() would throw
+    mgr.startInputPortReaderThreads()
+    assert(data.getState != Thread.State.NEW)
+  }
+
+  "InputManager.controlVariablePortPending" should
+    "hold from the port's assignment until its input has ended" in {
+    val mgr = freshManager
+    assert(!mgr.controlVariablePortPending)
+    mgr.addPort(
+      ControlVariablePort.Id,
+      Schema(),
+      urisToRead = List.empty,
+      partitionings = List.empty
+    )
+    installReaderThreads(mgr, ControlVariablePort.Id, List(new NoOpReaderThread))
+    assert(mgr.controlVariablePortPending)
+    mgr.getPort(ControlVariablePort.Id).completed = true
+    assert(!mgr.controlVariablePortPending)
+  }
+
+  "InputManager.isPortCompleted (materialized)" should
+    "hold once the port's end has been processed, before its reader thread reports finished" in {
+    val mgr = freshManager
+    mgr.addPort(PortIdentity(0), schema, urisToRead = List.empty, partitionings = List.empty)
+    installReaderThreads(mgr, PortIdentity(0), List(new NoOpReaderThread))
+    assert(!mgr.isPortCompleted(PortIdentity(0)))
+    mgr.getPort(PortIdentity(0)).completed = true
+    assert(mgr.isPortCompleted(PortIdentity(0)))
   }
 }

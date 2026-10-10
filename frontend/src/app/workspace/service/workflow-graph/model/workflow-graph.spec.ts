@@ -19,6 +19,11 @@
 
 import {
   mockCommentBox,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
+  mockLoopEndPredicate,
+  mockLoopStartScalaExecutorLink,
+  mockLoopStartPredicate,
   mockMultiInputOutputPredicate,
   mockResultPredicate,
   mockScanPredicate,
@@ -28,6 +33,7 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph, isSink } from "./workflow-graph";
+import { CONTROL_VARIABLE_PORT_ID } from "./control-variable-port";
 import { Observable } from "rxjs";
 import {
   Comment,
@@ -670,6 +676,17 @@ describe("WorkflowGraph", () => {
       expect(() => workflowGraph.assertLinkIsValid(badSourcePortLink)).toThrowError(new RegExp("source port"));
     });
 
+    it("should accept a link into any operator's control-variable port", () => {
+      workflowGraph.addOperator(mockSentimentPredicate); // operator 2
+      workflowGraph.addOperator(mockScanPredicate); // operator 1, has no input ports
+      const controlLink: OperatorLink = {
+        linkID: "control-link",
+        source: { operatorID: "2", portID: mockSentimentPredicate.outputPorts[0].portID },
+        target: { operatorID: "1", portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      expect(() => workflowGraph.assertLinkIsValid(controlLink)).not.toThrow();
+    });
+
     it("should validate a link's target port existence", () => {
       workflowGraph.addOperator(mockSentimentPredicate); // operator 2
       workflowGraph.addOperator(mockScanPredicate); // operator 1, has no input ports
@@ -828,6 +845,35 @@ describe("WorkflowGraph", () => {
       workflowGraph.triggerCenterEvent();
       expect(fired).toBe(true);
       sub.unsubscribe();
+    });
+  });
+
+  describe("getEnclosingLoopStarts", () => {
+    it("names the LoopStart of the block an operator sits in, from the graph's own operators and links", () => {
+      workflowGraph = new WorkflowGraph(
+        [mockLoopStartPredicate, mockScalaExecutorPredicate, mockLoopEndPredicate],
+        [mockLoopStartScalaExecutorLink, mockScalaExecutorLoopEndLink]
+      );
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([
+        mockLoopStartPredicate.operatorID,
+      ]);
+      // the control operators are not inside their own block
+      expect(workflowGraph.getEnclosingLoopStarts(mockLoopStartPredicate.operatorID)).toEqual([]);
+      expect(workflowGraph.getEnclosingLoopStarts(mockLoopEndPredicate.operatorID)).toEqual([]);
+    });
+
+    it("follows the graph as it changes", () => {
+      workflowGraph.addOperator(mockLoopStartPredicate);
+      workflowGraph.addOperator(mockScalaExecutorPredicate);
+      workflowGraph.addOperator(mockLoopEndPredicate);
+      workflowGraph.addLink(mockLoopStartScalaExecutorLink);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([]);
+      workflowGraph.addLink(mockScalaExecutorLoopEndLink);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([
+        mockLoopStartPredicate.operatorID,
+      ]);
+      workflowGraph.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(workflowGraph.getEnclosingLoopStarts(mockScalaExecutorPredicate.operatorID)).toEqual([]);
     });
   });
 
