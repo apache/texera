@@ -25,6 +25,7 @@ import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryPar
 import org.jooq.impl.{DSL => JDSL}
 import org.jooq.{OrderField, SQLDialect}
 
+import javax.ws.rs.BadRequestException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -41,7 +42,7 @@ import org.scalatest.matchers.should.Matchers
   *     execution time land;
   *   - the regex losing its implicit anchoring (`Regex.unapplySeq` requires a
   *     full match), which would start accepting junk like `SortByNameAsc`;
-  *   - an unrecognised `orderBy` no longer degrading to "no ORDER BY", or the
+  *   - an unrecognised `orderBy` not being rejected, or the
   *     unknown-resourceType guard no longer throwing before the query is built.
   *
   * Note on the shared global `FulltextSearchQueryUtils.usePgroonga`: nothing
@@ -101,25 +102,24 @@ class DashboardResourceSpec extends AnyFlatSpec with Matchers {
 
   // -- getOrderFields: everything the grammar rejects -------------------------
 
-  it should "fall back to no ordering at all when orderBy does not match the pattern" in {
-    // Consequence of the empty list: the query runs unordered while
-    // offset/limit still apply, so pagination silently becomes
-    // non-deterministic. Pin the inputs that take this branch.
-    orderSql("") shouldBe empty // the frontend can send an empty query param
-    orderSql("Bogus") shouldBe empty
-    orderSql("NameSideways") shouldBe empty // known column, junk direction
-    orderSql("Name") shouldBe empty // direction missing entirely
-    orderSql("nameAsc") shouldBe empty // the regex is case-sensitive
-    orderSql("SortByNameAsc") shouldBe empty // Regex.unapplySeq anchors the
-    orderSql("NameAscending") shouldBe empty // whole string, both ends
+  it should "reject values outside the orderBy grammar" in {
+    Seq(
+      "", // present but empty query parameter
+      "Bogus", // unknown column and direction
+      "NameSideways", // known column with an unknown direction
+      "Name", // missing direction
+      "nameAsc", // case-sensitive grammar
+      "SortByNameAsc", // invalid prefix proves start anchoring
+      "NameAscending" // invalid suffix proves end anchoring
+    )
+      .foreach { orderBy =>
+        val thrown = the[BadRequestException] thrownBy orderSql(orderBy)
+        thrown.getMessage shouldBe s"Unknown orderBy: $orderBy"
+      }
   }
 
-  // Two branches in this area are unreachable and are therefore deliberately
-  // NOT tested: `case None => List()` inside getOrderFields and
-  // `case _ => null` inside the private getColumnField. The regex can only
-  // yield the four column names Name/CreateTime/EditTime/ExecutionTime, and
-  // every one of them maps to a non-null Field, so getColumnField never
-  // returns None.
+  // The defensive default inside getColumnField is unreachable because the
+  // regex can only yield the four mapped column names.
 
   // -- searchAllResources: the dispatch guard --------------------------------
 
