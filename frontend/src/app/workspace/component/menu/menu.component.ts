@@ -32,7 +32,7 @@ import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap, timeout } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -90,6 +90,15 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
  * @author Henry Chen
  *
  */
+/**
+ * How long the Form View hand-over waits for the save queue to drain after its own save has
+ * completed (see saveThenOpenFormView). Long enough for a slow save queued behind it to land,
+ * short enough that a request which never answers does not read as a hang.
+ */
+export const HANDOVER_DRAIN_TIMEOUT_MS = 10_000;
+/** What the bounded wait yields past the bound, in place of the drain. */
+const DRAIN_TIMED_OUT = "drain timed out" as const;
+
 @UntilDestroy()
 @Component({
   selector: "texera-menu",
@@ -755,11 +764,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     // than carrying changes that were never stored into a view that has no reason to say so. The
     // form's own switch (openRegularCanvas) does the same.
     //
-    // Two more things the hand-over must not lose. An autosave already in flight when the switch
+    // Three more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
-    // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the route): workflowChanged marks it, and the drain below saves once more before handing
-    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
+    // it and completes after it. A graph edit made while our save is out (the page stays editable
+    // until the route): workflowChanged marks it, and saveThenOpenFormView saves once more before
+    // handing over, so the switch does not leave that edit to an autosave that would fire under the
+    // other view. And a save queued behind ours (a rename's or a description's, which save through
+    // the menu itself and do not go through workflowChanged): the route would not abort it, but its
+    // outcome answers to this component -- the error shown, the response fed back -- and this
+    // component is gone once the route lands. So the hand-over leaves only once the service's save
+    // queue has drained.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -787,14 +801,33 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.notificationService.error("Could not save. Your latest changes are not stored yet.");
         },
         complete: () => {
-          if (this.editedSinceSwitchSnapshot) {
-            // An edit landed while the save was out; store it here rather than leave it to an
-            // autosave that would fire under the other view.
-            this.saveThenOpenFormView(target);
-            return;
-          }
-          this.isSaving = false;
-          this.openFormViewPage(target);
+          // A save queued behind ours (a rename's, a description's: those save through the menu
+          // itself, not the autosave) answers to this component: its error is shown here, its
+          // response fed back here, and neither reaches a component the route has destroyed. Leave
+          // once it has answered; a failure of its own is reported by its caller and does not hold
+          // the hand-over.
+          //
+          // Bounded, because this is a wait on requests this component did not make: a save queued
+          // behind ours that never answers -- neither completes nor fails, which the queue does
+          // count -- would otherwise hold the spinner and the button for good. Past the bound the
+          // hand-over leaves as it did before this wait existed, the request going on in the
+          // service with nobody left to answer to.
+          this.workflowPersistService
+            .whenSavesDrained()
+            .pipe(timeout({ first: HANDOVER_DRAIN_TIMEOUT_MS, with: () => of(DRAIN_TIMED_OUT) }), untilDestroyed(this))
+            .subscribe(outcome => {
+              // The page stayed editable while our save was out and while the queue drained. An
+              // edit landed in either window is stored here rather than left to an autosave that
+              // would fire under the other view -- checked after the drain, so the two windows
+              // are one. Not past the bound: a save then would queue behind the request that never
+              // answers, and never complete.
+              if (outcome !== DRAIN_TIMED_OUT && this.editedSinceSwitchSnapshot) {
+                this.saveThenOpenFormView(target);
+                return;
+              }
+              this.isSaving = false;
+              this.openFormViewPage(target);
+            });
         },
       });
   }

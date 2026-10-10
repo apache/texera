@@ -24,9 +24,10 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { take } from "rxjs/operators";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
-import { MenuComponent } from "./menu.component";
+import { HANDOVER_DRAIN_TIMEOUT_MS, MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import type { ExecutionDurationUpdateEvent } from "../../types/workflow-websocket.interface";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -239,6 +240,89 @@ describe("MenuComponent", () => {
     second$.complete();
     expect(navigate).toHaveBeenCalledWith(7);
     expect(component.isSaving).toBe(false);
+  });
+
+  it("leaves only once every queued save has landed, not just its own", () => {
+    // A rename made while the switch's save is out saves through the menu itself and is queued
+    // behind the switch's save; the hand-over waits for the queue to drain, so that save's error
+    // or response still reaches this component rather than one the route has destroyed.
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const drained$ = new Subject<void>();
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(drained$.asObservable());
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(navigate).not.toHaveBeenCalled(); // its own save is done, another is still queued
+    drained$.next();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("saves once more when an edit lands while the hand-over waits for the queue to drain", () => {
+    // Waiting for a queued save is a second window the page stays editable in, after the one the
+    // switch's own save opened; an edit made in it is stored before leaving, like one made in the first.
+    const edits = new Subject<unknown>();
+    vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+    component.ngOnInit();
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const persistSpy = vi
+      .spyOn(workflowPersistService, "persistWorkflow")
+      .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    const drained$ = new Subject<void>();
+    // One emission per call, as the service's whenSavesDrained gives.
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockImplementation(() => drained$.pipe(take(1)));
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    edits.next(undefined); // an edit while a queued save is still being waited for
+    drained$.next();
+
+    expect(persistSpy).toHaveBeenCalledTimes(2); // saved once more instead of leaving
+    expect(navigate).not.toHaveBeenCalled();
+    drained$.next(); // nothing queued behind the second save
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("leaves after a bound when a save queued behind its own never answers", () => {
+    // The wait is on a request this component did not make; one that never answers must not hold
+    // the spinner and the button for good. Past the bound the hand-over leaves as it did before
+    // the wait existed, and an edit landed meanwhile is not saved again: that save would queue
+    // behind the request that never answers.
+    vi.useFakeTimers();
+    try {
+      const edits = new Subject<unknown>();
+      vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+      component.ngOnInit();
+      component.writeAccess = true;
+      vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+      vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+      const persistSpy = vi
+        .spyOn(workflowPersistService, "persistWorkflow")
+        .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+      vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(new Subject<void>().asObservable());
+      const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+      component.onClickOpenFormView();
+      edits.next(undefined); // an edit while the queue is waited for
+      vi.advanceTimersByTime(HANDOVER_DRAIN_TIMEOUT_MS - 1);
+      expect(navigate).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+
+      expect(navigate).toHaveBeenCalledWith(7);
+      expect(persistSpy).toHaveBeenCalledTimes(1); // not saved again behind a request that never answers
+      expect(component.isSaving).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("ignores a second click while the hand-over is already in progress", () => {
