@@ -20,17 +20,33 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
+// type constraint: the tokenizer summarizes text and refuses anything that is not
+// a string, so the column can only be a string.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "attribute": { "enum": ["string"] }
+  }
+}
+""")
+class HuggingFaceTextSummarizationOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("attribute to perform text summarization on")
   @AutofillAttributeName
+  @SampleColumn("long_text")
   var attribute: EncodableString = _
 
   @JsonProperty(
@@ -44,6 +60,7 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
   override def generatePythonCode(): String = {
     pyb"""
        |from transformers import BertTokenizerFast, EncoderDecoderModel
+       |import pandas as pd
        |import torch
        |from pytexera import *
        |
@@ -58,10 +75,11 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
        |        text = tuple_[$attribute]
-       |        # An empty cell arrives as None, which the tokenizer rejects. Keep the row
-       |        # and leave the summary empty rather than ending the run over a value the
-       |        # model has nothing to say about.
-       |        if text is None or (isinstance(text, str) and not text.strip()):
+       |        # An empty cell arrives as None, and a column the type rule was meant to
+       |        # keep out can carry a NaN of its own. The tokenizer rejects both. Keep
+       |        # the row and leave the summary empty rather than ending the run over a
+       |        # value the model has nothing to say about.
+       |        if pd.isna(text) or (isinstance(text, str) and not text.strip()):
        |            tuple_[$resultAttribute] = None
        |            yield tuple_
        |            return
@@ -74,6 +92,37 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
        |        summary = self.tokenizer.decode(output[0], skip_special_tokens=True)
        |        tuple_[$resultAttribute] = summary
        |        yield tuple_""".encode
+  }
+
+  // Standalone mirror of generatePythonCode: load the encoder-decoder model
+  // once, generate a summary per row, and add the STRING result column to
+  // produce out1df.
+  override def generateStandaloneCode(): String = {
+    s"""from transformers import BertTokenizerFast, EncoderDecoderModel
+       |import pandas as pd
+       |import torch
+       |
+       |model_name = "mrm8488/bert-mini2bert-mini-finetuned-cnn_daily_mail-summarization"
+       |device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+       |tokenizer = BertTokenizerFast.from_pretrained(model_name)
+       |model = EncoderDecoderModel.from_pretrained(model_name).to(device)
+       |
+       |out1df = in1df.copy()
+       |_summaries = []
+       |for _text in out1df[${pyStringLiteral(attribute)}]:
+       |    # An empty cell reaches the frame as None, or as NaN once a column holds
+       |    # nothing else, and the tokenizer rejects both. Keep the row and leave the
+       |    # summary empty rather than ending the run over a value the model has
+       |    # nothing to say about.
+       |    if pd.isna(_text) or (isinstance(_text, str) and not _text.strip()):
+       |        _summaries.append(None)
+       |        continue
+       |    inputs = tokenizer([_text], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
+       |    input_ids = inputs.input_ids.to(device)
+       |    attention_mask = inputs.attention_mask.to(device)
+       |    output = model.generate(input_ids, attention_mask=attention_mask)
+       |    _summaries.append(tokenizer.decode(output[0], skip_special_tokens=True))
+       |out1df[${pyStringLiteral(resultAttribute)}] = _summaries""".stripMargin
   }
 
   override def operatorInfo: OperatorInfo =

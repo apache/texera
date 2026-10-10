@@ -20,7 +20,6 @@
 import { DashboardEntry } from "./dashboard-entry";
 import { EntityType } from "../../hub/service/hub.service";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
@@ -54,22 +53,6 @@ function makeWorkflow(coverImage: string | null = "http://example.com/cover.png"
     accessLevel: "WRITE",
     ownerId: 10,
     coverImage,
-  };
-}
-
-function makeFile(): DashboardFile {
-  return {
-    ownerEmail: "file-owner@example.com",
-    accessLevel: "WRITE",
-    file: {
-      ownerUid: 30,
-      fid: 303,
-      size: 1234,
-      name: "data.csv",
-      path: "/files/data.csv",
-      description: "A sample file",
-      uploadTime: 1700000003000,
-    },
   };
 }
 
@@ -171,21 +154,6 @@ describe("DashboardEntry", () => {
     it("leaves coverImageUrl undefined when a workflow has no cover image", () => {
       const entry = new DashboardEntry(makeWorkflow(null));
       expect(entry.coverImageUrl).toBeUndefined();
-    });
-
-    it("maps a DashboardFile to the File entity and copies file fields", () => {
-      const entry = new DashboardEntry(makeFile());
-
-      expect(entry.type).toBe(EntityType.File);
-      expect(entry.id).toBe(303);
-      expect(entry.name).toBe("data.csv");
-      expect(entry.description).toBe("A sample file");
-      expect(entry.creationTime).toBe(1700000003000);
-      expect(entry.lastModifiedTime).toBe(1700000003000);
-      expect(entry.accessLevel).toBe("WRITE");
-      expect(entry.ownerEmail).toBe("file-owner@example.com");
-      expect(entry.ownerId).toBe(30);
-      expect(entry.size).toBe(1234);
     });
 
     it("maps a DashboardDataset to the Dataset entity and copies dataset fields", () => {
@@ -307,13 +275,7 @@ describe("DashboardEntry", () => {
     it("workflow getter returns the value for a workflow entry and throws for others", () => {
       const workflowValue = makeWorkflow();
       expect(new DashboardEntry(workflowValue).workflow).toBe(workflowValue);
-      expect(() => new DashboardEntry(makeFile()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
-    });
-
-    it("file getter returns the value for a file entry and throws for others", () => {
-      const fileValue = makeFile();
-      expect(new DashboardEntry(fileValue).file).toBe(fileValue);
-      expect(() => new DashboardEntry(makeWorkflow()).file).toThrowError("Value is not of type DashboardFile.");
+      expect(() => new DashboardEntry(makeDataset()).workflow).toThrowError("Value is not of type DashboardWorkflow.");
     });
 
     it("dataset getter returns the value for a dataset entry and throws for others", () => {

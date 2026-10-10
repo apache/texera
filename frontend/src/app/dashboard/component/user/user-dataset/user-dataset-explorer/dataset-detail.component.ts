@@ -40,7 +40,7 @@ import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../
 import { NzModalService } from "ng-zorro-antd/modal";
 import { HttpErrorResponse } from "@angular/common/http";
 import { EMPTY, Observable, Subscription } from "rxjs";
-import { formatCount, formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { formatCount } from "src/app/common/util/format.util";
 import { replaceOneImmutable } from "src/app/common/util/array-utils";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
@@ -153,14 +153,12 @@ export class DatasetDetailComponent implements OnInit {
   // Holds the in-flight latest-version fetch so a later call can supersede it.
   private latestVersionFileSubscription: Subscription | undefined;
 
-  public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
 
   public isLiked: boolean = false;
   public likeCount: number = 0;
   public currentUid: number | undefined;
   public viewCount: number = 0;
-  public displayPreciseViewCount = false;
 
   readonly datasetEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
@@ -498,8 +496,6 @@ export class DatasetDetailComponent implements OnInit {
   formatSize = formatSize;
 
   formatCount = formatCount;
-  formatTime = formatTime;
-  formatSpeed = formatSpeed;
 
   toggleLike(): void {
     const userId = this.currentUid;
@@ -538,10 +534,6 @@ export class DatasetDetailComponent implements OnInit {
           }
         });
     }
-  }
-
-  changeViewDisplayStyle() {
-    this.displayPreciseViewCount = !this.displayPreciseViewCount;
   }
 
   onSetCoverImage(filePath: string): void {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,21 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
-import { ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+package org.apache.texera.amber.operator.metadata
 
-@Injectable({
-  providedIn: "root",
-})
-export class FileResourceDescriptor implements ResourceDescriptor {
-  readonly type = EntityType.File;
-  readonly iconType = "folder-open";
-  // Files have no page of their own, so entries of this kind stay unrouted.
+import com.fasterxml.jackson.databind.node.ObjectNode
 
-  isOwner = (): boolean => true;
+/**
+  * An operator with part of its schema that annotations cannot express, because that part
+  * depends on the descriptor's own type argument rather than on any one field.
+  *
+  * [[OperatorMetadataGenerator.generateOperatorJsonSchema]] calls this once the annotated
+  * schema is built, so an implementor edits a finished document rather than producing one.
+  */
+trait JsonSchemaCustomizer {
+
+  /** Add to `schema` what the annotations could not state. Called with the operator's whole
+    * schema, `definitions` included.
+    */
+  def customizeJsonSchema(schema: ObjectNode): Unit
 }

@@ -702,9 +702,6 @@ describe("AgentPanelComponent", () => {
      * children resolve the same AgentService token.
      */
     class FullMockAgentService extends MockAgentService {
-      public scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
-      public scrollToStep$ = this.scrollToStepSubject.asObservable();
-
       // agent-chat
       public ensureWorkflowPolling = vi.fn();
       public getAgentState = vi.fn((): Observable<AgentState> => of(AgentState.AVAILABLE));

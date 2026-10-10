@@ -990,20 +990,6 @@ describe("JointGraphWrapperService", () => {
         ports: [],
       });
     });
-
-    it("exposes the group highlight streams, which operator highlighting does not touch", () => {
-      addOperators();
-      const emitted: unknown[] = [];
-      const onHighlight = jointGraphWrapper.getJointGroupHighlightStream().subscribe(ids => emitted.push(ids));
-      const onUnhighlight = jointGraphWrapper.getJointGroupUnhighlightStream().subscribe(ids => emitted.push(ids));
-
-      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-      jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
-
-      expect(emitted).toEqual([]);
-      onHighlight.unsubscribe();
-      onUnhighlight.unsubscribe();
-    });
   });
 
   describe("workflow flags", () => {
