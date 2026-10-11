@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791637614136,
+  "lastUpdate": 1791723102251,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -18005,6 +18005,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 501.4348106278614,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kunwoo (Chris)",
+            "username": "kunwp1",
+            "email": "143021053+kunwp1@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "adc6a4ac4d79f0302534228d119ea2c22f393db7",
+          "message": "fix(file-service, frontend): reject slash in version names (#8883)\n\n### What changes were proposed in this PR?\n\nRoot cause. `createDatasetVersion` names a version `v{N} -\n{description}` from whatever the user typed, and the UI accepted a `/`.\nThe version name is one segment of the logical path\n`/<prefix>/owner/resource/version/file`, and\n`FileResolver.parsePrefixedPath` splits that path on `/`. For the path\nin the issue, `/texera/bughunt-version-name/v3 - //file_name.png`, the\nversion becomes `v3 - ` and `/file_name.png` becomes the file path, so\nthe version lookup misses and `presign-download` returns a 500.\n`createModelVersion` builds its name the same way, so model versions\nhave the same problem.\n\nFix. `ResourceNaming.validateVersionDescription` rejects a description\ncontaining `/` with a 400. `createDatasetVersion` and\n`createModelVersion` call it right after the write-access check, before\nthe LakeFS commit, so the staged files stay staged and the user can fix\nthe description and retry. The version uploader, which datasets and\nmodels both use, shows the error under the input and disables Submit,\nand `Enter` no longer submits either.\n\n```\nBefore:  description \"/\"  ->  version \"v3 - /\"  ->  every file in it fails with presign-download 500\nAfter:   description \"/\"  ->  400 \"Invalid version description\"  (UI: inline error, Submit disabled)\n```\n\nNot included. Versions already stored with a `/` in their name stay\nunopenable, and repairing them needs a data migration. A `%` or `+` in a\nname has a separate problem, because `resolveVersionedFile` URL-decodes\n`filePath` a second time.\n\n### Any related issues, documentation, discussions?\n\nCloses #8882\n\n### How was this PR tested?\n\nTests were added for the validator, for both resources, and for the\nversion uploader, and they were written first and failed against the old\ncode.\n\n```\nsbt \"FileService/testOnly org.apache.texera.service.resource.ResourceNamingSpec org.apache.texera.service.resource.DatasetResourceSpec org.apache.texera.service.resource.ModelUploadResourceSpec\"\ncd frontend && yarn ng test --watch=false --include='**/version-uploader.component.spec.ts'\n```\n\nThe first command passes 177 tests and the second passes 73.\n`scalafixAll`, `scalafmtAll`, `prettier-eslint` and `eslint` ran clean\non the changed files.\n\n\nhttps://github.com/user-attachments/assets/8c7bb472-b845-4bed-9b51-da38ef3b3397\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code, Claude Sonnet 5.5",
+          "timestamp": "2026-10-10T22:43:11Z",
+          "url": "https://github.com/apache/texera/commit/adc6a4ac4d79f0302534228d119ea2c22f393db7"
+        },
+        "date": 1791723101288,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 835.6777513573707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1679.2882391946,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1839.4204720352482,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1172.5007510556154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1769.3618005098226,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1874.3509473817153,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1308.7271754512474,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1780.6371145682258,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1862.8646830559358,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1031.0614765631585,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1407.9879995087715,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1449.405363056852,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1011.6285410972741,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1392.3371089126385,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1451.7995937112037,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1055.0647542906881,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1379.2372388808983,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1402.8753551102798,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 614.5975978202748,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 742.2169713991865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 753.2335143927877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 630.2047120277126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 741.9833108693724,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 744.3659316583613,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 585.7002993291957,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 703.9080281676692,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 718.7868624250458,
             "unit": "tuples/sec"
           }
         ]
