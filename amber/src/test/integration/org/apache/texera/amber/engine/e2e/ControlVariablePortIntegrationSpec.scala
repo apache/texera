@@ -94,24 +94,30 @@ class ControlVariablePortIntegrationSpec
       WorkflowSettings(dataTransferBatchSize = 400, executionMode = ExecutionMode.MATERIALIZED)
     )
 
-  "A loop" should "read every file of a list with an unchanged reader fed through its control-variable port" in {
+  /** Runs the files example with the given loop cells; returns the numbers the reader read. */
+  private def readEveryFile(
+      initialization: String,
+      output: String,
+      update: String,
+      condition: String
+  ): List[Int] = {
     val dir = s"${TestOperators.parentDir}/src/test/resources/cvport"
     val paths = List("a.txt", "b.txt", "c.txt").map(name => s"$dir/$name")
 
     val list = new TextInputSourceOpDesc()
     list.textInput = paths.mkString("\n")
     val start = new LoopStartOpDesc()
-    start.initialization = "i = 0\nfile = D.line[0]"
-    start.output = "None"
+    start.initialization = initialization
+    start.output = output
     val reader = new FileScanSourceOpDesc()
     reader.fileName = Some("$file")
     reader.attributeType = FileAttributeType.INTEGER
     reader.attributeName = "n"
     val end = new LoopEndOpDesc()
-    end.update = "i += 1\nfile = D.line.get(i)"
-    end.condition = "i < len(D)"
+    end.update = update
+    end.condition = condition
 
-    val values = runWorkflowAndReadResults(
+    runWorkflowAndReadResults(
       system,
       buildWorkflow(
         List(list, start, reader, end),
@@ -141,8 +147,29 @@ class ControlVariablePortIntegrationSpec
       _.get().map(_.getField[Any]("n").asInstanceOf[Number].intValue()).toList,
       Duration.fromSeconds(120)
     )(end.operatorIdentifier)
+  }
 
+  "A loop" should "read every file of a list with an unchanged reader fed through its control-variable port" in {
+    val values = readEveryFile(
+      initialization = "i = 0\nfile = D.line[0]",
+      output = "None",
+      update = "i += 1\nfile = D.line.get(i)",
+      condition = "i < len(D)"
+    )
     // Three iterations, one per file, each file read exactly once.
+    assert(values.sorted == (1 to 6).toList)
+  }
+
+  it should "read every file when Output sets the file name" in {
+    // Output is a cell: it assigns `file` in every iteration, after the back
+    // edge brought the new `i`, and has no trailing expression, so the body
+    // gets no data, only the control variables.
+    val values = readEveryFile(
+      initialization = "i = 0",
+      output = "file = D.line[i]",
+      update = "i += 1",
+      condition = "i < len(D)"
+    )
     assert(values.sorted == (1 to 6).toList)
   }
 }

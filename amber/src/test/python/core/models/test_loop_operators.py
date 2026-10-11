@@ -42,6 +42,9 @@ Coverage:
     over loop variables resolve (eval/exec namespace passed as globals), and
     exec's injected `__builtins__` never leaks into the persisted state
     (TestLoopExpressionScoping).
+  - LoopStart's Output is a cell: what it assigns becomes a control variable of
+    the iteration, a trailing expression is the data, and it runs once, before
+    the state is produced (TestLoopStartOutputCell).
 
 loop_counter and the LoopStart jump metadata (LoopStartId) are owned by the
 worker runtime, not these operators -- they ride the StateFrame envelope as
@@ -73,9 +76,9 @@ from core.models.operator import (
 class _StubLoopStart(LoopStartOperator):
     """Mirrors `ProcessLoopStartOperator` from LoopStartOpDesc codegen.
 
-    open() runs the user's `initialization` to seed self.variables with the loop
-    variables. process_table runs the user's `output` expression (via the
-    guarded eval_output helper) and yields the result for downstream.
+    open() hands over the user's `initialization` and `output` cell; both run
+    once the input table has arrived, before the state is produced.
+    process_table yields the data the `output` cell produced (via eval_output).
     """
 
     def __init__(self, initialization="i = 0", output_expr="table.iloc[i]"):
@@ -85,9 +88,10 @@ class _StubLoopStart(LoopStartOperator):
 
     def open(self) -> None:
         self.run_initialization(self._initialization)
+        self.run_output(self._output_expr)
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        yield self.eval_output(self._output_expr, table)
+        yield self.eval_output(table)
 
 
 class _StubLoopEnd(LoopEndOperator):
@@ -432,11 +436,11 @@ class TestLoopExpressionScoping:
         # variable `bump` (a free variable inside the genexp scope, unlike the
         # leftmost iterable which resolves in the enclosing scope); it must
         # resolve rather than NameError.
-        op = _StubLoopStart(initialization="bump = 10")
-        op.open()
-        result = op.eval_output(
-            "sum(x + bump for x in [1, 2, 3])", Table([Tuple({"v": 1})])
+        op = _StubLoopStart(
+            initialization="bump = 10", output_expr="sum(x + bump for x in [1, 2, 3])"
         )
+        op.open()
+        result = op.eval_output(Table([Tuple({"v": 1})]))
         assert result == 36
 
     def test_run_update_resolves_genexp_over_loop_vars(self):
@@ -467,8 +471,11 @@ class TestLoopExpressionScoping:
     def test_run_initialization_resolves_genexp_over_init_vars(self):
         # A genexp in `initialization` whose body references a variable defined
         # earlier in the same init block must resolve.
+        # Output "None": the output cell runs when the state is produced, and
+        # this init defines no `i` for the default "table.iloc[i]".
         op = _StubLoopStart(
-            initialization="floor = 0\nok = all(v > floor for v in [1, 2, 3])"
+            initialization="floor = 0\nok = all(v > floor for v in [1, 2, 3])",
+            output_expr="None",
         )
         op.open()
         produced = op.produce_state_on_finish(port=0)
@@ -505,10 +512,11 @@ class ProcessLoopStartOperator(LoopStartOperator):
     @overrides
     def open(self):
         self.run_initialization(self.decode_python_template('__INIT__'))
+        self.run_output(self.decode_python_template('__OUTPUT__'))
 
     @overrides
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        yield self.eval_output(self.decode_python_template('__OUTPUT__'), table)
+        yield self.eval_output(table)
 """
 
 _LOOP_END_TEMPLATE = """from pytexera import *
@@ -538,10 +546,10 @@ class TestGeneratedCodeShape:
     the runtime is caught here, without the slow @IntegrationTest job."""
 
     def test_generated_loop_start_execs_tricky_expressions(self):
-        # initialization is exec'd (statements, so a newline is fine); output
-        # is eval'd (a single expression, so use a quote, not a newline).
+        # Both are cells of statements, so both carry a newline and a quote;
+        # output ends in an expression, which is the data.
         init_expr = "i = 0\nnote = 'it\\'s fine'"
-        output_expr = 'table.assign(msg="quote \' here")'
+        output_expr = 'msg = "quote \' here"\ntable.assign(msg=msg)'
         source = _LOOP_START_TEMPLATE.replace("__INIT__", _b64(init_expr)).replace(
             "__OUTPUT__", _b64(output_expr)
         )
@@ -558,6 +566,8 @@ class TestGeneratedCodeShape:
         assert op.variables["i"] == 0
         # The apostrophe survived base64 -> decode_python_template -> exec.
         assert op.variables["note"] == "it's fine"
+        # So did the newline in output: its assignment is a control variable.
+        assert op.variables["msg"] == "quote ' here"
 
     def test_generated_loop_end_execs_tricky_expressions(self):
         update_expr = "i += 1"
@@ -645,3 +655,221 @@ class TestLoopStartInitializationSeesInputData:
         end.process_state(State({"i": 0, "file": "a.txt"}), port=0)
         assert end.variables["file"] == "b.txt"
         assert end.condition() is True
+
+
+# ---------------------------------------------------------------------------
+# LoopStartOperator -- the Output cell
+# ---------------------------------------------------------------------------
+
+
+class TestLoopStartOutputCell:
+    """Output is a Python cell. Every name it assigns becomes a control variable
+    of the iteration, replacing one from Initialization or the back edge, and
+    the value of a trailing bare expression is the data sent to the body. The
+    runtime produces the state BEFORE on_finish drains the data (see
+    DataProcessor.process_internal_marker), so the cell must already have run
+    when the state is produced."""
+
+    @staticmethod
+    def _start(output: str, initialization: str = "i = 0") -> _StubLoopStart:
+        op = _StubLoopStart(initialization=initialization, output_expr=output)
+        op.open()
+        for path in ("a.txt", "b.txt"):
+            list(op.process_tuple(Tuple({"path": path}), port=0))
+        return op
+
+    @staticmethod
+    def _data(op: _StubLoopStart) -> list:
+        return [out for out in op.on_finish(port=0) if out is not None]
+
+    def test_an_assignment_is_in_the_state_produced_before_on_finish(self):
+        op = self._start("file = D.path[i]")
+        assert op.produce_state_on_finish(port=0) == State({"i": 0, "file": "a.txt"})
+
+    def test_an_assignment_replaces_the_initialization_value(self):
+        op = self._start("file = D.path[i]", initialization="i = 0\nfile = 'init'")
+        assert op.produce_state_on_finish(port=0)["file"] == "a.txt"
+
+    def test_an_assignment_replaces_the_back_edge_value(self):
+        op = _StubLoopStart(initialization="i = 0", output_expr="file = D.path[i]")
+        op.open()
+        op.process_state(State({"i": 1, "file": "stale"}), port=0)
+        for path in ("a.txt", "b.txt"):
+            list(op.process_tuple(Tuple({"path": path}), port=0))
+        produced = op.produce_state_on_finish(port=0)
+        # The cell read the back edge's i, not init's.
+        assert (produced["i"], produced["file"]) == (1, "b.txt")
+
+    def test_a_trailing_expression_is_the_data(self):
+        op = self._start("file = D.path[i]\nD[D.path == file]")
+        assert op.produce_state_on_finish(port=0)["file"] == "a.txt"
+        (data,) = self._data(op)
+        assert list(data["path"]) == ["a.txt"]
+
+    @pytest.mark.parametrize("output", ["file = D.path[i]", "", "# nothing to send"])
+    def test_without_a_trailing_expression_the_body_gets_no_data(self, output):
+        op = self._start(output)
+        op.produce_state_on_finish(port=0)
+        assert self._data(op) == []
+
+    def test_a_single_expression_is_the_data_and_sets_no_variable(self):
+        op = self._start("D.iloc[[i]]")
+        assert op.produce_state_on_finish(port=0) == State({"i": 0})
+        (data,) = self._data(op)
+        assert list(data["path"]) == ["a.txt"]
+
+    @pytest.mark.parametrize(
+        "output, name",
+        [
+            ("D = D.head(1)", "D"),
+            ("table = 1\nD.iloc[[i]]", "table"),
+            ("del D", "D"),
+            # Rebound by the trailing expression itself.
+            ("file = D.path[i]\n(D := 1)", "D"),
+        ],
+    )
+    def test_rebinding_a_reserved_name_raises(self, output, name):
+        op = self._start(output)
+        with pytest.raises(
+            ValueError, match=f"'{name}' is reserved by the loop runtime"
+        ):
+            op.produce_state_on_finish(port=0)
+
+    def test_rebinding_D_raises_before_the_trailing_expression_reads_it(self):
+        # Otherwise the user would see an AttributeError on the int, not why.
+        op = self._start("D = 1\nD.iloc[[0]]")
+        with pytest.raises(ValueError, match="'D' is reserved by the loop runtime"):
+            op.produce_state_on_finish(port=0)
+
+    @pytest.mark.parametrize("state_first", [True, False])
+    def test_the_cell_runs_once_when_both_callbacks_run(self, state_first):
+        op = self._start("n += 1\nD.iloc[[n - 1]]", initialization="i = 0\nn = 0")
+        if state_first:
+            produced = op.produce_state_on_finish(port=0)
+            data = self._data(op)
+        else:
+            data = self._data(op)
+            produced = op.produce_state_on_finish(port=0)
+        assert produced["n"] == 1
+        assert len(data) == 1 and list(data[0]["path"]) == ["a.txt"]
+        # A repeated call hands back the same result without running it again.
+        assert op.produce_state_on_finish(port=0)["n"] == 1
+        assert op.eval_output(op._collected_table(0)) is data[0]
+
+    def test_a_lambda_or_generator_expression_resolves_its_free_names(self):
+        op = self._start(
+            "ranked = sorted(D.path, key=lambda p: p != first)\n"
+            "bumped = sum(x + i for x in [1, 2])",
+            initialization="i = 1\nfirst = 'b.txt'",
+        )
+        produced = op.produce_state_on_finish(port=0)
+        assert produced["ranked"] == ["b.txt", "a.txt"]
+        assert produced["bumped"] == 5
+
+    def test_only_control_variables_reach_the_state(self):
+        op = self._start("file = D.path[i]\nD.iloc[[i]]")
+        produced = op.produce_state_on_finish(port=0)
+        assert set(produced) == {"i", "file"}
+        State(produced).to_tuple()  # pure-JSON control variables
+
+    def test_the_files_example_binds_one_file_per_iteration(self):
+        # The paper's files example: Initialization "i = 0", Output
+        # "file = D.line[i]", Update "i += 1", Condition "i < len(D)".
+        rows = [Tuple({"line": name}) for name in ("a.txt", "b.txt", "c.txt")]
+        back_edge, files = None, []
+        while True:
+            assert len(files) < 10, "loop failed to terminate"
+            start = _StubLoopStart(
+                initialization="i = 0", output_expr="file = D.line[i]"
+            )
+            start.open()
+            if back_edge is not None:
+                start.process_state(back_edge, port=0)
+            for row in rows:
+                list(start.process_tuple(row, port=0))
+            produced = start.produce_state_on_finish(port=0)
+            assert self._data(start) == []
+            files.append(produced["file"])
+
+            end = _StubLoopEnd(update="i += 1", condition_expr="i < len(D)")
+            end.attach_loop_table(Table(rows))
+            end.process_state(State.from_tuple(State(produced).to_tuple()), port=0)
+            if not end.condition():
+                break
+            back_edge = State(end.variables)
+
+        assert files == ["a.txt", "b.txt", "c.txt"]
+
+
+class TestLoopStartOutputCellKeepsOldOutputs:
+    """A single-expression Output behaves exactly as when it went through eval()."""
+
+    @staticmethod
+    def _start(output: str) -> _StubLoopStart:
+        op = _StubLoopStart(initialization="i = 0", output_expr=output)
+        op.open()
+        for v in (1, 2):
+            list(op.process_tuple(Tuple({"v": v}), port=0))
+        return op
+
+    @pytest.mark.parametrize("output", [" table.iloc[[i]]", "\tD.iloc[[i]]", "  None"])
+    def test_leading_whitespace_is_ignored_as_eval_did(self, output):
+        op = self._start(output)
+        assert op.produce_state_on_finish(port=0) == State({"i": 0})
+        emitted = [out for out in op.on_finish(port=0) if out is not None]
+        assert len(emitted) == (0 if output.strip() == "None" else 1)
+
+    def test_a_walrus_in_a_single_expression_sets_no_control_variable(self):
+        op = self._start("(row := D.iloc[[i]])")
+        assert op.produce_state_on_finish(port=0) == State({"i": 0})
+        assert len([out for out in op.on_finish(port=0) if out is not None]) == 1
+
+
+class TestLoopPrimitivesKeepOnlyValues:
+    """Imports, functions and classes a cell defines are helpers, not control
+    variables: they never reach the State, which could not serialize them."""
+
+    def test_the_output_cell_keeps_helpers_out_of_the_state(self):
+        op = _StubLoopStart(
+            initialization="i = 0",
+            output_expr=(
+                "import os\n"
+                "def stem(p):\n    return os.path.splitext(p)[0]\n"
+                "class Box:\n    pass\n"
+                "pick = lambda d: d.v[i]\n"
+                "n: int = 1\n"
+                "name = stem('a.txt')"
+            ),
+        )
+        op.open()
+        list(op.process_tuple(Tuple({"v": 5}), port=0))
+        produced = op.produce_state_on_finish(port=0)
+        assert produced == State({"i": 0, "n": 1, "name": "a"})
+        # and the State round-trips, as the back edge needs
+        assert State.from_tuple(produced.to_tuple()) == produced
+
+    def test_initialization_keeps_helpers_out_of_the_state(self):
+        op = _StubLoopStart(
+            initialization="import math\ni = math.floor(0.5)", output_expr="None"
+        )
+        op.open()
+        list(op.process_tuple(Tuple({"v": 1}), port=0))
+        assert op.produce_state_on_finish(port=0) == State({"i": 0})
+
+    def test_update_keeps_helpers_out_of_the_variables(self):
+        end = _StubLoopEnd(
+            update="import math\ni = math.floor(i + 1.5)", condition_expr="i < 3"
+        )
+        end.attach_loop_table(Table([Tuple({"v": 1})]))
+        end.process_state(State({"i": 0}), port=0)
+        assert end.variables == State({"i": 1})
+
+    def test_a_numeric_value_read_from_D_is_a_control_variable(self):
+        op = _StubLoopStart(
+            initialization="i = 0", output_expr="k = D.k[i]\nok = D.k[i] > 0"
+        )
+        op.open()
+        list(op.process_tuple(Tuple({"k": 3}), port=0))
+        produced = op.produce_state_on_finish(port=0)
+        restored = State.from_tuple(produced.to_tuple())
+        assert (restored["k"], restored["ok"]) == (3, True)

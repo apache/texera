@@ -85,12 +85,12 @@ interface Statement {
 }
 
 /**
- * The names a Loop Start's "initialization" Python code binds at module level, in first-binding order and
- * without duplicates: the loop's variables, which the operators of its block may refer to as `$name`.
- * The backend runs the code with exec and keeps the resulting globals as the loop state, and Python has
- * no block scope, so these are the assignments at any depth outside a def or class body, whether at the
- * top level or under an if/elif/else, try/except/finally, while, for or with, plus the targets of a for
- * loop.
+ * The names a Loop Start's "initialization" (or "output") Python code binds at module level, in
+ * first-binding order and without duplicates: the loop's variables, which the operators of its block may
+ * refer to as `$name`. The backend runs the code with exec and keeps the resulting globals as the loop
+ * state, and Python has no block scope, so these are the assignments at any depth outside a def or class
+ * body, whether at the top level or under an if/elif/else, try/except/finally, while, for or with, plus
+ * the targets of a for loop.
  *
  * Assignments: `i = 0`, `K = 2; prev = float('-inf')`, tuple targets (`a, b = 1, 2`), chained
  * (`a = b = 0`), annotated (`x: int = 0`) and starred (`a, *rest = xs`) ones. Augmented assignments,
@@ -132,13 +132,17 @@ export function extractLoopVariables(initialization: string): string[] {
 
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** Names the loop runtime keeps for the loop's input table; never a loop variable. */
+const RESERVED_LOOP_NAMES: ReadonlySet<string> = new Set(["table", "D"]);
+
 /**
  * The loop variables in scope of an operator: those of every enclosing Loop Start, outermost first,
  * then the names that arrive on its control-variable port, without duplicates. A Loop Start that feeds
  * the port offers its variables; any other operator offers its output columns, which `outputColumns`
  * looks up when given. Undefined when the operator is outside every block and has no link into its
  * port, so that one call tells both whether it may refer to variables and to which; empty when nothing
- * declares a name. A Loop Start whose initialization is missing or not a string contributes nothing.
+ * declares a name. A Loop Start's variables are what its Initialization assigns, then what its Output
+ * assigns; either one that is missing or not a string contributes nothing.
  */
 export function loopVariablesInScope(
   graph: WorkflowGraphReadonly,
@@ -156,9 +160,14 @@ export function loopVariablesInScope(
       names.push(name);
     }
   };
+  // Output is a Python cell that runs each iteration before the Loop Start emits its variables, and
+  // what it assigns joins them, so its names count like the Initialization's. An Output that is a
+  // single expression (`table.iloc[[i]]`) assigns nothing.
   const loopStartVariables = (loopStartID: string): string[] => {
-    const initialization: unknown = graph.getOperator(loopStartID).operatorProperties?.["initialization"];
-    return typeof initialization === "string" ? extractLoopVariables(initialization) : [];
+    const properties = graph.getOperator(loopStartID).operatorProperties;
+    return [properties?.["initialization"], properties?.["output"]]
+      .flatMap((code: unknown) => (typeof code === "string" ? extractLoopVariables(code) : []))
+      .filter(name => !RESERVED_LOOP_NAMES.has(name));
   };
   loopStartIDs.forEach(loopStartID => loopStartVariables(loopStartID).forEach(add));
   for (const link of portLinks) {

@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import ast
 import overrides
+import textwrap
+import types
 import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
@@ -337,13 +340,70 @@ def _strip_reserved(state: State) -> State:
     )
 
 
+# What a cell may define besides its variables: helpers, which no State could
+# serialize and no later primitive needs as a value.
+_HELPER_TYPES = (
+    types.ModuleType,
+    types.FunctionType,
+    types.BuiltinFunctionType,
+    types.MethodType,
+    type,
+)
+
+
+def _user_variables(namespace: dict) -> State:
+    """The control variables a primitive's namespace holds: every name it bound,
+    without the reserved ``table`` / ``D``, Python's own ``__dunder__`` names
+    (``__builtins__``, ``__annotations__``) and helpers such as an ``import``ed
+    module, a ``def`` or a ``class``."""
+    return _strip_reserved(
+        State(
+            {
+                key: value
+                for key, value in namespace.items()
+                if not (key.startswith("__") and key.endswith("__"))
+                and not isinstance(value, _HELPER_TYPES)
+            }
+        )
+    )
+
+
+def _check_reserved_kept(namespace: dict, table: Optional[Table]) -> None:
+    """Raise if user code rebound (or deleted) ``table`` or ``D`` in ``namespace``.
+
+    Both are the runtime's input table; stripping a rebound one would silently
+    drop the user's value, so flag the collision instead.
+    """
+    for key in _RESERVED_STATE_KEYS:
+        if namespace.get(key) is not table:
+            raise _reserved_name_error(key)
+
+
+def _compile_cell(code: str, filename: str):
+    """Compile a cell into its statements and its trailing expression.
+
+    As in a notebook cell, a last line that is a bare expression is the cell's
+    value. Returns ``(statements, expression)``; ``expression`` is ``None`` when
+    the cell ends in a statement or is empty. A single expression, such as
+    ``table.iloc[[i]]`` or ``None``, is a cell with no statements before it.
+    """
+    # eval() ignored the leading whitespace of the one-line Outputs written
+    # before Output was a cell; dedent keeps those valid.
+    module = ast.parse(textwrap.dedent(code), filename, "exec")
+    expression = None
+    if module.body and isinstance(module.body[-1], ast.Expr):
+        last = module.body.pop()
+        expression = compile(ast.Expression(body=last.value), filename, "eval")
+    return compile(module, filename, "exec"), expression
+
+
 def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     """Evaluate ``expr`` directly against the loop variables plus ``table``.
 
     Runs in a throwaway namespace seeded with the loop variables and ``table``
     so the seeded ``table`` neither leaks into nor is clobbered out of the
-    persistent loop ``state``. Shared by LoopStart's ``output`` expression and
-    LoopEnd's ``condition``.
+    persistent loop ``state``. Used by LoopEnd's ``condition``; LoopStart's
+    ``output`` is a cell (see ``LoopStartOperator._run_output_cell``).
 
     The namespace is passed as ``eval`` globals (not a locals-only mapping):
     a generator expression / comprehension / lambda in the user's expression
@@ -360,15 +420,18 @@ class LoopStartOperator(TableOperator):
     """Base class for the runtime side of a Loop Start operator.
 
     The generator in ``LoopStartOpDesc.scala`` emits a thin
-    ``ProcessLoopStartOperator(LoopStartOperator)`` subclass that wires the
-    user-supplied ``initialization`` and ``output`` expressions into
-    ``open()`` and ``process_table()``; all substantive logic lives here.
+    ``ProcessLoopStartOperator(LoopStartOperator)`` subclass that hands the
+    user-supplied ``initialization`` and ``output`` cells over in ``open()``
+    and yields the output cell's data in ``process_table()``; all substantive
+    logic lives here.
 
-    ``open()`` seeds ``self.variables`` with the user's loop variables;
-    ``process_state`` merges upstream state in; ``produce_state_on_finish``
-    emits those variables to the matching LoopEnd. The input table does NOT
-    ride the state: the LoopEnd runtime reads it from this operator's
-    input-port materialization at consume time (``loopStartPortUris``).
+    Once the input data D is complete, ``initialization`` seeds
+    ``self.variables``, the values ``process_state`` merged in (the back edge)
+    replace them, and the ``output`` cell sets this iteration's own;
+    ``produce_state_on_finish`` emits those variables to the matching LoopEnd.
+    The input table does NOT ride the state: the LoopEnd runtime reads it from
+    this operator's input-port materialization at consume time
+    (``loopStartPortUris``).
     ``loop_counter`` and the nested pass-through are owned by
     ``MainLoop._process_state_frame``, not this operator.
 
@@ -378,6 +441,12 @@ class LoopStartOperator(TableOperator):
     not the reserved ``table``; see the ``_RESERVED_STATE_KEYS`` module comment
     for the ``table`` vs envelope-borne counter/id split.
     """
+
+    # The output cell handed over in open() and the data it left for the body.
+    # Class-level defaults: a subclass that never calls run_output has an
+    # empty cell, which sets nothing and sends no data.
+    _output_code: str = ""
+    _output_data: Optional[TableLike] = None
 
     @overrides.final
     def process_state(self, state: State, port: int) -> Optional[State]:
@@ -397,7 +466,18 @@ class LoopStartOperator(TableOperator):
         self._initialized = False
         self.variables = State()
 
+    @overrides.final
+    def run_output(self, output_code: str) -> None:
+        # The output cell reads D too, so it is kept and run once D is complete,
+        # right after init() and the back-edge values (see _initialize). It is
+        # handed over here rather than in process_table: what it assigns are
+        # control variables, and the runtime produces the state BEFORE it
+        # drains on_finish, so the cell must be known by then.
+        self._output_code = output_code
+
     def _initialize(self, table: Table) -> None:
+        # Runs once, whichever of produce_state_on_finish / eval_output comes
+        # first: init(), then the back-edge values, then the output cell.
         # Run the user's `initialization` to seed the loop variables, then keep
         # them as self.variables. The namespace is passed as exec globals (not a
         # locals-only mapping) so a comprehension / generator expression /
@@ -413,20 +493,46 @@ class LoopStartOperator(TableOperator):
         self._initialized = True
         namespace: dict = {_TABLE_KEY: table, _D_KEY: table}
         exec(self._initialization_code, namespace)
-        namespace.pop("__builtins__", None)
-        for key in _RESERVED_STATE_KEYS:
-            if namespace.get(key) is not table:
-                raise _reserved_name_error(key)
-        variables = _strip_reserved(State(namespace))
+        _check_reserved_kept(namespace, table)
+        variables = _user_variables(namespace)
         # A value that arrived before, on the back edge, replaces the one init() set.
         variables.update(self.variables)
         self.variables = State(variables)
+        self._output_data = self._run_output_cell(table)
+
+    def _run_output_cell(self, table: Table) -> Optional[TableLike]:
+        # Every name the output cell assigns becomes a control variable of this
+        # iteration, replacing one from init() or the back edge; the value of a
+        # trailing bare expression is the data sent to the body, and without
+        # one the body gets no data, only the state. Statements and expression
+        # run against one namespace, passed as globals (as in _initialize) so a
+        # lambda / generator expression resolves its free names.
+        statements, expression = _compile_cell(self._output_code, "<output>")
+        namespace: dict = {**self.variables, _TABLE_KEY: table, _D_KEY: table}
+        exec(statements, namespace)
+        # Checked before the expression runs, so a rebound D is reported as
+        # such rather than as whatever the expression then does with it...
+        _check_reserved_kept(namespace, table)
+        data = None
+        if expression is not None:
+            # The trailing expression runs on a copy: as when Output was a
+            # single eval()ed expression, a walrus in it binds no variable.
+            scope = dict(namespace)
+            data = eval(expression, scope)
+            # ...and after, for a `(D := ...)` in the expression itself.
+            _check_reserved_kept(scope, table)
+        # Merged rather than replaced, so a `table` that arrived on the back
+        # edge is still there for produce_state_on_finish to flag.
+        self.variables.update(_user_variables(namespace))
+        return data
 
     @overrides.final
-    def eval_output(self, output_expr: str, table: Table) -> Optional[TableLike]:
-        # provideData() may return None: then the body gets no data, only the state.
+    def eval_output(self, table: Table) -> Optional[TableLike]:
+        # The data the output cell left. The cell normally ran already, when
+        # the state was produced; if on_finish comes first it runs here, once.
+        # The data may be None: then the body gets no data, only the state.
         self._initialize(table)
-        return _eval_loop_expr(output_expr, self.variables, table)
+        return self._output_data
 
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
@@ -436,6 +542,8 @@ class LoopStartOperator(TableOperator):
         # (loopStartPortUris). A user loop variable named `table` would be
         # silently shadowed by that injected table in the LoopEnd's
         # update/condition namespaces, so flag the collision here.
+        # _initialize also runs the output cell, so what it assigns is in the
+        # state; on_finish, which drains its data, runs after this.
         self._initialize(self._collected_table(port))
         for key in _RESERVED_STATE_KEYS:
             if key in self.variables:
@@ -526,7 +634,6 @@ class LoopEndOperator(TableOperator):
         # NameError on otherwise-valid update code. exec injects `__builtins__`
         # into that globals dict; drop it so it does not leak into self.variables.
         exec(update_code, namespace)
-        namespace.pop("__builtins__", None)
         # `table` is runtime-owned; a user `update` that rebinds (or deletes)
         # it (a loop variable named `table`) would be silently dropped by the
         # strip below, so flag the collision instead.
@@ -534,7 +641,7 @@ class LoopEndOperator(TableOperator):
             if namespace.get(key) is not input_table:
                 raise _reserved_name_error(key)
         self._loop_table = input_table
-        self.variables = _strip_reserved(namespace)
+        self.variables = _user_variables(namespace)
 
     @overrides.final
     def eval_condition(self, condition_expr: str) -> bool:

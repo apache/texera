@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 
@@ -85,6 +86,22 @@ trait LoopOpDescSpecMixin extends Matchers {
       expected: Boolean
   ): Assertion =
     opDesc.operatorInfo.inputPorts.head.disallowMultiLinks shouldBe expected
+
+  /** Pins that the property panel renders `property` as a multi-line text
+    * area: the loop fields hold Python cells, which may span several lines.
+    */
+  protected def assertTextArea(
+      opDescClass: Class[_ <: LogicalOp],
+      property: String
+  ): Assertion =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(opDescClass)
+      .path("properties")
+      .path(property)
+      .path("widget")
+      .path("formlyConfig")
+      .path("type")
+      .asText() shouldBe "textarea"
 
   protected def assertOpExecWithPythonCodeForClass(
       physical: PhysicalOp,

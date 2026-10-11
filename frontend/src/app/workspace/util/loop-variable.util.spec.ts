@@ -154,10 +154,16 @@ describe("extractLoopVariables", () => {
 });
 
 describe("loopVariablesInScope", () => {
-  const graphOf = (enclosing: string[], initializations: Record<string, unknown>): WorkflowGraphReadonly =>
+  const graphOf = (
+    enclosing: string[],
+    initializations: Record<string, unknown>,
+    outputs: Record<string, unknown> = {}
+  ): WorkflowGraphReadonly =>
     ({
       getEnclosingLoopStarts: () => enclosing,
-      getOperator: (operatorID: string) => ({ operatorProperties: { initialization: initializations[operatorID] } }),
+      getOperator: (operatorID: string) => ({
+        operatorProperties: { initialization: initializations[operatorID], output: outputs[operatorID] },
+      }),
     }) as unknown as WorkflowGraphReadonly;
 
   it("collects the variables of every enclosing LoopStart, outermost first, without duplicates", () => {
@@ -174,6 +180,68 @@ describe("loopVariablesInScope", () => {
     const graph = graphOf(["s1", "s2", "s3"], { s1: undefined, s2: 42, s3: "k = 1" });
     expect(loopVariablesInScope(graph, "body")).toEqual(["k"]);
   });
+
+  // Output is a Python cell that runs each iteration before the Loop Start emits its variables, and
+  // what it assigns joins them, so the block sees those names as it sees the Initialization's.
+  it("adds the names a LoopStart's output assigns after those of its initialization, without duplicates", () => {
+    const scope = (initialization: string, output: string) =>
+      loopVariablesInScope(graphOf(["s"], { s: initialization }, { s: output }), "body");
+    expect(scope("i = 0", "file = D.line[i]")).toEqual(["i", "file"]);
+    // statements, then the data the body gets
+    expect(scope("i = 0", "file = D.line[i]; D.iloc[[i]]")).toEqual(["i", "file"]);
+    // a name both assign is offered once, where the initialization first binds it
+    expect(scope("i = 0; file = ''", "file = D.line[i]\ni = i")).toEqual(["i", "file"]);
+  });
+
+  it("never offers D or table, which the runtime reserves for the input table", () => {
+    expect(loopVariablesInScope(graphOf(["s"], { s: "i = 0" }, { s: "D = D.head(1)" }), "body")).toEqual(["i"]);
+    expect(loopVariablesInScope(graphOf(["s"], { s: "i = 0; table = 1" }, { s: "None" }), "body")).toEqual(["i"]);
+  });
+
+  it("takes no names from an output that is a single expression, as every output was before", () => {
+    for (const output of [
+      "table.iloc[i]",
+      "table.iloc[[i]]",
+      "D.iloc[[i]]",
+      "None",
+      "D[D.line == D.line[i]]",
+      "table if i >= 0 else None",
+    ]) {
+      expect(loopVariablesInScope(graphOf(["s"], { s: "i = 0" }, { s: output }), "body"), output).toEqual(["i"]);
+    }
+  });
+
+  it("does not count what a def, lambda or comprehension in the output assigns", () => {
+    const output = [
+      "def pick(row):",
+      "    chosen = row.line",
+      "    return chosen",
+      "file = pick(D.iloc[i])",
+      "longest = max(D.line, key=lambda s: len(s))",
+      "first = [x for x in D.line][0]",
+      "D.iloc[[j for j in range(i + 1)]]",
+    ].join("\n");
+    expect(loopVariablesInScope(graphOf(["s"], { s: "i = 0" }, { s: output }), "body")).toEqual([
+      "i",
+      "file",
+      "longest",
+      "first",
+    ]);
+  });
+
+  it("keeps each LoopStart's initialization and output names together, outermost first", () => {
+    const graph = graphOf(
+      ["outer", "inner"],
+      { outer: "i = 0", inner: "j = 0" },
+      { outer: "file = D.line[i]", inner: "row = D.iloc[[j]]; D.iloc[[j]]" }
+    );
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i", "file", "j", "row"]);
+  });
+
+  it("tolerates a LoopStart whose output is missing or not a string", () => {
+    const graph = graphOf(["s1", "s2"], { s1: "i = 0", s2: "j = 0" }, { s1: undefined, s2: 42 });
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i", "j"]);
+  });
 });
 
 describe("loopVariablesInScope with a control-variable port", () => {
@@ -184,14 +252,17 @@ describe("loopVariablesInScope with a control-variable port", () => {
   });
   const graphOf = (
     enclosing: string[],
-    operators: Record<string, { operatorType: string; initialization?: string }>,
+    operators: Record<string, { operatorType: string; initialization?: string; output?: string }>,
     links: ReturnType<typeof link>[]
   ): WorkflowGraphReadonly =>
     ({
       getEnclosingLoopStarts: () => enclosing,
       getOperator: (operatorID: string) => ({
         operatorType: operators[operatorID]?.operatorType,
-        operatorProperties: { initialization: operators[operatorID]?.initialization },
+        operatorProperties: {
+          initialization: operators[operatorID]?.initialization,
+          output: operators[operatorID]?.output,
+        },
       }),
       getInputLinksByOperatorId: (operatorID: string) => links.filter(l => l.target.operatorID === operatorID),
     }) as unknown as WorkflowGraphReadonly;
@@ -206,6 +277,34 @@ describe("loopVariablesInScope with a control-variable port", () => {
       [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
     );
     expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file"]);
+  });
+
+  it("offers the names the output of a LoopStart that feeds the port assigns", () => {
+    // the files example: each iteration's output picks the name of the file the reader reads
+    const graphWithOutput = (output: string) =>
+      graphOf(
+        [],
+        {
+          start: { operatorType: "LoopStart", initialization: "i = 0", output },
+          reader: { operatorType: "FileScan" },
+        },
+        [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
+      );
+    expect(loopVariablesInScope(graphWithOutput("file = D.line[i]"), "reader")).toEqual(["i", "file"]);
+    expect(loopVariablesInScope(graphWithOutput("file = D.line[i]; D.iloc[[i]]"), "reader")).toEqual(["i", "file"]);
+    expect(loopVariablesInScope(graphWithOutput("D.iloc[[i]]"), "reader")).toEqual(["i"]);
+  });
+
+  it("offers the output names of both an enclosing LoopStart and one that feeds the port", () => {
+    const graph = graphOf(
+      ["outer"],
+      {
+        outer: { operatorType: "LoopStart", initialization: "i = 0", output: "file = D.line[i]; D.iloc[[i]]" },
+        start: { operatorType: "LoopStart", initialization: "j = 0", output: "row = D.iloc[[j]]" },
+      },
+      [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
+    );
+    expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file", "j", "row"]);
   });
 
   it("offers the columns of any other operator that feeds the port", () => {

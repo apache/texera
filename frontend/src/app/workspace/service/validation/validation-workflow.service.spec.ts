@@ -411,6 +411,28 @@ describe("ValidationWorkflowService", () => {
         expect(currentError(body.operatorID)).toBeUndefined();
       });
 
+      it("accepts a reference to a name the Loop Start's Output assigns, and flags it once Output no longer does", () => {
+        addBlockAround({ limit: "$n" });
+        expect(currentError(body.operatorID)?.messages["loopVariable"]).toBe(
+          "$n is not a variable of an enclosing block"
+        );
+
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "K = 2",
+          output: "n = K + 1; table.iloc[[K]]",
+        });
+        expect(currentError(body.operatorID)).toBeUndefined();
+
+        // a single expression, as every Output was before it took statements, assigns nothing
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "K = 2",
+          output: "table.iloc[[K]]",
+        });
+        expect(currentError(body.operatorID)?.messages["loopVariable"]).toBe(
+          "$n is not a variable of an enclosing block"
+        );
+      });
+
       it("reports the type error once a link upstream is deleted and the operator leaves the block", () => {
         // Loop Start -> other -> body -> Loop End; the deleted Loop Start -> other does not touch body
         workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);

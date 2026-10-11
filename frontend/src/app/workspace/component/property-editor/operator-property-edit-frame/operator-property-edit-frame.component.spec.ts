@@ -2127,6 +2127,41 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("order")?.type).toBe("enum");
     });
 
+    it("offers the name a feeding Loop Start's Output assigns, after its Initialization's", () => {
+      // the files example: each iteration's Output picks the name of the file the body reads
+      workflowActionService.addOperator(
+        { ...mockLoopStartPredicate, operatorProperties: { initialization: "i = 0", output: "file = D.line[i]" } },
+        mockPoint
+      );
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addLink({
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$i", "$file"]);
+    });
+
+    it("rebuilds the open form when the enclosing Loop Start's Output starts or stops assigning a name", () => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "K = 2",
+        output: "file = D.line[K]; D.iloc[[K]]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K", "$file"]);
+
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "K = 2",
+        output: "D.iloc[[K]]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
     it("keeps today's controls and validators for an operator outside every block", () => {
       workflowActionService.addOperator(body, mockPoint);
       openBody();

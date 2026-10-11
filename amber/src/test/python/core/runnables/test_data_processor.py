@@ -228,6 +228,52 @@ class _LoopStart(LoopStartOperator):
         yield table
 
 
+class _LoopStartWithOutputCell(LoopStartOperator):
+    """A Loop Start whose Output cell sets `file` and sends the matching row."""
+
+    def open(self):
+        self.run_initialization("i = 0")
+        self.run_output("file = D.path[i]\nD.iloc[[i]]")
+
+    def process_table(self, table, port):
+        yield self.eval_output(table)
+
+
+class TestLoopStartOutputCellOrder:
+    @pytest.mark.timeout(2)
+    def test_the_output_cell_has_run_when_the_state_is_flushed(
+        self, context, data_processor, monkeypatch
+    ):
+        # EndChannel produces the state and flushes it BEFORE on_finish drains
+        # the data, so a control variable the Output cell sets must already be
+        # in the state that leaves first.
+        executor = _LoopStartWithOutputCell()
+        executor.open()
+        for path in ("a.txt", "b.txt"):
+            list(executor.process_tuple(Tuple({"path": path}), 0))
+        context.executor_manager.executor = executor
+        spm = context.state_processing_manager
+        flushed, emitted = [], []
+        monkeypatch.setattr(
+            data_processor,
+            "_switch_context",
+            lambda: flushed.append((spm.current_output_state, len(emitted))),
+        )
+        monkeypatch.setattr(
+            data_processor,
+            "_set_output_tuple",
+            lambda outputs: emitted.extend(o for o in outputs if o is not None),
+        )
+
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert not context.exception_manager.has_exception()
+        # The first switch is the state's flush; no data has been drained yet.
+        assert flushed[0] == (State({"i": 0, "file": "a.txt"}), 0)
+        (data,) = emitted
+        assert list(data["path"]) == ["a.txt"]
+
+
 class TestProcessState:
     @pytest.mark.timeout(2)
     def test_registers_state_before_invoking_process_state(
