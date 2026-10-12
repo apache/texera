@@ -2175,6 +2175,25 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("fileName")?.type).toBe("inputautocomplete");
     });
 
+    it("rebuilds on a port link even when the operator's variables stay the same, as inside a block", () => {
+      // inside the block the same names are in scope with or without the port, yet the file-name field
+      // takes a variable only while the port is fed
+      addBlockAroundBody();
+      openBody();
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+
+      const controlLink = {
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      workflowActionService.addLink(controlLink);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+
+      workflowActionService.deleteLinkWithID(controlLink.linkID);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+    });
+
     it("offers the name a feeding Loop Start's Output assigns, after its Initialization's", () => {
       // the files example: each iteration's Output picks the name of the file the body reads
       workflowActionService.addOperator(

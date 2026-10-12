@@ -910,19 +910,23 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
    */
   private registerLoopScopeChangeHandler(): void {
     const graph = this.workflowActionService.getTexeraGraph();
-    // The names on the operator's control-variable port come from the graph, not the compile result, so
-    // a link drawn into the port, or deleted from it, rebuilds the form at once.
+    // A link drawn into the operator's control-variable port, or deleted from it, rebuilds the form at
+    // once and whatever its names: they come from the graph, not the compile result, and whether the port
+    // is fed also decides which fields take a variable (a reader's file name), with the names unchanged.
     const portLinkChanges = merge(
       graph.getLinkAddStream(),
       graph.getLinkDeleteStream().pipe(map(({ deletedLink }) => deletedLink))
-    ).pipe(filter(link => isControlVariableLink(link) && link.target.operatorID === this.currentOperatorId));
-    merge(this.loopBlockService.getCompileResultStream(), portLinkChanges)
+    ).pipe(
+      filter(link => isControlVariableLink(link) && link.target.operatorID === this.currentOperatorId),
+      map(() => true)
+    );
+    merge(this.loopBlockService.getCompileResultStream().pipe(map(() => false)), portLinkChanges)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(portLinkChanged => {
         if (
           this.currentOperatorId !== undefined &&
           graph.hasOperator(this.currentOperatorId) &&
-          !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope)
+          (portLinkChanged || !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope))
         ) {
           this.rerenderEditorForm();
         }
