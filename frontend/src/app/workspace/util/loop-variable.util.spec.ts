@@ -86,6 +86,15 @@ describe("extractLoopVariables", () => {
     expect(extractLoopVariables("g = lambda k=1: k")).toEqual(["g"]);
   });
 
+  it("excludes a lambda's default parameters wherever they sit in its parameter list", () => {
+    expect(extractLoopVariables("pick = lambda row, col='line': row[col]")).toEqual(["pick"]);
+    expect(extractLoopVariables("i = 0\nkey = lambda s, n=1: s[:n]")).toEqual(["i", "key"]);
+    expect(extractLoopVariables("f = lambda x=1: x")).toEqual(["f"]);
+    expect(extractLoopVariables("g = lambda: 0")).toEqual(["g"]);
+    expect(extractLoopVariables("longest = max(names, key=lambda s, n=1: len(s))")).toEqual(["longest"]);
+    expect(extractLoopVariables("a = b = lambda x, y=2: x")).toEqual(["a", "b"]);
+  });
+
   // Python has no block scope: the exec'd initialization binds, as globals of the state, whatever an
   // if/else, try/except, for or while body assigns, so those are loop variables too.
   it("reads assignments under a top-level if/else, try/except and while", () => {

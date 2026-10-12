@@ -287,9 +287,18 @@ function importItemName(item: string, isModule: boolean): string[] {
 
 /** The names a plain statement assigns, e.g. `a = b = 0` -> a, b; `x += 1` or `f(k=1)` -> nothing. */
 function assignedNames(statement: string): string[] {
+  // A lambda's parameters are not bracketed, so the `=` of a default (`lambda s, n=1: ...`) is top-level;
+  // after the first top-level `lambda`, an `=` is never an assignment.
+  const lambda = topLevelPositions(
+    statement,
+    (text, i) => /^lambda\b/.test(text.slice(i)) && /[^A-Za-z0-9_.]/.test(text[i - 1] ?? " ")
+  )[0];
   const names: string[] = [];
   let from = 0;
   for (const position of assignmentPositions(statement)) {
+    if (lambda !== undefined && position > lambda) {
+      break;
+    }
     names.push(...targetNames(statement.slice(from, position)));
     from = position + 1;
   }
