@@ -199,6 +199,11 @@ object StandaloneHelpers {
       |    # its nanoseconds, trailing zeros dropped but never all of them, where
       |    # Python writes no fraction on a whole second and six digits otherwise.
       |    # A boolean is written in lower case.
+      |    #
+      |    # A double's digits are the shortest that read back as the same value,
+      |    # as Double.toString writes them from JDK 19. An earlier JDK sometimes
+      |    # writes more: 9.999999999999999E22 for 1e23. The value is the same but
+      |    # the text is not.
       |    import datetime
       |    import decimal
       |
