@@ -258,35 +258,38 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
         "The selected item is a folder or does not exist. Please select an actual .jsonl file from the 'File' dropdown."
       )
     }
-    val stream = DocumentFactory.openReadonlyDocument(uri).asInputStream()
-    val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
-    var fieldNames = Set[String]()
-
-    val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
-
-    val startOffset = windowOffset
     // A window of no rows is still a window on this file, and the file's columns
     // do not depend on how many of its rows were asked for. Reading the sample
     // through the limit left a Limit of 0 nothing to infer from, and the operator
     // declared a schema of no columns at all.
-    val endOffset =
-      startOffset + windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
-    reader
-      .lines()
-      .iterator()
-      .asScala
-      .slice(startOffset, endOffset)
-      .foreach(line => {
-        val root: JsonNode = objectMapper.readTree(line)
-        if (root.isObject) {
-          val fields: Map[String, String] = JSONToMap(root, flatten = flatten)
-          fieldNames = fieldNames.++(fields.keySet)
-          allFields += fields
-        }
-      })
+    val sampleSize = windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
 
-    val sortedFieldNames = fieldNames.toList.sorted
-    reader.close()
+    def readSample(startOffset: Int): ArrayBuffer[Map[String, String]] = {
+      val stream = DocumentFactory.openReadonlyDocument(uri).asInputStream()
+      val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
+      val sample: ArrayBuffer[Map[String, String]] = ArrayBuffer()
+      reader
+        .lines()
+        .iterator()
+        .asScala
+        .slice(startOffset, startOffset + sampleSize)
+        .foreach(line => {
+          val root: JsonNode = objectMapper.readTree(line)
+          if (root.isObject) {
+            sample += JSONToMap(root, flatten = flatten)
+          }
+        })
+      reader.close()
+      sample
+    }
+
+    // An offset past the last line empties the window the same way, so the
+    // sample falls back to the top of the file, which is where CSV always reads it.
+    val windowSample = readSample(windowOffset)
+    val allFields =
+      if (windowSample.isEmpty && windowOffset > 0) readSample(0) else windowSample
+
+    val sortedFieldNames = allFields.flatMap(_.keySet).toSet.toList.sorted
 
     val attributeTypes = inferSchemaFromRows(allFields.iterator.map(fields => {
       val result = ArrayBuffer[Object]()

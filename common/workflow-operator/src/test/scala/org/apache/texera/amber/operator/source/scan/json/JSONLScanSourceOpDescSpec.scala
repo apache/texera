@@ -124,6 +124,28 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
   }
 
+  // An offset past the last line empties the window the same way, so the sample
+  // read from it was empty too.
+  it should "keep the file's columns when the offset passes the last line" in {
+    val data = Files.createTempFile("jsonl-offset-past-end-", ".jsonl")
+    data.toFile.deleteOnExit()
+    Files.write(
+      data,
+      "{\"id\":1,\"name\":\"alice\"}\n{\"id\":2,\"name\":\"bob\"}\n".getBytes(
+        StandardCharsets.UTF_8
+      )
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.offset = Some(10)
+
+    val schema = op.sourceSchema()
+    schema.getAttributeNames shouldBe List("id", "name")
+    schema.getAttribute("id").getType shouldBe AttributeType.INTEGER
+  }
+
   // Jackson parses 1.0000000000000002 exactly; read_json's default parser
   // rounds it to 1.0, so a filter on v > 1 would keep a different set of rows.
   "JSONLScanSourceOpDesc.generateStandaloneCode" should
