@@ -741,6 +741,8 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
 
+      ResourceNaming.validateVersionDescription(versionName)
+
       val model = getModelByID(ctx, mid)
       val modelName = model.getName
       val repositoryName = model.getRepositoryName

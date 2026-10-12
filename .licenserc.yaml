@@ -62,3 +62,4 @@ header:
     - 'frontend/src/app/common/type/proto/google/protobuf/descriptor.ts'
     - 'frontend/src/app/common/type/proto/scalapb/scalapb.ts'
     - 'amber/src/main/python/core/util/customized_queue/inner.py'
+    - 'common/workflow-core/src/main/protobuf/scalapb/scalapb.proto'
