@@ -22,8 +22,14 @@ import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from
 
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import {
+  WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS,
+  WORKFLOW_COMPILATION_ENDPOINT,
+  WorkflowCompilingService,
+} from "../../../service/compile-workflow/workflow-compiling.service";
+import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
@@ -33,7 +39,8 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { AppSettings } from "../../../../common/app-setting";
 import {
   mockHuggingFacePredicate,
   mockLoopEndPredicate,
@@ -2066,7 +2073,20 @@ describe("OperatorPropertyEditFrameComponent", () => {
       fixture.detectChanges();
     }
 
-    /** Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. */
+    /**
+     * A compile result, which is what tells which operators sit inside a block: the body inside the Loop
+     * Start's block, or inside none when `inside` is false.
+     */
+    function compileWithBodyInside(inside = true): void {
+      TestBed.inject(LoopBlockService).setOperatorLoopStarts(
+        inside ? { [body.operatorID]: [mockLoopStartPredicate.operatorID] } : {}
+      );
+    }
+
+    /**
+     * Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false; then the compile result
+     * that follows those edits.
+     */
     function addBlockAroundBody(closed = true): void {
       workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
       workflowActionService.addOperator(body, mockPoint);
@@ -2075,6 +2095,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
       if (closed) {
         workflowActionService.addLink(mockScalaExecutorLoopEndLink);
       }
+      compileWithBodyInside(closed);
     }
 
     it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
@@ -2086,7 +2107,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
         expect(field?.type, key).toBe("loopvariableinput");
         expect(field?.props?.["loopVariableOptions"], key).toEqual(["$K"]);
         expect(field?.validators?.["type"].expression(control("$K"), field), key).toBe(true);
-        expect(field?.validators?.["loopVariableReference"].expression(control("$foo"), field), key).toBe(false);
+        // a name none of them declares is only warned about: no validator holds it against the field
+        expect(field?.props?.["loopVariableWarning"]("$foo"), key).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
+        expect(field?.props?.["loopVariableWarning"]("$K"), key).toBeUndefined();
+        for (const [name, validator] of Object.entries(field?.validators ?? {})) {
+          expect(validator.expression(control("$foo"), field), `${key} ${name}`).toBe(true);
+        }
       }
       // typed text is stored as the field's primitive; a reference stays the literal string
       expect(getField("limit")?.parsers?.[0]("7")).toBe(7);
@@ -2103,11 +2131,11 @@ describe("OperatorPropertyEditFrameComponent", () => {
       openBody();
 
       expect(getField("fileName")?.type).toBe("inputautocomplete");
-      expect(getField("fileName")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("fileName")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("order")?.type).toBe("enum");
-      expect(getField("order")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("order")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("columns")?.type).toBe("array");
-      expect(getField("columns")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("columns")?.props?.["loopVariableWarning"]).toBeUndefined();
     });
 
     it("turns the file name into the variable input once a Loop Start feeds the control-variable port", () => {
@@ -2125,6 +2153,26 @@ describe("OperatorPropertyEditFrameComponent", () => {
       // the other fields take a reference as inside a block; enums and arrays keep their controls
       expect(getField("limit")?.type).toBe("loopvariableinput");
       expect(getField("order")?.type).toBe("enum");
+    });
+
+    it("rebuilds the open form as soon as a link into its control-variable port is drawn or deleted", () => {
+      // the port's names come from the graph, so the form does not wait for a compile result
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      openBody();
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+
+      const controlLink = {
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      workflowActionService.addLink(controlLink);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      workflowActionService.deleteLinkWithID(controlLink.linkID);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
     });
 
     it("offers the name a feeding Loop Start's Output assigns, after its Initialization's", () => {
@@ -2149,16 +2197,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
       openBody();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
 
+      // as for any edit, the form follows the compile result that comes after it
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "K = 2",
         output: "file = D.line[K]; D.iloc[[K]]",
       });
+      compileWithBodyInside();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K", "$file"]);
 
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "K = 2",
         output: "D.iloc[[K]]",
       });
+      compileWithBodyInside();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
     });
 
@@ -2170,39 +2221,205 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("fraction")?.type).toBe("number");
       expect(getField("prefix")?.type).toBe("string");
       expect(getField("caseSensitive")?.type).toBe("boolean");
-      expect(getField("limit")?.validators?.["loopVariableReference"]).toBeUndefined();
+      expect(getField("limit")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
     });
 
-    it("rebuilds the open form when a link or the Loop Start's variables change its scope", () => {
+    it("counts the operator outside every block until a compile result puts it inside one", () => {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      openBody();
+      expect(getField("limit")?.type).toBe("integer");
+
+      compileWithBodyInside();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+    });
+
+    it("rebuilds the open form when a compile result changes its scope, and only then", () => {
       addBlockAroundBody(false);
       openBody();
       expect(getField("limit")?.type).toBe("integer");
 
-      // closing the block puts the open operator inside it
+      // closing the block puts the open operator inside it, once the compile result says so
       workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("integer");
+      compileWithBodyInside();
       expect(getField("limit")?.type).toBe("loopvariableinput");
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
 
-      // renaming the variable changes what the field offers
+      // renaming the variable changes what the field offers, read from the Loop Start in the graph
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "N = 1",
         output: "table.iloc[N]",
       });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      compileWithBodyInside();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
 
-      // an edit that leaves the scope as it is does not rebuild the form
+      // a compile result that leaves the scope as it is does not rebuild the form
       const rerender = vi.spyOn(component, "rerenderEditorForm");
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "N = 1",
         output: "table.iloc[0]",
       });
+      compileWithBodyInside();
       expect(rerender).not.toHaveBeenCalled();
 
       // opening the block again takes the operator out of it
       workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(rerender).not.toHaveBeenCalled();
+      compileWithBodyInside(false);
       expect(rerender).toHaveBeenCalledTimes(1);
       expect(getField("limit")?.type).toBe("integer");
+    });
+
+    it("keeps the form as it is while a value being typed leaves the open operator out of the compile", fakeAsync(() => {
+      const http = TestBed.inject(HttpTestingController);
+      const compileUrl = `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`;
+      const compileResult = (operatorLoopStarts: Record<string, string[]>) => ({
+        physicalPlan: { operators: [], links: [] },
+        operatorOutputSchemas: {},
+        operatorErrors: {},
+        operatorLoopStarts,
+      });
+      // Scan -> Loop Start -> body -> Loop End, every operator valid, so the compile is sent each of them
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "twitter" });
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink({
+        linkID: "scan-start",
+        source: { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: mockLoopStartPredicate.operatorID, portID: "input-0" },
+      });
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      http.expectOne(compileUrl).flush(compileResult({ [body.operatorID]: [mockLoopStartPredicate.operatorID] }));
+      openBody();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+
+      // typing "$" to pick a variable stores a value that is no reference yet, over the number the field
+      // held; the body is then invalid, so the compile is sent the workflow without it and finds no block
+      component.onFormChanges({ ...body.operatorProperties, limit: "$" });
+      tick(FORM_DEBOUNCE_TIME_MS);
+      expect(workflowActionService.getTexeraGraph().getOperator(body.operatorID).operatorProperties["limit"]).toBe("$");
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      const request = http.expectOne(compileUrl);
+      expect(
+        JSON.parse(request.request.body).operators.map((op: { operatorID: string }) => op.operatorID)
+      ).not.toContain(body.operatorID);
+      request.flush(compileResult({}));
+
+      expect(rerender).not.toHaveBeenCalled();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      discardPeriodicTasks();
+    }));
+
+    it("rebuilds nothing for a compile result after the open operator was deleted", () => {
+      addBlockAroundBody();
+      openBody();
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.deleteOperator(body.operatorID);
+      compileWithBodyInside();
+      expect(rerender).not.toHaveBeenCalled();
+    });
+
+    /** Opens the body with the schema given; every other operator keeps its own. */
+    function openBodyWithSchema(schema: OperatorSchema): void {
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
+      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
+        operatorID === body.operatorID ? schema : ownSchema(operatorID)
+      );
+      openBody();
+    }
+
+    /** A field of a row of the array property given, which formly builds only when asked for a row. */
+    function rowFieldOf(arrayKey: string, key: string): FormlyFieldConfig | undefined {
+      const arrayField = getField(arrayKey)!;
+      const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      return row.fieldGroup?.find(f => f.key === key);
+    }
+
+    describe("a setting the plan is built from", () => {
+      // the body given settings the backend marks `noLoopVariable` (#8750): a Projection's drop option, an
+      // output column's name, and the rows of columns to keep, whose alias sits in a shared definition;
+      // `renames` takes the same rows unmarked, and `limit` is the body's own unmarked setting
+      const planSchema: OperatorSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            isDrop: { type: "boolean", title: "drop option", noLoopVariable: true },
+            resultAttribute: { type: "string", title: "result attribute", noLoopVariable: true },
+            attributes: { type: "array", noLoopVariable: true, items: { $ref: "#/definitions/AttributeUnit" } },
+            renames: { type: "array", items: { $ref: "#/definitions/AttributeUnit" } },
+          },
+          definitions: {
+            AttributeUnit: {
+              type: "object",
+              properties: { alias: { type: "string", title: "alias" }, width: { type: "integer", title: "width" } },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      it("offers no $reference in a marked setting or anywhere under one, and still does beside them", () => {
+        addBlockAroundBody();
+        openBodyWithSchema(planSchema);
+
+        expect(getField("isDrop")?.type).toBe("boolean");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "width")?.type).toBe("integer");
+        for (const field of [
+          getField("isDrop"),
+          getField("resultAttribute"),
+          rowFieldOf("attributes", "alias"),
+          rowFieldOf("attributes", "width"),
+        ]) {
+          expect(field?.props?.["loopVariableOptions"], String(field?.key)).toBeUndefined();
+          expect(field?.props?.["loopVariableWarning"], String(field?.key)).toBeUndefined();
+        }
+        // the unmarked control: the body's own setting, and the same rows under an unmarked property
+        expect(getField("limit")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(rowFieldOf("renames", "width")?.type).toBe("loopvariableinput");
+      });
+
+      it("leaves a $reference a marked setting already holds in its plain field, for the compiler to name", () => {
+        addBlockAroundBody();
+        workflowActionService.setOperatorProperty(body.operatorID, {
+          limit: 5,
+          resultAttribute: "$K",
+          attributes: [{ alias: "$K" }],
+        });
+        openBodyWithSchema(planSchema);
+
+        expect(component.formData["resultAttribute"]).toBe("$K");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(getField("resultAttribute")?.props?.["loopVariableWarning"]).toBeUndefined();
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+      });
+
+      it("keeps every control as it was outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyWithSchema(planSchema);
+
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("string");
+        expect(getField("limit")?.type).toBe("integer");
+      });
     });
 
     describe("a field with value rules", () => {
@@ -2233,21 +2450,14 @@ describe("OperatorPropertyEditFrameComponent", () => {
         } as CustomJSONSchema7,
       };
 
-      /** Opens the body with the trainer's schema (or the one given); every other operator keeps its own. */
+      /** Opens the body with the trainer's schema (or the one given). */
       function openBodyAsTrainer(schema = trainerSchema): void {
-        const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
-        const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
-        vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
-          operatorID === body.operatorID ? schema : ownSchema(operatorID)
-        );
-        openBody();
+        openBodyWithSchema(schema);
       }
 
-      /** A field of a hyperparameter row, which formly builds only when asked for a row. */
+      /** A field of a hyperparameter row. */
       function rowField(key: string): FormlyFieldConfig | undefined {
-        const arrayField = getField("paraList")!;
-        const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
-        return row.fieldGroup?.find(f => f.key === key);
+        return rowFieldOf("paraList", key);
       }
 
       /** The field as formly hands it to a validator in a row whose parameter is the one given. */
@@ -2262,10 +2472,13 @@ describe("OperatorPropertyEditFrameComponent", () => {
         expect(value?.type).toBe("loopvariableinput");
         expect(value?.props?.["loopVariableOptions"]).toEqual(["$K"]);
         expect(value?.props?.["valueRules"]).toEqual(valueRules);
-        for (const name of ["type", "valueRules", "loopVariableReference"]) {
+        for (const name of ["type", "valueRules"]) {
           expect(value?.validators?.[name].expression(control("$K"), inRow(value, "C")), name).toBe(true);
+          expect(value?.validators?.[name].expression(control("$foo"), inRow(value, "C")), name).toBe(true);
         }
-        expect(value?.validators?.["loopVariableReference"].expression(control("$foo"), inRow(value, "C"))).toBe(false);
+        expect(value?.props?.["loopVariableWarning"]("$foo")).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
         expect(value?.validators?.["valueRules"].expression(control("-1"), inRow(value, "C"))).toBe(false);
         expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
         expect(value?.validators?.["valueRules"].expression(control("poly"), inRow(value, "kernel"))).toBe(false);
@@ -2310,7 +2523,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         const value = rowField("value");
         expect(value?.type).toBe("constrainedvalue");
         expect(value?.props?.["loopVariableOptions"]).toBeUndefined();
-        expect(value?.validators?.["loopVariableReference"]).toBeUndefined();
+        expect(value?.props?.["loopVariableWarning"]).toBeUndefined();
         expect(value?.validators?.["valueRules"].expression(control("$K"), inRow(value, "C"))).toBe(false);
         expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
       });

@@ -31,3 +31,12 @@
     {{ option }}
   </nz-auto-option>
 </nz-autocomplete>
+<div
+  *ngIf="warning as message"
+  class="ant-form-item-explain">
+  <div
+    role="alert"
+    class="ant-form-item-explain-warning">
+    {{ message }}
+  </div>
+</div>

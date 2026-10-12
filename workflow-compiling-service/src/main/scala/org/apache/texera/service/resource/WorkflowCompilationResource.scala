@@ -44,14 +44,27 @@ import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
   )
 )
 trait WorkflowCompilationResponse
+
+/**
+  * @param operatorLoopStarts for each operator inside a loop block, the ids of the Loop Starts of
+  *                           the blocks it is inside, sorted; an operator outside every block is
+  *                           absent. The property panel offers `$name` loop-variable references
+  *                           from it.
+  */
 case class WorkflowCompilationSuccess(
     physicalPlan: PhysicalPlan,
-    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]],
+    operatorLoopStarts: Map[String, List[String]]
 ) extends WorkflowCompilationResponse
 
+/**
+  * @param operatorLoopStarts as on [[WorkflowCompilationSuccess]]: it comes from the logical plan,
+  *                           so a workflow that does not compile yet still reports it.
+  */
 case class WorkflowCompilationFailure(
     operatorErrors: Map[String, WorkflowFatalError],
-    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]],
+    operatorLoopStarts: Map[String, List[String]]
 ) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -86,11 +99,19 @@ class WorkflowCompilationResource extends LazyLogging {
         (opId, portIdAndAttributes)
     }
 
+    // The Loop Starts around each operator inside a loop block, from the logical plan rather than
+    // the physical one, which a failed compile does not have.
+    val operatorLoopStarts = compilationResult.logicalPlan.enclosingLoopStarts.map {
+      case (operatorIdentity, loopStarts) =>
+        (operatorIdentity.id, loopStarts.map(_.id).toList.sorted)
+    }
+
     // Handle success case: No errors in the compilation result
     if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
-        operatorOutputSchemas = operatorOutputSchemas
+        operatorOutputSchemas = operatorOutputSchemas,
+        operatorLoopStarts = operatorLoopStarts
       )
     }
     // Handle failure case: Errors found during compilation
@@ -99,7 +120,8 @@ class WorkflowCompilationResource extends LazyLogging {
         operatorErrors = compilationResult.operatorIdToError.map {
           case (operatorIdentity, error) => (operatorIdentity.id, error)
         },
-        operatorOutputSchemas = operatorOutputSchemas
+        operatorOutputSchemas = operatorOutputSchemas,
+        operatorLoopStarts = operatorLoopStarts
       )
     }
   }

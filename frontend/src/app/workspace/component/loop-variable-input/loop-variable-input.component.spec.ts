@@ -288,6 +288,41 @@ describe("LoopVariableInputComponent", () => {
       expect(input("limit").value).toBe("$K");
     });
 
+    /** The warning shown under the field's box, or null when there is none. */
+    function warningUnder(key: string): string | null {
+      const field = input(key).closest("formly-field");
+      return field?.querySelector(".ant-form-item-explain-warning")?.textContent?.trim() ?? null;
+    }
+
+    it("warns under the box about a variable no enclosing block declares, leaving the setting valid", async () => {
+      await typeInto("limit", "$pi");
+      expect(host.model["limit"]).toBe("$pi");
+      expect(warningUnder("limit")).toBe(
+        "$pi is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+      );
+      expect(host.form.get("limit")?.valid).toBe(true);
+      // only under the box that holds it
+      expect(warningUnder("fraction")).toBeNull();
+    });
+
+    it("shows no warning for a declared variable or a plain value", async () => {
+      await typeInto("limit", "$K");
+      expect(warningUnder("limit")).toBeNull();
+
+      input("limit").value = "";
+      await typeInto("limit", "12");
+      expect(warningUnder("limit")).toBeNull();
+    });
+
+    it("drops the warning once the reference names a declared variable", async () => {
+      await typeInto("prefix", "$Kx");
+      expect(warningUnder("prefix")).not.toBeNull();
+
+      input("prefix").value = "";
+      await typeInto("prefix", "$K");
+      expect(warningUnder("prefix")).toBeNull();
+    });
+
     it("gives a string field its empty-string default", () => {
       expect(host.model["prefix"]).toBe("");
     });

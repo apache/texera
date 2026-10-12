@@ -19,7 +19,7 @@
 
 import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig, FormlyAttributes } from "@ngx-formly/core";
-import { NgFor } from "@angular/common";
+import { NgFor, NgIf } from "@angular/common";
 import { ReactiveFormsModule } from "@angular/forms";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import {
@@ -38,11 +38,15 @@ import { matchingValueRule } from "../../../common/formly/formly-utils";
  * reference as the literal string, which the backend binds to the loop variable at run time. A field with
  * value rules (`props.valueRules`) keeps its text as typed, and the autocomplete also offers the values
  * accepted by the branch of the rules its row selects, which the rules' own dropdown would have listed.
+ * A reference to a name none of the enclosing Loop Starts declares is no error, so it does not keep the
+ * workflow from running: a warning under the box (`props.loopVariableWarning`) says the run will fail
+ * unless a Loop Start sets it.
  */
 @Component({
   templateUrl: "loop-variable-input.component.html",
   imports: [
     NgFor,
+    NgIf,
     ReactiveFormsModule,
     FormlyAttributes,
     NzInputDirective,
@@ -67,5 +71,11 @@ export class LoopVariableInputComponent extends FieldType<FieldTypeConfig> {
     }
     const prefix = text.toLowerCase();
     return (text.startsWith("$") ? references : accepted).filter(option => option.toLowerCase().startsWith(prefix));
+  }
+
+  /** The warning to show under the box for the value it holds, undefined when there is none. */
+  get warning(): string | undefined {
+    const warn: ((value: unknown) => string | undefined) | undefined = this.props["loopVariableWarning"];
+    return warn?.(this.formControl.value);
   }
 }

@@ -19,12 +19,13 @@
 
 import { AbstractControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { CustomJSONSchema7 } from "../types/custom-json-schema.interface";
 
 /**
  * A loop-variable reference: a dollar sign and a name, as the whole value. The same grammar the backend
  * matches when it rewrites the property at parse time (issue #8635).
  */
-export const LOOP_VARIABLE_REFERENCE_PATTERN = /^\$[A-Za-z_][A-Za-z0-9_]*$/;
+const LOOP_VARIABLE_REFERENCE_PATTERN = /^\$[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** A complete integer numeral: an optional sign and digits. */
 const COMPLETE_INTEGER = /^[+-]?\d+$/;
@@ -111,16 +112,18 @@ export function coerceOrReference(text: unknown, schemaType: PrimitiveSchemaType
 }
 
 /**
- * Judges a value against the declared loop variables: the error message for a reference to a name none
- * of them declares, undefined for a declared one and for anything that is not a reference.
+ * Judges a value against the declared loop variables: the warning for a reference to a name none of them
+ * declares, undefined for a declared one and for anything that is not a reference. A warning, not an
+ * error: the names are read from the Loop Starts' code, which can set a variable in a way the reading
+ * misses, and a name no Loop Start sets stops the run with the backend's own message.
  */
-export function referenceValidator(names: ReadonlyArray<string>): (value: unknown) => string | undefined {
+export function unknownReferenceWarning(names: ReadonlyArray<string>): (value: unknown) => string | undefined {
   return value => {
     const name = referenceName(value);
     if (name === undefined || names.includes(name)) {
       return undefined;
     }
-    return `${value} is not a variable of an enclosing block`;
+    return `${value} is not a variable of an enclosing block; the run will fail if no Loop Start sets it`;
   };
 }
 
@@ -167,8 +170,107 @@ function escapePointerToken(key: string): string {
   return key.replace(/~/g, "~0").replace(/\//g, "~1");
 }
 
+/**
+ * The schema keyword the backend sets on each operator property the plan is built from: the compiler
+ * rejects a reference there inside a block, since nothing binds it before the plan is built.
+ */
+const NO_LOOP_VARIABLE_KEYWORD = "noLoopVariable";
+
+/** The keywords whose value is a schema or a list of schemas. */
+const SUBSCHEMA_KEYWORDS = [
+  "items",
+  "additionalItems",
+  "additionalProperties",
+  "contains",
+  "propertyNames",
+  "not",
+  "if",
+  "then",
+  "else",
+  "allOf",
+  "anyOf",
+  "oneOf",
+] as const;
+
+/** The keywords whose value maps names to schemas. */
+const SUBSCHEMA_MAP_KEYWORDS = ["properties", "patternProperties", "dependencies", "definitions"] as const;
+
+type SchemaNode = Record<string, unknown>;
+
+const isSchemaNode = (value: unknown): value is SchemaNode =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+/**
+ * A copy of an operator's schema in which every schema nested under a property marked `noLoopVariable`
+ * carries the mark as well. The keyword sits on a top-level property only, but the property panel meets
+ * each nested schema on its own (a Projection's `attributes[].alias` as the row's `alias`), so it is
+ * spread down to them for the panel to see. A `$ref` under a marked property is pointed at a marked copy
+ * of the schema it names, kept beside the original under `definitions`, so a definition that an
+ * unmarked property shares stays unmarked; the copy is made once per `$ref`, so a definition that names
+ * itself ends. Values a schema holds rather than is made of (`default`, `enum`, `valueRules`, ...) are
+ * left as they are, and the schema given is not changed.
+ */
+export function inheritNoLoopVariable(schema: CustomJSONSchema7): CustomJSONSchema7 {
+  const markedDefinitions: SchemaNode = {};
+  const markedRefs = new Map<string, string>();
+
+  const markedRef = (ref: string): string => {
+    const known = markedRefs.get(ref);
+    if (known !== undefined) {
+      return known;
+    }
+    const target = ref.startsWith("#/") ? valueAtPointer(schema, ref.slice(1)) : undefined;
+    if (!isSchemaNode(target)) {
+      return ref;
+    }
+    const name = `${NO_LOOP_VARIABLE_KEYWORD}:${ref.slice(2).replace(/\//g, ".")}`;
+    const copyRef = `#/definitions/${name}`;
+    // recorded before the copy is made, so a definition that names itself points at the copy and ends
+    markedRefs.set(ref, copyRef);
+    markedDefinitions[name] = visit(target, true);
+    return copyRef;
+  };
+
+  const visit = (node: unknown, marked: boolean): unknown => {
+    if (Array.isArray(node)) {
+      return node.map(item => visit(item, marked));
+    }
+    if (!isSchemaNode(node)) {
+      return node;
+    }
+    const isMarked = marked || node[NO_LOOP_VARIABLE_KEYWORD] === true;
+    const copy: SchemaNode = { ...node };
+    if (isMarked) {
+      copy[NO_LOOP_VARIABLE_KEYWORD] = true;
+      if (typeof node["$ref"] === "string") {
+        copy["$ref"] = markedRef(node["$ref"]);
+      }
+    }
+    for (const keyword of SUBSCHEMA_KEYWORDS) {
+      if (keyword in node) {
+        copy[keyword] = visit(node[keyword], isMarked);
+      }
+    }
+    for (const keyword of SUBSCHEMA_MAP_KEYWORDS) {
+      const schemas = node[keyword];
+      if (isSchemaNode(schemas)) {
+        copy[keyword] = Object.fromEntries(
+          Object.entries(schemas).map(([name, subschema]) => [name, visit(subschema, isMarked)])
+        );
+      }
+    }
+    return copy;
+  };
+
+  const result = visit(schema, false) as SchemaNode;
+  if (markedRefs.size > 0) {
+    result["definitions"] = { ...(result["definitions"] as SchemaNode | undefined), ...markedDefinitions };
+  }
+  return result as CustomJSONSchema7;
+}
+
 /** The message shown when the text is neither the field's primitive nor a reference. */
-export function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
+function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
   const expected = { string: "text", integer: "an integer", number: "a number", boolean: "true or false" }[schemaType];
   return `should be ${expected} or a $variable of an enclosing block`;
 }
@@ -177,9 +279,9 @@ export function typeMismatchMessage(schemaType: PrimitiveSchemaType): string {
  * Turns a primitive property's formly field into one that takes a loop-variable reference: the field
  * renders as the reference-taking text input offering "$" + name for each declared variable, typed text
  * is parsed with {@link coerceOrReference} (a string field keeps the mapper's own parsers and the ""
- * default of its plain control), the schema's type validator lets a reference through, and a reference
- * to an undeclared name is flagged with "$name is not a variable of an enclosing block". Errors show at
- * once rather than after a first edit.
+ * default of its plain control), and the schema's type validator lets a reference through. A reference
+ * to an undeclared name is no error: the input shows the warning `props.loopVariableWarning` gives for it
+ * (see {@link unknownReferenceWarning}). Errors show at once rather than after a first edit.
  *
  * A field given value rules first (setValueRules) keeps them: its rules' validator lets a reference
  * through and judges every other value as before, its hooks stay, and the input offers the values its
@@ -196,6 +298,7 @@ export function applyLoopVariableField(
   // for one object, and replacing it leaves them pointing at different ones
   field.props = field.props ?? {};
   field.props["loopVariableOptions"] = loopVariableOptions(names);
+  field.props["loopVariableWarning"] = unknownReferenceWarning(names);
   if (replacedType === "string" && field.defaultValue === undefined) {
     // what the "string" formly type's defaultOptions give its plain control, lost with the type; a field
     // on the value rules' control had no such default and gets none
@@ -235,7 +338,7 @@ export function applyLoopVariableField(
     message: typeMismatchMessage(schemaType),
   };
   // What a reference stands for is known only at run time, so the value rules let it through and judge
-  // every other value as they did; a reference to an undeclared name is the next validator's to flag.
+  // every other value as they did; a reference to an undeclared name is only warned about.
   const valueRulesCheck = validators["valueRules"];
   if (valueRulesCheck !== undefined) {
     const judgeByRules = typeof valueRulesCheck === "function" ? valueRulesCheck : valueRulesCheck.expression;
@@ -245,11 +348,6 @@ export function applyLoopVariableField(
         isReference(control.value) || Boolean(judgeByRules(control, fieldConfig)),
     };
   }
-  const validate = referenceValidator(names);
-  validators["loopVariableReference"] = {
-    expression: (control: AbstractControl) => validate(control.value) === undefined,
-    message: (_error: unknown, fieldConfig: FormlyFieldConfig) => validate(fieldConfig.formControl?.value) ?? "",
-  };
   field.validators = validators;
   field.validation = { ...field.validation, show: true };
 }

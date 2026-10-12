@@ -282,7 +282,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // operatorsInsideLoopBlocks: the cases mirror the frontend's `getEnclosingLoopStarts` spec
+  // operatorsInsideLoopBlocks
   // ---------------------------------------------------------------------------
 
   private def loopStart(id: String): LogicalOp = named(new LoopStartOpDesc, id)
@@ -291,7 +291,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   /**
     * The ids of the operators inside a loop block, `edges` as "from" -> "to" ids, checked against
-    * the property panel's walk, as are the LoopStarts around each (`enclosingLoopStarts`).
+    * a walk from each operator, as are the LoopStarts around each (`enclosingLoopStarts`).
     */
   private def inside(operators: List[LogicalOp], edges: (String, String)*): Set[String] = {
     val plan = LogicalPlan(
@@ -299,23 +299,20 @@ class LogicalPlanSpec extends AnyFlatSpec {
       edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
     )
     val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
-    val byPanel = enclosingByPanel(operators, edges)
+    val byWalk = enclosingByWalk(operators, edges)
     assert(
-      around == byPanel,
-      s"the panel's walk finds $byPanel, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
+      around == byWalk,
+      s"the walk finds $byWalk, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
         s"with $edges"
     )
     plan.operatorsInsideLoopBlocks.map(_.id)
   }
 
   /**
-    * A port of the property panel's `getEnclosingLoopStarts` (frontend loop-block.util.ts), which
-    * decides where the panel offers `$K`: each operator with an enclosing LoopStart, and those
-    * LoopStarts. It walks from each operator where `enclosingLoopStarts` folds over the plan. It
-    * leaves out the panel's hop counts, which only order the LoopStarts, and its cap on open
-    * blocks, which binds only on a cycle.
+    * Each operator with an enclosing LoopStart, and those LoopStarts, found another way: it walks
+    * from each operator where `enclosingLoopStarts` folds over the plan.
     */
-  private def enclosingByPanel(
+  private def enclosingByWalk(
       operators: List[LogicalOp],
       edges: Seq[(String, String)]
   ): Map[String, Set[String]] = {
@@ -425,7 +422,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     )
   }
 
-  it should "agree with the property panel's walk on random graphs of loop and plain operators" in {
+  it should "agree with a walk from each operator on random graphs of loop and plain operators" in {
     val random = new Random(8640)
     (1 to 400).foreach { _ =>
       val size = 2 + random.nextInt(11)
