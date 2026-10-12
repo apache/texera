@@ -427,15 +427,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
-    // A result with no rows still has columns, and showing them tells the user what the
-    // operator would have produced. An empty page of a non-empty result is only a page index
-    // past the end, so the table already shown stays.
-    if (resultData.length < 1 && (totalRowCount > 0 || schema.length === 0)) {
-      return;
-    }
-
+    // Every page that arrives ends the fetch, including one that changes nothing below.
     this.isLoadingResult = false;
     this.changeDetectorRef.detectChanges();
+
+    // A result with no rows still has columns, and showing them tells the user what the
+    // operator would have produced. A column search can leave none, and the old headers must
+    // not stay. An empty page of a non-empty result is only a page index past the end, so the
+    // table already shown stays.
+    if (resultData.length < 1 && totalRowCount > 0) {
+      return;
+    }
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
