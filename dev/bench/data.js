@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791816426252,
+  "lastUpdate": 1791816429112,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -66574,6 +66574,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1462657.172,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Mend Renovate",
+            "username": "renovate-bot",
+            "email": "bot@renovateapp.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "9cf43f2de96c9a1a8a93579835b8b7de66243d80",
+          "message": "chore(deps, pyright-language-service): update pyright-language-service minor updates (#8954)\n\nThis PR contains the following updates:\n\n| Package | Change |\n[Age](https://docs.renovatebot.com/merge-confidence/) |\n[Confidence](https://docs.renovatebot.com/merge-confidence/) |\n|---|---|---|---|\n|\n[@types/node](https://redirect.github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node)\n([source](https://redirect.github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/node))\n| [`26.2.0` →\n`26.6.5`](https://renovatebot.com/diffs/npm/@types%2fnode/26.2.0/26.6.5)\n|\n![age](https://developer.mend.io/api/mc/badges/age/npm/@types%2fnode/26.6.5?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/@types%2fnode/26.2.0/26.6.5?slim=true)\n|\n| [express](https://expressjs.com/)\n([source](https://redirect.github.com/expressjs/express)) | [`5.2.1` →\n`5.3.0`](https://renovatebot.com/diffs/npm/express/5.2.1/5.3.0) |\n![age](https://developer.mend.io/api/mc/badges/age/npm/express/5.3.0?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/express/5.2.1/5.3.0?slim=true)\n|\n| [ws](https://redirect.github.com/websockets/ws) | [`8.21.3` →\n`8.22.0`](https://renovatebot.com/diffs/npm/ws/8.21.3/8.22.0) |\n![age](https://developer.mend.io/api/mc/badges/age/npm/ws/8.22.0?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/ws/8.21.3/8.22.0?slim=true)\n|\n\n---\n\n### Release Notes\n\n<details>\n<summary>expressjs/express (express)</summary>\n\n###\n[`v5.3.0`](https://redirect.github.com/expressjs/express/blob/HEAD/History.md#530)\n\n[Compare\nSource](https://redirect.github.com/expressjs/express/compare/v5.2.1...v5.3.0)\n\n\\=====\n\n#### 🐞 Bug fixes\n\n- Fixed HTTP header conflict between Content-Length and\nTransfer-Encoding in res.send - by\n[@&#8203;YuryShkoda](https://redirect.github.com/YuryShkoda) in\n[#&#8203;4893](https://redirect.github.com/expressjs/express/pull/4893)\n\nFixed the behavior of `res.send()` to prevent conflicts between\n`Content-Length` and `Transfer-Encoding` HTTP headers in responses. The\n`Content-Length` header in `res.send()` is now only added when a\n`Transfer-Encoding` header is not present, complying with the HTTP\nspecification that states both headers should not coexist in the same\nresponse. ETag generation is unaffected by the presence of a\n`Transfer-Encoding` header - by\n[@&#8203;cuishuang](https://redirect.github.com/cuishuang) in\n[#&#8203;7459](https://redirect.github.com/expressjs/express/pull/7459)\n\n* Upgrade `qs` to `^6.16.0`, which fixes\n[CVE-2026-2391](https://www.cve.org/CVERecord?id=CVE-2026-2391)\n([GHSA-w7fw-mjwx-w883](https://redirect.github.com/ljharb/qs/security/advisories/GHSA-w7fw-mjwx-w883)),\n[CVE-2026-82417](https://www.cve.org/CVERecord?id=CVE-2026-82417)\n([GHSA-4mjr-xmp4-gh2g](https://redirect.github.com/advisories/GHSA-4mjr-xmp4-gh2g))\nand [CVE-2026-82562](https://www.cve.org/CVERecord?id=CVE-2026-82562)\n([GHSA-x5fp-wj9c-mxmx](https://redirect.github.com/advisories/GHSA-x5fp-wj9c-mxmx)):\n`arrayLimit` bypasses in comma parsing and a denial of service via an\nattacker-controlled `isBuffer` - by\n[@&#8203;davetashner](https://redirect.github.com/davetashner) in\n[#&#8203;7057](https://redirect.github.com/expressjs/express/pull/7057)\nand\n[#&#8203;7478](https://redirect.github.com/expressjs/express/pull/7478),\nand [@&#8203;cyphercodes](https://redirect.github.com/cyphercodes) in\n[#&#8203;7305](https://redirect.github.com/expressjs/express/pull/7305)\n\n* Upgrade `proxy-addr` to `^2.0.8`, which fixes\n[CVE-2026-90711](https://www.cve.org/CVERecord?id=CVE-2026-90711) - by\n[@&#8203;lazerg](https://redirect.github.com/lazerg) in\n[#&#8203;7474](https://redirect.github.com/expressjs/express/pull/7474)\n\n#### 🚀 Improvements\n\n- Allow conditional revalidation for QUERY requests. `req.fresh`\npreviously only validated freshness for GET and HEAD requests, so QUERY\nresponses never returned 304 despite a matching validator. Since QUERY\nis a safe, idempotent, and cacheable method that supports conditional\nrequests, it is now included in the freshness check - by\n[@&#8203;Cherry](https://redirect.github.com/Cherry) in\n[#&#8203;7366](https://redirect.github.com/expressjs/express/pull/7366)\n\n  ```js\n  // QUERY /reports with If-None-Match: \"12345\"\n  app.query('/reports', (req, res) => {\n    res.set('ETag', '\"12345\"');\n    res.send(results); // now responds 304 Not Modified\n  });\n  ```\n\n- Improve HTML structure in `res.redirect()` responses when HTML format\nis accepted by adding `<!DOCTYPE html>`, `<title>`, and `<body>` tags\nfor better browser compatibility - by\n[@&#8203;Bernice55231](https://redirect.github.com/Bernice55231) in\n[#&#8203;5167](https://redirect.github.com/expressjs/express/pull/5167)\n\n- When calling `app.render` with options set to null, the locals object\nis handled correctly, preventing unexpected errors and making the method\nbehave the same as when options is omitted or an empty object is passed\n- by [AkaHarshit](https://redirect.github.com/AkaHarshit) in\n[#&#8203;6903](https://redirect.github.com/expressjs/express/pull/6903)\n\n  ```js\n  app.render('index', null, callback); // now works as expected\n  ```\n\n- Upgrade `content-type` to `^2.0.0`, bringing a faster parser (\\~1.5x\nquicker `Content-Type` parsing/formatting in `res.send()`) along with a\nbehavior change: `res.send()` now keeps any existing parameters when\nadding the charset and no longer throws on a `Content-Type` that fails\nto parse. `type-is` is upgraded to `^2.1.0` as part of the same change -\nby [@&#8203;blakeembrey](https://redirect.github.com/blakeembrey) in\n[#&#8203;7234](https://redirect.github.com/expressjs/express/pull/7234)\n\n  ```js\n  res.set('Content-Type', 'text/plain; foo=bar').send('hey');\n  // -> Content-Type: text/plain; foo=bar; charset=utf-8\n  ```\n\n- The default error handler now logs the full error object instead of\nonly its stack trace, so nested details such as `Error.cause` and\nlibrary-specific properties (e.g. Sequelize's `parent`/`original`) are\nno longer swallowed - by\n[@&#8203;Nitin-Mohapatra](https://redirect.github.com/Nitin-Mohapatra)\nin\n[#&#8203;6464](https://redirect.github.com/expressjs/express/pull/6464)\n\n- Upgrade `content-disposition` to `^2.0.1`, which changes the\n`Content-Disposition` header emitted by `res.download()`,\n`res.attachment()`, and `res.sendFile()`: file names that are valid HTTP\ntokens are no longer wrapped in quotes. This is equivalent per RFC 6266,\nbut applications asserting on the exact header bytes should update their\nexpectations - by\n[@&#8203;blakeembrey](https://redirect.github.com/blakeembrey) in\n[#&#8203;7233](https://redirect.github.com/expressjs/express/pull/7233)\n\n  ```js\n  res.attachment('user.html');\n  // before -> Content-Disposition: attachment; filename=\"user.html\"\n  // after  -> Content-Disposition: attachment; filename=user.html\n  ```\n\n- Upgrade `body-parser` to `^2.3.0`, which fixes\n[CVE-2026-12590](https://www.cve.org/CVERecord?id=CVE-2026-12590)\n([GHSA-v422-hmwv-36x6](https://redirect.github.com/expressjs/body-parser/security/advisories/GHSA-v422-hmwv-36x6)):\nan invalid `limit` option value caused request body size enforcement to\nbe silently disabled (fail-open), allowing a denial of service via\narbitrarily large payloads. Invalid `limit` values now throw at parser\ninitialization instead of being ignored - by\n[@&#8203;Mayvis](https://redirect.github.com/Mayvis) in\n[#&#8203;7390](https://redirect.github.com/expressjs/express/pull/7390)\n\n#### ⚡ Performance\n\n- Avoid duplicate Content-Type header processing in `res.send()` when\nsending string responses without an explicit Content-Type header - by\n[@&#8203;bjohansebas](https://redirect.github.com/bjohansebas) in\n[#&#8203;6991](https://redirect.github.com/expressjs/express/pull/6991)\n\n</details>\n\n<details>\n<summary>websockets/ws (ws)</summary>\n\n###\n[`v8.22.0`](https://redirect.github.com/websockets/ws/releases/tag/8.22.0)\n\n[Compare\nSource](https://redirect.github.com/websockets/ws/compare/8.21.3...8.22.0)\n\n### Features\n\n- Introduced the `protocols` option\n([`8b918b0`](https://redirect.github.com/websockets/ws/commit/8b918b01)).\n\n### Bug fixes\n\n- Calling `websocket.close()` with invalid arguments no longer\ntransitions the\nstate to `WebSocket.CLOSING`\n([#&#8203;2337](https://redirect.github.com/websockets/ws/issues/2337)).\n\n</details>\n\n---\n\n### Configuration\n\n📅 **Schedule**: (in timezone Etc/UTC)\n\n- Branch creation\n  - \"before 8am on monday\"\n- Automerge\n  - At any time (no schedule defined)\n\n🚦 **Automerge**: Disabled by config. Please merge this manually once you\nare satisfied.\n\n♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the\nrebase/retry checkbox.\n\n👻 **Immortal**: This PR will be recreated if closed unmerged. Get\n[config\nhelp](https://redirect.github.com/renovatebot/renovate/discussions) if\nthat's undesired.\n\n---\n\n- [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check\nthis box\n\n---\n\nThis PR was generated by [Mend Renovate](https://mend.io/renovate/).\nView the [repository job\nlog](https://developer.mend.io/github/apache/texera).\n\n<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC4xMzQuMSIsInVwZGF0ZWRJblZlciI6IjQ0LjEzNC4xIiwidGFyZ2V0QnJhbmNoIjoibWFpbiIsImxhYmVscyI6WyJkZXBlbmRlbmNpZXMiXX0=-->",
+          "timestamp": "2026-10-12T03:53:21Z",
+          "url": "https://github.com/apache/texera/commit/9cf43f2de96c9a1a8a93579835b8b7de66243d80"
+        },
+        "date": 1791816428718,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 13175.122,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 15943.563,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 19482.676,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 73693.339,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 82569.497,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 94315.975,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 705465.879,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 743999.923,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 770349.912,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10414.534,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 12116.419,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14676.892,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 70050.464,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 78003.007,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 83566.343,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 701309.858,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 741637.916,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 760689.299,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 9920.311,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 12324.235,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 15436.833,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 71454.391,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 78006.133,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 85199.51,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 699842.555,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 742604.942,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 765976.167,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 11937.654,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 16390.096,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 17740.032,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 91292.119,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 99311.332,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 107602.833,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 903193.239,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 954334.137,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 968583.923,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 11775.312,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 15475.846,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 18757.831,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 93508.732,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 99079.503,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 109508.946,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 901534.97,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 942859.009,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 957502.629,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 11404.119,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 15924.424,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 19159.236,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 92149.839,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 98918.399,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 106570.592,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 908408.51,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 960242.093,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1003092.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 19941.875,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 21767.601,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 25312.167,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 170336.353,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 179196.068,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 186906.925,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1712129.595,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1771673.01,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1804394.323,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 20023.496,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 20853.792,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 24412.17,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 173674.859,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 180744.935,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 193730.369,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1729957.024,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1773182.883,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1787682.167,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 20681.284,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 24581.78,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 28629.275,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 179230.831,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 189612.726,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 201047.205,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1805320.991,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1853643.976,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1866476.861,
             "unit": "us"
           }
         ]
