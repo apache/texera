@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.api.model.metrics.v1beta1.{
   PodMetricsListBuilder
 }
 import io.fabric8.kubernetes.api.model.{
+  Container,
   ContainerBuilder,
   Pod,
   PodBuilder,
@@ -55,16 +56,27 @@ import org.scalatest.matchers.should.Matchers
 import scala.jdk.CollectionConverters._
 
 // Two layers are exercised here:
-//   * the pure fabric8 -> map transforms (phasesByPodName / metricsByPodName) with
+//   * the pure fabric8 -> map transforms (snapshotsByPodName / metricsByPodName) with
 //     builder-constructed model objects, so the transform logic needs no client, and
-//   * the thin namespace-wide wrappers (getAllPodPhases / getAllPodMetrics / getPodMetrics),
-//     which are driven through a freshly constructed KubernetesClient whose fabric8 client is a
-//     Mockito stub — no live cluster and no mutable global.
-// The status/metrics *decision* logic that consumes these maps (Running vs Pending, cpu/memory
-// resolution) is covered by ComputingUnitHelpersSpec.
+//   * the thin namespace-wide wrappers (getAllPodStatusSnapshots / getAllPodMetrics /
+//     getPodMetrics), which are driven through a freshly constructed KubernetesClient whose
+//     fabric8 client is a Mockito stub — no live cluster and no mutable global.
+// The status/metrics *decision* logic that consumes these maps (Running vs Failed vs Pending,
+// cpu/memory resolution) is covered by ComputingUnitHelpersSpec.
 class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
+  private val testAccessControlServiceUrl =
+    "http://access-control-service-svc.texera.svc.cluster.local:9096"
+  private val testPodMountRoot = "/mnt/test-mounts"
+
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
+
+  // getVolumes/getVolumeMounts are null rather than empty when nothing was added.
+  private def volumeNames(pod: Pod): List[String] =
+    Option(pod.getSpec.getVolumes).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
+
+  private def mountNames(container: Container): List[String] =
+    Option(container.getVolumeMounts).map(_.asScala.toList).getOrElse(Nil).map(_.getName)
 
   // A fabric8 client stubbed just enough to answer the namespace-wide pod-list and pod-metrics
   // calls the wrappers make. RETURNS_DEEP_STUBS can't be used: fabric8's fluent API returns type
@@ -130,16 +142,123 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     KubernetesClient.generatePodName(0) shouldBe "computing-unit-0"
   }
 
-  "phasesByPodName" should "map every pod name to its phase" in {
-    val phases = KubernetesClient.phasesByPodName(Seq(pod(1, "Running"), pod(2, "Pending")))
-    phases(KubernetesClient.generatePodName(1)) shouldBe "Running"
-    phases(KubernetesClient.generatePodName(2)) shouldBe "Pending"
+  "snapshotsByPodName" should "map every pod name to a snapshot of its phase" in {
+    val snapshots = KubernetesClient.snapshotsByPodName(Seq(pod(1, "Running"), pod(2, "Pending")))
+    snapshots(KubernetesClient.generatePodName(1)).phase shouldBe Some("Running")
+    snapshots(KubernetesClient.generatePodName(2)).phase shouldBe Some("Pending")
   }
 
-  it should "map a pod with no status to a null phase but still include it" in {
-    val phases = KubernetesClient.phasesByPodName(Seq(statuslessPod(3)))
-    phases should contain key KubernetesClient.generatePodName(3)
-    phases(KubernetesClient.generatePodName(3)) shouldBe null
+  it should "map a pod with no status to an empty snapshot but still include it" in {
+    val snapshots = KubernetesClient.snapshotsByPodName(Seq(statuslessPod(3)))
+    snapshots should contain key KubernetesClient.generatePodName(3)
+    snapshots(KubernetesClient.generatePodName(3)) shouldBe PodStatusSnapshot.empty
+  }
+
+  // ── PodStatusSnapshot.fromPod: the pure fabric8 -> snapshot extraction ──
+  // The decision table consuming these fields lives in ComputingUnitHelpersSpec; here each
+  // fabric8 field is pinned to its snapshot slot, including the null-guard paths.
+
+  "PodStatusSnapshot.fromPod" should "capture the phase, pod-level reason and message" in {
+    val evicted = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Failed")
+      .withReason("Evicted")
+      .withMessage("The node was low on resource: ephemeral-storage.")
+      .endStatus()
+      .build()
+
+    val snapshot = PodStatusSnapshot.fromPod(evicted)
+    snapshot.phase shouldBe Some("Failed")
+    snapshot.podReason shouldBe Some("Evicted")
+    snapshot.podMessage shouldBe Some("The node was low on resource: ephemeral-storage.")
+    snapshot.terminating shouldBe false
+    snapshot.unschedulable shouldBe false
+    snapshot.containers shouldBe empty
+  }
+
+  it should "flag a pod carrying a deletion timestamp as terminating" in {
+    val deleted = new PodBuilder()
+      .withNewMetadata()
+      .withName(KubernetesClient.generatePodName(9))
+      .withDeletionTimestamp("2026-08-20T00:00:00Z")
+      .endMetadata()
+      .withNewStatus()
+      .withPhase("Running")
+      .endStatus()
+      .build()
+
+    PodStatusSnapshot.fromPod(deleted).terminating shouldBe true
+  }
+
+  it should "flag an Unschedulable PodScheduled=False condition and only that condition" in {
+    def podWithCondition(condType: String, status: String, reason: String) =
+      new PodBuilder()
+        .withNewStatus()
+        .withPhase("Pending")
+        .addNewCondition()
+        .withType(condType)
+        .withStatus(status)
+        .withReason(reason)
+        .endCondition()
+        .endStatus()
+        .build()
+
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "False", "Unschedulable"))
+      .unschedulable shouldBe true
+    // A scheduled pod, or a False condition of another type/reason, must not count.
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "True", ""))
+      .unschedulable shouldBe false
+    PodStatusSnapshot
+      .fromPod(podWithCondition("Ready", "False", "Unschedulable"))
+      .unschedulable shouldBe false
+    // A malformed condition carrying the Unschedulable reason with status True must not
+    // count either: all three fields have to line up.
+    PodStatusSnapshot
+      .fromPod(podWithCondition("PodScheduled", "True", "Unschedulable"))
+      .unschedulable shouldBe false
+  }
+
+  it should "capture each container's waiting reason, last termination reason and restart count" in {
+    val crashLooping = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Running")
+      .addNewContainerStatus()
+      .withRestartCount(5)
+      .withNewState()
+      .withNewWaiting()
+      .withReason("CrashLoopBackOff")
+      .endWaiting()
+      .endState()
+      .withNewLastState()
+      .withNewTerminated()
+      .withReason("OOMKilled")
+      .endTerminated()
+      .endLastState()
+      .endContainerStatus()
+      .endStatus()
+      .build()
+
+    val container = PodStatusSnapshot.fromPod(crashLooping).containers.head
+    container.waitingReason shouldBe Some("CrashLoopBackOff")
+    container.lastTerminatedReason shouldBe Some("OOMKilled")
+    container.restartCount shouldBe 5
+  }
+
+  it should "map a container status with no state details to an empty container snapshot" in {
+    val bare = new PodBuilder()
+      .withNewStatus()
+      .withPhase("Running")
+      .addNewContainerStatus()
+      .endContainerStatus()
+      .endStatus()
+      .build()
+
+    val container = PodStatusSnapshot.fromPod(bare).containers.head
+    container.waitingReason shouldBe None
+    container.lastTerminatedReason shouldBe None
+    container.restartCount shouldBe 0
   }
 
   "metricsByPodName" should "flatten each pod's container usage into a cpu/memory map" in {
@@ -150,13 +269,13 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
 
   // ── namespace-wide wrappers, driven through a stubbed fabric8 client ──
   // These pin the fabric8 fluent-chain plumbing (list() / top().pods().metrics()); the value
-  // transform they delegate to is already pinned by the phasesByPodName / metricsByPodName tests,
-  // so they only assert that the namespace items flow through keyed by pod name.
+  // transform they delegate to is already pinned by the snapshotsByPodName / metricsByPodName
+  // tests, so they only assert that the namespace items flow through keyed by pod name.
 
-  "getAllPodPhases" should "list the namespace pods and key them by pod name" in {
+  "getAllPodStatusSnapshots" should "list the namespace pods and key them by pod name" in {
     val k8s =
       new KubernetesClient(stubbedClient(Seq(pod(1, "Running"), pod(2, "Pending")), Seq.empty))
-    k8s.getAllPodPhases.keySet shouldBe
+    k8s.getAllPodStatusSnapshots.keySet shouldBe
       Set(KubernetesClient.generatePodName(1), KubernetesClient.generatePodName(2))
   }
 
@@ -278,6 +397,63 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     // Env values arrive as Any and reach the container as strings.
     container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap shouldBe
       Map("UID" -> "9", "MODE" -> "batch")
+
+    // The PodSecurity-safe default: no hostPath, so a cluster enforcing `baseline` or
+    // `restricted` on the pool namespace still admits the pod.
+    volumeNames(built) should not contain "texera-mounts"
+    mountNames(container) should not contain "texera-mounts"
+  }
+
+  it should "wire the mount contract into the pod only when mounting is enabled" in {
+    val name = KubernetesClient.generatePodName(5)
+    val (client, _) = clientWithNamedPod(name, null)
+    val namespaceable = mock(classOf[NamespaceableResource[Pod]])
+    val resource = mock(classOf[Resource[Pod]])
+    val captor = ArgumentCaptor.forClass(classOf[Pod])
+    when(client.resource(any(classOf[Pod]))).thenReturn(namespaceable)
+    when(namespaceable.inNamespace(namespace)).thenReturn(resource)
+    when(resource.create()).thenReturn(null)
+
+    new KubernetesClient(
+      client,
+      mountingEnabled = true,
+      testAccessControlServiceUrl,
+      testPodMountRoot
+    )
+      .createPod(5, "2", "4Gi", "1", Map("UID" -> 9, "MODE" -> "batch"))
+
+    verify(client).resource(captor.capture())
+    val built = captor.getValue
+    val container = built.getSpec.getContainers.asScala.head
+
+    // The host directory is scoped to this CU, so one unit can never see another's mounts.
+    val volume = built.getSpec.getVolumes.asScala.find(_.getName == "texera-mounts")
+    volume shouldBe defined
+    volume.get.getHostPath.getPath shouldBe s"${KubernetesConfig.mounterHostRoot}/5"
+    // DirectoryOrCreate: the mounter mounts into a path the kubelet has already created.
+    volume.get.getHostPath.getType shouldBe "DirectoryOrCreate"
+
+    // HostToContainer, not Bidirectional: the pod receives the mount the privileged mounter
+    // makes and must not be able to propagate one back out to the node.
+    val mount = container.getVolumeMounts.asScala.find(_.getName == "texera-mounts")
+    mount shouldBe defined
+    mount.get.getMountPath shouldBe testPodMountRoot
+    mount.get.getMountPropagation shouldBe "HostToContainer"
+
+    // The pod is told which CU it is and where its mounts appear -- and deliberately not
+    // how to reach the mounter.
+    val env = container.getEnv.asScala.map(e => e.getName -> e.getValue).toMap
+    env should contain("TEXERA_CU_ID" -> "5")
+    env should contain("TEXERA_MOUNT_IN_POD_ROOT" -> testPodMountRoot)
+    // Who the pod asks for a mount. Without it the engine cannot request one, and the pod
+    // has no other way to reach a mounter -- which is the point.
+    env should contain(
+      "ACCESS_CONTROL_SERVICE_URL" -> testAccessControlServiceUrl
+    )
+
+    // Still unprivileged: the whole point of mounting out of pod.
+    val privileged = Option(container.getSecurityContext).flatMap(c => Option(c.getPrivileged))
+    privileged.contains(true) shouldBe false
   }
 
   it should "mount a shared-memory volume only when a size is asked for" in {

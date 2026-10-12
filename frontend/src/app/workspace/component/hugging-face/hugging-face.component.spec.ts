@@ -29,6 +29,7 @@ import {
   HuggingFaceModelOption,
   HuggingFaceTaskOption,
   STATIC_TASK_OPTIONS,
+  SUPPORTED_TASK_TAGS,
   invalidateHuggingFaceModelCache,
 } from "./hugging-face.component";
 
@@ -145,6 +146,32 @@ describe("HuggingFaceComponent (unit)", () => {
     const uniqueTags = new Set(tags);
     expect(uniqueTags.size).toBe(tags.length);
   });
+
+  it("should not list tasks that have no operator codegen", () => {
+    // These tasks were previously offered but have no TaskCodegen, so they
+    // silently fell back to text-generation and emitted raw JSON.
+    const unsupported = [
+      "text-classification",
+      "token-classification",
+      "translation",
+      "summarization",
+      "feature-extraction",
+      "fill-mask",
+    ];
+    const tags = STATIC_TASK_OPTIONS.map(t => t.tag);
+    unsupported.forEach(tag => expect(tags).not.toContain(tag));
+  });
+
+  it("should list the supported media/image tasks that have a codegen", () => {
+    const tags = STATIC_TASK_OPTIONS.map(t => t.tag);
+    ["image-to-image", "image-text-to-text", "text-to-image", "text-to-video"].forEach(tag =>
+      expect(tags).toContain(tag)
+    );
+  });
+
+  it("SUPPORTED_TASK_TAGS should exactly mirror the static task tags", () => {
+    expect([...SUPPORTED_TASK_TAGS].sort()).toEqual(STATIC_TASK_OPTIONS.map(t => t.tag).sort());
+  });
 });
 
 // ── TestBed-based integration tests ──
@@ -250,6 +277,37 @@ describe("HuggingFaceComponent (TestBed)", () => {
       expect(component.taskOptions).toEqual(STATIC_TASK_OPTIONS);
       expect(component.tasksError).toBeTruthy();
       expect(component.tasksLoading).toBe(false);
+    });
+
+    it("should drop unsupported tasks from the dynamic API response", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      // HF returns a mix of supported and unsupported tasks.
+      http.expectOne(`${API}/huggingface/tasks`).flush([
+        { tag: "text-generation", label: "Text Generation" },
+        { tag: "summarization", label: "Summarization" }, // no codegen
+        { tag: "image-classification", label: "Image Classification" },
+        { tag: "fill-mask", label: "Fill-Mask" }, // no codegen
+      ]);
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      expect(component.taskOptions.map(t => t.tag)).toEqual(["text-generation", "image-classification"]);
+    });
+
+    it("should fall back to STATIC_TASK_OPTIONS when the API returns only unsupported tasks", () => {
+      const { field } = buildFieldWithFormGroup();
+      component.field = field;
+      fixture.detectChanges();
+
+      http.expectOne(`${API}/huggingface/tasks`).flush([
+        { tag: "translation", label: "Translation" },
+        { tag: "fill-mask", label: "Fill-Mask" },
+      ]);
+      http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`)).flush([]);
+
+      expect(component.taskOptions).toEqual(STATIC_TASK_OPTIONS);
     });
 
     it("retryTasksLoad should clear error and re-fetch tasks", fakeAsync(() => {

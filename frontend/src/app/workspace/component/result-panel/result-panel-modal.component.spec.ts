@@ -249,6 +249,7 @@ describe("RowModalComponent (template rendering)", () => {
 
   const rowData = {
     video: "data:video/mp4;base64,vid123",
+    audio: "data:audio/mp3;base64,aud123",
     image: "data:image/png;base64,img123",
   };
 
@@ -279,6 +280,26 @@ describe("RowModalComponent (template rendering)", () => {
   it("should bind the video element's src to the video entry's mediaSrc", () => {
     const videoEl = fixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
     expect(videoEl.src).toBe(rowData.video);
+  });
+
+  it("should bind the audio element's src to the audio entry's mediaSrc", () => {
+    const audioEl = fixture.debugElement.query(By.css("audio")).nativeElement as HTMLAudioElement;
+    expect(audioEl.src).toBe(rowData.audio);
+  });
+
+  it("should re-render the audio src when the entry's mediaSrc is replaced", () => {
+    // For a data-URI fixture `mediaSrc` and `value` hold the same string, so the assertion above
+    // cannot tell the two apart - `[src]="entry.value"` satisfies it. They diverge exactly where it
+    // matters: for a remote http(s) URL `mediaSrc` starts empty and is later replaced by the
+    // `blob:` URL the SSRF-allowlisted proxy produced, while `value` keeps the raw remote URL.
+    // Binding `value` would load remote media directly and bypass that proxy. This drives the same
+    // late replacement the proxy path performs, without needing the HTTP round trip.
+    const audioEntry = component.rowEntries.find(entry => entry.key === "audio")!;
+    audioEntry.mediaSrc = "data:audio/mp3;base64,REBOUND";
+    fixture.detectChanges();
+
+    const audioEl = fixture.debugElement.query(By.css("audio")).nativeElement as HTMLAudioElement;
+    expect(audioEl.src).toBe("data:audio/mp3;base64,REBOUND");
   });
 
   it("should bind the image element's src to the image entry's mediaSrc", () => {

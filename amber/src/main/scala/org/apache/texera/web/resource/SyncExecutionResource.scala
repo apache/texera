@@ -73,7 +73,12 @@ case class SyncExecutionRequest(
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
     maxOperatorResultCharLimit: Int,
-    maxOperatorResultCellCharLimit: Int
+    maxOperatorResultCellCharLimit: Int,
+    // The user_warehouse this run writes into. Carried from the caller the same way
+    // computingUnitId is: the agent forwards what the user picked in the UI. Required
+    // while per-user warehouses are enabled; absent keeps the shared default when the
+    // feature is off (#7751).
+    warehouseId: Option[Int] = None
 )
 
 case class ConsoleMessageInfo(
@@ -152,6 +157,13 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId
       )
 
+      // Same rule as initExecutionService: check the pick before anything
+      // destructive, or an agent request that is going to be refused takes the
+      // execution in flight down with it. Resolved again inside the init call —
+      // one indexed single-row read, against a request that already writes
+      // several rows.
+      WorkflowService.resolveLakekeeperWarehouseName(request.warehouseId, user.getUser.getUid)
+
       shutdownPreviousExecution(workflowService)
 
       // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
@@ -169,7 +181,7 @@ class SyncExecutionResource extends LazyLogging {
           ),
         emailNotificationEnabled = false,
         computingUnitId = computingUnitId,
-        warehouseId = None
+        warehouseId = request.warehouseId
       )
 
       workflowService.initExecutionService(

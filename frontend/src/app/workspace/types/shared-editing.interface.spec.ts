@@ -142,7 +142,7 @@ describe("updateYTypeFromObject", () => {
     expect(originalText.toJSON()).toBe("world");
   });
 
-  it("adds new object keys but leaves keys absent from the new object in place", () => {
+  it("adds new object keys and removes the ones the new object no longer carries", () => {
     const doc = new Y.Doc();
     const yMap = attach(doc, "m", createYTypeFromObject({ keep: 1, drop: 2 }));
 
@@ -153,8 +153,21 @@ describe("updateYTypeFromObject", () => {
     // A key present only in the new object is added.
     expect(asMap.has("add")).toBe(true);
     expect(asMap.get("add")).toBe(3);
-    // A key omitted from the new object is retained (an undefined new value never deletes).
-    expect(asMap.get("drop")).toBe(2);
+    // A key the new object has dropped is deleted rather than left behind. Clearing
+    // an operator property is exactly this: the editor sends the properties without
+    // it, and anything retained here is a value the user removed and can no longer see.
+    expect(asMap.has("drop")).toBe(false);
+  });
+
+  it("keeps a key whose new value is explicitly undefined", () => {
+    const doc = new Y.Doc();
+    const yMap = attach(doc, "m", createYTypeFromObject({ a: 1 }));
+
+    updateYTypeFromObject(yMap, { a: undefined } as any);
+
+    // Carrying the key with an undefined value is not the same as dropping it, and
+    // only the latter means removal.
+    expect((yMap as unknown as Y.Map<any>).get("a")).toBe(1);
   });
 
   it("appends new items to a Y.Array in place", () => {

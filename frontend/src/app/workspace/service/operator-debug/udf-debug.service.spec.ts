@@ -24,7 +24,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { Observable, Subject } from "rxjs";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { OperatorState } from "../../types/execute-workflow.interface";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { mockPoint, mockPythonUDFPredicate } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -40,7 +40,7 @@ describe("UdfDebugServiceSpec", () => {
   let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
   let mockWorkflowStatusService: Mocked<WorkflowStatusService>;
   let mockExecuteWorkflowService: Mocked<ExecuteWorkflowService>;
-  let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
+  let stateUpdateStream: Subject<Record<string, OperatorState>>;
   let consoleUpdateEventStream: Subject<ConsoleUpdateEvent>;
   let texeraGraph: WorkflowGraphReadonly;
   let stubWorker = "worker1";
@@ -51,15 +51,15 @@ describe("UdfDebugServiceSpec", () => {
       send: vi.fn(),
       subscribeToEvent: vi.fn(),
     } as unknown as Mocked<WorkflowWebsocketService>;
-    mockWorkflowStatusService = { getStatusUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    mockWorkflowStatusService = { getStateUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
     mockExecuteWorkflowService = { getWorkerIds: vi.fn() } as unknown as Mocked<ExecuteWorkflowService>;
 
     // Initialize the mock streams
-    statusUpdateStream = new Subject();
+    stateUpdateStream = new Subject();
     consoleUpdateEventStream = new Subject();
 
     // Set mock return values
-    mockWorkflowStatusService.getStatusUpdateStream.mockReturnValue(statusUpdateStream.asObservable());
+    mockWorkflowStatusService.getStateUpdateStream.mockReturnValue(stateUpdateStream.asObservable());
     mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(
       consoleUpdateEventStream.asObservable() as Observable<TexeraWebsocketEvent>
     );
@@ -93,7 +93,7 @@ describe("UdfDebugServiceSpec", () => {
 
   afterEach(() => {
     // Clean up the streams after each test
-    statusUpdateStream.complete();
+    stateUpdateStream.complete();
     consoleUpdateEventStream.complete();
   });
 
@@ -198,15 +198,7 @@ describe("UdfDebugServiceSpec", () => {
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     const operatorId = mockPythonUDFPredicate.operatorID;
     debugState.set(operatorId, { breakpointId: 1, condition: "x > 5", hit: false });
-    statusUpdateStream.next({
-      [operatorId]: {
-        operatorState: OperatorState.Uninitialized,
-        aggregatedInputRowCount: 0,
-        aggregatedOutputRowCount: 0,
-        inputPortMetrics: {},
-        outputPortMetrics: {},
-      },
-    });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Uninitialized });
 
     expect(debugState.size).toBe(0);
   });
@@ -536,15 +528,8 @@ describe("UdfDebugServiceSpec", () => {
     const debugState = service.getDebugState(operatorId);
     debugState.set("10", { breakpointId: 1, condition: "", hit: false });
 
-    const running: OperatorStatistics = {
-      operatorState: OperatorState.Running,
-      aggregatedInputRowCount: 0,
-      aggregatedOutputRowCount: 0,
-      inputPortMetrics: {},
-      outputPortMetrics: {},
-    };
-    statusUpdateStream.next({ [operatorId]: running });
-    statusUpdateStream.next({ "some-other-operator": { ...running, operatorState: OperatorState.Uninitialized } });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+    stateUpdateStream.next({ "some-other-operator": OperatorState.Uninitialized });
 
     expect(debugState.size).toBe(1);
   });

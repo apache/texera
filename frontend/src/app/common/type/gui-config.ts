@@ -24,7 +24,10 @@ export interface GuiConfig {
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
+  orcidLogin: boolean;
+  appleLogin: boolean;
   inviteOnly: boolean;
+  emailVerification: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;
   linkBreakpointEnabled: boolean;
@@ -37,6 +40,7 @@ export interface GuiConfig {
   defaultExecutionMode: ExecutionMode;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;
+  warehouseEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
   activeTimeInMinutes: number;
@@ -53,6 +57,7 @@ export interface SidebarTabs {
   home_enabled: boolean;
   workflow_enabled: boolean;
   dataset_enabled: boolean;
+  model_enabled: boolean;
   your_work_enabled: boolean;
   workflows_enabled: boolean;
   compute_enabled: boolean;

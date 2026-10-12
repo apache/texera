@@ -30,6 +30,7 @@ import org.apache.texera.common.config.{
   ComputingUnitConfig,
   DefaultsConfig,
   GuiConfig,
+  StorageConfig,
   UserSystemConfig
 }
 import org.apache.texera.dao.{SiteSettings, SqlServer}
@@ -63,13 +64,18 @@ class ConfigResource {
     Map(
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "orcidLogin" -> GuiConfig.guiLoginOrcidLogin,
+      "appleLogin" -> GuiConfig.guiLoginAppleLogin,
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // The sign-up form decides whether to expect a code step before anyone has a token, so this
+      // has to be readable anonymously.
+      "emailVerification" -> UserSystemConfig.emailVerification
     )
 
   @GET
@@ -90,6 +96,7 @@ class ConfigResource {
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
+      "warehouseEnabled" -> StorageConfig.warehouseEnabled,
       "operatorConsoleMessageBufferSize" -> GuiConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,

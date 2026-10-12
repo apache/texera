@@ -398,4 +398,37 @@ describe("WorkflowState - workflow content round-trip", () => {
     expect(out.settings).toEqual({ dataTransferBatchSize: 400 }); // DEFAULT_WORKFLOW_SETTINGS
     expect(out.commentBoxes).toEqual([]);
   });
+
+  test("carries the Form View definition through an agent save untouched", () => {
+    const state = new WorkflowState();
+    const formBinding = {
+      fields: [{ id: "f1", operatorID: "op1", propertyKey: "limit", displayName: "Limit" }],
+      resultOperatorIds: ["op2"],
+    };
+    state.setWorkflowContent({
+      operators: [makeOperator("op1"), makeOperator("op2")],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+      formBinding,
+    });
+
+    // The agent edits the graph but never the form definition; it must come back intact.
+    state.addOperator(makeOperator("op3"));
+    expect(state.getWorkflowContent().formBinding).toEqual(formBinding);
+  });
+
+  test("adds no formBinding key when the workflow never had one", () => {
+    const state = new WorkflowState();
+    state.setWorkflowContent({
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+    });
+
+    expect("formBinding" in state.getWorkflowContent()).toBe(false);
+  });
 });

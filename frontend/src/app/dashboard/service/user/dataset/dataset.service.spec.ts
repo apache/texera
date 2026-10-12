@@ -22,6 +22,7 @@ import { HttpClientTestingModule, HttpTestingController } from "@angular/common/
 import { firstValueFrom } from "rxjs";
 
 import { DATASET_BASE_URL, DatasetService, MultipartUploadProgress, validateDatasetName } from "./dataset.service";
+import { FakeXMLHttpRequest } from "../file-resource/testing/fake-xml-http-request";
 import { AppSettings } from "../../../../common/app-setting";
 import { AuthService } from "../../../../common/service/user/auth.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -74,63 +75,6 @@ function buildDatasetVersion(overrides: Partial<DatasetVersion> = {}): DatasetVe
 const SAMPLE_FILE_NODES: DatasetFileNode[] = [
   { name: "root", type: "directory", parentDir: "", children: [] as DatasetFileNode[] } as DatasetFileNode,
 ];
-
-class FakeXMLHttpRequest {
-  static instances: FakeXMLHttpRequest[] = [];
-
-  // Capturing upload target so tests can drive `upload.progress` events.
-  readonly upload = {
-    listeners: new Map<string, EventListener[]>(),
-    addEventListener(type: string, listener: EventListener): void {
-      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
-    },
-  };
-  status = 0;
-  url = "";
-  readonly requestHeaders = new Map<string, string>();
-  private listeners = new Map<string, EventListener[]>();
-
-  open(_method: string, url: string): void {
-    this.url = url;
-  }
-
-  setRequestHeader(name: string, value: string): void {
-    this.requestHeaders.set(name, value);
-  }
-
-  send(): void {
-    FakeXMLHttpRequest.instances.push(this);
-  }
-
-  abort(): void {}
-
-  addEventListener(type: string, listener: EventListener): void {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
-  }
-
-  /** Drives the `upload.progress` listener registered by the service. */
-  emitProgress(loaded: number, lengthComputable = true): void {
-    const event = { lengthComputable, loaded } as unknown as Event;
-    for (const listener of this.upload.listeners.get("progress") ?? []) {
-      listener(event);
-    }
-  }
-
-  respond(status: number): void {
-    this.status = status;
-    this.emit("load");
-  }
-
-  fail(): void {
-    this.emit("error");
-  }
-
-  private emit(type: string): void {
-    for (const listener of this.listeners.get(type) ?? []) {
-      listener(new Event(type));
-    }
-  }
-}
 
 describe("validateDatasetName", () => {
   it("returns null for a valid name", () => {

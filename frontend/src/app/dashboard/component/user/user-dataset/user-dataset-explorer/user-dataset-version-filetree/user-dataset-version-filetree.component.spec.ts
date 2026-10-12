@@ -241,8 +241,15 @@ describe("UserDatasetVersionFiletreeComponent", () => {
       expect(fixture.nativeElement.querySelector("i[nztype='delete']")).toBeNull();
     });
 
+    it("withholds Set-as-cover unless the host allows it", () => {
+      renderRows([file("photo.png")]);
+
+      expect(fixture.nativeElement.querySelector("i[nztype='picture']")).toBeNull();
+    });
+
     it("offers Set-as-cover on image files only", () => {
       const covers: string[] = [];
+      component.isCoverSettable = true;
       component.setCoverImage.subscribe((path: string) => covers.push(path));
 
       renderRows([file("photo.png"), file("data.csv")]);

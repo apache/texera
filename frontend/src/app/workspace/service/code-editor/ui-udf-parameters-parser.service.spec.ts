@@ -18,6 +18,8 @@
  */
 
 import {
+  DATASET_INPUT_TYPE,
+  MODEL_INPUT_TYPE,
   UiUdfParametersEditError,
   UiUdfParametersParseError,
   UiUdfParametersParserService,
@@ -153,6 +155,30 @@ describe("UiUdfParametersParserService", () => {
         self.UiParameter("blob", AttributeType.LARGE_BINARY)
       `,
         [],
+      ],
+      [
+        // `"s".` parses as a member access whose receiver is a string literal, so the node carries
+        // no VariableName/PropertyName children at all and the member path it yields is empty
+        // rather than one- or two-part. Such a call has to be dropped, not turned into a parameter
+        // with a fabricated receiver and type.
+        "ignore a type written as a member access with no name parts",
+        `
+        self.UiParameter(name="x", type="s".)
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
+      ],
+      [
+        // A tuple is not a member access, but its direct children are two VariableNames that read
+        // exactly like `AttributeType` + `STRING`. Only the node-kind check in front of the member
+        // path stops `(AttributeType, STRING)` from being accepted as the STRING type, so this is
+        // the case that keeps that check honest.
+        "ignore a type written as a tuple that reads like a member path",
+        `
+        self.UiParameter(name="x", type=(AttributeType, STRING))
+        self.UiParameter("valid", AttributeType.STRING)
+      `,
+        [parameter("valid", "string")],
       ],
     ] as ReadonlyArray<readonly [string, string, UiUdfParameter[]]>
   ).forEach(([description, openBody, expectedParameters]) => {
@@ -588,3 +614,41 @@ ${openStatements}
 function parameter(attributeName: string, attributeType: UiUdfParameter["attribute"]["attributeType"]): UiUdfParameter {
   return { attribute: { attributeName, attributeType }, value: "" };
 }
+
+describe("UiUdfParametersParserService resource parameters", () => {
+  const service = new UiUdfParametersParserService();
+  const inOpen = (...lines: string[]): string =>
+    `class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n${lines.map(line => `        ${line}\n`).join("")}`;
+
+  it("marks a parameter declared with value=Resource.X as naming that resource", () => {
+    expect(
+      service.parse(
+        inOpen(
+          'self.UiParameter("MODEL", AttributeType.STRING, value=Resource.MODEL)',
+          'self.UiParameter(name="DATA", type=AttributeType.STRING, value=Resource.DATASET)',
+          'self.UiParameter("count", AttributeType.INT)'
+        )
+      )
+    ).toEqual([
+      { attribute: { attributeName: "MODEL", attributeType: "string" }, value: "", inputType: MODEL_INPUT_TYPE },
+      { attribute: { attributeName: "DATA", attributeType: "string" }, value: "", inputType: DATASET_INPUT_TYPE },
+      { attribute: { attributeName: "count", attributeType: "integer" }, value: "" },
+    ]);
+  });
+
+  it("ignores a declaration naming a resource it does not know, or not through Resource", () => {
+    expect(
+      service.parse(
+        inOpen(
+          'self.UiParameter("A", AttributeType.STRING, value=Resource.WORKFLOW)',
+          'self.UiParameter("B", AttributeType.STRING, value="model")',
+          'self.UiParameter("C", AttributeType.STRING, value=Other.MODEL)'
+        )
+      )
+    ).toEqual([]);
+  });
+
+  it("ignores a resource parameter that is not a string, since it receives a directory path", () => {
+    expect(service.parse(inOpen('self.UiParameter("MODEL", AttributeType.INT, value=Resource.MODEL)'))).toEqual([]);
+  });
+});

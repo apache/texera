@@ -80,7 +80,7 @@ _WAREHOUSE_DIR = tempfile.mkdtemp(prefix="texera-state-e2e-warehouse-")
 @pytest.fixture(scope="module", autouse=True)
 def sqlite_iceberg_catalog():
     """Inject a sqlite-backed SqlCatalog so the test runs without external
-    iceberg infra (postgres/minio).
+    iceberg infra (postgres/rustfs).
 
     Note: the other iceberg-backed tests (e.g. test_iceberg_document.py) use a
     postgres/REST catalog to mirror production. This e2e deliberately diverges

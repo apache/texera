@@ -27,11 +27,13 @@ import org.apache.texera.dao.jooq.generated.enums.{
   WorkflowComputingUnitTypeEnum
 }
 import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserJupyterDao,
   ComputingUnitUserAccessDao,
   UserDao,
   WorkflowComputingUnitDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  UserJupyter,
   ComputingUnitUserAccess,
   User,
   WorkflowComputingUnit
@@ -72,6 +74,11 @@ class AccessControlResourceSpec
   // being unroutable.
   private val testNoAccessRecordedUri: String =
     "computing-unit-6.compute-unit-svc.default.svc.cluster.local:7777"
+
+  // What the provisioner records for a user's Jupyter: scheme, authority and the base path
+  // the pod serves under. Only the authority may reach Envoy as a Host header.
+  private val testJupyterInternalUrl: String =
+    "http://jupyter-1.jupyter-svc.texera-jupyter-pool.svc.cluster.local:8888/jupyter/1"
 
   private val testUser1: User = {
     val user = new User()
@@ -189,6 +196,14 @@ class AccessControlResourceSpec
     readOnlyAccess.setCuid(testCUReadOnly.getCuid)
     readOnlyAccess.setPrivilege(PrivilegeEnum.READ)
     computingUnitOfUserDao.insert(readOnlyAccess)
+
+    // Per-user Jupyter: user 1 has one registered, user 2 deliberately does not.
+    val jupyterDao = new UserJupyterDao(getDSLContext.configuration())
+    val jupyter = new UserJupyter()
+    jupyter.setUid(testUser1.getUid)
+    jupyter.setInternalUrl(testJupyterInternalUrl)
+    jupyter.setPublicUrl("https://texera.example.com/jupyter/1")
+    jupyterDao.insert(jupyter)
 
     token = JwtAuth.jwtToken(JwtAuth.jwtClaims(testUser1))
     token2 = JwtAuth.jwtToken(JwtAuth.jwtClaims(testUser2))
@@ -721,5 +736,120 @@ class AccessControlResourceSpec
 
     response.getStatus shouldBe Response.Status.OK.getStatusCode
     response.getHeaderString("Host") shouldBe testRecordedUri
+  }
+
+  // -- per-user JupyterLab routing --------------------------------------------
+
+  it should "route a Jupyter request to the pod recorded for the uid in the path" in {
+    val (uri, headers) = mockRequest("/jupyter/1/notebooks/work/notebook.ipynb", None)
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    // The scheme and base path are stripped: Envoy routes on an authority alone.
+    response.getHeaderString("Host") shouldBe
+      "jupyter-1.jupyter-svc.texera-jupyter-pool.svc.cluster.local:8888"
+  }
+
+  it should "route Jupyter's own subrequests, which carry no token" in {
+    // The iframe's asset and API calls cannot present Texera credentials, so routing has to
+    // work without one. The per-user Jupyter token is what authorizes them.
+    val (uri, headers) =
+      mockRequest("/jupyter/1/api/contents", None, authorizationHeader = None)
+    val response = new AccessControlResource().authorizeGet(uri, headers)
+
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getHeaderString("Host") should startWith("jupyter-1.")
+  }
+
+  it should "refuse a Jupyter request for a user with none registered" in {
+    val (uri, headers) = mockRequest("/jupyter/2/tree", None)
+    new AccessControlResource()
+      .authorizeGet(uri, headers)
+      .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "refuse a Jupyter request for a uid that does not exist" in {
+    val (uri, headers) = mockRequest("/jupyter/999999/tree", None)
+    new AccessControlResource()
+      .authorizeGet(uri, headers)
+      .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "not treat a Jupyter path without a uid as routable" in {
+    // Falls through to the catch-all, which denies.
+    val (uri, headers) = mockRequest("/jupyter/tree", None)
+    new AccessControlResource()
+      .authorizeGet(uri, headers)
+      .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "route the gateway-relative form of a Jupyter path" in {
+    val (uri, headers) = mockRequest("auth/jupyter/1/tree", None)
+    new AccessControlResource()
+      .authorizeGet(uri, headers)
+      .getStatus shouldBe Response.Status.OK.getStatusCode
+  }
+
+  it should "refuse a Jupyter uid too large to be a user id" in {
+    // The path regex accepts any run of digits, so the conversion to Int has to be caught
+    // rather than allowed out as a 500.
+    val (uri, headers) = mockRequest("/jupyter/9999999999/tree", None)
+    new AccessControlResource()
+      .authorizeGet(uri, headers)
+      .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  // Registers an address for testUser2, who otherwise has none, for the rows that should be
+  // refused rather than routed.
+  private def withRecordedJupyter(internalUrl: String)(check: => Unit): Unit = {
+    val jupyterDao = new UserJupyterDao(getDSLContext.configuration())
+    val row = new UserJupyter()
+    row.setUid(testUser2.getUid)
+    row.setInternalUrl(internalUrl)
+    row.setPublicUrl(internalUrl)
+    jupyterDao.insert(row)
+    try check
+    finally jupyterDao.deleteById(testUser2.getUid)
+  }
+
+  it should "refuse a Jupyter request whose recorded address has no authority" in {
+    // Parses cleanly but yields a null authority, which must not become a Host header of
+    // "null" for Envoy to route on.
+    withRecordedJupyter("jupyter-2-with-no-scheme:8888") {
+      val (uri, headers) = mockRequest(s"/jupyter/${testUser2.getUid}/tree", None)
+      new AccessControlResource()
+        .authorizeGet(uri, headers)
+        .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+    }
+  }
+
+  it should "build the uid regex from the configured base path" in {
+    val custom = AccessControlResource.jupyterPathRegex("/lab/notebooks")
+    "/lab/notebooks/7/tree" should fullyMatch regex custom
+    "auth/lab/notebooks/7" should fullyMatch regex custom
+    "/jupyter/7/tree" should not(fullyMatch regex custom)
+  }
+
+  it should "tolerate a base path written with surrounding slashes" in {
+    val slashed = AccessControlResource.jupyterPathRegex("/jupyter/")
+    "/jupyter/7/tree" should fullyMatch regex slashed
+  }
+
+  it should "treat the base path as a path, not a pattern" in {
+    // Unquoted, the dot would match any character and route /axb to the /a.b pool.
+    val dotted = AccessControlResource.jupyterPathRegex("/a.b")
+    "/a.b/7" should fullyMatch regex dotted
+    "/axb/7" should not(fullyMatch regex dotted)
+  }
+
+  it should "refuse a Jupyter request whose recorded address will not parse" in {
+    // A stray escape throws from the URI constructor. That parse sits inside the same guard
+    // as the lookup, so this is denied like any other unusable row instead of raising a 500.
+    withRecordedJupyter("http://jupyter-2:8888/%zz") {
+      val (uri, headers) = mockRequest(s"/jupyter/${testUser2.getUid}/tree", None)
+      new AccessControlResource()
+        .authorizeGet(uri, headers)
+        .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+    }
   }
 }

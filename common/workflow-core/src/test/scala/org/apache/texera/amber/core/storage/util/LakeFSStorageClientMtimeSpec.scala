@@ -22,13 +22,13 @@ package org.apache.texera.amber.core.storage.util
 import com.dimafeng.testcontainers.{
   ForAllTestContainer,
   GenericContainer,
-  MinIOContainer,
   MultipleContainers,
   PostgreSQLContainer
 }
 import io.lakefs.clients.sdk.ApiException
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.tags.NonParallelTest
+import org.apache.texera.service.util.RustFSContainer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.testcontainers.containers.Network
@@ -46,7 +46,7 @@ import java.nio.charset.StandardCharsets
   * Spec for [[LakeFSStorageClient.getStagedObjectMtime]].
   *
   * The method is a thin LakeFS-SDK passthrough (statObject -> mtime), so it can only be
-  * exercised against a real LakeFS. This spins up the same Postgres + MinIO + LakeFS stack
+  * exercised against a real LakeFS. This spins up the same Postgres + RustFS + LakeFS stack
   * the file-service tests use, with Postgres backing the LakeFS metadata store.
   *
   * Tagged [[NonParallelTest]] so `common/workflow-core/build.sbt` gives this suite its own forked
@@ -63,12 +63,12 @@ class LakeFSStorageClientMtimeSpec
     with ForAllTestContainer
     with org.scalatest.BeforeAndAfterAll {
 
-  // Shared network so LakeFS can reach Postgres and MinIO by their in-network aliases while
-  // the test reaches LakeFS/MinIO via mapped host ports.
+  // Shared network so LakeFS can reach Postgres and RustFS by their in-network aliases while
+  // the test reaches LakeFS/RustFS via mapped host ports.
   private val network: Network = Network.newNetwork()
 
-  private val minioUser = "texera_minio"
-  private val minioPassword = "password"
+  private val s3User = RustFSContainer.DefaultUser
+  private val s3Password = RustFSContainer.DefaultPassword
 
   // Postgres metadata store for LakeFS. Using a real DB (rather than LakeFS's local/quickstart
   // KV) keeps setup explicit and deterministic: local mode auto-initializes on boot, which then
@@ -87,12 +87,12 @@ class LakeFSStorageClientMtimeSpec
     s"postgresql://${postgres.username}:${postgres.password}" +
       s"@${postgres.container.getNetworkAliases.get(0)}:5432/${postgres.databaseName}?sslmode=disable"
 
-  private val minio: MinIOContainer = MinIOContainer(
-    dockerImageName = DockerImageName.parse("minio/minio:RELEASE.2025-02-28T09-55-16Z"),
-    userName = minioUser,
-    password = minioPassword
+  private val objectStore: GenericContainer = RustFSContainer(
+    userName = s3User,
+    password = s3Password,
+    region = Region.US_WEST_2.id()
   )
-  minio.container.withNetwork(network)
+  objectStore.container.withNetwork(network)
 
   private val lakefs: GenericContainer = GenericContainer(
     dockerImage = "treeverse/lakefs:1.51",
@@ -102,9 +102,10 @@ class LakeFSStorageClientMtimeSpec
       "LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING" -> lakefsDatabaseURL,
       "LAKEFS_BLOCKSTORE_TYPE" -> "s3",
       "LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE" -> "true",
-      "LAKEFS_BLOCKSTORE_S3_ENDPOINT" -> s"http://${minio.container.getNetworkAliases.get(0)}:9000",
-      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID" -> minioUser,
-      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY" -> minioPassword,
+      "LAKEFS_BLOCKSTORE_S3_ENDPOINT" -> s"http://${objectStore.container.getNetworkAliases
+        .get(0)}:${RustFSContainer.Port}",
+      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID" -> s3User,
+      "LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY" -> s3Password,
       "LAKEFS_AUTH_ENCRYPT_SECRET_KEY" -> "random_string_for_lakefs",
       "LAKEFS_INSTALLATION_USER_NAME" -> "texera-admin",
       "LAKEFS_INSTALLATION_ACCESS_KEY_ID" -> StorageConfig.lakefsUsername,
@@ -113,9 +114,11 @@ class LakeFSStorageClientMtimeSpec
   )
   lakefs.container.withNetwork(network)
 
-  override val container: MultipleContainers = MultipleContainers(postgres, minio, lakefs)
+  override val container: MultipleContainers =
+    MultipleContainers(postgres, objectStore, lakefs)
 
-  private def minioEndpoint: String = s"http://${minio.host}:${minio.mappedPort(9000)}"
+  private def s3Endpoint: String =
+    s"http://${objectStore.host}:${objectStore.mappedPort(RustFSContainer.Port)}"
   private def lakefsApiBasePath: String = s"http://${lakefs.host}:${lakefs.mappedPort(8000)}/api/v1"
 
   override def afterStart(): Unit = {
@@ -138,7 +141,7 @@ class LakeFSStorageClientMtimeSpec
 
     // Point the JVM-wide singletons at the test containers BEFORE any LakeFSStorageClient call,
     // since its api client is a lazy val that captures the endpoint on first use.
-    StorageConfig.s3Endpoint = minioEndpoint
+    StorageConfig.s3Endpoint = s3Endpoint
     StorageConfig.lakefsEndpoint = lakefsApiBasePath
 
     // LakeFS needs its blockstore bucket to exist before any repo can be created.
@@ -148,10 +151,10 @@ class LakeFSStorageClientMtimeSpec
   private def createLakefsBucket(): Unit = {
     val s3 = S3Client
       .builder()
-      .endpointOverride(URI.create(minioEndpoint))
-      .region(Region.US_WEST_2) // required by the builder; irrelevant for MinIO
+      .endpointOverride(URI.create(s3Endpoint))
+      .region(Region.US_WEST_2) // must match RUSTFS_REGION: it is part of the SigV4 scope
       .credentialsProvider(
-        StaticCredentialsProvider.create(AwsBasicCredentials.create(minioUser, minioPassword))
+        StaticCredentialsProvider.create(AwsBasicCredentials.create(s3User, s3Password))
       )
       .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
       .build()
