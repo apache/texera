@@ -406,7 +406,7 @@ describe("NotebookImportModalComponent", () => {
   it("selects the Python tab from a click on its header, not just a direct call", async () => {
     await createWith(of([{ name: "gpt-4" }]));
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll(".ant-tabs-tab");
-    expect(headers.length).toBe(3);
+    expect(headers.length).toBe(4);
 
     (headers[1] as HTMLElement).click();
     // nz-tabs emits nzSelectedIndexChange from a microtask inside ngAfterContentChecked,
@@ -627,6 +627,13 @@ describe("NotebookImportModalComponent", () => {
     });
   });
 
+  function tooltipOn(text: string) {
+    return fixture.debugElement
+      .queryAll(By.directive(NzTooltipDirective))
+      .find(element => element.nativeElement.textContent.trim() === text)!
+      .injector.get(NzTooltipDirective).title;
+  }
+
   describe("notebook language switch", () => {
     const root = () => fixture.nativeElement as HTMLElement;
     const pane = () => root().querySelector(".ant-tabs-tabpane-active") as HTMLElement;
@@ -634,8 +641,7 @@ describe("NotebookImportModalComponent", () => {
       Array.from(pane().querySelectorAll("label[nz-segmented-item]")).find(
         label => label.textContent?.trim() === text
       ) as HTMLElement;
-    const rTooltip = () =>
-      fixture.debugElement.queryAll(By.directive(NzTooltipDirective))[0].injector.get(NzTooltipDirective).title;
+    const rTooltip = () => tooltipOn("R Notebook");
 
     it("defaults to Python and keeps the Python diagram", async () => {
       await createWith(of([{ name: "gpt-4" }]), true);
@@ -697,6 +703,53 @@ describe("NotebookImportModalComponent", () => {
       await createWith(of([{ name: "gpt-4" }]), true);
       component.notebookLanguage.setValue("r");
       const file = { name: "analysis.ipynb" } as NzUploadFile;
+      component.importForm.setValue({ file, model: "gpt-4" });
+
+      await component.onSubmit();
+
+      expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "r");
+    });
+  });
+
+  describe("R File tab", () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pane = () => root().querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+    const rFileTab = () => root().querySelectorAll(".ant-tabs-tab")[3] as HTMLElement;
+
+    it("is shown but disabled with an explanation while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      expect(root().querySelectorAll(".ant-tabs-tab").length).toBe(4);
+      expect(rFileTab().classList).toContain("ant-tabs-tab-disabled");
+      expect(tooltipOn("R File")).toBe(R_DISABLED_TOOLTIP);
+    });
+
+    it("cannot be selected while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      (rFileTab().querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedTabIndex).toBe(0);
+    });
+
+    it("takes R files with the R language while the R flag is on", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.onTabChange(3);
+      fixture.detectChanges();
+
+      expect(rFileTab().classList).not.toContain("ant-tabs-tab-disabled");
+      expect(tooltipOn("R File")).toBeNull();
+      expect(pane().querySelector("img[alt='R File to Workflow']")).not.toBeNull();
+      expect(pane().querySelector("input[type='file']")?.getAttribute("accept")).toBe(".R,.r");
+      expect(component.language).toBe("r");
+    });
+
+    it("submits R files with the R language", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.onTabChange(3);
+      const file = { name: "analysis.R" } as NzUploadFile;
       component.importForm.setValue({ file, model: "gpt-4" });
 
       await component.onSubmit();
