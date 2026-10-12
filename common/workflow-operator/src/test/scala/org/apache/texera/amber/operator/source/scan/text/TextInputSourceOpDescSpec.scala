@@ -310,6 +310,60 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  // linesIterator ends a line only at LF, CR and CRLF, while splitlines also
+  // ended one at eight other characters, so text holding U+2028 was one row in
+  // the engine and two in the export.
+  it should "split the text into the lines the engine splits it into" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val separators =
+      Seq(
+        "\n",
+        "\r",
+        "\r\n",
+        "\u000b",
+        "\u000c",
+        "\u001c",
+        "\u001d",
+        "\u001e",
+        "\u0085",
+        "\u2028",
+        "\u2029"
+      )
+    val inputs = separators.map(sep => s"first${sep}second") ++
+      Seq("", "first\n", "first\n\n", "\nfirst", "first\r\r\nsecond")
+
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    inputs.foreach { input =>
+      textInputSourceOpDesc.textInput = input
+      val (exitCode, out) =
+        runStandalone(python, """import json; print(json.dumps(list(out1df["line"])))""")
+      withClue(s"input ${input.map(c => f"\\u${c.toInt}%04x").mkString}, python said:\n$out\n") {
+        assert(exitCode == 0)
+        assert(objectMapper.readValue(out.trim, classOf[Array[String]]).toSeq == linesFromEngine())
+      }
+    }
+  }
+
+  /** The configured text read as STRING lines by the executor the engine runs. */
+  private def linesFromEngine(): Seq[String] = {
+    val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
+    exec.open()
+    try {
+      exec
+        .produceTuple()
+        .map(
+          _.asInstanceOf[SchemaEnforceable]
+            .enforceSchema(textInputSourceOpDesc.sourceSchema())
+            .getField[String]("line")
+        )
+        .toSeq
+    } finally exec.close()
+  }
+
   /** The configured text read as booleans by the executor the engine runs. */
   private def booleansFromEngine(): Seq[Boolean] = {
     val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
@@ -329,10 +383,13 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   /**
     * The configured operator's exported script, run, printing its one column.
     *
-    * `bool` on each value because a numpy scalar does not repr as Python's own
-    * True and False.
+    * `bool` on each value by default because a numpy scalar does not repr as
+    * Python's own True and False.
     */
-  private def runStandalone(python: String): (Int, String) = {
+  private def runStandalone(
+      python: String,
+      printLine: String = """print([bool(v) for v in out1df["line"]])"""
+  ): (Int, String) = {
     val dir = Files.createTempDirectory("text-input-standalone-")
     dir.toFile.deleteOnExit()
     val script = dir.resolve("run.py")
@@ -341,7 +398,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       s"""import pandas as pd
          |${textInputSourceOpDesc.standaloneHelpers().mkString("\n\n")}
          |${textInputSourceOpDesc.generateStandaloneCode()}
-         |print([bool(v) for v in out1df["line"]])
+         |$printLine
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 

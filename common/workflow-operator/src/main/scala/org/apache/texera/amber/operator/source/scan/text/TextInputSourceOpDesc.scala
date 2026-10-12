@@ -98,12 +98,18 @@ class TextInputSourceOpDesc
         case FileAttributeType.TIMESTAMP => "l"
         case _                           => "l"
       }
+      // The engine splits with linesIterator, which ends a line only at LF, CR
+      // and CRLF. splitlines also ends one at eight other characters, U+2028
+      // and NEL among them, so a row holding one came out as two. A newline at
+      // the very end closes the last line rather than opening an empty one.
+      buf += """_lines = _text.replace("\r\n", "\n").replace("\r", "\n").split("\n")"""
+      buf += """if _lines[-1] == "":"""
+      buf += "    _lines.pop()"
       // The slice applies to the raw lines, as the engine drops and takes
       // before parsing: a line outside the window is never converted, so an
       // unparseable one there costs nothing. Taking after dropping also keeps
       // a large limit from overflowing the end index.
-      val dropped =
-        fileScanOffset.filter(_ > 0).fold("_text.splitlines()")(o => s"_text.splitlines()[$o:]")
+      val dropped = fileScanOffset.filter(_ > 0).fold("_lines")(o => s"_lines[$o:]")
       val linesExpr = fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
       buf += s"""out1df = pd.DataFrame({$colLit: [$castExpr for l in $linesExpr]})"""
       buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
