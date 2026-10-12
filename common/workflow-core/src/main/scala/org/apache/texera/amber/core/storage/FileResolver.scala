@@ -33,16 +33,17 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Model,
   ModelVersion
 }
+import org.apache.texera.service.resource.{ResourceAccess, ResourceTables}
+import org.jooq.{DSLContext, Record}
 
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Success, Try}
+import scala.util.control.NonFatal
 
 /**
-  * Unified object for resolving local files and versioned-resource (dataset / model) logical
-  * paths to physical URIs.
+  * Resolves versioned-resource (dataset / model) logical paths to physical URIs.
   */
 object FileResolver {
 
@@ -50,39 +51,35 @@ object FileResolver {
   val MODEL_FILE_URI_SCHEME = "model"
 
   /**
-    * Resolves a given fileName to either a file on the local file system or a dataset file.
-    *
-    * @param fileName the name of the file to resolve.
-    * @throws java.io.FileNotFoundException if the file cannot be resolved.
-    * @return A URI pointing to the resolved file.
+    * Returns a [[ScanFileResolver]] scoped to the user `uid`.
     */
-  def resolve(fileName: String): URI = {
-    if (isFileResolved(fileName)) {
-      return new URI(fileName)
-    }
-    val resolvers: Seq[String => URI] = Seq(localResolveFunc, versionedResourceResolveFunc)
-
-    // Try each resolver function in sequence
-    resolvers
-      .map(resolver => Try(resolver(fileName)))
-      .collectFirst {
-        case Success(output) => output
-      }
-      .getOrElse(throw new FileNotFoundException(fileName))
-  }
+  def forUser(uid: Integer): ScanFileResolver = fileName => resolveForUser(fileName, uid)
 
   /**
-    * Attempts to resolve a local file path.
-    * @throws java.io.FileNotFoundException if the local file does not exist
-    * @param fileName the name of the file to check
+    * Resolves a versioned-resource logical path for the user `uid`.
+    *
+    * @throws java.io.FileNotFoundException if the path does not resolve to a readable resource
     */
-  private def localResolveFunc(fileName: String): URI = {
-    val filePath = Paths.get(fileName)
-    if (!Files.exists(filePath)) {
-      throw new FileNotFoundException(s"Local file $fileName does not exist")
+  def resolveForUser(fileName: String, uid: Integer): URI =
+    resolveLogicalPath(fileName, reader = Some(uid))
+
+  /**
+    * Resolves a versioned-resource logical path without a user scope.
+    *
+    * @throws java.io.FileNotFoundException if the path does not resolve to a resource
+    */
+  def resolveVersionedResource(fileName: String): URI =
+    resolveLogicalPath(fileName, reader = None)
+
+  private def resolveLogicalPath(fileName: String, reader: Option[Integer]): URI =
+    try {
+      if (isFileResolved(fileName)) {
+        throw new FileNotFoundException(fileName)
+      }
+      versionedResourceResolveFunc(fileName, reader)
+    } catch {
+      case NonFatal(_) => throw new FileNotFoundException(fileName)
     }
-    filePath.toUri
-  }
 
   /**
     * Parses a versioned-resource file path into its components, or None if it is not well-formed.
@@ -145,7 +142,7 @@ object FileResolver {
     * @throws java.io.FileNotFoundException if the path is not a valid versioned-resource path, the
     *                                       resource/version does not exist, or the URI is malformed
     */
-  private def versionedResourceResolveFunc(fileName: String): URI = {
+  private def versionedResourceResolveFunc(fileName: String, reader: Option[Integer]): URI = {
     val (resourceType, ownerEmail, resourceName, versionName, fileRelativePathSegments) =
       parsePrefixedPath(fileName).getOrElse(
         throw new FileNotFoundException(s"Versioned-resource file $fileName not found.")
@@ -153,10 +150,10 @@ object FileResolver {
 
     val (scheme, repositoryName, versionHash) = resourceType match {
       case ResourceType.Dataset =>
-        val (repo, hash) = lookupDataset(ownerEmail, resourceName, versionName, fileName)
+        val (repo, hash) = lookupDataset(ownerEmail, resourceName, versionName, fileName, reader)
         (DATASET_FILE_URI_SCHEME, repo, hash)
       case ResourceType.Model =>
-        val (repo, hash) = lookupModel(ownerEmail, resourceName, versionName, fileName)
+        val (repo, hash) = lookupModel(ownerEmail, resourceName, versionName, fileName, reader)
         (MODEL_FILE_URI_SCHEME, repo, hash)
       case other =>
         throw new FileNotFoundException(s"Unsupported resource type $other for file $fileName.")
@@ -196,17 +193,29 @@ object FileResolver {
     }
   }
 
+  /** Checks whether `reader` has read access when a user scope is provided. */
+  private def readableBy[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      reader: Option[Integer]
+  ): Boolean =
+    reader.forall(uid => ResourceAccess.userHasReadAccess(ctx, resource, id, uid))
+
   /**
     * Looks up a dataset + version by owner email / name / version name, returning its
     * (repositoryName, versionHash).
     *
-    * @throws java.io.FileNotFoundException if the dataset or version does not exist
+    * @param reader optional user ID to check read access for
+    * @throws java.io.FileNotFoundException if the dataset or version does not exist, or the
+    *                                       reader does not have read access
     */
   private def lookupDataset(
       ownerEmail: String,
       datasetName: String,
       versionName: String,
-      fileName: String
+      fileName: String,
+      reader: Option[Integer]
   ): (String, String) =
     withTransaction(
       SqlServer
@@ -222,8 +231,7 @@ object FileResolver {
         .and(DATASET.NAME.eq(datasetName))
         .fetchOneInto(classOf[Dataset])
 
-      // fail early if the dataset does not exist (before dereferencing it below)
-      if (dataset == null) {
+      if (dataset == null || !readableBy(ctx, ResourceTables.Dataset, dataset.getDid, reader)) {
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
       }
 
@@ -243,13 +251,16 @@ object FileResolver {
     * Looks up a model + version by owner email / name / version name, returning its
     * (repositoryName, versionHash). Mirrors [[lookupDataset]] against the model tables.
     *
-    * @throws java.io.FileNotFoundException if the model or version does not exist
+    * @param reader optional user ID to check read access for
+    * @throws java.io.FileNotFoundException if the model or version does not exist, or the
+    *                                       reader does not have read access
     */
   private def lookupModel(
       ownerEmail: String,
       modelName: String,
       versionName: String,
-      fileName: String
+      fileName: String,
+      reader: Option[Integer]
   ): (String, String) =
     withTransaction(
       SqlServer
@@ -265,8 +276,7 @@ object FileResolver {
         .and(MODEL.NAME.eq(modelName))
         .fetchOneInto(classOf[Model])
 
-      // fail early if the model does not exist (before dereferencing it below)
-      if (model == null) {
+      if (model == null || !readableBy(ctx, ResourceTables.Model, model.getMid, reader)) {
         throw new FileNotFoundException(s"Model file $fileName not found.")
       }
 
