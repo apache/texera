@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.aggregate
 
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
@@ -267,6 +267,71 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin
     val out = runPython(python, driver, "aggregate-empty-", "UTC")
     withClue(s"script:\n$driver")(out.trim shouldBe "0 ['cnt']")
+  }
+
+  // A DOUBLE column read from Arrow keeps a stored NaN apart from null. The
+  // engine skips the null and folds the NaN in, so SUM, AVERAGE and MAX answer
+  // NaN while MIN, which Java's Double.compare sends NaN past, answers 1.0.
+  it should "fold a stored NaN in a DOUBLE column as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.DOUBLE)
+    // Group "a" holds a NaN between two numbers and group "b" only nulls.
+    val rows: Seq[(String, java.lang.Double)] =
+      Seq(("a", 1.0), ("a", Double.NaN), ("a", 3.0), ("b", null), ("b", null))
+    val functions =
+      Seq(
+        AggregationFunction.SUM,
+        AggregationFunction.AVERAGE,
+        AggregationFunction.MIN,
+        AggregationFunction.MAX
+      )
+
+    def render(value: Any): String =
+      value match {
+        case null                           => "None"
+        case d: java.lang.Double if d.isNaN => "nan"
+        case d                              => d.toString
+      }
+
+    def check(keys: List[String]): Unit = {
+      val desc =
+        () => descWith(keys, functions.map(fn => aggOp(fn, "v", fn.toString.toLowerCase)): _*)
+
+      val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
+      exec.open()
+      rows.foreach { case (k, v) => exec.processTuple(Tuple(input, Array[Any](k, v)), 0) }
+      val engine = exec
+        .onFinish(0)
+        .map(_.getFields.toSeq.map(render).mkString(" "))
+        .toSeq
+        .sorted
+
+      val driver =
+        s"""import pandas as pd, numpy as np
+           |
+           |in1df = pd.DataFrame({
+           |    "k": ["a", "a", "a", "b", "b"],
+           |    "v": pd.arrays.FloatingArray(
+           |        np.array([1.0, np.nan, 3.0, 0.0, 0.0]),
+           |        np.array([False, False, False, True, True]),
+           |    ),
+           |})
+           |${desc().generateStandaloneCode(Map(PortIdentity() -> input))}
+           |def render(v):
+           |    if v is pd.NA or v is None:
+           |        return "None"
+           |    return v if isinstance(v, str) else repr(float(v))
+           |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
+           |    print(row)
+           |""".stripMargin
+      val out = runPython(python, driver, "aggregate-double-nan-", "UTC")
+      withClue(s"script:\n$driver")(out.trim.linesIterator.toSeq shouldBe engine)
+    }
+
+    check(List("k"))
+    check(List.empty)
   }
 
   // Without a schema the type-led branches cannot be chosen.

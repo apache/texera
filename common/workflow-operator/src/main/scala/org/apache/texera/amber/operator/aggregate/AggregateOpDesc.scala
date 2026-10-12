@@ -235,7 +235,61 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    kept = _texera_agg_ts_epoch_ms(series)
         |    if len(kept) == 0:
         |        return None
-        |    return float(kept.astype(object).sum()) / len(kept)""".stripMargin
+        |    return float(kept.astype(object).sum()) / len(kept)
+        |
+        |# A DOUBLE column can hold a stored NaN apart from null, and pandas'
+        |# reductions answer null for it. The engine skips only the nulls and folds
+        |# the rest as Java doubles, so these folds are written out. Each answers
+        |# pd.NA for a null result, which pandas keeps apart from NaN.
+        |def _texera_agg_double_values(series):
+        |    return [float(v) for v in series.dropna()]
+        |
+        |def _texera_agg_double_key(v):
+        |    # Java's Double.compare: NaN sorts above everything, -0.0 below 0.0.
+        |    import math
+        |
+        |    return (math.isnan(v), v, math.copysign(1.0, v))
+        |
+        |def _texera_agg_double_sum(series):
+        |    partial = 0.0
+        |    for v in _texera_agg_double_values(series):
+        |        partial += v
+        |    return partial
+        |
+        |def _texera_agg_double_mean(series):
+        |    kept = _texera_agg_double_values(series)
+        |    if not kept:
+        |        return pd.NA
+        |    partial = 0.0
+        |    for v in kept:
+        |        partial += v
+        |    return partial / len(kept)
+        |
+        |def _texera_agg_double_min(series):
+        |    # The engine starts from Double.MAX_VALUE and reads it back as null.
+        |    start = 1.7976931348623157e308
+        |    partial = start
+        |    for v in _texera_agg_double_values(series):
+        |        if _texera_agg_double_key(v) < _texera_agg_double_key(partial):
+        |            partial = v
+        |    return pd.NA if partial == start else partial
+        |
+        |def _texera_agg_double_max(series):
+        |    # The engine starts from negative infinity and reads it back as null.
+        |    start = float("-inf")
+        |    partial = start
+        |    for v in _texera_agg_double_values(series):
+        |        if _texera_agg_double_key(v) > _texera_agg_double_key(partial):
+        |            partial = v
+        |    return pd.NA if partial == start else partial
+        |
+        |def _texera_agg_double_by_group(column, fold):
+        |    # A plain float column cannot hold NaN and null apart, so the folded
+        |    # groups go into a nullable one.
+        |    results = column.apply(fold)
+        |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
+        |    values = results.where(~mask, 0.0).to_numpy(float)
+        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs
@@ -288,15 +342,25 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         declared match {
           case Some(AttributeType.INTEGER)   => s"_texera_agg_int_sum(in1df[$attrLit])"
           case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_sum(in1df[$attrLit])"
+          case Some(AttributeType.DOUBLE)    => s"_texera_agg_double_sum(in1df[$attrLit])"
           case _                             => s"in1df[$attrLit].sum()"
         }
       case AggregationFunction.AVERAGE =>
         declared match {
           case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_mean(in1df[$attrLit])"
+          case Some(AttributeType.DOUBLE)    => s"_texera_agg_double_mean(in1df[$attrLit])"
           case _                             => s"in1df[$attrLit].mean()"
         }
-      case AggregationFunction.MIN => s"in1df[$attrLit].min()"
-      case AggregationFunction.MAX => s"in1df[$attrLit].max()"
+      case AggregationFunction.MIN =>
+        declared match {
+          case Some(AttributeType.DOUBLE) => s"_texera_agg_double_min(in1df[$attrLit])"
+          case _                          => s"in1df[$attrLit].min()"
+        }
+      case AggregationFunction.MAX =>
+        declared match {
+          case Some(AttributeType.DOUBLE) => s"_texera_agg_double_max(in1df[$attrLit])"
+          case _                          => s"in1df[$attrLit].max()"
+        }
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
         else s"int(in1df[$attrLit].count())"
@@ -314,6 +378,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       else pyStringLiteral(agg.attribute)
     val resultLit = pyStringLiteral(agg.resultAttribute)
     val declared = Option(agg.attribute).filter(_.nonEmpty).flatMap(declaredType)
+    def byDoubleFold(fold: String): String =
+      s"_texera_agg_double_by_group($groups[$attrLit], $fold).rename($resultLit)"
     agg.aggFunction match {
       case AggregationFunction.SUM =>
         declared match {
@@ -321,16 +387,26 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
             s"$groups[$attrLit].apply(_texera_agg_int_sum).rename($resultLit)"
           case Some(AttributeType.TIMESTAMP) =>
             s"$groups[$attrLit].apply(_texera_agg_ts_sum).rename($resultLit)"
-          case _ => s"$groups[$attrLit].sum().rename($resultLit)"
+          case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_sum")
+          case _                          => s"$groups[$attrLit].sum().rename($resultLit)"
         }
       case AggregationFunction.AVERAGE =>
         declared match {
           case Some(AttributeType.TIMESTAMP) =>
             s"$groups[$attrLit].apply(_texera_agg_ts_mean).rename($resultLit)"
-          case _ => s"$groups[$attrLit].mean().rename($resultLit)"
+          case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_mean")
+          case _                          => s"$groups[$attrLit].mean().rename($resultLit)"
         }
-      case AggregationFunction.MIN => s"$groups[$attrLit].min().rename($resultLit)"
-      case AggregationFunction.MAX => s"$groups[$attrLit].max().rename($resultLit)"
+      case AggregationFunction.MIN =>
+        declared match {
+          case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_min")
+          case _                          => s"$groups[$attrLit].min().rename($resultLit)"
+        }
+      case AggregationFunction.MAX =>
+        declared match {
+          case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_max")
+          case _                          => s"$groups[$attrLit].max().rename($resultLit)"
+        }
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty)
           s"$groups.size().rename($resultLit)"
