@@ -1924,6 +1924,32 @@ describe("MenuComponent", () => {
       expect(component.runDisable).toBe(false);
     });
 
+    it("keeps Pause and Resume when a compile fails after the run started", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      component.executionState = ExecutionState.Running;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Pause");
+      expect(component.runDisable).toBe(false);
+
+      component.executionState = ExecutionState.Paused;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Resume");
+      expect(component.runDisable).toBe(false);
+
+      // the failure still blocks the next run once this one ends
+      component.executionState = ExecutionState.Completed;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Invalid Workflow");
+      expect(component.runDisable).toBe(true);
+    });
+
     it("deactivates the export button unless the feature is on and results exist", () => {
       const guiConfig = TestBed.inject(GuiConfigService);
       const results$ = component.workflowResultExportService.hasResultToExportOnAllOperators;

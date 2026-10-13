@@ -406,14 +406,27 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.onClickRunHandler = behavior.onClick;
   }
 
+  // the execution states in which the run button starts a new run rather than controlling one
+  private buttonStartsRun(): boolean {
+    return [
+      ExecutionState.Uninitialized,
+      ExecutionState.Completed,
+      ExecutionState.Terminated,
+      ExecutionState.Killed,
+      ExecutionState.Failed,
+    ].includes(this.executionState);
+  }
+
   public getRunButtonBehavior(): {
     text: string;
     icon: string;
     disable: boolean;
     onClick: () => void;
   } {
-    // If workflow is invalid or does not compile, always disable and show "Invalid Workflow"
-    if (!this.isWorkflowValid || !this.isWorkflowCompilable) {
+    // If workflow is invalid, always disable and show "Invalid Workflow". A failed compile
+    // does the same, but only where the button would start a run: a compile can answer
+    // after the run started, and it must not take Pause/Resume away from that run.
+    if (!this.isWorkflowValid || (!this.isWorkflowCompilable && this.buttonStartsRun())) {
       return {
         text: "Invalid Workflow",
         icon: "warning",
@@ -459,16 +472,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     // the click into the create-warehouse modal. Only in the states whose
     // button would start a run: mid-execution the button is Pause/Resume/Kill,
     // and losing the last warehouse must not take that control away.
-    if (
-      this.computingUnitSelectionComponent?.warehouseRequiredButMissing &&
-      [
-        ExecutionState.Uninitialized,
-        ExecutionState.Completed,
-        ExecutionState.Terminated,
-        ExecutionState.Killed,
-        ExecutionState.Failed,
-      ].includes(this.executionState)
-    ) {
+    if (this.computingUnitSelectionComponent?.warehouseRequiredButMissing && this.buttonStartsRun()) {
       return {
         text: "Warehouse",
         icon: "plus-circle",
