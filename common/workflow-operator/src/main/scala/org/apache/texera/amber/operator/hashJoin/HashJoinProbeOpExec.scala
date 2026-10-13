@@ -74,9 +74,15 @@ class HashJoinProbeOpExec[K](
     objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
-  // The build side's column names, learned from its first row. An unmatched
-  // right row has no build row of its own to name them.
-  private var leftAttributeNames: List[String] = List.empty
+  // The build side's column names, from the schema its port declared. An
+  // unmatched right row has no build row of its own to name them, and a worker
+  // can receive no build rows at all. The build port finishes before the first
+  // right row arrives.
+  private def leftAttributeNames: List[String] =
+    inputSchemas
+      .get(0)
+      .map(_.getAttributeNames.filterNot(_ == HASH_JOIN_INTERNAL_KEY_NAME))
+      .getOrElse(List.empty)
 
   override def open(): Unit = {
     buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
@@ -90,10 +96,10 @@ class HashJoinProbeOpExec[K](
     if (port == 0) {
       // Load build hash map
       val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
-      val names = tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
-      if (leftAttributeNames.isEmpty) leftAttributeNames = names
       buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
-        .getPartialTuple(names)
+        .getPartialTuple(
+          tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
+        )
       Iterator.empty
     } else {
       // Probe phase

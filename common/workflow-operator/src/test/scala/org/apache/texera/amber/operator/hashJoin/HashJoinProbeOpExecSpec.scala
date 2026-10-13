@@ -89,6 +89,8 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
       )
     buildExec.close()
 
+    // The runtime records the port's declared schema before finishing it.
+    probeExec.inputSchemas(buildPort) = internalHashTableSchema
     assert(probeExec.onFinish(buildPort).isEmpty)
     probeExec
   }
@@ -314,6 +316,9 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
       .foreach(t =>
         probeExec.processTuple(t.asInstanceOf[SchemaEnforceable].enforceSchema(buildOut), 0)
       )
+    // The runtime records the port's declared schema before finishing it.
+    probeExec.inputSchemas(0) = buildOut
+    probeExec.onFinish(0)
     val emitted = rightRows.flatMap(r =>
       probeExec.processTuple(Tuple.builder(right).addSequentially(r).build(), 1)
     ) ++ probeExec.onFinish(1)
@@ -373,5 +378,34 @@ class HashJoinProbeOpExecSpec extends AnyFlatSpec {
     )
     assert(names == List("id", "key", "value"))
     assert(rows.toSet == Set(List(null, null, 9), List("1", "payload", null)))
+  }
+
+  // A worker can receive no build rows at all, when the left input is empty or
+  // no left key hashes to it. The left names then come from the build port's
+  // declared schema alone, and the two cases above must still hold.
+  it should "name an unmatched right row's columns when the build side sent no rows" in {
+    val (names, rows) = joinedRows(
+      JoinType.FULL_OUTER,
+      Schema().add("k", AttributeType.STRING).add("x", AttributeType.INTEGER),
+      Seq.empty,
+      Schema().add("k", AttributeType.STRING).add("x", AttributeType.DOUBLE),
+      Seq(Array[Any]("2", 2.5))
+    )
+    assert(names == List("k", "x", "x#@1"))
+    assert(rows == List(List("2", null, 2.5)))
+  }
+
+  it should "not let an unmatched right key fill a left payload when the build side sent no rows" in {
+    val (names, rows) = joinedRows(
+      JoinType.FULL_OUTER,
+      Schema().add("id", AttributeType.STRING).add("key", AttributeType.STRING),
+      Seq.empty,
+      Schema().add("key", AttributeType.STRING).add("value", AttributeType.INTEGER),
+      Seq(Array[Any]("2", 9)),
+      buildKey = "id",
+      probeKey = "key"
+    )
+    assert(names == List("id", "key", "value"))
+    assert(rows == List(List(null, null, 9)))
   }
 }

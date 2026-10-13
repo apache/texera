@@ -20,10 +20,22 @@
 package org.apache.texera.amber.core.executor
 
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.core.tuple.{Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
 
+import scala.collection.mutable
+
 trait OperatorExecutor {
+
+  /**
+    * What each finished input port was declared to carry, keyed by port index
+    * and written by the runtime before `onFinish` for that port.
+    *
+    * The tuples say this too, so an operator only needs to ask when there were
+    * none: a port can finish having carried no rows, and its schema is then the
+    * only record of what its columns were.
+    */
+  val inputSchemas: mutable.Map[Int, Schema] = mutable.Map()
 
   def open(): Unit = {}
 
