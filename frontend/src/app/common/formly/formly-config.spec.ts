@@ -17,9 +17,11 @@
  * under the License.
  */
 
+import { FormControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import {
   constValidationMessage,
+  delimiterValidationMessage,
   exclusiveMaximumValidationMessage,
   exclusiveMinimumValidationMessage,
   maxItemsValidationMessage,
@@ -29,6 +31,7 @@ import {
   minlengthValidationMessage,
   minValidationMessage,
   multipleOfValidationMessage,
+  TEXERA_FORMLY_CONFIG,
 } from "./formly-config";
 
 // the `err` argument is unused by every message builder, so any value is fine
@@ -79,5 +82,23 @@ describe("formly validation messages", () => {
   it("renders the literal 'undefined' when the relevant prop is missing", () => {
     expect(minValidationMessage(err, field({}))).toBe("should be >= undefined");
     expect(constValidationMessage(err, field({}))).toBe('should be equal to constant "undefined"');
+  });
+});
+
+describe("delimiter type", () => {
+  const delimiterType = TEXERA_FORMLY_CONFIG.types.find(type => type.name === "delimiter")!;
+  const validator = (delimiterType.defaultOptions as any).validators.delimiter;
+  const delimiterField = (value: string, delimiterMode: string): FormlyFieldConfig =>
+    ({ props: { delimiterMode }, formControl: new FormControl(value) }) as unknown as FormlyFieldConfig;
+
+  it("rejects a regex delimiter that does not compile, and says why", () => {
+    const f = delimiterField("(", "regex");
+    expect(validator.expression(f.formControl, f)).toBe(false);
+    expect(delimiterValidationMessage(err, f)).toMatch(/Invalid regular expression/);
+  });
+
+  it("accepts the same text as a single-character delimiter", () => {
+    const f = delimiterField("(", "char");
+    expect(validator.expression(f.formControl, f)).toBe(true);
   });
 });

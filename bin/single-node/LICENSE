@@ -200,3 +200,13 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
+--------------------------------------------------------------------------------
+THIRD-PARTY DEPENDENCIES
+--------------------------------------------------------------------------------
+
+This bundle includes the Iris example dataset:
+  - examples/datasets/iris-species/Iris.csv
+  Creator: R. A. Fisher (1936)
+  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
+  DOI: 10.24432/C56C76
+  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
