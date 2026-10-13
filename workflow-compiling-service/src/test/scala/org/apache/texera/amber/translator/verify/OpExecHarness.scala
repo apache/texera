@@ -283,6 +283,9 @@ object OpExecHarness extends LazyLogging {
         tuples.foreach { t =>
           bucket(opExec.processTupleMultiPort(t, portId.id))
         }
+        // As the worker's EndChannelHandler does: a HashJoin probe that received
+        // no build rows names its columns from this.
+        phOp.inputPorts(portId)._3.foreach(schema => opExec.inputSchemas(portId.id) = schema)
         bucket(opExec.onFinishMultiPort(portId.id))
       }
 
