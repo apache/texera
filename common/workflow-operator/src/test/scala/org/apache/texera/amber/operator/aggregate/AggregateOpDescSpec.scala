@@ -199,6 +199,51 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  /** Without a zone file, as on Windows, gettz() answers tzlocal(), which asks
+    * localtime, and Windows refuses an instant before 1970: the column raised
+    * and the sum came back in UTC. The driver stands in for both. Checked
+    * against Java 17 in the same zone: the sum below is 1653-12-31 18:00:00
+    * and the average -4.9859712E12.
+    */
+  it should "add timestamps before 1970 where localtime refuses them" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("t", AttributeType.TIMESTAMP)
+    val desc = descWith(
+      List.empty,
+      aggOp(AggregationFunction.SUM, "t", "ts_total"),
+      aggOp(AggregationFunction.AVERAGE, "t", "ts_avg")
+    )
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    val driver =
+      s"""import time
+         |import dateutil.tz
+         |import numpy as np
+         |import pandas as pd
+         |_localtime = time.localtime
+         |def _refusing(seconds=None):
+         |    if seconds is not None and seconds < 0:
+         |        raise OSError(22, "Invalid argument")
+         |    return _localtime() if seconds is None else _localtime(seconds)
+         |time.localtime = _refusing
+         |dateutil.tz.gettz = lambda *args: dateutil.tz.tzlocal()
+         |in1df = pd.DataFrame({
+         |    "t": np.array(["1600-01-01T12:00", "2024-01-01T00:00"], dtype="datetime64[ms]"),
+         |})
+         |$block
+         |print(pd.Timestamp(out1df.iloc[0]["ts_total"]).isoformat())
+         |print(repr(float(out1df.iloc[0]["ts_avg"])))
+         |""".stripMargin
+
+    val out = runPython(python, driver, "aggregate-timestamp-refused-", "America/Mexico_City")
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      out.trim.linesIterator.toSeq shouldBe Seq("1653-12-31T18:00:00", "-4985971200000.0")
+    }
+  }
+
   /** Runs the generated block with the zone named to the child, because a
     * timestamp's arithmetic reads the one in force where it runs.
     */

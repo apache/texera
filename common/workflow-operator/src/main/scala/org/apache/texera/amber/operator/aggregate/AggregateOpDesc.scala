@@ -209,14 +209,31 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # offset away. The two flags are java.time's own reading of an hour
         |    # daylight saving repeats (the later one) or skips (shifted past the
         |    # gap).
-        |    return (
-        |        series.dropna()
-        |        .astype("datetime64[ms]")
-        |        .dt.tz_localize(
+        |    import time
+        |
+        |    kept = series.dropna().astype("datetime64[ms]")
+        |
+        |    def localized(s):
+        |        return s.dt.tz_localize(
         |            _texera_agg_ts_zone(), ambiguous=False, nonexistent=pd.Timedelta("1h")
-        |        )
-        |        .astype("int64")
-        |    )
+        |        ).astype("int64")
+        |
+        |    try:
+        |        return localized(kept)
+        |    except (OSError, OverflowError):
+        |        pass
+        |
+        |    # Without a zone file gettz() falls back to tzlocal(), which asks
+        |    # localtime, and Windows refuses an instant before 1970. Read those
+        |    # at the zone's standard offset, as java.util.Date does before 1900.
+        |    def one(i):
+        |        cell = kept.iloc[i : i + 1]
+        |        try:
+        |            return int(localized(cell).iloc[0])
+        |        except (OSError, OverflowError):
+        |            return int(cell.astype("int64").iloc[0]) + time.timezone * 1000
+        |
+        |    return pd.Series([one(i) for i in range(len(kept))], index=kept.index, dtype="int64")
         |
         |def _texera_agg_ts_sum(series):
         |    # SUM keeps the column's own type, so the engine adds the epoch
@@ -225,11 +242,18 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # wrap is the only place a total loses anything.
         |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
         |    total = ((total + (1 << 63)) % (1 << 64)) - (1 << 63)
-        |    return (
-        |        pd.Timestamp(total, unit="ms", tz="UTC")
-        |        .tz_convert(_texera_agg_ts_zone())
-        |        .tz_localize(None)
-        |    )
+        |    # Through datetime and not Timestamp.tz_convert, which swallows a
+        |    # refusal from localtime and answers in UTC.
+        |    import datetime
+        |    import time
+        |
+        |    utc = pd.Timestamp(total, unit="ms")
+        |    try:
+        |        moment = utc.to_pydatetime().replace(tzinfo=datetime.timezone.utc)
+        |        shift = moment.astimezone(_texera_agg_ts_zone()).utcoffset()
+        |    except (OSError, OverflowError):
+        |        shift = datetime.timedelta(seconds=-time.timezone)
+        |    return utc + shift
         |
         |def _texera_agg_ts_mean(series):
         |    # AVERAGE is declared DOUBLE whatever column it reads, so this is
