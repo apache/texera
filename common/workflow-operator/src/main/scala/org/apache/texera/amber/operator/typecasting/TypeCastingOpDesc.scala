@@ -123,9 +123,7 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
         case AttributeType.LONG =>
           s"""_texera_cast_cells(out1df[$colLit], _texera_cast_integral, pd.NA).astype("Int64")"""
         case AttributeType.DOUBLE =>
-          // NaN rather than pd.NA: float64 is how a double column is held here,
-          // and it carries its hole as NaN. pd.NA would not survive the astype.
-          s"""out1df[$colLit].apply(lambda x: float("nan") if pd.isna(x) else _texera_cast_double(x)).astype("float64")"""
+          s"""_texera_cast_doubles(out1df[$colLit])"""
         case AttributeType.BOOLEAN =>
           // Nullable "boolean" for the same reason, and because `.astype(bool)`
           // reads NaN as True: NaN is a non-zero float.

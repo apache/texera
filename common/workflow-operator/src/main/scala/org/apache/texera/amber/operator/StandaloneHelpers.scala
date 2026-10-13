@@ -189,19 +189,51 @@ object StandaloneHelpers {
       |    # parsed wall clock is already the wall clock.
       |    # tzlocal() and not the current offset: the zone carries its daylight
       |    # rules, and each instant needs the offset in force when it happened.
+      |    #
+      |    # Windows' localtime refuses an instant before 1970, and tzlocal() asks
+      |    # it. Such an instant takes the zone's standard offset instead, which is
+      |    # what java.util.Date answers before its zone history starts in 1900.
+      |    # Asked through datetime, cell by cell, because a single pandas
+      |    # Timestamp swallows that refusal and answers UTC.
+      |    import datetime
+      |    import time
+      |
       |    from dateutil.tz import tzlocal
       |
-      |    return (
-      |        pd.to_datetime(s, unit="ms", errors="coerce", utc=True)
-      |        .dt.tz_convert(tzlocal())
-      |        .dt.tz_localize(None)
-      |    )
+      |    instants = pd.to_datetime(s, unit="ms", errors="coerce", utc=True)
+      |    try:
+      |        return instants.dt.tz_convert(tzlocal()).dt.tz_localize(None)
+      |    except (OSError, OverflowError):
+      |        pass
+      |    standard = datetime.timedelta(seconds=-time.timezone)
+      |
+      |    def _one(t):
+      |        if pd.isna(t):
+      |            return None
+      |        moment = t.to_pydatetime()
+      |        try:
+      |            return moment.astimezone(tzlocal()).replace(tzinfo=None)
+      |        except (OSError, OverflowError):
+      |            return (moment + standard).replace(tzinfo=None)
+      |
+      |    return pd.Series(
+      |        [_one(t) for t in instants], index=s.index, name=s.name, dtype=object
+      |    ).astype(f"datetime64[{instants.dt.unit}]")
       |
       |
       |def _texera_cast_double(x):
       |    if isinstance(x, str):
       |        return float(x.strip())
       |    return float(x)
+      |
+      |
+      |def _texera_cast_doubles(s):
+      |    # Into a nullable Float64 built from the column's own mask, which holds
+      |    # a NaN apart from an empty cell. float64 holds both as NaN, so text
+      |    # "NaN" cast here came out empty at the next cast.
+      |    holes = s.isna().to_numpy()
+      |    values = _texera_cast_cells(s, _texera_cast_double, 0.0).to_numpy(dtype="float64")
+      |    return pd.Series(pd.arrays.FloatingArray(values, holes), index=s.index, name=s.name)
       |
       |
       |def _texera_java_text(x):

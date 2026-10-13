@@ -255,6 +255,131 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     doubleTargets.map(to => engineAnswer(Double.NaN, to)) shouldBe Seq("NaN", "0", "0", "true")
   }
 
+  // Text read as a double and then written back as text, by two operators. A
+  // NaN read here has to stay apart from an empty cell for the second cast to
+  // write it as "NaN".
+  private val doubleTextCases = Seq("NaN", null, "1.25", "Infinity")
+
+  it should "keep a NaN read from text apart from an empty cell" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val toDouble = new TypeCastingOpDesc
+    toDouble.typeCastingUnits = List(castUnit("v", AttributeType.DOUBLE))
+    val toText = new TypeCastingOpDesc
+    toText.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
+    val port = toText.operatorInfo.inputPorts.head.id
+    val first = toDouble.generateStandaloneCode(
+      Map(port -> Schema().add(new Attribute("v", AttributeType.STRING)))
+    )
+    val second = toText.generateStandaloneCode(
+      Map(port -> Schema().add(new Attribute("v", AttributeType.DOUBLE)))
+    )
+
+    val values = doubleTextCases
+      .map(v => if (v == null) "None" else "\"" + v + "\"")
+      .mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${toDouble.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": $values})
+         |$first
+         |in1df = out1df
+         |$second
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if answer is None else answer)
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-double-text-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromEngine = doubleTextCases.map { v =>
+      engineAnswer(AttributeTypeUtils.parseField(v, AttributeType.DOUBLE), AttributeType.STRING)
+    }
+    withClue(s"script said ${cellsOf(out)}\n") { cellsOf(out) shouldBe fromEngine }
+    fromEngine shouldBe Seq("NaN", "null", "1.25", "Infinity")
+  }
+
+  // Epoch milliseconds either side of 1970. Windows' localtime refuses an
+  // instant before 1970, which no other platform does, so the driver refuses
+  // it the same way here. The engine writes such an instant at the zone's
+  // standard offset, as java.util.Date does before 1900.
+  private val epochYears = Seq(1600, 2024, 2500)
+
+  it should "read epoch milliseconds before 1970 where localtime refuses them" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
+    val input = Schema().add(new Attribute("v", AttributeType.LONG))
+    val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
+
+    val millis: Seq[java.lang.Long] = epochYears.map { y =>
+      java.lang.Long.valueOf(
+        java.time.ZonedDateTime
+          .of(y, 6, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC)
+          .toInstant
+          .toEpochMilli
+      )
+    } :+ null
+    val values = millis.map(v => if (v == null) "None" else v.toString).mkString("[", ", ", "]")
+    val driver =
+      s"""import time
+         |
+         |import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |_localtime = time.localtime
+         |
+         |
+         |def _windows_localtime(seconds=None):
+         |    if seconds is not None and seconds < 0:
+         |        raise OSError(22, "Invalid argument")
+         |    return _localtime() if seconds is None else _localtime(seconds)
+         |
+         |
+         |time.localtime = _windows_localtime
+         |in1df = pd.DataFrame({"v": pd.array($values, dtype="Int64")})
+         |$generated
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-epoch-millis-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromEngine = millis.map(v => engineAnswer(v, AttributeType.TIMESTAMP))
+    withClue(s"script said ${cellsOf(out)}\n") {
+      cellsOf(out).map(moment) shouldBe fromEngine.map(moment)
+    }
+  }
+
   // The moments where the two sides used to part. pandas parses into nanoseconds
   // by default, which reach only 1677 to 2262, so everything past that edge was
   // emptied where the engine holds a java.sql.Timestamp and reads it like any
