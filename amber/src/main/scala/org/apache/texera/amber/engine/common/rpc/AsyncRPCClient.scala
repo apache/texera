@@ -69,7 +69,6 @@ import scala.reflect.ClassTag
   */
 object AsyncRPCClient {
 
-  final val IgnoreReply = -1
   final val IgnoreReplyAndDoNotLog = -2
 
   object ControlInvocation {
