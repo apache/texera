@@ -313,35 +313,40 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     fromEngine shouldBe Seq("NaN", "null", "1.25", "Infinity")
   }
 
-  // Epoch milliseconds either side of 1970. Windows' localtime refuses an
+  // Moments either side of 1970, read three ways: as epoch milliseconds, as
+  // text that states an offset, and from a column that states its zone. Each
+  // asks the machine's zone for the wall clock. Windows' localtime refuses an
   // instant before 1970, which no other platform does, so the driver refuses
   // it the same way here. The engine writes such an instant at the zone's
   // standard offset, as java.util.Date does before 1900.
   private val epochYears = Seq(1600, 2024, 2500)
 
-  it should "read epoch milliseconds before 1970 where localtime refuses them" taggedAs NeedsPythonPackages in {
+  it should "read a moment before 1970 where localtime refuses it" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
-    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
-    val input = Schema().add(new Attribute("v", AttributeType.LONG))
+    op.typeCastingUnits = List(
+      castUnit("ms", AttributeType.TIMESTAMP),
+      castUnit("text", AttributeType.TIMESTAMP),
+      castUnit("zoned", AttributeType.TIMESTAMP)
+    )
+    val input = Schema()
+      .add(new Attribute("ms", AttributeType.LONG))
+      .add(new Attribute("text", AttributeType.STRING))
+      .add(new Attribute("zoned", AttributeType.TIMESTAMP))
     val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
 
-    val millis: Seq[java.lang.Long] = epochYears.map { y =>
-      java.lang.Long.valueOf(
-        java.time.ZonedDateTime
-          .of(y, 6, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC)
-          .toInstant
-          .toEpochMilli
-      )
-    } :+ null
-    val values = millis.map(v => if (v == null) "None" else v.toString).mkString("[", ", ", "]")
+    val instants =
+      epochYears.map(y => java.time.ZonedDateTime.of(y, 6, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC))
+    val millis = instants.map(_.toInstant.toEpochMilli)
+    val texts = instants.map(_.toLocalDateTime.plusMinutes(330).toString + ":00+05:30")
     val driver =
       s"""import time
          |
+         |import numpy as np
          |import pandas as pd
          |
          |${op.standaloneHelpers().mkString("\n\n")}
@@ -357,14 +362,20 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |
          |
          |time.localtime = _windows_localtime
-         |in1df = pd.DataFrame({"v": pd.array($values, dtype="Int64")})
+         |_utc = ${instants.map(i => "\"" + i.toLocalDateTime + "\"").mkString("[", ", ", "]")}
+         |in1df = pd.DataFrame({
+         |    "ms": pd.array(${millis.mkString("[", ", ", "]")} + [None], dtype="Int64"),
+         |    "text": ${texts.map("\"" + _ + "\"").mkString("[", ", ", "]")} + [None],
+         |    "zoned": pd.Series(np.array(_utc + ["NaT"], dtype="datetime64[us]")).dt.tz_localize("UTC"),
+         |})
          |$generated
          |
-         |for answer in out1df["v"]:
-         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |for c in ["ms", "text", "zoned"]:
+         |    for answer in out1df[c]:
+         |        print("cell", c, "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-epoch-millis-", ".py")
+    val script = Files.createTempFile("typecast-before-1970-", ".py")
     script.toFile.deleteOnExit()
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
@@ -374,9 +385,17 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     process.waitFor(120, TimeUnit.SECONDS)
     withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
 
-    val fromEngine = millis.map(v => engineAnswer(v, AttributeType.TIMESTAMP))
+    // Every column names the same instants, so each has the engine's answer
+    // for the milliseconds. The text is also asked directly.
+    val fromMillis =
+      millis.map(m => engineAnswer(java.lang.Long.valueOf(m), AttributeType.TIMESTAMP)) :+ "null"
+    texts.map(t => moment(engineAnswer(t, AttributeType.TIMESTAMP))) shouldBe
+      fromMillis.init.map(moment)
+    val fromScript = cellsOf(out).map(_.split(" ", 2)).map(p => (p(0), moment(p(1))))
     withClue(s"script said ${cellsOf(out)}\n") {
-      cellsOf(out).map(moment) shouldBe fromEngine.map(moment)
+      fromScript shouldBe Seq("ms", "text", "zoned").flatMap(c =>
+        fromMillis.map(v => (c, moment(v)))
+      )
     }
   }
 

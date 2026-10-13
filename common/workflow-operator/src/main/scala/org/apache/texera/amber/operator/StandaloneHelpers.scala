@@ -158,14 +158,11 @@ object StandaloneHelpers {
       |    # with one: DateParserUtils reads the offset and java.sql.Timestamp
       |    # keeps no zone of its own. Left alone, the offset travels as far as
       |    # the conversion below and stops the cast on a value the run reads.
-      |    # tzlocal() and not a fixed offset, so each instant gets the one in
-      |    # force when it happened.
       |    from dateutil.parser import parse as _parse_date
-      |    from dateutil.tz import tzlocal
       |
       |    if pd.api.types.is_datetime64_any_dtype(s):
       |        if getattr(s.dtype, "tz", None) is not None:
-      |            return s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
+      |            return _texera_local_wall_clocks(s)
       |        return s
       |
       |    def _one(x):
@@ -176,7 +173,7 @@ object StandaloneHelpers {
       |        except (ValueError, OverflowError):
       |            return None
       |        if parsed.tzinfo is not None:
-      |            parsed = parsed.astimezone(tzlocal()).replace(tzinfo=None)
+      |            parsed = _texera_local_wall_clock(parsed)
       |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
       |
       |    return s.map(_one).astype("datetime64[us]")
@@ -187,38 +184,55 @@ object StandaloneHelpers {
       |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
       |    # result in UTC would put it a whole offset away. Text needs neither: a
       |    # parsed wall clock is already the wall clock.
-      |    # tzlocal() and not the current offset: the zone carries its daylight
-      |    # rules, and each instant needs the offset in force when it happened.
+      |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
+      |
+      |
+      |def _texera_local_wall_clock(moment):
+      |    # The wall clock the machine's zone shows at an instant that states its
+      |    # offset. tzlocal() and not the current offset: the zone carries its
+      |    # daylight rules, and each instant needs the offset in force when it
+      |    # happened.
       |    #
       |    # Windows' localtime refuses an instant before 1970, and tzlocal() asks
       |    # it. Such an instant takes the zone's standard offset instead, which is
       |    # what java.util.Date answers before its zone history starts in 1900.
-      |    # Asked through datetime, cell by cell, because a single pandas
-      |    # Timestamp swallows that refusal and answers UTC.
       |    import datetime
       |    import time
       |
       |    from dateutil.tz import tzlocal
       |
-      |    instants = pd.to_datetime(s, unit="ms", errors="coerce", utc=True)
       |    try:
-      |        return instants.dt.tz_convert(tzlocal()).dt.tz_localize(None)
+      |        return moment.astimezone(tzlocal()).replace(tzinfo=None)
+      |    except (OSError, OverflowError):
+      |        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+      |        return utc + datetime.timedelta(seconds=-time.timezone)
+      |
+      |
+      |def _texera_local_wall_clocks(s):
+      |    # The same for a column that states its zone, kept at its own resolution.
+      |    # A cell Windows refuses is asked through datetime, one at a time,
+      |    # because a single pandas Timestamp swallows the refusal and answers
+      |    # UTC. Only the offset comes from there, so no digit past the
+      |    # microsecond is lost.
+      |    import datetime
+      |
+      |    from dateutil.tz import tzlocal
+      |
+      |    try:
+      |        return s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
       |    except (OSError, OverflowError):
       |        pass
-      |    standard = datetime.timedelta(seconds=-time.timezone)
       |
-      |    def _one(t):
+      |    def _offset(t):
       |        if pd.isna(t):
-      |            return None
-      |        moment = t.to_pydatetime()
-      |        try:
-      |            return moment.astimezone(tzlocal()).replace(tzinfo=None)
-      |        except (OSError, OverflowError):
-      |            return (moment + standard).replace(tzinfo=None)
+      |            return 0
+      |        moment = t.to_pydatetime(warn=False)
+      |        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+      |        return int((_texera_local_wall_clock(moment) - utc).total_seconds())
       |
-      |    return pd.Series(
-      |        [_one(t) for t in instants], index=s.index, name=s.name, dtype=object
-      |    ).astype(f"datetime64[{instants.dt.unit}]")
+      |    seconds = pd.Series([_offset(t) for t in s], index=s.index)
+      |    utc = s.dt.tz_convert("UTC").dt.tz_localize(None)
+      |    return utc + pd.to_timedelta(seconds, unit="s").astype("timedelta64[s]")
       |
       |
       |def _texera_cast_double(x):
