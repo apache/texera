@@ -141,7 +141,7 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
       |import pandas as pd
       |import plotly.graph_objects as go
       |
-      |source = pathlib.Path(sys.argv[1]).read_text()
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
       |
       |cases = {
       |    "numpy": pd.DataFrame({"r": [1, 2], "theta": [0, 90]}),
@@ -162,7 +162,7 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
       |        "go": go,
       |    }
       |    exec(compile(source, "standalone", "exec"), scope)
-      |    page = pathlib.Path(scope["outputHtml"]).read_text()
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
       |    if "Selected columns must be numeric" in page:
       |        verdict = "NOT_NUMERIC"
       |    elif "<h3>" in page:

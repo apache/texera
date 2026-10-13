@@ -194,7 +194,7 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
       |
       |import pandas as pd
       |
-      |source = pathlib.Path(sys.argv[1]).read_text()
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
       |
       |cases = {
       |    "good": pd.DataFrame({"score": [42.0]}),
@@ -212,7 +212,7 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
       |        "pd": pd,
       |    }
       |    exec(compile(source, "standalone", "exec"), scope)
-      |    page = pathlib.Path(scope["outputHtml"]).read_text()
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
       |    if "General error" in page:
       |        verdict = "GENERAL_ERROR"
       |    elif "Input table is empty" in page:
