@@ -322,7 +322,7 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
          |    ("expected.jsonl", $expectedTargets, "$expectedFeature"),
          |):
          |    model = base64.b64encode(pickle.dumps(Estimator().fit(x[[feature]], y))).decode()
-         |    with open(rf"$dir/{name}", "w") as handle:
+         |    with open(rf"$dir/{name}", "w", encoding="utf-8") as handle:
          |        handle.write(json.dumps({"model": model, "score": 1.0}) + "\\n")
          |""".stripMargin
     val script = Files.createTempFile("comparator-spec-fit-", ".py")
