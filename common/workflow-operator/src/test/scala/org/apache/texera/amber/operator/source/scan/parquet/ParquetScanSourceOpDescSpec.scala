@@ -463,7 +463,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileName = Some("file:///tmp/some%20dir/data.parquet")
     // The translator names the file, so that two sources reading different files
     // whose paths end alike do not both ask for "data.parquet".
-    d.generateStandaloneCode() should startWith("out1df = pd.read_parquet(\n    sourceFile,")
+    d.generateStandaloneCode() should include("out1df = pd.read_parquet(\n    sourceFile,")
     d.standaloneSourcePath() shouldBe d.fileName
     d.standaloneSourceName() shouldBe Some("data.parquet")
   }
@@ -635,8 +635,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         row.append("size", 16777216.0f)
         row.append("big", 9007199254740993L) // past what a double counts exactly
         row.append("seen_at", 1709388309123456L)
-        // In whole microseconds, which is what the script reads an INT96 in.
-        row.append("legacy_at", new NanoTime(2460312, 11045123456000L).toBinary)
+        row.append("legacy_at", new NanoTime(2460312, 11045123456789L).toBinary)
         row.append("born_on", 19723) // 2024-01-01
         row.append("tiny", 120)
         row.append("active", true)
@@ -671,6 +670,12 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       row => {
         row.append("label", "erin")
         row.append("legacy_at", new NanoTime(2268925, 0L).toBinary)
+      },
+      // A nanosecond from alice's in the same microsecond, in the column that
+      // holds 2500: the two must still read as two values.
+      row => {
+        row.append("label", "frank")
+        row.append("legacy_at", new NanoTime(2460312, 11045123456001L).toBinary)
       }
     )
 
@@ -689,6 +694,33 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     fromScript.get("tiny_shifted").intValue() shouldBe 130
     fromScript.remove("tiny_shifted")
     fromScript shouldBe objectMapper.readTree(objectMapper.writeValueAsString(fromExecutor))
+  }
+
+  // A column nanoseconds reach whole stays a timestamp column, with the digits
+  // under the microsecond that tell two of its values apart.
+  it should "keep an INT96's nanoseconds in a timestamp column" taggedAs NeedsPythonPackages in {
+    val python = runnablePython().getOrElse(
+      cancel("No runnable python with pandas and pyarrow (udf.conf python.path, python3, python)")
+    )
+
+    val file = writeFile(
+      Types
+        .buildMessage()
+        .addField(Types.optional(PrimitiveTypeName.INT96).named("legacy_at"))
+        .named("sample")
+    )(
+      _.append("legacy_at", new NanoTime(2460312, 11045123456001L).toBinary),
+      _.append("legacy_at", new NanoTime(2460312, 11045123456789L).toBinary),
+      _ => ()
+    )
+    val d = descFor(file)
+
+    val fromScript = runExport(python, d, file, TimestampDriver)
+    fromScript.get("dtype").textValue() shouldBe "datetime64[ns]"
+    fromScript.get("legacy_at") shouldBe
+      objectMapper.readTree(
+        objectMapper.writeValueAsString(readRows(d).map(r => comparable(r.head)))
+      )
   }
 
   /**
@@ -796,6 +828,15 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
        |_cells["size_sum"] = float(out1df["size"].sum())
        |_cells["tiny_shifted"] = int(out1df["tiny"].iloc[0] + 10)
        |print("JSON " + json.dumps(_cells))""".stripMargin
+
+  /** Printed by the script over an INT96 column: its dtype and nanoseconds. */
+  private val TimestampDriver: String =
+    """|print("JSON " + json.dumps({
+       |    "dtype": str(out1df["legacy_at"].dtype),
+       |    "legacy_at": [
+       |        None if pd.isna(_value) else int(_value.value) for _value in out1df["legacy_at"]
+       |    ],
+       |}))""".stripMargin
 
   /** Printed by the script over the indexed file: the columns it was left. */
   private val ColumnsDriver: String =

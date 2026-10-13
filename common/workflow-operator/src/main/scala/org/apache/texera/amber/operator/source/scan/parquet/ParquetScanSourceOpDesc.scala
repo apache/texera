@@ -76,15 +76,14 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     //
     // An INT96 timestamp is read in microseconds, in the footer and in the rows
     // alike. pyarrow's default is nanoseconds, which only reach 1677 to 2262, and
-    // a date outside them wraps silently: 2500 read back as 1915. The executor
-    // keeps the digits under the microsecond, which this drops.
+    // a date outside them wraps silently: 2500 read back as 1915. The digits
+    // under the microsecond are put back further down.
     val read =
-      s"""|out1df = pd.read_parquet(
+      s"""|_footer = pq.ParquetFile($SourceFilePlaceholder, coerce_int96_timestamp_unit="us")
+          |out1df = pd.read_parquet(
           |    $SourceFilePlaceholder,
           |    dtype_backend="numpy_nullable",
-          |    schema=pq.ParquetFile(
-          |        $SourceFilePlaceholder, coerce_int96_timestamp_unit="us"
-          |    ).schema_arrow.remove_metadata(),
+          |    schema=_footer.schema_arrow.remove_metadata(),
           |    coerce_int96_timestamp_unit="us",
           |)""".stripMargin
     // The columns pandas does not land on the same value as the executor. A
@@ -116,6 +115,33 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
          |        out1df[_column] = _values.astype("Int32")
          |    elif _values.dtype == "Float32":
          |        out1df[_column] = _values.astype("Float64")""".stripMargin
+    // The executor keeps an INT96's nanoseconds, and two values a nanosecond
+    // apart are two values. The INT96 columns are read again in nanoseconds,
+    // and every value they can reach takes that reading. A column with a date
+    // they cannot reach holds each value at its own precision, as objects, so
+    // the 2500 in it costs the 2024 beside it nothing. After the loop above,
+    // which would read such a column as dates.
+    val nanos =
+      s"""|_int96 = [_c.name for _c in _footer.schema if _c.physical_type == "INT96"]
+          |if _int96:
+          |    _nanos = pq.read_table($SourceFilePlaceholder, columns=_int96)
+          |    for _column, _exact in zip(_int96, _nanos.columns):
+          |        _exact = _exact.to_pandas()
+          |        _values = out1df[_column]
+          |        _reached = _values.isna() | (
+          |            (_values >= pd.Timestamp.min) & (_values <= pd.Timestamp.max)
+          |        )
+          |        if _reached.all():
+          |            out1df[_column] = _exact.to_numpy()
+          |        else:
+          |            out1df[_column] = pd.Series(
+          |                [
+          |                    None if pd.isna(_value) else _nano if _fits else _value
+          |                    for _value, _nano, _fits in zip(_values, _exact, _reached)
+          |                ],
+          |                index=out1df.index,
+          |                dtype=object,
+          |            )""".stripMargin
     // The executor drops `offset` rows and then takes `limit` of them. Parquet
     // can skip whole row groups but not an arbitrary row range, so the same
     // window is taken once the frame is in memory, as the Arrow source does.
@@ -131,7 +157,9 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
       case (None, Some(l))    => Some(s":$l")
       case _                  => None
     }
-    (Seq(read, columns) ++ window.map(w => s"out1df = out1df.iloc[$w].reset_index(drop=True)"))
+    (Seq(read, columns, nanos) ++ window.map(w =>
+      s"out1df = out1df.iloc[$w].reset_index(drop=True)"
+    ))
       .mkString("\n")
   }
 
