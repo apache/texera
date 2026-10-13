@@ -137,10 +137,24 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         this.owner = name;
       });
     // Stays null for kinds that cannot be published, which is what hides the publish buttons.
+    // A failed request leaves it null too, and the buttons are equally gone, so say so: without
+    // this the dialog looked complete while quietly offering one control fewer, and the only way
+    // to find out was the network tab.
     this.descriptor
       ?.isPublic?.(this.id)
       .pipe(untilDestroyed(this))
-      .subscribe(isPublic => (this.isPublic = isPublic));
+      .subscribe({
+        next: isPublic => (this.isPublic = isPublic),
+        error: () => {
+          // `ngOnInit` is re-entered as a refresh after an access change, so a value from the
+          // previous read may still be here. Drop it: keeping it would leave the buttons on
+          // screen, showing a state nothing has confirmed, while the toast says they are gone.
+          this.isPublic = null;
+          this.notificationService.error(
+            `Could not read whether this ${this.type} is public, so that choice is not shown.`
+          );
+        },
+      });
   }
 
   ngOnDestroy(): void {

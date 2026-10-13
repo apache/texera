@@ -392,25 +392,31 @@ export class JointUIService {
     const workerCount = statistics.numWorkers ?? 1;
     element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
-    inPorts.forEach(portDef => {
-      const portId = portDef.id;
-      if (portId != null) {
-        const parts = portId.split("-");
-        const numericSuffix = parts.length > 1 ? parts[1] : portId;
-        const count: number = inputMetrics[numericSuffix] ?? 0;
-        element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
-      }
-    });
+    // Absent map: no per-port information in this snapshot, so leave the labels alone.
+    // Empty map: every port measured zero, so write the zeros.
+    if (inputMetrics !== undefined) {
+      inPorts.forEach(portDef => {
+        const portId = portDef.id;
+        if (portId != null) {
+          const parts = portId.split("-");
+          const numericSuffix = parts.length > 1 ? parts[1] : portId;
+          const count: number = inputMetrics[numericSuffix] ?? 0;
+          element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
+        }
+      });
+    }
 
-    outPorts.forEach(portDef => {
-      const portId = portDef.id;
-      if (portId != null) {
-        const parts = portId.split("-");
-        const numericSuffix = parts.length > 1 ? parts[1] : portId;
-        const count: number = outputMetrics[numericSuffix] ?? 0;
-        element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
-      }
-    });
+    if (outputMetrics !== undefined) {
+      outPorts.forEach(portDef => {
+        const portId = portDef.id;
+        if (portId != null) {
+          const parts = portId.split("-");
+          const numericSuffix = parts.length > 1 ? parts[1] : portId;
+          const count: number = outputMetrics[numericSuffix] ?? 0;
+          element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
+        }
+      });
+    }
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -1016,7 +1022,7 @@ export class JointUIService {
         ry: "5px",
       },
       image: {
-        "xlink:href": "assets/operator_images/icons8-chat_bubble.png",
+        "xlink:href": "assets/operator_images/comment-bubble.png",
         width: 32,
         height: 32,
         "ref-x": 0.5,

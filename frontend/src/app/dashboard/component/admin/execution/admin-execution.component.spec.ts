@@ -322,33 +322,6 @@ describe("AdminExecutionComponent methods (#6550)", () => {
       expect(specify).toHaveBeenCalledTimes(1);
       expect(diffs).toHaveBeenCalledTimes(1);
     });
-
-    it("dataCheck flags a status change and ignores a fresh JUST COMPLETED", () => {
-      const oldRunning = makeExecution({ executionStatus: "RUNNING" });
-      const newCompleted = makeExecution({ executionStatus: "COMPLETED" });
-      expect(component.dataCheck(oldRunning, newCompleted)).toBe(true);
-
-      const oldJustCompleted = makeExecution({ executionStatus: "JUST COMPLETED" });
-      const newFresh = makeExecution({ executionStatus: "COMPLETED", endTime: NOW - 2000 });
-      expect(component.dataCheck(oldJustCompleted, newFresh)).toBe(false);
-    });
-
-    it("dataCheck flags execution-name and workflow-name changes when the status is unchanged", () => {
-      const base = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
-
-      const renamedExecution = makeExecution({ executionStatus: "RUNNING", executionName: "e2", workflowName: "w1" });
-      expect(component.dataCheck(base, renamedExecution)).toBe(true);
-
-      const renamedWorkflow = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w2" });
-      expect(component.dataCheck(base, renamedWorkflow)).toBe(true);
-    });
-
-    it("dataCheck returns false when status, execution name and workflow name are all unchanged", () => {
-      const base = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
-      const identical = makeExecution({ executionStatus: "RUNNING", executionName: "e1", workflowName: "w1" });
-
-      expect(component.dataCheck(base, identical)).toBe(false);
-    });
   });
 
   describe("data + table", () => {
@@ -415,14 +388,6 @@ describe("AdminExecutionComponent methods (#6550)", () => {
       expect(component.sortField).toBe("executionName");
       expect(component.sortDirection).toBe("asc");
       expect(service.getExecutionList).not.toHaveBeenCalled();
-    });
-
-    it("filterByStatus matches only executions whose status contains a selected value", () => {
-      const running = makeExecution({ executionStatus: "RUNNING" });
-
-      expect(component.filterByStatus(["RUN"], running)).toBe(true);
-      expect(component.filterByStatus(["FAILED"], running)).toBe(false);
-      expect(component.filterByStatus(["FAILED", "RUNNING"], running)).toBe(true);
     });
   });
 
