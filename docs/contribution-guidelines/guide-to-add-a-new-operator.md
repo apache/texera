@@ -135,8 +135,13 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   characters than Scala's `linesIterator`, U+2028 among them, so one row in the engine
   became two in the script. Split on what the executor splits on.
 - A nullable DOUBLE can reach the fragment as pandas `Float64`, where a stored NaN and a null
-  are two values. The Arrow and Parquet sources load one that way. The engine orders NaN
-  with `Double.compare`, above every number, so a MAX over a column holding one is NaN.
+  are two values. The Arrow and Parquet sources load one that way. The engine keeps them
+  apart as well: a cast writes the NaN as `NaN`, and `Double.compare` orders it above every
+  number, so a MAX over a column holding one is NaN.
+  Take the nulls from the column itself, with `s.isna()`, which reads its mask. `map` and
+  `apply` hand a null to the function as NaN, and `pd.isna` on a single value calls a stored
+  NaN null. In the other direction, `s.notna()` counts a stored NaN as present, so where the
+  question is whether there is a number to use, as before `pd.cut`, ask a `float64` view.
   Fold such a column the way the executor folds it. pandas' reductions turn the NaN into a
   null or skip it, depending on the call: `max` over the column gives null, the same `max`
   per group gives the largest number.
