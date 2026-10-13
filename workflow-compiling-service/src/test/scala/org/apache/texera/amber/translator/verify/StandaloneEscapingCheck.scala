@@ -140,7 +140,7 @@ object StandaloneEscapingCheck {
       dir,
       "parse_all.py",
       """import ast, json, sys
-        |for name, code in json.load(open(sys.argv[1])).items():
+        |for name, code in json.load(open(sys.argv[1], encoding="utf-8")).items():
         |    try:
         |        ast.parse(code)
         |    except SyntaxError as e:
