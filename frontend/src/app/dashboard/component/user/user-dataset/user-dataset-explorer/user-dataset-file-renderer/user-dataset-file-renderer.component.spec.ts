@@ -652,6 +652,38 @@ describe("UserDatasetFileRendererComponent", () => {
       expect(component.tableContent).toEqual([]);
     });
 
+    function loadText(filePath: string): void {
+      vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile").mockReturnValue(
+        of(new Blob(["ignored"], { type: "text/plain" }))
+      );
+      component.resourceId = 1;
+      component.versionId = 2;
+      component.filePath = filePath;
+      component.reloadFileContent();
+    }
+
+    it("does not show a CSV's rows once another file is selected while it is parsing", async () => {
+      outcome = { text: "a,b\n1,2" };
+
+      loadCsv();
+      loadText("notes.txt");
+      await vi.waitFor(() => expect(component.textContent).toBe("a,b\n1,2"));
+
+      expect(component.displayCSV).toBe(false);
+      expect(component.tableDataHeader).toEqual([]);
+    });
+
+    it("does not show a text file's content once another file is selected while it is read", async () => {
+      outcome = { text: "hello" };
+
+      loadText("first.txt");
+      loadCsv();
+      await vi.waitFor(() => expect(component.tableDataHeader).toEqual(["hello"]));
+
+      expect(component.displayPlainText).toBe(false);
+      expect(component.textContent).toBe("");
+    });
+
     it("flags a loading error when the CSV cannot be read", async () => {
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       outcome = { fail: true };

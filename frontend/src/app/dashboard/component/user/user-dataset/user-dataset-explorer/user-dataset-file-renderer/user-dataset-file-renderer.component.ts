@@ -141,6 +141,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   // control flags
   public isLoading: boolean = false;
   private fileLoad?: Subscription;
+  private loadId = 0;
   public isFileSizeUnloadable = false;
   public isFileLoadingError: boolean = false;
   public isFileTypePreviewUnsupported: boolean = false;
@@ -198,6 +199,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   reloadFileContent() {
     this.fileLoad?.unsubscribe();
+    // Parsing finishes after the download, so its callbacks check they still belong to the shown file.
+    const loadId = ++this.loadId;
+    const isCurrent = () => loadId === this.loadId;
     this.turnOffAllDisplay();
 
     // Pre-check - file size
@@ -255,6 +259,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
               case MIME_TYPES.MSEXCEL:
                 readXlsxFile(blob).then(rows => {
+                  if (!isCurrent()) return;
                   let parsedData: string[][] = [];
                   rows.forEach(row => {
                     // Convert each cell in the row to a string
@@ -273,11 +278,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 // Handle CSV display
                 Papa.parse(this.currentFile, {
                   complete: (results: ParseResult<any>) => {
+                    if (!isCurrent()) return;
                     if (results.data.length > 0) {
                       this.loadTabularFile(results.data);
                     }
                   },
                   error: error => {
+                    if (!isCurrent()) return;
                     console.error("Error parsing file:", error);
                     this.onFileLoadingError();
                   },
@@ -285,16 +292,16 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 break;
               case MIME_TYPES.MD:
                 this.displayMarkdown = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.JSON:
                 this.displayJson = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.TXT:
               default:
                 this.displayPlainText = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
             }
           },
@@ -344,10 +351,12 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
-  private readFileAsText(blob: Blob) {
+  private readFileAsText(blob: Blob, isCurrent: () => boolean = () => true) {
     const txtReader = new FileReader();
     txtReader.onload = (event: any) => {
-      this.textContent = event.target.result;
+      if (isCurrent()) {
+        this.textContent = event.target.result;
+      }
     };
     txtReader.readAsText(blob);
   }
