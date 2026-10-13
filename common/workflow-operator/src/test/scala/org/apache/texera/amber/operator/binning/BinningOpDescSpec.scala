@@ -176,7 +176,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       |    {"age": pa.array([float("nan"), float("nan")], type=pa.float64(), from_pandas=False)}
       |).to_pandas(types_mapper={pa.float64(): pd.Float64Dtype()}.get)
       |
-      |code = open(sys.argv[1]).read()
+      |code = open(sys.argv[1], encoding="utf-8").read()
       |cases = {
       |    "allnull": pd.DataFrame({"age": pd.Series([None, None], dtype="float64")}),
       |    "storednan": storednan,
