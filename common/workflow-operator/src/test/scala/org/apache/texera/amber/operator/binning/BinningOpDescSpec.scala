@@ -106,7 +106,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
   // raises rather than handing back empty bins. Both renderings skip the cut, which
   // leaves the holes for the suffix to turn into the empty labels they already are.
   it should "leave a column with nothing in it uncut" in {
-    val guard = "if _binned.notna().any():"
+    val guard = """if _binned.astype("float64").notna().any():"""
     desc().generateStandaloneCode() should include(guard)
     desc().generatePythonCode() should include(guard)
   }
@@ -168,10 +168,18 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
   private val runtimeDriverScript: String =
     """import sys
       |import pandas as pd
+      |import pyarrow as pa
+      |
+      |# NaN stored as a value in a nullable Float64 column, as the Arrow reader
+      |# leaves it, where `notna()` reports it present.
+      |storednan = pa.table(
+      |    {"age": pa.array([float("nan"), float("nan")], type=pa.float64(), from_pandas=False)}
+      |).to_pandas(types_mapper={pa.float64(): pd.Float64Dtype()}.get)
       |
       |code = open(sys.argv[1]).read()
       |cases = {
       |    "allnull": pd.DataFrame({"age": pd.Series([None, None], dtype="float64")}),
+      |    "storednan": storednan,
       |    "empty": pd.DataFrame({"age": pd.Series([], dtype="float64")}),
       |    "mixed": pd.DataFrame({"age": pd.Series([1.0, 2.0, None])}),
       |}
@@ -220,6 +228,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
             .toMap
           verdicts shouldBe Map(
             "allnull" -> "OK:2:0", // two rows, neither of them in a bin
+            "storednan" -> "OK:2:0", // NaN is no more placeable than a hole
             "empty" -> "OK:0:0", // no rows to put in one
             "mixed" -> "OK:3:2" // the hole is the only row left unlabelled
           )

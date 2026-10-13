@@ -118,7 +118,9 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
     // The guard is there because edges cannot be found in a column that holds
     // nothing: an equal-width cut raises both when every cell is empty and when
     // no row arrived at all. Leaving those values uncut keeps the holes, and the
-    // suffix turns them into the empty bins they already are.
+    // suffix turns them into the empty bins they already are. The test runs on a
+    // float64 view because a nullable Float64 column can store NaN, which
+    // `notna()` counts as a value there but the cut still cannot place.
     pyb"""from pytexera import *
        |import pandas as pd
        |
@@ -129,7 +131,7 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |        out = table.copy()
        |        _column = $attribute
        |        _binned = out[_column]
-       |        if _binned.notna().any():
+       |        if _binned.astype("float64").notna().any():
        |            _binned = ${cut}(_binned, ${args})
        |        out[_column + "_bin"] = _binned${suffix}
        |        yield out""".encode
@@ -140,7 +142,7 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
     val result = pyStringLiteral(resultColumn)
     s"""out1df = in1df.copy()
        |_binned = out1df[$column]
-       |if _binned.notna().any():
+       |if _binned.astype("float64").notna().any():
        |    _binned = $cutName(_binned, $cutArgs)
        |out1df[$result] = _binned$labelSuffix""".stripMargin
   }
