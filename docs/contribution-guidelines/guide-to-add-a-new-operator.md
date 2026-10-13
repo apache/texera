@@ -131,6 +131,15 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   Java's `toString` writes it. Call `_texera_text_to_timestamp` and `_texera_java_text` from
   `StandaloneHelpers.AttributeCasts` rather than `pd.to_datetime` or `str()`, which keep
   nanoseconds, stop at 2262, and write `1e+20` where Java writes `1.0E20`.
+- Python's string defaults are not Java's either. `splitlines` ends a line at eight more
+  characters than Scala's `linesIterator`, U+2028 among them, so one row in the engine
+  became two in the script. Split on what the executor splits on.
+- A nullable DOUBLE can reach the fragment as pandas `Float64`, where a stored NaN and a null
+  are two values. The Arrow and Parquet sources load one that way. The engine orders NaN
+  with `Double.compare`, above every number, so a MAX over a column holding one is NaN.
+  Fold such a column the way the executor folds it. pandas' reductions turn the NaN into a
+  null or skip it, depending on the call: `max` over the column gives null, the same `max`
+  per group gives the largest number.
 - The fragment answers the same inputs the operator answers. A guard, the page it writes, and
   any number it computes have to match on both sides. One path refusing a table the other
   draws is a divergence the verification will not catch, because it only compares runs that
@@ -153,7 +162,9 @@ reference, and as the generated script. The outputs are compared per port, by da
 - Some differences never reach the comparison. The script reads a DOUBLE column as
   `float64`, so a null and a NaN arrive as one value. CI runs in UTC, so a zone offset
   cannot show. A table file carries one timestamp resolution. Test these in the operator's
-  own spec, by running the fragment on a frame built in Python.
+  own spec: run the executor and the fragment on the same rows and compare the two, as
+  `AggregateOpDescSpec` and `TextInputSourceOpDescSpec` do, rather than holding the
+  fragment to an expected value.
 - Two assertions read the generated code instead of running it, for what no single run can
   ask: a write to an input frame, and every column knob hostile at once.
 
@@ -242,6 +253,8 @@ canonical table. What you owe depends on which of four cases it falls in.
   `fileTypeName` the descriptor declares.
 - **A source that is not a scan source**, such as a SQL or an API source. Write a
   `SourceHandler`: a generic fixture cannot supply the database or the endpoint it reads.
+  A scan source whose output is not the shared table needs one too, the way
+  `FileScanSourceOpDesc`, which emits a single `line` column, has `FileScanSourceHandler`.
 - **A source that cannot be verified at all.** Add a `knownIssues` row with the reason, the
   way `FileScanOpDesc` (its filenames arrive on an input port) and `URLFetcherOpDesc` (it
   fetches over the network) do.
