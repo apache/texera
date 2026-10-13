@@ -174,20 +174,35 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // A double column read from Arrow into a nullable float keeps a stored NaN and
-  // an empty cell apart, and the engine writes them as "NaN" and null. The
-  // infinities and signed zero ride along as values that already agreed.
+  // an empty cell apart. The engine casts a NaN like any other double: "NaN" as
+  // text, 0 as an integer, true as a boolean. The infinities and 3e9 sit past
+  // the integer bounds, which a Double's toInt and toLong saturate at.
   private val doubleCases: Seq[java.lang.Double] =
-    Seq(Double.NaN, null, 1.0, Double.PositiveInfinity, Double.NegativeInfinity, -0.0)
+    Seq(
+      Double.NaN,
+      null,
+      1.0,
+      -2.7,
+      3.0e9,
+      Double.PositiveInfinity,
+      Double.NegativeInfinity,
+      -0.0
+    )
 
-  it should "write a stored NaN as text the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
+  private val doubleTargets =
+    Seq(AttributeType.STRING, AttributeType.INTEGER, AttributeType.LONG, AttributeType.BOOLEAN)
+
+  it should "cast a stored NaN the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
+    // One column per target, each holding the same doubles.
+    val columns = doubleTargets.map(_.name().toLowerCase)
     val op = new TypeCastingOpDesc
-    op.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
-    val input = Schema().add(new Attribute("v", AttributeType.DOUBLE))
+    op.typeCastingUnits = doubleTargets.zip(columns).map { case (to, c) => castUnit(c, to) }.toList
+    val input = columns.foldLeft(Schema())((s, c) => s.add(new Attribute(c, AttributeType.DOUBLE)))
     val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
 
     val values = doubleCases
@@ -207,15 +222,21 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |${op.standaloneHelpers().mkString("\n\n")}
          |
          |
-         |_table = pa.table({"v": pa.array($values, pa.float64())})
+         |_columns = ${columns.map("\"" + _ + "\"").mkString("[", ", ", "]")}
+         |_table = pa.table({c: pa.array($values, pa.float64()) for c in _columns})
          |in1df = _table.to_pandas(types_mapper={pa.float64(): pd.Float64Dtype()}.get)
          |$generated
          |
-         |for answer in out1df["v"]:
-         |    print("cell", "null" if answer is None else answer)
+         |for c in _columns:
+         |    for answer in out1df[c]:
+         |        if answer is None or answer is pd.NA:
+         |            answer = "null"
+         |        elif pd.api.types.is_bool(answer):
+         |            answer = str(answer).lower()
+         |        print("cell", c, answer)
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-double-text-", ".py")
+    val script = Files.createTempFile("typecast-double-nan-", ".py")
     script.toFile.deleteOnExit()
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
@@ -226,9 +247,12 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
 
     val fromScript = cellsOf(out)
-    val fromEngine = doubleCases.map(v => engineAnswer(v, AttributeType.STRING))
+    val fromEngine = doubleTargets.zip(columns).flatMap {
+      case (to, c) => doubleCases.map(v => s"$c ${engineAnswer(v, to)}")
+    }
     withClue(s"script said $fromScript\n") { fromScript shouldBe fromEngine }
-    fromEngine.take(2) shouldBe Seq("NaN", "null")
+    // The stored NaN in each column, which the script used to empty.
+    doubleTargets.map(to => engineAnswer(Double.NaN, to)) shouldBe Seq("NaN", "0", "0", "true")
   }
 
   // The moments where the two sides used to part. pandas parses into nanoseconds

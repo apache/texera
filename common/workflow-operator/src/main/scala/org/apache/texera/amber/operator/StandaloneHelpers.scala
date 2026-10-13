@@ -82,11 +82,24 @@ object StandaloneHelpers {
       |    return float(value), True
       |
       |
+      |def _texera_saturate(value, low, high):
+      |    # A Double's toInt and toLong: NaN is 0, anything past the bounds is
+      |    # the nearest bound, the infinities included, and the rest truncates
+      |    # toward zero. Python's int() raises on the first two.
+      |    if value != value:
+      |        return 0
+      |    if value <= low:
+      |        return low
+      |    if value >= high:
+      |        return high
+      |    return int(value)
+      |
+      |
       |def _texera_long_value(value, is_double):
-      |    # Number.longValue(): a Double truncates toward zero and saturates at
-      |    # long's bounds, where a Long is already itself.
+      |    # Number.longValue(): a Double saturates at long's bounds, where a Long
+      |    # is already itself.
       |    if is_double:
-      |        return max(-(2 ** 63), min(2 ** 63 - 1, int(value)))
+      |        return _texera_saturate(value, -(2 ** 63), 2 ** 63 - 1)
       |    return value
       |
       |
@@ -115,11 +128,10 @@ object StandaloneHelpers {
       |    elif isinstance(x, bool):
       |        value = 1 if x else 0
       |    else:
-      |        value = int(x)
+      |        value = x
       |    if wrap:
-      |        return ((value + 2147483648) % 4294967296) - 2147483648
-      |    # int() first: Double.intValue truncates toward zero before it clamps.
-      |    return max(-2147483648, min(2147483647, int(value)))
+      |        return ((int(value) + 2147483648) % 4294967296) - 2147483648
+      |    return _texera_saturate(value, -2147483648, 2147483647)
       |
       |
       |def _texera_text_to_timestamp(s):
@@ -235,14 +247,18 @@ object StandaloneHelpers {
       |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
       |    if pd.api.types.is_integer_dtype(s):
       |        return s.map(lambda x: None if pd.isna(x) else str(int(x)))
-      |    #
-      |    # The column's own mask says which cells are empty, not each value: a
-      |    # nullable float column holds NaN as a value, and `Series.map` hands
-      |    # its holes over as NaN too, so asking the value empties a stored NaN
-      |    # the engine writes as "NaN".
+      |    return _texera_cast_cells(s, _texera_java_text, None)
+      |
+      |
+      |def _texera_cast_cells(s, cast, hole):
+      |    # Each cell through `cast`, and `hole` where the cell is empty. The
+      |    # column's own mask says which cells are empty, not each value: a
+      |    # nullable float column holds NaN as a value, and `Series.map` and
+      |    # `Series.apply` hand its holes over as NaN too, so asking the value
+      |    # empties a stored NaN the engine casts like any other double.
       |    holes = s.isna().to_numpy()
       |    return pd.Series(
-      |        [None if hole else _texera_java_text(x) for x, hole in zip(s, holes)],
+      |        [hole if empty else cast(x) for x, empty in zip(s, holes)],
       |        index=s.index,
       |        name=s.name,
       |        dtype=object,
