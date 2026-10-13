@@ -161,7 +161,9 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
       |import pandas as pd
       |import plotly.graph_objects as go
       |
-      |source = pathlib.Path(sys.argv[1]).read_text()
+      |# The module and the page are both UTF-8, which Windows does not read by
+      |# default.
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
       |
       |cases = {
       |    "good": pd.DataFrame({"ax": [1.0, 2.0], "bx": [1.0, 2.0], "yx": [3.0, 4.0]}),
@@ -183,7 +185,7 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
       |    exec(compile(source, "standalone", "exec"), scope)
       |    # An answer page is the whole file and opens with the heading, where a
       |    # chart is a plotly document that happens to contain any wording.
-      |    page = pathlib.Path(scope["outputHtml"]).read_text().strip()
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8").strip()
       |    if not page.startswith("<h3>"):
       |        verdict = "CHART"
       |    elif page.startswith("<h3>Column '"):

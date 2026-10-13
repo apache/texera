@@ -457,7 +457,9 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |import pandas as pd
       |import plotly.express as px
       |
-      |source = pathlib.Path(sys.argv[1]).read_text()
+      |# The module and the page are both UTF-8, which Windows does not read by
+      |# default.
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
       |
       |for disjoint in (7, 8):
       |    rows = []
@@ -474,7 +476,7 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |        "px": px,
       |    }
       |    exec(compile(source, "standalone", "exec"), scope)
-      |    page = pathlib.Path(scope["outputHtml"]).read_text()
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
       |    verdict = "FALLBACK" if "not shared across all line groups" in page else "CHART"
       |    print("CASE %d %s" % (disjoint, verdict))
       |""".stripMargin
