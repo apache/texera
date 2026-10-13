@@ -48,11 +48,16 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
   )
 
   "the harness" should "keep runnable every operator it must be able to run" in {
-    val flagged = OperatorBehaviorSpec
+    val discovered = OperatorBehaviorSpec
       .discoverStandaloneOperators()
       .filter(opClass => mustRun.contains(opClass.getSimpleName))
-      .filterNot(runnable)
-      .map(_.getSimpleName)
+    // Losing standalone support drops an operator from discovery, which would
+    // otherwise pass the runnable check below without it ever being asked.
+    val missing = mustRun -- discovered.map(_.getSimpleName)
+    withClue(s"must-run operators no longer discovered: $missing") {
+      missing shouldBe empty
+    }
+    val flagged = discovered.filterNot(runnable).map(_.getSimpleName)
     withClue(s"must-run operators no longer runnable: $flagged") {
       flagged shouldBe empty
     }
