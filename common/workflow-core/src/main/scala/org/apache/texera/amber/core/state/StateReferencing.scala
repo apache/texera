@@ -23,8 +23,10 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
+import scala.util.Try
 
 /**
   * A descriptor whose properties may refer to loop variables.
@@ -32,8 +34,9 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   * Inside a loop block (LoopStart ... LoopEnd) a property whose WHOLE value is `$K` refers to the
   * loop variable `K`, which reaches the operator in the iteration's state message. The
   * `stateReferences` sidecar maps each such property's JSON pointer to the variable name: the
-  * parse records the typed ones (`StateReferenceModule`), the compiler adds the string ones
-  * (`WorkflowCompiler.normalizeStateReferences`), and the worker writes the variables there
+  * parse records the typed ones (`StateReferenceModule`), the compiler adds the string ones and
+  * rejects one in a property that cannot hold a loop variable (`NoLoopVariable`,
+  * `WorkflowCompiler.normalizeStateReferences`), and the worker writes the variables there
   * (`OperatorExecutor.registerState`). The property panel never shows it.
   */
 trait StateReferencing {
@@ -56,6 +59,36 @@ object StateReferencing {
       case ReferencePattern(name) => Some(name)
       case _                      => None
     }
+
+  /**
+    * The JSON names of `descriptorClass`'s properties marked `NoLoopVariable`, a trait's or a
+    * superclass's included. The one list behind both the compiler's check
+    * (`noLoopVariableReferences`) and the `noLoopVariable` keyword of the operator's schema
+    * (`OperatorMetadataGenerator.generateOperatorJsonSchema`), so the two cannot drift apart.
+    */
+  def noLoopVariableProperties(descriptorClass: Class[_]): Set[String] =
+    objectMapper.getSerializationConfig
+      .introspect(objectMapper.constructType(descriptorClass))
+      .findProperties()
+      .asScala
+      .filter(property =>
+        Option(property.getField).exists(_.hasAnnotation(classOf[NoLoopVariable]))
+      )
+      .map(_.getName)
+      .toSet
+
+  /**
+    * The entries of `descriptor`'s sidecar that fall under a property marked `NoLoopVariable`,
+    * however deep: the plan is built from that property before the loop runs, so nothing binds
+    * them.
+    */
+  def noLoopVariableReferences(descriptor: StateReferencing): Map[String, String] = {
+    val marked = noLoopVariableProperties(descriptor.getClass)
+    descriptor.stateReferences.filter {
+      case (pointer, _) =>
+        Try(JsonPointer.compile(pointer).getMatchingProperty).toOption.exists(marked.contains)
+    }
+  }
 
   /** Every whole-string `$name` value of `tree` outside its sidecar: its JSON pointer -> name. */
   def literalReferences(tree: ObjectNode): Map[String, String] = {
