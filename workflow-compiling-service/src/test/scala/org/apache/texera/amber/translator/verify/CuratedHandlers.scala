@@ -996,19 +996,28 @@ private object FittedModelFixture {
       columns,
       scored.getOrElse(rows)
     )
-    val fit =
-      s"""import base64, pickle, sys
+    // The script goes in a file and the target in the environment: Windows
+    // rebuilds argv from one command line, dropping the quotes inside an argument.
+    val fit = Files.writeString(
+      dir.resolve("fit.py"),
+      s"""import base64, os, pickle, sys
          |import pandas as pd
          |from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+         |target = os.environ["FIXTURE_TARGET"]
          |table = pd.read_json(sys.argv[1], lines=True).iloc[:-1]
-         |X = table.drop(sys.argv[2], axis=1).select_dtypes("number")
+         |X = table.drop(target, axis=1).select_dtypes("number")
          |for estimator in [${estimators.mkString(", ")}]:
-         |    fitted = estimator.fit(X, table[sys.argv[2]])
+         |    fitted = estimator.fit(X, table[target])
          |    print(base64.b64encode(b"pickle    " + pickle.dumps(fitted)).decode("ascii"))
          |""".stripMargin
+    )
     val out = new java.io.ByteArrayOutputStream()
     val exit = scala.sys.process
-      .Process(Seq(PyOpExecHarness.resolvePython(), "-c", fit, fitData.toString, target))
+      .Process(
+        Seq(PyOpExecHarness.resolvePython(), fit.toString, fitData.toString),
+        None,
+        "FIXTURE_TARGET" -> target
+      )
       .#>(out)
       .!
     require(exit == 0, s"fitting the fixture's ${estimators.mkString(", ")} exited with $exit")
