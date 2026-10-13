@@ -219,10 +219,10 @@ class InputManagerSpec extends AnyFlatSpec {
   // isPortCompleted — materialized path
   // ---------------------------------------------------------------------------
   //
-  // A port read from materialization is fed by a reader thread that enqueues END_CHANNEL and only
-  // then flags itself `finished`. The DP thread may process that END before the flag flips, so
-  // the port is completed when END has been processed (`WorkerPort.completed`, set by
-  // EndChannelHandler), whatever the reader thread reports.
+  // A port read from materialization is fed by a reader thread that enqueues END_CHANNEL. The DP
+  // thread may process that END before the thread returns, and the thread may return while END is
+  // still queued, so the port is completed when END has been processed (`WorkerPort.completed`,
+  // set by EndChannelHandler), whatever state the reader thread is in.
 
   private val materializedUri = new URI("file:///nowhere")
 
@@ -230,30 +230,31 @@ class InputManagerSpec extends AnyFlatSpec {
     BroadcastPartitioning(batchSize = 1, channels = Seq(channelId("upstream", "worker-1")))
 
   "InputManager.isPortCompleted (materialized)" should
-    "be true once END has been processed, before the reader thread flags itself finished" in {
+    "be true once END has been processed, before the reader thread has returned" in {
     val mgr = freshManager
     val portId = PortIdentity(0)
     mgr.addPort(portId, schema, List(materializedUri), List(broadcastToSelf))
     val reader = mgr.getInputPortReaderThreads(portId).head
     assert(!mgr.isPortCompleted(portId))
 
-    // What EndChannelHandler does on END; the reader thread has not set its flag yet.
+    // What EndChannelHandler does on END, while the reader thread has not even started.
     mgr.getPort(portId).completed = true
 
-    assert(!reader.finished)
+    assert(reader.getState == Thread.State.NEW)
     assert(mgr.isPortCompleted(portId))
   }
 
-  it should "be false while END is still queued, even after the reader thread flags itself finished" in {
+  it should "be false while END is still queued, even after the reader thread has returned" in {
     val mgr = freshManager
     val portId = PortIdentity(0)
     mgr.addPort(portId, schema, List.empty, List.empty)
-    val finishedReader = new NoOpReaderThread {
-      override def finished: Boolean = true
-    }
-    installReaderThreads(mgr, portId, List(finishedReader))
+    val returnedReader = new NoOpReaderThread
+    returnedReader.start()
+    returnedReader.join()
+    installReaderThreads(mgr, portId, List(returnedReader))
 
     // The reader enqueued END and returned, but the DP thread has not processed END yet.
+    assert(returnedReader.getState == Thread.State.TERMINATED)
     assert(!mgr.isPortCompleted(portId))
   }
 

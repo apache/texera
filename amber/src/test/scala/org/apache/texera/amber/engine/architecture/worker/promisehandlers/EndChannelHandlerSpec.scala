@@ -93,9 +93,9 @@ import scala.util.control.ControlThrowable
   * other input port is still open must NOT finalize its output, or the downstream region would
   * see the executor finish while data is still arriving on the second port. The fixture pins that
   * `forall`. A port fed from materialization is completed the same way, by the END this handler
-  * processes: its reader thread flags itself `finished` only after enqueuing that END, so the
-  * fixture can register such a port with a reader thread that never starts and still expect the
-  * output to be finalized.
+  * processes, whatever its reader thread has done since enqueuing that END, so the fixture can
+  * register such a port with a reader thread that never starts and still expect the output to be
+  * finalized.
   *
   * `produceStateOnFinish` has no override in main today — `OperatorExecutor` returns `None` for
   * every port — so the "operator produced a state" arm is reachable only through a test executor.
@@ -145,7 +145,7 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     *                                  being ended is the last one open.
     * @param currentPortMaterialized   whether the ended port is read from materialization, by a
     *                                  reader thread that is never started here, so it has not
-    *                                  flagged itself finished when END is processed.
+    *                                  returned when END is processed.
     */
   private class Fixture(
       executor: OperatorExecutor,
@@ -443,15 +443,15 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     assert(executor.calls.map(c => (c._1, c._2)) == Seq(("state", 3), ("finish", 3)))
   }
 
-  it should "finalize the output when the last input port is read from materialization, before its reader thread flags itself finished" in {
+  it should "finalize the output when the last input port is read from materialization, before its reader thread has returned" in {
     val fixture = new Fixture(new RecordingExecutor(), currentPortMaterialized = true)
     val reader = fixture.dp.inputManager.getInputPortReaderThreads(currentPortId).head
 
     fixture.endChannel()
 
-    // The reader thread enqueues END and only then sets its flag, so the DP thread can get here
-    // first. Leaving the output unfinalized then would hang the region: nothing ends it later.
-    assert(!reader.finished)
+    // The DP thread can process END before the reader thread that enqueued it returns. Leaving
+    // the output unfinalized then would hang the region: nothing ends it later.
+    assert(reader.getState == Thread.State.NEW)
     assert(
       fixture.drainOutput() == List(
         FinalizePort(currentPortId, input = true),

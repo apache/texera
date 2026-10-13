@@ -117,9 +117,8 @@ class InputManager(
 
   /**
     * Whether END_CHANNEL has been processed on every channel of the port (`EndChannelHandler` then
-    * marks it completed), for a port read from materialization as well. Its reader thread flags
-    * itself finished only after enqueuing END, so the DP thread can process END before the flag is
-    * set, and the flag can be set while END is still queued.
+    * marks it completed), for a port read from materialization as well: what its reader thread has
+    * done says nothing about whether the DP thread has processed the END it enqueued.
     */
   def isPortCompleted(portId: PortIdentity): Boolean = this.getPort(portId).completed
 
