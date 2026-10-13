@@ -73,11 +73,19 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
     // the footer states and knows nothing of an index, so it hands `customer_id`
     // on like any other. Stripped, pandas reads every column the file holds,
     // under the name the footer gives it and in the order it states them.
+    //
+    // An INT96 timestamp is read in microseconds, in the footer and in the rows
+    // alike. pyarrow's default is nanoseconds, which only reach 1677 to 2262, and
+    // a date outside them wraps silently: 2500 read back as 1915. The executor
+    // keeps the digits under the microsecond, which this drops.
     val read =
       s"""|out1df = pd.read_parquet(
           |    $SourceFilePlaceholder,
           |    dtype_backend="numpy_nullable",
-          |    schema=pq.read_schema($SourceFilePlaceholder).remove_metadata(),
+          |    schema=pq.ParquetFile(
+          |        $SourceFilePlaceholder, coerce_int96_timestamp_unit="us"
+          |    ).schema_arrow.remove_metadata(),
+          |    coerce_int96_timestamp_unit="us",
           |)""".stripMargin
     // The columns pandas does not land on the same value as the executor. A
     // DECIMAL arrives as decimal.Decimal objects and a FLOAT keeps the single

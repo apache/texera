@@ -45,8 +45,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.sql.Timestamp
-import java.time.temporal.ChronoUnit
-import java.time.{Instant, LocalDateTime, ZoneOffset}
+import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
@@ -496,9 +495,19 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new ParquetScanSourceOpDesc
     d.fileName = Some("file:///tmp/data.parquet")
     d.standaloneImports() should contain("import pyarrow.parquet as pq")
-    d.generateStandaloneCode() should include(
-      "schema=pq.read_schema(sourceFile).remove_metadata()"
-    )
+    d.generateStandaloneCode() should include(".schema_arrow.remove_metadata()")
+  }
+
+  // pyarrow reads an INT96 in nanoseconds by default, which only reach 1677 to
+  // 2262, and a date outside them wraps silently. The footer is asked for
+  // microseconds as well as the rows, since a schema stating nanoseconds wins.
+  it should "read a twelve-byte timestamp in microseconds" in {
+    val d = new ParquetScanSourceOpDesc
+    d.fileName = Some("file:///tmp/data.parquet")
+    val code = d.generateStandaloneCode()
+    code should include("""sourceFile, coerce_int96_timestamp_unit="us"""")
+    code should include("""    coerce_int96_timestamp_unit="us",
+                          |)""".stripMargin)
   }
 
   // The rest of what pandas reads differently from the executor: a FLOAT keeps
@@ -626,7 +635,8 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
         row.append("size", 16777216.0f)
         row.append("big", 9007199254740993L) // past what a double counts exactly
         row.append("seen_at", 1709388309123456L)
-        row.append("legacy_at", new NanoTime(2460312, 11045123456789L).toBinary)
+        // In whole microseconds, which is what the script reads an INT96 in.
+        row.append("legacy_at", new NanoTime(2460312, 11045123456000L).toBinary)
         row.append("born_on", 19723) // 2024-01-01
         row.append("tiny", 120)
         row.append("active", true)
@@ -651,6 +661,16 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       // leaves it null.
       row => {
         row.append("label", "carol")
+      },
+      // Dates nanoseconds cannot reach, which read back as 1915 and 2084.
+      // 2500-01-02 03:04:05.123456 and 1500-01-02.
+      row => {
+        row.append("label", "dave")
+        row.append("legacy_at", new NanoTime(2634168, 11045123456000L).toBinary)
+      },
+      row => {
+        row.append("label", "erin")
+        row.append("legacy_at", new NanoTime(2268925, 0L).toBinary)
       }
     )
 
@@ -740,8 +760,10 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   /** A cell as the two sides can be held to the same answer for it. */
   private def comparable(cell: Any): Any =
     cell match {
+      // Counted past a Long, which holds nanoseconds only from 1677 to 2262.
       case moment: Timestamp =>
-        ChronoUnit.NANOS.between(Instant.EPOCH, moment.toLocalDateTime.toInstant(ZoneOffset.UTC))
+        val instant = moment.toLocalDateTime.toInstant(ZoneOffset.UTC)
+        (BigInt(instant.getEpochSecond) * 1000000000L + instant.getNano).bigInteger
       case bytes: Array[Byte] => bytes.map(_ & 0xff).toList
       case other              => other
     }
@@ -761,8 +783,11 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
        |        # executor hands a null over, so that is what it is compared as.
        |        elif _value is None or pd.isna(_value):
        |            _values.append(None)
+       |        # Nanoseconds counted from the microseconds, since `.value` raises
+       |        # on a date nanoseconds cannot reach.
        |        elif hasattr(_value, "isoformat"):
-       |            _values.append(int(_value.value))
+       |            _micros = int(_value.asm8.astype("datetime64[us]").astype("int64"))
+       |            _values.append(_micros * 1000 + _value.nanosecond)
        |        elif hasattr(_value, "item"):
        |            _values.append(_value.item())
        |        else:
