@@ -30,6 +30,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
@@ -37,7 +40,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
     fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestTextFilePath))
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
@@ -188,7 +191,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.setResolvedFileName(
       FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
     )
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -207,6 +210,52 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
+  }
+
+  it should "carry the Encoding field through serialization into the executor" in {
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+
+    // getPhysicalOp hands the executor objectMapper.writeValueAsString(this), and
+    // FileScanSourceOpExec reads the descriptor back out of that string, so the
+    // charset only reaches the executor if it survives the round trip.
+    val roundTripped = objectMapper.readValue(
+      objectMapper.writeValueAsString(fileScanSourceOpDesc),
+      classOf[FileScanSourceOpDesc]
+    )
+
+    assert(roundTripped.encoding == FileDecodingMethod.UTF_16)
+  }
+
+  it should "decode a UTF-16 file with the charset the Encoding field names" in {
+    val utf16File = Files.createTempFile("file-scan-utf16", ".txt")
+    try {
+      Files.write(utf16File, "line1\nline2\nline3".getBytes(StandardCharsets.UTF_16))
+
+      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(utf16File.toString))
+      fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+      fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+
+      val fileScanSourceOpExec =
+        new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+      fileScanSourceOpExec.open()
+      val processedTuple: Iterator[Tuple] = fileScanSourceOpExec
+        .produceTuple()
+        .map(tupleLike =>
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(fileScanSourceOpDesc.sourceSchema())
+        )
+
+      // Decoded as UTF-8 these bytes come back as the byte-order mark followed by
+      // NUL-interleaved characters, so this is the assertion the old wiring failed.
+      assert(processedTuple.next().getField("line").equals("line1"))
+      assert(processedTuple.next().getField("line").equals("line2"))
+      assert(processedTuple.next().getField("line").equals("line3"))
+      assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+      fileScanSourceOpExec.close()
+    } finally {
+      Files.deleteIfExists(utf16File)
+    }
   }
 
   "FileScanSourceOpDesc.getPhysicalOp" should

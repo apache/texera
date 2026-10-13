@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.util
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import io.fabric8.kubernetes.api.model.{Pod, PodBuilder}
 import org.apache.texera.common.config.KubernetesConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -28,11 +28,14 @@ import scala.collection.mutable
 
 class ComputingUnitNodeLocatorSpec extends AnyFlatSpec with Matchers {
 
-  private val mapper = new ObjectMapper()
-  private def pod(json: String): JsonNode = mapper.readTree(json)
+  private def pod(hostIp: Option[String]): Pod = {
+    val status = new PodBuilder().withNewStatus().withPhase("Pending")
+    hostIp.foreach(status.withHostIP)
+    status.endStatus().build()
+  }
 
   private def locator(
-      pods: Map[String, JsonNode],
+      pods: Map[String, Pod],
       asked: mutable.Buffer[String] = mutable.Buffer()
   ): ComputingUnitNodeLocator =
     new ComputingUnitNodeLocator(name => { asked += name; pods.get(name) })
@@ -40,8 +43,7 @@ class ComputingUnitNodeLocatorSpec extends AnyFlatSpec with Matchers {
   private val podName = s"${KubernetesConfig.computeUnitPodNamePrefix}-7"
 
   "nodeIpOf" should "return the host IP of the computing unit's pod" in {
-    locator(Map(podName -> pod("""{"status":{"hostIP":"10.0.0.4"}}"""))).nodeIpOf(7) shouldBe
-      Some("10.0.0.4")
+    locator(Map(podName -> pod(Some("10.0.0.4")))).nodeIpOf(7) shouldBe Some("10.0.0.4")
   }
 
   it should "ask for the pod named by the configured prefix and the cuid" in {
@@ -55,8 +57,9 @@ class ComputingUnitNodeLocatorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "return None while the pod is not scheduled yet" in {
-    locator(Map(podName -> pod("""{"status":{"phase":"Pending"}}"""))).nodeIpOf(7) shouldBe None
-    locator(Map(podName -> pod("""{"status":{"hostIP":""}}"""))).nodeIpOf(7) shouldBe None
+    locator(Map(podName -> pod(None))).nodeIpOf(7) shouldBe None
+    locator(Map(podName -> pod(Some("")))).nodeIpOf(7) shouldBe None
+    locator(Map(podName -> new PodBuilder().build())).nodeIpOf(7) shouldBe None
   }
 
   it should "propagate a lookup failure rather than reporting the unit as unscheduled" in {

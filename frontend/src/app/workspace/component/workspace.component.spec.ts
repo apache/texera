@@ -48,7 +48,7 @@ import { ComputingUnitStatusService } from "../../common/service/computing-unit/
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
-import { USER_WORKSPACE } from "../../app-routing.constant";
+import { USER_WORKSPACE, workspaceFormUrl } from "../../app-routing.constant";
 
 describe("WorkspaceComponent", () => {
   let component: WorkspaceComponent;
@@ -114,8 +114,16 @@ describe("WorkspaceComponent", () => {
       getTexeraGraph: vi.fn().mockReturnValue(stubGraph),
       getWorkflow: vi.fn().mockReturnValue(stubWorkflow),
       getWorkflowMetadata: vi.fn().mockReturnValue({ wid: 42, readonly: false }),
+      // Off by default: most specs open a workflow that is not already live, and so load it.
+      hasWorkflowOpen: vi.fn().mockReturnValue(false),
+      // The room the shared document is in; the hand-over on the way out is keyed on this.
+      getOpenWorkflowId: vi.fn().mockReturnValue(42),
+      // One stub object, so the spy on it is the same one the assertions read.
+      getJointGraphWrapper: vi.fn().mockReturnValue({ setHeatmapView: vi.fn() }),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
+      // As the real one does: the metadata it already holds, re-announced on the same stream.
+      republishWorkflowMetadata: vi.fn(() => metadataChangedSubject.next()),
     };
 
     workflowPersistService = {
@@ -143,14 +151,26 @@ describe("WorkspaceComponent", () => {
     codeEditorService = { vc: undefined };
     messageService = { error: vi.fn() };
 
-    routerMock = { navigate: vi.fn() };
+    // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
+    // navigation in flight, so nothing to hand the session to. `serializeUrl` is the real
+    // router's, turning a UrlTree back into a path; here the tests hand in the path itself.
+    routerMock = {
+      navigate: vi.fn(),
+      getCurrentNavigation: vi.fn().mockReturnValue(null),
+      serializeUrl: (url: unknown) => String(url),
+    };
     locationMock = { go: vi.fn() };
     connectionResetSubject = new Subject<void>();
     computingUnitStatusService = {
       disconnect: vi.fn(),
       getConnectionResetStream: () => connectionResetSubject.asObservable(),
     };
-    executeWorkflowService = { resetExecutionAndWorkers: vi.fn() };
+    executeWorkflowService = {
+      resetExecutionAndWorkers: vi.fn(),
+      // As the real one does: reapplies the lock its current state implies, and says nothing on
+      // the state stream, which carries transitions rather than a current value.
+      reapplyExecutionLock: vi.fn(),
+    };
     workflowConsoleService = { clearConsoleMessages: vi.fn() };
     workflowResultService = { clearResults: vi.fn() };
 
@@ -234,6 +254,53 @@ describe("WorkspaceComponent", () => {
       component.ngAfterViewInit();
       expect(component.isLoading).toBe(true);
       expect(workflowActionService.disableWorkflowModification).toHaveBeenCalled();
+    });
+
+    // The Form View hands this workflow over still live: the same graph, already in the same
+    // co-editing room. Clearing it and fetching it again would undo exactly what was handed over.
+    // Only the lock the Form View put on the graph is lifted, since editing is what a canvas is for.
+    it("attaches to a workflow the Form View handed over, instead of loading it again", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(workflowActionService.resetAsNewWorkflow).not.toHaveBeenCalled();
+      expect(workflowPersistService.retrieveWorkflow).not.toHaveBeenCalled();
+      expect(workflowActionService.setNewSharedModel).not.toHaveBeenCalled();
+      expect(workflowActionService.reloadWorkflow).not.toHaveBeenCalled();
+      expect(component.isLoading).toBe(false);
+      expect(stubGraph.triggerCenterEvent).toHaveBeenCalled();
+    });
+
+    // Not an unconditional unlock: a run may still be in flight, and the execute service reapplies
+    // its state-to-lock rule only when the state changes, so unlocking outright here left a running
+    // workflow editable until its run happened to end.
+    it("asks the execute service to reapply its lock rather than unlocking the graph outright", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(executeWorkflowService.reapplyExecutionLock).toHaveBeenCalled();
+      expect(workflowActionService.enableWorkflowModification).not.toHaveBeenCalled();
+    });
+
+    // This page is new and so is everything on it, but the metadata was set by the view that was
+    // here before, and the stream carrying it does not replay. Everything that shows the workflow
+    // -- the menu's name and id, the computing unit picker, this page's own write access -- would
+    // otherwise sit at its initial value until some later edit happened to save.
+    it("re-announces the metadata for the subscribers this page has only just mounted", async () => {
+      await createFixture(configureRoute({ id: "42" }));
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+      expect(component.writeAccess).toBe(false);
+
+      component.ngOnInit();
+      component.ngAfterViewInit();
+
+      expect(component.writeAccess).toBe(true);
     });
   });
 
@@ -495,6 +562,99 @@ describe("WorkspaceComponent", () => {
       expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
       expect(workflowConsoleService.clearConsoleMessages).toHaveBeenCalled();
       expect(workflowResultService.clearResults).toHaveBeenCalled();
+    });
+
+    // Leaving the document (a refresh, a closed tab, a URL typed over this one) fires beforeunload,
+    // and the browser may then keep the document in its back/forward cache instead of discarding
+    // it. The Form View switch used to be such a navigation and routes now. Coming back restores the JavaScript
+    // state as it was left and re-runs nothing, so anything torn down here stays torn down: the
+    // graph came back empty, the workflow id came back as the default, and the still-subscribed
+    // autosave then wrote that default out as a new, blank workflow (issue #8599).
+    // Dispatching the DOM event, rather than calling the handler, is what would catch the host
+    // binding being removed or miswired.
+    it("saves on beforeunload and tears nothing down, so a page restored from the cache still works", async () => {
+      await createFixture();
+      fixture.detectChanges();
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    // Handing the workflow to its own Form View is not leaving it. The session below the two
+    // views -- the shared document and its room, the computing unit, the running execution --
+    // is the same one, and dropping it here would cost the Form View a reconnect for nothing.
+    it("keeps the session when this workflow's Form View takes over", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
+      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
+      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
+      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
+    });
+
+    it("skips even the save on beforeunload when the user is not signed in", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      userService.isLogin.mockReturnValue(false);
+
+      component.onBeforeUnload();
+
+      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
+    });
+
+    // A workflow created in this session has an id in its metadata after the first autosave, but
+    // its shared document stayed in the private room it was seeded with. Keyed on the metadata,
+    // this side handed such a workflow over while the arriving side, keyed on the room, declined
+    // it and reloaded -- so both key on the room, and this one is rebuilt on its first switch.
+    it("tears it down when the document is in no workflow's room, even bound for this one's form", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+    });
+
+    // The heat-map overlay's view lives in the root-provided wrapper. It used to be reset by the
+    // editor on destroy, which the switch turned into "off again on every switch", after the
+    // arriving menu had just restored it (#8552). It goes with the metrics now: reset on leaving,
+    // kept on a hand-over.
+    it("resets the heat-map view on leaving and keeps it on a hand-over", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
+
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
+      component.ngOnDestroy();
+      expect(setHeatmapView).not.toHaveBeenCalled();
+
+      routerMock.getCurrentNavigation.mockReturnValue(null);
+      component.ngOnDestroy();
+      expect(setHeatmapView).toHaveBeenCalledWith(null);
+    });
+
+    it("tears it down when the destination is another workflow's Form View", async () => {
+      await createFixture();
+      fixture.detectChanges();
+      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(43) });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
+      expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
     });
 
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {

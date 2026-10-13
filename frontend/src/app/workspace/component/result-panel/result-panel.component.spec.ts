@@ -113,6 +113,19 @@ describe("ResultPanelComponent", () => {
 
   it("should create", () => expect(component).toBeTruthy());
 
+  // Every other re-render waits for an event, and none follows a hand-over between a workflow's
+  // two views: the highlight and the results are kept in root-provided services, so a panel
+  // mounted on top of them would come up empty beside an operator still shown selected.
+  it("renders what is already there once on init, without waiting for an event", () => {
+    const rerender = vi.spyOn(ResultPanelComponent.prototype, "rerenderResultPanel");
+
+    const fresh = TestBed.createComponent(ResultPanelComponent);
+    fresh.detectChanges();
+
+    expect(rerender).toHaveBeenCalledTimes(1);
+    fresh.destroy();
+  });
+
   it("should show nothing by default", () => {
     expect(component.frameComponentConfigs.size).toBe(0);
   });

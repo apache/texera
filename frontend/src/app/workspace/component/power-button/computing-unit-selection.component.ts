@@ -33,6 +33,7 @@ import { WarehouseActionsService } from "../../../common/service/warehouse/wareh
 import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
@@ -49,7 +50,7 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
-  getComputingUnitStatusTooltip,
+  getComputingUnitRowTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
@@ -137,6 +138,8 @@ type PveDraft = {
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  readonly getRowTooltip = getComputingUnitRowTooltip;
+
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
@@ -210,7 +213,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowPveService: WorkflowPveService,
     private ngZone: NgZone,
     private warehouseService: WarehouseService,
-    private warehouseActionsService: WarehouseActionsService
+    private warehouseActionsService: WarehouseActionsService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
   ngOnInit(): void {
@@ -310,7 +314,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
-          this.workflowActionService.enableWorkflowModification();
+          // "No execution someone else started" is not "nothing is running here". This asks only
+          // about Running and Initializing, and the answer arrives asynchronously, after whatever
+          // the page set on arrival, so unlocking outright undid the lock a run in flight had just
+          // been given -- a handed-over Paused or Recovering run, say, which this query does not
+          // look for. Defer to the state-to-lock rule the execute service owns.
+          this.executeWorkflowService.reapplyExecutionLock();
         }
       });
   }
@@ -447,6 +456,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
     this.selectComputingUnit(this.workflowId, cuid);
     this.rememberComputingUnit(this.workflowId, cuid);
+  }
+
+  /**
+   * Click handler for a dropdown row. nzDisabled only greys the row out; it does not stop this
+   * (click) on the same <li>, so without this check a disabled unit could still be selected.
+   *
+   * Not inside onPickComputingUnit on purpose: creating a unit also calls that, and a new unit is
+   * Pending, so a guard there would stop new units from being selected.
+   */
+  public onClickComputingUnitRow(unit: DashboardWorkflowComputingUnit): void {
+    if (this.cannotSelectUnit(unit)) {
+      return;
+    }
+    this.onPickComputingUnit(unit);
   }
 
   /**
@@ -869,13 +892,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
     return getComputingUnitMemoryStatus(this.getMemoryPercentage());
-  }
-
-  /**
-   * Returns a descriptive tooltip for a specific unit's status
-   */
-  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return getComputingUnitStatusTooltip(unit);
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {

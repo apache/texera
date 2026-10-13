@@ -950,13 +950,16 @@ class ExecutionResultServiceSpec
     thrown.getMessage shouldBe "No execution is recorded"
   }
 
-  it should "refuse to read a result stored in a per-user warehouse while the feature is off" in {
+  it should "refuse to read a result whose warehouse the URI cannot resolve" in {
     val executionId = newExecution()
     // Only the URI row is needed: the guard has to reject before the document is
-    // opened, and no table was ever created for this warehouse. The guard reads
-    // StorageConfig.warehouseEnabled, which ships (and runs in CI) as false;
-    // WarehouseReadGuardSpec pins both settings of the flag directly.
-    insertResultUri(executionId, resultUriOf(executionId, "erss-warehouse", Some("byo")))
+    // opened, and no table was ever created for this warehouse. An unresolvable
+    // /wh/ prefix is what the guard refuses in *either* flag state, so this pins
+    // the wiring — that paginate consults the guard at all — without depending on
+    // the shipping default. WarehouseReadGuardSpec pins the enabled and disabled
+    // behaviour of the guard itself.
+    val resolvable = resultUriOf(executionId, "erss-warehouse", Some("byo"))
+    insertResultUri(executionId, new URI(resolvable.toString.replace("/wh/byo/", "/wh/a%2Fb/")))
 
     a[WarehouseUnavailableException] should be thrownBy paginate(
       paginationRequest.copy(operatorID = "erss-warehouse")

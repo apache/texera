@@ -55,8 +55,9 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
 
   /**
     * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
+    * at the first tuple: inside a loop block the loop state may write the dictionary after open()
     */
-  override def open(): Unit = {
+  private def prepareDictionary(): Unit = {
     // create the dictionary by splitting the values first
     dictionaryEntries = desc.dictionary.split(",").toList.map(_.toLowerCase)
     if (desc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
@@ -149,6 +150,7 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
     * @return A TupleLike object containing the original fields of the tuple and a boolean indicating the match status.
     */
   private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
+    if (dictionaryEntries == null) prepareDictionary()
     val isMatched =
       Option(tuple.getField[Any](desc.attribute)).exists(_ => isTupleInDictionary(tuple))
     TupleLike(tuple.getFields ++ Seq(isMatched))

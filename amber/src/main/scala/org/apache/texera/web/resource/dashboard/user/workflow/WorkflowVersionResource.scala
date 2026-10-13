@@ -87,20 +87,6 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function updates the content of the latest version and inserts a new empty version for the current workflow
-    *
-    * @param patch to update latest version
-    * @param wid
-    */
-  private def updateLatestVersion(patch: String, wid: Integer): Unit = {
-    // get the latest version to update its content
-    val vid = getLatestVersion(wid)
-    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    workflowVersion.setContent(patch)
-    workflowVersionDao.update(workflowVersion)
-  }
-
-  /**
     * This function retrieves the latest version of a workflow
     *
     * @param wid

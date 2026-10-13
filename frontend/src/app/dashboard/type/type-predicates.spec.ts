@@ -17,14 +17,8 @@
  * under the License.
  */
 
-import {
-  isDashboardDataset,
-  isDashboardFile,
-  isDashboardWorkflow,
-  isDashboardWorkflowComputingUnit,
-} from "./type-predicates";
+import { isDashboardDataset, isDashboardWorkflow, isDashboardWorkflowComputingUnit } from "./type-predicates";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import { ExecutionMode } from "../../common/type/workflow";
@@ -54,20 +48,6 @@ const workflowFixture: DashboardWorkflow = {
   accessLevel: "WRITE",
   ownerId: 10,
   coverImage: null,
-};
-
-const fileFixture: DashboardFile = {
-  ownerEmail: "alice@example.com",
-  accessLevel: "READ",
-  file: {
-    ownerUid: 10,
-    fid: 7,
-    size: 1024,
-    name: "data.csv",
-    path: "/files/data.csv",
-    description: "A sample file",
-    uploadTime: 1700000000000,
-  },
 };
 
 const datasetFixture: DashboardDataset = {
@@ -141,38 +121,6 @@ describe("isDashboardWorkflow", () => {
   });
 });
 
-describe("isDashboardFile", () => {
-  it("should return true for a realistic DashboardFile", () => {
-    expect(isDashboardFile(fileFixture)).toBe(true);
-  });
-
-  it("should return false for null and undefined", () => {
-    expect(isDashboardFile(null)).toBe(false);
-    expect(isDashboardFile(undefined)).toBe(false);
-  });
-
-  it("should return false for an empty object", () => {
-    expect(isDashboardFile({})).toBe(false);
-  });
-
-  it("should return false when ownerEmail is missing", () => {
-    expect(isDashboardFile({ file: fileFixture.file })).toBe(false);
-  });
-
-  it("should return false when file is missing", () => {
-    expect(isDashboardFile({ ownerEmail: "a@b.com" })).toBe(false);
-  });
-
-  it("should return false when ownerEmail is not a string", () => {
-    expect(isDashboardFile({ ownerEmail: 42, file: fileFixture.file })).toBe(false);
-  });
-
-  it("should return false when file is null", () => {
-    // A null payload must be rejected even though typeof null === "object".
-    expect(isDashboardFile({ ownerEmail: "a@b.com", file: null })).toBe(false);
-  });
-});
-
 describe("isDashboardDataset", () => {
   it("should return true for a realistic DashboardDataset", () => {
     expect(isDashboardDataset(datasetFixture)).toBe(true);
@@ -227,14 +175,12 @@ describe("isDashboardWorkflowComputingUnit", () => {
 describe("type predicate cross-classification", () => {
   const fixtures: ReadonlyArray<[string, unknown, string]> = [
     ["DashboardWorkflow fixture", workflowFixture, "isDashboardWorkflow"],
-    ["DashboardFile fixture", fileFixture, "isDashboardFile"],
     ["DashboardDataset fixture", datasetFixture, "isDashboardDataset"],
     ["DashboardWorkflowComputingUnit fixture", computingUnitFixture, "isDashboardWorkflowComputingUnit"],
   ];
 
   const predicates: ReadonlyArray<[string, (value: unknown) => boolean]> = [
     ["isDashboardWorkflow", isDashboardWorkflow],
-    ["isDashboardFile", isDashboardFile],
     ["isDashboardDataset", isDashboardDataset],
     ["isDashboardWorkflowComputingUnit", isDashboardWorkflowComputingUnit],
   ];

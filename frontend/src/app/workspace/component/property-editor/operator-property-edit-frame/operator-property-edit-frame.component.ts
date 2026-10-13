@@ -39,6 +39,7 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -47,6 +48,7 @@ import {
   createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
+  setValueRules,
 } from "src/app/common/formly/formly-utils";
 import {
   TYPE_CASTING_OPERATOR_TYPE,
@@ -939,6 +941,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      // a field whose accepted values follow a sibling's: give it the control those values
+      // call for, and hold it to them before the workflow can be run
+      if (isDefined(mapSource.valueRules)) {
+        setValueRules(mappedField, mapSource.valueRules);
+      }
+
       // The custom widget this property renders as (file picker, model picker, uploaders, dataset
       // selector, code box, drag-reorder list). Extracted to customFormlyFieldType so a later view
       // (the Form View) renders the same control; each field's extra behaviour -- the task-driven
@@ -953,194 +961,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = customType;
       }
 
-      if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
-        mappedField.hide = true;
-      }
-
-      // ── Dynamic field visibility for HuggingFace based on selected task ──
-      if (this.currentOperatorSchema?.operatorType === "HuggingFace" && typeof mappedField.key === "string") {
-        const hfKey = mappedField.key;
-        const imageOnlyTasks = ["image-classification", "object-detection", "image-segmentation", "image-to-text"];
-        const imageInputTasks = [
-          ...imageOnlyTasks,
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-          "image-text-to-text",
-          "image-to-image",
-          "image-to-video",
-        ];
-        const audioInputTasks = ["automatic-speech-recognition", "audio-classification"];
-        const promptRequiredTasks = [
-          "text-generation",
-          "text-classification",
-          "token-classification",
-          "question-answering",
-          "table-question-answering",
-          "zero-shot-classification",
-          "translation",
-          "summarization",
-          "feature-extraction",
-          "fill-mask",
-          "sentence-similarity",
-          "text-ranking",
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-        ];
-        const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-          const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
-          if (typeof fromForm === "string" && fromForm.trim().length > 0) {
-            return fromForm;
-          }
-          const fromModel = field.model?.task;
-          if (typeof fromModel === "string" && fromModel.trim().length > 0) {
-            return fromModel;
-          }
-          return undefined;
-        };
-        if (hfKey === "imageInput") {
-          // type ("huggingface-image-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredImageInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !imageInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputImageCol = field.model?.inputImageColumn;
-                if (typeof inputImageCol === "string" && inputImageCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.imageInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload an image or select an Input Image Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "audioInput") {
-          // type ("huggingface-audio-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredAudioInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !audioInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputAudioCol = field.model?.inputAudioColumn;
-                if (typeof inputAudioCol === "string" && inputAudioCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.audioInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload audio or select an Input Audio Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "inputImageColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "inputAudioColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "promptColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== undefined && (imageOnlyTasks.includes(t) || audioInputTasks.includes(t));
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredPromptColumn: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !promptRequiredTasks.includes(t)) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.promptColumn;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Select a prompt column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "text-generation";
-            },
-          };
-        }
-        if (hfKey === "contextColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => getSelectedTask(field) !== "question-answering",
-          };
-        }
-        if (hfKey === "candidateLabels") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "zero-shot-classification" && t !== "zero-shot-image-classification";
-            },
-          };
-        }
-        if (hfKey === "sentencesColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "sentence-similarity" && t !== "text-ranking";
-            },
-          };
-        }
+      if (this.currentOperatorSchema?.operatorType === "HuggingFace") {
+        applyHuggingFaceFieldBindings(mappedField);
       }
 
       // Show the required marker for a field the schema requires conditionally,
@@ -1226,6 +1048,43 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
+      // A field the schema marks unique holds a meaning the enclosing list cannot repeat.
+      // uniqueItems cannot say this: two hyperparameter rows naming one parameter differ in
+      // their other fields, so they are distinct items while still emitting one keyword twice.
+      if (mapSource.uniqueAmongRows === true) {
+        mappedField.validators.uniqueAmongRows = {
+          expression: (control: AbstractControl, field: FormlyFieldConfig) => {
+            const rows = field.parent?.parent?.model;
+            const key = field.key;
+            if (!isDefined(control?.value) || !Array.isArray(rows) || typeof key !== "string") {
+              return true;
+            }
+            return rows.filter(row => isDefined(row) && row[key] === control.value).length <= 1;
+          },
+          message: (error: any, field: FormlyFieldConfig) =>
+            `"${field.formControl?.value}" is already set by another row`,
+        };
+        // Whether a row repeats another is a property of the whole column, but Angular reruns a
+        // validator only on the control that changed. The list as a whole is watched instead, so
+        // that a row deleted counts as a change as much as a row edited: the row that resolves a
+        // duplicate, by any means, clears the one it left behind, and a row changed onto a
+        // parameter another row holds marks that row too.
+        mappedField.hooks = {
+          ...mappedField.hooks,
+          onInit: (field: FormlyFieldConfig) => {
+            field.parent?.parent?.formControl?.valueChanges
+              .pipe(untilDestroyed(this))
+              .subscribe(() =>
+                field.parent?.parent?.fieldGroup?.forEach(row =>
+                  row.fieldGroup
+                    ?.find(sibling => sibling.key === field.key)
+                    ?.formControl?.updateValueAndValidity({ emitEvent: false })
+                )
+              );
+          },
+        };
+      }
+
       // Add custom validators for attribute type
       if (isDefined(mapSource.attributeTypeRules)) {
         mappedField.validators.checkAttributeType = {
@@ -1240,7 +1099,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               return true;
             }
 
-            const findAttributeType = (propertyName: string): AttributeType | undefined => {
+            // A property that takes several columns holds a list of names rather
+            // than one, so both shapes are read as a list here and each name is
+            // then checked on its own.
+            const selectedAttributeNames = (propertyName: string): string[] => {
+              const value = control.value[propertyName];
+              if (Array.isArray(value)) {
+                return value.filter(name => typeof name === "string");
+              }
+              return typeof value === "string" ? [value] : [];
+            };
+
+            const findAttributeType = (propertyName: string, attributeName: string): AttributeType | undefined => {
               if (
                 !isDefined(this.currentOperatorId) ||
                 !isDefined(mapSource.properties) ||
@@ -1252,7 +1122,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (!isDefined(portIndex)) {
                 return undefined;
               }
-              const attributeName: string = control.value[propertyName];
               return this.workflowCompilingService.getOperatorInputAttributeType(
                 this.currentOperatorId,
                 portIndex,
@@ -1274,14 +1143,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               if (!isDefined(data)) {
                 return;
               }
-              const dataAttributeType = findAttributeType(data);
+              // Every rule written so far compares against a single-column
+              // property, so the first name is that property's whole value.
+              const dataAttributeName = selectedAttributeNames(data)[0];
+              const dataAttributeType = isDefined(dataAttributeName)
+                ? findAttributeType(data, dataAttributeName)
+                : undefined;
               if (!isDefined(dataAttributeType)) {
                 // if data attribute type is not defined, then data attribute is not yet selected. skip validation
                 return;
               }
               if (inputAttributeType !== dataAttributeType) {
-                // get data attribute name for error message
-                const dataAttributeName = control.value[data];
                 throw TypeError(`it's expected to be the same type as '${dataAttributeName}' (${dataAttributeType}).`);
               }
             };
@@ -1322,21 +1194,30 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             // Get the type of constrains for each property in AttributeTypeRuleSchema
 
             const checkConstraint = (propertyName: string, constraint: AttributeTypeRuleSet) => {
-              const inputAttributeType = findAttributeType(propertyName);
+              for (const attributeName of selectedAttributeNames(propertyName)) {
+                const inputAttributeType = findAttributeType(propertyName, attributeName);
 
-              if (!isDefined(inputAttributeType)) {
-                // when inputAttributeType is undefined, it means the property is not set
-                return;
-              }
-              if (isDefined(constraint.enum)) {
-                checkEnumConstraint(inputAttributeType, constraint.enum);
-              }
+                if (!isDefined(inputAttributeType)) {
+                  // when inputAttributeType is undefined, it means the property is not set
+                  continue;
+                }
+                try {
+                  if (isDefined(constraint.enum)) {
+                    checkEnumConstraint(inputAttributeType, constraint.enum);
+                  }
 
-              if (isDefined(constraint.const)) {
-                checkConstConstraint(inputAttributeType, constraint.const);
-              }
-              if (isDefined(constraint.allOf)) {
-                checkAllOfConstraint(inputAttributeType, constraint.allOf);
+                  if (isDefined(constraint.const)) {
+                    checkConstConstraint(inputAttributeType, constraint.const);
+                  }
+                  if (isDefined(constraint.allOf)) {
+                    checkAllOfConstraint(inputAttributeType, constraint.allOf);
+                  }
+                } catch (err) {
+                  // The checks above describe the expectation, and only this loop
+                  // knows which of several columns broke it.
+                  // @ts-ignore
+                  throw TypeError(`The type of '${attributeName}' is ${inputAttributeType}, but ${err.message}`);
+                }
               }
             };
 
@@ -1345,22 +1226,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
               try {
                 checkConstraint(prop, constraint);
               } catch (err) {
-                // have to get the type, attribute name and property name again
-                // should consider reusing the part in findAttributeType()
-                const attributeName = control.value[prop];
-                const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
-                const inputAttributeType = this.workflowCompilingService.getOperatorInputAttributeType(
-                  this.currentOperatorId,
-                  port,
-                  attributeName
-                );
-                // @ts-ignore
-                const message = err.message;
                 if (field.validators === undefined) {
                   field.validators = {};
                 }
-                field.validators.checkAttributeType.message =
-                  `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
+                // @ts-ignore
+                field.validators.checkAttributeType.message = `Warning: ${err.message}`;
                 return false;
               }
             }

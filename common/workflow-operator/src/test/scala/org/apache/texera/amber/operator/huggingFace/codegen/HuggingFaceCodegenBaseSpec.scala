@@ -144,4 +144,42 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     out should not include "MARKER_TASK_zXyq42"
     out should not include "MARKER_SYSTEM_zXyq42"
   }
+
+  // #7906 Part B: zero-shot-image-classification puts its labels in
+  // parameters.candidate_labels, but the chat branches rebuild the request as
+  // [image_url, text=prompt_value] and dropped them, so a chat provider got an
+  // unlabelled image and returned a caption instead of a classification.
+  it should "carry the candidate labels into the chat message for zero-shot-image-classification" in {
+    val helper = chatContentHelper(HuggingFaceCodegenBase.render(makeCtx(), StubCodegen))
+    helper should include("""if task == "zero-shot-image-classification":""")
+    helper should include("candidate_labels")
+    helper should include("Classify the image into exactly one of these labels:")
+  }
+
+  it should "route every image chat text part through the task-aware helper" in {
+    // Every image chat branch builds a two-part content list — the three in
+    // _call_provider (zai-org, OpenAI-compatible, unknown-provider fallback) and
+    // the model-author one in _post_with_fallback. The text part must be the
+    // reformulated prompt, not the bare prompt_value.
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    out.split("""\{"type": "text", "text": self\._chat_content_for_task\(""").length - 1 shouldBe 4
+    out should not include """{"type": "text", "text": prompt_value if prompt_value else"""
+  }
+
+  it should "not splice the base64 image into the zero-shot-image-classification prompt" in {
+    // For this task `inputs` is the image itself, unlike zero-shot-classification
+    // where it is the text being classified. Reusing that branch would inline the
+    // whole base64 blob into the chat message.
+    val branch = chatContentHelper(HuggingFaceCodegenBase.render(makeCtx(), StubCodegen))
+      .split("""if task == "zero-shot-image-classification":""")(1)
+      .split("        if task ==")(0)
+    branch should not include "Text: {text}"
+    branch should not include "inputs if isinstance(inputs, str)"
+  }
+
+  /** The emitted body of _chat_content_for_task, so assertions can't be satisfied
+    * by unrelated parts of the template (e.g. the pre-loop label validation).
+    */
+  private def chatContentHelper(rendered: String): String =
+    rendered.split("def _chat_content_for_task")(1).split("    def ")(0)
 }

@@ -249,4 +249,18 @@ class WorkflowResourceCoverSpec
     // The cover must still be present after the rejected delete.
     resource.getCoverImage(testWid, session(owner)).image shouldBe sampleImage
   }
+
+  "getWorkflowType" should "report the workflow's publish state" in {
+    resource.getWorkflowType(testWid) shouldBe "Private"
+  }
+
+  // fetchOneByWid answers null for an id that matches no row, and dereferencing it answered with a
+  // 500 and a stack trace. Its one caller is the share dialog, which asks with whatever id the page
+  // believes it is on, so a page that has lost its id turned a missing workflow into a server error
+  // and, having no error handler, silently dropped the Private/Public choice (issue #8599).
+  it should "throw NotFoundException for an id that matches no workflow" in {
+    assertThrows[NotFoundException] {
+      resource.getWorkflowType(testWid + 999999)
+    }
+  }
 }
