@@ -277,36 +277,55 @@ object StandaloneRunner extends LazyLogging {
     // back to that exact form before writing so both paths' JSONL agree.
     //
     // The fraction is built from the nanoseconds and not from %f, which stops at
-    // six digits, while Timestamp.toString writes all nine.
+    // six digits, while Timestamp.toString writes all nine. A plain datetime
+    // has no nanoseconds to add.
+    //
+    // A column read cell by cell (below) is of object dtype, so its datetime
+    // cells are found one at a time rather than by the column's dtype.
     sb.append("def _texera_ts_str(_v):\n")
     sb.append("    if pd.isna(_v):\n")
     sb.append("        return None\n")
-    sb.append("    _f = f'{_v.microsecond * 1000 + _v.nanosecond:09d}'.rstrip('0') or '0'\n")
+    sb.append("    _ns = _v.microsecond * 1000 + getattr(_v, 'nanosecond', 0)\n")
+    sb.append("    _f = f'{_ns:09d}'.rstrip('0') or '0'\n")
     sb.append("    return _v.strftime('%Y-%m-%d %H:%M:%S.') + _f\n")
     sb.append("\n")
     sb.append("def _texera_encode_ts_cols(df):\n")
+    sb.append("    from datetime import datetime as _dt\n")
     sb.append("    for _c in df.columns:\n")
     sb.append("        if pd.api.types.is_datetime64_any_dtype(df[_c]):\n")
     sb.append("            df[_c] = df[_c].map(_texera_ts_str)\n")
+    sb.append("        elif pd.api.types.is_object_dtype(df[_c]):\n")
+    sb.append(
+      "            df[_c] = df[_c].map(lambda _v: _texera_ts_str(_v) if isinstance(_v, _dt) else _v)\n"
+    )
     sb.append("    return df\n")
     sb.append("\n")
 
     // A TIMESTAMP is a java.sql.Timestamp on the engine side, which holds the
     // year 2500 as readily as 2024. pandas' default nanoseconds reach only 1677
-    // to 2262, so a column outside that window is read at microseconds instead
-    // of failing before the operator runs. A column inside it keeps the
-    // nanoseconds, which Timestamp counts too.
+    // to 2262, so a column with a value outside that window cannot be one
+    // datetime64 column without failing before the operator runs.
     //
-    // Cell by cell through dateutil and not astype: astype takes its unit from
-    // the text, so a fraction of nine digits is parsed as nanoseconds again and
-    // fails the same way. A datetime holds microseconds, so the rest is dropped.
+    // Such a column is read cell by cell instead, so one value out of range
+    // does not cut the others: each Timestamp takes the unit its own text
+    // needs, and a value in range keeps its nanoseconds as Timestamp does. The
+    // column is then of object dtype, without the .dt accessor, which beats an
+    // operator handed values other than the input. Only a value past 2262 with
+    // nine digits fits no Timestamp; dateutil reads it to the microsecond.
+    sb.append("def _texera_read_ts_cell(_v):\n")
+    sb.append("    if pd.isna(_v):\n")
+    sb.append("        return None\n")
+    sb.append("    try:\n")
+    sb.append("        return pd.Timestamp(_v)\n")
+    sb.append("    except pd.errors.OutOfBoundsDatetime:\n")
+    sb.append("        from dateutil.parser import parse as _parse_date\n")
+    sb.append("        return _parse_date(_v)\n")
+    sb.append("\n")
     sb.append("def _texera_read_ts(_s):\n")
     sb.append("    try:\n")
     sb.append("        return pd.to_datetime(_s)\n")
     sb.append("    except pd.errors.OutOfBoundsDatetime:\n")
-    sb.append("        from dateutil.parser import parse as _parse_date\n")
-    sb.append("        _read = _s.map(lambda _v: None if pd.isna(_v) else _parse_date(_v))\n")
-    sb.append("        return _read.astype('datetime64[us]')\n")
+    sb.append("        return _s.map(_texera_read_ts_cell)\n")
     sb.append("\n")
 
     // The engine writes a tuple through the schema, so a column it declares

@@ -31,6 +31,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.sql.Timestamp
 import java.util.Base64
 import scala.sys.process._
 
@@ -310,6 +311,42 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     lines.get(0) should not include "\"n\":6.0"
     lines.get(1) should include("\"n\":null")
     lines.get(2) should include("\"n\":7")
+  }
+
+  // One timestamp past pandas' nanosecond range must not cut the others in its
+  // column. Read as one microsecond column, the two 2024 values became equal
+  // and Distinct kept two rows where the engine keeps three.
+  it should "keep every timestamp's digits when one in its column is out of range" taggedAs NeedsPython in {
+    val stamped = new Schema(new Attribute("ts", AttributeType.TIMESTAMP))
+    val values = Seq(
+      "2024-01-01 00:00:00.123456001",
+      "2024-01-01 00:00:00.123456789",
+      "2500-01-01 00:00:00.0"
+    )
+    val dir = Files.createTempDirectory("harness-spec-timestamp-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(
+      input,
+      values.iterator.map { v =>
+        Tuple.builder(stamped).add(stamped.getAttribute("ts"), Timestamp.valueOf(v)).build()
+      },
+      stamped
+    )
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+
+    val result = StandaloneRunner.run(
+      opDesc = new DistinctOpDesc,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work
+    )
+
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 3
+    values.zipWithIndex.foreach {
+      case (v, i) => lines.get(i) should include("\"ts\":\"" + v + "\"")
+    }
   }
 
   // JSON carries bytes as base64 text, and the engine decodes it before the
