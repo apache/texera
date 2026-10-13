@@ -25,6 +25,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.core.workflow.{HashPartition, SinglePartition, UnknownPartition}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.amber.testsupport.setop.SetRows
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -108,7 +109,7 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
          |
          |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
          |in2df = pd.DataFrame({"v": col([0.0], [True])})
-         |${(new IntersectOpDesc).generateStandaloneCode()}
+         |${exported()}
          |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
          |""".stripMargin
 
@@ -123,6 +124,29 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
       process.exitValue() shouldBe 0
       out.trim shouldBe "1 ['NULL']"
     }
+  }
+
+  // The engine's HashSet compares rows with Scala's ==, under which NaN equals
+  // nothing, and hashes them by each double's bits, which tell 0.0 from -0.0.
+  // A finite value and a null on both sides are the controls.
+  it should "match rows by the engine's equality for NaN and signed zero" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val exec = new IntersectOpExec
+    exec.open()
+    SetRows.left.foreach(t => exec.processTuple(t, 0))
+    SetRows.right.foreach(t => exec.processTuple(t, 1))
+    exec.onFinish(0)
+    val engine = SetRows.rendered(exec.onFinish(1))
+
+    val out = SetRows.runExport(python, exported(), "intersect-nan-zero-")
+    withClue(s"script:\n${exported()}")(out shouldBe engine)
+  }
+
+  private def exported(): String = {
+    val desc = new IntersectOpDesc
+    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
   }
 
   private def resolvePython(): Option[String] = {

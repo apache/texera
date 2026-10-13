@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 
 class DifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def getPhysicalOp(
@@ -61,11 +61,11 @@ class DifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // Distinct rows in left (port 0) not in right (port 1). [left, right, right] +
-  // drop_duplicates(keep=False): right rows appear >=2x and drop, left-only
-  // survive. concat (not merge) so NaN == NaN matches the JVM HashSet.
+  // Distinct left (port 0) rows the right (port 1) does not hold, by the
+  // engine's row equality.
   override def generateStandaloneCode(): String =
-    "out1df = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates(), " +
-      "in2df.drop_duplicates()], ignore_index=True)" +
-      ".drop_duplicates(keep=False).reset_index(drop=True)"
+    """_texera_set_right = set(_texera_set_row_keys(in2df))
+      |out1df = _texera_set_select(in1df, lambda key: key not in _texera_set_right)""".stripMargin
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
 }

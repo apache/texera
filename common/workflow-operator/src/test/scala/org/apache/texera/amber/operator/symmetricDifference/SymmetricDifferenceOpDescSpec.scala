@@ -27,6 +27,7 @@ import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.amber.testsupport.setop.SetRows
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
@@ -115,7 +116,7 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
          |
          |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
          |in2df = pd.DataFrame({"v": col([0.0], [True])})
-         |${(new SymmetricDifferenceOpDesc).generateStandaloneCode()}
+         |${exported()}
          |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
          |""".stripMargin
 
@@ -130,6 +131,30 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
       process.exitValue() shouldBe 0
       out.trim shouldBe "1 ['nan']"
     }
+  }
+
+  // The engine's HashSet compares rows with Scala's ==, under which NaN equals
+  // nothing, so every NaN row is in exactly one input, and hashes them by each
+  // double's bits, so 0.0 and -0.0 are each in one. A finite value and a null
+  // on both sides are the controls.
+  it should "match rows by the engine's equality for NaN and signed zero" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val exec = new SymmetricDifferenceOpExec
+    exec.open()
+    SetRows.left.foreach(t => exec.processTuple(t, 0))
+    SetRows.right.foreach(t => exec.processTuple(t, 1))
+    exec.onFinish(0)
+    val engine = SetRows.rendered(exec.onFinish(1))
+
+    val out = SetRows.runExport(python, exported(), "symmetric-difference-nan-zero-")
+    withClue(s"script:\n${exported()}")(out shouldBe engine)
+  }
+
+  private def exported(): String = {
+    val desc = new SymmetricDifferenceOpDesc
+    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
   }
 
   private def resolvePython(): Option[String] = {

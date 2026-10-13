@@ -23,7 +23,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 
 class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def getPhysicalOp(
@@ -52,9 +52,10 @@ class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // Distinct rows in both inputs. concat + duplicated (not pd.merge) so NaN ==
-  // NaN matches the JVM HashSet's null equality.
+  // Distinct left rows the right also holds, by the engine's row equality.
   override def generateStandaloneCode(): String =
-    """_both = pd.concat([in1df.drop_duplicates(), in2df.drop_duplicates()], ignore_index=True)
-      |out1df = _both[_both.duplicated(keep="first")].reset_index(drop=True)""".stripMargin
+    """_texera_set_right = set(_texera_set_row_keys(in2df))
+      |out1df = _texera_set_select(in1df, lambda key: key in _texera_set_right)""".stripMargin
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
 }
