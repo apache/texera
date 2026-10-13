@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
@@ -86,6 +86,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
   }
 
   override def standaloneSourcePath(): Option[String] = fileName
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 
   override def generateStandaloneCode(): String = {
     // First character, empty means comma — the same resolution the reader below does —
@@ -156,8 +158,11 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
 
     val body =
       if (schemaNames.nonEmpty)
-        s"""$readCall
-           |out1df.columns = [${schemaNames.mkString(", ")}]""".stripMargin
+        Seq(
+          readCall,
+          s"out1df.columns = [${schemaNames.mkString(", ")}]",
+          StandaloneCodeGenerator.parseDoubles("out1df", sourceSchema())
+        ).filter(_.nonEmpty).mkString("\n")
       else if (hasHeader) readCall
       else
         // Unresolved file: fall back to Texera's headerless naming.

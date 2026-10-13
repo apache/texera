@@ -23,13 +23,14 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, TestOperators}
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
@@ -674,6 +675,92 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
           List("column-1", "column-2")
       )
     }
+  }
+
+  // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
+  // numbers and the column is DOUBLE. pandas' float parser takes none of them
+  // and kept the column as strings, and a blank beside a "NaN" has to stay null.
+  it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val tmpFile = Files.createTempFile("java-doubles-", ".csv")
+    tmpFile.toFile.deleteOnExit()
+    Files.write(
+      tmpFile,
+      "v,w\n1.5,1.5\nNaN,2d\n,0x1p3\n-Infinity,3f\n".getBytes(StandardCharsets.UTF_8)
+    )
+    val path = tmpFile.toString
+    csvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+
+    val readers
+        : Seq[(ScanSourceOpDesc with StandaloneCodeGenerator, String => SourceOperatorExecutor)] =
+      Seq(
+        csvScanSourceOpDesc -> (s => new CSVScanSourceOpExec(s)),
+        parallelCsvScanSourceOpDesc -> (s => new ParallelCSVScanSourceOpExec(s))
+      )
+    readers.foreach {
+      case (desc, exec) =>
+        desc.fileName = Some(path)
+        desc.setResolvedFileName(FileResolver.resolve(path))
+        assert(desc.sourceSchema().getAttribute("w").getType == AttributeType.DOUBLE)
+
+        val engine = exec(objectMapper.writeValueAsString(desc))
+        engine.open()
+        val engineRows =
+          try engine.produceTuple().map(_.getFields.toSeq).toList
+          finally engine.close()
+        val engineText = engineRows.map(
+          _.map(f => if (f == null) "null" else f.toString).mkString(",")
+        )
+
+        val out = runStandalone(python, desc, path, renderRows)
+        withClue(s"${desc.getClass.getSimpleName}:\n$out") {
+          assert(out.trim.linesIterator.toList == engineText)
+        }
+    }
+  }
+
+  /** Prints each row of `out1df` as the engine's fields print: a null as
+    * "null" and a double as Java's `Double.toString` writes these values.
+    */
+  private val renderRows =
+    """def _show(x):
+      |    if x is None or x is pd.NA:
+      |        return "null"
+      |    if isinstance(x, float):
+      |        if x != x:
+      |            return "NaN"
+      |        if x in (float("inf"), float("-inf")):
+      |            return "Infinity" if x > 0 else "-Infinity"
+      |        return repr(float(x))
+      |    return str(x)
+      |for _row in out1df.itertuples(index=False):
+      |    print(",".join(_show(v) for v in _row))""".stripMargin
+
+  private def runStandalone(
+      python: String,
+      desc: ScanSourceOpDesc with StandaloneCodeGenerator,
+      path: String,
+      report: String
+  ): String = {
+    val driver =
+      s"""import pandas as pd
+         |${desc.standaloneImports().mkString("\n")}
+         |${desc.standaloneHelpers().mkString("\n")}
+         |sourceFile = ${objectMapper.writeValueAsString(path)}
+         |${desc.generateStandaloneCode()}
+         |$report
+         |""".stripMargin
+    val script = Files.createTempFile("csv-standalone-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver")(assert(process.exitValue() == 0))
+    out
   }
 
   private def resolvePython(): Option[String] = {

@@ -165,6 +165,48 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
+  // numbers and the column is DOUBLE, where pandas kept it as strings.
+  it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val d = describing(writeCsv("w\n1.5\nNaN\n2d\n0x1p3\n-Infinity\n"))
+    d.sourceSchema().getAttribute("w").getType shouldBe AttributeType.DOUBLE
+
+    val exec = new CSVOldScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val engineText =
+      try exec.produceTuple().map(_.getFields.head.toString).toList
+      finally exec.close()
+
+    val driver =
+      s"""import pandas as pd
+         |${d.standaloneImports().mkString("\n")}
+         |${d.standaloneHelpers().mkString("\n")}
+         |sourceFile = ${objectMapper.writeValueAsString(d.fileName.get)}
+         |${d.generateStandaloneCode()}
+         |for x in out1df["w"]:
+         |    if x != x:
+         |        print("NaN")
+         |    elif x in (float("inf"), float("-inf")):
+         |        print("Infinity" if x > 0 else "-Infinity")
+         |    else:
+         |        print(repr(float(x)))
+         |""".stripMargin
+    val script = Files.createTempFile("csv-old-standalone-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim.linesIterator.toList shouldBe engineText
+    }
+  }
+
   private def resolvePython(): Option[String] = {
     def fromConfig: Option[String] =
       Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption

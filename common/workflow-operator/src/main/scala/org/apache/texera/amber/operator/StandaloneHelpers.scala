@@ -144,6 +144,37 @@ object StandaloneHelpers {
       |    return float(x)
       |
       |
+      |def _texera_java_double(text):
+      |    # Double.parseDouble on the trimmed text, which a read field reaches
+      |    # through `toDouble`. It takes a trailing d or f as a type suffix and
+      |    # 0x...p... as a hex literal, both of which float() refuses.
+      |    text = text.strip()
+      |    if text[-1:] in ("d", "D", "f", "F"):
+      |        text = text[:-1]
+      |    if text.lstrip("+-")[:2].lower() == "0x":
+      |        return float.fromhex(text)
+      |    return float(text)
+      |
+      |
+      |def _texera_read_doubles(s):
+      |    # pandas leaves a DOUBLE column as text when a cell reads in Java and
+      |    # not as a plain float: "NaN", "2d", "0x1p3". Read those the engine's
+      |    # way. An empty cell is null and "NaN" is a value, so where a column
+      |    # holds both, only the nullable Float64 keeps them apart.
+      |    import numpy as np
+      |
+      |    if pd.api.types.is_numeric_dtype(s):
+      |        return s
+      |    holes = s.isna().to_numpy()
+      |    values = np.array(
+      |        [np.nan if hole else _texera_java_double(x) for x, hole in zip(s, holes)],
+      |        dtype="float64",
+      |    )
+      |    if holes.any() and np.isnan(values[~holes]).any():
+      |        values = pd.arrays.FloatingArray(values, holes)
+      |    return pd.Series(values, index=s.index, name=s.name)
+      |
+      |
       |def _texera_cast_string(s):
       |    # `toString` on the field, so the COLUMN's type decides the text and
       |    # not the shape of the value: a double keeps its point, whether or not

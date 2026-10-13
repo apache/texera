@@ -246,6 +246,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
         readCall,
         s"out1df.columns = [${schemaNames.mkString(", ")}]",
         StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
+        StandaloneCodeGenerator.parseDoubles("out1df", sourceSchema()),
         StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema())
       ).filter(_.nonEmpty).mkString("\n")
     else if (hasHeader) readCall

@@ -170,6 +170,23 @@ object StandaloneCodeGenerator {
       }
       .mkString("\n")
 
+  /** Python that reads each DOUBLE column of `schema` that pandas left as text
+    * the way the engine reads it, with `_texera_read_doubles` from
+    * [[StandaloneHelpers.AttributeCasts]], which the caller declares.
+    *
+    * The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
+    * numbers to it, and the column was inferred DOUBLE. pandas' float parser
+    * takes none of them and kept the whole column as strings.
+    */
+  def parseDoubles(frame: String, schema: Schema): String =
+    schema.getAttributes
+      .filter(_.getType == AttributeType.DOUBLE)
+      .map { a =>
+        val name = pyStringLiteral(a.getName)
+        s"$frame[$name] = _texera_read_doubles($frame[$name])"
+      }
+      .mkString("\n")
+
   private val emptyDtypes: Map[AttributeType, String] = Map(
     AttributeType.INTEGER -> "Int32",
     AttributeType.LONG -> "Int64",
