@@ -103,12 +103,18 @@ object ConfigGenerator {
     }
   }
 
-  /**
-    * Like [[generate]], but also sweeps every enum field: returns the base
-    * config plus one variant per non-default enum value (one enum flipped at a
-    * time — linear, NOT the combinatorial product). Lets the runner exercise
-    * each enum branch (e.g. LineChart's line mode = line / dots / line+dots)
-    * instead of only the default. The label identifies the flipped value.
+  /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
+    * admits, or all of them when there is no rule, minus the ones a single-column
+    * knob beside it already took. A rule that matches nothing is refused.
+    * The same fill for a required and an optional field, so the two cannot drift.
+    *
+    * Subtracting `used` is what [[resolveColumn]] already does for a single-column
+    * knob, and the two knobs answer to the same rule: a column means something
+    * different to each field that names it, so handing one column to two of them
+    * writes a config nobody would. Radar Chart's name column arrived inside its own
+    * value columns that way, and sklearn's label inside the features it is fitted
+    * against. Not marked used in turn, since a list knob wants every column its rule
+    * admits and marking them would leave a later single-column knob nothing to take.
     */
   def generateVariants(
       opClass: Class[_ <: LogicalOp],
@@ -810,23 +816,54 @@ object ConfigGenerator {
       used: collection.Set[(Int, String)],
       siblings: JsonNode
   ): Either[String, JsonNode] =
-    columnNames(schemas, port).map { names =>
-      val filtered = allowedTypes(f, siblings) match {
+    columnNames(schemas, port).flatMap { names =>
+      val admitted: Either[String, Seq[String]] = columnTypes(f, schemas, siblings) match {
         case Some(types) =>
           val matching = schemas
             .get(port)
             .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName))
             .getOrElse(Seq.empty)
-          if (matching.nonEmpty) matching else names
-        case None => names
+          if (matching.nonEmpty) Right(matching)
+          else Left(noAllowedColumn(f, schemas, port, types))
+        case None => Right(names)
       }
-      val free = filtered.filterNot(name => used.contains((port, name)))
-      val arr = objectMapper.createArrayNode()
-      (if (free.nonEmpty) free else filtered).foreach(arr.add)
-      arr
+      admitted.map { columns =>
+        val free = columns.filterNot(name => used.contains((port, name)))
+        val arr = objectMapper.createArrayNode()
+        (if (free.nonEmpty) free else columns).foreach(arr.add)
+        arr
+      }
     }
 
   private def pointerOf(f: Field, path: String): String = s"$path/${jsonNameOf(f)}"
+
+  /** Why no column at `port` can fill `f`.
+    *
+    * Taking a column the rule does not admit wrote a configuration nobody would:
+    * the operator states which types the field takes, and a generator that reads
+    * that and then ignores it is testing something the operator does not
+    * describe. Nothing reaches this today, every type a rule names having a
+    * column in every fixture, so its whole job is to say so the day one of them
+    * narrows, rather than to quietly choose another column and report the
+    * operator as covered.
+    */
+  private def noAllowedColumn(
+      f: Field,
+      schemas: Map[Int, Schema],
+      port: Int,
+      types: Set[AttributeType]
+  ): String = {
+    val present = schemas
+      .get(port)
+      .map(_.getAttributes.map(a => s"${a.getName}:${a.getType}").mkString(", "))
+      .getOrElse("no schema")
+    if (types.isEmpty)
+      s"${jsonNameOf(f)}'s type rules leave no type a column at port $port could have " +
+        s"(port holds: $present)"
+    else
+      s"${jsonNameOf(f)} accepts ${types.mkString("/")}, and no column at port $port " +
+        s"has one of those types (port holds: $present)"
+  }
 
   /** The key a field carries in the config JSON. */
   private def jsonNameOf(f: Field): String =
@@ -844,8 +881,8 @@ object ConfigGenerator {
     Option(f.getAnnotation(classOf[JsonProperty])).exists(_.required) ||
       requiredUnder(scope, siblings).contains(jsonNameOf(f))
 
-  /** The nested-row type a field holds — its `List[Row]` / `Option[Row]` element
-    * type, or its own type when the field IS the row. `None` for a scalar field.
+  /** The first value a field offers under `examples` — a legal sample the operator
+    * states itself, so nothing here has to invent one.
     */
   private def rowType(f: Field): Option[Class[_]] = {
     val t = f.getType
@@ -950,9 +987,8 @@ object ConfigGenerator {
       .map(_.path(key))
       .filterNot(_.isMissingNode)
 
-  /** A type whose value the user types in freely — the fills of
-    * [[optionalScalarFills]]. Boolean is excluded: the enum sweep already covers
-    * both of its values.
+  /** Maps each registered operator class to its `operatorType` discriminator,
+    * read from [[LogicalOp]]'s `@JsonSubTypes` (the same registry Jackson uses).
     */
   private def isFreeScalar(t: Class[_]): Boolean =
     t == classOf[String] || t == classOf[Int] || t == classOf[java.lang.Integer] ||
@@ -1857,14 +1893,14 @@ object ConfigGenerator {
             )
         }
       case None =>
-        allowedTypes(f, siblings) match {
+        columnTypes(f, schemas, siblings) match {
           case Some(types) =>
             schemas
               .get(port)
               .map(_.getAttributes.filter(a => types.contains(a.getType)).map(_.getName)) match {
               case Some(cols) if cols.nonEmpty =>
                 Right(take(cols.find(c => !used.contains((port, c))).getOrElse(cols.head)))
-              case _ => firstUnused(schemas, port, used) // no type-matching column; fall back
+              case _ => Left(noAllowedColumn(f, schemas, port, types))
             }
           case None => firstUnused(schemas, port, used)
         }
@@ -1883,11 +1919,8 @@ object ConfigGenerator {
     * means the ones that do all bind, so their sets intersect.
     */
   private def allowedTypes(f: Field, siblings: JsonNode): Option[Set[AttributeType]] =
-    Option(f.getDeclaringClass.getAnnotation(classOf[JsonSchemaInject]))
-      .map(_.json)
-      .filter(_.nonEmpty)
-      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
-      .map(_.path("attributeTypeRules").path(jsonNameOf(f)))
+    Some(typeRules(f.getDeclaringClass).path(jsonNameOf(f)))
+      .filterNot(_.isMissingNode)
       .flatMap { rule =>
         val branches =
           if (rule.path("allOf").isArray) rule.path("allOf").elements().asScala.toSeq
@@ -1897,6 +1930,61 @@ object ConfigGenerator {
           .flatMap(branch => typeSet(branch.path("then").path("enum")))
         bound.reduceOption(_ intersect _).filter(_.nonEmpty)
       }
+
+  /** A class's `attributeTypeRules`, keyed by field JSON name; a missing node when
+    * it states none.
+    */
+  private def typeRules(clazz: Class[_]): JsonNode =
+    Option(clazz.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
+      .map(_.path("attributeTypeRules"))
+      .getOrElse(objectMapper.missingNode())
+
+  /** Every type rule on `f`, the `enum` it names and the `$data` link, intersected.
+    * Empty when the rules leave no type, which refuses the field rather than letting
+    * it ignore them; `None` when it has none.
+    */
+  private def columnTypes(
+      f: Field,
+      schemas: Map[Int, Schema],
+      siblings: JsonNode
+  ): Option[Set[AttributeType]] =
+    (allowedTypes(f, siblings).toSeq ++ linkedTypes(f, schemas, siblings))
+      .reduceOption(_ intersect _)
+
+  /** What `"const": {"$data": "other"}` lets `f` hold: the type of the column the
+    * other knob names, which is how a join says its two keys must be alike.
+    *
+    * The link binds both fields, whichever one states it, since the generator fills
+    * them in declaration order and Hash Join states it on the knob filled first. Once
+    * the other knob holds a column, only that column's type; before then, only a type
+    * its port also has, so the pair can still be completed.
+    */
+  private def linkedTypes(
+      f: Field,
+      schemas: Map[Int, Schema],
+      siblings: JsonNode
+  ): Seq[Set[AttributeType]] = {
+    val clazz = f.getDeclaringClass
+    val name = jsonNameOf(f)
+    val partners = typeRules(clazz).fields().asScala.toSeq.flatMap { rule =>
+      val ref = rule.getValue.path("const").path("$data").asText("")
+      if (rule.getKey == name && ref.nonEmpty) Some(ref)
+      else if (ref == name) Some(rule.getKey)
+      else None
+    }
+    for {
+      other <- partners
+      field <- configFields(clazz).find(jsonNameOf(_) == other).toSeq
+      spec <- autofillSpec(field).toSeq
+      schema <- schemas.get(spec.port).toSeq
+    } yield Option(siblings.get(other)).map(_.asText).filter(schema.containsAttribute) match {
+      case Some(col) => Set(schema.getAttribute(col).getType)
+      case None      => schema.getAttributes.map(_.getType).toSet
+    }
+  }
 
   /** The [[AttributeType]]s an `enum` array names, or `None` if it names none. */
   private def typeSet(enumNode: JsonNode): Option[Set[AttributeType]] =
@@ -1968,13 +2056,10 @@ object ConfigGenerator {
       ).toOption.map(s => SchemaScope(s, s)).getOrElse(empty)
   }
 
-  /** What filling a field needs beyond the field itself: the input schemas a column
-    * picker resolves against, the columns already spoken for, and the row count a
-    * range-less number is sized from. Carried into the enum walk so that a value which
-    * makes a field apply can fill it the way the base pass would have.
-    *
-    * Empty for a caller sweeping an already-configured operator: such a config states
-    * both sides of a conditional itself, so nothing there is left to fill.
+  /** The fields an object's conditional `allOf` requires of `row` as it stands. The
+    * condition is JSON Schema's own `properties`/`const`, not the `valEnum` form a
+    * Texera rule uses, because this one is read by the validator rather than by the
+    * form.
     */
   private final case class FillContext(
       schemas: Map[Int, Schema] = Map.empty,
