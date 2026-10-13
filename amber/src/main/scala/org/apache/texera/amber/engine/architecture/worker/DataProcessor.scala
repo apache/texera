@@ -71,6 +71,9 @@ class DataProcessor(
 
   @transient var executor: OperatorExecutor = _
 
+  /** The executor whose loop-variable references `bindStateReferences` has bound. */
+  @transient private var executorWithBoundReferences: OperatorExecutor = _
+
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
@@ -98,6 +101,16 @@ class DataProcessor(
     statisticsManager.getStatistics(executor)
 
   /**
+    * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after
+    * that a reference comparison per tuple. An executor installed in its place binds its own.
+    */
+  def bindStateReferences(): Unit =
+    if (executorWithBoundReferences ne executor) {
+      executor.bindStateReferences()
+      executorWithBoundReferences = executor
+    }
+
+  /**
     * process currentInputTuple through executor logic.
     * this function is only called by the DP thread.
     */
@@ -105,6 +118,8 @@ class DataProcessor(
     try {
       val portIdentity: PortIdentity =
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
+      // The executor sees data: its setting must have its loop variables by now.
+      bindStateReferences()
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
@@ -128,6 +143,8 @@ class DataProcessor(
       loopStartId: String
   ): Unit = {
     try {
+      // Before processState, which then sees the loop variables written into the setting.
+      executor.registerState(state, loopCounter)
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
         // Carry the incoming loop envelope through unchanged: loop operators
