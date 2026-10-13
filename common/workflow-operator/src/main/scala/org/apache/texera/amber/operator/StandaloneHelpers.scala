@@ -235,5 +235,16 @@ object StandaloneHelpers {
       |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
       |    if pd.api.types.is_integer_dtype(s):
       |        return s.map(lambda x: None if pd.isna(x) else str(int(x)))
-      |    return s.map(lambda x: None if pd.isna(x) else _texera_java_text(x))""".stripMargin
+      |    #
+      |    # The column's own mask says which cells are empty, not each value: a
+      |    # nullable float column holds NaN as a value, and `Series.map` hands
+      |    # its holes over as NaN too, so asking the value empties a stored NaN
+      |    # the engine writes as "NaN".
+      |    holes = s.isna().to_numpy()
+      |    return pd.Series(
+      |        [None if hole else _texera_java_text(x) for x, hole in zip(s, holes)],
+      |        index=s.index,
+      |        name=s.name,
+      |        dtype=object,
+      |    )""".stripMargin
 }

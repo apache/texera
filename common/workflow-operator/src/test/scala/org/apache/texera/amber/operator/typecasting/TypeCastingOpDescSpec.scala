@@ -173,6 +173,64 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     fromEngine shouldBe Seq("error")
   }
 
+  // A double column read from Arrow into a nullable float keeps a stored NaN and
+  // an empty cell apart, and the engine writes them as "NaN" and null. The
+  // infinities and signed zero ride along as values that already agreed.
+  private val doubleCases: Seq[java.lang.Double] =
+    Seq(Double.NaN, null, 1.0, Double.PositiveInfinity, Double.NegativeInfinity, -0.0)
+
+  it should "write a stored NaN as text the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
+    val input = Schema().add(new Attribute("v", AttributeType.DOUBLE))
+    val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
+
+    val values = doubleCases
+      .map {
+        case null                => "None"
+        case d if d.isNaN        => "float(\"nan\")"
+        case d if d.isInfinite() => if (d > 0) "float(\"inf\")" else "float(\"-inf\")"
+        case d                   => d.toString
+      }
+      .mkString("[", ", ", "]")
+    // Read the way the Arrow source reads a file, so the column arrives with its
+    // validity mask and not with NaN standing in for every empty cell.
+    val driver =
+      s"""import pandas as pd
+         |import pyarrow as pa
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |_table = pa.table({"v": pa.array($values, pa.float64())})
+         |in1df = _table.to_pandas(types_mapper={pa.float64(): pd.Float64Dtype()}.get)
+         |$generated
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if answer is None else answer)
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-double-text-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromScript = cellsOf(out)
+    val fromEngine = doubleCases.map(v => engineAnswer(v, AttributeType.STRING))
+    withClue(s"script said $fromScript\n") { fromScript shouldBe fromEngine }
+    fromEngine.take(2) shouldBe Seq("NaN", "null")
+  }
+
   // The moments where the two sides used to part. pandas parses into nanoseconds
   // by default, which reach only 1677 to 2262, so everything past that edge was
   // emptied where the engine holds a java.sql.Timestamp and reads it like any
