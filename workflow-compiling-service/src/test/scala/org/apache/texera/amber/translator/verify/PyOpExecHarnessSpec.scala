@@ -239,15 +239,20 @@ class PyOpExecHarnessSpec extends AnyFlatSpec with Matchers {
   }
 
   // A fitted DecisionTreeClassifier behind the marker the cast writes, pickled
-  // by the interpreter the harness runs so the two share a sklearn.
+  // by the interpreter the harness runs so the two share a sklearn. The script
+  // goes through a file because Windows drops the quotes from a `-c` argument.
   private def fittedTreeCell(): Array[Byte] = {
-    val script =
+    val script = Files.createTempFile("py-op-harness-model-", ".py")
+    script.toFile.deleteOnExit()
+    Files.writeString(
+      script,
       """import base64, pickle, sys
         |from sklearn.tree import DecisionTreeClassifier
         |model = DecisionTreeClassifier(random_state=0).fit([[0.0], [1.0]], [0, 1])
         |sys.stdout.write(base64.b64encode(b"pickle    " + pickle.dumps(model)).decode("ascii"))
         |""".stripMargin
-    val encoded = Process(Seq(PyOpExecHarness.resolvePython(), "-c", script)).!!
+    )
+    val encoded = Process(Seq(PyOpExecHarness.resolvePython(), script.toString)).!!
     Base64.getDecoder.decode(encoded.trim)
   }
 
