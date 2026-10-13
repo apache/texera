@@ -55,6 +55,11 @@ message WorkerStatistics {
   int64 data_processing_time = 3;
   int64 control_processing_time = 4;
   int64 idle_time = 5;
+  // Tuples that have arrived at this worker, counted on arrival rather than on
+  // consumption. input_tuple_metrics only grows once a tuple is processed, so
+  // received - processed is this worker's queued backlog, which is what
+  // least-loaded routing ranks receivers by.
+  int64 received_tuple_count = 6;
 }
 
 message WorkerMetrics {
