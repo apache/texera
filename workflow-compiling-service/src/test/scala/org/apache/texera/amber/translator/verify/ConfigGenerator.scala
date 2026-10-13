@@ -103,18 +103,12 @@ object ConfigGenerator {
     }
   }
 
-  /** Every column at `port` a list knob may hold: the ones its `attributeTypeRules`
-    * admits, or all of them when there is no rule, minus the ones a single-column
-    * knob beside it already took. A rule that matches nothing is refused.
-    * The same fill for a required and an optional field, so the two cannot drift.
-    *
-    * Subtracting `used` is what [[resolveColumn]] already does for a single-column
-    * knob, and the two knobs answer to the same rule: a column means something
-    * different to each field that names it, so handing one column to two of them
-    * writes a config nobody would. Radar Chart's name column arrived inside its own
-    * value columns that way, and sklearn's label inside the features it is fitted
-    * against. Not marked used in turn, since a list knob wants every column its rule
-    * admits and marking them would leave a later single-column knob nothing to take.
+  /**
+    * Like [[generate]], but also sweeps every enum field: returns the base
+    * config plus one variant per non-default enum value (one enum flipped at a
+    * time — linear, NOT the combinatorial product). Lets the runner exercise
+    * each enum branch (e.g. LineChart's line mode = line / dots / line+dots)
+    * instead of only the default. The label identifies the flipped value.
     */
   def generateVariants(
       opClass: Class[_ <: LogicalOp],
