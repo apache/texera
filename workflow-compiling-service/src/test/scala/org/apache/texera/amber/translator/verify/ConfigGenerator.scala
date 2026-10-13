@@ -129,7 +129,7 @@ object ConfigGenerator {
       siblings: JsonNode
   ): Either[String, JsonNode] =
     columnNames(schemas, port).flatMap { names =>
-      val admitted: Either[String, Seq[String]] = allowedTypes(f, siblings) match {
+      val admitted: Either[String, Seq[String]] = columnTypes(f, schemas, siblings) match {
         case Some(types) =>
           val matching = schemas
             .get(port)
@@ -167,8 +167,12 @@ object ConfigGenerator {
       .get(port)
       .map(_.getAttributes.map(a => s"${a.getName}:${a.getType}").mkString(", "))
       .getOrElse("no schema")
-    s"${jsonNameOf(f)} accepts ${types.mkString("/")}, and no column at port $port " +
-      s"has one of those types (port holds: $present)"
+    if (types.isEmpty)
+      s"${jsonNameOf(f)}'s type rules leave no type a column at port $port could have " +
+        s"(port holds: $present)"
+    else
+      s"${jsonNameOf(f)} accepts ${types.mkString("/")}, and no column at port $port " +
+        s"has one of those types (port holds: $present)"
   }
 
   /** The key a field carries in the config JSON. */
@@ -855,7 +859,7 @@ object ConfigGenerator {
             )
         }
       case None =>
-        allowedTypes(f, siblings) match {
+        columnTypes(f, schemas, siblings) match {
           case Some(types) =>
             schemas
               .get(port)
@@ -881,11 +885,8 @@ object ConfigGenerator {
     * means the ones that do all bind, so their sets intersect.
     */
   private def allowedTypes(f: Field, siblings: JsonNode): Option[Set[AttributeType]] =
-    Option(f.getDeclaringClass.getAnnotation(classOf[JsonSchemaInject]))
-      .map(_.json)
-      .filter(_.nonEmpty)
-      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
-      .map(_.path("attributeTypeRules").path(jsonNameOf(f)))
+    Some(typeRules(f.getDeclaringClass).path(jsonNameOf(f)))
+      .filterNot(_.isMissingNode)
       .flatMap { rule =>
         val branches =
           if (rule.path("allOf").isArray) rule.path("allOf").elements().asScala.toSeq
@@ -895,6 +896,61 @@ object ConfigGenerator {
           .flatMap(branch => typeSet(branch.path("then").path("enum")))
         bound.reduceOption(_ intersect _).filter(_.nonEmpty)
       }
+
+  /** A class's `attributeTypeRules`, keyed by field JSON name; a missing node when
+    * it states none.
+    */
+  private def typeRules(clazz: Class[_]): JsonNode =
+    Option(clazz.getAnnotation(classOf[JsonSchemaInject]))
+      .map(_.json)
+      .filter(_.nonEmpty)
+      .flatMap(js => Try(objectMapper.readTree(js)).toOption)
+      .map(_.path("attributeTypeRules"))
+      .getOrElse(objectMapper.missingNode())
+
+  /** Every type rule on `f`, the `enum` it names and the `$data` link, intersected.
+    * Empty when the rules leave no type, which refuses the field rather than letting
+    * it ignore them; `None` when it has none.
+    */
+  private def columnTypes(
+      f: Field,
+      schemas: Map[Int, Schema],
+      siblings: JsonNode
+  ): Option[Set[AttributeType]] =
+    (allowedTypes(f, siblings).toSeq ++ linkedTypes(f, schemas, siblings))
+      .reduceOption(_ intersect _)
+
+  /** What `"const": {"$data": "other"}` lets `f` hold: the type of the column the
+    * other knob names, which is how a join says its two keys must be alike.
+    *
+    * The link binds both fields, whichever one states it, since the generator fills
+    * them in declaration order and Hash Join states it on the knob filled first. Once
+    * the other knob holds a column, only that column's type; before then, only a type
+    * its port also has, so the pair can still be completed.
+    */
+  private def linkedTypes(
+      f: Field,
+      schemas: Map[Int, Schema],
+      siblings: JsonNode
+  ): Seq[Set[AttributeType]] = {
+    val clazz = f.getDeclaringClass
+    val name = jsonNameOf(f)
+    val partners = typeRules(clazz).fields().asScala.toSeq.flatMap { rule =>
+      val ref = rule.getValue.path("const").path("$data").asText("")
+      if (rule.getKey == name && ref.nonEmpty) Some(ref)
+      else if (ref == name) Some(rule.getKey)
+      else None
+    }
+    for {
+      other <- partners
+      field <- configFields(clazz).find(jsonNameOf(_) == other).toSeq
+      spec <- autofillSpec(field).toSeq
+      schema <- schemas.get(spec.port).toSeq
+    } yield Option(siblings.get(other)).map(_.asText).filter(schema.containsAttribute) match {
+      case Some(col) => Set(schema.getAttribute(col).getType)
+      case None      => schema.getAttributes.map(_.getType).toSet
+    }
+  }
 
   /** The [[AttributeType]]s an `enum` array names, or `None` if it names none. */
   private def typeSet(enumNode: JsonNode): Option[Set[AttributeType]] =

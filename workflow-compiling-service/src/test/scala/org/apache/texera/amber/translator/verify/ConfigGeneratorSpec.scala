@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
@@ -58,6 +59,49 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     schema.getAttributeNames should contain(op.buildAttributeName)
     schema.getAttributeNames should contain(op.probeAttributeName)
     op.joinType should not be null
+  }
+
+  // Hash Join's left key takes the right key's type through `$data`. The two
+  // ports listing their columns in opposite orders joined an INTEGER to a STRING.
+  it should "join two keys of one type when the ports list them in different orders" in {
+    val left = new Schema(
+      new Attribute("id", AttributeType.INTEGER),
+      new Attribute("name", AttributeType.STRING)
+    )
+    val right = new Schema(
+      new Attribute("label", AttributeType.STRING),
+      new Attribute("key", AttributeType.INTEGER)
+    )
+    val result = ConfigGenerator.generate(classOf[HashJoinOpDesc[Any]], Map(0 -> left, 1 -> right))
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[HashJoinOpDesc[Any]]
+    left.getAttribute(op.buildAttributeName).getType shouldBe
+      right.getAttribute(op.probeAttributeName).getType
+  }
+
+  it should "refuse a join whose two ports share no type" in {
+    val left = new Schema(new Attribute("id", AttributeType.INTEGER))
+    val right = new Schema(new Attribute("label", AttributeType.STRING))
+    val result = ConfigGenerator.generate(classOf[HashJoinOpDesc[Any]], Map(0 -> left, 1 -> right))
+    result.isLeft shouldBe true
+  }
+
+  // Interval Join states the same link the other way round: the right key takes
+  // the left key's type.
+  it should "give Interval Join's right key the left key's type" in {
+    val left = new Schema(
+      new Attribute("name", AttributeType.STRING),
+      new Attribute("t", AttributeType.INTEGER)
+    )
+    val right = new Schema(
+      new Attribute("label", AttributeType.STRING),
+      new Attribute("u", AttributeType.INTEGER)
+    )
+    val result = ConfigGenerator.generate(classOf[IntervalJoinOpDesc], Map(0 -> left, 1 -> right))
+    withClue(result) { result.isRight shouldBe true }
+    val op = result.toOption.get.asInstanceOf[IntervalJoinOpDesc]
+    op.leftAttributeName shouldBe "t"
+    op.rightAttributeName shouldBe "u"
   }
 
   it should "build a non-empty nested predicate list with a valid column and enum" in {
