@@ -169,7 +169,7 @@ class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |sys.modules["pytexera"] = stub
       |
       |ns = {"__name__": "generated_waterfall_chart"}
-      |with open(sys.argv[1]) as f:
+      |with open(sys.argv[1], encoding="utf-8") as f:
       |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
       |op = ns["ProcessTableOperator"]()
       |
