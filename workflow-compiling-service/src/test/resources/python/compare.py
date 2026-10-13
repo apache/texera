@@ -337,12 +337,11 @@ def _exact_integers(actual_path: str, expected_path: str, columns: list) -> tupl
         for column, cells in values.items():
             # A column either side widened is compared as the float it now is,
             # exactly rather than by tolerance; one both sides kept integral is
-            # carried in the nullable integer, where a long stays exact.
+            # carried in the nullable integer, where a long stays exact. A null
+            # stays None so each dtype takes its own hole: float64 cannot hold
+            # pd.NA.
             widened = any(isinstance(c, float) for c in cells)
-            dtype = "float64" if widened else "Int64"
-            out[column] = pd.array(
-                [pd.NA if c is None else c for c in cells], dtype=dtype
-            )
+            out[column] = pd.array(cells, dtype="float64" if widened else "Int64")
         return out
 
     return arrays(actual), arrays(expected)
@@ -371,7 +370,6 @@ def _declared_booleans(actual_path: str, expected_path: str, columns: list) -> t
         out = {}
         for column, cells in values.items():
             kept = all(c is None or isinstance(c, bool) for c in cells)
-            cells = [pd.NA if c is None else c for c in cells]
             out[column] = pd.array(cells, dtype="boolean" if kept else "float64")
         return out
 

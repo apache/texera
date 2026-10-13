@@ -174,10 +174,11 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     // kept the type.
     val dir = Files.createTempDirectory("comparator-spec-int-both-widened-")
     // writeLongs for the schema sidecar it leaves; the rows are then rewritten
-    // as the widened form both paths would have produced.
-    val a = writeLongs(dir, "a.jsonl", Seq(6L))
-    Files.writeString(a, "{\"n\":6.0}\n")
-    val b = writeLines(dir, "b.jsonl", Seq("""{"n":6.0}"""))
+    // as the widened form both paths would have produced. The null is the hole
+    // that widened it, and float64 has to hold it too.
+    val a = writeLongs(dir, "a.jsonl", Seq(6L, null))
+    Files.writeString(a, "{\"n\":6.0}\n{\"n\":null}\n")
+    val b = writeLines(dir, "b.jsonl", Seq("""{"n":6.0}""", """{"n":null}"""))
     noException should be thrownBy Comparator.assertEqual(a, b)
   }
 
@@ -248,6 +249,24 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     intercept[ComparatorMismatchException] {
       Comparator.assertEqual(a, b)
     }.getMessage should include("the two sides wrote it differently")
+  }
+
+  it should "accept a boolean column both sides widened alike" in {
+    // A hole costs a pandas boolean column its type on both paths alike, so
+    // both write the true as 1.0 next to the null.
+    val dir = Files.createTempDirectory("comparator-spec-bool-both-widened-")
+    val boolSchema = Schema().add(new Attribute("flag", AttributeType.BOOLEAN))
+    val a = dir.resolve("a.jsonl")
+    TupleIO.writeTuples(
+      a,
+      Iterator(
+        Tuple.builder(boolSchema).add(boolSchema.getAttribute("flag"), Boolean.box(true)).build()
+      ),
+      boolSchema
+    )
+    Files.writeString(a, "{\"flag\":1.0}\n{\"flag\":null}\n")
+    val b = writeLines(dir, "b.jsonl", Seq("""{"flag":1.0}""", """{"flag":null}"""))
+    noException should be thrownBy Comparator.assertEqual(a, b)
   }
 
   it should "report a model column only one side produced" in {
