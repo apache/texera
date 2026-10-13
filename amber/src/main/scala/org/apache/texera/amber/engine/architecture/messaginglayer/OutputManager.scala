@@ -57,6 +57,8 @@ object OutputManager {
         RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)
       case broadcastPartitioning: BroadcastPartitioning =>
         BroadcastPartitioner(broadcastPartitioning)
+      case leastLoadedPartitioning: LeastLoadedPartitioning =>
+        LeastLoadedPartitioner(leastLoadedPartitioning, actorId)
       case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
     partitioner
@@ -69,6 +71,7 @@ object OutputManager {
       case p: HashBasedShufflePartitioning  => p.batchSize
       case p: RangeBasedShufflePartitioning => p.batchSize
       case p: BroadcastPartitioning         => p.batchSize
+      case p: LeastLoadedPartitioning       => p.batchSize
       case _                                => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
   }
