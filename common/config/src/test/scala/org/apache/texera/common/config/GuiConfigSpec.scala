@@ -66,6 +66,10 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_FORM_VIEW_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceFormViewEnabled shouldBe true
     )
+    // Version pinning is on by default now that the whole feature has landed.
+    ifUnset("GUI_WORKFLOW_WORKSPACE_VERSION_PINNING_ENABLED")(
+      GuiConfig.guiWorkflowWorkspaceVersionPinningEnabled shouldBe true
+    )
     ifUnset("GUI_WORKFLOW_WORKSPACE_PRODUCTION_SHARED_EDITING_SERVER")(
       GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer shouldBe false
     )
