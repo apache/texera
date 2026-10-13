@@ -272,6 +272,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // A DOUBLE column read from Arrow keeps a stored NaN apart from null. The
   // engine skips the null and folds the NaN in, so SUM, AVERAGE and MAX answer
   // NaN while MIN, which Java's Double.compare sends NaN past, answers 1.0.
+  // CONCAT writes the NaN out and only a null as the empty string.
   it should "fold a stored NaN in a DOUBLE column as the engine does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -285,7 +286,8 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
         AggregationFunction.SUM,
         AggregationFunction.AVERAGE,
         AggregationFunction.MIN,
-        AggregationFunction.MAX
+        AggregationFunction.MAX,
+        AggregationFunction.CONCAT
       )
 
     def render(value: Any): String =
@@ -318,6 +320,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
            |        np.array([False, False, False, True, True]),
            |    ),
            |})
+           |${desc().standaloneHelpers().mkString("\n")}
            |${desc().generateStandaloneCode(Map(PortIdentity() -> input))}
            |def render(v):
            |    if v is pd.NA or v is None:
@@ -327,7 +330,8 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
            |    print(row)
            |""".stripMargin
       val out = runPython(python, driver, "aggregate-double-nan-", "UTC")
-      withClue(s"script:\n$driver")(out.trim.linesIterator.toSeq shouldBe engine)
+      // No trim: an all-null group's CONCAT is "", which ends its line in a space.
+      withClue(s"script:\n$driver")(out.linesIterator.toSeq shouldBe engine)
     }
 
     check(List("k"))

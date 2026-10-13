@@ -174,10 +174,12 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # comma: "", "a", "" concatenates to "a," and not ",a,". A null is
         |    # read as the empty string, which is what makes the two the same
         |    # here. This is concatAgg's fold, written out.
-        |    # Each value is written as Java's toString writes it.
+        |    # Each value is written as Java's toString writes it. The column's
+        |    # own mask says which are null: pd.isna on the value would take a
+        |    # stored NaN for one too.
         |    partial = ""
-        |    for v in series:
-        |        text = "" if pd.isna(v) else _texera_java_text(v)
+        |    for v, missing in zip(series, series.isna()):
+        |        text = "" if missing else _texera_java_text(v)
         |        partial = text if partial == "" else partial + "," + text
         |    return partial
         |
