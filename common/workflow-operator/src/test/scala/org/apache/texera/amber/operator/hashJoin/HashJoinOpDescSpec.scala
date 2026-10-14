@@ -20,7 +20,13 @@
 package org.apache.texera.amber.operator.hashJoin
 
 import com.typesafe.config.ConfigFactory
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple
+}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -120,6 +126,99 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
       process.exitValue() shouldBe 0
       // Both left rows come back, and exactly one of them found a partner.
       out.trim shouldBe "2 1"
+    }
+  }
+
+  // The probe looks each key up in a HashMap under Scala's ==: a NaN finds
+  // nothing, not even another NaN, while 0.0 meets -0.0 and a null meets a
+  // null. Each join type keeps or drops the unmatched NaN rows by its own rule.
+  for (joinType <- JoinType.values) {
+    it should s"pair NaN, signed-zero and null keys as the engine does in a $joinType join" taggedAs NeedsPythonPackages in {
+      val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+      if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+      val d = new HashJoinOpDesc[java.lang.Double]
+      d.buildAttributeName = "k"
+      d.probeAttributeName = "k2"
+      d.joinType = joinType
+      val left = Schema().add("k", AttributeType.DOUBLE).add("lv", AttributeType.STRING)
+      val right = Schema().add("k2", AttributeType.DOUBLE).add("rv", AttributeType.STRING)
+      val leftRows: Seq[(java.lang.Double, String)] =
+        Seq((Double.NaN, "L-nan"), (0.0, "L+0"), (1.0, "L1"), (null, "L-null"))
+      val rightRows: Seq[(java.lang.Double, String)] =
+        Seq((Double.NaN, "R-nan"), (-0.0, "R-0"), (1.0, "R1"), (null, "R-null"))
+
+      val outSchema = d
+        .getExternalOutputSchemas(Map(PortIdentity() -> left, PortIdentity(1) -> right))
+        .values
+        .head
+      val build = new HashJoinBuildOpExec[java.lang.Double](objectMapper.writeValueAsString(d))
+      build.open()
+      leftRows.foreach { case (k, v) => build.processTuple(Tuple(left, Array[Any](k, v)), 0) }
+      val probe = new HashJoinProbeOpExec[java.lang.Double](objectMapper.writeValueAsString(d))
+      probe.open()
+      val internal =
+        Schema().add(HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(left)
+      build
+        .onFinish(0)
+        .foreach(t =>
+          probe.processTuple(t.asInstanceOf[SchemaEnforceable].enforceSchema(internal), 0)
+        )
+      probe.onFinish(0)
+      val probed = rightRows.flatMap {
+        case (k, v) => probe.processTuple(Tuple(right, Array[Any](k, v)), 1)
+      } ++ probe.onFinish(1)
+      val engine = probed
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(outSchema).getFields.map {
+          case null                           => "None"
+          case d: java.lang.Double if d.isNaN => "nan"
+          case other                          => other.toString
+        })
+        .map(_.mkString(" "))
+        .toList
+        .sorted
+
+      def frame(rows: Seq[(java.lang.Double, String)], key: String, value: String): String = {
+        val keys =
+          rows.map(_._1).map(k => if (k == null) "None" else if (k.isNaN) "np.nan" else k.toString)
+        val values = rows.map(r => s""""${r._2}"""")
+        s"""pd.DataFrame({
+           |    "$key": col([${keys.mkString(", ")}]),
+           |    "$value": [${values.mkString(", ")}],
+           |})""".stripMargin
+      }
+      val driver =
+        s"""import pandas as pd, numpy as np
+           |
+           |def col(vals):
+           |    return pd.arrays.FloatingArray(
+           |        np.array([0.0 if v is None else v for v in vals]),
+           |        np.array([v is None for v in vals]),
+           |    )
+           |
+           |in1df = ${frame(leftRows, "k", "lv")}
+           |in2df = ${frame(rightRows, "k2", "rv")}
+           |${d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))}
+           |def show(v):
+           |    if isinstance(v, float):
+           |        return "nan" if v != v else repr(float(v))
+           |    return str(v)
+           |rows = []
+           |for values, missing in zip(out1df.itertuples(index=False), out1df.isna().to_numpy()):
+           |    rows.append(" ".join("None" if m else show(v) for v, m in zip(values, missing)))
+           |print("\\n".join(sorted(rows)))
+           |""".stripMargin
+
+      val script = Files.createTempFile("hashjoin-nan-zero-", ".py")
+      script.toFile.deleteOnExit()
+      Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+      val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+      val out = Source.fromInputStream(process.getInputStream).mkString
+      process.waitFor(120, TimeUnit.SECONDS)
+      withClue(s"python said:\n$out\nscript:\n$driver") {
+        process.exitValue() shouldBe 0
+        out.trim.linesIterator.toList shouldBe engine
+      }
     }
   }
 

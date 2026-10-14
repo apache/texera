@@ -265,8 +265,13 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     //
     // JoinUtils sets the probe key aside before it renames anything, so a
     // payload column never has to step around the key that is about to leave.
-    // The key itself still rides along, because the merge joins on it, and it
-    // only has to land where nothing else already sits.
+    // The key itself still rides along, and it only has to land where nothing
+    // else already sits.
+    //
+    // The merge joins on codes and not on the keys. The probe looks each key up
+    // in a HashMap under Scala's ==, where a NaN finds nothing, not even another
+    // NaN, while 0.0 meets -0.0 and a null meets a null; merge pairs NaN with
+    // NaN.
     val merge =
       s"""_left_cols = set(in1df.columns)
          |_right_cols = list(in2df.columns)
@@ -285,13 +290,33 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
          |    _probe_key = _probe_key + "#@1"
          |if _probe_key != $probeKeyLit:
          |    _rename[$probeKeyLit] = _probe_key
+         |_join_key = "_texera_join_key"
+         |while _join_key in _taken or _join_key == _probe_key:
+         |    _join_key = _join_key + "_"
+         |
+         |def _texera_join_codes(left, right):
+         |    # Each NaN takes a code of its own. A null is read off the column's
+         |    # mask, since a stored NaN is not one.
+         |    import math
+         |
+         |    codes = {}
+         |
+         |    def code(s):
+         |        out = []
+         |        for v, missing in zip(s, s.isna().to_numpy()):
+         |            key = None if missing else object() if isinstance(v, float) and math.isnan(v) else v
+         |            out.append(codes.setdefault(key, len(codes)))
+         |        return out
+         |
+         |    return code(left), code(right)
+         |
+         |_left_codes, _right_codes = _texera_join_codes(in1df[$buildKeyLit], in2df[$probeKeyLit])
          |""".stripMargin + widening +
-        s"""out1df = $leftFrame.merge(
-           |    $rightFrame,
+        s"""out1df = $leftFrame.assign(**{_join_key: _left_codes}).merge(
+           |    $rightFrame.assign(**{_join_key: _right_codes}),
            |    how=${pyStringLiteral(how)},
-           |    left_on=$buildKeyLit,
-           |    right_on=_probe_key,
-           |)""".stripMargin
+           |    on=_join_key,
+           |).drop(columns=[_join_key])""".stripMargin
     // `_probe_key` is whatever the rename settled on, so this drops the right
     // column rather than a left one that happened to share its name. Asked of
     // the name the rename produced and not of the two the operator was given:
