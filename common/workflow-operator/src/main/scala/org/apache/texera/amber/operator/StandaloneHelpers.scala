@@ -159,8 +159,9 @@ object StandaloneHelpers {
       |def _texera_read_doubles(s):
       |    # pandas leaves a DOUBLE column as text when a cell reads in Java and
       |    # not as a plain float: "NaN", "2d", "0x1p3". Read those the engine's
-      |    # way. An empty cell is null and "NaN" is a value, so where a column
-      |    # holds both, only the nullable Float64 keeps them apart.
+      |    # way. "NaN" is a value, and float64 reports a NaN as missing to every
+      |    # operator that reads the mask, so a column holding one goes into the
+      |    # nullable Float64, which keeps the empty cells alone null.
       |    import numpy as np
       |
       |    if pd.api.types.is_numeric_dtype(s):
@@ -170,7 +171,7 @@ object StandaloneHelpers {
       |        [np.nan if hole else _texera_java_double(x) for x, hole in zip(s, holes)],
       |        dtype="float64",
       |    )
-      |    if holes.any() and np.isnan(values[~holes]).any():
+      |    if np.isnan(values[~holes]).any():
       |        values = pd.arrays.FloatingArray(values, holes)
       |    return pd.Series(values, index=s.index, name=s.name)
       |

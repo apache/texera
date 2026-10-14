@@ -166,7 +166,9 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
-  // numbers and the column is DOUBLE, where pandas kept it as strings.
+  // numbers and the column is DOUBLE, where pandas kept it as strings. A cell
+  // is read as null only where the frame's mask says so, as every operator
+  // downstream reads it, so the "NaN" has to stay a value.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -186,8 +188,10 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |${d.standaloneHelpers().mkString("\n")}
          |sourceFile = ${objectMapper.writeValueAsString(d.fileName.get)}
          |${d.generateStandaloneCode()}
-         |for x in out1df["w"]:
-         |    if x != x:
+         |for x, missing in zip(out1df["w"], out1df["w"].isna()):
+         |    if missing:
+         |        print("null")
+         |    elif x != x:
          |        print("NaN")
          |    elif x in (float("inf"), float("-inf")):
          |        print("Infinity" if x > 0 else "-Infinity")

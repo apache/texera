@@ -680,6 +680,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
   // numbers and the column is DOUBLE. pandas' float parser takes none of them
   // and kept the column as strings, and a blank beside a "NaN" has to stay null.
+  // `u` holds a "NaN" and no blank, which a float64 column would still report
+  // as missing to every operator that reads its mask.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -688,7 +690,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     tmpFile.toFile.deleteOnExit()
     Files.write(
       tmpFile,
-      "v,w\n1.5,1.5\nNaN,2d\n,0x1p3\n-Infinity,3f\n".getBytes(StandardCharsets.UTF_8)
+      "v,w,u\n1.5,1.5,1.5\nNaN,2d,NaN\n,0x1p3,2.5\n-Infinity,3f,3.5\n"
+        .getBytes(StandardCharsets.UTF_8)
     )
     val path = tmpFile.toString
     csvScanSourceOpDesc.customDelimiter = Some(",")
@@ -705,6 +708,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         desc.fileName = Some(path)
         desc.setResolvedFileName(FileResolver.resolve(path))
         assert(desc.sourceSchema().getAttribute("w").getType == AttributeType.DOUBLE)
+        assert(desc.sourceSchema().getAttribute("u").getType == AttributeType.DOUBLE)
 
         val engine = exec(objectMapper.writeValueAsString(desc))
         engine.open()
@@ -723,11 +727,13 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /** Prints each row of `out1df` as the engine's fields print: a null as
-    * "null" and a double as Java's `Double.toString` writes these values.
+    * "null" and a double as Java's `Double.toString` writes these values. A
+    * cell is null where the frame's mask says so, as every operator downstream
+    * reads it, and not where its value happens to be NaN.
     */
   private val renderRows =
-    """def _show(x):
-      |    if x is None or x is pd.NA:
+    """def _show(x, missing):
+      |    if missing:
       |        return "null"
       |    if isinstance(x, float):
       |        if x != x:
@@ -736,8 +742,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       |            return "Infinity" if x > 0 else "-Infinity"
       |        return repr(float(x))
       |    return str(x)
-      |for _row in out1df.itertuples(index=False):
-      |    print(",".join(_show(v) for v in _row))""".stripMargin
+      |for _row, _missing in zip(out1df.itertuples(index=False), out1df.isna().to_numpy()):
+      |    print(",".join(_show(v, m) for v, m in zip(_row, _missing)))""".stripMargin
 
   private def runStandalone(
       python: String,
