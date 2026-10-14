@@ -165,6 +165,8 @@ object StandaloneHelpers {
       |            return _texera_local_wall_clocks(s)
       |        return s
       |
+      |    zone = _texera_local_zone()
+      |
       |    def _one(x):
       |        if pd.isna(x):
       |            return None
@@ -173,7 +175,7 @@ object StandaloneHelpers {
       |        except (ValueError, OverflowError):
       |            return None
       |        if parsed.tzinfo is not None:
-      |            parsed = _texera_local_wall_clock(parsed)
+      |            parsed = _texera_local_wall_clock(parsed, zone)
       |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
       |
       |    return s.map(_one).astype("datetime64[us]")
@@ -187,37 +189,82 @@ object StandaloneHelpers {
       |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
       |
       |
-      |def _texera_local_wall_clock(moment):
-      |    # The wall clock the machine's zone shows at an instant that states its
-      |    # offset. tzlocal() and not the current offset: the zone carries its
-      |    # daylight rules, and each instant needs the offset in force when it
-      |    # happened.
-      |    #
-      |    # Windows' localtime refuses an instant before 1970, and tzlocal() asks
-      |    # it. Such an instant takes the zone's standard offset instead, which is
-      |    # what java.util.Date answers before its zone history starts in 1900.
+      |def _texera_local_zone():
+      |    # The machine's zone by IANA name, as the JVM holds it, so each instant
+      |    # gets the offset in force when it happened. dateutil's tzlocal() knows
+      |    # only today's two offsets. tzlocal maps a Windows zone with the JVM's
+      |    # table.
+      |    import os
+      |    import zoneinfo
+      |
+      |    names = [os.environ.get("TZ", "").lstrip(":")]
+      |    try:
+      |        import tzlocal
+      |
+      |        names.insert(0, str(tzlocal.get_localzone()))
+      |    except Exception:
+      |        pass
+      |    link = os.path.realpath("/etc/localtime")
+      |    if "zoneinfo/" in link:
+      |        names.append(link.split("zoneinfo/", 1)[1])
+      |    for name in names:
+      |        try:
+      |            return zoneinfo.ZoneInfo(name)
+      |        except (ValueError, KeyError):
+      |            continue
+      |    return None
+      |
+      |
+      |def _texera_standard_offset(zone):
+      |    # java.util.Date's zone history starts in 1900, and an instant before
+      |    # that takes the zone's standard offset today.
       |    import datetime
       |    import time
       |
+      |    if zone is None:
+      |        return datetime.timedelta(seconds=-time.timezone)
+      |    now = datetime.datetime.now(zone)
+      |    return now.utcoffset() - now.dst()
+      |
+      |
+      |def _texera_local_wall_clock(moment, zone):
+      |    # The wall clock the machine's zone shows at an instant that states its
+      |    # offset.
+      |    #
+      |    # With no zone named, tzlocal() is the closest there is. Windows'
+      |    # localtime refuses an instant before 1970, and tzlocal() asks it, so
+      |    # such an instant takes the standard offset too.
+      |    import datetime
+      |
       |    from dateutil.tz import tzlocal
       |
+      |    utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+      |    if utc < datetime.datetime(1900, 1, 1):
+      |        return utc + _texera_standard_offset(zone)
+      |    if zone is not None:
+      |        return moment.astimezone(zone).replace(tzinfo=None)
       |    try:
       |        return moment.astimezone(tzlocal()).replace(tzinfo=None)
       |    except (OSError, OverflowError):
-      |        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-      |        return utc + datetime.timedelta(seconds=-time.timezone)
+      |        return utc + _texera_standard_offset(zone)
       |
       |
       |def _texera_local_wall_clocks(s):
       |    # The same for a column that states its zone, kept at its own resolution.
-      |    # A cell Windows refuses is asked through datetime, one at a time,
-      |    # because a single pandas Timestamp swallows the refusal and answers
-      |    # UTC. Only the offset comes from there, so no digit past the
-      |    # microsecond is lost.
+      |    # Without a named zone, a cell Windows refuses is asked through
+      |    # datetime, one at a time, because a single pandas Timestamp swallows
+      |    # the refusal and answers UTC. Only the offset comes from there, so no
+      |    # digit past the microsecond is lost.
       |    import datetime
       |
       |    from dateutil.tz import tzlocal
       |
+      |    zone = _texera_local_zone()
+      |    utc = s.dt.tz_convert("UTC").dt.tz_localize(None)
+      |    if zone is not None:
+      |        wall = s.dt.tz_convert(zone).dt.tz_localize(None)
+      |        before = utc < pd.Timestamp(1900, 1, 1)
+      |        return wall.where(~before, utc + _texera_standard_offset(zone))
       |    try:
       |        return s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
       |    except (OSError, OverflowError):
@@ -228,10 +275,9 @@ object StandaloneHelpers {
       |            return 0
       |        moment = t.to_pydatetime(warn=False)
       |        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-      |        return int((_texera_local_wall_clock(moment) - utc).total_seconds())
+      |        return int((_texera_local_wall_clock(moment, None) - utc).total_seconds())
       |
       |    seconds = pd.Series([_offset(t) for t in s], index=s.index)
-      |    utc = s.dt.tz_convert("UTC").dt.tz_localize(None)
       |    return utc + pd.to_timedelta(seconds, unit="s").astype("timedelta64[s]")
       |
       |

@@ -322,6 +322,50 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   private val epochYears = Seq(1600, 2024, 2500)
 
   it should "read a moment before 1970 where localtime refuses it" taggedAs NeedsPythonPackages in {
+    readMomentsAsTheEngineDoes(
+      epochYears.map(y =>
+        java.time.ZonedDateTime.of(y, 6, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC)
+      ),
+      zone = None
+    )
+  }
+
+  // A zone whose offset has moved, read with the offset in force at each instant.
+  // Mexico City was seven hours behind in January 1931, kept summer time until
+  // 2022, and before 1922 kept its local mean time; before 1900 java.util.Date
+  // takes today's standard offset instead. Only today's two offsets would put
+  // the first three an hour or more away.
+  private val mexicoCityInstants =
+    Seq(
+      "1931-01-01T00:00:00Z",
+      "2021-07-01T00:00:00Z",
+      "1921-01-01T00:00:00Z",
+      "1899-12-31T00:00:00Z"
+    )
+      .map(java.time.ZonedDateTime.parse(_))
+
+  it should "read a moment with the offset its zone had then" taggedAs NeedsPythonPackages in {
+    val fromEngine =
+      readMomentsAsTheEngineDoes(mexicoCityInstants, zone = Some("America/Mexico_City"))
+    // What the pair has to agree on: each offset the zone had, not today's.
+    fromEngine.map(moment) shouldBe Seq(
+      "1930-12-31 17:00:00",
+      "2021-06-30 19:00:00",
+      "1920-12-31 17:23:24",
+      "1899-12-30 18:00:00"
+    ).map(moment)
+  }
+
+  /** Casts each instant three ways, as epoch milliseconds, as text that states an
+    * offset and from a column that states its zone, with localtime refusing
+    * every instant before 1970 as Windows' does, and compares the wall clocks
+    * with the engine's. A given zone is set for both sides; otherwise each uses
+    * the machine's.
+    */
+  private def readMomentsAsTheEngineDoes(
+      instants: Seq[java.time.ZonedDateTime],
+      zone: Option[String]
+  ): Seq[String] = {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -339,8 +383,6 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .add(new Attribute("zoned", AttributeType.TIMESTAMP))
     val generated = op.generateStandaloneCode(Map(op.operatorInfo.inputPorts.head.id -> input))
 
-    val instants =
-      epochYears.map(y => java.time.ZonedDateTime.of(y, 6, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC))
     val millis = instants.map(_.toInstant.toEpochMilli)
     val texts = instants.map(_.toLocalDateTime.plusMinutes(330).toString + ":00+05:30")
     val driver =
@@ -379,24 +421,34 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     script.toFile.deleteOnExit()
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
+    zone.foreach(z => builder.environment().put("TZ", z))
+    val process = builder.start()
     val out = Source.fromInputStream(process.getInputStream).mkString
     process.waitFor(120, TimeUnit.SECONDS)
     withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
 
     // Every column names the same instants, so each has the engine's answer
     // for the milliseconds. The text is also asked directly.
-    val fromMillis =
-      millis.map(m => engineAnswer(java.lang.Long.valueOf(m), AttributeType.TIMESTAMP)) :+ "null"
-    texts.map(t => moment(engineAnswer(t, AttributeType.TIMESTAMP))) shouldBe
-      fromMillis.init.map(moment)
+    val machineZone = java.util.TimeZone.getDefault
+    zone.foreach(z => java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(z)))
+    val (fromMillis, fromText) =
+      try {
+        (
+          millis.map(m =>
+            engineAnswer(java.lang.Long.valueOf(m), AttributeType.TIMESTAMP)
+          ) :+ "null",
+          texts.map(t => engineAnswer(t, AttributeType.TIMESTAMP))
+        )
+      } finally java.util.TimeZone.setDefault(machineZone)
+    fromText.map(moment) shouldBe fromMillis.init.map(moment)
     val fromScript = cellsOf(out).map(_.split(" ", 2)).map(p => (p(0), moment(p(1))))
     withClue(s"script said ${cellsOf(out)}\n") {
       fromScript shouldBe Seq("ms", "text", "zoned").flatMap(c =>
         fromMillis.map(v => (c, moment(v)))
       )
     }
+    fromMillis.init
   }
 
   // The moments where the two sides used to part. pandas parses into nanoseconds
