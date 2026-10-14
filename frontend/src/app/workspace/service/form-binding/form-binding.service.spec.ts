@@ -27,6 +27,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { mockPoint, mockScanPredicate, mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { expandMacros, MacroDefinition, macroInstance } from "../../../common/util/workflow-macro";
 
 describe("FormBindingService", () => {
   let service: FormBindingService;
@@ -50,6 +51,65 @@ describe("FormBindingService", () => {
   });
 
   const scanId = mockScanPredicate.operatorID;
+
+  it("resolves and edits three nested macro levels without changing another instance or the pinned definitions", () => {
+    const definitions: MacroDefinition[] = [];
+    let inner = { ...mockScanPredicate, operatorID: "leaf", operatorProperties: { tableName: "initial" } };
+    for (let level = 0; level < 3; level++) {
+      const id = `form-level-${level}`;
+      const definition: MacroDefinition = {
+        id,
+        version: 1,
+        name: `Level ${level}`,
+        content: {
+          ...workflowActionService.getWorkflowContent(),
+          operators: [inner],
+          links: [],
+          macroInterface: {
+            id,
+            inputs: [],
+            outputs: [{ portID: "output-0", targets: [{ operatorID: inner.operatorID, portID: "output-0" }] }],
+          },
+          formBinding: {
+            fields: [
+              {
+                id: "exposed",
+                operatorID: inner.operatorID,
+                propertyKey: level ? "exposed" : "tableName",
+                displayName: "Table",
+              },
+            ],
+          },
+        },
+      };
+      definitions.push(definition);
+      inner = macroInstance(definition, `nested-${level}`) as typeof inner;
+    }
+    workflowActionService.setMacroDependencies(definitions);
+    for (const id of ["first", "second"]) {
+      workflowActionService.addOperator(
+        { ...inner, operatorID: id, operatorProperties: { exposed: "initial" } },
+        mockPoint
+      );
+      service.addBinding(id, "exposed");
+    }
+    const before = JSON.stringify(definitions);
+    const [first, second] = service.resolveFields();
+    expect(first.schema?.title).toBe("Table");
+    expect(first.brokenReason).toBeUndefined();
+    for (const value of ["東京 café", ""]) {
+      service.writeValue(first.binding, value);
+      expect(service.resolveFields().map(f => f.value)).toEqual([value, "initial"]);
+      const expanded = expandMacros(workflowActionService.getWorkflowContent());
+      const leaf = (id: string) => expanded.content.operators.find(op => expanded.paths[op.operatorID]?.[0] === id)!;
+      expect(leaf("first").operatorProperties["tableName"]).toBe(value);
+      expect(leaf("second").operatorProperties["tableName"]).toBe("initial");
+    }
+    expect(JSON.stringify(definitions)).toBe(before);
+    service.updateBinding(first.binding.id, { propertyKey: "missing" });
+    expect(service.resolveFields()[0].brokenReason).toContain("not a setting");
+    expect(service.readValue(second.binding.operatorID, second.binding.propertyKey)).toBe("initial");
+  });
 
   it("starts with nothing exposed and no result list, so the final steps show", () => {
     expect(service.getConfig().fields).toEqual([]);
