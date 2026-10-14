@@ -234,9 +234,9 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "cast each line to the configured attribute type" in {
     val castByType = Seq(
-      FileAttributeType.INTEGER -> "int(l.rstrip())",
-      FileAttributeType.LONG -> "int(l.rstrip())",
-      FileAttributeType.DOUBLE -> "float(l.rstrip())",
+      FileAttributeType.INTEGER -> "_texera_parse_int(l, 32)",
+      FileAttributeType.LONG -> "_texera_parse_int(l, 64)",
+      FileAttributeType.DOUBLE -> "_texera_parse_double(l)",
       FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
       FileAttributeType.TIMESTAMP -> "l.rstrip()",
       FileAttributeType.STRING -> """l.rstrip("\n")"""
@@ -250,10 +250,20 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
             .contains(s"        _rows.extend($cast for l in _f)")
         )
     }
-    // The boolean cast is the one that calls out of the body, so the script has
-    // to carry the definition.
+    // The number and boolean casts call out of the body, so the script has to
+    // carry the definitions.
+    fileScanOpDesc.attributeType = FileAttributeType.INTEGER
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.NumberParsers))
+    fileScanOpDesc.attributeType = FileAttributeType.DOUBLE
+    assert(
+      fileScanOpDesc.standaloneHelpers() ==
+        Seq(StandaloneHelpers.AttributeCasts, TextSourceOpDesc.NumberParsers)
+    )
     fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
-    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.BooleanParser))
+    assert(
+      fileScanOpDesc.standaloneHelpers() ==
+        Seq(TextSourceOpDesc.NumberParsers, TextSourceOpDesc.BooleanParser)
+    )
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     assert(fileScanOpDesc.standaloneHelpers().isEmpty)
     // A timestamp line is read as text and parsed as a column, as CSV parses one.
@@ -274,7 +284,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[3:])")
+        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[3:])")
     )
 
     fileScanOpDesc.fileScanOffset = None
@@ -282,7 +292,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[:5])")
+        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[:5])")
     )
 
     fileScanOpDesc.fileScanOffset = Option(3)
@@ -290,7 +300,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(int(l.rstrip()) for l in _f.readlines()[3:][:5])")
+        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[3:][:5])")
     )
   }
 

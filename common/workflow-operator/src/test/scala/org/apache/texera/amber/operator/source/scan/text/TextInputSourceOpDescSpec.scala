@@ -348,6 +348,130 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  // `parseField` trims a line and reads it with toInt, toLong or toDouble.
+  // int() and float() read "1_0", "nan", "inf", an Arabic-Indic digit as a
+  // double and an INTEGER past 32 bits, all of which end the engine's run, and
+  // float() refused "2d" and "0x1p3", which the engine reads. Each line runs
+  // alone through the executor and through the export, and either both read
+  // the same value or both refuse it.
+  it should "read a number line the way the engine's parseField does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val linesByType = Seq(
+      FileAttributeType.INTEGER -> Seq(
+        "5",
+        " 5",
+        "+5",
+        "1_0",
+        "٣",
+        "５",
+        "-2147483648",
+        "2147483648",
+        "3000000000",
+        " 5",
+        "5\u0000",
+        "1.0"
+      ),
+      FileAttributeType.LONG -> Seq(
+        "9223372036854775807",
+        "9223372036854775808",
+        "1_0",
+        " -7 "
+      ),
+      FileAttributeType.DOUBLE -> Seq(
+        "1.5",
+        "2d",
+        "0x1p3",
+        "0x.8p1",
+        "0x1p1024",
+        "NaN",
+        "nan",
+        "inf",
+        "Infinity",
+        "-Infinity",
+        "NaNd",
+        "1_0",
+        "٣",
+        "1e400",
+        "-0.0",
+        ".5",
+        "5.",
+        " 1.5",
+        "1.5\u0000"
+      ),
+      FileAttributeType.BOOLEAN -> Seq("TRUE", "1", "2", "1_0", "3000000000", " true")
+    )
+
+    val runs = for {
+      (attrType, lines) <- linesByType
+      line <- lines
+    } yield {
+      textInputSourceOpDesc.attributeType = attrType
+      textInputSourceOpDesc.textInput = line
+      val engine = Try {
+        val exec =
+          new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
+        exec.open()
+        try {
+          exec
+            .produceTuple()
+            .map(
+              _.asInstanceOf[SchemaEnforceable]
+                .enforceSchema(textInputSourceOpDesc.sourceSchema())
+                .getField[Any]("line")
+            )
+            .toList
+        } finally exec.close()
+      }.toOption.flatMap(_.headOption)
+      val code = (textInputSourceOpDesc.standaloneHelpers() :+
+        textInputSourceOpDesc.generateStandaloneCode()).mkString("\n\n")
+      (s"$attrType ${line.map(c => f"\\u${c.toInt}%04x").mkString}", engine, code)
+    }
+
+    // A float prints as Java's Double.valueOf reads it back, so the two sides
+    // meet on equals, where NaN equals itself and -0.0 is not 0.0.
+    val driver = ("import pandas as pd" +: runs.map {
+      case (_, _, code) =>
+        s"""ns = {"pd": pd}
+           |try:
+           |    exec(${objectMapper.writeValueAsString(code)}, ns)
+           |    v = ns["out1df"]["line"].iloc[0].item()
+           |    if isinstance(v, float):
+           |        print("Infinity" if v == float("inf") else "-Infinity" if v == float("-inf") else repr(v).replace("nan", "NaN"))
+           |    else:
+           |        print(v)
+           |except ValueError:
+           |    print("refused")""".stripMargin
+    }).mkString("\n")
+    val dir = Files.createTempDirectory("text-input-numbers-")
+    dir.toFile.deleteOnExit()
+    val script = dir.resolve("run.py")
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\n") {
+      assert(process.exitValue() == 0)
+      val printed = out.linesIterator.toList
+      assert(printed.size == runs.size)
+      runs.zip(printed).foreach {
+        case ((label, engine, _), exported) =>
+          val agreed = engine match {
+            case None => exported == "refused"
+            case Some(d: java.lang.Double) =>
+              Try(java.lang.Double.valueOf(exported)).toOption.exists(_.equals(d))
+            case Some(b: java.lang.Boolean) => exported == (if (b) "True" else "False")
+            case Some(n)                    => exported == n.toString
+          }
+          assert(agreed, s"$label: engine ${engine.getOrElse("refused")}, export $exported")
+      }
+    }
+  }
+
   /** The configured text read as STRING lines by the executor the engine runs. */
   private def linesFromEngine(): Seq[String] = {
     val exec = new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))

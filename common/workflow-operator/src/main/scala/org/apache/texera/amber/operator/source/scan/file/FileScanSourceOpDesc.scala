@@ -93,9 +93,9 @@ class FileScanSourceOpDesc
       attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
 
     val castExpr = attributeType match {
-      case FileAttributeType.INTEGER   => "int(l.rstrip())"
-      case FileAttributeType.LONG      => "int(l.rstrip())"
-      case FileAttributeType.DOUBLE    => "float(l.rstrip())"
+      case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
+      case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
+      case FileAttributeType.DOUBLE    => "_texera_parse_double(l)"
       case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
       case FileAttributeType.TIMESTAMP => "l.rstrip()"
       case _                           => """l.rstrip("\n")"""
