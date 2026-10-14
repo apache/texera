@@ -262,6 +262,27 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |        return None
         |    return float(kept.astype(object).sum()) / len(kept)
         |
+        |def _texera_agg_ts_pick(series, better):
+        |    # AttributeTypeUtils.compare reads a timestamp by getTime, so two in
+        |    # the same millisecond tie, and the fold keeps the one it holds,
+        |    # digits past the millisecond and all. floor and not round, as
+        |    # getTime does.
+        |    kept = series.dropna()
+        |    if len(kept) == 0:
+        |        return pd.NaT
+        |    millis = kept.dt.floor("ms")
+        |    pick = 0
+        |    for i in range(1, len(kept)):
+        |        if better(millis.iloc[i], millis.iloc[pick]):
+        |            pick = i
+        |    return kept.iloc[pick]
+        |
+        |def _texera_agg_ts_min(series):
+        |    return _texera_agg_ts_pick(series, lambda a, b: a < b)
+        |
+        |def _texera_agg_ts_max(series):
+        |    return _texera_agg_ts_pick(series, lambda a, b: a > b)
+        |
         |# A DOUBLE column can hold a stored NaN apart from null, and pandas'
         |# reductions answer null for it. The engine skips only the nulls and folds
         |# the rest as Java doubles, so these folds are written out. Each answers
@@ -402,13 +423,15 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         }
       case AggregationFunction.MIN =>
         declared match {
-          case Some(AttributeType.DOUBLE) => s"_texera_agg_double_min(in1df[$attrLit])"
-          case _                          => s"in1df[$attrLit].min()"
+          case Some(AttributeType.DOUBLE)    => s"_texera_agg_double_min(in1df[$attrLit])"
+          case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_min(in1df[$attrLit])"
+          case _                             => s"in1df[$attrLit].min()"
         }
       case AggregationFunction.MAX =>
         declared match {
-          case Some(AttributeType.DOUBLE) => s"_texera_agg_double_max(in1df[$attrLit])"
-          case _                          => s"in1df[$attrLit].max()"
+          case Some(AttributeType.DOUBLE)    => s"_texera_agg_double_max(in1df[$attrLit])"
+          case Some(AttributeType.TIMESTAMP) => s"_texera_agg_ts_max(in1df[$attrLit])"
+          case _                             => s"in1df[$attrLit].max()"
         }
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
@@ -449,12 +472,16 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       case AggregationFunction.MIN =>
         declared match {
           case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_min")
-          case _                          => s"$groups[$attrLit].min().rename($resultLit)"
+          case Some(AttributeType.TIMESTAMP) =>
+            s"$groups[$attrLit].apply(_texera_agg_ts_min).rename($resultLit)"
+          case _ => s"$groups[$attrLit].min().rename($resultLit)"
         }
       case AggregationFunction.MAX =>
         declared match {
           case Some(AttributeType.DOUBLE) => byDoubleFold("_texera_agg_double_max")
-          case _                          => s"$groups[$attrLit].max().rename($resultLit)"
+          case Some(AttributeType.TIMESTAMP) =>
+            s"$groups[$attrLit].apply(_texera_agg_ts_max).rename($resultLit)"
+          case _ => s"$groups[$attrLit].max().rename($resultLit)"
         }
       case AggregationFunction.COUNT =>
         if (agg.attribute == null || agg.attribute.isEmpty)

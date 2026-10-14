@@ -499,6 +499,78 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     check(List.empty)
   }
 
+  // The engine compares timestamps by getTime, so two in the same millisecond
+  // tie and MIN and MAX keep the one they met first, with its own digits past
+  // the millisecond. Group "a" makes MIN keep the later digits, "b" makes MAX
+  // keep the earlier ones, "c" holds only a null, and "d" ties before 1970.
+  it should "pick a timestamp MIN and MAX by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("k", AttributeType.STRING).add("t", AttributeType.TIMESTAMP)
+    val rows: Seq[(String, String)] = Seq(
+      ("a", "2024-01-01 12:00:00.0005"),
+      ("a", "2024-01-01 12:00:00.0001"),
+      ("b", "2024-01-01 12:00:00.0001"),
+      ("b", "2024-01-01 12:00:00.0005"),
+      ("c", null),
+      ("d", "1969-12-31 23:59:59.9991"),
+      ("d", "1969-12-31 23:59:59.9995")
+    )
+
+    def render(value: Any): String =
+      value match {
+        case null                  => "None"
+        case t: java.sql.Timestamp => t.toLocalDateTime.toString
+        case v                     => v.toString
+      }
+
+    def check(keys: List[String]): Unit = {
+      val desc = () =>
+        descWith(
+          keys,
+          aggOp(AggregationFunction.MIN, "t", "lo"),
+          aggOp(AggregationFunction.MAX, "t", "hi")
+        )
+
+      val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
+      exec.open()
+      rows.foreach {
+        case (k, t) =>
+          val ts = Option(t).map(java.sql.Timestamp.valueOf).orNull
+          exec.processTuple(Tuple(input, Array[Any](k, ts)), 0)
+      }
+      val engine = exec
+        .onFinish(0)
+        .map(_.getFields.toSeq.map(render).mkString(" "))
+        .toSeq
+        .sorted
+
+      val ks = rows.map(r => "\"" + r._1 + "\"").mkString("[", ", ", "]")
+      val ts = rows
+        .map(r => Option(r._2).map("\"" + _.replace(' ', 'T') + "\"").getOrElse("\"NaT\""))
+        .mkString("[", ", ", "]")
+      val driver =
+        s"""import pandas as pd, numpy as np
+           |
+           |in1df = pd.DataFrame({"k": $ks, "t": np.array($ts, dtype="datetime64[us]")})
+           |${desc().standaloneHelpers().mkString("\n")}
+           |${desc().generateStandaloneCode(Map(PortIdentity() -> input))}
+           |def render(v):
+           |    if v is None or pd.isna(v):
+           |        return "None"
+           |    return v if isinstance(v, str) else pd.Timestamp(v).isoformat()
+           |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
+           |    print(row)
+           |""".stripMargin
+      val out = runPython(python, driver, "aggregate-timestamp-ties-", "UTC")
+      withClue(s"script:\n$driver")(out.trim.linesIterator.toSeq shouldBe engine)
+    }
+
+    check(List("k"))
+    check(List.empty)
+  }
+
   // Without a schema the type-led branches cannot be chosen.
   it should "fall back to pandas' own answers when no schema is given" in {
     val desc = descWith(List.empty, aggOp(AggregationFunction.SUM, "i", "int_total"))
