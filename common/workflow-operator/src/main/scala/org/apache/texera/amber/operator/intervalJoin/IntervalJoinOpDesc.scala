@@ -176,7 +176,11 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |_iv_l = _pairs[$leftLit]
        |_iv_r = _pairs[$rightLit if $rightLit not in in1df.columns else $rightLit + "#@1"]
        |if pd.api.types.is_datetime64_any_dtype(_iv_r):
-       |    _iv_hi = _iv_r + pd.DateOffset($offsetUnit=$constant)
+       |    # The engine compares by getTime, so a moment counts only to the
+       |    # millisecond. The bound is added before it is cut, as there.
+       |    _iv_hi = (_iv_r + pd.DateOffset($offsetUnit=$constant)).dt.floor("ms")
+       |    _iv_l = _iv_l.dt.floor("ms")
+       |    _iv_r = _iv_r.dt.floor("ms")
        |else:
        |    _iv_hi = _iv_r + $constant
        |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)

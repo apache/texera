@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.intervalJoin
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
@@ -34,6 +34,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import scala.io.Source
 import scala.util.Try
@@ -176,6 +177,70 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
       // The payload the temporary used to overwrite, and the row still joins.
       lines(1) shouldBe "2,payload,1"
     }
+  }
+
+  // IntervalJoinOpExec compares timestamps by getTime, so only whole
+  // milliseconds count. The right key is 12:00:00.0009 with a three-second
+  // interval: the first left row shares its millisecond and the last shares
+  // the upper bound's while past it, so each joins only at that resolution.
+  private val millisecondLefts =
+    Seq("2024-01-01 12:00:00.0005", "2024-01-01 12:00:02", "2024-01-01 12:00:03.00095")
+  private val millisecondRight = "2024-01-01 12:00:00.0009"
+
+  it should "compare timestamps by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema().add(new Attribute("l", AttributeType.TIMESTAMP))
+    val right = Schema().add(new Attribute("r", AttributeType.TIMESTAMP))
+
+    def check(includeBounds: Boolean): Unit = {
+      val d =
+        new IntervalJoinOpDesc("l", "r", 3L, includeBounds, includeBounds, TimeIntervalType.SECOND)
+
+      val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(d))
+      exec.open()
+      val engine =
+        try {
+          exec.processTuple(Tuple(right, Array[Any](Timestamp.valueOf(millisecondRight))), 1)
+          millisecondLefts.flatMap { l =>
+            exec
+              .processTuple(Tuple(left, Array[Any](Timestamp.valueOf(l))), 0)
+              .map(_.getFields.toSeq)
+              .map(_.map(_.asInstanceOf[Timestamp].toLocalDateTime.toString).mkString(" "))
+          }
+        } finally exec.close()
+
+      def literal(t: String) = "\"" + t.replace(' ', 'T') + "\""
+      val lefts = millisecondLefts.map(literal).mkString("[", ", ", "]")
+      val driver =
+        s"""import numpy as np
+           |import pandas as pd
+           |
+           |in1df = pd.DataFrame({"l": np.array($lefts, dtype="datetime64[us]")})
+           |in2df = pd.DataFrame({"r": np.array([${literal(millisecondRight)}], dtype="datetime64[us]")})
+           |${d.generateStandaloneCode()}
+           |for row in out1df.itertuples(index=False):
+           |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
+           |""".stripMargin
+
+      val script = Files.createTempFile("intervaljoin-millis-", ".py")
+      script.toFile.deleteOnExit()
+      Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+      val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+      val out = Source.fromInputStream(process.getInputStream).mkString
+      process.waitFor(120, TimeUnit.SECONDS)
+      withClue(s"python said:\n$out\nscript:\n$driver") {
+        process.exitValue() shouldBe 0
+        out.trim.linesIterator.toSeq shouldBe engine
+      }
+      if (includeBounds) engine should have size 3
+    }
+
+    check(includeBounds = true)
+    check(includeBounds = false)
   }
 
   "IntervalJoinOpDesc" should "round-trip its fields through the polymorphic base" in {
