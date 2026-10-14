@@ -293,6 +293,73 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The engine keys a group on a List of the key fields in a HashMap, under
+  // Scala's ==: NaN equals nothing, so each NaN row is a group of its own,
+  // while 0.0 and -0.0 are one group and so are two nulls. Both stages run, as
+  // the plan runs them.
+  it should "group NaN and signed-zero keys as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val count = aggOp(AggregationFunction.COUNT, "v", "n")
+    val desc = descWith(List("k"), count)
+    val keys: Seq[java.lang.Double] = Seq(Double.NaN, Double.NaN, 0.0, -0.0, null, null, 1.0)
+
+    val input = Schema().add("k", AttributeType.DOUBLE).add("v", AttributeType.INTEGER)
+    val local = new AggregateOpExec(objectMapper.writeValueAsString(desc))
+    local.open()
+    keys.foreach(k => local.processTuple(Tuple(input, Array[Any](k, 1)), 0))
+    val partials = local.onFinish(0).toList
+    val partialSchema = Schema().add("k", AttributeType.DOUBLE).add("n", AttributeType.INTEGER)
+    val global =
+      new AggregateOpExec(objectMapper.writeValueAsString(descWith(List("k"), count.getFinal)))
+    global.open()
+    partials.foreach(t => global.processTuple(Tuple(partialSchema, t.getFields.toArray[Any]), 0))
+    val engine = global
+      .onFinish(0)
+      .map { row =>
+        val key = row.getFields.head match {
+          case null                           => "None"
+          case d: java.lang.Double if d.isNaN => "nan"
+          case d                              => d.toString
+        }
+        s"$key ${row.getFields(1)}"
+      }
+      .toList
+      .sorted
+
+    val pyKeys = keys.map(k => if (k == null) "None" else if (k.isNaN) "np.nan" else k.toString)
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |keys = [${pyKeys.mkString(", ")}]
+         |in1df = pd.DataFrame({
+         |    "k": pd.arrays.FloatingArray(
+         |        np.array([0.0 if k is None else k for k in keys]),
+         |        np.array([k is None for k in keys]),
+         |    ),
+         |    "v": [1] * len(keys),
+         |})
+         |${desc.generateStandaloneCode()}
+         |rows = [
+         |    ("None" if k is pd.NA else repr(float(k))) + " " + str(int(n))
+         |    for k, n in zip(out1df["k"], out1df["n"])
+         |]
+         |print("\\n".join(sorted(rows)))
+         |""".stripMargin
+
+    val script = Files.createTempFile("aggregate-nan-zero-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim.linesIterator.toList shouldBe engine
+    }
+  }
+
   it should "emit no row for an empty input with no group keys, as the engine does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")

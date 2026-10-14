@@ -315,7 +315,28 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    results = column.apply(fold)
         |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
         |    values = results.where(~mask, 0.0).to_numpy(float)
-        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)""".stripMargin
+        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)
+        |
+        |def _texera_agg_group_ids(keys):
+        |    # The engine keys each group on the List of the row's key fields in a
+        |    # HashMap, under Scala's ==: NaN equals nothing, so every NaN row opens
+        |    # a group of its own, while 0.0 meets -0.0 and a null meets a null.
+        |    # groupby puts every NaN in one group, so each row gets its group's
+        |    # id here. A null is read off the column's mask, since a stored NaN is
+        |    # not one.
+        |    import math
+        |
+        |    ids = {}
+        |    out = []
+        |    for values, missing in zip(
+        |        keys.itertuples(index=False, name=None), keys.isna().to_numpy()
+        |    ):
+        |        key = tuple(
+        |            None if m else object() if isinstance(v, float) and math.isnan(v) else v
+        |            for v, m in zip(values, missing)
+        |        )
+        |        out.append(ids.setdefault(key, len(ids)))
+        |    return pd.Series(out, index=keys.index, dtype="int64")""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs
@@ -342,16 +363,19 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
             s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups", declaredType)}"
         }
         .mkString("\n")
-      val mergeLines = aggs.indices
-        .map(i =>
-          s"""out1df = out1df.merge(_texera_agg_s$i.reset_index(), on=$keysLit, how="left")"""
-        )
+      // Grouped and joined back by the id of each row's group, never by the
+      // key values, which would pair NaN keys again.
+      val joinLines = aggs.indices
+        .map(i => s"out1df = out1df.join(_texera_agg_s$i)")
         .mkString("\n")
       s"""$concatHelper
-         |_texera_agg_groups = in1df.groupby($keysLit, dropna=False, sort=False)
-         |out1df = in1df[$keysLit].drop_duplicates().reset_index(drop=True)
+         |_texera_agg_ids = _texera_agg_group_ids(in1df[$keysLit])
+         |_texera_agg_groups = in1df.groupby(_texera_agg_ids, sort=False)
+         |_texera_agg_first = ~_texera_agg_ids.duplicated()
+         |out1df = in1df.loc[_texera_agg_first, $keysLit].set_axis(_texera_agg_ids[_texera_agg_first])
          |$aggLines
-         |$mergeLines""".stripMargin
+         |$joinLines
+         |out1df = out1df.reset_index(drop=True)""".stripMargin
     }
   }
 
