@@ -241,9 +241,10 @@ describe("createModifyOperatorTool", () => {
 
     expect(result).toContain("[ERROR]");
     expect(result).toContain("non-negative integer");
-    // Existing incoming links are dropped before the port indices are validated,
-    // so the failed modify leaves the operator disconnected.
-    expect(state.getAllLinks()).toHaveLength(0);
+    // The port indices are validated before anything changes, so the failed
+    // modify keeps the existing link and doesn't rename the operator.
+    expect(state.getAllLinks().map(link => link.linkID)).toEqual(["l0"]);
+    expect(state.getOperator("op1")!.customDisplayName).toBeUndefined();
   });
 
   test("returns an error when an input port index is negative", async () => {
