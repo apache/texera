@@ -45,11 +45,10 @@ import {
   inheritNoLoopVariable,
   primitiveSchemaType,
 } from "../../../util/loop-variable-field.util";
-import { loopVariablesInScope } from "../../../util/loop-variable.util";
+import { loopScopeChangeStream, loopVariablesInScope } from "../../../util/loop-variable.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
-import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -533,8 +532,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private config: GuiConfigService,
     private workflowPveService: WorkflowPveService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private uiUdfParametersSyncService: UiUdfParametersSyncService,
-    private loopBlockService: LoopBlockService
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   private patchPythonUdfEnvironmentSchema(schema: CustomJSONSchema7, environments: string[]): CustomJSONSchema7 {
@@ -879,24 +877,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.currentOperatorId === undefined) {
       return undefined;
     }
-    const graph = this.workflowActionService.getTexeraGraph();
-    return graph.hasOperator(this.currentOperatorId)
-      ? loopVariablesInScope(graph, this.loopBlockService.getEnclosingLoopStarts(this.currentOperatorId))
-      : undefined;
+    return loopVariablesInScope(this.workflowActionService.getTexeraGraph(), this.currentOperatorId);
   }
 
   /**
    * Which fields take a $reference, and which variables they offer, depend on the blocks around the
-   * operator, which the compile result tells, and on their Loop Starts' variables, which other operators'
-   * links and properties decide; every such edit is followed by a compile. So after every compile result,
-   * the same one on which ValidationWorkflowService re-validates the operators holding a reference,
-   * rebuild the form when the operator's scope is no longer the one it was built with, rather than only
-   * when the operator is next opened.
+   * operator and on their Loop Starts' variables, which other operators' links and properties decide. So
+   * on every edit that can change them (loopScopeChangeStream, on which ValidationWorkflowService
+   * re-validates the operators holding a reference), rebuild the form when the operator's scope is no
+   * longer the one it was built with, rather than only when the operator is next opened.
    */
   private registerLoopScopeChangeHandler(): void {
     const graph = this.workflowActionService.getTexeraGraph();
-    this.loopBlockService
-      .getCompileResultStream()
+    loopScopeChangeStream(graph)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (

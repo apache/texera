@@ -93,9 +93,9 @@ case class LogicalPlan(
     * whose two ends match, each with the LoopStarts of the blocks it is inside: those with a path
     * to it on which no LoopEnd closes their block (a LoopEnd closes the innermost block the path
     * opened). A control operator is not inside its own block, but an inner block's are inside the
-    * outer one. The editing-time compile (`WorkflowCompilationResource`) reports it to the
-    * frontend, whose property panel offers `$K` where it says; `LogicalPlanSpec` checks it against
-    * a walk from each operator on the same graph.
+    * outer one. The property panel decides where it offers `$K` with a port of this
+    * (`enclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` and the port's spec run the same
+    * cases (loop-blocks.json), so the two agree.
     */
   lazy val enclosingLoopStarts: Map[OperatorIdentity, Set[OperatorIdentity]] = {
     val order = getTopologicalOpIds.asScala.toList

@@ -17,7 +17,10 @@
  * under the License.
  */
 
+import { merge, Observable } from "rxjs";
+import { filter } from "rxjs/operators";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
+import { enclosingLoopStarts, LOOP_START_OP_TYPE } from "./loop-block.util";
 
 /**
  * A plain assignment target: an optional star, an identifier and an optional annotation (`x: int`).
@@ -145,19 +148,16 @@ export function extractLoopVariables(initialization: string): string[] {
 }
 
 /**
- * The loop variables in scope of an operator: those of every Loop Start enclosing it, in the order given
- * (outermost first, as LoopBlockService gives them), without duplicates, each read from the Loop Start's
- * initialization in the graph. Undefined outside every block, so that one call tells both whether the
- * operator sits in a block and what it may refer to; empty for a block whose Loop Starts declare nothing.
- * A Loop Start whose initialization is missing or not a string contributes nothing, and one no longer in
- * the graph (deleted since the compile result that named it) does not count.
+ * The loop variables in scope of an operator: those of every Loop Start whose block encloses it, outermost
+ * block first, without duplicates, each read from the Loop Start's initialization. Which blocks enclose it
+ * is worked out from every operator and link of the graph, valid or not (enclosingLoopStarts). Undefined
+ * outside every block, so that one call tells both whether the operator sits in a block and what it may
+ * refer to; empty for a block whose Loop Starts declare nothing. A Loop Start whose initialization is
+ * missing or not a string contributes nothing.
  */
-export function loopVariablesInScope(
-  graph: WorkflowGraphReadonly,
-  enclosingLoopStarts: ReadonlyArray<string>
-): string[] | undefined {
-  const loopStartIDs = enclosingLoopStarts.filter(loopStartID => graph.hasOperator(loopStartID));
-  if (loopStartIDs.length === 0) {
+export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: string): string[] | undefined {
+  const loopStartIDs = enclosingLoopStarts(graph.getAllOperators(), graph.getAllLinks()).get(operatorID);
+  if (loopStartIDs === undefined) {
     return undefined;
   }
   const names: string[] = [];
@@ -173,6 +173,22 @@ export function loopVariablesInScope(
     }
   }
   return names;
+}
+
+/**
+ * Emits after every edit that can change what loopVariablesInScope answers for an operator: an operator or
+ * a link added or deleted, which can move operators into or out of a block, and a change to a Loop Start's
+ * properties, which can change the variables it declares. The property panel and ValidationWorkflowService
+ * both look again on it, so that neither keeps a list of these edits of its own.
+ */
+export function loopScopeChangeStream(graph: WorkflowGraphReadonly): Observable<unknown> {
+  return merge(
+    graph.getOperatorAddStream(),
+    graph.getOperatorDeleteStream(),
+    graph.getLinkAddStream(),
+    graph.getLinkDeleteStream(),
+    graph.getOperatorPropertyChangeStream().pipe(filter(({ operator }) => operator.operatorType === LOOP_START_OP_TYPE))
+  );
 }
 
 /**

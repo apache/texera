@@ -21,12 +21,8 @@ import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from
 
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import {
-  WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS,
-  WORKFLOW_COMPILATION_ENDPOINT,
-  WorkflowCompilingService,
-} from "../../../service/compile-workflow/workflow-compiling.service";
-import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { ValidationWorkflowService } from "../../../service/validation/validation-workflow.service";
 import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
@@ -38,8 +34,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { AppSettings } from "../../../../common/app-setting";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockHuggingFacePredicate,
   mockLoopEndPredicate,
@@ -2073,18 +2068,8 @@ describe("OperatorPropertyEditFrameComponent", () => {
     }
 
     /**
-     * A compile result, which is what tells which operators sit inside a block: the body inside the Loop
-     * Start's block, or inside none when `inside` is false.
-     */
-    function compileWithBodyInside(inside = true): void {
-      TestBed.inject(LoopBlockService).setOperatorLoopStarts(
-        inside ? { [body.operatorID]: [mockLoopStartPredicate.operatorID] } : {}
-      );
-    }
-
-    /**
-     * Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false; then the compile result
-     * that follows those edits.
+     * Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. Which blocks enclose the
+     * body is worked out from these operators and links; no compile takes part in these tests.
      */
     function addBlockAroundBody(closed = true): void {
       workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
@@ -2094,7 +2079,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
       if (closed) {
         workflowActionService.addLink(mockScalaExecutorLoopEndLink);
       }
-      compileWithBodyInside(closed);
     }
 
     it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
@@ -2149,28 +2133,20 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
     });
 
-    it("counts the operator outside every block until a compile result puts it inside one", () => {
-      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
-      workflowActionService.addOperator(body, mockPoint);
-      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
-      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
-      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+    it("counts the operator inside its block from the graph alone, before any compile", () => {
+      addBlockAroundBody();
       openBody();
-      expect(getField("limit")?.type).toBe("integer");
-
-      compileWithBodyInside();
       expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
     });
 
-    it("rebuilds the open form when a compile result changes its scope, and only then", () => {
+    it("rebuilds the open form as soon as an edit changes its scope, and only then", () => {
       addBlockAroundBody(false);
       openBody();
       expect(getField("limit")?.type).toBe("integer");
 
-      // closing the block puts the open operator inside it, once the compile result says so
+      // closing the block puts the open operator inside it
       workflowActionService.addLink(mockScalaExecutorLoopEndLink);
-      expect(getField("limit")?.type).toBe("integer");
-      compileWithBodyInside();
       expect(getField("limit")?.type).toBe("loopvariableinput");
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
 
@@ -2179,66 +2155,71 @@ describe("OperatorPropertyEditFrameComponent", () => {
         initialization: "N = 1",
         output: "table.iloc[N]",
       });
-      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
-      compileWithBodyInside();
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
 
-      // a compile result that leaves the scope as it is does not rebuild the form
+      // an edit that leaves the scope as it is does not rebuild the form
       const rerender = vi.spyOn(component, "rerenderEditorForm");
       workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
         initialization: "N = 1",
         output: "table.iloc[0]",
       });
-      compileWithBodyInside();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
       expect(rerender).not.toHaveBeenCalled();
 
       // opening the block again takes the operator out of it
       workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
-      expect(rerender).not.toHaveBeenCalled();
-      compileWithBodyInside(false);
       expect(rerender).toHaveBeenCalledTimes(1);
       expect(getField("limit")?.type).toBe("integer");
     });
 
-    it("keeps the form as it is while a value being typed leaves the open operator out of the compile", fakeAsync(() => {
-      const http = TestBed.inject(HttpTestingController);
-      const compileUrl = `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`;
-      const compileResult = (operatorLoopStarts: Record<string, string[]>) => ({
-        physicalPlan: { operators: [], links: [] },
-        operatorOutputSchemas: {},
-        operatorErrors: {},
-        operatorLoopStarts,
+    // The editing-time compile leaves out every invalid operator, which must not keep the open operator in a
+    // block it has left.
+    it("takes the open operator out of its block and back while another operator on the canvas is invalid", () => {
+      const link = (linkID: string, from: string, to: string) => ({
+        linkID,
+        source: { operatorID: from, portID: "output-0" },
+        target: { operatorID: to, portID: "input-0" },
       });
-      // Scan -> Loop Start -> body -> Loop End, every operator valid, so the compile is sent each of them
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "twitter" });
-      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
-      workflowActionService.addOperator(body, mockPoint);
-      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
-      workflowActionService.addLink({
-        linkID: "scan-start",
-        source: { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
-        target: { operatorID: mockLoopStartPredicate.operatorID, portID: "input-0" },
-      });
+      const unfinished = { ...mockScalaExecutorPredicate, operatorID: "unfinished", operatorProperties: {} };
+      workflowActionService.addOperator(unfinished, mockPoint);
+      addBlockAroundBody();
+      workflowActionService.setOperatorProperty(body.operatorID, { limit: "$K" });
+      expect(TestBed.inject(ValidationWorkflowService).validateOperator(unfinished.operatorID).isValid).toBe(false);
+      openBody();
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // moved out of its block, to after the Loop End
+      workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      workflowActionService.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+      workflowActionService.addLink(
+        link("start-end", mockLoopStartPredicate.operatorID, mockLoopEndPredicate.operatorID)
+      );
+      workflowActionService.addLink(link("end-body", mockLoopEndPredicate.operatorID, body.operatorID));
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toBeUndefined();
+      expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
+
+      // and back in
+      workflowActionService.deleteLinkWithID("end-body");
+      workflowActionService.deleteLinkWithID("start-end");
       workflowActionService.addLink(mockLoopStartScalaExecutorLink);
       workflowActionService.addLink(mockScalaExecutorLoopEndLink);
-      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
-      http.expectOne(compileUrl).flush(compileResult({ [body.operatorID]: [mockLoopStartPredicate.operatorID] }));
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
+    it("keeps the form as it is while a value being typed is no reference yet", fakeAsync(() => {
+      addBlockAroundBody();
       openBody();
       expect(getField("limit")?.type).toBe("loopvariableinput");
       const rerender = vi.spyOn(component, "rerenderEditorForm");
 
-      // typing "$" to pick a variable stores a value that is no reference yet, over the number the field
-      // held; the body is then invalid, so the compile is sent the workflow without it and finds no block
+      // typing "$" to pick a variable stores a value that is no reference yet over the number the field held,
+      // which leaves the operator invalid, and out of the editing-time compile, for a moment
       component.onFormChanges({ ...body.operatorProperties, limit: "$" });
       tick(FORM_DEBOUNCE_TIME_MS);
       expect(workflowActionService.getTexeraGraph().getOperator(body.operatorID).operatorProperties["limit"]).toBe("$");
-      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
-      const request = http.expectOne(compileUrl);
-      expect(
-        JSON.parse(request.request.body).operators.map((op: { operatorID: string }) => op.operatorID)
-      ).not.toContain(body.operatorID);
-      request.flush(compileResult({}));
+      expect(TestBed.inject(ValidationWorkflowService).validateOperator(body.operatorID).isValid).toBe(false);
 
       expect(rerender).not.toHaveBeenCalled();
       expect(getField("limit")?.type).toBe("loopvariableinput");
@@ -2246,12 +2227,11 @@ describe("OperatorPropertyEditFrameComponent", () => {
       discardPeriodicTasks();
     }));
 
-    it("rebuilds nothing for a compile result after the open operator was deleted", () => {
+    it("rebuilds nothing once the open operator is deleted", () => {
       addBlockAroundBody();
       openBody();
       const rerender = vi.spyOn(component, "rerenderEditorForm");
       workflowActionService.deleteOperator(body.operatorID);
-      compileWithBodyInside();
       expect(rerender).not.toHaveBeenCalled();
     });
 
