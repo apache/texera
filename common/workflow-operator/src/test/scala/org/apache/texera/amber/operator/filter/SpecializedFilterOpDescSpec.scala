@@ -19,15 +19,30 @@
 
 package org.apache.texera.amber.operator.filter
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.sql.Timestamp
+import java.time.{LocalDateTime, ZoneOffset}
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
+
 class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -71,8 +86,6 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     restored.asInstanceOf[SpecializedFilterOpDesc].predicates shouldBe empty
   }
 
-  // A null answers false for every condition but IS_NULL / IS_NOT_NULL, which pandas
-  // does not do on its own for `!=`, so the emitted condition carries the guard.
   "SpecializedFilterOpDesc.generateStandaloneCode" should "emit one condition per predicate" in {
     val d = new SpecializedFilterOpDesc
     d.predicates = List(new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"))
@@ -88,4 +101,176 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
       "out1df = in1df.iloc[0:0].copy()"
   }
 
+  /** One column of a given type, the rows the engine reads and the frame the
+    * script reads, and the predicates run over it.
+    */
+  private case class Column(
+      attrType: AttributeType,
+      values: Seq[Any],
+      pandas: String,
+      predicates: Seq[(ComparisonType, String)]
+  )
+
+  // A column holds a wall clock, which the engine reads in the JVM's zone and
+  // pandas holds without one, so both sides are built from the same wall clock.
+  private def timestamp(micros: Long): Timestamp =
+    Timestamp.valueOf(
+      LocalDateTime.ofEpochSecond(
+        Math.floorDiv(micros, 1000000L),
+        (Math.floorMod(micros, 1000000L) * 1000).toInt,
+        ZoneOffset.UTC
+      )
+    )
+
+  // 2024-01-01 00:00:00 plus a few microseconds, and a millisecond later.
+  private val midnight = 1704067200000000L
+
+  private val columns = Seq(
+    Column(
+      AttributeType.DOUBLE,
+      Seq(Double.NaN, -0.0, 0.0, 1.0, null, Double.PositiveInfinity),
+      """pd.arrays.FloatingArray(
+        |    np.array([np.nan, -0.0, 0.0, 1.0, 0.0, np.inf]),
+        |    np.array([False, False, False, False, True, False]),
+        |)""".stripMargin,
+      Seq(
+        ComparisonType.EQUAL_TO -> "0",
+        ComparisonType.GREATER_THAN -> "0",
+        ComparisonType.GREATER_THAN_OR_EQUAL_TO -> "0",
+        ComparisonType.LESS_THAN -> "0",
+        ComparisonType.LESS_THAN_OR_EQUAL_TO -> "0",
+        ComparisonType.NOT_EQUAL_TO -> "0",
+        ComparisonType.GREATER_THAN -> "1",
+        ComparisonType.EQUAL_TO -> "NaN",
+        ComparisonType.LESS_THAN -> "Infinity",
+        ComparisonType.EQUAL_TO -> "-0.0"
+      )
+    ),
+    Column(
+      AttributeType.STRING,
+      Seq("1", "2", "10", "abc", null, " 3 ", "nan", "2d"),
+      """pd.Series(["1", "2", "10", "abc", None, " 3 ", "nan", "2d"], dtype=object)""",
+      Seq(
+        ComparisonType.EQUAL_TO -> "1",
+        ComparisonType.GREATER_THAN -> "2",
+        ComparisonType.EQUAL_TO -> "1.0",
+        ComparisonType.LESS_THAN -> "b",
+        ComparisonType.EQUAL_TO -> "nan",
+        ComparisonType.EQUAL_TO -> "2",
+        ComparisonType.NOT_EQUAL_TO -> "abc"
+      )
+    ),
+    Column(
+      AttributeType.BOOLEAN,
+      Seq(true, false, null),
+      """pd.array([True, False, None], dtype="boolean")""",
+      Seq(
+        ComparisonType.EQUAL_TO -> "True",
+        ComparisonType.EQUAL_TO -> "1",
+        ComparisonType.GREATER_THAN -> "false"
+      )
+    ),
+    Column(
+      AttributeType.INTEGER,
+      Seq(1, 2, null, -3),
+      """pd.array([1, 2, None, -3], dtype="Int32")""",
+      Seq(ComparisonType.GREATER_THAN -> "1.5", ComparisonType.EQUAL_TO -> "2")
+    ),
+    Column(
+      AttributeType.LONG,
+      Seq(1L, 9007199254740993L, null),
+      """pd.array([1, 9007199254740993, None], dtype="Int64")""",
+      Seq(
+        ComparisonType.EQUAL_TO -> "9007199254740993",
+        ComparisonType.GREATER_THAN -> " 1 "
+      )
+    ),
+    Column(
+      AttributeType.TIMESTAMP,
+      Seq(midnight, midnight + 900, midnight + 1000).map(timestamp),
+      s"""pd.Series(np.array([$midnight, ${midnight + 900}, ${midnight + 1000}], dtype="datetime64[us]"))""",
+      Seq(
+        ComparisonType.EQUAL_TO -> "2024-01-01 00:00:00",
+        ComparisonType.GREATER_THAN -> "2024-01-01 00:00:00"
+      )
+    )
+  )
+
+  // FilterPredicate compares by the column's type: a STRING field and the value
+  // as numbers when both parse as one, a BOOLEAN as its lower-case text, an
+  // INTEGER as a double, a DOUBLE by Double.compareTo, and a TIMESTAMP by
+  // getTime. Each predicate runs through SpecializedFilterOpExec and through
+  // the export, and the rows each keeps are named by their input position.
+  it should "keep the rows the engine keeps for each column type" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val runs = for {
+      column <- columns
+      (condition, value) <- column.predicates
+    } yield {
+      val schema = Schema().add("v", column.attrType).add("i", AttributeType.INTEGER)
+      val desc = new SpecializedFilterOpDesc
+      desc.predicates = List(new FilterPredicate("v", condition, value))
+      val exec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(desc))
+      exec.open()
+      val kept = column.values.zipWithIndex.flatMap {
+        case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
+      }
+      exec.close()
+      val label = s"${column.attrType} ${condition.getName} '$value'"
+      val engine = s"$label: ${kept.map(_.getFields(1)).mkString(" ")}"
+      val code = desc.generateStandaloneCode(Map(PortIdentity() -> schema))
+      val script =
+        s"""in1df = pd.DataFrame({"v": ${column.pandas.linesIterator.mkString("\n    ")}})
+           |in1df["i"] = range(len(in1df))
+           |ns = {"pd": pd, "in1df": in1df}
+           |exec(${objectMapper.writeValueAsString(
+          (desc.standaloneHelpers() :+ code).mkString("\n")
+        )}, ns)
+           |print(${objectMapper.writeValueAsString(
+          label + ":"
+        )}, " ".join(str(i) for i in ns["out1df"]["i"]))""".stripMargin
+      (engine, script)
+    }
+
+    val driver = ("import pandas as pd, numpy as np" +: runs.map(_._2)).mkString("\n")
+    val file = Files.createTempFile("filter-engine-parity-", ".py")
+    file.toFile.deleteOnExit()
+    Files.write(file, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, file.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
+    }
+  }
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }
