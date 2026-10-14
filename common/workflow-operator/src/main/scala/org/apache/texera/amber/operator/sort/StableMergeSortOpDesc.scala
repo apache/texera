@@ -100,7 +100,11 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
     // A string sorts by its UTF-16 big-endian bytes. The engine compares UTF-16
     // code units and Python compares code points, and the two disagree once a
     // character above U+FFFF meets one between U+E000 and U+FFFF.
-    s"""_texera_sorted = in1df.reset_index(drop=True)
+    //
+    // A double's sign is a fourth tier. Double.compare puts -0.0 below 0.0,
+    // where pandas reads the two as equal and keeps them in input order.
+    s"""import math
+       |_texera_sorted = in1df.reset_index(drop=True)
        |_texera_keys = pd.DataFrame(index=_texera_sorted.index)
        |_texera_by = []
        |_texera_asc = []
@@ -120,6 +124,14 @@ class StableMergeSortOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |    _texera_keys[_texera_val] = _texera_v
        |    _texera_by += [_texera_null, _texera_nan, _texera_val]
        |    _texera_asc += [True, _texera_a, _texera_a]
+       |    if pd.api.types.is_float_dtype(_texera_v.dtype):
+       |        _texera_sign = "sign_" + str(_texera_i)
+       |        _texera_keys[_texera_sign] = [
+       |            1 if missing or v != v or math.copysign(1.0, v) > 0 else 0
+       |            for v, missing in zip(_texera_v, _texera_v.isna())
+       |        ]
+       |        _texera_by.append(_texera_sign)
+       |        _texera_asc.append(_texera_a)
        |out1df = _texera_sorted.loc[
        |    _texera_keys.sort_values(
        |        by=_texera_by, ascending=_texera_asc, kind="mergesort"

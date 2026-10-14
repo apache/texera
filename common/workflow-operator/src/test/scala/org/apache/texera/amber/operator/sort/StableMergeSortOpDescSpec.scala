@@ -137,6 +137,67 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // Double.compare puts -0.0 below 0.0, where pandas reads the two as equal and
+  // keeps them in input order. Each row carries its input position, and the
+  // engine runs the same rows both ways.
+  it should "order signed zeros as the engine does both ways" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val values: Seq[java.lang.Double] = Seq(0.0, -0.0, Double.NaN, 1.0, null, -0.0)
+    val schema = Schema().add("v", AttributeType.DOUBLE).add("i", AttributeType.INTEGER)
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = {
+      val unit = new SortCriteriaUnit
+      unit.attributeName = "v"
+      unit.sortPreference = pref
+      val d = new StableMergeSortOpDesc
+      d.keys = ListBuffer(unit)
+      d
+    }
+    val prefs = Seq(SortPreference.ASC, SortPreference.DESC)
+    val engine = prefs.map { pref =>
+      val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
+      exec.open()
+      val rows = values.zipWithIndex.flatMap {
+        case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
+      } ++ exec.onFinish(0)
+      rows.map(_.getFields(1).toString).mkString(" ")
+    }
+
+    val calls = prefs
+      .map(p => s"order(${objectMapper.writeValueAsString(descFor(p).generateStandaloneCode())})")
+      .mkString("\n")
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def order(code):
+         |    in1df = pd.DataFrame({
+         |        "v": pd.arrays.FloatingArray(
+         |            np.array([0.0, -0.0, np.nan, 1.0, 0.0, -0.0]),
+         |            np.array([False, False, False, False, True, False]),
+         |        ),
+         |        "i": range(6),
+         |    })
+         |    ns = {"pd": pd, "in1df": in1df}
+         |    exec(code, ns)
+         |    print(" ".join(str(i) for i in ns["out1df"]["i"]))
+         |
+         |$calls
+         |""".stripMargin
+
+    val script = Files.createTempFile("stable-merge-sort-zero-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim.linesIterator.toList shouldBe engine
+    }
+  }
+
   // The sort tiers are named after nothing the input can be carrying, so a
   // column that happens to answer to a helper's old name keeps its values.
   it should "keep an input column named after a sort helper" taggedAs NeedsPythonPackages in {

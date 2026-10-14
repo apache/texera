@@ -98,11 +98,38 @@ class SortPartitionsOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // null and sorts it last too. A numpy float column has one slot for both, so
   // there a NaN goes first with the nulls.
   //
-  // A string column parts more narrowly: the engine reads UTF-16 code units and
-  // pandas reads code points, which agree below U+FFFF and can differ above it.
+  // The rest of AttributeTypeUtils.compare is written out as tiers of a key
+  // frame, as in StableMergeSortOpDesc. Double.compare puts -0.0 below 0.0,
+  // where pandas reads the two as equal. A timestamp is compared by getTime,
+  // so two inside one millisecond keep their input order. A string compares
+  // UTF-16 code units, where pandas compares code points, and the two disagree
+  // once a character above U+FFFF meets one between U+E000 and U+FFFF.
   override def generateStandaloneCode(): String = {
     val col = pyStringLiteral(Option(sortAttributeName).getOrElse(""))
-    s"""out1df = in1df.sort_values(by=$col, ascending=True, kind="mergesort", na_position="first").reset_index(drop=True)"""
+    s"""import math
+       |out1df = in1df.reset_index(drop=True)
+       |_texera_v = out1df[$col]
+       |_texera_keys = pd.DataFrame(index=out1df.index)
+       |_texera_keys["held"] = _texera_v.notna()
+       |_texera_keys["nan"] = (_texera_v != _texera_v).fillna(False)
+       |if pd.api.types.is_datetime64_any_dtype(_texera_v.dtype):
+       |    _texera_keys["val"] = _texera_v.dt.floor("ms")
+       |elif _texera_v.dtype == object or isinstance(_texera_v.dtype, pd.StringDtype):
+       |    _texera_keys["val"] = _texera_v.map(
+       |        lambda v: v.encode("utf-16-be") if isinstance(v, str) else v
+       |    )
+       |else:
+       |    _texera_keys["val"] = _texera_v
+       |_texera_by = ["held", "nan", "val"]
+       |if pd.api.types.is_float_dtype(_texera_v.dtype):
+       |    _texera_keys["sign"] = [
+       |        1 if missing or v != v or math.copysign(1.0, v) > 0 else 0
+       |        for v, missing in zip(_texera_v, _texera_v.isna())
+       |    ]
+       |    _texera_by.append("sign")
+       |out1df = out1df.loc[
+       |    _texera_keys.sort_values(by=_texera_by, kind="mergesort").index
+       |].reset_index(drop=True)""".stripMargin
   }
 
 }
