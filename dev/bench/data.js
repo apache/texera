@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791926436191,
+  "lastUpdate": 1791991780010,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -18476,6 +18476,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 712.1617395589043,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "carloea2",
+            "username": "carloea2",
+            "email": "carloea2@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6a29c59c6312da95826b269fca2a6a14006fb34a",
+          "message": "feat(pyamber): reject non-string state keys (#8959)\n\n### What changes were proposed in this PR?\n\nReject non-string state dictionary keys before serialization. Converting\nboth 1 and \"1\" to the same JSON key silently loses a value. This\nintroduces an explicit TypeError for non-string keys, including nested\nmappings.\n\n### Any related issues, documentation, discussions?\n\nCloses #8215\n\nReplaces #8216, which the stale bot closed. The original PR cannot be\nreopened by this account.\n\n### How was this PR tested?\n\nTested on freshly fetched main at\nd27b7b49877bcc52d80602e57f5b0e5f86291736 with Python 3.12 on Windows.\nThe regression failed before the source change and passed after it.\n\nFrom the amber directory, with generated protobuf bindings available on\nPYTHONPATH:\n\n```text\npython -m pytest src/test/python/core/models/test_state.py::TestState::test_to_json_rejects_non_string_keys -q --tb=line -p no:cacheprovider\npython -m pytest src/test/python/core/models src/test/python/core/architecture/sendsemantics/test_partitioners.py --deselect src/test/python/core/models/test_tuple.py::TestTuple::test_hash -q --tb=line -p no:cacheprovider\nruff check src/main/python src/test/python\nruff format --check src/main/python src/test/python\n```\n\nThe broader suites passed 351 tests with one expected failure. Ruff lint\nand formatting passed for all 216 Python files. The existing Windows\npre-epoch hash fixture was deselected; the new hash regressions were run\nseparately.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Codex (GPT-6)",
+          "timestamp": "2026-10-12T22:28:20Z",
+          "url": "https://github.com/apache/texera/commit/6a29c59c6312da95826b269fca2a6a14006fb34a"
+        },
+        "date": 1791991779483,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 540.4886380009453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 991.9611386003095,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1096.0469604453144,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 776.6302643221846,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1058.6344068907872,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1111.3776855329825,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 734.5214731592193,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1062.5621691610713,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1114.4037172085116,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 653.5999387396464,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 864.0244432155552,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 900.0223567020441,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 662.5863521295397,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 857.6998963321765,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 889.8377163995058,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 653.0078810489412,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 866.6841185185276,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 884.6624185368681,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 414.71550933678014,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 491.6246860880666,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 513.4060072552472,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 420.1579636636234,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 505.6352716164697,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 510.3199394591542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 415.2302036425467,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 486.74215932567523,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 492.78448636627434,
             "unit": "tuples/sec"
           }
         ]
