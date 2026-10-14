@@ -39,6 +39,7 @@ class BroadcastPartitioner(Partitioner):
         self.receivers = list(
             {channel.to_worker_id for channel in partitioning.channels}
         )
+        self._flushed_receivers = set()
 
     @overrides
     def add_tuple_to_batch(
@@ -54,14 +55,14 @@ class BroadcastPartitioner(Partitioner):
     def flush(
         self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
     ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
-        if len(self.batch) > 0:
-            for receiver in self.receivers:
-                if receiver == to:
-                    yield self.batch
-        self.reset()
-        for receiver in self.receivers:
-            if receiver == to:
-                yield ecm
+        if to not in self.receivers:
+            return
+        if self.batch and to not in self._flushed_receivers:
+            yield self.batch
+            self._flushed_receivers.add(to)
+            if len(self._flushed_receivers) == len(self.receivers):
+                self.reset()
+        yield ecm
 
     @overrides
     def flush_state(
@@ -80,3 +81,4 @@ class BroadcastPartitioner(Partitioner):
     @overrides
     def reset(self) -> None:
         self.batch = list()
+        self._flushed_receivers.clear()
