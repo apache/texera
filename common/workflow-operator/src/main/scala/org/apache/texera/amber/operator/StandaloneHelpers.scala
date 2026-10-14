@@ -147,12 +147,17 @@ object StandaloneHelpers {
       |def _texera_java_double(text):
       |    # Double.parseDouble on the trimmed text, which a read field reaches
       |    # through `toDouble`. It takes a trailing d or f as a type suffix and
-      |    # 0x...p... as a hex literal, both of which float() refuses.
+      |    # 0x...p... as a hex literal, both of which float() refuses. A hex
+      |    # literal too large for a double is an infinity in Java, where
+      |    # float.fromhex raises.
       |    text = text.strip()
       |    if text[-1:] in ("d", "D", "f", "F"):
       |        text = text[:-1]
       |    if text.lstrip("+-")[:2].lower() == "0x":
-      |        return float.fromhex(text)
+      |        try:
+      |            return float.fromhex(text)
+      |        except OverflowError:
+      |            return float("-inf") if text.startswith("-") else float("inf")
       |    return float(text)
       |
       |

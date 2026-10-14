@@ -168,12 +168,13 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
   // numbers and the column is DOUBLE, where pandas kept it as strings. A cell
   // is read as null only where the frame's mask says so, as every operator
-  // downstream reads it, so the "NaN" has to stay a value.
+  // downstream reads it, so the "NaN" has to stay a value. "0x1p1024" is past
+  // the largest double, which Java reads as an infinity.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
-    val d = describing(writeCsv("w\n1.5\nNaN\n2d\n0x1p3\n-Infinity\n"))
+    val d = describing(writeCsv("w\n1.5\nNaN\n2d\n0x1p3\n-Infinity\n0x1p1024\n-0x1p1024\n"))
     d.sourceSchema().getAttribute("w").getType shouldBe AttributeType.DOUBLE
 
     val exec = new CSVOldScanSourceOpExec(objectMapper.writeValueAsString(d))

@@ -681,7 +681,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // numbers and the column is DOUBLE. pandas' float parser takes none of them
   // and kept the column as strings, and a blank beside a "NaN" has to stay null.
   // `u` holds a "NaN" and no blank, which a float64 column would still report
-  // as missing to every operator that reads its mask.
+  // as missing to every operator that reads its mask. "0x1p1024" is past the
+  // largest double, which Java reads as an infinity.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -690,7 +691,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     tmpFile.toFile.deleteOnExit()
     Files.write(
       tmpFile,
-      "v,w,u\n1.5,1.5,1.5\nNaN,2d,NaN\n,0x1p3,2.5\n-Infinity,3f,3.5\n"
+      "v,w,u\n1.5,1.5,1.5\nNaN,2d,NaN\n,0x1p3,2.5\n-Infinity,3f,3.5\n4.5,0x1p1024,-0x1p1024\n"
         .getBytes(StandardCharsets.UTF_8)
     )
     val path = tmpFile.toString
