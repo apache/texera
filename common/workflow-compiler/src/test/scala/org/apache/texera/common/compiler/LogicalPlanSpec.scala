@@ -460,10 +460,17 @@ class LogicalPlanSpec extends AnyFlatSpec {
       val operators = testCase.get("operators").elements().asScala.toList.map { operator =>
         val id = operator.get("id").asText()
         operator.get("type").asText() match {
-          case "LoopStart" => loopStart(id)
-          case "LoopEnd"   => loopEnd(id)
-          case "Operator"  => op(id)
-          case other       => fail(s"unknown operator type $other in ${testCase.get("name")}")
+          case "Operator" => op(id)
+          // Read by the backend's own JSON type name, which the frontend's operators carry and its
+          // port matches, so the fixture cannot name a LoopStart or a LoopEnd any other way.
+          case controlType =>
+            val json = s"""{"operatorType": "$controlType"}"""
+            val control = objectMapper.readValue(json, classOf[LogicalOp])
+            assert(
+              control.isInstanceOf[LoopStartOpDesc] || control.isInstanceOf[LoopEndOpDesc],
+              s"$controlType reads as ${control.getClass.getSimpleName} in ${testCase.get("name")}"
+            )
+            named(control, id)
         }
       }
       val ends = testCase.get("links").elements().asScala.toList.map { link =>

@@ -468,6 +468,73 @@ describe("ValidationWorkflowService", () => {
         expect(currentError(next.operatorID)).toBeUndefined();
       });
 
+      // Validation already looks again at both ends of a link added or deleted, and at an operator disabled
+      // or enabled and its neighbors; in these, the edit that opens or closes the block touches neither the
+      // operator holding the reference nor a neighbor of it.
+      describe("by an edit two hops away", () => {
+        const third = { ...other, operatorID: "14" };
+
+        it("reports the type error once a link upstream is deleted and the operator leaves the block", () => {
+          // Loop Start -> other -> body -> Loop End; the deleted Loop Start -> other does not touch body
+          workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
+          workflowActionservice.addOperator(other, mockPoint);
+          workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
+          workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
+          workflowActionservice.addLink(link("s-other", mockLoopStartPredicate.operatorID, other.operatorID));
+          workflowActionservice.addLink(link("other-body", other.operatorID, body.operatorID));
+          workflowActionservice.addLink(mockScalaExecutorLoopEndLink);
+          expect(currentError(body.operatorID)).toBeUndefined();
+
+          workflowActionservice.deleteLinkWithID("s-other");
+          expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+        });
+
+        it("clears the type error once a link between two other plain operators closes the block", () => {
+          // Loop Start -> body -> other, third -> Loop End; the missing other -> third closes the block
+          workflowActionservice.addOperator(mockLoopStartPredicate, mockPoint);
+          workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$K" } }, mockPoint);
+          workflowActionservice.addOperator(other, mockPoint);
+          workflowActionservice.addOperator(third, mockPoint);
+          workflowActionservice.addOperator(mockLoopEndPredicate, mockPoint);
+          workflowActionservice.addLink(mockLoopStartScalaExecutorLink);
+          workflowActionservice.addLink(link("body-other", body.operatorID, other.operatorID));
+          workflowActionservice.addLink(link("third-e", third.operatorID, mockLoopEndPredicate.operatorID));
+          expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+
+          workflowActionservice.addLink(link("other-third", other.operatorID, third.operatorID));
+          expect(currentError(body.operatorID)).toBeUndefined();
+        });
+
+        it("ends valid after another operator is inserted into the body behind it", () => {
+          addBlockAround({ limit: "$K" });
+          workflowActionservice.addOperator(other, mockPoint);
+
+          workflowActionservice.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+          expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+          workflowActionservice.addLink(link("body-other", body.operatorID, other.operatorID));
+          workflowActionservice.addLink(link("other-e", other.operatorID, mockLoopEndPredicate.operatorID));
+          expect(currentError(body.operatorID)).toBeUndefined();
+        });
+
+        // A disabled operator, and every link touching one, is no part of the plan the backend compiles and
+        // runs, so it closes no block.
+        it("reports the type error once the Loop End is disabled, and clears it once it is enabled again", () => {
+          // Loop Start -> body -> other -> Loop End
+          addBlockAround({ limit: "$K" });
+          workflowActionservice.addOperator(other, mockPoint);
+          workflowActionservice.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+          workflowActionservice.addLink(link("body-other", body.operatorID, other.operatorID));
+          workflowActionservice.addLink(link("other-e", other.operatorID, mockLoopEndPredicate.operatorID));
+          expect(currentError(body.operatorID)).toBeUndefined();
+
+          workflowActionservice.disableOperators([mockLoopEndPredicate.operatorID]);
+          expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+
+          workflowActionservice.enableOperators([mockLoopEndPredicate.operatorID]);
+          expect(currentError(body.operatorID)).toBeUndefined();
+        });
+      });
+
       it("looks again at the operators holding a reference, and not at the others", () => {
         addBlockAround({ limit: "$K" });
         workflowActionservice.addOperator(other, mockPoint);

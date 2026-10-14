@@ -81,9 +81,13 @@ describe("enclosingLoopStarts", () => {
     });
   });
 
-  it("names the control operators as the backend's operator types do", () => {
-    expect(LOOP_START_OP_TYPE).toBe("LoopStart");
-    expect(LOOP_END_OP_TYPE).toBe("LoopEnd");
+  // LogicalPlanSpec reads the fixture's Loop Start and Loop End through the backend's JSON type names, so
+  // the port names them as the operators on the canvas carry them.
+  it("knows every operator type the fixture names", () => {
+    const types = new Set(
+      [...loopBlocks.cases, ...loopBlocks.randomGraphs].flatMap(testCase => testCase.operators.map(({ type }) => type))
+    );
+    expect([...types].sort()).toEqual([LOOP_END_OP_TYPE, LOOP_START_OP_TYPE, "Operator"].sort());
   });
 
   it("finds nothing in an empty graph", () => {

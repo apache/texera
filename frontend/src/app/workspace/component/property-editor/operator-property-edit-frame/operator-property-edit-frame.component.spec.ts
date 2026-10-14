@@ -2208,6 +2208,21 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
     });
 
+    // A disabled operator, and every link touching one, is no part of the plan the backend compiles and runs.
+    it("takes the open operator out of its block once its Loop End is disabled, and back once it is enabled", () => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+
+      workflowActionService.disableOperators([mockLoopEndPredicate.operatorID]);
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toBeUndefined();
+
+      workflowActionService.enableOperators([mockLoopEndPredicate.operatorID]);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
     it("keeps the form as it is while a value being typed is no reference yet", fakeAsync(() => {
       addBlockAroundBody();
       openBody();

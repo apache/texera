@@ -39,9 +39,10 @@ type BlockLink = {
  * this port's spec run the same cases (loop-blocks.json), so the two agree.
  *
  * Which blocks enclose an operator depends only on the operators' types and the links, so it is given
- * every operator and link of the workflow, valid, disabled or not (loopVariablesInScope). An outer block's
- * Loop Start encloses an inner block's, so the fewer Loop Starts enclose a Loop Start, the further out its
- * block is; Loop Starts of blocks that do not nest follow their ids.
+ * those of the plan the backend compiles and runs, valid or not: the enabled operators and the links
+ * between them (loopVariablesInScope). An outer block's Loop Start encloses an inner block's, so the fewer
+ * Loop Starts enclose a Loop Start, the further out its block is; Loop Starts of blocks that do not nest
+ * follow their ids.
  *
  * The backend rejects a graph with a cycle, which the canvas lets a user draw: an operator on a cycle, or
  * after one, has no place in the topological order followed below, so it counts as outside every block,

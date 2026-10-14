@@ -281,12 +281,27 @@ describe("loopVariablesInScope", () => {
     expect(loopVariablesInScope(graph, "body")).toEqual(["k"]);
   });
 
-  // Which blocks enclose an operator depends only on the operators' types and the links.
-  it("works the blocks out from every operator and link, a disabled operator's included", () => {
+  // The backend compiles and runs the enabled operators and the links between them, valid or not
+  // (WorkflowGraph.getSubDAG): a disabled operator, and every link touching one, is in no plan it sees.
+  it("leaves out a disabled operator and every link touching one, as the plan the backend runs does", () => {
     graph = graphOf(["s:LoopStart=k = 1", "first", "second", "e:LoopEnd"], ["s>first", "first>second", "second>e"]);
     graph.disableOperator("first");
-    expect(loopVariablesInScope(graph, "first")).toEqual(["k"]);
+    expect(loopVariablesInScope(graph, "first")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "second")).toBeUndefined();
+
+    // a disabled Loop End closes no block either
+    graph.enableOperator("first");
     expect(loopVariablesInScope(graph, "second")).toEqual(["k"]);
+    graph.disableOperator("e");
+    expect(loopVariablesInScope(graph, "first")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "second")).toBeUndefined();
+  });
+
+  it("keeps a branch of the block that no disabled operator sits on inside it", () => {
+    graph = graphOf(["s:LoopStart=k = 1", "a", "b", "e:LoopEnd"], ["s>a", "a>e", "s>b", "b>e"]);
+    graph.disableOperator("b");
+    expect(loopVariablesInScope(graph, "a")).toEqual(["k"]);
+    expect(loopVariablesInScope(graph, "b")).toBeUndefined();
   });
 });
 
@@ -314,6 +329,12 @@ describe("loopScopeChangeStream", () => {
     expect(emissions).toBe(4);
   });
 
+  it("emits on an operator disabled or enabled, which takes it and its links out of the plan or puts them back", () => {
+    graph.disabledOperatorChangedSubject.next({ newDisabled: ["a"], newEnabled: [] });
+    graph.disabledOperatorChangedSubject.next({ newDisabled: [], newEnabled: ["a"] });
+    expect(emissions).toBe(2);
+  });
+
   it("emits on a change to a Loop Start's properties, which can change the variables it declares", () => {
     graph.operatorPropertyChangeSubject.next({ operator: operator("s", "LoopStart", { initialization: "k = 1" }) });
     expect(emissions).toBe(1);
@@ -322,7 +343,6 @@ describe("loopScopeChangeStream", () => {
   it("does not emit on a change to any other operator's properties, such as a value being typed", () => {
     graph.operatorPropertyChangeSubject.next({ operator: operator("a", "Limit", { limit: "$" }) });
     graph.operatorPropertyChangeSubject.next({ operator: operator("e", "LoopEnd", { condition: "k < 3" }) });
-    graph.disabledOperatorChangedSubject.next({ newDisabled: ["a"], newEnabled: [] });
     expect(emissions).toBe(0);
   });
 });

@@ -250,10 +250,10 @@ export class ValidationWorkflowService {
       );
 
     // An operator holding a loop-variable reference is judged by whether a block surrounds it, which other
-    // operators' edits change: a link two hops away can close or open its block. So on every edit that can
-    // (loopScopeChangeStream, on which the property panel rebuilds its form), re-validate each operator
-    // holding a reference. Those are the only ones affected: without a reference, an operator validates the
-    // same inside a block and outside every block.
+    // operators' edits change: a link two hops away, or an operator two hops away disabled or enabled, can
+    // close or open its block. So on every edit that can (loopScopeChangeStream, on which the property panel
+    // rebuilds its form), re-validate each operator holding a reference. Those are the only ones affected:
+    // without a reference, an operator validates the same inside a block and outside every block.
     loopScopeChangeStream(this.workflowActionService.getTexeraGraph()).subscribe(() =>
       this.revalidateOperatorsWithReferences()
     );

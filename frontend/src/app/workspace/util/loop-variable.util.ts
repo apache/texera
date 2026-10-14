@@ -150,13 +150,15 @@ export function extractLoopVariables(initialization: string): string[] {
 /**
  * The loop variables in scope of an operator: those of every Loop Start whose block encloses it, outermost
  * block first, without duplicates, each read from the Loop Start's initialization. Which blocks enclose it
- * is worked out from every operator and link of the graph, valid or not (enclosingLoopStarts). Undefined
- * outside every block, so that one call tells both whether the operator sits in a block and what it may
- * refer to; empty for a block whose Loop Starts declare nothing. A Loop Start whose initialization is
- * missing or not a string contributes nothing.
+ * is worked out (enclosingLoopStarts) from the operators and links of the plan the backend compiles and
+ * runs: every enabled operator, valid or not, and the links between them (WorkflowGraph.getSubDAG). So a
+ * disabled operator is in no block, and closes or opens none. Undefined outside every block, so that one
+ * call tells both whether the operator sits in a block and what it may refer to; empty for a block whose
+ * Loop Starts declare nothing. A Loop Start whose initialization is missing or not a string contributes
+ * nothing.
  */
 export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: string): string[] | undefined {
-  const loopStartIDs = enclosingLoopStarts(graph.getAllOperators(), graph.getAllLinks()).get(operatorID);
+  const loopStartIDs = enclosingLoopStarts(graph.getAllEnabledOperators(), graph.getAllEnabledLinks()).get(operatorID);
   if (loopStartIDs === undefined) {
     return undefined;
   }
@@ -177,9 +179,10 @@ export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: s
 
 /**
  * Emits after every edit that can change what loopVariablesInScope answers for an operator: an operator or
- * a link added or deleted, which can move operators into or out of a block, and a change to a Loop Start's
- * properties, which can change the variables it declares. The property panel and ValidationWorkflowService
- * both look again on it, so that neither keeps a list of these edits of its own.
+ * a link added or deleted, or an operator disabled or enabled, which can move operators into or out of a
+ * block, and a change to a Loop Start's properties, which can change the variables it declares. The
+ * property panel and ValidationWorkflowService both look again on it, so that neither keeps a list of these
+ * edits of its own.
  */
 export function loopScopeChangeStream(graph: WorkflowGraphReadonly): Observable<unknown> {
   return merge(
@@ -187,6 +190,7 @@ export function loopScopeChangeStream(graph: WorkflowGraphReadonly): Observable<
     graph.getOperatorDeleteStream(),
     graph.getLinkAddStream(),
     graph.getLinkDeleteStream(),
+    graph.getDisabledOperatorsChangedStream(),
     graph.getOperatorPropertyChangeStream().pipe(filter(({ operator }) => operator.operatorType === LOOP_START_OP_TYPE))
   );
 }
