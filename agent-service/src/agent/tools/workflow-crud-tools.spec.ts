@@ -53,6 +53,20 @@ const OPERATOR_METADATA: OperatorMetadata = {
         dynamicOutputPorts: false,
       },
     },
+    {
+      operatorType: "TestJoinOp",
+      jsonSchema: TEST_OP_SCHEMA,
+      operatorVersion: "1.0",
+      additionalMetadata: {
+        userFriendlyName: "Test Join Operator",
+        operatorGroupName: "Test",
+        operatorDescription: "A test operator with two input ports",
+        inputPorts: [{ displayName: "in-0" }, { displayName: "in-1" }],
+        outputPorts: [{ displayName: "out-0" }],
+        dynamicInputPorts: false,
+        dynamicOutputPorts: false,
+      },
+    },
   ],
   groups: [],
 };
@@ -65,7 +79,10 @@ function buildMetadataStore(): WorkflowSystemMetadata {
 
 const metadataStore = buildMetadataStore();
 const context = { metadataStore };
-const operatorSchemas = new Map<string, any>([["TestOp", TEST_OP_SCHEMA]]);
+const operatorSchemas = new Map<string, any>([
+  ["TestOp", TEST_OP_SCHEMA],
+  ["TestJoinOp", TEST_OP_SCHEMA],
+]);
 
 // Invoke a tool's execute() with the minimal ToolExecutionOptions the SDK requires.
 async function runTool(agentTool: any, args: Record<string, any>): Promise<string> {
@@ -276,6 +293,33 @@ describe("createModifyOperatorTool", () => {
     expect(state.getAllLinks()).toHaveLength(0);
   });
 
+  test("leaves properties, display name and links unchanged when a new source does not exist", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op0", 0, 1));
+    state.addOperator({
+      ...makeOperator("op1"),
+      operatorProperties: { title: "original" },
+      customDisplayName: "original",
+    });
+    state.addLink({
+      linkID: "l0",
+      source: { operatorID: "op0", portID: "output-0" },
+      target: { operatorID: "op1", portID: "input-0" },
+    });
+    const before = structuredClone(state.getWorkflowContent());
+
+    const result = await runTool(createModifyOperatorTool(state, context), {
+      operatorId: "op1",
+      properties: { title: "changed" },
+      inputOperatorIds: { "0": ["ghost"] },
+      summary: "changed",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain('Source operator "ghost" not found');
+    expect(state.getWorkflowContent()).toEqual(before);
+  });
+
   test("wraps an unexpected state failure with the operator id", async () => {
     const state = new WorkflowState();
     state.addOperator(makeOperator("op1"));
@@ -448,6 +492,43 @@ describe("createAddOperatorTool", () => {
     expect(result).toContain("[ERROR]");
     expect(result).toContain("Source operator");
     expect(result).toContain("not found");
+  });
+
+  test("leaves the workflow unchanged when an input port index is out of range", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op0", 0, 1));
+    const before = structuredClone(state.getWorkflowContent());
+
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, context), {
+      operatorId: "op1",
+      operatorType: "TestOp",
+      properties: {},
+      inputOperatorIds: { "5": ["op0"] },
+      summary: "x",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain("Input port index 5 out of range");
+    expect(state.getWorkflowContent()).toEqual(before);
+  });
+
+  test("leaves the workflow unchanged when a later port names a missing source", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op0", 0, 1));
+    const before = structuredClone(state.getWorkflowContent());
+
+    // Port 0 is valid and would be linked first; port 1 names a source that does not exist.
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, context), {
+      operatorId: "op1",
+      operatorType: "TestJoinOp",
+      properties: {},
+      inputOperatorIds: { "0": ["op0"], "1": ["ghost"] },
+      summary: "x",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain('Source operator "ghost" not found');
+    expect(state.getWorkflowContent()).toEqual(before);
   });
 
   test("adds a source operator with no input links", async () => {
