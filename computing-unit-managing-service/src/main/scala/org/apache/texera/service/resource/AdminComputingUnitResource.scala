@@ -30,9 +30,10 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource.DashboardWorkflowComputingUnit
-import org.apache.texera.service.util.ComputingUnitHelpers
+import org.apache.texera.service.util.{ClusterCapacity, ComputingUnitHelpers}
 import org.jooq.DSLContext
 
+import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object AdminComputingUnitResource {
@@ -105,4 +106,15 @@ class AdminComputingUnitResource {
       )
     }
   }
+
+  /**
+    * Total, allocated and available CPU (millicores), memory (bytes) and GPU (devices) across the
+    * cluster's schedulable nodes (ADMIN-only). Allocated is what the scheduler has committed to
+    * pods' requests, so available is an upper bound on what a new computing unit can claim. 404
+    * when computing units do not run on Kubernetes.
+    */
+  @GET
+  @Path("/cluster-capacity")
+  def getClusterCapacity(@Auth @unused user: SessionUser): ClusterCapacity =
+    ComputingUnitHelpers.clusterCapacity()
 }

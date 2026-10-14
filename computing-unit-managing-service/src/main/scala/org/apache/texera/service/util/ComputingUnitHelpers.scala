@@ -18,6 +18,9 @@
 
 package org.apache.texera.service.util
 
+import io.fabric8.kubernetes.client.KubernetesClientException
+import jakarta.ws.rs.NotFoundException
+import org.apache.texera.common.config.KubernetesConfig
 import org.apache.texera.dao.jooq.generated.enums.{
   WorkflowComputingUnitTerminationReasonEnum,
   WorkflowComputingUnitTypeEnum
@@ -275,6 +278,28 @@ object ComputingUnitHelpers {
       k8s: => KubernetesClient
   ): Map[String, Map[String, String]] =
     if (units.exists(isKubernetes)) k8s.getAllPodMetrics else Map.empty
+
+  // Same seam as podSnapshotsFor: the public overload binds the production singleton, passed
+  // by-name so a deployment without Kubernetes units is refused without ever forcing the
+  // singleton, which builds a fabric8 client, and tests drive the private overload with a stub.
+  def clusterCapacity(): ClusterCapacity =
+    clusterCapacity(KubernetesConfig.kubernetesComputingUnitEnabled, KubernetesClient)
+
+  private[util] def clusterCapacity(enabled: Boolean, k8s: => KubernetesClient): ClusterCapacity = {
+    if (!enabled) {
+      throw new NotFoundException(
+        "Cluster capacity is only available when computing units run on Kubernetes."
+      )
+    }
+    try {
+      k8s.getClusterCapacity
+    } catch {
+      // Keeps the cluster's own message: a chart without the cluster-wide read grant fails with
+      // a "forbidden" that names the missing permission, which is what an admin has to act on.
+      case e: KubernetesClientException =>
+        throw ComputingUnitManagingServiceException.fromKubernetes(e)
+    }
+  }
 
   /** A Kubernetes unit whose pod is absent from `podSnapshots` (deleted or TTL GC-ed). */
   private def isVanished(
