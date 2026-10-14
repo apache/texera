@@ -188,15 +188,6 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    total = int(series.sum())
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
-        |def _texera_agg_ts_zone():
-        |    # The engine reads and writes a timestamp in the JVM's default zone,
-        |    # so the arithmetic below has to name the same one. gettz() and not
-        |    # the current offset: the zone carries its daylight rules, and each
-        |    # instant needs the offset in force when it happened.
-        |    from dateutil.tz import gettz
-        |
-        |    return gettz()
-        |
         |def _texera_agg_ts_epoch_ms(series):
         |    # A timestamp reaches the engine as its epoch milliseconds whatever
         |    # resolution the column carries, and reading the integers out of a
@@ -209,29 +200,37 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # offset away. The two flags are java.time's own reading of an hour
         |    # daylight saving repeats (the later one) or skips (shifted past the
         |    # gap).
-        |    import time
+        |    #
+        |    # The engine's zone is the machine's, with its whole history; before
+        |    # 1900 java.util.Date reads every wall clock at the standard offset.
+        |    from dateutil.tz import tzlocal
         |
         |    kept = series.dropna().astype("datetime64[ms]")
+        |    zone = _texera_local_zone()
+        |    offset_ms = int(_texera_standard_offset(zone).total_seconds()) * 1000
+        |    standard = kept.astype("int64") - offset_ms
+        |    # 1900-01-01T00:00Z in epoch milliseconds.
+        |    before = standard < -2208988800000
         |
         |    def localized(s):
         |        return s.dt.tz_localize(
-        |            _texera_agg_ts_zone(), ambiguous=False, nonexistent=pd.Timedelta("1h")
+        |            zone or tzlocal(), ambiguous=False, nonexistent=pd.Timedelta("1h")
         |        ).astype("int64")
         |
         |    try:
-        |        return localized(kept)
+        |        return localized(kept).where(~before, standard)
         |    except (OSError, OverflowError):
         |        pass
         |
-        |    # Without a zone file gettz() falls back to tzlocal(), which asks
-        |    # localtime, and Windows refuses an instant before 1970. Read those
-        |    # at the zone's standard offset, as java.util.Date does before 1900.
+        |    # With no zone named, tzlocal() asks localtime, and Windows refuses an
+        |    # instant before 1970. Read those at the standard offset too.
         |    def one(i):
-        |        cell = kept.iloc[i : i + 1]
+        |        if before.iloc[i]:
+        |            return int(standard.iloc[i])
         |        try:
-        |            return int(localized(cell).iloc[0])
+        |            return int(localized(kept.iloc[i : i + 1]).iloc[0])
         |        except (OSError, OverflowError):
-        |            return int(cell.astype("int64").iloc[0]) + time.timezone * 1000
+        |            return int(standard.iloc[i])
         |
         |    return pd.Series([one(i) for i in range(len(kept))], index=kept.index, dtype="int64")
         |
@@ -245,14 +244,14 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    # Through datetime and not Timestamp.tz_convert, which swallows a
         |    # refusal from localtime and answers in UTC.
         |    import datetime
-        |    import time
         |
         |    utc = pd.Timestamp(total, unit="ms")
+        |    zone = _texera_local_zone()
         |    try:
         |        moment = utc.to_pydatetime().replace(tzinfo=datetime.timezone.utc)
-        |        shift = moment.astimezone(_texera_agg_ts_zone()).utcoffset()
+        |        shift = _texera_local_wall_clock(moment, zone) - moment.replace(tzinfo=None)
         |    except (OSError, OverflowError):
-        |        shift = datetime.timedelta(seconds=-time.timezone)
+        |        shift = _texera_standard_offset(zone)
         |    return utc + shift
         |
         |def _texera_agg_ts_mean(series):

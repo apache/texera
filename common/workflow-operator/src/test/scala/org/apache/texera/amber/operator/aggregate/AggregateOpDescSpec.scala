@@ -144,6 +144,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
     val driver =
       s"""import pandas as pd
+         |${desc.standaloneHelpers().mkString("\n")}
          |${report("ns")}
          |${report("us")}
          |""".stripMargin
@@ -182,6 +183,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
     val driver =
       s"""import pandas as pd
+         |${desc.standaloneHelpers().mkString("\n")}
          |in1df = pd.DataFrame({
          |    "t": pd.to_datetime(["2024-01-01 00:00:00", "2024-01-02 00:00:00"]),
          |})
@@ -199,11 +201,11 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  /** Without a zone file, as on Windows, gettz() answers tzlocal(), which asks
-    * localtime, and Windows refuses an instant before 1970: the column raised
-    * and the sum came back in UTC. The driver stands in for both. Checked
-    * against Java 17 in the same zone: the sum below is 1653-12-31 18:00:00
-    * and the average -4.9859712E12.
+  /** With no zone named, as on Windows without tzlocal, the script asks
+    * tzlocal(), which asks localtime, and Windows refuses an instant before
+    * 1970: the column raised and the sum came back in UTC. The driver stands in
+    * for both. Checked against Java 17 in the same zone: the sum below is
+    * 1653-12-31 18:00:00 and the average -4.9859712E12.
     */
   it should "add timestamps before 1970 where localtime refuses them" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
@@ -219,16 +221,16 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
     val driver =
       s"""import time
-         |import dateutil.tz
          |import numpy as np
          |import pandas as pd
+         |${desc.standaloneHelpers().mkString("\n")}
          |_localtime = time.localtime
          |def _refusing(seconds=None):
          |    if seconds is not None and seconds < 0:
          |        raise OSError(22, "Invalid argument")
          |    return _localtime() if seconds is None else _localtime(seconds)
          |time.localtime = _refusing
-         |dateutil.tz.gettz = lambda *args: dateutil.tz.tzlocal()
+         |_texera_local_zone = lambda: None
          |in1df = pd.DataFrame({
          |    "t": np.array(["1600-01-01T12:00", "2024-01-01T00:00"], dtype="datetime64[ms]"),
          |})
@@ -242,6 +244,53 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"python said:\n$out\nscript:\n$driver") {
       out.trim.linesIterator.toSeq shouldBe Seq("1653-12-31T18:00:00", "-4985971200000.0")
     }
+  }
+
+  // A zone whose offset has moved: Mexico City was seven hours behind in 1931,
+  // kept summer time until 2022 and its local mean time until 1922, and before
+  // 1900 java.util.Date reads it at today's standard offset. One group per row,
+  // so each AVERAGE is that wall clock's epoch milliseconds.
+  private val mexicoCityWallClocks = Seq(
+    "1930-12-31 17:00:00",
+    "2021-06-30 19:00:00",
+    "1920-12-31 17:23:24",
+    "1850-01-01 00:00:00"
+  )
+
+  it should "read each timestamp with the offset its zone had then" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("k", AttributeType.INTEGER).add("t", AttributeType.TIMESTAMP)
+    val desc = descWith(List("k"), aggOp(AggregationFunction.AVERAGE, "t", "ts_avg"))
+    val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
+
+    val values = mexicoCityWallClocks.map("\"" + _ + "\"").mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |${desc.standaloneHelpers().mkString("\n")}
+         |in1df = pd.DataFrame({
+         |    "k": list(range(${mexicoCityWallClocks.size})),
+         |    "t": pd.to_datetime($values),
+         |})
+         |$block
+         |for avg in out1df.sort_values("k")["ts_avg"]:
+         |    print(int(avg))
+         |""".stripMargin
+
+    val zone = "America/Mexico_City"
+    val out = runPython(python, driver, "aggregate-timestamp-history-", zone)
+
+    val machineZone = java.util.TimeZone.getDefault
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+    val fromEngine =
+      try mexicoCityWallClocks.map(w => java.sql.Timestamp.valueOf(w).getTime.toString)
+      finally java.util.TimeZone.setDefault(machineZone)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      out.trim.linesIterator.toSeq shouldBe fromEngine
+    }
+    fromEngine shouldBe Seq("-1230768000000", "1625097600000", "-1546300800000", "-3786804000000")
   }
 
   /** Runs the generated block with the zone named to the child, because a
