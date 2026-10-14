@@ -804,8 +804,7 @@ class ComputingUnitHelpersSpec
 
   // ── clusterCapacity guard ────────────────────────────────────────────
 
-  // Same by-name seam as the two guards above. Passing `fail(...)` as the client proves the
-  // disabled branch never forces it.
+  // Passing `fail(...)` as the client proves the disabled branch never forces it.
   "clusterCapacity" should "refuse, without touching the cluster, when kubernetes units are disabled" in {
     val refused = intercept[NotFoundException] {
       ComputingUnitHelpers.clusterCapacity(enabled = false, fail("the client must not be forced"))

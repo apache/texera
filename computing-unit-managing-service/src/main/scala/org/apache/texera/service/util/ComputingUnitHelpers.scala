@@ -279,9 +279,8 @@ object ComputingUnitHelpers {
   ): Map[String, Map[String, String]] =
     if (units.exists(isKubernetes)) k8s.getAllPodMetrics else Map.empty
 
-  // Same seam as podSnapshotsFor: the public overload binds the production singleton, passed
-  // by-name so a deployment without Kubernetes units is refused without ever forcing the
-  // singleton, which builds a fabric8 client, and tests drive the private overload with a stub.
+  // Same seam as podSnapshotsFor: by-name, so a deployment without Kubernetes units never forces
+  // the singleton, and tests pass a stub to the private overload.
   def clusterCapacity(): ClusterCapacity =
     clusterCapacity(KubernetesConfig.kubernetesComputingUnitEnabled, KubernetesClient)
 
@@ -294,8 +293,7 @@ object ComputingUnitHelpers {
     try {
       k8s.getClusterCapacity
     } catch {
-      // Keeps the cluster's own message: a chart without the cluster-wide read grant fails with
-      // a "forbidden" that names the missing permission, which is what an admin has to act on.
+      // Keeps the cluster's own message, so a missing read grant shows as "forbidden".
       case e: KubernetesClientException =>
         throw ComputingUnitManagingServiceException.fromKubernetes(e)
     }

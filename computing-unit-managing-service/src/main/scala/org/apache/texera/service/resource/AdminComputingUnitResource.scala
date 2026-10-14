@@ -108,10 +108,8 @@ class AdminComputingUnitResource {
   }
 
   /**
-    * Total, allocated and available CPU (millicores), memory (bytes) and GPU (devices) across the
-    * cluster's schedulable nodes (ADMIN-only). Allocated is what the scheduler has committed to
-    * pods' requests, so available is an upper bound on what a new computing unit can claim. 404
-    * when computing units do not run on Kubernetes.
+    * Cluster CPU, memory and GPU as total, allocated and available, an upper bound for a new unit
+    * (ADMIN-only). 404 when units do not run on Kubernetes.
     */
   @GET
   @Path("/cluster-capacity")

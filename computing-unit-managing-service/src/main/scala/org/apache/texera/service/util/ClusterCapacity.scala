@@ -24,11 +24,7 @@ import io.fabric8.kubernetes.client.readiness.Readiness
 
 import scala.jdk.CollectionConverters._
 
-/**
-  * One resource across the cluster's schedulable nodes. CPU is in millicores, memory in bytes
-  * and GPU in devices, so a consumer can compute a percentage or pick a display unit without
-  * parsing Kubernetes quantity strings. `available` is `total - allocated`, never below zero.
-  */
+/** CPU is in millicores, memory in bytes and GPU in devices. `available` is never below zero. */
 case class ResourceCapacity(total: Long, allocated: Long, available: Long)
 
 case class ClusterCapacity(cpu: ResourceCapacity, memory: ResourceCapacity, gpu: ResourceCapacity)
@@ -42,30 +38,17 @@ object ClusterCapacity {
   private val Memory = "memory"
   private val MillicoresPerCore = 1000
 
-  // A pod in either phase has stopped and no longer holds anything on its node.
+  // Pods in these phases hold nothing on their node.
   private val FinishedPhases = Set("Succeeded", "Failed")
 
   /**
-    * Aggregates what the nodes offer against what the scheduler has already handed out.
+    * Sums what the nodes offer against the requests the scheduler has handed out, the "Allocated
+    * resources" of `kubectl describe node`, so `available` bounds what a new unit can claim. Live
+    * usage is not used: it reads below what is committed and has no GPU metric.
     *
-    * `total` is the allocatable of every Ready, uncordoned node, and `allocated` is the requests
-    * of the pods occupying those nodes. These are the figures `kubectl describe node`
-    * reports as "Allocated resources", and they are what kube-scheduler fits a new pod against,
-    * so `available` is what bounds a new computing unit. Live usage is deliberately not used: it
-    * reads well below what is committed, and metrics-server reports no GPU at all.
-    *
-    * Not modelled, so `available` is an upper bound on what a unit can claim:
-    *   - per-node fit: the figures are sums across nodes, so capacity spread thinly over many
-    *     nodes can still refuse a unit that needs one node's worth;
-    *   - the pool namespace's ResourceQuota, which refuses a unit once it is used up however
-    *     much the nodes have free;
-    *   - which nodes a unit may land on (taints, node selectors, runtime-class scheduling), so
-    *     a node it cannot use still counts toward `total`;
-    *   - pod-level `spec.resources`, which newer clusters let a pod set in place of
-    *     per-container requests;
-    *   - native sidecars (init containers with restartPolicy Always), which the scheduler adds
-    *     to the app containers instead of taking the larger of the two, so a pod using one is
-    *     charged less than it holds.
+    * Not modelled, so `available` is an upper bound: per-node fit, the pool's ResourceQuota, node
+    * placement (taints, selectors, runtime classes), pod-level `spec.resources`, and native
+    * sidecars, which the scheduler adds to the app containers, so a pod using one is undercharged.
     */
   def fromNodesAndPods(
       nodes: Iterable[Node],
@@ -90,16 +73,14 @@ object ClusterCapacity {
     )
   }
 
-  // A cordoned node takes no new pods, and neither does one that is not Ready (the node
-  // controller taints it for exactly that reason), so neither can hold a new computing unit.
+  // A cordoned or not Ready node takes no new pods, so it cannot hold a new unit.
   private def isSchedulable(node: Node): Boolean = {
     val cordoned =
       Option(node.getSpec).flatMap(spec => Option(spec.getUnschedulable)).exists(_.booleanValue)
     !cordoned && Readiness.isNodeReady(node)
   }
 
-  // The scheduler's accounting: a pod bound to a node counts until it finishes, whether or not its
-  // containers have started, and a pod it has not bound yet counts nowhere.
+  // As the scheduler does, a bound pod holds its requests until it finishes, an unbound one none.
   private def occupiedRequests(pod: Pod, nodeNames: Set[String]): Option[Amounts] =
     for {
       spec <- Option(pod.getSpec)
@@ -107,8 +88,8 @@ object ClusterCapacity {
       if !Option(pod.getStatus).flatMap(s => Option(s.getPhase)).exists(FinishedPhases.contains)
     } yield podRequests(spec)
 
-  // Init containers run one at a time before the app containers, so a pod needs the larger of
-  // the app containers' sum and its biggest init container, plus the runtime-class overhead.
+  // Init containers run one at a time, so a pod needs the larger of its containers' sum and its
+  // biggest init container, plus overhead.
   private def podRequests(spec: PodSpec): Amounts = {
     val appContainers = sum(containers(spec.getContainers).map(requests))
     val peakInit = peak(containers(spec.getInitContainers).map(requests))
@@ -131,8 +112,6 @@ object ClusterCapacity {
       }.toMap)
       .getOrElse(Map.empty)
 
-  // Both treat a resource absent from an amount as zero. Requests are never negative, so zero is
-  // also the identity for `peak`'s max.
   private def sum(all: Iterable[Amounts]): Amounts =
     all.flatten.groupMapReduce(_._1)(_._2)(_ + _)
 

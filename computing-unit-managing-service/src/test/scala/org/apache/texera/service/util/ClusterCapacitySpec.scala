@@ -36,10 +36,8 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.jdk.CollectionConverters._
 
-// The aggregation is a pure function over fabric8 model objects, so every case is driven with
-// builder-constructed nodes and pods: no client, no cluster. The rules under test are the ones
-// kube-scheduler applies when it decides whether a new pod fits, because that is the question an
-// admin is asking when a computing unit refuses to start.
+// A pure function over fabric8 objects, so cases use builders with no client. The rules are the
+// ones kube-scheduler applies when it decides whether a new pod fits.
 class ClusterCapacitySpec extends AnyFlatSpec with Matchers {
 
   import ClusterCapacitySpec._
@@ -92,8 +90,7 @@ class ClusterCapacitySpec extends AnyFlatSpec with Matchers {
   }
 
   it should "count a container that declares no resources, or empty ones, as zero" in {
-    // System pods on a shared cluster are not always written with resources, and a container
-    // with no `resources` block at all (null) must not take the whole endpoint down.
+    // A container with no `resources` block (null) must not take the endpoint down.
     val bare = new PodBuilder()
       .withNewMetadata()
       .withName("bare")
@@ -116,8 +113,7 @@ class ClusterCapacitySpec extends AnyFlatSpec with Matchers {
     val result = capacity(
       Seq(node("a", "8", "16Gi")),
       Seq(
-        // Init containers run one at a time before the app containers, so the pod needs
-        // max(sum(containers), max(init)): the init container wins on CPU, the containers on memory.
+        // The init container wins on CPU, the app containers on memory: the pod needs the larger.
         pod(
           "p",
           Some("a"),
@@ -232,9 +228,7 @@ class ClusterCapacitySpec extends AnyFlatSpec with Matchers {
     result.memory shouldBe ResourceCapacity(total = 4 * Gi, allocated = 6 * Gi, available = 0)
   }
 
-  // Consumers read these exact field names, so a rename is a breaking API change. Serialised the
-  // way the service does: Dropwizard's mapper with the Scala module registered in
-  // ComputingUnitManagingService.initialize.
+  // Consumers read these field names, so a rename breaks them. Mapper set up as the service does.
   "ClusterCapacity" should "serialise as cpu/memory/gpu objects of total, allocated and available" in {
     val mapper = Jackson.newObjectMapper().registerModule(DefaultScalaModule)
     val serialised = mapper.writeValueAsString(

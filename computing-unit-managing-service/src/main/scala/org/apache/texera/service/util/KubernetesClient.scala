@@ -101,11 +101,9 @@ class KubernetesClient(
     metricsByPodName(fetchPodMetricsItems())
 
   /**
-    * CPU/memory/GPU capacity of the cluster's schedulable nodes. Cluster-scoped, unlike the
-    * namespace-wide reads above, so it needs the chart's cluster-capacity ClusterRole. Finished
-    * pods are excluded by the API server so a cluster that keeps many of them does not ship them
-    * all; [[ClusterCapacity]] still skips them, which is the rule and is tested there, so the
-    * selectors are an optimisation only.
+    * Needs the chart's cluster-capacity ClusterRole, since nodes and every namespace's pods are
+    * cluster-scoped. The API server drops finished pods so they are not shipped, and
+    * `ClusterCapacity` skips them too.
     */
   def getClusterCapacity: ClusterCapacity =
     ClusterCapacity.fromNodesAndPods(

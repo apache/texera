@@ -160,9 +160,9 @@ class AdminComputingUnitResourceSpec
     result.head.ownerName shouldBe "owner"
   }
 
-  // The test environment has kubernetes.enabled false (a local deployment), so the endpoint
-  // refuses; the enabled path is pinned in ComputingUnitHelpersSpec. Cancelled when an exported
-  // KUBERNETES_COMPUTING_UNIT_ENABLED would reach the real client instead.
+  // kubernetes.enabled is false here, so the endpoint refuses; the enabled path is in
+  // ComputingUnitHelpersSpec. Cancelled if an exported KUBERNETES_COMPUTING_UNIT_ENABLED would
+  // reach the real client.
   "getClusterCapacity" should "answer 404 on a deployment without Kubernetes computing units" in {
     assume(
       !KubernetesConfig.kubernetesComputingUnitEnabled,

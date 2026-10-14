@@ -298,10 +298,8 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
   }
 
   // ── cluster-wide capacity ──
-  // Reads cluster-scoped nodes and the pods of every namespace, narrowed on the server to the
-  // pods that have not finished. The stub answers only that chain: a wrapper that listed just the
-  // pool namespace sees no pods and one that skipped the selectors gets null back, and either
-  // fails; the arithmetic itself is pinned by ClusterCapacitySpec.
+  // The stub answers only the all-namespace, unfinished-pod chain, so a wrapper that lists one
+  // namespace or skips the selectors fails; the arithmetic is pinned by ClusterCapacitySpec.
 
   private def clusterClient(nodes: Seq[Node], pods: Seq[Pod]): Fabric8Client = {
     val client = stubbedClient(Seq.empty, Seq.empty)
