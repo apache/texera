@@ -675,7 +675,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
         regionMap = event.regions.map(([id, region]) => {
           const element = new Region({ id: "region-" + id });
-          const ops = region.map(id => this.paper.getModelById(id));
+          const ops = region.map(id => this.paper.getModelById(id)).filter(Boolean);
           this.paper.model.addCell(element);
           this.updateRegionElement(element, ops);
           return { regionElement: element, operators: ops };
@@ -728,7 +728,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x + width + padding, y + height + padding + 10],
       ];
     });
-    regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+    regionElement.attr(
+      "body/d",
+      points.length ? line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]) : null
+    );
   }
 
   /**

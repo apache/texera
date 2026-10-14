@@ -970,6 +970,34 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("workflow uploads", () => {
+      it("rejects a macro file missing its pinned definition before saving", async () => {
+        const persist = TestBed.inject(WorkflowPersistService) as any;
+        persist.createWorkflow = vi.fn();
+        const errorSpy = vi
+          .spyOn(TestBed.inject(NotificationService), "error")
+          .mockImplementation(() => undefined as any);
+        const content = {
+          ...testWorkflowContent([]),
+          operators: [
+            {
+              operatorID: "missing",
+              operatorType: "WorkflowMacro:missing:1",
+              operatorVersion: "1",
+              operatorProperties: {},
+              inputPorts: [],
+              outputPorts: [],
+              showAdvanced: false,
+            },
+          ],
+        };
+        await expect(
+          firstValueFrom(
+            component.onClickUploadExistingWorkflowFromLocal(new File([JSON.stringify(content)], "broken.json") as any)
+          )
+        ).rejects.toThrow(/Missing macro version/);
+        expect(persist.createWorkflow).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Missing macro version"));
+      });
       it("imports a valid .json workflow, appending an entry and toasting success", async () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(42, "wf")));

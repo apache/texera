@@ -20,6 +20,8 @@ import { Component } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { NzInputModule } from "ng-zorro-antd/input";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { v4 as uuid } from "uuid";
 import { MacroService } from "../../../service/macro/macro.service";
@@ -27,208 +29,30 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { isMacro, MacroPort, macroType } from "../../../../common/util/workflow-macro";
+import { isMacro, MacroDefinition, MacroPort, macroType } from "../../../../common/util/workflow-macro";
+import { FormFieldBinding } from "../../../../common/type/workflow";
+import { LogicalPort } from "../../../types/workflow-common.interface";
 import { MacroInspectorComponent } from "./macro-inspector.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-macro-panel",
-  imports: [NgIf, NgFor, FormsModule, NzModalModule, OperatorLabelComponent],
-  template: ` <details (toggle)="opened($event)">
-      <summary>Macros</summary>
-      <button
-        type="button"
-        (click)="refresh()"
-        [disabled]="busy">
-        Refresh library
-      </button>
-      <div *ngFor="let definition of macros.library$.value">
-        <texera-operator-label [operator]="metadata.getOperatorSchema(type(definition))"></texera-operator-label>
-      </div>
-      <input
-        aria-label="Macro name"
-        placeholder="Macro name"
-        [(ngModel)]="name"
-        [disabled]="!canModify" />
-      <button
-        type="button"
-        data-action="create"
-        (click)="create()"
-        [disabled]="!canModify || busy || !name.trim() || !selected.length">
-        Create from selection
-      </button>
-      <ng-container *ngIf="selectedMacro">
-        <button
-          type="button"
-          (click)="inspect(selected[0])">
-          Inspect pinned version
-        </button>
-        <button
-          type="button"
-          (click)="update()"
-          [disabled]="!canModify || busy">
-          Adopt latest compatible version
-        </button>
-      </ng-container>
-    </details>
-    <section *ngIf="actions.getMacroInterface() as boundary">
-      <strong>Macro interface</strong>
-      <p>Add this definition to a workflow to run it.</p>
-      <div *ngFor="let direction of directions">
-        <strong>{{ direction === "inputs" ? "Inputs" : "Outputs" }}</strong>
-        <div *ngFor="let port of boundary[direction]">
-          <input
-            [attr.aria-label]="'Port name ' + port.portID"
-            [ngModel]="port.displayName || port.portID"
-            (ngModelChange)="rename(direction, port, $event)"
-            [disabled]="!canModify" />
-          <span *ngFor="let target of port.targets">{{ targetLabel(direction, target) }}</span>
-          <button
-            type="button"
-            (click)="remove(direction, port)"
-            [disabled]="!canModify">
-            Remove
-          </button>
-          <button
-            *ngIf="direction === 'inputs'"
-            type="button"
-            (click)="addTarget(port)"
-            [disabled]="!canModify || !inputTarget">
-            Add input target
-          </button>
-        </div>
-      </div>
-      <select
-        aria-label="Input target"
-        [(ngModel)]="inputTarget"
-        [disabled]="!canModify">
-        <option value="">Choose an input</option>
-        <option
-          *ngFor="let p of targets('inputs')"
-          [value]="p.value">
-          {{ p.label }}
-        </option>
-      </select>
-      <button
-        type="button"
-        data-action="add-input"
-        (click)="add('inputs', inputTarget)"
-        [disabled]="!canModify || !inputTarget">
-        Add input
-      </button>
-      <select
-        aria-label="Output target"
-        [(ngModel)]="outputTarget"
-        [disabled]="!canModify">
-        <option value="">Choose an output</option>
-        <option
-          *ngFor="let p of targets('outputs')"
-          [value]="p.value">
-          {{ p.label }}
-        </option>
-      </select>
-      <button
-        type="button"
-        (click)="add('outputs', outputTarget)"
-        [disabled]="!canModify || !outputTarget">
-        Add output
-      </button>
-      <strong class="properties-heading">Properties</strong>
-      <div *ngFor="let field of actions.getFormBinding().fields">
-        <input
-          [attr.aria-label]="'Property name ' + field.id"
-          [ngModel]="field.displayName"
-          (ngModelChange)="renameProperty(field.id, $event)"
-          [disabled]="!canModify" />
-        <button
-          type="button"
-          (click)="removeProperty(field.id)"
-          [disabled]="!canModify">
-          Remove property
-        </button>
-      </div>
-      <select
-        aria-label="Property target"
-        [(ngModel)]="propertyTarget"
-        [disabled]="!canModify">
-        <option value="">Choose a property</option>
-        <option
-          *ngFor="let p of properties()"
-          [value]="p.value">
-          {{ p.label }}
-        </option>
-      </select>
-      <button
-        type="button"
-        data-action="add-property"
-        (click)="exposeProperty()"
-        [disabled]="!canModify || !propertyTarget">
-        Expose property
-      </button>
-    </section>`,
-  styles: [
-    `
-      :host {
-        display: block;
-        padding: 10px;
-      }
-      summary {
-        cursor: pointer;
-        font-weight: 600;
-      }
-      input,
-      select {
-        width: 100%;
-        margin: 4px 0;
-        padding: 4px 7px;
-      }
-      input,
-      select,
-      button {
-        max-width: 100%;
-        font: inherit;
-        border: 1px solid #d9d9d9;
-        border-radius: 3px;
-        background: white;
-      }
-      button {
-        margin: 4px 4px 4px 0;
-        padding: 3px 7px;
-        cursor: pointer;
-        color: #1677ff;
-        white-space: normal;
-      }
-      button:disabled,
-      input:disabled,
-      select:disabled {
-        color: #999;
-        background: #fafafa;
-        cursor: default;
-      }
-      section {
-        margin-top: 12px;
-      }
-      .properties-heading {
-        display: block;
-        margin-top: 12px;
-      }
-      section span {
-        display: block;
-        font-size: 12px;
-        color: #666;
-        overflow-wrap: anywhere;
-      }
-    `,
-  ],
+  imports: [NgIf, NgFor, FormsModule, NzModalModule, NzButtonModule, NzInputModule, OperatorLabelComponent],
+  templateUrl: "./macro-panel.component.html",
+  styleUrls: ["./macro.component.scss"],
 })
 export class MacroPanelComponent {
   public name = "";
   public busy = false;
-  public inputTarget = "";
-  public outputTarget = "";
+  public portTargets = { inputs: "", outputs: "" };
   public propertyTarget = "";
   public readonly directions = ["inputs", "outputs"] as const;
   public readonly type = macroType;
+  public readonly trackDefinition = (_: number, d: MacroDefinition) => macroType(d);
+  public readonly trackPort = (_: number, p: MacroPort) => p.portID;
+  public readonly trackField = (_: number, f: FormFieldBinding) => f.id;
+  public readonly trackOption = (_: number, p: { value: string }) => p.value;
+  public readonly trackTarget = (_: number, p: LogicalPort) => JSON.stringify([p.operatorID, p.portID]);
   public get canModify(): boolean {
     return this.actions.checkWorkflowModificationEnabled();
   }
@@ -238,6 +62,11 @@ export class MacroPanelComponent {
   public get selectedMacro(): boolean {
     const op = this.selected.length === 1 ? this.actions.getTexeraGraph().getOperator(this.selected[0]) : undefined;
     return !!op && isMacro(op);
+  }
+  public get selectionHint(): string {
+    if (!this.canModify) return "Read-only workflow";
+    const count = this.selected.length;
+    return count ? `${count} operator${count === 1 ? "" : "s"} selected` : "Select operators on the canvas";
   }
   constructor(
     public macros: MacroService,
@@ -257,7 +86,11 @@ export class MacroPanelComponent {
     await this.perform(() => this.macros.refresh());
   }
   public async create(): Promise<void> {
-    await this.perform(() => this.macros.createFromSelection(this.name));
+    await this.perform(async () => {
+      await this.macros.createFromSelection(this.name);
+      this.name = "";
+      this.notification.success("Macro created");
+    });
   }
   public async update(): Promise<void> {
     await this.perform(() => this.macros.adoptLatest(this.selected[0]));
@@ -287,6 +120,7 @@ export class MacroPanelComponent {
       nzTitle: "Macro definition",
       nzContent: MacroInspectorComponent,
       nzWidth: 900,
+      nzStyle: { maxWidth: "calc(100vw - 32px)" },
       nzFooter: null,
       nzData: { definition, dependencies: content.macroDependencies, library: this.macros.library$.value },
     });
@@ -303,7 +137,7 @@ export class MacroPanelComponent {
         }))
       );
   }
-  public targetLabel(direction: "inputs" | "outputs", target: { operatorID: string; portID: string }): string {
+  public targetLabel(direction: "inputs" | "outputs", target: LogicalPort): string {
     return this.targets(direction).find(p => p.value === JSON.stringify(target))?.label ?? "Missing target";
   }
   public properties(): { value: string; label: string; title: string }[] {
@@ -331,63 +165,47 @@ export class MacroPanelComponent {
     const target = JSON.parse(selected.value);
     const binding = this.actions.getFormBinding();
     if (binding.fields.some(f => f.operatorID === target.operatorID && f.propertyKey === target.propertyKey)) return;
-    this.actions.setFormBinding({
-      ...binding,
-      fields: [...binding.fields, { id: uuid(), ...target, displayName: selected.title }],
-    });
+    this.updateFields(fields => [...fields, { id: uuid(), ...target, displayName: selected.title }]);
   }
   public renameProperty(id: string, displayName: string): void {
-    if (!this.canModify) return;
-    const binding = this.actions.getFormBinding();
-    this.actions.setFormBinding({
-      ...binding,
-      fields: binding.fields.map(f => (f.id === id ? { ...f, displayName } : f)),
-    });
+    this.updateFields(fields => fields.map(f => (f.id === id ? { ...f, displayName } : f)));
   }
   public removeProperty(id: string): void {
+    this.updateFields(fields => fields.filter(f => f.id !== id));
+  }
+  private updateFields(update: (fields: FormFieldBinding[]) => FormFieldBinding[]): void {
     if (!this.canModify) return;
     const binding = this.actions.getFormBinding();
-    this.actions.setFormBinding({ ...binding, fields: binding.fields.filter(f => f.id !== id) });
+    this.actions.setFormBinding({ ...binding, fields: update(binding.fields) });
   }
   public add(direction: "inputs" | "outputs", target: string): void {
     if (!this.canModify || !this.targets(direction).some(p => p.value === target)) return;
-    const boundary = this.actions.getMacroInterface()!;
-    this.actions.setMacroInterface({
-      ...boundary,
-      [direction]: [
-        ...boundary[direction],
-        {
-          portID: `${direction === "inputs" ? "input" : "output"}-${uuid()}`,
-          displayName: direction === "inputs" ? "Input" : "Output",
-          targets: [JSON.parse(target)],
-        },
-      ],
-    });
+    this.updatePorts(direction, ports => [
+      ...ports,
+      {
+        portID: `${direction === "inputs" ? "input" : "output"}-${uuid()}`,
+        displayName: direction === "inputs" ? "Input" : "Output",
+        targets: [JSON.parse(target)],
+      },
+    ]);
   }
   public remove(direction: "inputs" | "outputs", port: MacroPort): void {
-    if (!this.canModify) return;
-    const boundary = this.actions.getMacroInterface()!;
-    this.actions.setMacroInterface({
-      ...boundary,
-      [direction]: boundary[direction].filter(p => p.portID !== port.portID),
-    });
+    this.updatePorts(direction, ports => ports.filter(p => p.portID !== port.portID));
   }
   public rename(direction: "inputs" | "outputs", port: MacroPort, displayName: string): void {
-    if (!this.canModify) return;
-    const boundary = this.actions.getMacroInterface()!;
-    this.actions.setMacroInterface({
-      ...boundary,
-      [direction]: boundary[direction].map(p => (p.portID === port.portID ? { ...p, displayName } : p)),
-    });
+    this.updatePorts(direction, ports => ports.map(p => (p.portID === port.portID ? { ...p, displayName } : p)));
   }
   public addTarget(port: MacroPort): void {
-    if (!this.canModify || !this.targets("inputs").some(p => p.value === this.inputTarget)) return;
-    const target = JSON.parse(this.inputTarget);
-    const boundary = this.actions.getMacroInterface()!;
+    if (!this.canModify || !this.targets("inputs").some(p => p.value === this.portTargets.inputs)) return;
+    const target = JSON.parse(this.portTargets.inputs);
     if (port.targets.some(p => p.operatorID === target.operatorID && p.portID === target.portID)) return;
-    this.actions.setMacroInterface({
-      ...boundary,
-      inputs: boundary.inputs.map(p => (p.portID === port.portID ? { ...p, targets: [...p.targets, target] } : p)),
-    });
+    this.updatePorts("inputs", ports =>
+      ports.map(p => (p.portID === port.portID ? { ...p, targets: [...p.targets, target] } : p))
+    );
+  }
+  private updatePorts(direction: "inputs" | "outputs", update: (ports: MacroPort[]) => MacroPort[]): void {
+    if (!this.canModify) return;
+    const boundary = this.actions.getMacroInterface();
+    if (boundary) this.actions.setMacroInterface({ ...boundary, [direction]: update(boundary[direction]) });
   }
 }

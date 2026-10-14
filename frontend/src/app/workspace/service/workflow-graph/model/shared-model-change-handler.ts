@@ -81,14 +81,23 @@ export class SharedModelChangeHandler {
       const jointElementsToAdd: joint.dia.Element[] = [];
       const newOpIDs: string[] = [];
       event.changes.keys.forEach((change, key) => {
-        if (change.action === "add") {
+        if (change.action === "add" || change.action === "update") {
           const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(key) as YType<OperatorPredicate>;
           // Also find its position
           if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
             const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
             // Add the operator into joint graph
             const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
-            jointElementsToAdd.push(jointOperator);
+            if (change.action === "update") {
+              this.texeraGraph.setSyncTexeraGraph(false);
+              try {
+                this.jointGraph.getCell(key).set(jointOperator.attributes);
+              } finally {
+                this.texeraGraph.setSyncTexeraGraph(true);
+              }
+            } else {
+              jointElementsToAdd.push(jointOperator);
+            }
             newOpIDs.push(key);
           } else {
             throw new Error(`operator with key ${key} does not exist in position map`);

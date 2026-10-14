@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import { ExecutionMode, WorkflowContent } from "../type/workflow";
+import { ExecutionMode, WorkflowContent, exportedWorkflow } from "../type/workflow";
+import { DefaultView } from "../../dashboard/type/workflow-metadata.interface";
 import { OperatorPredicate, OperatorLink } from "../../workspace/types/workflow-common.interface";
 import {
   expandMacros,
@@ -75,6 +76,28 @@ describe("workflow macros", () => {
       expect(expandMacros(content).content.operators).toEqual(content.operators);
       expect(expandMacros(content).content.links).toEqual(content.links);
     }
+  });
+
+  it("round-trips nested pinned definitions without their source workflow references", () => {
+    const child = definition();
+    const parent = {
+      ...definition("outer", 8),
+      content: {
+        ...graph([macroInstance(child, "nested")]),
+        macroInterface: {
+          id: "outer",
+          inputs: [{ portID: "input-0", targets: [{ operatorID: "nested", portID: "input-0" }] }],
+          outputs: [{ portID: "output-0", targets: [{ operatorID: "nested", portID: "output-0" }] }],
+        },
+      },
+    };
+    const content = { ...graph([macroInstance(parent, "root")]), macroDependencies: [parent, child] };
+    const { defaultView, ...uploaded } = JSON.parse(JSON.stringify(exportedWorkflow(content, DefaultView.FORM)));
+    expect(defaultView).toBe(DefaultView.FORM);
+    uploaded.macroDependencies.forEach((d: { wid?: number }) => delete d.wid);
+    expect(expandMacros(uploaded)).toEqual(expandMacros(content));
+    uploaded.macroDependencies.pop();
+    expect(() => expandMacros(uploaded)).toThrow(/missing.*version/i);
   });
 
   it("expands repeated pinned instances with distinct, deterministic short IDs and local overrides", () => {

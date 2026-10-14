@@ -55,7 +55,7 @@ describe("MacroPanelComponent", () => {
       createFromSelection: vi.fn(async () => ({})),
       adoptLatest: vi.fn(async () => {}),
     };
-    notification = { error: vi.fn() };
+    notification = { error: vi.fn(), success: vi.fn() };
     TestBed.configureTestingModule({
       imports: [MacroPanelComponent],
       providers: [
@@ -123,5 +123,49 @@ describe("MacroPanelComponent", () => {
         }),
       ],
     });
+  });
+
+  it("explains empty selection and read-only state without hiding the library", () => {
+    actions.getJointGraphWrapper = () => ({ getCurrentHighlightedOperatorIDs: () => [] });
+    const fixture = TestBed.createComponent(MacroPanelComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("No saved macros yet");
+    expect(fixture.nativeElement.textContent).toContain("Select operators on the canvas");
+    expect(fixture.nativeElement.querySelector('[data-action="create"]').disabled).toBe(true);
+    actions.checkWorkflowModificationEnabled = () => false;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("Read-only workflow");
+    expect(fixture.nativeElement.querySelector("summary").textContent).toContain("Macros");
+  });
+
+  it("submits a named selection from the keyboard and clears the name only after success", async () => {
+    const fixture = TestBed.createComponent(MacroPanelComponent);
+    fixture.componentInstance.name = "清理 · café";
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("1 operator selected");
+    fixture.nativeElement.querySelector("form").dispatchEvent(new Event("submit", { cancelable: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(service.createFromSelection).toHaveBeenCalledWith("清理 · café");
+    expect(fixture.componentInstance.name).toBe("");
+    expect(notification.success).toHaveBeenCalledWith("Macro created");
+    service.createFromSelection.mockRejectedValue(new Error("save failed"));
+    fixture.componentInstance.name = "Try again";
+    await fixture.componentInstance.create();
+    expect(fixture.componentInstance.name).toBe("Try again");
+  });
+
+  it("keeps a port name focused when shared metadata is reread", () => {
+    actions.getMacroInterface = () =>
+      structuredClone({
+        ...boundary,
+        inputs: [{ portID: "input-0", displayName: "Rows", targets: [{ operatorID: "leaf", portID: "input-0" }] }],
+      });
+    const fixture = TestBed.createComponent(MacroPanelComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('[aria-label="Port name input-0"]') as HTMLInputElement;
+    input.focus();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(input);
   });
 });

@@ -488,6 +488,28 @@ describe("ExecuteWorkflowService", () => {
     expect(service.getWorkerIds("opX")).toEqual(["w1", "w2"]);
   });
 
+  it("draws execution regions around the outer macro once while preserving ordinary and empty regions", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    vi.spyOn(actions, "getMacroExpansion").mockReturnValue({
+      content: actions.getWorkflowContent(),
+      paths: { leafA: ["macro", "nested", "a"], leafB: ["macro", "nested", "b"] },
+      ports: {},
+    });
+    const updates: RegionUpdateEvent[] = [];
+    service.getRegionUpdateStream().subscribe(event => updates.push(event));
+    emitWsEvent({
+      type: "RegionUpdateEvent",
+      regions: [
+        [1, ["source", "leafA", "leafB"]],
+        [2, []],
+      ],
+    });
+    expect(updates[0].regions).toEqual([
+      [1, ["source", "macro"]],
+      [2, []],
+    ]);
+  });
+
   it("routes execution-status websocket events into the execution-state stream", () => {
     const states: ExecutionState[] = [];
     service.getExecutionStateStream().subscribe(event => states.push(event.current.state));

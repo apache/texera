@@ -19,6 +19,7 @@
 import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
 import { JsonPipe, NgFor, NgIf } from "@angular/common";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NzButtonModule } from "ng-zorro-antd/button";
 import * as joint from "jointjs";
 import { isMacro, MacroDefinition, macroType } from "../../../../common/util/workflow-macro";
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
@@ -28,50 +29,9 @@ import { NotificationService } from "../../../../common/service/notification/not
 
 @Component({
   selector: "texera-macro-inspector",
-  imports: [NgIf, NgFor, JsonPipe],
-  template: `<button
-      type="button"
-      *ngIf="stack.length"
-      (click)="back()">
-      Back
-    </button>
-    <strong>{{ definition.name }} · v{{ definition.version }}</strong>
-    <a
-      *ngIf="editURL"
-      [href]="editURL"
-      target="_blank"
-      rel="noopener"
-      >Edit definition</a
-    >
-    <button
-      type="button"
-      (click)="copy()"
-      [disabled]="copying">
-      Save editable copy
-    </button>
-    <p>
-      Double-click a nested macro to inspect it. Editing a definition creates versions; existing instances stay pinned.
-    </p>
-    <div
-      #canvas
-      style="height: 380px; border: 1px solid #ddd; overflow: hidden"></div>
-    <div *ngFor="let op of definition.content.operators">
-      <strong>{{ op.customDisplayName || op.operatorType }}</strong>
-      <pre>{{ op.operatorProperties | json }}</pre>
-    </div>`,
-  styles: [
-    `
-      strong,
-      a,
-      button {
-        margin-right: 12px;
-      }
-      pre {
-        max-height: 120px;
-        overflow: auto;
-      }
-    `,
-  ],
+  imports: [NgIf, NgFor, JsonPipe, NzButtonModule],
+  templateUrl: "./macro-inspector.component.html",
+  styleUrls: ["./macro.component.scss"],
 })
 export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
   @ViewChild("canvas", { static: true }) canvas!: ElementRef<HTMLDivElement>;

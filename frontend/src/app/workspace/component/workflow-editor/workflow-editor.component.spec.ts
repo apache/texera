@@ -1920,6 +1920,19 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("region overlays", () => {
+    it("handles generated operators absent from the canvas and empty regions", fakeAsync(() => {
+      addRegions([[1, ["visible"]]]);
+      (executeWorkflowService as any).regionUpdateStream.next({
+        regions: [
+          [1, ["visible", "generated"]],
+          [2, []],
+        ],
+      });
+      tick();
+      expect(component.paper.getModelById("region-1").attr("body/d")).toBeTruthy();
+      expect(component.paper.getModelById("region-2").attr("body/d")).toBeFalsy();
+    }));
+
     it("reshapes the region drawn around an operator that moved", () => {
       // Two regions so the handler's filter is exercised on both sides. Nothing can be asserted
       // about the untouched one: its outline is recomputed from its own, unmoved operator, so a

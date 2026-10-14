@@ -77,4 +77,13 @@ describe("MacroInspectorComponent", () => {
     expect(fixture.componentInstance.copying).toBe(false);
     expect(fixture.componentInstance.definition).toBe(definition);
   });
+
+  it("identifies the pinned snapshot and labels its graph and empty properties", () => {
+    const fixture = TestBed.createComponent(MacroInspectorComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("Pinned version");
+    expect(fixture.nativeElement.textContent).toContain("No operators in this definition");
+    expect(fixture.nativeElement.querySelector('[aria-label="Macro graph"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector("a").textContent).toContain("Edit latest definition");
+  });
 });

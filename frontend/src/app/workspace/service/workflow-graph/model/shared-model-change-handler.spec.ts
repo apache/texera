@@ -98,6 +98,25 @@ describe("SharedModelChangeHandler", () => {
   }
 
   describe("operator add and delete", () => {
+    it("updates a replaced operator in one transaction without losing its links", () => {
+      addOperatorWithPosition(mockScanPredicate);
+      addOperatorWithPosition(mockResultPredicate);
+      texeraGraph.addLink(mockScanResultLink);
+      const link = jointGraph.getCell(mockScanResultLink.linkID);
+      const updated = { ...mockSentimentPredicate, operatorID: mockScanPredicate.operatorID };
+      const added: string[] = [];
+      const subscription = texeraGraph.getOperatorAddStream().subscribe(op => added.push(op.operatorID));
+      texeraGraph.bundleActions(() => {
+        texeraGraph.deleteOperator(updated.operatorID);
+        texeraGraph.addOperator(updated);
+      });
+      expect((jointGraph.getCell(updated.operatorID) as joint.dia.Element).getPorts().length).toBe(
+        updated.inputPorts.length + updated.outputPorts.length
+      );
+      expect(jointGraph.getCell(mockScanResultLink.linkID)).toBe(link);
+      expect(added).toEqual([updated.operatorID]);
+      subscription.unsubscribe();
+    });
     it("should emit operatorAddSubject and add a joint element when an operator is added", () => {
       let added: OperatorPredicate | undefined;
       const sub = texeraGraph.getOperatorAddStream().subscribe(op => (added = op));

@@ -18,7 +18,7 @@
  */
 
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
-import { BehaviorSubject, interval, Observable, Subject, Subscription } from "rxjs";
+import { BehaviorSubject, interval, map, Observable, Subject, Subscription } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -497,7 +497,18 @@ export class ExecuteWorkflowService {
   }
 
   public getRegionUpdateStream(): Observable<RegionUpdateEvent> {
-    return this.regionUpdateStream.asObservable();
+    return this.regionUpdateStream.pipe(
+      map(event => {
+        const paths = this.workflowActionService.getMacroExpansion?.()?.paths ?? {};
+        return {
+          ...event,
+          regions: event.regions.map(([id, ops]): [number, string[]] => [
+            id,
+            [...new Set(ops.map(op => paths[op]?.[0] ?? op))],
+          ]),
+        };
+      })
+    );
   }
 
   public getRegionStateStream(): Observable<RegionStateEvent> {

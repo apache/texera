@@ -1,0 +1,225 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements. See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership. The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License. You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied. See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<details
+  class="macro-library"
+  (toggle)="opened($event)">
+  <summary>Macros <span class="badge">{{ macros.library$.value.length }}</span></summary>
+  <div class="section-header">
+    <span class="muted">Saved macros</span>
+    <button
+      nz-button
+      nzSize="small"
+      type="button"
+      aria-label="Refresh library"
+      (click)="refresh()"
+      [nzLoading]="busy">
+      Refresh
+    </button>
+  </div>
+  <p
+    *ngIf="!busy && !macros.library$.value.length"
+    class="empty-state">
+    No saved macros yet. Create one from a selection below.
+  </p>
+  <p
+    *ngIf="macros.library$.value.length"
+    class="muted">
+    Drag a macro onto the canvas.
+  </p>
+  <div
+    *ngFor="let definition of macros.library$.value; trackBy: trackDefinition"
+    class="library-entry"
+    [title]="definition.name + ' · v' + definition.version">
+    <texera-operator-label [operator]="metadata.getOperatorSchema(type(definition))"></texera-operator-label>
+  </div>
+  <form
+    class="content-section"
+    (ngSubmit)="create()">
+    <label for="macro-name">Create a macro</label>
+    <p
+      class="muted"
+      aria-live="polite">
+      {{ selectionHint }}
+    </p>
+    <input
+      nz-input
+      id="macro-name"
+      name="macroName"
+      aria-label="Macro name"
+      placeholder="Name your macro"
+      [(ngModel)]="name"
+      [disabled]="!canModify || busy" />
+    <button
+      nz-button
+      nzType="primary"
+      nzBlock
+      type="submit"
+      data-action="create"
+      [nzLoading]="busy"
+      [disabled]="!canModify || busy || !name.trim() || !selected.length">
+      Create from selection
+    </button>
+  </form>
+  <section
+    *ngIf="selectedMacro"
+    class="content-section">
+    <strong>Selected macro</strong>
+    <p class="muted">This instance keeps its pinned version until you update it.</p>
+    <div class="actions">
+      <button
+        nz-button
+        nzSize="small"
+        type="button"
+        (click)="inspect(selected[0])">
+        Inspect pinned version
+      </button>
+      <button
+        nz-button
+        nzSize="small"
+        type="button"
+        (click)="update()"
+        [disabled]="!canModify || busy">
+        Use latest version
+      </button>
+    </div>
+  </section>
+</details>
+<section
+  *ngIf="actions.getMacroInterface() as boundary"
+  class="macro-interface">
+  <strong>Macro interface</strong>
+  <p class="muted">Choose what workflows can connect to and configure.</p>
+  <section
+    *ngFor="let direction of directions"
+    class="content-section">
+    <div class="section-header">
+      <strong>{{ direction === 'inputs' ? 'Inputs' : 'Outputs' }}</strong>
+      <span class="badge">{{ boundary[direction].length }}</span>
+    </div>
+    <p
+      *ngIf="!boundary[direction].length"
+      class="muted">
+      No {{ direction }} exposed.
+    </p>
+    <div
+      *ngFor="let port of boundary[direction]; trackBy: trackPort"
+      class="mapping">
+      <input
+        nz-input
+        [attr.aria-label]="'Port name ' + port.portID"
+        [ngModel]="port.displayName || port.portID"
+        (ngModelChange)="rename(direction, port, $event)"
+        [disabled]="!canModify" />
+      <span
+        *ngFor="let target of port.targets; trackBy: trackTarget"
+        class="target"
+        >{{ targetLabel(direction, target) }}</span
+      >
+      <div class="actions">
+        <button
+          nz-button
+          nzSize="small"
+          type="button"
+          (click)="remove(direction, port)"
+          [attr.aria-label]="'Remove port ' + (port.displayName || port.portID)"
+          [disabled]="!canModify">
+          Remove
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          *ngIf="direction === 'inputs'"
+          type="button"
+          (click)="addTarget(port)"
+          [disabled]="!canModify || !portTargets.inputs">
+          Add input target
+        </button>
+      </div>
+    </div>
+    <select
+      class="ant-input"
+      [attr.aria-label]="direction === 'inputs' ? 'Input target' : 'Output target'"
+      [(ngModel)]="portTargets[direction]"
+      [disabled]="!canModify">
+      <option value="">{{ direction === 'inputs' ? 'Choose an input' : 'Choose an output' }}</option>
+      <option
+        *ngFor="let p of targets(direction); trackBy: trackOption"
+        [value]="p.value">
+        {{ p.label }}
+      </option>
+    </select>
+    <button
+      nz-button
+      nzSize="small"
+      type="button"
+      [attr.data-action]="direction === 'inputs' ? 'add-input' : 'add-output'"
+      (click)="add(direction, portTargets[direction])"
+      [disabled]="!canModify || !portTargets[direction]">
+      {{ direction === 'inputs' ? 'Add input' : 'Add output' }}
+    </button>
+  </section>
+  <section
+    class="content-section"
+    *ngIf="actions.getFormBinding() as binding">
+    <div class="section-header">
+      <strong>Exposed properties</strong><span class="badge">{{ binding.fields.length }}</span>
+    </div>
+    <p class="muted">Set these values on each macro instance.</p>
+    <div
+      *ngFor="let field of binding.fields; trackBy: trackField"
+      class="mapping">
+      <input
+        nz-input
+        [attr.aria-label]="'Property name ' + field.id"
+        [ngModel]="field.displayName"
+        (ngModelChange)="renameProperty(field.id, $event)"
+        [disabled]="!canModify" />
+      <button
+        nz-button
+        nzSize="small"
+        type="button"
+        (click)="removeProperty(field.id)"
+        [attr.aria-label]="'Remove property ' + field.displayName"
+        [disabled]="!canModify">
+        Remove property
+      </button>
+    </div>
+    <select
+      class="ant-input"
+      aria-label="Property target"
+      [(ngModel)]="propertyTarget"
+      [disabled]="!canModify">
+      <option value="">Choose a property</option>
+      <option
+        *ngFor="let p of properties(); trackBy: trackOption"
+        [value]="p.value">
+        {{ p.label }}
+      </option>
+    </select>
+    <button
+      nz-button
+      nzSize="small"
+      type="button"
+      data-action="add-property"
+      (click)="exposeProperty()"
+      [disabled]="!canModify || !propertyTarget">
+      Expose property
+    </button>
+  </section>
+</section>

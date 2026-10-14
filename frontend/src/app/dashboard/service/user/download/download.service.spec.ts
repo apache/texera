@@ -246,6 +246,17 @@ describe("DownloadService", () => {
       reader.readAsText(blob);
     });
 
+  it("includes pinned macro dependencies in the downloaded file", async () => {
+    const content = {
+      operators: [],
+      links: [],
+      macroDependencies: [{ id: "nested", version: 8, content: { operators: [] } }],
+    };
+    workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content } as any));
+    const result = await firstValueFrom(downloadService.downloadWorkflow(42, "Macros"));
+    expect(JSON.parse(await readBlob(result.blob)).macroDependencies).toEqual(content.macroDependencies);
+  });
+
   it("carries the default view into the downloaded workflow json so it round-trips on upload", async () => {
     const content = { operators: [], links: [] };
     workflowPersistServiceSpy.retrieveWorkflow.mockReturnValue(of({ content, defaultView: "FORM" } as any));
