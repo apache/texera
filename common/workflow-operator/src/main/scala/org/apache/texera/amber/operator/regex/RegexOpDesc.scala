@@ -82,7 +82,12 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // JVM uses Java Pattern.matcher(v).find — partial match. pandas str.contains
     // is also partial by default. Java-only regex syntax (\Q\E, possessive
     // quantifiers, etc.) may behave differently in Python's re engine.
-    val pyLiteral = pyStringLiteral(Option(regex).getOrElse(""))
+    //
+    // Pattern without UNICODE_CASE ignores case for ASCII letters only, and its
+    // \w, \d and \s are ASCII, where Python's re is Unicode for all four, so the
+    // pattern runs under re.ASCII. Java 17's \b still takes any letter or digit
+    // as part of a word, so \b and \B keep Python's Unicode meaning.
+    val pyLiteral = pyStringLiteral(RegexOpDesc.unicodeBoundaries(Option(regex).getOrElse("")))
     val caseArg = if (caseInsensitive) "False" else "True"
     val attrLit = pyStringLiteral(attribute)
     // The rows with nothing in the column are dropped before the match rather than
@@ -94,8 +99,44 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
       .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
       .map(_.getType)
     val column = renderedAsText(s"in1df[$attrLit]", declared)
-    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=True, case=$caseArg, na=False)].reset_index(drop=True)"""
+    s"""import re
+       |out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=True, case=$caseArg, flags=re.ASCII, na=False)].reset_index(drop=True)""".stripMargin
   }
 
   override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+}
+
+object RegexOpDesc {
+
+  /** Rewrites each \b and \B outside a character class as a group scoped to
+    * Unicode, so it keeps that meaning under re.ASCII. An escaped character is
+    * copied whole, so "\\b" stays a backslash followed by b.
+    */
+  def unicodeBoundaries(pattern: String): String = {
+    val out = new StringBuilder
+    var inClass = false
+    var i = 0
+    while (i < pattern.length) {
+      val c = pattern.charAt(i)
+      if (c == '\\' && i + 1 < pattern.length) {
+        val next = pattern.charAt(i + 1)
+        if (!inClass && (next == 'b' || next == 'B')) out.append(s"(?u:\\$next)")
+        else out.append(c).append(next)
+        i += 2
+      } else {
+        if (c == '[' && !inClass) {
+          inClass = true
+          out.append(c)
+          // A ']' right after '[' or '[^' is a literal, not the end.
+          if (i + 1 < pattern.length && pattern.charAt(i + 1) == '^') { out.append('^'); i += 1 }
+          if (i + 1 < pattern.length && pattern.charAt(i + 1) == ']') { out.append(']'); i += 1 }
+        } else {
+          if (c == ']' && inClass) inClass = false
+          out.append(c)
+        }
+        i += 1
+      }
+    }
+    out.toString
+  }
 }
