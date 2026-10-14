@@ -25,8 +25,8 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
+        {{- with .Values.gatewayConfig.envoyProxyPodAnnotations }}
         pod:
-          {{- with .Values.gatewayConfig.envoyProxyPodAnnotations }}
           annotations:
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+        {{- end }}
