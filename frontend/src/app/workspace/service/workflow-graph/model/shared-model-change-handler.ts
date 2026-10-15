@@ -334,10 +334,14 @@ export class SharedModelChangeHandler {
                     newEnabled: [operatorID],
                   });
                 }
+              } else if (contentKey === "color") {
+                this.onOperatorColorChanged(operatorID);
               } else if (contentKey === "operatorProperties") {
                 this.onOperatorPropertyChanged(operatorID, event.transaction.local);
               }
             }
+          } else if (event.path[1] === "color") {
+            this.onOperatorColorChanged(operatorID);
           } else if (event.path[event.path.length - 1] === "customDisplayName") {
             const newName = this.texeraGraph.sharedModel.operatorIDMap
               .get(operatorID)
@@ -358,6 +362,15 @@ export class SharedModelChangeHandler {
         }
       });
     });
+  }
+
+  private onOperatorColorChanged(operatorID: string): void {
+    const operator = this.texeraGraph.getOperator(operatorID);
+    // Both canvas and minimap share this model. Heat maps own fills while active.
+    if (this.texeraGraph.getSyncJointGraph() && this.jointGraphWrapper.getHeatmapView() === null) {
+      this.jointGraph.getCell(operatorID)?.attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
+    }
+    this.texeraGraph.operatorColorChangedSubject.next(operator);
   }
 
   /**
