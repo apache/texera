@@ -29,6 +29,7 @@ FROM jupyter/base-notebook:notebook-6.5.4
 # The customizations live with notebook-migration-service, which owns the Jupyter
 # integration. Paths are repo-root relative: the build context is the repo root.
 COPY notebook-migration-service/src/main/resources/custom.js /home/jovyan/.jupyter/custom/custom.js
+COPY notebook-migration-service/src/main/resources/custom-preload.js /home/jovyan/.jupyter/custom/custom-preload.js
 COPY notebook-migration-service/src/main/resources/custom.css /home/jovyan/.jupyter/custom/custom.css
 COPY notebook-migration-service/src/main/resources/start-texera-jupyter.sh /usr/local/bin/start-texera-jupyter.sh
 

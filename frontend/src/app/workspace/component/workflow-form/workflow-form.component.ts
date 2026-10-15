@@ -869,9 +869,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           description: (source as { description?: string })?.description,
           currentType: mapped.type,
         });
-        // Canvas-only widgets (code editor, drag-reorder) do not work here; an older workflow may
-        // already carry one, so leave it to formly's default editable control rather than a widget
-        // that cannot function on a form.
+        // A canvas-only widget (the code editor) does not work here; an older workflow may already
+        // carry one, so leave it to formly's default editable control rather than a widget that
+        // cannot function on a form.
         if (customType && !CANVAS_ONLY_FORMLY_TYPES.has(customType)) {
           mapped.type = customType;
         }

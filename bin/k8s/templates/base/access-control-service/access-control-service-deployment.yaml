@@ -37,6 +37,9 @@ spec:
       # for a dedicated identity.
       serviceAccountName: {{ .Values.accessControlService.serviceAccountName }}
       {{- end }}
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}
       containers:
         - name: {{ .Values.accessControlService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.accessControlService.imageName }}:{{ .Values.texera.imageTag }}
