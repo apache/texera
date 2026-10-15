@@ -35,7 +35,9 @@ import {
   NzTableFilterFn,
 } from "ng-zorro-antd/table";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzCardComponent } from "ng-zorro-antd/card";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
@@ -45,7 +47,12 @@ import {
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnitResourceLimit,
 } from "../../../../common/type/workflow-computing-unit";
-import { getComputingUnitBadgeColor, getComputingUnitStatusTooltip } from "../../../../common/util/computing-unit.util";
+import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
+import {
+  getComputingUnitBadgeColor,
+  getComputingUnitStatusTooltip,
+  unitTypeMessageTemplate,
+} from "../../../../common/util/computing-unit.util";
 import { formatRelativeTime } from "../../../../common/util/format.util";
 import { extractErrorMessage } from "../../../../common/util/error";
 import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
@@ -68,7 +75,9 @@ type SpecKey = Exclude<keyof WorkflowComputingUnitResourceLimit, "nodeAddresses"
   styleUrls: ["./admin-computing-unit.component.scss"],
   imports: [
     NzAlertComponent,
+    NzButtonComponent,
     NzCardComponent,
+    NzIconDirective,
     NzTableComponent,
     NzTheadComponent,
     NzTbodyComponent,
@@ -94,6 +103,9 @@ export class AdminComputingUnitComponent implements OnInit {
   pollFailing = false;
   lastUpdated?: Date;
   readonly expandedCuids = new Set<number>();
+  // Units terminated from this page. A poll that started before the `DELETE` can still answer with them, so every
+  // response is filtered by this set. A `cuid` is never reused, so there is no need to prune it.
+  private readonly terminatedCuids = new Set<number>();
 
   readonly getBadgeColor = getComputingUnitBadgeColor;
   readonly getStatusTooltip = getComputingUnitStatusTooltip;
@@ -133,6 +145,7 @@ export class AdminComputingUnitComponent implements OnInit {
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
+    private computingUnitActionsService: ComputingUnitActionsService,
     private messageService: NzMessageService
   ) {}
 
@@ -162,7 +175,7 @@ export class AdminComputingUnitComponent implements OnInit {
       .subscribe(units => {
         this.pollFailing = false;
         this.lastUpdated = new Date();
-        this.computingUnits = units;
+        this.computingUnits = this.withoutTerminated(units);
       });
   }
 
@@ -181,6 +194,23 @@ export class AdminComputingUnitComponent implements OnInit {
 
   isLocal(unit: DashboardWorkflowComputingUnit): boolean {
     return unit.computingUnit.type === "local";
+  }
+
+  /** Confirms the termination, then drops the row at once instead of at the next poll. */
+  terminate(unit: DashboardWorkflowComputingUnit): void {
+    const cuid = unit.computingUnit.cuid;
+    this.computingUnitActionsService.confirmAndTerminate(cuid, unit, () => {
+      this.terminatedCuids.add(cuid);
+      this.computingUnits = this.withoutTerminated(this.computingUnits);
+    });
+  }
+
+  terminateTooltip(unit: DashboardWorkflowComputingUnit): string {
+    return unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip;
+  }
+
+  private withoutTerminated(units: ReadonlyArray<DashboardWorkflowComputingUnit>): DashboardWorkflowComputingUnit[] {
+    return units.filter(u => !this.terminatedCuids.has(u.computingUnit.cuid));
   }
 
   /** The Resources column, e.g. "2 CPU · 4Gi · 1 GPU", with GPU left out when it is 0. */

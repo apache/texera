@@ -21,8 +21,10 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { of, Subject, throwError } from "rxjs";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminComputingUnitComponent } from "./admin-computing-unit.component";
 import { WorkflowComputingUnitManagingService } from "../../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
+import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import {
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnit,
@@ -81,8 +83,8 @@ function withResource(over: Partial<WorkflowComputingUnitResourceLimit>): Partia
   return withCu({ resource: { ...makeUnit().computingUnit.resource, ...over } });
 }
 
-function localUnit(): DashboardWorkflowComputingUnit {
-  return makeUnit(withCu({ type: "local", resource: NAN_RESOURCE }));
+function localUnit(cuid = 1): DashboardWorkflowComputingUnit {
+  return makeUnit(withCu({ cuid, type: "local", resource: NAN_RESOURCE }));
 }
 
 describe("AdminComputingUnitComponent", () => {
@@ -92,7 +94,7 @@ describe("AdminComputingUnitComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
+      providers: [NzModalService, { provide: UserService, useClass: StubUserService }, ...commonTestProviders],
       imports: [AdminComputingUnitComponent, ...commonTestImports],
     }).compileComponents();
 
@@ -108,6 +110,23 @@ describe("AdminComputingUnitComponent", () => {
     fixture.destroy();
   });
 
+  // `nz-table` adds a hidden measure row, so match on the owner cell every data row has.
+  const dataRows = () =>
+    Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll("tbody tr")).filter(
+      row => row.querySelector("texera-user-avatar") !== null
+    );
+
+  // Stubs the shared confirmation, so no modal opens. `confirmed` stands for the admin confirming it and the
+  // termination succeeding.
+  const stubConfirm = (confirmed = false) =>
+    vi
+      .spyOn(TestBed.inject(ComputingUnitActionsService), "confirmAndTerminate")
+      .mockImplementation((_cuid, _unit, onTerminated) => {
+        if (confirmed) {
+          onTerminated?.();
+        }
+      });
+
   it("should create", () => {
     expect(component).toBeTruthy();
   });
@@ -119,12 +138,9 @@ describe("AdminComputingUnitComponent", () => {
 
     fixture.detectChanges();
 
-    // `nz-table` adds a hidden measure row, so match on the owner cell every data row has.
-    const dataRows = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll("tbody tr")).filter(
-      row => row.querySelector("texera-user-avatar") !== null
-    );
-    expect(dataRows.length).toBe(1);
-    expect(dataRows[0].textContent).toContain("alice");
+    const rows = dataRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0].textContent).toContain("alice");
   });
 
   describe("loading and polling", () => {
@@ -257,6 +273,28 @@ describe("AdminComputingUnitComponent", () => {
       });
     });
 
+    // A poll that started before a termination can answer after it, with a list that still has the unit.
+    it("does not bring a terminated row back when a poll that was in flight answers", () => {
+      const first = makeUnit();
+      const second = makeUnit(withCu({ cuid: 2 }));
+      const inFlight = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.mocked(service.listAllComputingUnits)
+        .mockReturnValueOnce(of([first, second]))
+        .mockReturnValueOnce(inFlight);
+      stubConfirm(true);
+      const cuids = () => component.computingUnits.map(u => u.computingUnit.cuid);
+
+      component.ngOnInit();
+      // The next poll is now waiting on the backend.
+      vi.advanceTimersByTime(5000);
+      component.terminate(first);
+      expect(cuids()).toEqual([2]);
+
+      inFlight.next([first, second]);
+      inFlight.complete();
+      expect(cuids()).toEqual([2]);
+    });
+
     // `switchMap` would cancel the slow response on every tick, so the table would never refresh.
     it("lets a response slower than the interval finish instead of cancelling it", () => {
       const requests: Subject<DashboardWorkflowComputingUnit[]>[] = [];
@@ -346,6 +384,71 @@ describe("AdminComputingUnitComponent", () => {
     fixture.detectChanges();
 
     expect(specDetail()).not.toBeNull();
+  });
+
+  describe("terminating a unit", () => {
+    // The row's only `nz-button`: the expander is a plain button.
+    const terminateButtons = () =>
+      Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll("button[nz-button]"));
+    const first = makeUnit();
+    const second = makeUnit(withCu({ cuid: 2, name: "second" }));
+
+    it("gives every row a terminate button, labelled for its unit type", () => {
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(of([first, localUnit(2)]));
+
+      fixture.detectChanges();
+
+      expect(terminateButtons().map(b => b.getAttribute("aria-label"))).toEqual([
+        "Terminate this computing unit",
+        "Disconnect from this computing unit",
+      ]);
+    });
+
+    it("asks to confirm the termination of the unit on the clicked row", () => {
+      const confirm = stubConfirm();
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(of([first, second]));
+      fixture.detectChanges();
+
+      terminateButtons()[1].click();
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(confirm).toHaveBeenCalledWith(2, second, expect.any(Function));
+    });
+
+    it("drops only that row once the termination succeeds, without waiting for the next poll", () => {
+      stubConfirm(true);
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(of([first, second]));
+      fixture.detectChanges();
+
+      terminateButtons()[0].click();
+      fixture.detectChanges();
+
+      expect(component.computingUnits.map(u => u.computingUnit.cuid)).toEqual([2]);
+      expect(dataRows()).toHaveLength(1);
+    });
+
+    // The modal can be cancelled and the request can fail, and in both the unit lives on.
+    it("keeps the row until the termination has succeeded", () => {
+      stubConfirm();
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(of([first, second]));
+      fixture.detectChanges();
+
+      terminateButtons()[0].click();
+      fixture.detectChanges();
+
+      expect(dataRows()).toHaveLength(2);
+    });
+
+    // The actions column is the seventh after the expander, and the detail row must span all of them.
+    it("spans the expanded detail row across every column, the actions one included", () => {
+      vi.mocked(service.listAllComputingUnits).mockReturnValue(of([first]));
+      component.expandedCuids.add(first.computingUnit.cuid);
+
+      fixture.detectChanges();
+
+      const detailCell = specDetail()!.closest("td")!;
+      expect(detailCell.getAttribute("colspan")).toBe("7");
+    });
   });
 
   describe("resourceSummary", () => {
