@@ -15,9 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 import threading
 from dataclasses import dataclass
 
+import pyarrow as pa
 import pytest
 
 from core.models.internal_queue import (
@@ -27,7 +29,8 @@ from core.models.internal_queue import (
     InternalQueue,
     InternalQueueElement,
 )
-from core.models.payload import DataPayload
+from core.models.payload import DataFrame, DataPayload, StateFrame
+from core.models.state import State
 from proto.org.apache.texera.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EmbeddedControlMessage,
@@ -342,6 +345,63 @@ class TestInternalQueue:
         assert queue.in_mem_size() == single_element_size
         queue.get()
         assert queue.in_mem_size() == 0
+
+    @pytest.mark.timeout(2)
+    def test_it_sizes_data_frames_by_their_arrow_buffers(self, queue, data_channel):
+        small = pa.table({"text": ["x" * 10] * 10})
+        large = pa.table({"text": ["x" * 1000] * 400})
+        queue.put(DataElement(tag=data_channel, payload=DataFrame(small)))
+        assert queue.in_mem_size() == small.get_total_buffer_size()
+        queue.put(DataElement(tag=data_channel, payload=DataFrame(large)))
+        assert queue.in_mem_size() == (
+            small.get_total_buffer_size() + large.get_total_buffer_size()
+        )
+        queue.get()
+        assert queue.in_mem_size() == large.get_total_buffer_size()
+        queue.get()
+        assert queue.in_mem_size() == 0
+
+    @pytest.mark.timeout(2)
+    def test_it_sizes_a_multi_chunk_frame_by_all_its_chunks(self, queue, data_channel):
+        chunks = [pa.table({"text": [str(i) * 100] * 50}) for i in range(3)]
+        frame = pa.concat_tables(chunks)
+        assert frame["text"].num_chunks == 3
+        queue.put(DataElement(tag=data_channel, payload=DataFrame(frame)))
+        assert queue.in_mem_size() == sum(c.get_total_buffer_size() for c in chunks)
+
+    @pytest.mark.timeout(2)
+    def test_it_sizes_an_empty_frame_and_returns_to_zero(self, queue, data_channel):
+        empty = pa.table({"text": pa.array([], pa.string())})
+        queue.put(DataElement(tag=data_channel, payload=DataFrame(empty)))
+        assert queue.size_data() == 1
+        assert queue.in_mem_size() == empty.get_total_buffer_size()
+        queue.get()
+        assert queue.in_mem_size() == 0
+
+    @pytest.mark.timeout(2)
+    def test_it_sizes_a_sliced_frame_by_the_buffers_it_keeps_alive(
+        self, queue, data_channel
+    ):
+        full = pa.table({"text": ["x" * 1000] * 400})
+        one_row = full.slice(0, 1)
+        queue.put(DataElement(tag=data_channel, payload=DataFrame(one_row)))
+        # a slice holds its parent's whole buffers in memory, so it is charged
+        # for them rather than for the single row it exposes
+        assert queue.in_mem_size() == full.get_total_buffer_size()
+        assert queue.in_mem_size() > one_row.nbytes
+
+    @pytest.mark.timeout(2)
+    def test_it_sizes_other_data_channel_items_by_their_wrapper(
+        self, queue, data_channel
+    ):
+        items = [
+            DataElement(tag=data_channel, payload=StateFrame(State({"k": "v"}))),
+            DataElement(tag=data_channel, payload=DataPayload()),
+            self.ecm_element(data_channel),
+        ]
+        for item in items:
+            queue.put(item)
+        assert queue.in_mem_size() == sum(sys.getsizeof(item) for item in items)
 
     @pytest.mark.timeout(2)
     def test_it_can_disable_and_enable_a_single_data_channel(
