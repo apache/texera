@@ -17,6 +17,7 @@
 
 import pytest
 import random
+import sys
 import time
 from threading import Thread
 
@@ -496,3 +497,60 @@ class TestSmallGuards:
         queue.put("data", 1)
         queue.put("control", "s")
         assert len(queue) == queue.size() == 2
+
+
+class TestInMemSize:
+    """in_mem_size() sums a pluggable per-item size_of, sys.getsizeof by default."""
+
+    @staticmethod
+    def data_queue(size_of):
+        lbmq = LinkedBlockingMultiQueue(size_of=size_of)
+        lbmq.add_sub_queue("data", 1)
+        return lbmq
+
+    def test_defaults_to_the_shallow_object_size(self, queue):
+        queue.put("data", "abc")
+        assert queue.in_mem_size("data") == sys.getsizeof("abc")
+
+    def test_uses_the_given_size_of(self):
+        lbmq = self.data_queue(len)
+        lbmq.put("data", "abc")
+        lbmq.put("data", "de")
+        assert lbmq.in_mem_size("data") == 5
+        assert lbmq.get() == "abc"
+        assert lbmq.in_mem_size("data") == 2
+        assert lbmq.get() == "de"
+        assert lbmq.in_mem_size("data") == 0
+
+    def test_accepts_a_zero_size(self):
+        lbmq = self.data_queue(lambda _: 0)
+        lbmq.put("data", "abc")
+        assert lbmq.size("data") == 1
+        assert lbmq.in_mem_size("data") == 0
+        assert lbmq.get() == "abc"
+        assert lbmq.in_mem_size("data") == 0
+
+    def test_put_leaves_the_queue_unchanged_when_size_of_raises(self):
+        def size_of(item):
+            if item == "bad":
+                raise ValueError("cannot size")
+            return 1
+
+        lbmq = self.data_queue(size_of)
+        with pytest.raises(ValueError, match="cannot size"):
+            lbmq.put("data", "bad")
+        assert lbmq.size() == 0
+        assert lbmq.size("data") == 0
+        assert lbmq.in_mem_size("data") == 0
+        # the failed put must not wedge the sub-queue
+        lbmq.put("data", "good")
+        assert lbmq.in_mem_size("data") == 1
+        assert lbmq.get() == "good"
+
+    def test_put_rejects_none_before_sizing_it(self):
+        sized = []
+        lbmq = self.data_queue(lambda item: sized.append(item) or 1)
+        with pytest.raises(ValueError, match="Does not support NoneType."):
+            lbmq.put("data", None)
+        assert sized == []
+        assert lbmq.in_mem_size("data") == 0
