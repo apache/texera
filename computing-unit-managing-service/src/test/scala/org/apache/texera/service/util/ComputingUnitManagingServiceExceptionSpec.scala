@@ -35,8 +35,8 @@ class ComputingUnitManagingServiceExceptionSpec extends AnyFlatSpec with Matcher
 
   "InsufficientComputingUnitQuota" should "render the quota message and how to free a slot" in {
     InsufficientComputingUnitQuota(3).getMessage shouldBe
-      "You may only have 3 computing-unit(s) running at the same time. " +
-        "Reuse a running computing unit, terminate a cloud unit, or disconnect a local unit you no longer need."
+      "You may only have 3 computing unit(s) running at the same time. " +
+        "Reuse a running computing unit, terminate a Kubernetes unit, or disconnect a local unit you no longer need."
   }
 
   "InternalError" should "default to a generic message" in {
