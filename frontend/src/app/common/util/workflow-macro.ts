@@ -18,7 +18,7 @@
  */
 
 import { v5 as uuid } from "uuid";
-import { cloneDeep, groupBy, isEqual } from "lodash-es";
+import { cloneDeep, groupBy, isEqual, sumBy } from "lodash-es";
 import { WorkflowContent, FormFieldBinding } from "../type/workflow";
 import { LogicalPort, OperatorPredicate, PortDescription } from "../../workspace/types/workflow-common.interface";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
@@ -406,27 +406,42 @@ export function rollupMacroStatus(
     const leaves = expanded.content.operators.filter(o => expanded.paths[o.operatorID]?.[0] === op.operatorID);
     const updates = leaves.map(o => status[o.operatorID]).filter(Boolean);
     if (!updates.length) continue;
+    const boundaryTargets = (direction: "inputs" | "outputs") =>
+      (direction === "inputs" ? op.inputPorts : op.outputPorts).map(
+        p => expanded.ports[portKey(op.operatorID, direction, p.portID)] ?? []
+      );
     const counts = (direction: "inputs" | "outputs"): Record<string, number> =>
       Object.fromEntries(
-        (direction === "inputs" ? op.inputPorts : op.outputPorts).map((p, index) => [
+        boundaryTargets(direction).map((targets, index) => [
           String(index),
           Math.max(
             0,
-            ...(expanded.ports[portKey(op.operatorID, direction, p.portID)] ?? []).map(target => {
+            ...targets.map(target => {
               const leaf = leaves.find(o => o.operatorID === target.operatorID)!;
               const ports = direction === "inputs" ? leaf.inputPorts : leaf.outputPorts;
               const ordinal = ports.findIndex(p => p.portID === target.portID);
               const update = status[target.operatorID];
-              return (
-                (direction === "inputs" ? update?.inputPortMetrics : update?.outputPortMetrics)?.[String(ordinal)] ??
-                (ports.length === 1
+              const metrics = direction === "inputs" ? update?.inputPortMetrics : update?.outputPortMetrics;
+              return metrics !== undefined
+                ? metrics[String(ordinal)] ?? 0
+                : ports.length === 1
                   ? (direction === "inputs" ? update?.aggregatedInputRowCount : update?.aggregatedOutputRowCount) ?? 0
-                  : 0)
-              );
+                  : 0;
             })
           ),
         ])
       );
+    // The wire format has only aggregate bytes per leaf, so a multiport boundary cannot be split exactly.
+    const size = (direction: "inputs" | "outputs"): number | undefined => {
+      const values = boundaryTargets(direction).map(targets => {
+        const target = targets.length === 1 ? targets[0] : undefined;
+        const leaf = leaves.find(o => o.operatorID === target?.operatorID);
+        if (!leaf || (direction === "inputs" ? leaf.inputPorts : leaf.outputPorts).length !== 1) return undefined;
+        const update = status[leaf.operatorID];
+        return direction === "inputs" ? update?.aggregatedInputSize : update?.aggregatedOutputSize;
+      });
+      return values.every(value => value !== undefined) ? sumBy(values, value => value ?? 0) : undefined;
+    };
     const inputs = counts("inputs"),
       outputs = counts("outputs");
     const priority = [
@@ -445,10 +460,16 @@ export function rollupMacroStatus(
           ? OperatorState.Completed
           : priority.find(state => updates.some(s => s.operatorState === state)) ?? OperatorState.Uninitialized,
       aggregatedInputRowCount: Object.values(inputs).reduce((a, b) => a + b, 0),
+      aggregatedInputSize: size("inputs"),
       inputPortMetrics: inputs,
       aggregatedOutputRowCount: Object.values(outputs).reduce((a, b) => a + b, 0),
+      aggregatedOutputSize: size("outputs"),
       outputPortMetrics: outputs,
-      numWorkers: updates.reduce((total, s) => total + (s.numWorkers ?? 0), 0),
+      numWorkers: sumBy(updates, s => s.numWorkers ?? 0),
+      aggregatedDataProcessingTime: sumBy(updates, s => s.aggregatedDataProcessingTime ?? 0),
+      aggregatedControlProcessingTime: sumBy(updates, s => s.aggregatedControlProcessingTime ?? 0),
+      aggregatedIdleTime: sumBy(updates, s => s.aggregatedIdleTime ?? 0),
+      reusedFromCache: updates.length === leaves.length && updates.every(s => s.reusedFromCache === true),
     };
   }
   return result;

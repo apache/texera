@@ -31,7 +31,7 @@ import {
   macroResultAliases,
 } from "./workflow-macro";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
-import { OperatorState } from "../../workspace/types/execute-workflow.interface";
+import { OperatorRuntimeStatus, OperatorState } from "../../workspace/types/execute-workflow.interface";
 
 const op = (operatorID: string): OperatorPredicate => ({
   operatorID,
@@ -343,5 +343,165 @@ describe("workflow macros", () => {
     expect(rollupMacroStatus(content, {}).m).toBeUndefined();
     expect(macroResultAliases(content).m).toBe(b.operatorID);
     expect(macroResultAliases(graph([]))).toEqual({});
+  });
+
+  it("rolls up three nested levels independently, including timing, bytes and cached provenance", () => {
+    const child = definition("child");
+    const middle = {
+      ...definition("middle"),
+      content: {
+        ...child.content,
+        ...graph([macroInstance(child, "inner")]),
+        macroInterface: {
+          id: "middle",
+          inputs: [{ portID: "input-0", targets: [{ operatorID: "inner", portID: "input-0" }] }],
+          outputs: [{ portID: "output-0", targets: [{ operatorID: "inner", portID: "output-0" }] }],
+        },
+        formBinding: undefined,
+      },
+    };
+    const outer = {
+      ...middle,
+      id: "outer",
+      content: {
+        ...middle.content,
+        ...graph([macroInstance(middle, "inner")]),
+        macroInterface: { ...middle.content.macroInterface, id: "outer" },
+      },
+    };
+    const content = {
+      ...graph([macroInstance(outer, "one"), macroInstance(outer, "two")]),
+      macroDependencies: [child, middle, outer],
+    };
+    const expanded = expandMacros(content);
+    const status: Record<string, OperatorRuntimeStatus> = Object.fromEntries(
+      expanded.content.operators.map(o => {
+        const first = expanded.paths[o.operatorID][0] === "one",
+          input = expanded.paths[o.operatorID].at(-1) === "a";
+        return [
+          o.operatorID,
+          {
+            operatorState: OperatorState.Completed,
+            aggregatedInputRowCount: first ? 100 : 20,
+            aggregatedOutputRowCount: first ? (input ? 100 : 5) : 0,
+            aggregatedInputSize: input ? 1000 : 800,
+            aggregatedOutputSize: input ? 800 : 50,
+            aggregatedDataProcessingTime: 10,
+            aggregatedControlProcessingTime: 2,
+            aggregatedIdleTime: 3,
+            numWorkers: first ? 2 : 0,
+            reusedFromCache: !first,
+          },
+        ];
+      })
+    );
+    const rolled = rollupMacroStatus(content, status, expanded);
+    expect(rolled.one).toMatchObject({
+      operatorState: OperatorState.Completed,
+      aggregatedInputRowCount: 100,
+      aggregatedOutputRowCount: 5,
+      aggregatedInputSize: 1000,
+      aggregatedOutputSize: 50,
+      aggregatedDataProcessingTime: 20,
+      aggregatedControlProcessingTime: 4,
+      aggregatedIdleTime: 6,
+      numWorkers: 4,
+      reusedFromCache: false,
+    });
+    expect(rolled.two).toMatchObject({
+      operatorState: OperatorState.Completed,
+      aggregatedInputRowCount: 20,
+      aggregatedOutputRowCount: 0,
+      numWorkers: 0,
+      reusedFromCache: true,
+    });
+    const first = expanded.content.operators[0].operatorID;
+    for (const state of [OperatorState.Running, OperatorState.Paused, OperatorState.Recovering]) {
+      expect(
+        rollupMacroStatus(content, { ...status, [first]: { ...status[first], operatorState: state } }, expanded).one
+          .operatorState
+      ).toBe(state);
+    }
+    const partial = { ...status };
+    delete partial[first];
+    expect(rollupMacroStatus(content, partial, expanded).one.operatorState).not.toBe(OperatorState.Completed);
+    expect(rollupMacroStatus(content, partial, expanded).one.reusedFromCache).toBe(false);
+    expect(rolled[first]).toEqual(status[first]);
+  });
+
+  it("distinguishes zero per-port counts from absent port maps and does not invent multiport byte totals", () => {
+    const d = definition();
+    const content = { ...graph([macroInstance(d, "m")]), macroDependencies: [d] };
+    const expanded = expandMacros(content);
+    const [a, b] = expanded.content.operators;
+    const status: Record<string, OperatorRuntimeStatus> = {
+      [a.operatorID]: {
+        operatorState: OperatorState.Running,
+        aggregatedInputRowCount: 99,
+        inputPortMetrics: {},
+        aggregatedOutputRowCount: 99,
+      },
+      [b.operatorID]: {
+        operatorState: OperatorState.Completed,
+        aggregatedInputRowCount: 99,
+        aggregatedOutputRowCount: 99,
+        outputPortMetrics: { "0": 0 },
+      },
+    };
+    expect(rollupMacroStatus(content, status, expanded).m).toMatchObject({
+      aggregatedInputRowCount: 0,
+      aggregatedOutputRowCount: 0,
+    });
+    delete (status[a.operatorID] as any).inputPortMetrics;
+    expect(rollupMacroStatus(content, status, expanded).m.aggregatedInputRowCount).toBe(99);
+    status[a.operatorID] = { ...status[a.operatorID], aggregatedInputSize: 1000 };
+    expect(rollupMacroStatus(content, status, expanded).m.aggregatedInputSize).toBe(1000);
+    d.content.operators[0].inputPorts.push({ portID: "input-1" });
+    const multi = expandMacros(content);
+    expect(rollupMacroStatus(content, status, multi).m.aggregatedInputSize).toBeUndefined();
+    expect(rollupMacroStatus(content, {}, multi).m).toBeUndefined();
+  });
+
+  it("counts a broadcast input once, sums independent outputs, and ignores disabled internal workers", () => {
+    const d = definition();
+    d.content.links = [];
+    d.content.macroInterface.inputs[0].targets.push({ operatorID: "b", portID: "input-0" });
+    d.content.macroInterface.outputs.push({
+      portID: "output-1",
+      displayName: "Other",
+      targets: [{ operatorID: "a", portID: "output-0" }],
+    });
+    const content = { ...graph([macroInstance(d, "m")]), macroDependencies: [d] },
+      expanded = expandMacros(content);
+    const status: Record<string, OperatorRuntimeStatus> = Object.fromEntries(
+      expanded.content.operators.map(o => [
+        o.operatorID,
+        {
+          operatorState: OperatorState.Completed,
+          aggregatedInputRowCount: 5,
+          aggregatedOutputRowCount: 5,
+          numWorkers: 1,
+          aggregatedInputSize: 100,
+          aggregatedOutputSize: 50,
+        },
+      ])
+    );
+    expect(rollupMacroStatus(content, status, expanded).m).toMatchObject({
+      aggregatedInputRowCount: 5,
+      aggregatedOutputRowCount: 10,
+      inputPortMetrics: { "0": 5 },
+      outputPortMetrics: { "0": 5, "1": 5 },
+      numWorkers: 2,
+      aggregatedOutputSize: 100,
+    });
+    expect(rollupMacroStatus(content, status, expanded).m.aggregatedInputSize).toBeUndefined();
+    d.content.operators[1] = { ...d.content.operators[1], isDisabled: true };
+    const disabled = rollupMacroStatus(content, status);
+    expect(disabled.m).toMatchObject({
+      operatorState: OperatorState.Completed,
+      aggregatedInputRowCount: 5,
+      aggregatedOutputRowCount: 5,
+      numWorkers: 1,
+    });
   });
 });

@@ -24,6 +24,9 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { OperatorPerformanceMetrics } from "./performance-metrics";
 import { OperatorRuntimeStatus, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import { expandMacros, macroInstance, MacroDefinition } from "../../../common/util/workflow-macro";
+import { mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { ExecutionMode, WorkflowContent } from "../../../common/type/workflow";
 
 const sampleStatistics: OperatorStatistics = {
   aggregatedInputRowCount: 1_000,
@@ -255,5 +258,56 @@ describe("WorkflowStatusService", () => {
     websocketEventSubject.next(statsEvent({ op1: { ...sampleRuntimeStatus, operatorState: OperatorState.Paused } }));
 
     expect(service.getCurrentState()).toEqual({ op1: OperatorState.Paused });
+  });
+
+  it("derives the same macro metrics from live and restored leaf statistics, and clears them between runs", () => {
+    const body: WorkflowContent = {
+      operators: [mockSentimentPredicate],
+      links: [],
+      commentBoxes: [],
+      operatorPositions: {},
+      settings: { dataTransferBatchSize: 10, executionMode: ExecutionMode.PIPELINED },
+      macroInterface: {
+        id: "stats",
+        inputs: [
+          { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
+        ],
+        outputs: [
+          { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
+        ],
+      },
+    };
+    const definition: MacroDefinition = { id: "stats", version: 1, name: "Statistics", content: body };
+    const content = {
+      ...body,
+      macroInterface: undefined,
+      operators: [macroInstance(definition, "macro")],
+      macroDependencies: [definition],
+    };
+    const expanded = expandMacros(content),
+      id = expanded.content.operators[0].operatorID;
+    service.setMacroProvider(() => ({ content, expanded }));
+    websocketEventSubject.next(statsEvent({ [id]: sampleRuntimeStatus }));
+    const live = service.getCurrentPerformanceMetrics().macro;
+    expect(live).toEqual({
+      dataProcessingTimeNs: 5_000_000,
+      controlProcessingTimeNs: 1_000_000,
+      idleTimeNs: 700_000,
+      inputRows: 1000,
+      outputRows: 250,
+      inputSize: 8000,
+      outputSize: 2000,
+      numWorkers: 2,
+    });
+    expect(service.getCurrentState().macro).toBe(OperatorState.Running);
+    service.resetStatus();
+    expect(service.getCurrentPerformanceMetrics().macro.inputRows).toBe(0);
+    expect(service.getCurrentPerformanceMetrics().macro.dataProcessingTimeNs).toBe(0);
+    service.setExternalStatus({ [id]: sampleRuntimeStatus });
+    expect(service.getCurrentPerformanceMetrics().macro).toEqual(live);
+    service.clearStatus();
+    expect(service.getCurrentPerformanceMetrics()).toEqual({});
+    service.setExternalStatus({});
+    expect(service.getCurrentState()).toEqual({});
   });
 });
