@@ -35,7 +35,12 @@ describe("FormlyRepeatDndComponent", () => {
 
     component.field = {
       model: ["a", "b", "c"],
-      fieldGroup: [{ key: "a" }, { key: "b" }, { key: "c" }],
+      // Keyed by position, as formly keys rows; the id is the test's own marker for which row is which.
+      fieldGroup: [
+        { key: "0", id: "a" },
+        { key: "1", id: "b" },
+        { key: "2", id: "c" },
+      ],
       formControl,
       props: { reorder },
     } as any;
@@ -64,7 +69,7 @@ describe("FormlyRepeatDndComponent", () => {
     component.onDrop(createDropEvent(1, 1));
 
     expect(component.model).toEqual(["a", "b", "c"]);
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["a", "b", "c"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["a", "b", "c"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["a", "b", "c"]);
     expect(reorder).not.toHaveBeenCalled();
   });
@@ -78,7 +83,7 @@ describe("FormlyRepeatDndComponent", () => {
 
     component.onDrop(createDropEvent(0, 2));
 
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["a", "b", "c"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["a", "b", "c"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["a", "b", "c"]);
     expect(reorder).not.toHaveBeenCalled();
   });
@@ -90,12 +95,12 @@ describe("FormlyRepeatDndComponent", () => {
     // what makes that ordering observable — the final assertions below are order-insensitive,
     // and moveItemInArray mutates in place, so the captures must be copies.
     let seenModel: string[] | undefined;
-    let seenFieldKeys: unknown[] | undefined;
+    let seenFieldIds: unknown[] | undefined;
     let seenControls: unknown[] | undefined;
     const reorder = setComponentState(
       vi.fn(() => {
         seenModel = [...(component.model as string[])];
-        seenFieldKeys = component.field.fieldGroup?.map(field => field.key);
+        seenFieldIds = component.field.fieldGroup?.map(field => field.id);
         seenControls = (component.formControl as FormArray).controls.map(control => control.value);
       })
     );
@@ -103,11 +108,11 @@ describe("FormlyRepeatDndComponent", () => {
     component.onDrop(createDropEvent(0, 2));
 
     expect(component.model).toEqual(["b", "c", "a"]);
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["b", "c", "a"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["b", "c", "a"]);
     expect(reorder).toHaveBeenCalledOnce();
     expect(seenModel).toEqual(["b", "c", "a"]);
-    expect(seenFieldKeys).toEqual(["b", "c", "a"]);
+    expect(seenFieldIds).toEqual(["b", "c", "a"]);
     expect(seenControls).toEqual(["b", "c", "a"]);
   });
 
@@ -122,9 +127,29 @@ describe("FormlyRepeatDndComponent", () => {
 
     expect(() => component.onDrop(createDropEvent(0, 2))).not.toThrow();
     expect(component.model).toEqual(["b", "c", "a"]);
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["b", "c", "a"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["b", "c", "a"]);
   });
+  // formly keys a row by position unless the template says `key: null`; then the row's keyed children
+  // carry the position instead, and formly's own remove() re-keys those. The move mirrors it.
+  it("re-keys a keyless row's children to the row's new position, as formly does", () => {
+    setComponentState();
+    component.field = {
+      ...component.field,
+      fieldGroup: [
+        { key: null, id: "a", fieldGroup: [{ key: "0" }] },
+        { key: null, id: "b", fieldGroup: [{ key: "1" }] },
+        { key: null, id: "c", fieldGroup: [{ key: "2" }] },
+      ],
+    } as any;
+
+    component.onDrop(createDropEvent(0, 2));
+
+    expect(component.field.fieldGroup?.map(row => row.id)).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(row => row.fieldGroup?.[0].key)).toEqual(["0", "1", "2"]);
+    expect(component.field.fieldGroup?.every(row => row.key === null)).toBe(true);
+  });
+
   /**
    * The class-level tests above drive onDrop directly and never render. The template owns the rest
    * of the control: one row per entry, which index a row's remove button carries, and whether the
@@ -136,7 +161,12 @@ describe("FormlyRepeatDndComponent", () => {
       setComponentState();
       component.field = {
         ...component.field,
-        fieldGroup: [{ key: "a" }, { key: "b" }, { key: "c" }],
+        // Keyed by position, as formly keys rows; the id is the test's own marker for which row is which.
+        fieldGroup: [
+          { key: "0", id: "a" },
+          { key: "1", id: "b" },
+          { key: "2", id: "c" },
+        ],
         templateOptions,
       } as any;
       fixture.detectChanges();
@@ -155,6 +185,16 @@ describe("FormlyRepeatDndComponent", () => {
         b => !b.closest(".dnd-row")
       )!;
     }
+
+    // nz-button sets no type, so a typeless button inside a form is its submit button and Enter in a
+    // row's input clicks it (HTML implicit submission) -- which here used to remove the first row.
+    it("gives every button an explicit type, so Enter in a row's input submits nothing", () => {
+      const el = render();
+
+      const buttons = Array.from(el.querySelectorAll("button"));
+      expect(buttons.length).toBeGreaterThan(3);
+      expect(buttons.every(button => button.getAttribute("type") === "button")).toBe(true);
+    });
 
     it("renders one row per entry", () => {
       const el = render();

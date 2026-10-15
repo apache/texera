@@ -39,6 +39,7 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -258,7 +259,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       kind: "image",
       inputLabel: "Text prompt",
       outputLabel: "Generated image",
-      title: "Comic-style city action scene",
+      title: "Illustrated rooftop leap at sunset",
       body: "Prompt becomes a generated image preview.",
       assetSrc: "assets/sample-image.png",
     },
@@ -316,7 +317,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Generated text",
       title: "Image-text-to-text preview",
       body: "The model reads an image and a text prompt to produce a response.",
-      outputBody: "The image shows a superhero leaping across rooftops at sunset.",
+      outputBody: "The image shows a person leaping across rooftops at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "image-classification": {
@@ -324,9 +325,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Image input",
       outputLabel: "Predicted labels",
       title: "Image classification preview",
-      body: "The model assigns labels such as superhero, city, or action scene.",
+      body: "The model assigns labels such as parkour, city, or action scene.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "cityscape", "action"],
+      pills: ["parkour", "cityscape", "action"],
     },
     "object-detection": {
       kind: "image",
@@ -352,7 +353,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Caption text",
       title: "Captioning preview",
       body: "The model turns an uploaded image into a textual description.",
-      outputBody: "A superhero leaps above a dense downtown skyline at sunset.",
+      outputBody: "A person leaps between rooftops above a downtown skyline at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "visual-question-answering": {
@@ -361,7 +362,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Answer text",
       title: "Visual question answering preview",
       body: "The model reads the image and answers the user question.",
-      outputBody: "Spider-Man is jumping over a city skyline.",
+      outputBody: "A person is jumping between two rooftops.",
       assetSrc: "assets/sample-image.png",
     },
     "document-question-answering": {
@@ -380,7 +381,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       title: "Zero-shot image labeling preview",
       body: "Candidate labels are scored against the uploaded image.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "sports", "travel"],
+      pills: ["parkour", "sports", "travel"],
     },
     "text-generation": {
       kind: "text",
@@ -403,8 +404,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Text input",
       outputLabel: "Tagged spans",
       title: "Token classification preview",
-      body: "Peter Parker visited New York yesterday.",
-      pills: ["Peter Parker: PERSON", "New York: LOCATION"],
+      body: "Maya Chen visited New York yesterday.",
+      pills: ["Maya Chen: PERSON", "New York: LOCATION"],
     },
     "question-answering": {
       kind: "text",
@@ -960,194 +961,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = customType;
       }
 
-      if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
-        mappedField.hide = true;
-      }
-
-      // ── Dynamic field visibility for HuggingFace based on selected task ──
-      if (this.currentOperatorSchema?.operatorType === "HuggingFace" && typeof mappedField.key === "string") {
-        const hfKey = mappedField.key;
-        const imageOnlyTasks = ["image-classification", "object-detection", "image-segmentation", "image-to-text"];
-        const imageInputTasks = [
-          ...imageOnlyTasks,
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-          "image-text-to-text",
-          "image-to-image",
-          "image-to-video",
-        ];
-        const audioInputTasks = ["automatic-speech-recognition", "audio-classification"];
-        const promptRequiredTasks = [
-          "text-generation",
-          "text-classification",
-          "token-classification",
-          "question-answering",
-          "table-question-answering",
-          "zero-shot-classification",
-          "translation",
-          "summarization",
-          "feature-extraction",
-          "fill-mask",
-          "sentence-similarity",
-          "text-ranking",
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-        ];
-        const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-          const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
-          if (typeof fromForm === "string" && fromForm.trim().length > 0) {
-            return fromForm;
-          }
-          const fromModel = field.model?.task;
-          if (typeof fromModel === "string" && fromModel.trim().length > 0) {
-            return fromModel;
-          }
-          return undefined;
-        };
-        if (hfKey === "imageInput") {
-          // type ("huggingface-image-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredImageInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !imageInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputImageCol = field.model?.inputImageColumn;
-                if (typeof inputImageCol === "string" && inputImageCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.imageInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload an image or select an Input Image Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "audioInput") {
-          // type ("huggingface-audio-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredAudioInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !audioInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputAudioCol = field.model?.inputAudioColumn;
-                if (typeof inputAudioCol === "string" && inputAudioCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.audioInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload audio or select an Input Audio Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "inputImageColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "inputAudioColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "promptColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== undefined && (imageOnlyTasks.includes(t) || audioInputTasks.includes(t));
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredPromptColumn: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !promptRequiredTasks.includes(t)) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.promptColumn;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Select a prompt column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "text-generation";
-            },
-          };
-        }
-        if (hfKey === "contextColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => getSelectedTask(field) !== "question-answering",
-          };
-        }
-        if (hfKey === "candidateLabels") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "zero-shot-classification" && t !== "zero-shot-image-classification";
-            },
-          };
-        }
-        if (hfKey === "sentencesColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "sentence-similarity" && t !== "text-ranking";
-            },
-          };
-        }
+      if (this.currentOperatorSchema?.operatorType === "HuggingFace") {
+        applyHuggingFaceFieldBindings(mappedField);
       }
 
       // Show the required marker for a field the schema requires conditionally,
