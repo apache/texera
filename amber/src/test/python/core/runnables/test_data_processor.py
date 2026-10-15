@@ -69,6 +69,9 @@ class _StubExecutor:
 
     def __init__(self):
         self.calls = []
+        # A real Operator carries this, and a finishing port declares its schema
+        # into it so an operator handed no rows can still say what it read.
+        self.input_schemas = {}
 
     def produce_state_on_start(self, port_id):
         self.calls.append(("produce_state_on_start", port_id))
