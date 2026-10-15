@@ -31,7 +31,8 @@
 
 #result-container {
   position: absolute;
-  top: -300px;
+  // The template anchors the panel above the canvas bottom using DEFAULT_HEIGHT.
+  // Keep this fixed during resizing; returnPosition handles re-docking offsets.
   left: 0;
   background: white;
   border-radius: 5px;

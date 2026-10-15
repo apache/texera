@@ -97,9 +97,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   componentOutlets!: ElementRef;
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
+  protected readonly defaultHeight = DEFAULT_HEIGHT;
   id = -1;
   width = DEFAULT_WIDTH;
   height = DEFAULT_HEIGHT;
+  // Closing collapses height, but re-docking still depends on the expanded size.
+  private expandedHeight = DEFAULT_HEIGHT;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -122,6 +125,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   ) {
     this.width = 0;
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
+    this.expandedHeight = this.height;
     this.resizeService.changePanelSize(this.width, this.height);
   }
 
@@ -386,8 +390,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
+    const wasDocked = this.isPanelDocked();
+    this.updateReturnPosition(this.expandedHeight, DEFAULT_HEIGHT);
     this.height = DEFAULT_HEIGHT;
+    this.expandedHeight = DEFAULT_HEIGHT;
     this.width = DEFAULT_WIDTH;
+    if (wasDocked) this.resetPanelPosition();
     this.resizeService.changePanelSize(this.width, this.height);
   }
 
@@ -429,6 +437,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
+      this.expandedHeight = this.height;
       this.resizeService.changePanelSize(this.width, this.height);
     });
   }

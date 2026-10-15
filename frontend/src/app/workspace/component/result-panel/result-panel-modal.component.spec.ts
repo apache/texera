@@ -77,6 +77,16 @@ describe("RowModalComponent", () => {
     expect(component.currentDisplayRowData).toEqual(mockTupleResult.tuple);
   });
 
+  it("uses the originating table's page size even when another panel has a different size", () => {
+    const data = TestBed.inject(NZ_MODAL_DATA) as { pageSize?: number };
+    data.pageSize = 25;
+    const selectTuple = workflowResultServiceSpy.getPaginatedResultService().selectTuple;
+    selectTuple.mockClear();
+    component.ngOnChanges();
+    expect(selectTuple).toHaveBeenCalledWith(3, 25);
+    delete data.pageSize;
+  });
+
   it("should use data URL directly without fetching for base64 media", () => {
     const dataUrl = "data:image/png;base64,abc123";
     (component as any).buildRowEntries({ img: dataUrl });
