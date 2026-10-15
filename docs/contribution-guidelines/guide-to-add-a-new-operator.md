@@ -134,6 +134,13 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
 - Python's string defaults are not Java's either. `splitlines` ends a line at eight more
   characters than Scala's `linesIterator`, U+2028 among them, so one row in the engine
   became two in the script. Split on what the executor splits on.
+- Parsing and matching follow Java too. `toDouble` reads `2d` and `0x1p3` and refuses `nan`,
+  `inf` and `1_0`, the reverse of `float()`, and `trim` drops only the characters up to
+  U+0020. `Pattern` matches `\w`, `\d` and `\s` and ignores case for ASCII only, so a pattern
+  runs under `re.ASCII`. `toLowerCase` and pandas' `case=False`, which compares `upper()`,
+  fold `ß` and `ς` differently. Where the executor compares values itself, as
+  `FilterPredicate` does by type, transcribe that comparison rather than use pandas'
+  operators.
 - A nullable DOUBLE can reach the fragment as pandas `Float64`, where a stored NaN and a null
   are two values. The Arrow and Parquet sources load one that way. The engine keeps them
   apart as well: a cast writes the NaN as `NaN`, and `Double.compare` orders it above every
@@ -169,7 +176,8 @@ reference, and as the generated script. The outputs are compared per port, by da
   cannot show. A table file carries one timestamp resolution. Test these in the operator's
   own spec: run the executor and the fragment on the same rows and compare the two, as
   `AggregateOpDescSpec` and `TextInputSourceOpDescSpec` do, rather than holding the
-  fragment to an expected value.
+  fragment to an expected value. A driver that reads a file the spec wrote opens it with
+  `encoding="utf-8"`; Python's default is cp1252 on Windows.
 - Two assertions read the generated code instead of running it, for what no single run can
   ask: a write to an input frame, and every column knob hostile at once.
 
