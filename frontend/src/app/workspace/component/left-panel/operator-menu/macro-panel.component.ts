@@ -113,6 +113,7 @@ export class MacroPanelComponent {
     const op = content.operators.find(o => o.operatorID === id);
     const definition = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
     if (!definition) return;
+    const wid = this.actions.getWorkflowMetadata().wid;
     try {
       await this.macros.refresh();
     } catch (e) {
@@ -124,7 +125,21 @@ export class MacroPanelComponent {
       nzWidth: 900,
       nzStyle: { maxWidth: "calc(100vw - 32px)" },
       nzFooter: null,
-      nzData: { definition, dependencies: content.macroDependencies, library: this.macros.library$.value },
+      nzData: {
+        definition,
+        dependencies: content.macroDependencies,
+        library: this.macros.library$.value,
+        runtime: {
+          operatorID: id,
+          getExpansion: () =>
+            this.actions.getWorkflowMetadata().wid === wid &&
+            this.actions
+              .getWorkflowContent()
+              .operators.some(o => o.operatorID === id && o.operatorType === macroType(definition))
+              ? this.actions.getMacroExpansion()
+              : undefined,
+        },
+      },
     });
     this.macros.inspect$.next(undefined);
   }

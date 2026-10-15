@@ -57,6 +57,11 @@
   <span>Inputs · {{ definition.content.macroInterface?.inputs?.length || 0 }}</span>
   <span>Outputs · {{ definition.content.macroInterface?.outputs?.length || 0 }}</span>
 </div>
+<p
+  class="muted"
+  aria-live="polite">
+  {{ runtimeHint }}
+</p>
 <div
   #canvas
   class="macro-graph"
@@ -72,6 +77,14 @@
     *ngFor="let op of definition.content.operators"
     class="operator-properties">
     <summary>{{ op.customDisplayName || op.operatorType }}</summary>
+    <div
+      class="actions graph-summary"
+      *ngIf="statistics[op.operatorID] as stats">
+      <span>{{ stats.operatorState }}</span>
+      <span>Rows · {{ stats.aggregatedInputRowCount }} → {{ stats.aggregatedOutputRowCount }}</span>
+      <span>Workers · {{ stats.numWorkers ?? 0 }}</span>
+      <span>Runtime · {{ runtime(stats) }}</span>
+    </div>
     <pre>{{ op.operatorProperties | json }}</pre>
   </details>
 </section>

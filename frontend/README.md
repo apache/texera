@@ -60,6 +60,9 @@ Drag saved macros from that panel into any workflow. Macros may contain other ma
 Each instance pins an immutable definition version; **Adopt latest compatible version** is explicit
 and preserves connections and property values. Breaking interfaces or incompatible values require a new instance.
 Double-click an instance to inspect its graph, navigate nested macros, or open its definition for editing.
+The inspector shows the selected instance's current row counts, workers and execution state;
+operator details include runtime. Nested navigation keeps that instance's statistics separate
+from other uses of the same definition. Editable copies start without execution statistics.
 **Save editable copy** creates an independent definition, including for imported macros.
 In the definition's Macros panel, configure input/output mappings and exposed operator properties.
 A macro definition runs through a workflow. Compilation recursively expands it into ordinary operators.
