@@ -17,6 +17,44 @@
  * under the License.
  */
 
+.comment-colors {
+  margin-bottom: 16px;
+  min-width: 0;
+
+  legend {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .color-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  button {
+    min-height: 32px;
+    padding: 4px 10px;
+    border: 1px solid #595959;
+    border-radius: 4px;
+    color: #262626;
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+      box-shadow: inset 0 0 0 2px #262626;
+    }
+
+    &:focus-visible {
+      outline: 3px solid #262626;
+      outline-offset: 3px;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+}
+
 .modal-body {
   min-height: 20vh;
   max-height: 60vh;

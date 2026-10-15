@@ -18,6 +18,7 @@
  */
 
 import { JSONSchema7 } from "json-schema";
+import { WorkflowColor } from "./workflow-color";
 
 /**
  * This file contains multiple type declarations related to workflow-graph.
@@ -88,6 +89,7 @@ export interface Comment
 
 export interface CommentBox {
   commentBoxID: string;
+  color?: WorkflowColor;
   comments: Comment[];
   commentBoxPosition: Point;
 }
