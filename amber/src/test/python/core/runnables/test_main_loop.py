@@ -2388,6 +2388,11 @@ class TestMainLoop:
     def test_loopstart_reentry_increments_counter_and_skips_operator(
         self, main_loop, monkeypatch
     ):
+        monkeypatch.setattr(
+            "core.runnables.main_loop.get_logical_op_id",
+            lambda _: "inner-loop",
+        )
+
         # A state arriving with a loop_start_id stamped on its envelope is an
         # outer loop's state passing through this inner LoopStart. The runtime
         # forwards it with loop_counter + 1 (keeping the outer id) and must
@@ -2424,12 +2429,9 @@ class TestMainLoop:
     ):
         # The deliberate asymmetry with the LoopEnd branch: an UNstamped
         # counter-0 frame at a LoopStart is MERGED into the loop variables,
-        # not forwarded. It has to be -- the back-edge writes the next
-        # iteration's variables to this LoopStart's own input-port state URI
-        # with the identical "no loop" envelope (State.to_tuple(0)), so a
-        # LoopStart cannot tell the loop's own state from an upstream/body
-        # operator's boundary state. A LoopEnd can, because its inbound loop
-        # state is always stamped.
+        # not forwarded. A LoopStart cannot distinguish such a frame from an
+        # upstream/body operator's boundary state. A LoopEnd can, because its
+        # inbound loop state is always stamped.
         class StubLoopStart(LoopStartOperator):
             def process_table(self, table, port):
                 yield
@@ -3067,7 +3069,7 @@ class TestMainLoop:
         )
         assert events[2] == ("writer", "0")
         assert events[3][0] == "put_one"
-        assert events[3][1] == State({"i": 7}).to_tuple(0)
+        assert events[3][1] == State({"i": 7}).to_tuple(0, "outer-loop")
         assert events[4] == ("close",)
 
     def test_jump_to_loop_start_raises_when_uri_not_configured(
