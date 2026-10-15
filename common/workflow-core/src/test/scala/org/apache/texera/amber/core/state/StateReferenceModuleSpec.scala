@@ -26,7 +26,12 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.texera.amber.core.state.StateReferencing.{literalReferences, referencedVariable}
+import org.apache.texera.amber.core.state.StateReferencing.{
+  literalReferences,
+  noLoopVariableProperties,
+  noLoopVariableReferences,
+  referencedVariable
+}
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -202,6 +207,40 @@ class StateReferenceModuleSpec extends AnyFlatSpec {
         Map("/name" -> "i", "/tags/1" -> "t", "/a~1b~0c/deep/0/v" -> "z")
     )
   }
+
+  "StateReferencing.noLoopVariableProperties" should "name each property marked @NoLoopVariable by its JSON name, a trait's included" in {
+    assert(
+      noLoopVariableProperties(classOf[PlanBuilding]) ==
+        Set("result attribute", "a/b", "keys", "column")
+    )
+  }
+
+  it should "name nothing for a descriptor with no marked property" in {
+    assert(noLoopVariableProperties(classOf[Bean]).isEmpty)
+  }
+
+  "StateReferencing.noLoopVariableReferences" should "pick the references under a property marked @NoLoopVariable, renamed, escaped, nested or declared by a trait" in {
+    val descriptor = new PlanBuilding
+    descriptor.stateReferences = Map(
+      "/result attribute" -> "r",
+      "/a~1b" -> "s",
+      "/keys/0/label" -> "k",
+      "/column" -> "c",
+      "/value" -> "v",
+      "/others/0/count" -> "o"
+    )
+    assert(
+      noLoopVariableReferences(descriptor) ==
+        Map("/result attribute" -> "r", "/a~1b" -> "s", "/keys/0/label" -> "k", "/column" -> "c")
+    )
+  }
+
+  it should "pick nothing from a descriptor with no marked property, or with no reference" in {
+    val bean = new Bean
+    bean.stateReferences = Map("/name" -> "i", "/nested/0/count" -> "c")
+    assert(noLoopVariableReferences(bean).isEmpty)
+    assert(noLoopVariableReferences(new PlanBuilding).isEmpty)
+  }
 }
 
 object StateReferenceModuleSpec {
@@ -228,6 +267,20 @@ object StateReferenceModuleSpec {
     @JsonProperty var items: List[String] = List.empty
     @JsonProperty var nested: List[Nested] = List.empty
     @JsonProperty var color: AttributeType = _ // a Java enum
+  }
+
+  /** As `TextSourceOpDesc`: a property a trait declares and marks. */
+  trait NamedColumn {
+    @JsonProperty @NoLoopVariable var column: String = "line"
+  }
+
+  /** Marked properties -- renamed, escaped, a list of beans, a trait's -- and unmarked ones. */
+  class PlanBuilding extends StateReferencing with NamedColumn {
+    @JsonProperty("result attribute") @NoLoopVariable var resultAttribute: String = _
+    @JsonProperty("a/b") @NoLoopVariable var slashed: String = _
+    @JsonProperty @NoLoopVariable var keys: List[Nested] = List.empty
+    @JsonProperty var value: String = _
+    @JsonProperty var others: List[Nested] = List.empty
   }
 
   /** A StateReferencing object holding another one. */
