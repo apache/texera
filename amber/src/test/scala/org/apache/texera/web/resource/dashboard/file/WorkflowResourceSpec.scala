@@ -48,7 +48,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
-import java.text.{ParseException, SimpleDateFormat}
+import java.text.SimpleDateFormat
 import java.time.{Duration, OffsetDateTime, ZoneOffset}
 import java.util
 import java.util.Collections
@@ -609,8 +609,8 @@ class WorkflowResourceSpec
     )
   }
 
-  it should "throw a ParseException when endDate is invalid" in {
-    assertThrows[ParseException] {
+  it should "throw a BadRequestException when endDate is invalid" in {
+    assertThrows[BadRequestException] {
       FulltextSearchQueryUtils.getDateFilter(
         "2023-01-01",
         "invalidDate",
