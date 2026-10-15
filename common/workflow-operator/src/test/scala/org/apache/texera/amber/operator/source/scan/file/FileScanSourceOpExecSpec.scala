@@ -39,8 +39,8 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   /**
-    * Execution id whose object prefix the large binaries created here are written under.
-    * Negative because real execution ids are positive, so deleting its prefix spares real runs.
+    * Execution id the large binaries created here are written under. Real execution ids are
+    * positive, so a negative one gives this test an object prefix of its own.
     */
   private val testExecutionId: Long = -8670L
 
@@ -178,8 +178,8 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
         // An empty value clears the thread-local, so the seeded base URI cannot leak into
         // another suite that happens to reuse this thread.
         LargeBinaryManager.setCurrentBaseUri("")
-        // Delete what the scan uploaded even when it throws, or every run leaves an object
-        // behind. deleteByExecution logs failures instead of throwing, so it cannot displace one.
+        // Deletes everything the scan uploaded under the test's prefix, also when it throws.
+        // deleteByExecution logs failures instead of throwing, so the test's own failure surfaces.
         LargeBinaryManager.deleteByExecution(testExecutionId)
       }
 
@@ -191,9 +191,9 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
     assert(field.isInstanceOf[LargeBinary])
     assert(field.asInstanceOf[LargeBinary].getUri.startsWith("s3://"))
+    assert(field.asInstanceOf[LargeBinary].getUri.contains(s"objects/$testExecutionId/"))
 
-    // Outside CI the scan uploads into whatever S3 the developer's config points at, so nothing
-    // it wrote may outlive the test.
+    // The scan wrote under the test's prefix, and the cleanup above left nothing there.
     val prefix = s"objects/$testExecutionId/"
     assert(!S3StorageClient.directoryExists(LargeBinaryManager.DEFAULT_BUCKET, prefix), prefix)
   }
