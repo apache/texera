@@ -131,8 +131,10 @@ class ExecutorManager:
         # from the tmp directory we just wrote — no re-import / reload dance.
         try:
             executor_module = importlib.import_module(module_name)
-        except SyntaxError:
-            # SyntaxError already carries the user's line number.
+        except SyntaxError as error:
+            # SyntaxError carries its own line number; only correct it for the
+            # injected UI-parameter hook, keeping the error itself as raised.
+            self._correct_syntax_error_line(error, code)
             raise
         except Exception as error:
             self._add_user_code_hint(error, str(file_path), code)
@@ -249,13 +251,35 @@ class ExecutorManager:
 
     # The UI-parameter injector (PythonUdfUiParameterInjector) appends this hook
     # method to the end of the first UDF class, shifting the lines after it.
+    # Known limitations: the hook is found by its reserved name and its body is
+    # assumed to be the lines indented under its header, matching what the
+    # injector generates today; nothing checks that the two stay in sync.
+    # Only load errors are corrected; tracebacks of errors raised while the UDF
+    # runs (e.g. in process_tuple) still use the loaded code's line numbers.
     _INJECTED_HOOK_NAME = "_texera_injected_ui_parameters"
 
     @classmethod
-    def _user_line(cls, code: str, line: int) -> int:
+    def _correct_syntax_error_line(cls, error: SyntaxError, code: str) -> None:
+        """
+        Map a SyntaxError's start and end lines past the injected UI-parameter
+        hook. Each is mapped on its own, since a range can start before the hook
+        and end after it; a line inside the hook is left as reported.
+        """
+        if error.lineno is not None:
+            line = cls._user_line(code, error.lineno)
+            if line is not None:
+                error.lineno = line
+        if error.end_lineno is not None:
+            end_line = cls._user_line(code, error.end_lineno)
+            if end_line is not None:
+                error.end_lineno = end_line
+
+    @classmethod
+    def _user_line(cls, code: str, line: int) -> Optional[int]:
         """
         Map a line number in the code that was loaded back to the user's code by
         skipping the injected UI-parameter hook (its decorator, header and body).
+        Returns None for a line inside the hook, which the user did not write.
         """
         lines = code.splitlines()
         header = next(
@@ -280,7 +304,9 @@ class ExecutorManager:
             end += 1
         injected = end - start
         # Lines are 1-based; the hook occupies lines start+1 .. end.
-        return line - injected if line > end else line
+        if line > end:
+            return line - injected
+        return None if line > start else line
 
     @classmethod
     def _add_user_code_hint(
@@ -300,7 +326,11 @@ class ExecutorManager:
         ]
         if user_lines:
             line = cls._user_line(code, user_lines[-1])
-            location = f"({type(error).__name__} at line {line} of the UDF code)"
+            location = (
+                f"({type(error).__name__} at line {line} of the UDF code)"
+                if line is not None
+                else f"({type(error).__name__} in the generated UI-parameter code)"
+            )
         fix = ""
         if isinstance(error, NameError) and error.name in pytexera_names():
             fix = "Add `from pytexera import *` at the top of the UDF."

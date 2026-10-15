@@ -755,6 +755,7 @@ class TestLoadErrorReviewFollowUps:
             (10, True, 7),  # after a decorated hook (3 lines)
             (9, False, 7),  # after an undecorated hook (2 lines)
             (11, True, 8),  # a blank user line after the hook is not part of it
+            (8, True, None),  # inside the hook: not a line the user wrote
         ],
     )
     def test_user_line_mapping(self, loaded_line, decorated, expected):
@@ -775,3 +776,87 @@ class TestLoadErrorReviewFollowUps:
 
     def test_user_line_is_unchanged_without_a_hook(self):
         assert ExecutorManager._user_line("x = 1\ny = 2\n", 2) == 2
+
+
+HOOK_LINES = (
+    "    @overrides\n"
+    "    def _texera_injected_ui_parameters(self) -> Dict[str, Any]:\n"
+    '        return {"count": 1}\n'
+)
+CLASS_LINES = (
+    "from pytexera import *\n"
+    "\n"
+    "class ProcessTupleOperator(UDFOperatorV2):\n"
+    "    def process_tuple(self, tuple_, port):\n"
+    "        yield tuple_\n"
+    "\n"
+)
+
+
+class TestInjectedHookLineNumbers:
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_syntax_error_after_the_hook_reports_the_user_line(self, executor_manager):
+        # User line 7 is `x = (`; after injection it is line 10.
+        with pytest.raises(SyntaxError) as exc_info:
+            executor_manager.load_executor_definition(
+                CLASS_LINES + HOOK_LINES + "x = (\n"
+            )
+        assert exc_info.value.lineno == 7
+
+    def test_syntax_error_before_the_hook_is_unchanged(self, executor_manager):
+        code = (
+            "from pytexera import *\n"
+            "\n"
+            "class ProcessTupleOperator(UDFOperatorV2):\n"
+            "    def process_tuple(self, tuple_, port)\n"
+            "        yield tuple_\n"
+            "\n" + HOOK_LINES
+        )
+        with pytest.raises(SyntaxError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert exc_info.value.lineno == 4
+
+    def test_error_inside_the_hook_is_not_given_a_user_line(self, executor_manager):
+        # The hook only runs at load time if something calls it; force that so
+        # the deepest frame in the UDF file is a generated line.
+        hook = HOOK_LINES.replace('{"count": 1}', '{"count": 1 / 0}')
+        code = (
+            CLASS_LINES
+            + hook
+            + "ProcessTupleOperator()._texera_injected_ui_parameters()\n"
+        )
+        with pytest.raises(ZeroDivisionError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        text = shown(exc_info.value)
+        assert "(ZeroDivisionError in the generated UI-parameter code)" in text
+        assert "at line" not in text
+
+    def test_syntax_error_without_a_line_number_is_left_alone(self):
+        error = SyntaxError("bad")
+        ExecutorManager._correct_syntax_error_line(error, CLASS_LINES + HOOK_LINES)
+        assert error.lineno is None
+
+    def test_syntax_error_without_an_end_line_still_gets_its_line_corrected(self):
+        error = SyntaxError("bad", ("udf.py", 10, 1, "x = (\n"))
+        ExecutorManager._correct_syntax_error_line(
+            error, CLASS_LINES + HOOK_LINES + "x = (\n"
+        )
+        assert (error.lineno, error.end_lineno) == (7, None)
+
+    def test_syntax_error_spanning_the_hook_maps_each_end_separately(self):
+        # Starts at user line 4 (before the hook), ends at loaded line 10 (after it).
+        error = SyntaxError("bad", ("udf.py", 4, 1, "x\n", 10, 2))
+        ExecutorManager._correct_syntax_error_line(
+            error, CLASS_LINES + HOOK_LINES + "x = (\n"
+        )
+        assert (error.lineno, error.end_lineno) == (4, 7)
+
+    def test_syntax_error_inside_the_hook_is_left_as_reported(self):
+        error = SyntaxError("bad", ("udf.py", 8, 1, "x\n", 9, 2))
+        ExecutorManager._correct_syntax_error_line(error, CLASS_LINES + HOOK_LINES)
+        assert (error.lineno, error.end_lineno) == (8, 9)
