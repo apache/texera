@@ -90,11 +90,11 @@ Some operators (e.g. Sort, Aggregate, and the build side of Join) must read **al
 1. Before running, click the box and turn on its **eye icon** (top toolbar). Texera shows results only for boxes with the eye on.
 2. After the run, click the box and open the result panel (square icon, bottom left) if it's closed. The **Result** tab shows its rows.
 
-The result panel only shows the box you clicked. If it says *No results available to display*, click a box that has the eye on.
+The result panel only shows the box you clicked. If it says *No operator is selected*, click a box. If it says *This operator has no results yet*, turn on that box's eye icon and run again.
 
 ## Where to find errors
 
-- **Click an empty spot on the canvas.** If any operator failed, the result panel shows a **Static Error** tab with errors from every operator, including code that failed to start. A run that stops right away with every box at 0 rows usually means this.
+- **Click the box that failed, or an empty spot on the canvas.** If the run failed, the result panel shows a **Static Error** tab with the error, including code that failed to start. With nothing selected it lists every operator's errors. A run that stops right away with every box at 0 rows usually means this.
 
 ![Static Error tab listing an error for all operators](errors-all-operators.png)
 
@@ -112,7 +112,7 @@ While a workflow runs, **Run** becomes **Pause**. **Pause** can be resumed. The 
 
 The run button says *Submitting* or *Pause*, the timer keeps counting, and every box stays at 0 rows. Check these in order:
 
-1. **Click an empty spot on the canvas** and look at **Static Error**. Setup errors (for example in Python code) show up there.
+1. **Click the failed box, or an empty spot on the canvas,** and look at **Static Error**. Setup errors (for example in Python code) show up there.
 2. **Click each colored box** and look at its **Console**. A magenta box is paused on an error.
 3. **Is a box still orange, waiting for its input?** Operators such as Sort and Join wait for all their input. Check the box before it.
 4. **Stop** the run (red ⊗), fix the problem, and **Run** again.

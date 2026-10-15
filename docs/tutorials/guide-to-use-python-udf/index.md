@@ -72,7 +72,7 @@ Almost every UDF problem comes from breaking one of these.
 |---|---|---|
 | 1 | `from pytexera import *` is at the top (the template already has it) | `name 'UDFOperatorV2' is not defined` |
 | 2 | Exactly **one** class. Delete or comment out the others. | `There should be one and only one Operator defined` |
-| 3 | The method name must match the class you inherit from (table below) | `... No super class method found`, or rule 2's error |
+| 3 | The method name must match the class you inherit from (table below) | `... does not implement process_tuple` or `... No super class method found` |
 | 4 | Send results with `yield`, never `return` a value | ``process_tuple must `yield` results, not `return` them`` |
 | 5 | The columns you yield must match the output columns (step 3) | `expected but missing` or `unexpected field` |
 
@@ -194,17 +194,19 @@ List every column (here `number`, type `integer`) under **Columns** in the prope
 
 ![Console showing an error on the paused UDF](udf-console-error.png)
 
-- If the code can't even load (missing import, wrong class), the error appears in **Static Error**. Click an empty spot on the canvas to see it. See [where to find errors](../guide-for-how-to-use-texera/#where-to-find-errors).
+- If the code can't even load (missing import, wrong class), the error appears in **Static Error**. Click the UDF, or an empty spot on the canvas, to see it. The message ends with the error type and your line number, e.g. `(NameError at line 2 of the UDF code)`. See [where to find errors](../guide-for-how-to-use-texera/#where-to-find-errors).
 
 | Error message contains | Cause | Fix |
 |---|---|---|
 | `name 'UDFOperatorV2' is not defined` (or `Tuple`, `Table`, …) | Missing import | Add `from pytexera import *` at the top |
-| `There should be one and only one Operator defined` | No class, more than one, or a class whose method doesn't match its base. The rest of the message names the class and the fix. | Keep exactly one class, uncommented, with the matching method |
-| `No super class method found` | Method doesn't match the class (e.g. `process_table` in a `UDFOperatorV2`) | Use the pair from [the table](#how-your-code-receives-data) |
+| `There should be one and only one Operator defined` | No class, or more than one. The rest of the message names the classes. | Keep exactly one class, uncommented |
+| `X subclasses UDFOperatorV2 but does not implement process_tuple` | The method doesn't match the class (e.g. `process_table` in a `UDFOperatorV2`) | Rename the method, or subclass the base the message suggests |
+| `X does not subclass a pytexera base class` | The class has no pytexera base | Subclass one, e.g. `class ProcessTupleOperator(UDFOperatorV2):` (`UDFSourceOperator` for a 1-out UDF) |
+| `No super class method found` | A method marked `@overrides` doesn't exist in the base class | Use the pair from [the table](#how-your-code-receives-data), or remove `@overrides` from a helper method |
 | ``must `yield` results, not `return` them`` (older versions: `MatchError: '_' not provided` or `'NoneType' object is not iterable`) | `return` used instead of `yield` | Replace `return x` with `yield x` |
 | `_TableOperator__table_data` (older versions) | `__init__` without `super().__init__()` | Add `super().__init__()`, or use `open()` |
 | `A DataFrame was put in column 'X'` | A DataFrame is in a column whose type isn't binary | To output its rows, `yield` the DataFrame itself; to keep it as one value, make the column binary |
-| `expected but missing in the Tuple` | A declared output column is missing from what you yield | Yield that column, or remove it from **Extra output column(s)** |
-| `contains unexpected field` | You yield a column that isn't declared | Add it under **Extra output column(s)**, or stop yielding it |
+| `expected but missing in the Tuple` | A declared output column is missing from what you yield | Yield that column, or remove it from **Extra output column(s)** (**Columns** for a 1-out UDF) |
+| `contains unexpected field` | You yield a column that isn't declared | Add it under **Extra output column(s)** (**Columns** for a 1-out UDF), or stop yielding it |
 | `Column name X already exists!` | An extra output column has the same name as an input column | Rename it, or uncheck **Retain input columns** |
 | Workflow stays at 0 rows and nothing happens | Code failed while starting | See [My workflow looks stuck](../guide-for-how-to-use-texera/#my-workflow-looks-stuck) |
