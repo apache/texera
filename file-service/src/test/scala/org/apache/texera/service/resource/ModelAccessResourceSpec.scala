@@ -349,11 +349,15 @@ class ModelAccessResourceSpec
       )
     }
     ex.getResponse.getStatus shouldEqual 403
-    getModelUserAccessPrivilege(
-      getDSLContext,
-      privateModel.getMid,
-      ownerUser.getUid
-    ) shouldEqual PrivilegeEnum.WRITE
+    getDSLContext
+      .select(MODEL_USER_ACCESS.PRIVILEGE)
+      .from(MODEL_USER_ACCESS)
+      .where(
+        MODEL_USER_ACCESS.MID
+          .eq(privateModel.getMid)
+          .and(MODEL_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {
@@ -464,11 +468,15 @@ class ModelAccessResourceSpec
       accessResource.revokeAccess(privateModel.getMid, ownerUser.getEmail, writeGranteeSession)
     }
     ex.getResponse.getStatus shouldEqual 403
-    getModelUserAccessPrivilege(
-      getDSLContext,
-      privateModel.getMid,
-      ownerUser.getUid
-    ) shouldEqual PrivilegeEnum.WRITE
+    getDSLContext
+      .select(MODEL_USER_ACCESS.PRIVILEGE)
+      .from(MODEL_USER_ACCESS)
+      .where(
+        MODEL_USER_ACCESS.MID
+          .eq(privateModel.getMid)
+          .and(MODEL_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {

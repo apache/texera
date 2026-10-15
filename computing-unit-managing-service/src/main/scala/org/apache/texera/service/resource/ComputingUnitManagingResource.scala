@@ -884,22 +884,15 @@ class ComputingUnitManagingResource {
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,
-      accessPrivilege = {
-        val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-        val access = cuAccessDao
-          .fetchByUid(user.getUid)
-          .asScala
-          .find(access => access.getCuid.equals(cuid))
-
-        if (access.isDefined) {
-          access.get.getPrivilege
-        } else if (unit.getUid.equals(user.getUid)) {
-          PrivilegeEnum.WRITE
-        } else {
-          // Default privilege for non-owners without explicit access
-          PrivilegeEnum.NONE
-        }
-      },
+      accessPrivilege =
+        if (isOwner) PrivilegeEnum.WRITE
+        else
+          new ComputingUnitUserAccessDao(context.configuration())
+            .fetchByUid(user.getUid)
+            .asScala
+            .find(access => access.getCuid.equals(cuid))
+            .map(_.getPrivilege)
+            .getOrElse(PrivilegeEnum.NONE),
       ownerAvatar,
       ownerUsername
     )

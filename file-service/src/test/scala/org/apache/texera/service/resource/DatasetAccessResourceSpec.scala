@@ -335,11 +335,15 @@ class DatasetAccessResourceSpec
       )
     }
     ex.getResponse.getStatus shouldEqual 403
-    getDatasetUserAccessPrivilege(
-      getDSLContext,
-      privateDataset.getDid,
-      ownerUser.getUid
-    ) shouldEqual PrivilegeEnum.WRITE
+    getDSLContext
+      .select(DATASET_USER_ACCESS.PRIVILEGE)
+      .from(DATASET_USER_ACCESS)
+      .where(
+        DATASET_USER_ACCESS.DID
+          .eq(privateDataset.getDid)
+          .and(DATASET_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {
@@ -450,11 +454,15 @@ class DatasetAccessResourceSpec
       accessResource.revokeAccess(privateDataset.getDid, ownerUser.getEmail, writeGranteeSession)
     }
     ex.getResponse.getStatus shouldEqual 403
-    getDatasetUserAccessPrivilege(
-      getDSLContext,
-      privateDataset.getDid,
-      ownerUser.getUid
-    ) shouldEqual PrivilegeEnum.WRITE
+    getDSLContext
+      .select(DATASET_USER_ACCESS.PRIVILEGE)
+      .from(DATASET_USER_ACCESS)
+      .where(
+        DATASET_USER_ACCESS.DID
+          .eq(privateDataset.getDid)
+          .and(DATASET_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {
