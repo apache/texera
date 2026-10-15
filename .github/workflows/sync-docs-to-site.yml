@@ -26,6 +26,8 @@ on:
       - main
     paths:
       - 'docs/**'
+      # Build tooling, not website content.
+      - '!docs/operator-demo-videos/**'
   workflow_dispatch:
 
 # Run one sync at a time.
@@ -96,11 +98,16 @@ jobs:
           source_rels = set()
           created = updated = deleted = 0
 
+          # Build tooling, not website content; never mirrored.
+          excluded_dirs = ("operator-demo-videos",)
+
           # Mirror every file: .md keeps the target front matter, others copied as-is.
           for sfile in sorted(source.rglob("*")):
               if sfile.is_dir():
                   continue
               rel = sfile.relative_to(source)
+              if rel.parts and rel.parts[0] in excluded_dirs:
+                  continue
               source_rels.add(rel)
               tfile = target / rel
               existed = tfile.exists()
