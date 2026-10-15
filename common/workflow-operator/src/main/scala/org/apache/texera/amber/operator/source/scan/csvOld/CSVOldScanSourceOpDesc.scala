@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -40,7 +41,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("single character separating the fields on each line")
-  @JsonSchemaInject(json = """{ "maxLength": 1 }""")
+  @JsonSchemaInject(json = UIWidget.UIWidgetCharDelimiter)
   var customDelimiter: Option[String] = Some(",")
 
   @JsonProperty(defaultValue = "true")
@@ -102,9 +103,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     // reopen the file to read from the beginning
     reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
-    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    val startOffset = windowOffset + (if (hasHeader) 1 else 0)
     val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      startOffset + inferSampleSize
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
         .slice(startOffset, endOffset)
