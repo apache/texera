@@ -1150,7 +1150,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     const preview = component.huggingFaceTaskPreview!;
     expect(preview.assetSrc).toBe("assets/sample-image.png");
-    expect(preview.pills).toEqual(["superhero", "cityscape", "action"]);
+    expect(preview.pills).toEqual(["parkour", "cityscape", "action"]);
     expect(preview.inputLabel).toBe("Image input");
     expect(preview.outputLabel).toBe("Predicted labels");
   });

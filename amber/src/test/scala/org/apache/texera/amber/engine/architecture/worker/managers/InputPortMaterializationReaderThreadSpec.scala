@@ -157,20 +157,15 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
       hashAttributeNames = Seq("id")
     )
 
-  /**
-    * Runs the reader inline and returns everything it enqueued, in order, together with the reader
-    * itself so its completion flag can be read.
-    */
+  /** Runs the reader inline and returns everything it enqueued, in order. */
   private def replay(
       uri: URI,
       partitioning: Partitioning,
       readerFor: ActorVirtualIdentity = workerId
-  ): (InputPortMaterializationReaderThread, Seq[WorkflowFIFOMessage]) = {
+  ): Seq[WorkflowFIFOMessage] = {
     val queue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val reader =
-      new InputPortMaterializationReaderThread(uri, queue, readerFor, partitioning)
-    reader.run()
-    (reader, drain(queue))
+    new InputPortMaterializationReaderThread(uri, queue, readerFor, partitioning).run()
+    drain(queue)
   }
 
   private def drain(queue: LinkedBlockingQueue[DPInputQueueElement]): Seq[WorkflowFIFOMessage] = {
@@ -197,9 +192,9 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
 
   behavior of "InputPortMaterializationReaderThread"
 
-  it should "bracket the replay with START_CHANNEL and END_CHANNEL and mark itself finished" in {
+  it should "bracket the replay with START_CHANNEL and END_CHANNEL" in {
     val uri = materialize("bracket", tuples = Seq(tuple(1)))
-    val (reader, messages) = replay(uri, broadcastTo(workerId))
+    val messages = replay(uri, broadcastTo(workerId))
 
     // The markers are the first and last things on the channel: a downstream input port that saw
     // data before START_CHANNEL, or END_CHANNEL before the last batch, would mis-order the port.
@@ -218,26 +213,24 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     }
     assert(start.ecmType == NO_ALIGNMENT)
     assert(end.ecmType == PORT_ALIGNMENT)
-    assert(reader.finished)
   }
 
-  it should "not report itself finished before the replay runs" in {
+  it should "enqueue nothing before the replay runs" in {
     val queue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val reader = new InputPortMaterializationReaderThread(
+    new InputPortMaterializationReaderThread(
       baseURI("unstarted"),
       queue,
       workerId,
       broadcastTo(workerId)
     )
 
-    assert(!reader.finished)
     assert(queue.isEmpty)
   }
 
   it should "send every message on one channel from a URI-derived sender, numbered from zero" in {
     val uri =
       materialize("channel", tuples = Seq(tuple(1)), states = Seq((State(Map("k" -> 1)), 0L, "")))
-    val (_, messages) = replay(uri, broadcastTo(workerId))
+    val messages = replay(uri, broadcastTo(workerId))
 
     // The dummy sender is derived from the URI *and* the receiving worker, so two workers reading
     // the same materialization do not share a channel (and neither collides with a real upstream).
@@ -260,7 +253,7 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     )
     val uri = materialize("states", tuples = Seq(tuple(1), tuple(2)), states = states)
 
-    val (_, messages) = replay(uri, broadcastTo(workerId))
+    val messages = replay(uri, broadcastTo(workerId))
 
     // Downstream operators need their state set up before the tuples arrive, so every state
     // precedes every tuple regardless of how the two tables were written.
@@ -277,7 +270,7 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
   it should "emit no state frame when the port materialized no state" in {
     val uri = materialize("nostate", tuples = Seq(tuple(1)))
 
-    val (_, messages) = replay(uri, broadcastTo(workerId))
+    val messages = replay(uri, broadcastTo(workerId))
 
     assert(stateFrames(messages).isEmpty)
     assert(deliveredIds(messages) == Seq(1))
@@ -287,7 +280,7 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     val ids = 1 to 5
     val uri = materialize("broadcast", tuples = ids.map(tuple))
 
-    val (_, messages) = replay(uri, broadcastTo(workerId, siblingWorkerId))
+    val messages = replay(uri, broadcastTo(workerId, siblingWorkerId))
 
     // Under the batch size, everything leaves in the single trailing flush.
     assert(dataFrames(messages).size == 1)
@@ -299,7 +292,7 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
 
     // Broadcast to the sibling only: `allReceivers` never contains this worker, so the membership
     // test fails for every tuple.
-    val (reader, messages) = replay(uri, broadcastTo(siblingWorkerId))
+    val messages = replay(uri, broadcastTo(siblingWorkerId))
 
     assert(deliveredIds(messages).isEmpty)
     assert(dataFrames(messages).isEmpty)
@@ -310,7 +303,6 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
         EmbeddedControlMessageIdentity("EndChannel")
       )
     )
-    assert(reader.finished)
   }
 
   it should "split the materialization between the workers of a hash-shuffled link" in {
@@ -318,8 +310,8 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     val uri = materialize("shuffle", tuples = ids.map(tuple))
     val partitioning = hashShuffleTo(workerId, siblingWorkerId)
 
-    val (_, mine) = replay(uri, partitioning)
-    val (_, siblings) = replay(uri, partitioning, readerFor = siblingWorkerId)
+    val mine = replay(uri, partitioning)
+    val siblings = replay(uri, partitioning, readerFor = siblingWorkerId)
 
     // Each worker's reader takes exactly its own buckets: together they cover the materialization
     // once. A filter that ignored the partitioner would duplicate every tuple; one that dropped
@@ -337,7 +329,7 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     val ids = 1 to (batchSize + 1)
     val uri = materialize("batching", tuples = ids.map(tuple))
 
-    val (_, messages) = replay(uri, broadcastTo(workerId))
+    val messages = replay(uri, broadcastTo(workerId))
 
     assert(dataFrames(messages).map(_.frame.length) == Seq(batchSize, 1))
     assert(deliveredIds(messages) == ids)
@@ -358,9 +350,8 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     assert(failure.getMessage.startsWith("Error reading input port materializations: "))
     assert(failure.getCause != null)
     assert(failure.getMessage.endsWith(failure.getCause.getMessage))
-    // START_CHANNEL is emitted before the try, so the marker is already on the queue...
+    // START_CHANNEL is emitted before the try, so the marker is already on the queue, but
+    // END_CHANNEL never is: the port is never completed.
     assert(ecmIds(drain(queue)) == Seq(EmbeddedControlMessageIdentity("StartChannel")))
-    // ...but the channel never completes, which is what stops the port being called complete.
-    assert(!reader.finished)
   }
 }
