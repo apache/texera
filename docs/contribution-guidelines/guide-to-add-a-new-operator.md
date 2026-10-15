@@ -126,7 +126,10 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   UTC arithmetic on both sides. `new Timestamp(millis)` instead reads it in whatever zone the
   machine is set to, and pandas reads the same number as UTC, so the two paths part by the
   local offset and agree again on a machine set to UTC. `ArrowUtils` states the convention;
-  follow it wherever an operator turns a number into a moment.
+  follow it wherever an operator turns a number into a moment. Where an existing executor
+  already uses the machine's zone, as TypeCasting and Aggregate do, call
+  `_texera_local_wall_clocks` and `_texera_local_zone` rather than `tzlocal()` or `gettz()`,
+  which know only today's offsets. Java reads a moment before 1900 at the standard offset.
 - Text becomes a moment the way `DateParserUtils` reads it, and a value becomes text the way
   Java's `toString` writes it. Call `_texera_text_to_timestamp` and `_texera_java_text` from
   `StandaloneHelpers.AttributeCasts` rather than `pd.to_datetime` or `str()`, which keep
@@ -140,7 +143,8 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   runs under `re.ASCII`. `toLowerCase` and pandas' `case=False`, which compares `upper()`,
   fold `ß` and `ς` differently. Where the executor compares values itself, as
   `FilterPredicate` does by type, transcribe that comparison rather than use pandas'
-  operators.
+  operators. `AttributeTypeUtils.compare` reads a timestamp by `getTime`, so two in the same
+  millisecond tie; compare them after `floor("ms")`.
 - A nullable DOUBLE can reach the fragment as pandas `Float64`, where a stored NaN and a null
   are two values. The Arrow and Parquet sources load one that way. The engine keeps them
   apart as well: a cast writes the NaN as `NaN`, and `Double.compare` orders it above every
