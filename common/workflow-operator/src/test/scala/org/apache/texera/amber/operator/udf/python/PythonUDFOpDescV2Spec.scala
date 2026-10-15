@@ -26,7 +26,6 @@ import org.apache.texera.amber.core.workflow.{PortIdentity, UnknownPartition}
 import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -306,28 +305,11 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     }
   }
 
-  private def defaultCode: String =
-    classOf[PythonUDFOpDescV2]
-      .getDeclaredField("code")
-      .getAnnotation(classOf[JsonProperty])
-      .defaultValue()
-
-  private def activeLines(code: String): List[String] =
-    code.linesIterator.map(_.trim).filterNot(l => l.isEmpty || l.startsWith("#")).toList
-
-  // Uncomment the template lines from `# class <name>` up to the next commented class.
-  private def uncommentClass(code: String, className: String): String = {
-    var inBlock = false
-    code.linesIterator
-      .map { line =>
-        if (line.startsWith("# class ")) inBlock = line.startsWith(s"# class $className")
-        if (inBlock && line.startsWith("#")) line.stripPrefix("#").stripPrefix(" ") else line
-      }
-      .mkString("\n")
-  }
+  private val defaultCode: String =
+    PythonUdfTemplateTestUtils.defaultCode(classOf[PythonUDFOpDescV2])
 
   "PythonUDFOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
-    activeLines(defaultCode) shouldBe List("from pytexera import *")
+    PythonUdfTemplateTestUtils.activeLines(defaultCode) shouldBe List("from pytexera import *")
     defaultCode should include("Keep exactly ONE class")
     defaultCode should include("never `return` a value")
     defaultCode should include("super().__init__()")
@@ -341,7 +323,9 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     for (
       className <- List("ProcessTupleOperator", "ProcessBatchOperator", "ProcessTableOperator")
     ) {
-      val active = activeLines(uncommentClass(defaultCode, className))
+      val active = PythonUdfTemplateTestUtils.activeLines(
+        PythonUdfTemplateTestUtils.uncommentClass(defaultCode, className)
+      )
       active.head shouldBe "from pytexera import *"
       active.count(_.startsWith("class ")) shouldBe 1
       active.exists(_.startsWith(s"class $className(")) shouldBe true
