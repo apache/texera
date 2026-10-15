@@ -352,8 +352,19 @@ describe("NotebookMigrationService", () => {
       const result = await service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4");
 
       expect(result).toEqual({ workflowContent: { ops: 1 }, mappingContent: { m: 2 } });
+      expect(fakeLLM.convertNotebookToWorkflow).toHaveBeenCalledWith({ cells: [] }, "python");
       expect(fakeLLM.initialize).toHaveBeenCalledWith("gpt-4");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertNotebookToWorkflow.mockResolvedValue(
+        JSON.stringify({ workflowJSON: { ops: 1 }, workflowNotebookMapping: { m: 2 } })
+      );
+
+      await service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4", "r");
+
+      expect(fakeLLM.convertNotebookToWorkflow).toHaveBeenCalledWith({ cells: [] }, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -408,9 +419,17 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x = 1");
+      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x = 1", "python");
       expect(fakeLLM.initialize).toHaveBeenCalledWith("gpt-4");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertScriptToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendScriptToAIGenerateWorkflow("x <- 1", "gpt-4", "r");
+
+      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x <- 1", "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
