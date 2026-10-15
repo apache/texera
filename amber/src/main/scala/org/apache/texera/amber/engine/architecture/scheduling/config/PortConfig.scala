@@ -35,8 +35,12 @@ sealed trait PortConfig {
   * An output port requires exactly one materialization base URI. Result and
   * state URIs hang off it via `VFSURIFactory.resultURI` / `stateURI`; this
   * field is *not* a URI you can pass straight to `DocumentFactory`.
+  *
+  * `cachedTupleCount` is set only on a port of a skip region: the row count saved with
+  * the reused result, or None when the writer recorded none.
   */
-final case class OutputPortConfig(storageURIBase: URI) extends PortConfig {
+final case class OutputPortConfig(storageURIBase: URI, cachedTupleCount: Option[Long] = None)
+    extends PortConfig {
   override val storageURIs: List[URI] = List(storageURIBase)
 }
 

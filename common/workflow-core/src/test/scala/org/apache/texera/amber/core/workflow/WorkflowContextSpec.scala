@@ -19,9 +19,16 @@
 
 package org.apache.texera.amber.core.workflow
 
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.URI
 
 class WorkflowContextSpec extends AnyFlatSpec with Matchers {
 
@@ -58,5 +65,21 @@ class WorkflowContextSpec extends AnyFlatSpec with Matchers {
     ctx.executionId shouldBe ExecutionIdentity(123L)
     // Settings argument was not overridden, so the companion default holds.
     ctx.workflowSettings shouldBe WorkflowContext.DEFAULT_WORKFLOW_SETTINGS
+  }
+
+  "WorkflowContext.matchedResults" should "default to empty and be reassignable" in {
+    // Empty is the contract the scheduler relies on: no matched results, no cache code path.
+    val ctx = new WorkflowContext()
+    ctx.matchedResults shouldBe Map.empty
+    val port =
+      GlobalPortIdentity(PhysicalOpIdentity(OperatorIdentity("op"), "main"), PortIdentity(0))
+    val cached = CachedResult(new URI("vfs:///wid/1/eid/1/globalportid/x"), Some(3L))
+    ctx.matchedResults = Map(port -> cached)
+    ctx.matchedResults shouldBe Map(port -> cached)
+    // a context built with the other arguments only still starts empty
+    new WorkflowContext(
+      WorkflowIdentity(9L),
+      ExecutionIdentity(8L)
+    ).matchedResults shouldBe Map.empty
   }
 }

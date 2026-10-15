@@ -28,6 +28,8 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
+  InputPort,
+  OutputPort,
   PhysicalLink,
   PhysicalOp,
   PortIdentity
@@ -114,11 +116,32 @@ class RegionSpec extends AnyFlatSpec {
     assert(region.getSourceOperators == Set(a, b))
   }
 
+  it should "count only the region's own links, not every link an operator lists" in {
+    // b lists an input link from a, and both are in the region, but the link is not one of the
+    // region's links (b reads a's saved result instead): b is a source of the region
+    def withPorts(physicalOp: PhysicalOp): PhysicalOp =
+      physicalOp
+        .withInputPorts(List(InputPort(PortIdentity(0))))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))))
+    val ab = link("a", "b")
+    val a = withPorts(op("a")).addOutputLink(ab)
+    val b = withPorts(op("b")).addInputLink(ab)
+    assert(Region(RegionIdentity(1), Set(a, b), Set.empty).getSourceOperators == Set(a, b))
+    // with the link among the region's links, b is not a source
+    assert(Region(RegionIdentity(1), Set(a, b), Set(ab)).getSourceOperators == Set(a))
+  }
+
   "Region.getStarterOperators" should "match getSourceOperators when no resource config is provided" in {
     val a = op("a")
     val b = op("b")
     val region = Region(RegionIdentity(1), Set(a, b), Set.empty)
 
     assert(region.getStarterOperators == region.getSourceOperators)
+  }
+
+  "Region" should "default skipped to false" in {
+    val region = Region(RegionIdentity(1), Set(op("a")), Set.empty)
+    assert(!region.skipped)
+    assert(region.copy(skipped = true).skipped)
   }
 }
