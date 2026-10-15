@@ -33,8 +33,11 @@ import { ConsoleMessage } from "../../../types/workflow-common.interface";
 
 const IDLE: FixState = { operatorId: "", errorType: "unsupported", status: "idle" };
 
+const OPEN_WORKFLOW = 11;
+
 const READY_CODE_FIX: FixState = {
   operatorId: "op1",
+  workflowId: OPEN_WORKFLOW,
   errorType: "missing_column",
   status: "ready",
   suggestedFix: {
@@ -123,7 +126,10 @@ describe("AiFixFrameComponent", () => {
         { provide: ExecuteWorkflowService, useValue: { getErrorMessages } },
         {
           provide: WorkflowActionService,
-          useValue: { getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties }) }) },
+          useValue: {
+            getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties }) }),
+            getOpenWorkflowId: () => OPEN_WORKFLOW,
+          },
         },
         { provide: WorkflowCompilingService, useValue: { getOperatorInputSchemaMap } },
         { provide: WorkflowConsoleService, useValue: { getConsoleMessages } },
@@ -277,6 +283,17 @@ describe("AiFixFrameComponent", () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain("the re-run was refused");
     expect(text).not.toContain("warehouse");
+  });
+
+  it("ignores a suggestion made for another workflow", () => {
+    // Two imports of the same JSON share operator ids, so the id alone would let the stale
+    // suggestion render here. Refusing it only at Apply would still show the user a diff
+    // that belongs to a graph they are no longer looking at.
+    render({ ...READY_CODE_FIX, workflowId: 99 });
+
+    expect(query(".ai-fix-diff")).toBeNull();
+    expect(query(".ai-fix-apply")).toBeNull();
+    expect(query(".ai-fix-analyze")).toBeTruthy();
   });
 
   it("shows a spinner while analyzing", () => {

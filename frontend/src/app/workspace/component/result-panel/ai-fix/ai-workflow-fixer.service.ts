@@ -272,6 +272,11 @@ export class AiWorkflowFixerService {
     if (!fix || (current.status !== "ready" && current.status !== "apply_failed")) {
       return;
     }
+    // Read, not bumped. The unlock wait below can take seconds and an analysis started in
+    // the meantime owns the panel, so this apply must not report over it. (Bumping would be
+    // equivalent today -- an analysis in flight has already left the status at `analyzing`,
+    // which the guard above turns away -- but reading says what is meant.)
+    const seq = this.analysisSeq;
     this.stateSubject.next({ ...current, status: "applying" });
     try {
       this.assertSameWorkflow(current);
@@ -312,12 +317,18 @@ export class AiWorkflowFixerService {
       // reported as "re-running" over a toast saying the opposite. The empty execution name
       // is the one the operator menu uses for an ad-hoc run.
       const started = this.executeWorkflowService.executeWorkflow("");
+      if (seq !== this.analysisSeq) {
+        return;
+      }
       this.stateSubject.next({ ...current, status: started ? "applied" : "applied_without_run" });
     } catch (err) {
       console.error("AI workflow fixer: apply failed", err);
       // Not the same as a failed analysis: the suggestion is still good, the operator moved
       // under it. Reporting "could not suggest a fix" and hiding the diff sent the user back
       // for another model call to get the fix they already had.
+      if (seq !== this.analysisSeq) {
+        return;
+      }
       this.stateSubject.next({
         ...current,
         status: "apply_failed",

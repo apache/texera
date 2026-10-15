@@ -670,6 +670,27 @@ describe("AiWorkflowFixerService", () => {
       expect(state().applyError).toContain("structured data");
     });
 
+    it("does not report an apply over an analysis started while it waited", async () => {
+      // Reachable: Apply on one operator, then switch to another whose frame shows idle and
+      // click Analyze there. The order is forced here so the newer analysis settles first,
+      // leaving the apply to publish last -- which is when it overwrites what the user is
+      // now looking at.
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      const applying = service.applyFix();
+      await service.analyzeError("other-op", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      expect(state().operatorId).toEqual("other-op");
+
+      modificationEnabled = true;
+      modificationEnabled$.next(true);
+      await applying;
+
+      expect(state().operatorId).toEqual("other-op");
+      expect(state().status).toEqual("ready");
+    });
+
     it("refuses a field the operator does not have", async () => {
       // The staleness guard does not catch this one: an absent field reads as "" and the
       // captured original is "" too, so without the check a dead key is written and the

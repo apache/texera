@@ -90,7 +90,11 @@ export class AiFixFrameComponent {
     // suggestion here would let Apply patch an operator the user is not looking at, so a
     // frame only ever renders state that names its own operator.
     this.state$ = combineLatest([aiWorkflowFixerService.getState$(), this.operatorIdSubject]).pipe(
-      map(([state, operatorId]) => (state.operatorId === operatorId ? state : IDLE_STATE))
+      map(([state, operatorId]) =>
+        state.operatorId === operatorId && state.workflowId === this.workflowActionService.getOpenWorkflowId()
+          ? state
+          : IDLE_STATE
+      )
     );
   }
 
