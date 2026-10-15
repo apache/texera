@@ -49,6 +49,12 @@ export interface SuggestedFix {
 
 export interface FixState {
   operatorId: string;
+  /**
+   * The workflow the analysis belongs to. The operator id alone does not identify it: two
+   * imports of the same JSON carry the same ids, so a reply that arrived after the user
+   * switched workflows could be applied to the wrong one.
+   */
+  workflowId?: number;
   errorType: FixErrorType;
   suggestedFix?: SuggestedFix;
   // `applied_without_run`: the fix was written but the deployment refused to start a
@@ -115,6 +121,13 @@ export function replaceAllIndented(code: string, original: string, suggested: st
 
 /** Writes the model's string back in the type the field already held. */
 export function coerceToFieldType(currentValue: unknown, suggested: string): unknown {
+  // Arrays and objects are out of scope: the model replies with a string, and writing it
+  // into a structured field replaced e.g. an outputColumns array with the text "[]".
+  // Validating a replacement against the operator's schema is a bigger change than the four
+  // error shapes this panel handles need, so it refuses instead of guessing.
+  if (currentValue !== null && typeof currentValue === "object") {
+    throw new Error("this setting holds structured data, which an automatic fix does not edit");
+  }
   if (typeof currentValue === "number") {
     const parsed = Number(suggested);
     if (Number.isNaN(parsed)) {
@@ -207,7 +220,8 @@ export class AiWorkflowFixerService {
     properties: Readonly<Record<string, unknown>>
   ): Promise<void> {
     const errorType = classifyError(errorMessage);
-    const base: FixState = { operatorId, errorType, status: "analyzing" };
+    const workflowId = this.workflowActionService.getOpenWorkflowId();
+    const base: FixState = { operatorId, workflowId, errorType, status: "analyzing" };
 
     // Numbered before the early return as well: this still supersedes whatever is in flight,
     // and without the bump a slower analysis for another operator would land on top of it.
@@ -226,7 +240,7 @@ export class AiWorkflowFixerService {
       const { text } = await this.callModelWithTimeout(
         buildFixPrompt(errorMessage, code, inputSchemas, withoutSecrets(properties, this.schemaProperties(operatorId)))
       );
-      if (seq !== this.analysisSeq) {
+      if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
       const suggestedFix = this.toFix(text, properties);
@@ -238,7 +252,7 @@ export class AiWorkflowFixerService {
       this.stateSubject.next({ ...base, status: "ready", suggestedFix });
     } catch (err) {
       console.error("AI workflow fixer: analysis failed", err);
-      if (seq !== this.analysisSeq) {
+      if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
       this.stateSubject.next({ ...base, status: "error" });
@@ -252,12 +266,19 @@ export class AiWorkflowFixerService {
   public async applyFix(): Promise<void> {
     const current = this.stateSubject.getValue();
     const fix = current.suggestedFix;
-    if (!fix || current.status !== "ready") {
+    // `apply_failed` is retryable: the panel keeps the suggestion and its Apply button, so
+    // refusing here left the user clicking something that silently did nothing. Everything
+    // below re-reads the operator and re-runs every check, so a retry is not a shortcut.
+    if (!fix || (current.status !== "ready" && current.status !== "apply_failed")) {
       return;
     }
     this.stateSubject.next({ ...current, status: "applying" });
     try {
+      this.assertSameWorkflow(current);
       await this.ensureModifiable();
+      // Checked again: ensureModifiable can wait seconds for a kill to clear the lock, and
+      // the user is free to open another workflow while it does.
+      this.assertSameWorkflow(current);
       const properties: Record<string, unknown> = {
         ...this.workflowActionService.getTexeraGraph().getOperator(current.operatorId).operatorProperties,
       };
@@ -347,6 +368,19 @@ export class AiWorkflowFixerService {
     return Promise.race([this.callModel([{ role: "user", content: prompt }], controller.signal), timeout]).finally(() =>
       clearTimeout(timer)
     );
+  }
+
+  /**
+   * Refuses to touch a graph the suggestion was not made against.
+   *
+   * The service outlives the workspace, so a suggestion survives a switch to another
+   * workflow -- and two imports of the same JSON share operator ids, so the id alone would
+   * let the write land on the wrong graph.
+   */
+  private assertSameWorkflow(state: FixState): void {
+    if (state.workflowId !== this.workflowActionService.getOpenWorkflowId()) {
+      throw new Error("the workflow changed since the suggestion was generated");
+    }
   }
 
   /**

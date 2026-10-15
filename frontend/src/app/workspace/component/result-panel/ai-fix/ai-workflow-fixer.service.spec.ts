@@ -30,6 +30,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 
 const OP = "PythonUDFV2-op-1";
@@ -56,6 +57,8 @@ describe("AiWorkflowFixerService", () => {
   let operatorProperties: Record<string, unknown>;
   let modificationEnabled: boolean;
   let modificationEnabled$: Subject<boolean>;
+  let openWorkflowId: number | undefined;
+  let operatorSchemaProperties: Record<string, unknown>;
 
   // Stub the transport at the class seam (callModel), as migration-llm.spec.ts does:
   // mocking the "ai" module leaks across specs sharing the import and hits the network.
@@ -80,6 +83,8 @@ describe("AiWorkflowFixerService", () => {
     operatorProperties = { code: CODE, workers: 1 };
     modificationEnabled = true;
     modificationEnabled$ = new Subject<boolean>();
+    openWorkflowId = 11;
+    operatorSchemaProperties = {};
 
     TestBed.configureTestingModule({
       providers: [
@@ -89,6 +94,7 @@ describe("AiWorkflowFixerService", () => {
           useValue: {
             setOperatorProperty,
             getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties, operatorType: "PythonUDFV2" }) }),
+            getOpenWorkflowId: () => openWorkflowId,
             // Unlocked by default; the locked path has its own test.
             checkWorkflowModificationEnabled: () => modificationEnabled,
             getWorkflowModificationEnabledStream: () => modificationEnabled$.asObservable(),
@@ -101,6 +107,13 @@ describe("AiWorkflowFixerService", () => {
             killWorkflow,
             getExecutionStateStream: () => executionState$.asObservable(),
           },
+        },
+        {
+          // Stubbed rather than left to the real service, which fetches operator metadata
+          // from the constructor: 46 TestBeds meant 46 live requests, and the suite died
+          // waiting on them instead of reporting.
+          provide: OperatorMetadataService,
+          useValue: { getOperatorSchema: () => ({ jsonSchema: { properties: operatorSchemaProperties } }) },
         },
         ...commonTestProviders,
       ],
@@ -575,6 +588,86 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("apply_failed");
       expect(state().applyError).toContain("stayed locked");
       vi.useRealTimers();
+    });
+
+    it("retries from a failed apply once the operator is back in shape", async () => {
+      // The panel keeps the suggestion and its Apply button after a refused write, so the
+      // button has to work: refusing silently because the status is no longer `ready`
+      // leaves the user clicking something that does nothing.
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      operatorProperties.code = "something else entirely";
+      await service.applyFix();
+      expect(state().status).toEqual("apply_failed");
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+
+      operatorProperties.code = CODE;
+      await service.applyFix();
+
+      expect(setOperatorProperty).toHaveBeenCalled();
+      expect(executeWorkflow).toHaveBeenCalledWith("");
+      expect(state().status).toEqual("applied");
+    });
+
+    it("refuses to write a suggestion into a different workflow", async () => {
+      // Two imports of the same JSON carry the same operator ids, and this service outlives
+      // the workspace, so the operator id alone would let the write land on the wrong graph.
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      openWorkflowId = 12;
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("workflow changed");
+    });
+
+    it("refuses when the workflow changes during the unlock wait", async () => {
+      // ensureModifiable can wait seconds for a kill to clear the lock, and the user is
+      // free to open another workflow while it does.
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      const applying = service.applyFix();
+      openWorkflowId = 12;
+      modificationEnabled = true;
+      modificationEnabled$.next(true);
+      await applying;
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("workflow changed");
+    });
+
+    it("drops a reply that lands after the user switched workflows", async () => {
+      let resolveAnalysis: (value: { text: string }) => void = () => {};
+      const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
+      vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
+
+      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      openWorkflowId = 12;
+      resolveAnalysis({ text: suggestion() });
+      await analysing;
+
+      expect(state().suggestedFix).toBeUndefined();
+    });
+
+    it("leaves a structured setting alone rather than writing a string into it", async () => {
+      // The model always replies with a string; writing it into an array field replaced
+      // outputColumns with the text "[]".
+      operatorProperties = { outputColumns: [{ attributeName: "x", attributeType: "integer" }], workers: 1 };
+      stubModel(
+        suggestion({ fix_type: "property_change", original_snippet: "outputColumns", suggested_snippet: "[]" })
+      );
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("structured data");
     });
 
     it("refuses a field the operator does not have", async () => {
