@@ -22,6 +22,9 @@ import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { AbstractControl } from "@angular/forms";
+import { DelimiterTypeComponent } from "./delimiter/delimiter.type";
+import { DelimiterMode, delimiterError } from "./delimiter/delimiter-presets";
 import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { DatasetFileSelectorComponent } from "../../workspace/component/dataset-file-selector/dataset-file-selector.component";
@@ -94,6 +97,23 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "ui-udf-parameters", component: UiUdfParametersComponent, wrappers: ["form-field"] },
     { name: "constrainedvalue", component: ConstrainedValueComponent, wrappers: ["form-field"] },
     { name: "resourcevalue", component: ResourceValueSelectorComponent },
+    {
+      name: "delimiter",
+      component: DelimiterTypeComponent,
+      wrappers: ["form-field"],
+      defaultOptions: {
+        // Shown without waiting for a touch: a delimiter loaded from a saved workflow can already be
+        // invalid (an old multi-character one), and nobody touches a field they do not know is wrong.
+        validation: { show: true },
+        validators: {
+          delimiter: {
+            expression: (control: AbstractControl, field: FormlyFieldConfig) =>
+              delimiterError(control.value, delimiterModeOf(field)) === undefined,
+            message: delimiterValidationMessage,
+          },
+        },
+      },
+    },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },
@@ -137,6 +157,14 @@ export function exclusiveMinimumValidationMessage(err: any, field: FormlyFieldCo
 
 export function exclusiveMaximumValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be < ${field.props?.exclusiveMaximum}`;
+}
+
+function delimiterModeOf(field: FormlyFieldConfig): DelimiterMode {
+  return field.props?.["delimiterMode"] === "regex" ? "regex" : "char";
+}
+
+export function delimiterValidationMessage(err: any, field: FormlyFieldConfig) {
+  return delimiterError(field.formControl?.value, delimiterModeOf(field)) ?? "";
 }
 
 export function constValidationMessage(err: any, field: FormlyFieldConfig) {

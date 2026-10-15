@@ -21,7 +21,7 @@ from collections import defaultdict
 from concurrent.futures import Future
 from functools import wraps
 from loguru import logger
-from typing import Dict, TypeVar, Callable, Any, Coroutine
+from typing import Dict, Callable, Any, Coroutine
 
 from core.architecture.managers.context import Context
 from core.models.internal_queue import InternalQueue, DCMElement
@@ -36,8 +36,6 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
     ControlRequest,
 )
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
-
-R = TypeVar("R")
 
 
 def async_run(func: Callable[..., Any]) -> Callable[..., Any]:

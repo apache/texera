@@ -232,6 +232,17 @@ This product bundles code derived from TypeFox monaco-languageclient:
   Source: https://github.com/TypeFox/monaco-languageclient
   License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
 
+This product bundles code derived from inner-class:
+  - amber/src/main/python/core/util/customized_queue/inner.py
+  Copyright (c) 2019 sebkeim
+  Source: https://github.com/sebkeim/inner-class
+  License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
+
+This product bundles the ScalaPB options definition:
+  - common/workflow-core/src/main/protobuf/scalapb/scalapb.proto
+  Source: https://github.com/scalapb/ScalaPB
+  License: Apache License 2.0 (this LICENSE file)
+
 This product includes an icon from Google's Material Symbols:
   - frontend/src/app/common/icon/model-icon.ts ("hub")
   Copyright (c) Google LLC
@@ -253,6 +264,26 @@ This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-reuse-cache-invalid.svg
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
+
+BSD 2-Clause License
+--------------------------------------
+
+This product bundles the Yarn package manager release used by the frontend
+build:
+  - frontend/.yarn/releases/yarn-4.14.1.cjs
+  Copyright (c) 2016-present, Yarn Contributors
+  Source: https://github.com/yarnpkg/berry
+  License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
+
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+--------------------------------------
+
+This product bundles the Iris example dataset:
+  - bin/single-node/examples/datasets/iris-species/Iris.csv
+  Creator: R. A. Fisher (1936)
+  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
+  DOI: 10.24432/C56C76
+  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
 
 Trademarks
 --------------------------------------
