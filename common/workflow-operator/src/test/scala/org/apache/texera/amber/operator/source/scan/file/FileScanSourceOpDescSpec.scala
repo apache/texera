@@ -246,13 +246,20 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
             .enforceSchema(fileScanSourceOpDesc.sourceSchema())
         )
 
-      // Decoded as UTF-8 these bytes come back as the byte-order mark followed by
-      // NUL-interleaved characters, so this is the assertion the old wiring failed.
-      assert(processedTuple.next().getField("line").equals("line1"))
-      assert(processedTuple.next().getField("line").equals("line2"))
-      assert(processedTuple.next().getField("line").equals("line3"))
-      assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-      fileScanSourceOpExec.close()
+      try {
+        // Decoded as UTF-8 these bytes come back as the byte-order mark followed by
+        // NUL-interleaved characters, so this is the assertion the old wiring failed.
+        assert(processedTuple.next().getField("line").equals("line1"))
+        assert(processedTuple.next().getField("line").equals("line2"))
+        assert(processedTuple.next().getField("line").equals("line3"))
+        assert(!processedTuple.hasNext)
+        assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+      } finally {
+        // The lazy reader closes when hasNext observes exhaustion, not when next
+        // throws. Drain this small fixture even if a decoding assertion fails.
+        while (processedTuple.hasNext) processedTuple.next()
+        fileScanSourceOpExec.close()
+      }
     } finally {
       Files.deleteIfExists(utf16File)
     }
