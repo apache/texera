@@ -561,6 +561,10 @@ class TestTuple:
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
 
+    def test_hash_non_bmp_string_matches_java(self):
+        schema = Schema(raw_schema={"text": "STRING"})
+        assert hash(Tuple({"text": "😀"}, schema)) == 1772930
+
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
         from core.models.type.large_binary import largebinary
