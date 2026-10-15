@@ -162,6 +162,34 @@ describe("ExecuteWorkflowService", () => {
     }
   });
 
+  it("reports a missing macro bundle without throwing or resetting the execution", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const d = {
+      id: "missing",
+      version: 1,
+      name: "Missing",
+      content: {
+        ...actions.getWorkflowContent(),
+        operators: [mockScanPredicate],
+        macroInterface: {
+          id: "missing",
+          inputs: [],
+          outputs: [
+            { portID: "output-0", targets: [{ operatorID: mockScanPredicate.operatorID, portID: "output-0" }] },
+          ],
+        },
+      },
+    };
+    actions.setMacroDependencies([d]);
+    actions.addOperator(macroInstance(d, "macro"), { x: 0, y: 0 });
+    actions.setMacroDependencies([]);
+    const error = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+    const reset = vi.spyOn(service, "resetExecutionState");
+    expect(() => service.executeWorkflow("Broken")).not.toThrow();
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("Missing macro version"));
+    expect(reset).not.toHaveBeenCalled();
+  });
+
   it("rejects a macro cycle even when the canvas has no terminal operator", () => {
     const actions = TestBed.inject(WorkflowActionService);
     const d = {
@@ -437,7 +465,11 @@ describe("ExecuteWorkflowService", () => {
 
     service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(logicalPlanSpy).toHaveBeenCalledWith(
+      service["workflowActionService"].getTexeraGraph(),
+      targetOperatorId,
+      []
+    );
     expect(settingsSpy).toHaveBeenCalled();
     expect(resetExecutionStateSpy).toHaveBeenCalled();
     expect(resetStatusSpy).toHaveBeenCalled();
@@ -465,7 +497,11 @@ describe("ExecuteWorkflowService", () => {
       service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
     }).toThrowError("Logical plan error");
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(logicalPlanSpy).toHaveBeenCalledWith(
+      service["workflowActionService"].getTexeraGraph(),
+      targetOperatorId,
+      []
+    );
     expect(resetExecutionStateSpy).not.toHaveBeenCalled();
     expect(resetStatusSpy).not.toHaveBeenCalled();
     expect(sendExecutionRequestSpy).not.toHaveBeenCalled();
@@ -656,7 +692,7 @@ describe("ExecuteWorkflowService", () => {
 
     service.executeWorkflowWithReplay(replayInfo);
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph());
+    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), undefined, []);
     expect(resetExecutionStateSpy).toHaveBeenCalled();
     expect(resetStatusSpy).toHaveBeenCalled();
     expect(sendExecutionRequestSpy).toHaveBeenCalledWith(

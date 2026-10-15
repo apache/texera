@@ -26,7 +26,7 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { expandMacros, isMacro, MacroDefinition, macroType } from "../../../common/util/workflow-macro";
+import { expandMacros, isMacro, MacroDefinition, mergeMacroDefinitions } from "../../../common/util/workflow-macro";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -303,18 +303,17 @@ export class OperatorMenuService {
         let dependencies: MacroDefinition[] | undefined;
         if (copiedOps.some(isMacro)) {
           try {
-            const bundled = [
-              ...this.workflowActionService.getMacroDependencies(),
-              ...(elementsInClipboard.get("macroDependencies") ?? []),
-            ];
+            dependencies = mergeMacroDefinitions(
+              this.workflowActionService.getMacroDependencies(),
+              elementsInClipboard.get("macroDependencies") ?? []
+            );
             expandMacros({
               ...this.workflowActionService.getWorkflowContent(),
               operators: copiedOps,
               links: linksInClipboard,
               macroInterface: undefined,
-              macroDependencies: bundled,
+              macroDependencies: dependencies,
             });
-            dependencies = [...new Map(bundled.map(d => [macroType(d), d])).values()];
           } catch (error) {
             this.notificationService.error(error instanceof Error ? error.message : String(error));
             return;

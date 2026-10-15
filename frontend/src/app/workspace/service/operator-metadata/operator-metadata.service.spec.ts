@@ -25,6 +25,9 @@ import { mockOperatorMetaData } from "./mock-operator-metadata.data";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { AppSettings } from "../../../common/app-setting";
 import type { OperatorMetadata } from "../../types/operator-schema.interface";
+import { MacroDefinition, macroInstance, macroType } from "../../../common/util/workflow-macro";
+import { WorkflowContent } from "../../../common/type/workflow";
+import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
@@ -79,6 +82,49 @@ describe("OperatorMetadataService", () => {
     const schema = service.getOperatorSchema("ScanSource");
     expect(schema.operatorType).toBe("ScanSource");
     expect(schema).toEqual(mockOperatorMetaData.operators.find(op => op.operatorType === "ScanSource"));
+  });
+
+  it("resolves nested defaults from each definition's own bundle instead of another library entry", () => {
+    flushMetadata();
+    const child = (value: string): MacroDefinition => ({
+      id: "child",
+      version: 5,
+      name: "Child",
+      content: {
+        operators: [{ ...mockScanPredicate, operatorID: "leaf", operatorProperties: { tableName: value } }],
+        links: [],
+        macroInterface: { id: "child", inputs: [], outputs: [] },
+        formBinding: { fields: [{ id: "table", operatorID: "leaf", propertyKey: "tableName", displayName: "Table" }] },
+      } as unknown as WorkflowContent,
+    });
+    const parent = (id: string, dependency: MacroDefinition): MacroDefinition => ({
+      id,
+      version: 8,
+      name: id,
+      content: {
+        operators: [macroInstance(dependency, "inner")],
+        links: [],
+        macroDependencies: [dependency],
+        macroInterface: { id, inputs: [], outputs: [] },
+        formBinding: { fields: [{ id: "table", operatorID: "inner", propertyKey: "table", displayName: "Table" }] },
+      } as unknown as WorkflowContent,
+    });
+    const a = child("café"),
+      b = child("東京");
+    const first = parent("first", a),
+      second = parent("second", b);
+    service.registerMacros([a, first, b, second]);
+    expect((service.getOperatorSchema(macroType(first)).jsonSchema.properties!.table as any).default).toBe("café");
+    expect((service.getOperatorSchema(macroType(second)).jsonSchema.properties!.table as any).default).toBe("東京");
+    const broken = parent("broken", {
+      ...a,
+      content: {
+        ...a.content,
+        formBinding: { fields: [{ id: "table", operatorID: "leaf", propertyKey: "missing", displayName: "Missing" }] },
+      },
+    });
+    service.registerMacros([broken]);
+    expect(() => service.getOperatorSchema(macroType(broken))).toThrow(/Missing exposed property schema/);
   });
 
   it("getOperatorSchema throws for an unknown operator type", () => {

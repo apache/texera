@@ -83,18 +83,20 @@ export class OperatorMetadataService {
     return this.operatorMetadataObservable;
   }
 
-  public getOperatorSchema(operatorType: string): OperatorSchema {
+  public getOperatorSchema(operatorType: string, definitions = this.macroProvider()): OperatorSchema {
     if (!this.currentOperatorMetadata) {
       throw new Error("operator metadata is undefined");
     }
     const operatorSchema = this.currentOperatorMetadata.operators.find(schema => schema.operatorType === operatorType);
     if (!operatorSchema) {
-      const definition = this.getMacroDefinition(operatorType);
+      const definition = definitions.find(d => macroType(d) === operatorType) ?? this.getMacroDefinition(operatorType);
       if (definition) {
         if (this.schemaStack.has(operatorType)) throw new Error("Recursive macro property schema");
         this.schemaStack.add(operatorType);
         try {
-          return macroSchema(definition, type => this.getOperatorSchema(type));
+          return macroSchema(definition, type =>
+            this.getOperatorSchema(type, [...definitions, ...(definition.content.macroDependencies ?? [])])
+          );
         } finally {
           this.schemaStack.delete(operatorType);
         }

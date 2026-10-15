@@ -53,4 +53,28 @@ class WorkflowMacroCloneSpec extends AnyFlatSpec {
     intercept[Exception](WorkflowResource.assignNewOperatorIds("{}"))
     intercept[Exception](WorkflowResource.assignNewOperatorIds("invalid"))
   }
+
+  it should "rewrite only graph references when IDs occur in macro types and user values" in {
+    val content = mapper.readTree("""{
+      "operators":[{"operatorID":"leaf","operatorType":"WorkflowMacro:leaf-definition:8","operatorProperties":{"code":"leaf + 1","value":"leaf"},"customDisplayName":"leaf"}],
+      "operatorPositions":{"leaf":{"x":0,"y":0}},
+      "links":[{"source":{"operatorID":"leaf","portID":"output-0"},"target":{"operatorID":"external","portID":"input-0"}}],
+      "formBinding":{"fields":[{"id":"leaf-field","operatorID":"leaf","propertyKey":"leaf-key"}],"shownResultIds":["leaf"]},
+      "macroDependencies":[{"id":"leaf-definition","version":8,"content":{"operators":[]}}]
+    }""")
+    val cloned = mapper.readTree(WorkflowResource.assignNewOperatorIds(content.toString))
+    val id = cloned.at("/operators/0/operatorID").asText()
+    assert(id != "leaf")
+    assert(cloned.at("/operators/0/operatorType") == content.at("/operators/0/operatorType"))
+    assert(
+      cloned.at("/operators/0/operatorProperties") == content.at("/operators/0/operatorProperties")
+    )
+    assert(cloned.at("/operators/0/customDisplayName").asText() == "leaf")
+    assert(cloned.at("/formBinding/fields/0/id").asText() == "leaf-field")
+    assert(cloned.at("/formBinding/fields/0/propertyKey").asText() == "leaf-key")
+    assert(cloned.at("/formBinding/shownResultIds/0").asText() == id)
+    assert(cloned.at("/links/0/source/operatorID").asText() == id)
+    assert(cloned.at("/links/0/target/operatorID").asText() == "external")
+    assert(cloned.path("macroDependencies") == content.path("macroDependencies"))
+  }
 }

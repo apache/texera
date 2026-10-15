@@ -31,8 +31,9 @@ import { OperatorLabelComponent } from "./operator-label/operator-label.componen
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { isMacro, MacroDefinition, MacroPort, macroType } from "../../../../common/util/workflow-macro";
 import { FormFieldBinding } from "../../../../common/type/workflow";
-import { LogicalPort } from "../../../types/workflow-common.interface";
+import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { MacroInspectorComponent } from "./macro-inspector.component";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 
 @UntilDestroy()
 @Component({
@@ -72,6 +73,7 @@ export class MacroPanelComponent {
     public macros: MacroService,
     public actions: WorkflowActionService,
     public metadata: OperatorMetadataService,
+    public forms: FormBindingService,
     private notification: NotificationService,
     private modal: NzModalService
   ) {
@@ -127,56 +129,40 @@ export class MacroPanelComponent {
     this.macros.inspect$.next(undefined);
   }
   public targets(direction: "inputs" | "outputs"): { value: string; label: string }[] {
-    return this.actions
-      .getTexeraGraph()
-      .getAllOperators()
-      .flatMap(op =>
-        (direction === "inputs" ? op.inputPorts : op.outputPorts).map(p => ({
-          value: JSON.stringify({ operatorID: op.operatorID, portID: p.portID }),
-          label: `${op.customDisplayName ?? this.metadata.getOperatorSchema(op.operatorType).additionalMetadata?.userFriendlyName ?? op.operatorType} / ${p.displayName ?? p.portID}`,
-        }))
-      );
+    return this.options("portID", op =>
+      (direction === "inputs" ? op.inputPorts : op.outputPorts).map(p => [p.portID, p.displayName ?? p.portID] as const)
+    );
   }
   public targetLabel(direction: "inputs" | "outputs", target: LogicalPort): string {
-    return this.targets(direction).find(p => p.value === JSON.stringify(target))?.label ?? "Missing target";
+    return (
+      this.targets(direction).find(
+        p => p.value === JSON.stringify({ operatorID: target.operatorID, portID: target.portID })
+      )?.label ?? "Missing target"
+    );
   }
-  public properties(): { value: string; label: string; title: string }[] {
+  public properties(): { value: string; label: string }[] {
+    return this.options("propertyKey", op =>
+      Object.entries(this.metadata.getOperatorSchema(op.operatorType).jsonSchema.properties ?? {}).flatMap(
+        ([key, schema]) => (typeof schema === "boolean" ? [] : [[key, schema.title ?? key] as const])
+      )
+    );
+  }
+  private options(kind: "portID" | "propertyKey", entries: (op: OperatorPredicate) => (readonly [string, string])[]) {
     return this.actions
       .getTexeraGraph()
       .getAllOperators()
       .flatMap(op =>
-        Object.entries(this.metadata.getOperatorSchema(op.operatorType).jsonSchema.properties ?? {}).flatMap(
-          ([key, schema]) =>
-            typeof schema === "boolean"
-              ? []
-              : [
-                  {
-                    value: JSON.stringify({ operatorID: op.operatorID, propertyKey: key }),
-                    label: `${op.customDisplayName ?? op.operatorType} / ${schema.title ?? key}`,
-                    title: schema.title ?? key,
-                  },
-                ]
-        )
+        entries(op).map(([key, label]) => ({
+          value: JSON.stringify({ operatorID: op.operatorID, [kind]: key }),
+          label: `${this.forms.operatorLabel(op)} / ${label}`,
+        }))
       );
   }
   public exposeProperty(): void {
     const selected = this.properties().find(p => p.value === this.propertyTarget);
     if (!this.canModify || !selected) return;
     const target = JSON.parse(selected.value);
-    const binding = this.actions.getFormBinding();
-    if (binding.fields.some(f => f.operatorID === target.operatorID && f.propertyKey === target.propertyKey)) return;
-    this.updateFields(fields => [...fields, { id: uuid(), ...target, displayName: selected.title }]);
-  }
-  public renameProperty(id: string, displayName: string): void {
-    this.updateFields(fields => fields.map(f => (f.id === id ? { ...f, displayName } : f)));
-  }
-  public removeProperty(id: string): void {
-    this.updateFields(fields => fields.filter(f => f.id !== id));
-  }
-  private updateFields(update: (fields: FormFieldBinding[]) => FormFieldBinding[]): void {
-    if (!this.canModify) return;
-    const binding = this.actions.getFormBinding();
-    this.actions.setFormBinding({ ...binding, fields: update(binding.fields) });
+    this.forms.addBinding(target.operatorID, target.propertyKey);
   }
   public add(direction: "inputs" | "outputs", target: string): void {
     if (!this.canModify || !this.targets(direction).some(p => p.value === target)) return;

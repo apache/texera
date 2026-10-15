@@ -17,13 +17,15 @@
  * under the License.
  */
 import { TestBed } from "@angular/core/testing";
-import { BehaviorSubject, of } from "rxjs";
+import { BehaviorSubject, EMPTY } from "rxjs";
 import { MacroPanelComponent } from "./macro-panel.component";
 import { MacroService } from "../../../service/macro/macro.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 
 describe("MacroPanelComponent", () => {
   const boundary = { id: "macro", inputs: [], outputs: [] };
@@ -35,6 +37,9 @@ describe("MacroPanelComponent", () => {
       getFormBinding: () => ({ fields: [] }),
       setFormBinding: vi.fn(),
       getTexeraGraph: () => ({
+        hasOperator: (id: string) => id === "leaf",
+        getOperatorAddStream: () => EMPTY,
+        getOperatorDeleteStream: () => EMPTY,
         getOperator: () => ({ operatorType: "Filter" }),
         getAllOperators: () => [
           {
@@ -59,6 +64,8 @@ describe("MacroPanelComponent", () => {
     TestBed.configureTestingModule({
       imports: [MacroPanelComponent],
       providers: [
+        FormBindingService,
+        DynamicSchemaService,
         { provide: WorkflowActionService, useValue: actions },
         { provide: MacroService, useValue: service },
         {
@@ -167,5 +174,13 @@ describe("MacroPanelComponent", () => {
     input.focus();
     fixture.detectChanges();
     expect(document.activeElement).toBe(input);
+  });
+
+  it("labels imported targets independently of JSON property ordering", () => {
+    const fixture = TestBed.createComponent(MacroPanelComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.targetLabel("inputs", { portID: "input-0", operatorID: "leaf" })).toBe(
+      "Filter / input-0"
+    );
   });
 });

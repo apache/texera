@@ -17,13 +17,13 @@
  * under the License.
  */
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, firstValueFrom } from "rxjs";
+import { BehaviorSubject, firstValueFrom, from, mergeMap, toArray } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { Workflow } from "../../../common/type/workflow";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import {
   adoptMacroVersion,
   expandMacros,
@@ -32,6 +32,7 @@ import {
   macroInstance,
   macroSchema,
   macroType,
+  mergeMacroDefinitions,
 } from "../../../common/util/workflow-macro";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { LogicalPort } from "../../types/workflow-common.interface";
@@ -59,19 +60,30 @@ export class MacroService {
 
   private async loadLibrary(): Promise<MacroDefinition[]> {
     const entries = await firstValueFrom(this.persist.retrieveWorkflowsBySessionUser());
-    const definitions: MacroDefinition[] = [];
-    for (let i = 0; i < entries.length; i += 6) {
-      const batch = await Promise.all(
-        entries.slice(i, i + 6).map(async entry => {
-          const workflow = await firstValueFrom(this.persist.retrieveWorkflow(entry.workflow.wid!));
-          return workflow.content.macroInterface ? this.pin(workflow) : undefined;
-        })
-      );
-      definitions.push(...batch.filter((d): d is MacroDefinition => d !== undefined));
-    }
+    const failed: string[] = [];
+    const loaded = await firstValueFrom(
+      from(entries).pipe(
+        mergeMap(
+          entry =>
+            firstValueFrom(this.persist.retrieveWorkflow(entry.workflow.wid!))
+              .then(workflow => (workflow.content.macroInterface ? this.pin(workflow) : undefined))
+              .catch((error: unknown) => {
+                failed.push(
+                  `${entry.workflow.name ?? entry.workflow.wid}: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return undefined;
+              }),
+          6
+        ),
+        toArray()
+      )
+    );
+    const definitions = loaded.filter((d): d is MacroDefinition => d !== undefined);
     definitions.sort((a, b) => a.name.localeCompare(b.name));
     this.metadata.registerMacros(definitions.flatMap(d => [d, ...(d.content.macroDependencies ?? [])]));
     this.library$.next(definitions);
+    if (failed.length)
+      throw new Error(`Could not load library entries: ${failed.join(", ")}. Fix them or refresh to retry.`);
     return definitions;
   }
 
@@ -85,41 +97,41 @@ export class MacroService {
     if (!content.macroInterface) throw new Error("Saved version is not a macro definition");
     expandMacros(content);
     const definition = { id: content.macroInterface.id, version, name: workflow.name, wid: workflow.wid, content };
+    mergeMacroDefinitions(this.actions.getMacroDependencies(), [definition], content.macroDependencies ?? []);
     this.metadata.registerMacros(content.macroDependencies ?? []);
     macroSchema(definition, type => this.metadata.getOperatorSchema(type));
     return definition;
   }
 
   public async copyDefinition(definition: MacroDefinition, dependencies: MacroDefinition[]): Promise<MacroDefinition> {
-    const content = {
-      ...definition.content,
-      macroDependencies: dependencies,
-      macroInterface: { ...definition.content.macroInterface!, id: uuid() },
-    };
+    return this.saveDefinition(
+      {
+        ...definition.content,
+        macroDependencies: dependencies,
+        macroInterface: { ...definition.content.macroInterface!, id: uuid() },
+      },
+      definition.name + " copy"
+    );
+  }
+
+  private async saveDefinition(content: WorkflowContent, name: string): Promise<MacroDefinition> {
     expandMacros(content);
-    const created = await firstValueFrom(this.persist.createWorkflow(content, definition.name + " copy"));
-    const copy = await this.pin(WorkflowUtilService.parseWorkflowInfo(created.workflow));
-    this.metadata.registerMacros([copy, ...dependencies]);
-    this.library$.next([...this.library$.value, copy]);
-    return copy;
+    const created = await firstValueFrom(this.persist.createWorkflow(content, name));
+    const definition = await this.pin(WorkflowUtilService.parseWorkflowInfo(created.workflow));
+    this.metadata.registerMacros([definition, ...(definition.content.macroDependencies ?? [])]);
+    this.library$.next([...this.library$.value, definition]);
+    return definition;
   }
 
   public async createFromSelection(name: string): Promise<MacroDefinition> {
     if (!this.actions.checkWorkflowModificationEnabled()) throw new Error("Workflow is read-only");
     if (!name.trim()) throw new Error("Enter a macro name");
     const content = this.actions.getWorkflowContent();
-    const before = JSON.stringify(content);
+    const before = this.snapshot(content);
     const selected = [...this.actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
     const body = extractMacro(content, selected, uuid());
-    expandMacros(body);
-    const created = await firstValueFrom(this.persist.createWorkflow(body, name.trim()));
-    const d = await this.pin(WorkflowUtilService.parseWorkflowInfo(created.workflow));
-    this.metadata.registerMacros([d, ...(d.content.macroDependencies ?? [])]);
-    this.library$.next([...this.library$.value, d]);
-    if (
-      !this.actions.checkWorkflowModificationEnabled() ||
-      JSON.stringify(this.actions.getWorkflowContent()) !== before
-    ) {
+    const d = await this.saveDefinition(body, name.trim());
+    if (!this.unchanged(before)) {
       throw new Error("The workflow changed while saving. The macro was saved; add it from the Macros panel.");
     }
     const instance = macroInstance(d, `WorkflowMacro-${uuid()}`);
@@ -139,6 +151,18 @@ export class MacroService {
       this.actions.setMacroDependencies([...this.actions.getMacroDependencies(), d]);
       this.actions.deleteOperatorsAndLinks(selected);
       this.actions.addOperatorsAndLinks([{ op: instance, pos: content.operatorPositions[selected[0]] }], links);
+      if (content.macroInterface) {
+        const remap = (direction: "inputs" | "outputs") =>
+          content.macroInterface![direction].map(port => ({
+            ...port,
+            targets: port.targets.map(target => boundary(target, direction)),
+          }));
+        this.actions.setMacroInterface({
+          ...content.macroInterface,
+          inputs: remap("inputs"),
+          outputs: remap("outputs"),
+        });
+      }
       if (content.formBinding)
         this.actions.setFormBinding({
           ...content.formBinding,
@@ -160,6 +184,7 @@ export class MacroService {
   public async adoptLatest(operatorID: string): Promise<void> {
     if (!this.actions.checkWorkflowModificationEnabled()) throw new Error("Workflow is read-only");
     const content = this.actions.getWorkflowContent();
+    const before = this.snapshot(content);
     const op = content.operators.find(o => o.operatorID === operatorID);
     const previous = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
     if (!previous) throw new Error("Missing pinned macro definition");
@@ -170,6 +195,11 @@ export class MacroService {
       );
     const latest = matches[0];
     if (!latest) throw new Error("Definition is not in this deployment's accessible macro library");
+    const definitions = mergeMacroDefinitions(
+      this.actions.getMacroDependencies(),
+      [latest],
+      latest.content.macroDependencies ?? []
+    );
     const updated = adoptMacroVersion(op!, previous, latest);
     if (
       !new Ajv({ strict: false }).validate(
@@ -179,19 +209,23 @@ export class MacroService {
     ) {
       throw new Error("Macro properties are incompatible with the new version; insert it explicitly.");
     }
-    if (
-      !this.actions.checkWorkflowModificationEnabled() ||
-      JSON.stringify(this.actions.getWorkflowContent()) !== JSON.stringify(content)
-    ) {
+    if (!this.unchanged(before)) {
       throw new Error("The workflow changed while checking versions. Try again.");
     }
     if (latest.version === previous.version) return;
     const links = content.links.filter(l => l.source.operatorID === operatorID || l.target.operatorID === operatorID);
     this.actions.bundleMacroActions(() => {
-      const definitions = [...this.actions.getMacroDependencies(), latest, ...(latest.content.macroDependencies ?? [])];
-      this.actions.setMacroDependencies([...new Map(definitions.map(d => [macroType(d), d])).values()]);
+      this.actions.setMacroDependencies(definitions);
       this.actions.deleteOperatorsAndLinks([operatorID]);
       this.actions.addOperatorsAndLinks([{ op: updated, pos: content.operatorPositions[operatorID] }], links);
     });
+  }
+
+  private snapshot(content = this.actions.getWorkflowContent()): string {
+    return JSON.stringify([this.actions.getWorkflowMetadata().wid, content]);
+  }
+
+  private unchanged(snapshot: string): boolean {
+    return this.actions.checkWorkflowModificationEnabled() && this.snapshot() === snapshot;
   }
 }

@@ -18,7 +18,7 @@
  */
 
 import { v5 as uuid } from "uuid";
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, groupBy, isEqual } from "lodash-es";
 import { WorkflowContent, FormFieldBinding } from "../type/workflow";
 import { LogicalPort, OperatorPredicate, PortDescription } from "../../workspace/types/workflow-common.interface";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
@@ -73,20 +73,27 @@ export interface MacroExpansion {
   ports: Record<string, LogicalPort[]>;
 }
 
-/** A pure, deterministic expansion used by both compilers and executions. Definitions stay immutable. */
-export function expandMacros(content: WorkflowContent): MacroExpansion {
+/** One immutable snapshot per identity/version, shared by imports, libraries and clipboard operations. */
+export function mergeMacroDefinitions(...bundles: MacroDefinition[][]): MacroDefinition[] {
   const definitions = new Map<string, MacroDefinition>();
-  for (const d of content.macroDependencies ?? []) {
+  for (const d of bundles.flat()) {
     require(d &&
       typeof d.id === "string" &&
+      typeof d.name === "string" &&
       d.id.length &&
       Number.isSafeInteger(d.version) &&
       d.version > 0 &&
       d.content?.macroInterface?.id === d.id, "Malformed macro definition");
     const previous = definitions.get(macroType(d));
-    require(!previous || JSON.stringify(previous.content) === JSON.stringify(d.content), "Conflicting macro version");
+    require(!previous || isEqual(previous.content, d.content), "Conflicting macro version");
     definitions.set(macroType(d), d);
   }
+  return [...definitions.values()];
+}
+
+/** A pure, deterministic expansion used by both compilers and executions. Definitions stay immutable. */
+export function expandMacros(content: WorkflowContent): MacroExpansion {
+  const definitions = new Map(mergeMacroDefinitions(content.macroDependencies ?? []).map(d => [macroType(d), d]));
   const paths: Record<string, string[]> = Object.create(null);
   const ports: Record<string, LogicalPort[]> = Object.create(null);
   const operators: OperatorPredicate[] = [];
@@ -131,7 +138,7 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
     for (const op of body.operators.filter(op => !op.isDisabled)) {
       if (!isMacro(op)) {
         const id = runtimeID(chain, op.operatorID);
-        require(!operators.some(o => o.operatorID === id), "Duplicate runtime operator ID");
+        require(!Object.hasOwn(paths, id), "Duplicate runtime operator ID");
         operators.push({ ...cloneDeep(op), operatorID: id });
         paths[id] = [...chain, op.operatorID];
         for (const direction of ["inputs", "outputs"] as const) {
@@ -163,26 +170,15 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
       }
       const innerPorts = visit(inner, [...chain, op.operatorID], [...stack, op.operatorType]);
       for (const direction of ["inputs", "outputs"] as const) {
-        const boundary = inner.macroInterface?.[direction];
-        require(Array.isArray(boundary), "Malformed macro interface");
+        const boundary = inner.macroInterface![direction];
         const declared = direction === "inputs" ? op.inputPorts : op.outputPorts;
         require(declared.length === boundary!.length &&
           declared.every(p =>
             boundary!.some(b => b.portID === p.portID)
           ), "Macro instance interface differs from its pinned version");
-        require(new Set(boundary!.map(p => p.portID)).size === boundary!.length, "Duplicate macro port");
         for (const p of boundary!) {
-          require(Array.isArray(p.targets) &&
-            p.targets.length > 0 &&
-            (direction === "inputs" ||
-              p.targets.length === 1), "An output must map to one output port; inputs must have targets");
-          const targets = p.targets.flatMap(t => {
-            const mapped =
-              innerPorts.get(portKey(t.operatorID, direction, t.portID)) ??
-              (inner.operators.some(o => o.operatorID === t.operatorID && o.isDisabled) ? [] : undefined);
-            require(mapped, "Missing mapped macro port");
-            return mapped!;
-          });
+          // visit already validated each boundary target; disabled operators have no runtime port.
+          const targets = p.targets.flatMap(t => innerPorts.get(portKey(t.operatorID, direction, t.portID)) ?? []);
           resolved.set(portKey(op.operatorID, direction, p.portID), targets);
           if (!chain.length) ports[portKey(op.operatorID, direction, p.portID)] = targets;
         }
@@ -201,7 +197,8 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
             p.targets.length &&
             (direction === "inputs" ||
               p.targets.length === 1), "An output must map to one output port; inputs must have targets");
-          require(new Set(p.targets.map(t => JSON.stringify(t))).size === p.targets.length, "Duplicate macro target");
+          require(new Set(p.targets.map(t => portKey(t?.operatorID, direction, t?.portID))).size ===
+            p.targets.length, "Duplicate macro target");
           p.targets.forEach(t => endpoint(t, direction));
         });
       }
@@ -234,19 +231,14 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
     return resolved;
   };
   visit(content, [], []);
-  const children = new Map(
-    operators.map(op => [
-      op.operatorID,
-      links.filter(l => l.source.operatorID === op.operatorID).map(l => l.target.operatorID),
-    ])
-  );
+  const children = groupBy(links, l => l.source.operatorID);
   const visiting = new Set<string>(),
     visited = new Set<string>();
   const checkCycle = (id: string): void => {
     require(!visiting.has(id), "Workflow contains a cycle");
     if (visited.has(id)) return;
     visiting.add(id);
-    children.get(id)!.forEach(checkCycle);
+    if (Object.hasOwn(children, id)) children[id].forEach(link => checkCycle(link.target.operatorID));
     visiting.delete(id);
     visited.add(id);
   };
@@ -313,9 +305,11 @@ export function adoptMacroVersion(
   require(previous.id === next.id && op.operatorType === macroType(previous), "Different macro definition");
   const signature = (d: MacroDefinition) =>
     JSON.stringify([
-      d.content.macroInterface!.inputs.map(p => p.portID),
-      d.content.macroInterface!.outputs.map(p => p.portID),
-      fields(d.content).map(f => f.id),
+      d.content.macroInterface!.inputs.map(p => p.portID).sort(),
+      d.content.macroInterface!.outputs.map(p => p.portID).sort(),
+      fields(d.content)
+        .map(f => f.id)
+        .sort(),
     ]);
   require(signature(previous) ===
     signature(next), "Macro interface changed; insert the new version and reconnect explicitly");
@@ -332,8 +326,8 @@ export function adoptMacroVersion(
 /** Exposed Form View fields become the macro's ordinary operator properties, including nested macros. */
 export function macroSchema(d: MacroDefinition, getSchema: (type: string) => OperatorSchema): OperatorSchema {
   const properties: Record<string, CustomJSONSchema7> = Object.create(null);
-  const resolve = (value: any, root: CustomJSONSchema7, refs: string[] = []): any => {
-    if (Array.isArray(value)) return value.map(v => resolve(v, root, refs));
+  const resolve = (value: any, root: CustomJSONSchema7, op: OperatorPredicate, refs: string[] = []): any => {
+    if (Array.isArray(value)) return value.map(v => resolve(v, root, op, refs));
     if (!value || typeof value !== "object") return value;
     if (value.$ref) {
       const { $ref, ...rest } = value;
@@ -343,12 +337,19 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
         .split("/")
         .reduce((node: any, key: string) => node?.[key.replace(/~1/g, "/").replace(/~0/g, "~")], root);
       require(target, "Missing exposed property schema reference");
-      return resolve({ ...target, ...rest }, root, [...refs, $ref]);
+      return resolve({ ...target, ...rest }, root, op, [...refs, $ref]);
     }
     return Object.fromEntries(
       Object.entries(value)
         .filter(([key]) => key !== "$id")
-        .map(([key, v]) => [key, resolve(v, root, refs)])
+        .map(([key, v]) => [
+          key,
+          key === "autofillAttributeOnPort" && Number.isInteger(v)
+            ? d.content.macroInterface!.inputs.findIndex(p =>
+                p.targets.some(t => t.operatorID === op.operatorID && t.portID === op.inputPorts[v as number]?.portID)
+              )
+            : resolve(v, root, op, refs),
+        ])
     );
   };
   for (const f of fields(d.content)) {
@@ -358,7 +359,7 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
     const schema = root.properties?.[f.propertyKey];
     require(schema && typeof schema !== "boolean", "Missing exposed property schema");
     properties[f.id] = {
-      ...resolve(schema, root),
+      ...resolve(schema, root, op!),
       title: f.displayName,
       description: f.helpText,
       default: cloneDeep(

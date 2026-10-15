@@ -100,6 +100,19 @@ describe("workflow macros", () => {
     expect(() => expandMacros(uploaded)).toThrow(/missing.*version/i);
   });
 
+  it("deduplicates equivalent definitions regardless of JSON key order but rejects differing content", () => {
+    const d = definition();
+    const equivalent = { ...d, content: Object.fromEntries(Object.entries(d.content).reverse()) as WorkflowContent };
+    const content = { ...graph([macroInstance(d, "m")]), macroDependencies: [d, equivalent] };
+    expect(() => expandMacros(content)).not.toThrow();
+    const conflicting = structuredClone(d);
+    conflicting.content.operators[0] = {
+      ...conflicting.content.operators[0],
+      operatorProperties: { value: "different" },
+    };
+    expect(() => expandMacros({ ...content, macroDependencies: [d, conflicting] })).toThrow(/conflicting/i);
+  });
+
   it("expands repeated pinned instances with distinct, deterministic short IDs and local overrides", () => {
     const d = definition();
     const first = { ...macroInstance(d, "first"), operatorProperties: { value: "override" } };
@@ -176,6 +189,7 @@ describe("workflow macros", () => {
       null,
       { ...d, content: null },
       { ...d, version: 0 },
+      { ...d, name: 42 },
       { ...d, content: { ...d.content, macroInterface: null } },
     ]) {
       expect(() => expandMacros({ ...root, macroDependencies: [invalid] } as unknown as WorkflowContent)).toThrow();
@@ -218,6 +232,21 @@ describe("workflow macros", () => {
     ).toBe("filled");
   });
 
+  it("maps exposed attribute pickers to the macro's boundary port instead of the inner port ordinal", () => {
+    const d = definition();
+    d.content.operators[0].inputPorts.push({ portID: "input-1" });
+    d.content.macroInterface.inputs = [
+      { portID: "input-0", displayName: "Right", targets: [{ operatorID: "a", portID: "input-1" }] },
+      { portID: "input-1", displayName: "Left", targets: [{ operatorID: "a", portID: "input-0" }] },
+    ];
+    const schema = {
+      jsonSchema: { properties: { value: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 1 } } },
+    } as unknown as OperatorSchema;
+    expect((macroSchema(d, () => schema).jsonSchema.properties!.value as any).autofillAttributeOnPort).toBe(0);
+    d.content.macroInterface.inputs = [];
+    expect((macroSchema(d, () => schema).jsonSchema.properties!.value as any).autofillAttributeOnPort).toBe(-1);
+  });
+
   it("extracts a connected selection, preserves boundary links and Form View bindings", () => {
     const content = {
       ...graph([op("s"), op("a"), op("b"), op("t")], [link("s", "a"), link("a", "b"), link("b", "t")]),
@@ -245,6 +274,33 @@ describe("workflow macros", () => {
     expect(() => adoptMacroVersion(instance, old, definition("other", 6))).toThrow(/definition/i);
     next.content.macroInterface.outputs = [];
     expect(() => adoptMacroVersion(instance, old, next)).toThrow(/interface/i);
+  });
+
+  it("accepts property and port reordering when the exposed identities are unchanged", () => {
+    const previous = definition();
+    previous.content.formBinding.fields.push({
+      id: "second",
+      operatorID: "b",
+      propertyKey: "value",
+      displayName: "Second",
+    });
+    previous.content.macroInterface.inputs.push({
+      portID: "input-1",
+      displayName: "Other",
+      targets: [{ operatorID: "b", portID: "input-0" }],
+    });
+    const next = structuredClone(previous);
+    next.version++;
+    next.content.formBinding.fields.reverse();
+    next.content.macroInterface.inputs.reverse();
+    const instance = { ...macroInstance(previous, "m"), operatorProperties: { value: "mine" } };
+    expect(adoptMacroVersion(instance, previous, next).operatorProperties).toEqual({ value: "mine" });
+  });
+
+  it("rejects duplicate boundary targets even when their JSON keys are ordered differently", () => {
+    const d = definition();
+    d.content.macroInterface.inputs[0].targets.push({ portID: "input-0", operatorID: "a" });
+    expect(() => expandMacros(d.content)).toThrow(/duplicate.*target/i);
   });
 
   it("omits disabled instances and their links without resolving dependencies", () => {

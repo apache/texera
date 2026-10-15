@@ -342,18 +342,13 @@ export class ExecuteWorkflowService {
       return;
     }
     try {
-      const dependencies = this.workflowActionService.getMacroDependencies?.() ?? [];
-      return dependencies.length
-        ? ExecuteWorkflowService.getLogicalPlanRequest(
-            this.workflowActionService.getTexeraGraph(),
-            targetOperatorId,
-            dependencies
-          )
-        : targetOperatorId
-          ? ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph(), targetOperatorId)
-          : ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+      return ExecuteWorkflowService.getLogicalPlanRequest(
+        this.workflowActionService.getTexeraGraph(),
+        targetOperatorId,
+        this.workflowActionService.getMacroDependencies?.() ?? []
+      );
     } catch (error) {
-      if (!this.workflowActionService.getMacroDependencies?.().length) throw error;
+      if (!this.workflowActionService.getTexeraGraph().getAllOperators().some(isMacro)) throw error;
       this.notificationService.error(error instanceof Error ? error.message : String(error));
       return;
     }

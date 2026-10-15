@@ -403,7 +403,7 @@ export class JointUIService {
         if (portId != null) {
           const parts = portId.split("-");
           const numericSuffix = parts.length > 1 ? parts[1] : portId;
-          const count: number = inputMetrics[numericSuffix] ?? inputMetrics[String(index)] ?? 0;
+          const count: number = inputMetrics[String(index)] ?? inputMetrics[numericSuffix] ?? 0;
           element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
         }
       });
@@ -415,7 +415,7 @@ export class JointUIService {
         if (portId != null) {
           const parts = portId.split("-");
           const numericSuffix = parts.length > 1 ? parts[1] : portId;
-          const count: number = outputMetrics[numericSuffix] ?? outputMetrics[String(index)] ?? 0;
+          const count: number = outputMetrics[String(index)] ?? outputMetrics[numericSuffix] ?? 0;
           element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
         }
       });

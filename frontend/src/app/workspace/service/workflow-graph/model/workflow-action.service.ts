@@ -59,6 +59,7 @@ import {
   isMacro,
   macroResultAliases,
   macroType,
+  mergeMacroDefinitions,
   MacroDefinition,
   MacroExpansion,
   MacroInterface,
@@ -342,15 +343,13 @@ export class WorkflowActionService {
     }
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
-    // check that the operator doesn't exist
-    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
     if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
 
     this.texeraGraph.bundleActions(() => {
-      if (dependencies) this.setMacroDependencies([...new Map(dependencies.map(d => [macroType(d), d])).values()]);
+      if (dependencies) this.setMacroDependencies(dependencies);
       // add operator to texera graph
       this.texeraGraph.addOperator(operator);
       this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
@@ -1132,6 +1131,7 @@ export class WorkflowActionService {
   }
 
   public setMacroDependencies(definitions: MacroDefinition[]): void {
+    definitions = mergeMacroDefinitions(definitions);
     this.operatorMetadataService.registerMacros(definitions);
     this.writeContentMeta("macroDependencies", definitions, () => this.macroChanged$.next());
   }

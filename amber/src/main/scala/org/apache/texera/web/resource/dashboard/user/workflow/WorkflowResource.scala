@@ -19,8 +19,8 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
@@ -247,8 +247,6 @@ object WorkflowResource {
   def assignNewOperatorIds(workflowContent: String): String = {
     val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
     val canvas = objectMapper.readTree(workflowContent).asInstanceOf[ObjectNode]
-    // Pinned dependency graphs keep their definition IDs, even when a canvas ID is identical.
-    val dependencies = canvas.remove("macroDependencies")
     val operators = Option(canvas.get("operators"))
       .filter(_.isArray)
       .getOrElse(throw new IllegalArgumentException("Missing operators array"))
@@ -261,22 +259,41 @@ object WorkflowResource {
         val operatorType = operator.get("operatorType").asText()
         // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
         val newOperatorId = s"$operatorType-operator-${UUID.randomUUID()}"
+        operator.asInstanceOf[ObjectNode].put("operatorID", newOperatorId)
         oldOperatorId -> newOperatorId
       })
       .toMap
 
-    // replace all old operator ids with new operator ids
-    val rewritten = operatorIdMap.foldLeft(canvas.toString) {
-      case (updatedContent, (oldId, newId)) =>
-        updatedContent.replace(oldId, newId)
+    // Only graph references change; pinned snapshots and user values stay untouched.
+    Seq("/links", "/formBinding/fields", "/macroInterface/inputs", "/macroInterface/outputs")
+      .foreach { path =>
+        canvas.at(path).findParents("operatorID").asScala.foreach { node =>
+          val ref = node.asInstanceOf[ObjectNode]
+          operatorIdMap
+            .get(ref.path("operatorID").asText())
+            .foreach(id => ref.put("operatorID", id))
+        }
+      }
+    Option(canvas.get("operatorPositions")).collect { case p: ObjectNode => p }.foreach {
+      positions =>
+        operatorIdMap.foreach {
+          case (oldId, newId) =>
+            Option(positions.remove(oldId)).foreach(value => positions.set[JsonNode](newId, value))
+        }
     }
-    val result = objectMapper.readTree(rewritten).asInstanceOf[ObjectNode]
-    if (dependencies != null)
-      result.set[com.fasterxml.jackson.databind.JsonNode]("macroDependencies", dependencies)
-    Option(result.get("macroInterface")).filter(_.isObject).foreach { boundary =>
+    val shown = canvas.at("/formBinding/shownResultIds")
+    shown.elements().asScala.zipWithIndex.foreach {
+      case (entry, index) =>
+        operatorIdMap
+          .get(entry.asText())
+          .foreach(id =>
+            shown.asInstanceOf[ArrayNode].set(index, objectMapper.getNodeFactory.textNode(id))
+          )
+    }
+    Option(canvas.get("macroInterface")).filter(_.isObject).foreach { boundary =>
       boundary.asInstanceOf[ObjectNode].put("id", UUID.randomUUID().toString)
     }
-    result.toString
+    canvas.toString
   }
 
   def baseWorkflowSelect(): SelectOnConditionStep[Record10[

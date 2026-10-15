@@ -802,6 +802,25 @@ describe("JointUIService", () => {
       expect(valuesWritten).toContain("#workers: 8");
     });
 
+    it("uses boundary ordinals when named ports have been removed or reordered, including zero counts", () => {
+      const { paper, portPropSpy } = makeStatsPaper(() => [
+        { id: "input-1", group: "in" },
+        { id: "input-0", group: "in" },
+        { id: "output-1", group: "out" },
+        { id: "output-0", group: "out" },
+      ]);
+      new JointUIService(emptyMetadataStub as never).changeOperatorStatistics(paper, "macro", {
+        aggregatedInputRowCount: 21,
+        aggregatedOutputRowCount: 5,
+        inputPortMetrics: { "0": 0, "1": 21 },
+        outputPortMetrics: { "0": 5, "1": 0 },
+      });
+      expect(portPropSpy).toHaveBeenCalledWith("input-1", "attrs/.port-label/text", "0");
+      expect(portPropSpy).toHaveBeenCalledWith("input-0", "attrs/.port-label/text", "21");
+      expect(portPropSpy).toHaveBeenCalledWith("output-1", "attrs/.port-label/text", "5");
+      expect(portPropSpy).toHaveBeenCalledWith("output-0", "attrs/.port-label/text", "0");
+    });
+
     it("defaults the worker count to 1 when numWorkers is unspecified", () => {
       const { paper, attrSpy } = makeStatsPaper(() => []);
       const service = new JointUIService(emptyMetadataStub as never);

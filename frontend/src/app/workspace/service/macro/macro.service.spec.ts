@@ -52,6 +52,7 @@ describe("MacroService", () => {
       getWorkflowContent: () => content,
       bundleMacroActions: (fn: () => void) => fn(),
       getWorkflow: () => ({ wid: 1, name: "Workflow", content }),
+      getWorkflowMetadata: () => ({ wid: 1 }),
       getJointGraphWrapper: () => ({ getCurrentHighlightedOperatorIDs: () => ["leaf"] }),
       getMacroDependencies: () => content.macroDependencies ?? [],
       getTexeraGraph: () => ({
@@ -116,6 +117,44 @@ describe("MacroService", () => {
     await expect(service.createFromSelection("   ")).rejects.toThrow();
   });
 
+  it("remaps a parent macro's exposed ports when its operators are collapsed into a nested macro", async () => {
+    content = {
+      ...content,
+      macroInterface: {
+        id: "parent",
+        inputs: [{ portID: "in", targets: [{ operatorID: "leaf", portID: "input-0" }] }],
+        outputs: [{ portID: "out", targets: [{ operatorID: "leaf", portID: "output-0" }] }],
+      },
+    };
+    actions.setMacroInterface = vi.fn(boundary => {
+      content = { ...content, macroInterface: boundary };
+    });
+    await service.createFromSelection("Nested");
+    const instance = content.operators[0];
+    expect(content.macroInterface!.id).toBe("parent");
+    expect(content.macroInterface!.inputs[0].targets).toEqual([
+      { operatorID: instance.operatorID, portID: instance.inputPorts[0].portID },
+    ]);
+    expect(content.macroInterface!.outputs[0].targets).toEqual([
+      { operatorID: instance.operatorID, portID: instance.outputPorts[0].portID },
+    ]);
+    expect(() => expandMacros(content)).not.toThrow();
+  });
+
+  it("keeps valid library entries available when another saved definition cannot be loaded", async () => {
+    const created = await service.createFromSelection("Clean");
+    service.library$.next([]);
+    persist.retrieveWorkflowsBySessionUser.mockReturnValue(
+      of([{ workflow: { wid: 12, name: "Clean" } }, { workflow: { wid: 99, name: "Broken" } }])
+    );
+    persist.retrieveWorkflow.mockImplementation((wid: number) =>
+      wid === 12 ? of({ wid, name: "Clean", content: created.content }) : throwError(() => new Error("not available"))
+    );
+    versions.retrieveWorkflowByVersion.mockReturnValue(of({ wid: 12, content: created.content }));
+    await expect(service.refresh()).rejects.toThrow(/Broken/);
+    expect(service.library$.value.map(d => d.id)).toEqual([created.id]);
+  });
+
   it("rejects a saved snapshot without a macro interface without changing the selection", async () => {
     versions.retrieveWorkflowByVersion.mockReturnValue(of({ wid: 12, content: {} }));
     await expect(service.createFromSelection("Clean")).rejects.toThrow("Saved version is not a macro definition");
@@ -133,6 +172,19 @@ describe("MacroService", () => {
     await expect(creating).rejects.toThrow(/changed/i);
     expect(actions.deleteOperatorsAndLinks).not.toHaveBeenCalled();
     expect(content.operators[0].operatorProperties.value).toBe("new edit");
+  });
+
+  it("does not collapse a different workflow with identical content while a save is in flight", async () => {
+    const response = new Subject<{ workflow: Workflow }>();
+    persist.createWorkflow.mockReturnValue(response);
+    const creating = service.createFromSelection("Clean");
+    const saved = persist.createWorkflow.mock.calls[0][0];
+    actions.getWorkflowMetadata = () => ({ wid: 2 });
+    response.next({ workflow: { wid: 12, name: "Clean", content: saved } as Workflow });
+    response.complete();
+    await expect(creating).rejects.toThrow(/changed/i);
+    expect(actions.deleteOperatorsAndLinks).not.toHaveBeenCalled();
+    expect(content.operators).toEqual([op]);
   });
 
   it("discovers only accessible definitions and resolves the exact latest version", async () => {
@@ -172,5 +224,32 @@ describe("MacroService", () => {
     const before = JSON.stringify(content);
     await expect(service.adoptLatest(content.operators[0].operatorID)).rejects.toThrow(/properties.*incompatible/i);
     expect(JSON.stringify(content)).toBe(before);
+  });
+
+  it("rejects a local version that conflicts with an imported pinned snapshot", async () => {
+    const previous = await service.createFromSelection("Clean");
+    const latest = {
+      ...previous,
+      content: { ...previous.content, operators: [{ ...op, operatorProperties: { value: "different deployment" } }] },
+    };
+    vi.spyOn(service, "refresh").mockResolvedValue([latest]);
+    const before = JSON.stringify(content);
+    await expect(service.adoptLatest(content.operators[0].operatorID)).rejects.toThrow(/Conflicting macro version/);
+    expect(JSON.stringify(content)).toBe(before);
+  });
+
+  it("excludes conflicting library versions instead of resolving them to the current workflow's snapshot", async () => {
+    const previous = await service.createFromSelection("Clean");
+    const latest = {
+      ...previous.content,
+      operators: [{ ...op, operatorProperties: { value: "different deployment" } }],
+    };
+    service.library$.next([]);
+    persist.retrieveWorkflowsBySessionUser.mockReturnValue(of([{ workflow: { wid: 12, name: "Clean" } }]));
+    persist.retrieveWorkflow.mockReturnValue(of({ wid: 12, name: "Clean", content: latest }));
+    versions.retrieveWorkflowByVersion.mockReturnValue(of({ wid: 12, content: latest }));
+    await expect(service.refresh()).rejects.toThrow(/Conflicting macro version/);
+    expect(service.library$.value).toEqual([]);
+    expect(content.macroDependencies).toEqual([previous]);
   });
 });

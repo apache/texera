@@ -188,13 +188,13 @@
         nz-input
         [attr.aria-label]="'Property name ' + field.id"
         [ngModel]="field.displayName"
-        (ngModelChange)="renameProperty(field.id, $event)"
+        (ngModelChange)="canModify && forms.updateBinding(field.id, { displayName: $event })"
         [disabled]="!canModify" />
       <button
         nz-button
         nzSize="small"
         type="button"
-        (click)="removeProperty(field.id)"
+        (click)="canModify && forms.removeBinding(field.id)"
         [attr.aria-label]="'Remove property ' + field.displayName"
         [disabled]="!canModify">
         Remove property
