@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791991783101,
+  "lastUpdate": 1792068082685,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -18633,6 +18633,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 492.78448636627434,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "74264313370d747ac748300f0bbbb780297d7e65",
+          "message": "fix(workflow-core): resolve Windows drive paths as local files (#8950)\n\n### What changes were proposed in this PR?\n\n`FileResolver.isFileResolved` no longer counts a one-letter\n`java.net.URI` scheme as \"already a URI\". A one-letter scheme is a\nWindows drive letter, so `C:/Users/me/a.txt` now falls through to the\nlocal resolver and becomes `file:///C:/Users/me/a.txt`.\n\n**Root cause.** `isFileResolved` returned true for any non-empty scheme,\nand `new URI(\"C:/Users/me/a.txt\")` parses `C` as the scheme. `resolve`\ntherefore returned the path unchanged, and `DocumentFactory` rejected it\nwith `Unsupported URI scheme: C for creating the ReadonlyDocument`. File\nScan hit this in the worker; the CSV / JSONL / Arrow scans hit it at\ncompilation, during schema inference.\n\n```\nBefore:  \"C:/data/a.txt\" -> isFileResolved = true  -> URI \"C:/data/a.txt\"                         -> Unsupported URI scheme: C\nAfter:   \"C:/data/a.txt\" -> isFileResolved = false -> local resolver -> \"file:///C:/data/a.txt\" -> read\n```\n\nEvery scheme Texera produces or reads (`file`, `dataset`, `model`,\n`vfs`, `s3`, `https`, ...) has more than one letter, so those are still\ntreated as resolved. The backslash form `C:\\data\\a.txt` was never\naffected: a backslash is illegal in a URI.\n\n### Any related issues, documentation, discussions?\n\nCloses #8949\n\n### How was this PR tested?\n\nNew cases in `FileResolverSpec`:\n\n| Input | Pinned behavior |\n| --- | --- |\n| `C:/x/y.txt`, `c:/x/y.txt`, `C:\\x\\y.txt` | `isFileResolved` is false |\n| `s3://`, `dataset:///`, `file:///C:/...`, `file:/tmp/...`, `vfs:///`,\n`https://` | `isFileResolved` is true |\n| an existing temp file's absolute path, written with `/` | `resolve`\nreturns that file's `file` URI |\n| `C:/x/y.txt` (does not exist) | `resolve` throws\n`FileNotFoundException` instead of returning `URI(\"C:/x/y.txt\")` |\n\nBefore the fix, the `C:/x/y.txt` cases (`isFileResolved` and `resolve`)\nfailed on every OS. The temp-file case failed on Windows, where the path\nstarts with a drive letter.\n\n```\nsbt \"WorkflowCore/testOnly *FileResolver*\"   # 26 passed\nsbt scalafmtCheckAll \"WorkflowCore/scalafixAll --check\"\n```\n\nCallers that go through `resolve` / `fileResolved()` also pass locally:\n`WorkflowCompiler/testOnly *LogicalPlanSpec *WorkflowCompilerSpec` (60\npassed), and `WorkflowOperator/testOnly *ScanSourceOpDescSpec\n*TestOperatorsSpec *FileScanSourceOpDescSpec *CSVScanSourceOpDescSpec\n*JSONLScanSourceOpDescSpec *FileScanOpExecSpec` (78 of 79 passed). The\none failure is `FileScanSourceOpDescSpec`'s UTF-16 test. On Windows it\ncannot delete its temp file while the reader is still open, and it fails\nthe same way without this change.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5.5)",
+          "timestamp": "2026-10-15T05:20:47Z",
+          "url": "https://github.com/apache/texera/commit/74264313370d747ac748300f0bbbb780297d7e65"
+        },
+        "date": 1792068081886,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1325.2687469917767,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2485.263770752673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2657.840040596911,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1608.3195643353085,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2505.1102988146504,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2651.740313934149,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1670.7955770742924,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2383.8676890898937,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2543.7046794700814,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1438.561936036563,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1987.907296517567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2018.4824110970083,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1544.0720155867461,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1885.2944874708614,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2114.8986302660855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1232.4506552346402,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1986.622499096524,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 2031.1007587054592,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 869.2766228437692,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1027.155090275167,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1011.9451922615592,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 880.9749127038215,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1015.0988310984543,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1069.3523459504095,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 880.0781143605088,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 1046.5277579054512,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 1052.3783197567348,
             "unit": "tuples/sec"
           }
         ]
