@@ -257,6 +257,68 @@ describe("ComputingUnitStatusService", () => {
     expect(latest).toEqual(newUnits);
   });
 
+  it("keeps refreshing the list after one failed list fetch", () => {
+    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+    const goodUnits = [mockUnit(42)];
+    const listSpy = vi
+      .spyOn(managing, "listComputingUnits")
+      .mockReturnValueOnce(throwError(() => new Error("boom")))
+      .mockReturnValue(of(goodUnits));
+
+    let latest: DashboardWorkflowComputingUnit[] = [];
+    service.getAllComputingUnits().subscribe(units => (latest = units));
+
+    service.refreshComputingUnitList();
+    service.refreshComputingUnitList();
+    service.refreshComputingUnitList();
+
+    // The failed first fetch must not end the refresh stream: both later signals still fetch.
+    expect(listSpy).toHaveBeenCalledTimes(3);
+    expect(latest).toEqual(goodUnits);
+  });
+
+  it("a failed list fetch emits nothing and the next successful fetch emits the good list", () => {
+    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+    const goodUnits = [mockUnit(42)];
+    vi.spyOn(managing, "listComputingUnits")
+      .mockReturnValueOnce(throwError(() => new Error("boom")))
+      .mockReturnValue(of(goodUnits));
+
+    const emissions: DashboardWorkflowComputingUnit[][] = [];
+    service.getAllComputingUnits().subscribe(units => emissions.push(units));
+    // The BehaviorSubject replays its current list on subscribe.
+    expect(emissions.length).toBe(1);
+
+    service.refreshComputingUnitList();
+    // A failed fetch produces no list emission at all, not an empty or null list.
+    expect(emissions.length).toBe(1);
+
+    service.refreshComputingUnitList();
+    expect(emissions.length).toBe(2);
+    expect(emissions[1]).toEqual(goodUnits);
+  });
+
+  it("keeps refreshing through several consecutive failures", () => {
+    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+    const goodUnits = [mockUnit(42)];
+    const listSpy = vi
+      .spyOn(managing, "listComputingUnits")
+      .mockReturnValueOnce(throwError(() => new Error("boom 1")))
+      .mockReturnValueOnce(throwError(() => new Error("boom 2")))
+      .mockReturnValueOnce(throwError(() => new Error("boom 3")))
+      .mockReturnValue(of(goodUnits));
+
+    let latest: DashboardWorkflowComputingUnit[] = [];
+    service.getAllComputingUnits().subscribe(units => (latest = units));
+
+    for (let i = 0; i < 4; i++) {
+      service.refreshComputingUnitList();
+    }
+
+    expect(listSpy).toHaveBeenCalledTimes(4);
+    expect(latest).toEqual(goodUnits);
+  });
+
   it("updateUnitInList replaces the matching unit and leaves the others untouched", () => {
     const unitA = mockUnit(1);
     const unitB = mockUnit(2);
@@ -324,6 +386,62 @@ describe("ComputingUnitStatusService", () => {
 
       expect(getSpy).not.toHaveBeenCalled();
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps polling the selected unit after one failed fetch", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const getSpy = vi
+        .spyOn(managing, "getComputingUnit")
+        .mockReturnValueOnce(throwError(() => new Error("boom")))
+        .mockReturnValue(of(polled));
+      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
+      (service as any).selectedUnitSubject.next(mockUnit(3));
+
+      (service as any).startPollingSelectedUnit(3);
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS * 5);
+
+      // The failed first poll must not end the interval: every later tick still fetches.
+      expect(getSpy).toHaveBeenCalledTimes(5);
+      expect(service.getSelectedComputingUnitValue()).toBe(polled);
+    } finally {
+      (service as any).stopPollingSelectedUnit();
+      vi.useRealTimers();
+    }
+  });
+
+  it("a failed poll keeps the poll alive and leaves the selection intact", () => {
+    vi.useFakeTimers();
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const original = mockUnit(3);
+      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const getSpy = vi
+        .spyOn(managing, "getComputingUnit")
+        .mockReturnValueOnce(throwError(() => new Error("boom")))
+        .mockReturnValue(of(polled));
+      const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
+      (service as any).allComputingUnitsSubject.next([original]);
+      (service as any).selectedUnitSubject.next(original);
+
+      (service as any).startPollingSelectedUnit(3);
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+      expect(getSpy).toHaveBeenCalledTimes(1);
+
+      // The failed poll leaves the selected unit object as it was and the poll subscription open.
+      expect(service.getSelectedComputingUnitValue()).toBe(original);
+      expect(stopSpy).not.toHaveBeenCalled();
+      expect((service as any).selectedUnitPoll.closed).toBe(false);
+
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+      expect(getSpy).toHaveBeenCalledTimes(2);
+      expect(service.getSelectedComputingUnitValue()).toBe(polled);
+    } finally {
+      (service as any).stopPollingSelectedUnit();
       vi.useRealTimers();
     }
   });
