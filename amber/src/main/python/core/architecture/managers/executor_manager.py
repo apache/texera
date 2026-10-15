@@ -102,7 +102,9 @@ class ExecutorManager:
         file_name = f"{module_name}.py"
         return module_name, file_name
 
-    def load_executor_definition(self, code: str) -> type(Operator):
+    def load_executor_definition(self, code: str, is_source: bool = False) -> type(
+        Operator
+    ):
         """
         Load the given executor code in string into a class definition
         :param code: str, python code that defines an Operator, should contain one
@@ -133,7 +135,7 @@ class ExecutorManager:
             # SyntaxError already carries the user's line number.
             raise
         except Exception as error:
-            self._add_user_code_hint(error, str(file_path))
+            self._add_user_code_hint(error, str(file_path), code)
             raise
         self.operator_module_name = module_name
 
@@ -145,9 +147,8 @@ class ExecutorManager:
                 if self.is_concrete_operator(value)
             }.values()
         )
-        assert len(executors) == 1, (
-            "There should be one and only one Operator defined. "
-            + self._explain_operator_count(executors, executor_module)
+        assert len(executors) == 1, self._explain_operator_count(
+            executors, executor_module, is_source
         )
         return executors[0]
 
@@ -166,30 +167,46 @@ class ExecutorManager:
         )
 
     @classmethod
-    def _explain_operator_count(cls, executors: list, module) -> str:
+    def _explain_operator_count(cls, executors: list, module, is_source: bool) -> str:
         """
         Explain why a UDF module does not define exactly one concrete Operator,
         naming the classes involved and how to fix them.
         """
+        opening = "There should be one and only one Operator defined. "
+        example = (
+            "`class GenerateOperator(UDFSourceOperator):`"
+            if is_source
+            else "`class ProcessTupleOperator(UDFOperatorV2):`"
+        )
         if len(executors) > 1:
             names = ", ".join(executor.__name__ for executor in executors)
-            return (
+            return opening + (
                 f"Found {len(executors)}: {names}. Keep one and delete or comment "
                 "out the others."
             )
 
-        abstract_classes = [
+        user_classes = [
             value
             for value in module.__dict__.values()
-            if inspect.isclass(value)
-            and issubclass(value, Operator)
-            and value.__module__ == module.__name__
+            if inspect.isclass(value) and value.__module__ == module.__name__
         ]
+        abstract_classes = [c for c in user_classes if issubclass(c, Operator)]
         if not abstract_classes:
-            return (
-                "No Operator class was found. Uncomment or write exactly one class, "
-                "e.g. `class ProcessTupleOperator(UDFOperatorV2):`, and keep "
-                "`from pytexera import *` at the top."
+            if user_classes:
+                names = ", ".join(c.__name__ for c in user_classes)
+                verb = "does not" if len(user_classes) == 1 else "do not"
+                bases = (
+                    "UDFSourceOperator"
+                    if is_source
+                    else "UDFOperatorV2, UDFBatchOperator or UDFTableOperator"
+                )
+                return (
+                    f"{names} {verb} subclass a pytexera base class. "
+                    f"Subclass {bases}, e.g. {example}"
+                )
+            return opening + (
+                f"No Operator class was found. Uncomment or write exactly one class, "
+                f"e.g. {example}, and keep `from pytexera import *` at the top."
             )
 
         explanations = []
@@ -230,8 +247,45 @@ class ExecutorManager:
         )
         return " ".join(explanations) + pairing
 
+    # The UI-parameter injector (PythonUdfUiParameterInjector) appends this hook
+    # method to the end of the first UDF class, shifting the lines after it.
+    _INJECTED_HOOK_NAME = "_texera_injected_ui_parameters"
+
     @classmethod
-    def _add_user_code_hint(cls, error: Exception, file_path: str) -> None:
+    def _user_line(cls, code: str, line: int) -> int:
+        """
+        Map a line number in the code that was loaded back to the user's code by
+        skipping the injected UI-parameter hook (its decorator, header and body).
+        """
+        lines = code.splitlines()
+        header = next(
+            (
+                i
+                for i, text in enumerate(lines)
+                if text.lstrip().startswith(f"def {cls._INJECTED_HOOK_NAME}(")
+            ),
+            None,
+        )
+        if header is None:
+            return line
+        start = header - 1 if lines[header - 1].strip() == "@overrides" else header
+        indent = len(lines[header]) - len(lines[header].lstrip())
+        end = header + 1
+        # The hook's body is the run of lines indented deeper than its header.
+        while (
+            end < len(lines)
+            and lines[end].strip()
+            and len(lines[end]) - len(lines[end].lstrip()) > indent
+        ):
+            end += 1
+        injected = end - start
+        # Lines are 1-based; the hook occupies lines start+1 .. end.
+        return line - injected if line > end else line
+
+    @classmethod
+    def _add_user_code_hint(
+        cls, error: Exception, file_path: str, code: str = ""
+    ) -> None:
         """
         Attach a note to an error raised while importing user code, saying
         which line of the UDF failed and, for common mistakes, how to fix it.
@@ -245,12 +299,16 @@ class ExecutorManager:
             if frame.filename == file_path
         ]
         if user_lines:
-            location = f"(line {user_lines[-1]} of the UDF code)"
+            line = cls._user_line(code, user_lines[-1])
+            location = f"({type(error).__name__} at line {line} of the UDF code)"
         fix = ""
         if isinstance(error, NameError) and error.name in pytexera_names():
             fix = "Add `from pytexera import *` at the top of the UDF."
         elif "No super class method found" in str(error):
-            fix = f"The method must match the base class: {cls._base_class_pairing()}."
+            fix = (
+                f"The method must match the base class: {cls._base_class_pairing()}. "
+                "If it is a helper method, remove @overrides instead."
+            )
         if fix:
             error.add_note(f"{location}. {fix}" if location else fix)
         elif location:
@@ -293,6 +351,18 @@ class ExecutorManager:
             and not inspect.isabstract(cls)
         )
 
+    @staticmethod
+    def _source_mismatch_message(is_source: bool) -> str:
+        if is_source:
+            return (
+                "Please use SourceOperator API for source operators: this is a "
+                "1-out UDF, so subclass UDFSourceOperator and implement produce()."
+            )
+        return (
+            "This UDF reads input, so it cannot use UDFSourceOperator: subclass "
+            "UDFOperatorV2, UDFBatchOperator or UDFTableOperator instead."
+        )
+
     def initialize_executor(self, code: str, is_source: bool, language: str) -> None:
         """
         Initialize the executor with the given code. The output schema is
@@ -320,11 +390,11 @@ class ExecutorManager:
                 )
             self.executor = executor_class(code)
         else:
-            executor: type(Operator) = self.load_executor_definition(code)
+            executor: type(Operator) = self.load_executor_definition(code, is_source)
             self.executor = executor()
             self.executor.is_source = is_source
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
-            "Please use SourceOperator API for source operators."
+            self._source_mismatch_message(is_source)
         )
 
     def update_executor(self, code: str, is_source: bool) -> None:
@@ -338,11 +408,11 @@ class ExecutorManager:
         :return:
         """
         original_internal_state = self.executor.__dict__
-        executor: type(Operator) = self.load_executor_definition(code)
+        executor: type(Operator) = self.load_executor_definition(code, is_source)
         self.executor = executor()
         self.executor.is_source = is_source
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
-            "Please use SourceOperator API for source operators."
+            self._source_mismatch_message(is_source)
         )
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state

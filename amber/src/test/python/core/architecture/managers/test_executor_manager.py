@@ -512,7 +512,8 @@ class TestActionableLoadErrors:
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.load_executor_definition(WRONG_METHOD_CODE)
         message = str(exc_info.value)
-        assert "one and only one Operator" in message
+        # One class that misses its method: the zero/two-classes sentence would mislead.
+        assert "one and only one Operator" not in message
         assert "WrapperClass subclasses UDFOperatorV2" in message
         assert "does not implement process_tuple" in message
         assert "If you meant process_table, subclass UDFTableOperator" in message
@@ -547,6 +548,7 @@ class TestActionableLoadErrors:
         message = shown(exc_info.value)
         assert "No super class method found" in message
         assert "UDFTableOperator -> process_table" in message
+        assert "remove @overrides" in message
 
     def test_syntax_error_reports_user_line(self, executor_manager):
         with pytest.raises(SyntaxError) as exc_info:
@@ -615,7 +617,7 @@ class TestLoadErrorHintEdgeCases:
         with pytest.raises(AssertionError) as exc_info:
             executor_manager.load_executor_definition("assert False\n")
         assert str(exc_info.value) == ""
-        assert shown(exc_info.value) == "(line 1 of the UDF code)"
+        assert shown(exc_info.value) == "(AssertionError at line 1 of the UDF code)"
 
     def test_unchanged_error_is_not_its_own_cause(self, executor_manager):
         code = 'from pytexera import *\n\nb"\\xff".decode("utf-8")\n'
@@ -666,3 +668,110 @@ class TestLoadErrorHintEdgeCases:
             executor_manager.load_executor_definition(NO_OPERATOR_CODE)
         assert "at the top" in str(exc_info.value)
         assert "as the first line" not in str(exc_info.value)
+
+
+class TestLoadErrorReviewFollowUps:
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_base_class_table_matches_the_pytexera_classes(self):
+        import pytexera
+
+        for base, method in ExecutorManager._BASE_CLASS_METHODS.items():
+            assert getattr(pytexera, base).__abstractmethods__ == {method}
+
+    def test_class_without_a_base_is_named_and_told_which_bases_to_use(
+        self, executor_manager
+    ):
+        code = (
+            "from pytexera import *\n\n"
+            "class ProcessTupleOperator:\n"
+            "    def process_tuple(self, tuple_, port):\n"
+            "        yield tuple_\n"
+        )
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        message = str(exc_info.value)
+        assert "ProcessTupleOperator does not subclass a pytexera base class" in message
+        assert "UDFOperatorV2" in message
+        assert "one and only one Operator" not in message
+
+    def test_no_class_in_a_source_udf_gives_a_source_example(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(NO_OPERATOR_CODE, is_source=True)
+        message = str(exc_info.value)
+        assert "class GenerateOperator(UDFSourceOperator):" in message
+        assert "ProcessTupleOperator(UDFOperatorV2)" not in message
+
+    def test_tuple_class_in_a_source_udf_says_what_to_subclass(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.initialize_executor(
+                code=SAMPLE_OPERATOR_CODE, is_source=True, language="python"
+            )
+        message = str(exc_info.value)
+        assert "SourceOperator API" in message
+        assert "subclass UDFSourceOperator and implement produce()" in message
+
+    def test_error_type_is_part_of_the_hint(self, executor_manager):
+        with pytest.raises(NameError) as exc_info:
+            executor_manager.load_executor_definition(MISSING_IMPORT_CODE)
+        assert "(NameError at line 2 of the UDF code)" in shown(exc_info.value)
+
+    def test_line_numbers_skip_the_injected_ui_parameter_hook(self, executor_manager):
+        # The UI-parameter injector appends a hook method to the end of the first
+        # class; the user's line 7 becomes line 10 in the code that is loaded.
+        code = (
+            "from pytexera import *\n"
+            "\n"
+            "class ProcessTupleOperator(UDFOperatorV2):\n"
+            "    def process_tuple(self, tuple_, port):\n"
+            "        yield tuple_\n"
+            "\n"
+            "    @overrides\n"
+            "    def _texera_injected_ui_parameters(self) -> Dict[str, Any]:\n"
+            '        return {"count": 1}\n'
+            'VALUE = {}["k"]\n'
+        )
+        with pytest.raises(KeyError) as exc_info:
+            executor_manager.load_executor_definition(code)
+        assert "(KeyError at line 7 of the UDF code)" in shown(exc_info.value)
+
+    def test_source_class_in_a_udf_with_input_says_what_to_subclass(
+        self, executor_manager
+    ):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.initialize_executor(
+                code=SAMPLE_SOURCE_OPERATOR_CODE, is_source=False, language="python"
+            )
+        assert "cannot use UDFSourceOperator" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "loaded_line, decorated, expected",
+        [
+            (4, True, 4),  # before the hook: unchanged
+            (10, True, 7),  # after a decorated hook (3 lines)
+            (9, False, 7),  # after an undecorated hook (2 lines)
+            (11, True, 8),  # a blank user line after the hook is not part of it
+        ],
+    )
+    def test_user_line_mapping(self, loaded_line, decorated, expected):
+        hook = (["    @overrides"] if decorated else []) + [
+            "    def _texera_injected_ui_parameters(self) -> Dict[str, Any]:",
+            "        return {}",
+        ]
+        user = [
+            "from pytexera import *",
+            "",
+            "class ProcessTupleOperator(UDFOperatorV2):",
+            "    def process_tuple(self, tuple_, port):",
+            "        yield tuple_",
+            "",
+        ]
+        code = "\n".join(user + hook + ["", 'VALUE = {}["k"]']) + "\n"
+        assert ExecutorManager._user_line(code, loaded_line) == expected
+
+    def test_user_line_is_unchanged_without_a_hook(self):
+        assert ExecutorManager._user_line("x = 1\ny = 2\n", 2) == 2

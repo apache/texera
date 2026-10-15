@@ -379,7 +379,7 @@ class TestReceiveError:
                 _drain_single_element(server._output_queue)
             ).return_value
         )
-        assert error.error_message == "'k' (line 3 of the UDF code)"
+        assert error.error_message == "'k' (KeyError at line 3 of the UDF code)"
 
     @pytest.mark.timeout(2)
     def test_unknown_method_replies_with_control_error_instead_of_raising(self):
