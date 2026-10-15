@@ -58,6 +58,7 @@ export class MockGuiConfigService {
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,
     pythonNotebookMigrationTimeoutMinutes: 10,
+    rNotebookMigrationEnabled: false,
     deploymentVersionCheckEnabled: false,
   };
 

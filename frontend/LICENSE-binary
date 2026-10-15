@@ -229,6 +229,7 @@ Third-party assets:
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
     frontend/src/assets/notebook_migration_tool/python_file_diagram.png
     frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
     https://github.com/google/material-design-icons
 
 --------------------------------------------------------------------------------
@@ -372,6 +373,7 @@ Angular / npm packages:
 Third-party assets:
   - Project Jupyter logo
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
     https://github.com/jupyter/design
 
 --------------------------------------------------------------------------------
