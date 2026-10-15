@@ -47,6 +47,28 @@ must be built with the project root as the Docker build context:
 docker build -f bin/dockerfiles/texera-web-application.dockerfile -t your-repo/texera-web-application:test .
 ```
 
+### Reproducible builds
+
+Built from the same commit with the same builder, an image comes out byte for
+byte the same. Everything that would otherwise drift is pinned:
+
+| Input | Pinned by |
+| --- | --- |
+| Base images | the digest in each `FROM` (Renovate refreshes them weekly) |
+| apt and pip packages | `PACKAGE_SNAPSHOT`, a UTC date: [`dockerfiles/snapshot/install.sh`](dockerfiles/snapshot/install.sh) installs from snapshot.ubuntu.com / snapshot.debian.org and from PyPI as they stood at 00:00 that day |
+| Timestamps (jars, dist zips, the frontend build number, `/etc/shadow`, layer mtimes) | `SOURCE_DATE_EPOCH`, the commit time |
+
+`build-images.sh` and the image workflow pass both. To rebuild one image by
+hand (after generating the jOOQ sources with `sbt DAO/jooqGenerate`):
+
+```bash
+export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
+docker buildx build --platform linux/amd64 \
+  --build-arg SOURCE_DATE_EPOCH --build-arg PACKAGE_SNAPSHOT=$(date -u -d @$SOURCE_DATE_EPOCH +%F) \
+  --output type=oci,dest=config-service.tar,rewrite-timestamp=true \
+  -f bin/dockerfiles/config-service.dockerfile .
+```
+
 | Script | Purpose |
 | --- | --- |
 | `build-images.sh` | Convenience wrapper to build (and push) platform-dependent images. Run `bin/build-images.sh --help`. |

@@ -107,6 +107,15 @@ docker buildx create --name texera-builder --use --bootstrap > /dev/null 2>&1 ||
 
 cd "$(dirname "$0")"
 
+# Reproducible images: the commit time fixes every timestamp in the image, and
+# its UTC day pins apt and pip (bin/dockerfiles/snapshot/install.sh). Passed only
+# when known: an empty SOURCE_DATE_EPOCH would fail the sbt dist.
+epoch_args=()
+if SOURCE_DATE_EPOCH="$(git log -1 --format=%ct 2>/dev/null)" && [[ -n "$SOURCE_DATE_EPOCH" ]]; then
+  epoch_args=(--build-arg "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+    --build-arg "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" +%F)")
+fi
+
 # Auto-detect Dockerfiles in bin/dockerfiles/. We stay cd'd in bin/ so the
 # pylsp + y-websocket-server build stages below keep working (they use
 # relative paths like ./pylsp and ./y-websocket-server from here), and so
@@ -135,9 +144,10 @@ for dockerfile in "${dockerfiles[@]}"; do
 
   docker buildx build \
     --platform "$PLATFORM" \
+    "${epoch_args[@]}" \
     -f "$dockerfile" \
     -t "$image" \
-    --push \
+    --output type=registry,rewrite-timestamp=true \
     ..
 done
 
