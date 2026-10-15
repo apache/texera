@@ -659,6 +659,25 @@ class TestTuple:
         tuple_ = tuples[0]
         assert tuple_["large_binary_field"] is None
 
+    def test_arrow_columns_can_have_different_chunk_boundaries(self):
+        arrow_table = pyarrow.table(
+            {
+                "a": pyarrow.chunked_array([[1, 2], [3]]),
+                "b": pyarrow.chunked_array([[10], [20, 30]]),
+            }
+        )
+
+        tuples = [
+            Tuple({name: accessor for name in arrow_table.column_names})
+            for accessor in ArrowTableTupleProvider(arrow_table)
+        ]
+
+        assert [tuple_.as_dict() for tuple_ in tuples] == [
+            {"a": 1, "b": 10},
+            {"a": 2, "b": 20},
+            {"a": 3, "b": 30},
+        ]
+
     def test_binary_field_round_trips_through_arrow(self):
         # cast_to_schema pickles a non-bytes BINARY field behind a
         # "pickle    " sentinel; the arrow field accessor must recognise
