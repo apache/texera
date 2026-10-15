@@ -595,7 +595,37 @@ class WorkflowServiceSpec
     events shouldBe empty
   }
 
-  it should "refuse to start an execution with no user id, after detaching the previous one" in {
+  it should "refuse an invalid warehouse pick before detaching the previous execution" in {
+    // The pick is resolved before the teardown: an agent (or a stale client)
+    // asking for a warehouse the deployment will reject must not take the
+    // execution already running down with it (#7751). With the feature off,
+    // any explicit pick is refused (#6930), which is the cheapest way to make
+    // resolution fail here.
+    val service = new TestWorkflowService(9L)
+    val previous = newExecution()
+    service.executionService.onNext(previous)
+    val events = collectExecutionEvents(previous)
+    val request = WorkflowExecuteRequest(
+      executionName = "test",
+      engineVersion = "test",
+      logicalPlan = LogicalPlanPojo(List.empty, List.empty, List.empty, List.empty),
+      replayFromExecution = None,
+      workflowSettings = WorkflowSettings(),
+      emailNotificationEnabled = false,
+      computingUnitId = 1,
+      warehouseId = Some(1)
+    )
+
+    val error = intercept[IllegalArgumentException] {
+      service.initExecutionService(request, Some(executingUser), new URI("vfs:///session"))
+    }
+    error.getMessage should include("warehouse")
+
+    previous.executionStateStore.metadataStore.updateState(_.withState(RUNNING))
+    events should not be empty
+  }
+
+  it should "refuse to start an execution with no user id, leaving the previous one attached" in {
     val service = new TestWorkflowService(6L)
     val previous = newExecution()
     service.executionService.onNext(previous)
@@ -617,9 +647,10 @@ class WorkflowServiceSpec
     }
     error.getMessage should include("user id")
 
-    // The previous execution is detached first, whatever happens next.
+    // A request that is going to be refused must not take the running execution
+    // with it: its subscriptions are still live.
     previous.executionStateStore.metadataStore.updateState(_.withState(RUNNING))
-    events shouldBe empty
+    events should not be empty
   }
 
   it should "clear the previous run's storage registry, on its computing unit only, before starting a new execution" in {

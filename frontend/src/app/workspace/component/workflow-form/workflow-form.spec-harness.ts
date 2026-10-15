@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import { of, Subject } from "rxjs";
+import { BehaviorSubject, of, Subject } from "rxjs";
 import { vi } from "vitest";
 
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { ResolvedField } from "../../service/form-binding/form-binding.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 /** The workflow every test opens by default: a form-default workflow, writable, empty content. */
 export const formViewWorkflow = { name: "scGPT", defaultView: DefaultView.FORM, readonly: false, content: {} };
@@ -51,7 +52,15 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
  * constructor takes.
  */
 export function setupHarness() {
-  const router = { navigate: vi.fn() };
+  // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
+  // navigation in flight, so nothing to hand the session to. `serializeUrl` is the real
+  // router's, turning a UrlTree back into a path; here the tests hand in the path itself.
+  const router = {
+    navigate: vi.fn(),
+    navigateByUrl: vi.fn(),
+    getCurrentNavigation: vi.fn().mockReturnValue(null),
+    serializeUrl: (url: unknown) => String(url),
+  };
   const workflowChangedStream = new Subject<unknown>();
   // Announces every form-config write (see formBindingChanged$ and the form-binding mock below).
   const formBindingChanged = new Subject<unknown>();
@@ -65,6 +74,8 @@ export function setupHarness() {
   // computing-unit connection status, the workflow validity, and the websocket connection.
   const executionStateStream = new Subject<any>();
   const durationEvents = new Subject<{ duration: number; isRunning: boolean }>();
+  // Replays, as the service's does: a page that mounts mid-run gets the clock straight away.
+  const durationTicks = new BehaviorSubject<number>(0);
   const statusStream = new Subject<any>();
   // The picked computing unit (with its accessPrivilege), separate from the connection status.
   const selectedUnitStream = new Subject<any>();
@@ -119,6 +130,14 @@ export function setupHarness() {
   // The preview centres the embedded graph once it is built; tests assert this fired.
   const triggerCenterEvent = vi.fn();
 
+  const jointGraphWrapper = {
+    getJointOperatorHighlightStream: () => highlightStream.asObservable(),
+    getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
+    getCurrentHighlightedOperatorIDs: () => highlightedIds,
+    unhighlightOperators,
+    // The heat-map overlay's view; reset by the views on leaving the workspace, kept on a hand-over.
+    setHeatmapView: vi.fn(),
+  };
   const workflowActionService = {
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
@@ -129,8 +148,17 @@ export function setupHarness() {
     clearWorkflow: vi.fn(),
     workflowChanged: () => workflowChangedStream.asObservable(),
     workflowMetaDataChanged: () => workflowMetaDataChangedStream.asObservable(),
+    // As the real one does: the metadata it already holds, re-announced on the same stream.
+    republishWorkflowMetadata: vi.fn(() => workflowMetaDataChangedStream.next(undefined)),
     getWorkflow: vi.fn().mockReturnValue({ wid: 7, content: { operators: [], operatorPositions: {} } }),
-    getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: 1767225600000 }),
+    // Carries the wid, as the real metadata does once a workflow is open.
+    getWorkflowMetadata: () => ({ wid: 7, name: "scGPT", lastModifiedTime: 1767225600000 }),
+    // Off by default: most specs open a workflow that is not already live, and so load it.
+    hasWorkflowOpen: vi.fn().mockReturnValue(false),
+    // The room the shared document is in: what tells the page, on the way out, whether the
+    // navigation is leaving this workflow or handing it over. Matches the metadata's wid above,
+    // as it does for a workflow that was loaded rather than created in this session.
+    getOpenWorkflowId: vi.fn().mockReturnValue(7),
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
     setHighlightingEnabled: vi.fn(),
@@ -161,12 +189,8 @@ export function setupHarness() {
           })),
       updateSharedModelAwareness,
     }),
-    getJointGraphWrapper: () => ({
-      getJointOperatorHighlightStream: () => highlightStream.asObservable(),
-      getJointOperatorUnhighlightStream: () => unhighlightStream.asObservable(),
-      getCurrentHighlightedOperatorIDs: () => highlightedIds,
-      unhighlightOperators,
-    }),
+    // One stub object, so a spy on it is the same one a test reads back after the component acts.
+    getJointGraphWrapper: () => jointGraphWrapper,
     // Every config write announces on this stream (setFormBinding emits it); the form re-reads its
     // config on it unless the write is one of its own presentation edits. The form-binding mock's
     // writers below emit here, as the real service does, so that chain is under test.
@@ -264,8 +288,20 @@ export function setupHarness() {
   const coeditorPresenceService = { coeditors: [] };
   const route = { snapshot: { params: { id: "7" } } };
   const operatorMetadataService = { getOperatorMetadata: () => of({}) };
+  /** What the execute service currently holds, as the real one starts out. */
+  const execution: { state: ExecutionState; errorMessages?: { message: string }[]; duration: number } = {
+    state: ExecutionState.Uninitialized,
+    duration: 0,
+  };
   const executeWorkflowService = {
     getExecutionStateStream: () => executionStateStream.asObservable(),
+    // The state a page handed a live session arrives on top of: the stream above carries no
+    // current value, so this is the only way the page can learn a run is already in flight.
+    // Mutable, so a test can put a run in flight before the component is built.
+    getExecutionState: () => execution,
+    // The run clock, ticked and replayed by the service; `durationEvents` is the tests' handle on
+    // it, and its current value is what a page mounting mid-run receives on subscribe.
+    getExecutionDurationStream: () => durationTicks.asObservable(),
     executeWorkflow: vi.fn(),
     killWorkflow: vi.fn(),
     resetExecutionAndWorkers: vi.fn(),
@@ -308,7 +344,14 @@ export function setupHarness() {
   // default so a rebuild is never suppressed, and overridden by the tests that probe typing.
   const host = { nativeElement: { querySelector: () => null, contains: () => false } };
   const datePipe = { transform: () => "01/01/2026 00:00:00" };
-  const config = { env: { formViewEnabled: true } };
+  const config = { env: { formViewEnabled: true, warehouseEnabled: false } };
+  // The run button asks the same pair ExecuteWorkflowService refuses on: the flag above and the
+  // pick below.
+  let selectedWarehouseId: number | undefined = undefined;
+  const warehouseService = {
+    getSelectedWarehouseIdValue: () => selectedWarehouseId,
+    selectWarehouse: (whid: number | undefined) => (selectedWarehouseId = whid),
+  };
 
   // Point the persist mock at `workflow`; each spec supplies the remaining constructor
   // arguments in its own order via the named mocks above.
@@ -343,6 +386,8 @@ export function setupHarness() {
     host,
     datePipe,
     config,
+    warehouseService,
+    execution,
     workflowChangedStream,
     formBindingChanged,
     workflowMetaDataChangedStream,
@@ -350,6 +395,7 @@ export function setupHarness() {
     executionStateStream,
     modificationEnabled,
     durationEvents,
+    durationTicks,
     statusStream,
     selectedUnitStream,
     validationStream,

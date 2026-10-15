@@ -27,7 +27,8 @@ import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.TableIdentifier
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
-import org.apache.iceberg.{Schema => IcebergSchema}
+import org.apache.iceberg.io.CloseableIterator
+import org.apache.iceberg.{FileScanTask, Table, Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -91,6 +92,40 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
       .add("name", AttributeType.STRING, s"name-$id")
       .add("ts", AttributeType.TIMESTAMP, new Timestamp(1_600_000_000_000L + id))
       .build()
+
+  /**
+    * An [[IcebergDocument]] that counts the Parquet readers it opens and every
+    * `close()` call made on them, so a spec can pin reader lifetimes directly
+    * instead of inferring them from finalizer warnings.
+    */
+  private class ReaderCountingDocument(tableName: String)
+      extends IcebergDocument[Tuple](tableNamespace, tableName, icebergSchema, serde, deserde) {
+    var opens = 0
+    var closes = 0
+
+    override protected def openDataFile(
+        task: FileScanTask,
+        schema: IcebergSchema,
+        table: Table
+    ): CloseableIterator[Record] = {
+      val reader = super.openDataFile(task, schema, table)
+      opens += 1
+      new CloseableIterator[Record] {
+        override def hasNext: Boolean = reader.hasNext
+        override def next(): Record = reader.next()
+        override def close(): Unit = {
+          closes += 1
+          reader.close()
+        }
+      }
+    }
+  }
+
+  private def newCountingDocument(): ReaderCountingDocument = {
+    val tableName = freshTableName()
+    newDocument(tableName)
+    new ReaderCountingDocument(tableName)
+  }
 
   /** Write the given tuples through a single writer session (one committed file). */
   private def write(doc: IcebergDocument[Tuple], tuples: Seq[Tuple]): Unit = {
@@ -206,6 +241,70 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     intercept[NoSuchElementException] {
       it.next()
     }
+  }
+
+  it should "open no reader when an iterator is only probed with hasNext" in {
+    val doc = newCountingDocument()
+    write(doc, (0 until 5).map(tuple))
+
+    doc.get().hasNext shouldBe true
+    doc.getRange(1, 3).hasNext shouldBe true
+    doc.getAfter(2).hasNext shouldBe true
+    doc.get().nonEmpty shouldBe true
+    doc.get().isEmpty shouldBe false
+
+    doc.opens shouldBe 0
+    doc.closes shouldBe 0
+  }
+
+  it should "close the reader exactly once when the final getRange element is consumed" in {
+    val doc = newCountingDocument()
+    write(doc, (0 until 5).map(tuple))
+
+    val it = doc.getRange(0, 2)
+    it.next().getField[Int]("id") shouldBe 0
+    doc.opens shouldBe 1
+    doc.closes shouldBe 0
+
+    // The last in-range record releases the reader at once, with no further
+    // hasNext call, even though the file still holds unread records.
+    it.next().getField[Int]("id") shouldBe 1
+    doc.closes shouldBe 1
+
+    // Later calls see the limit and do not close the reader a second time.
+    it.hasNext shouldBe false
+    it.hasNext shouldBe false
+    doc.opens shouldBe 1
+    doc.closes shouldBe 1
+  }
+
+  it should "close the reader when a getRange result is collected with toList" in {
+    val doc = newCountingDocument()
+    write(doc, (0 until 10).map(tuple))
+
+    doc.getRange(2, 5).toList.map(_.getField[Int]("id")) shouldBe List(2, 3, 4)
+    doc.opens shouldBe 1
+    doc.closes shouldBe 1
+  }
+
+  it should "open and close one reader per file on a full read across files" in {
+    val doc = newCountingDocument()
+    write(doc, (0 until 3).map(tuple))
+    write(doc, (3 until 6).map(tuple))
+
+    doc.get().toList.map(_.getField[Int]("id")).toSet shouldBe (0 until 6).toSet
+    doc.opens shouldBe 2
+    doc.closes shouldBe 2
+  }
+
+  it should "skip whole files by metadata without opening them" in {
+    val doc = newCountingDocument()
+    write(doc, (0 until 3).map(tuple))
+    write(doc, (3 until 6).map(tuple))
+
+    doc.getAfter(4).toList.map(_.getField[Int]("id")) shouldBe List(4, 5)
+    doc.opens shouldBe 1
+    doc.closes shouldBe 1
   }
 
   it should "compute per-field statistics for numeric, string and timestamp columns" in {

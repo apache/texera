@@ -111,6 +111,15 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
     out should include("data:image/png;base64,")
   }
 
+  // #8870: the image-to-image branch trusted whatever the provider returned, so a
+  // malformed 200 produced a data URL nothing can render — a null b64_json became
+  // the literal "data:image/png;base64,None".
+  it should "require b64_json to be a string before building a data URL" in {
+    val out = ImageTaskCodegen.parsePython(makeCtx())
+    out should include("""isinstance(b64, str)""")
+    out should not include ("""f"data:image/png;base64,{data[0]['b64_json']}"""")
+  }
+
   it should "fall back to json.dumps(body) for structured tasks" in {
     val out = ImageTaskCodegen.parsePython(makeCtx())
     out should include("json.dumps(body)")

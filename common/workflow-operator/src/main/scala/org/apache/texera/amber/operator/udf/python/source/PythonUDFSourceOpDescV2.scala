@@ -35,6 +35,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with PythonUdfUiP
     required = true,
     defaultValue = "# Define UiParameter inside GenerateOperator.open().\n" +
       "# Example: self.count = self.UiParameter(\"count\", AttributeType.INT).value\n" +
+      "# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.\n" +
       "# See the Python UDF operator documentation for supported types and behavior.\n" +
       "# \n" +
       "# from pytexera import *\n" +
@@ -104,6 +105,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with PythonUdfUiP
       )
       .withLocationPreference(Option.empty)
       .withPveName(pveName)
+      .withExecutionTimeBinding(executionBinding(code))
 
     if (workers > 1) {
       physicalOp
