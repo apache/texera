@@ -30,7 +30,7 @@ import java.io.InputStream
 import scala.jdk.CollectionConverters._
 
 /**
-  * S3Storage provides an abstraction for S3-compatible storage (e.g., MinIO).
+  * S3Storage provides an abstraction for S3-compatible storage (e.g., RustFS).
   * - Uses credentials and endpoint from StorageConfig.
   * - Supports object upload, download, listing, and deletion.
   */
@@ -44,14 +44,14 @@ object S3StorageClient {
   // Cap how many failed keys are listed in the error message.
   private[util] val MAX_LISTED_DELETE_ERRORS = 10
 
-  // Initialize MinIO-compatible S3 Client
+  // Initialize the S3 client for the configured S3-compatible endpoint
   private lazy val s3Client: S3Client = {
     val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
     S3Client
       .builder()
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
       .region(Region.of(StorageConfig.s3Region))
-      .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // MinIO URL
+      .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // object-store URL
       .serviceConfiguration(
         S3Configuration.builder().pathStyleAccessEnabled(true).build()
       )
@@ -106,7 +106,7 @@ object S3StorageClient {
     * A trailing `/` is added when missing so the prefix matches on a path boundary (`a/b` deletes
     * `a/b/file` but not `a/bc/file`). An empty prefix would match the whole bucket and is rejected.
     *
-    * @param bucketName Target S3/MinIO bucket.
+    * @param bucketName Target S3 bucket.
     * @param directoryPrefix Non-empty key prefix to delete.
     */
   def deleteDirectory(bucketName: String, directoryPrefix: String): Unit = {

@@ -35,6 +35,15 @@ spec:
       backendRefs:
         - name: workflow-computing-unit-manager-svc
           port: 8888
+    # The curated-image catalogue lives on the computing-unit manager, not the webserver.
+    # Without its own rule it falls through to the /api catch-all and every request 404s.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/cu-image
+      backendRefs:
+        - name: workflow-computing-unit-manager-svc
+          port: 8888
     - matches:
         - path:
             type: PathPrefix
@@ -191,24 +200,24 @@ spec:
           port: 3001
 {{- end }}
 ---
-# MinIO Route
-{{- if .Values.minio.gateway.enabled }}
+# RustFS Route
+{{- if .Values.rustfs.gateway.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: texera-minio-route
+  name: texera-rustfs-route
   namespace: {{ .Release.Namespace }}
 spec:
   parentRefs:
     - name: {{ .Release.Name }}-gateway
   hostnames:
-    - {{ .Values.minio.gateway.hostname }}
+    - {{ .Values.rustfs.gateway.hostname }}
   rules:
     - matches:
         - path:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: {{ .Release.Name }}-minio
+        - name: {{ .Release.Name }}-rustfs-svc
           port: 9000
 {{- end }}

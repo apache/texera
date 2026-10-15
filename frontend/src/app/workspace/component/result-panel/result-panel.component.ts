@@ -148,6 +148,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         this.closePanel();
       }
     });
+    // Once, for what is already there. Every re-render above waits for an event -- a state change,
+    // a highlight, a result arriving -- and none of those follows a hand-over between a workflow's
+    // two views: the highlight and the results are kept in root-provided services, so this panel
+    // would come up empty beside an operator that is still shown selected, until the next event.
+    this.rerenderResultPanel();
   }
 
   @HostListener("window:beforeunload")

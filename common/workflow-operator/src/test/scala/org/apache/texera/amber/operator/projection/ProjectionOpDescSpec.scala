@@ -216,4 +216,26 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(out == SinglePartition())
   }
 
+  // Drop mode names the columns to remove; keep mode names the ones to hold on to,
+  // in the order the user put them in.
+  "ProjectionOpDesc.generateStandaloneCode" should "select or drop the named columns" in {
+    val keep = new ProjectionOpDesc
+    keep.attributes = List(new AttributeUnit("a", ""), new AttributeUnit("b", ""))
+    assert(keep.generateStandaloneCode().contains("""in1df[["a", "b"]]"""))
+
+    val drop = new ProjectionOpDesc
+    drop.attributes = List(new AttributeUnit("a", ""))
+    drop.isDrop = true
+    assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
+  }
+
+  // Schema propagation and the executor both refuse an empty selection, so the
+  // script stops where a run would have. Passing the frame through would answer
+  // with data a run never produces.
+  it should "stop on an empty selection rather than pass the frame through" in {
+    val code = (new ProjectionOpDesc).generateStandaloneCode()
+    assert(code.startsWith("raise ValueError("))
+    assert(code.contains("Please select at least one attribute to project."))
+  }
+
 }

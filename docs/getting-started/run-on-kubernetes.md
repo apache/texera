@@ -110,12 +110,12 @@ Once the deployments are running, you can access the Texera web interface.
 
 ### File Upload Error
 
-If you see an error when trying to upload a file to a dataset, you may need to forward the port for MinIO (our file storage service).
+If you see an error when trying to upload a file to a dataset, you may need to forward the port for RustFS (our file storage service).
 
 Run the following command in a new terminal:
 
 ```bash
-kubectl port-forward -n texera-dev service/texera-minio 31000:9000
+kubectl port-forward -n texera-dev service/texera-rustfs-svc 31000:9000
 ```
 
 This maps the service's port `9000` to your local port `31000`.

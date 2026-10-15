@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -158,6 +159,15 @@ trait StateTransferFunc
     extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
+/**
+  * The descriptor of an operator: its settings, and the physical plan built from them.
+  *
+  * A property that the operator's output schema (column names or types) or its input partitioning
+  * is built from must be marked `@NoLoopVariable`. The plan is built when the workflow is
+  * compiled, before any loop runs: without the mark, a `$i` there inside a loop block is not
+  * rejected, and the run silently uses the placeholder (e.g. a column named "$a", null in every
+  * row).
+  */
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
   include = JsonTypeInfo.As.PROPERTY,
@@ -431,7 +441,7 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
   )
 )
-abstract class LogicalOp extends PortDescriptor with Serializable {
+abstract class LogicalOp extends PortDescriptor with StateReferencing with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString

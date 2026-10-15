@@ -71,6 +71,12 @@ export class UserService {
     return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
+  public appleLogin(credential: string): Observable<void> {
+    return this.authService
+      .appleAuth(credential)
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
   public isLogin(): boolean {
     return this.currentUser !== undefined;
   }

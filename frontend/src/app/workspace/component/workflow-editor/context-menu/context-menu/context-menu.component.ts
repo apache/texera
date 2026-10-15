@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, Input } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -41,6 +41,20 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 })
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
+
+  /**
+   * Set by an embedded, structure-locked editor (the Form View's preview). Its edit mode turns
+   * workflow modification back on for the property panel, which alone would also bring the
+   * re-shaping commands here back; the lock keeps them off. Copy, the result toggles and export
+   * do not change the graph and are left to their own rules.
+   */
+  @Input() structureLocked = false;
+
+  /** Whether the graph may be re-shaped from this menu: modification on, and no structure lock. */
+  public get canModify(): boolean {
+    return this.isWorkflowModifiable && !this.structureLocked;
+  }
+
   public highlightedOperatorIds: readonly string[] = [];
   public highlightedCommentBoxIds: readonly string[] = [];
 

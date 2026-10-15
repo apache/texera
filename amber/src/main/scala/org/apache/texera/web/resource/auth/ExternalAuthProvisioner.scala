@@ -52,7 +52,8 @@ final case class ExternalProfile(
 
 /**
   * An identity a provider authenticates without asserting any address — ORCID, whose
-  * `/authenticate` scope yields an iD and a name and nothing else.
+  * `/authenticate` scope yields an iD and a name and nothing else, and Apple, which omits `email`
+  * for Sign in with Apple at Work & School accounts.
   *
   * A separate type rather than an optional `email` on [[ExternalProfile]]: the difference is what
   * the provider vouches for, not how much of it is filled in, and an email-asserting provider's

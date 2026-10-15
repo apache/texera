@@ -19,14 +19,21 @@
 
 package org.apache.texera.amber.operator.typecasting
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
 
 class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -90,4 +97,174 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     tc.typeCastingUnits.head.attribute shouldBe "n"
     tc.typeCastingUnits.head.resultType shouldBe AttributeType.STRING
   }
+
+  // The values a cast reads differently on the two sides. Python's own `bool`
+  // answers true for every non-empty string, so "false" and "0" are where the
+  // script used to disagree with the run it came from; text that is neither a
+  // boolean nor a number, and an empty cell, are the two ends of the range.
+  private val boolCases = Seq("true", "false", "0", "1", "not a boolean", null)
+
+  /** What the engine answers, as the string the Python side prints back: the
+    * literal, or `error` for a value `parseField` refuses.
+    */
+  private def engineAnswer(value: Any, to: AttributeType): String =
+    Try(AttributeTypeUtils.parseField(value, to))
+      .map(v => if (v == null) "null" else v.toString)
+      .getOrElse("error")
+
+  it should "cast to boolean the way AttributeTypeUtils does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.BOOLEAN))
+
+    // The generated block reads `in1df` and writes `out1df`, so it becomes the
+    // body of a function the driver calls once per value. One row at a time,
+    // because a value the cast refuses would otherwise end the comparison at
+    // the first one.
+    val body = op.generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+    val values = boolCases
+      .map(v => if (v == null) "None" else "\"" + v + "\"")
+      .mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |def cast(in1df):
+         |$body
+         |    return out1df
+         |
+         |
+         |for value in $values:
+         |    try:
+         |        answer = cast(pd.DataFrame({"v": [value]}))["v"].iloc[0]
+         |        print("null" if pd.isna(answer) else str(answer).lower())
+         |    except Exception:
+         |        print("error")
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-bool-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n${Source.fromFile(script.toFile).mkString}") {
+      process.exitValue() shouldBe 0
+    }
+
+    val fromScript = out.trim.linesIterator.toSeq
+    val fromEngine = boolCases.map { v =>
+      if (v == null) "null" else engineAnswer(v, AttributeType.BOOLEAN).toLowerCase
+    }
+    withClue(s"cases=${boolCases.mkString(", ")}\nscript said $fromScript\n") {
+      fromScript shouldBe fromEngine
+    }
+    // The pairs that made the review: "false" is not true, and "0" is not true.
+    fromEngine shouldBe Seq("true", "false", "false", "true", "error", "null")
+  }
+
+  // One column per source type, since what the text looks like follows the
+  // column and not the value: a whole double keeps its point, an integer never
+  // grows one, and a boolean is lower case.
+  private val stringColumns: Seq[(String, String, Seq[AnyRef])] = Seq(
+    ("dbl", "float64", Seq(Double.box(6.0), Double.box(7.25))),
+    ("int", "int64", Seq(Int.box(6), Int.box(7))),
+    ("flag", "bool", Seq(Boolean.box(true), Boolean.box(false)))
+  )
+
+  it should "cast to string the way AttributeTypeUtils does" in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = stringColumns.map {
+      case (name, _, _) => castUnit(name, AttributeType.STRING)
+    }.toList
+
+    val frame = stringColumns
+      .map {
+        case (name, dtype, values) =>
+          val cells = values
+            .map {
+              case b: java.lang.Boolean => if (b) "True" else "False"
+              case other                => other.toString
+            }
+            .mkString("[", ", ", "]")
+          s"""    "$name": pd.Series($cells, dtype="$dtype"),"""
+      }
+      .mkString("\n")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({
+         |$frame
+         |})
+         |${op.generateStandaloneCode()}
+         |for column in ${stringColumns.map(c => "\"" + c._1 + "\"").mkString("[", ", ", "]")}:
+         |    for cell in out1df[column]:
+         |        print("null" if pd.isna(cell) else cell)
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-string-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+    }
+
+    val fromEngine = stringColumns.flatMap(_._3).map(v => engineAnswer(v, AttributeType.STRING))
+    withClue(s"script said ${out.trim.linesIterator.toSeq}\n") {
+      out.trim.linesIterator.toSeq shouldBe fromEngine
+    }
+    // The pair that made the review: a double keeps its point at 6.0, where the
+    // integer 6 has none.
+    fromEngine shouldBe Seq("6.0", "7.25", "6", "7", "true", "false")
+  }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }

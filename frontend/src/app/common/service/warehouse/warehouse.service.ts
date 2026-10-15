@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { Observable } from "rxjs";
+import { BehaviorSubject, Observable } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { DashboardWarehouse, WarehouseStatus } from "../../type/warehouse";
 
@@ -34,6 +34,12 @@ export const WAREHOUSE_STATUS_URL = `${WAREHOUSE_BASE_URL}/status`;
   providedIn: "root",
 })
 export class WarehouseService {
+  // The warehouse the next execution writes to; undefined = no pick. The
+  // backend still treats an absent warehouseId as the shared default storage;
+  // #7751 tightens that to a rejection while the feature is enabled — the
+  // picker's preselect and the Run gate keep it defined there.
+  private selectedWarehouseIdSubject = new BehaviorSubject<number | undefined>(undefined);
+
   constructor(private http: HttpClient) {}
 
   public getStatus(): Observable<WarehouseStatus> {
@@ -46,5 +52,17 @@ export class WarehouseService {
 
   public deleteWarehouse(whid: number): Observable<void> {
     return this.http.delete<void>(`${AppSettings.getApiEndpoint()}/${WAREHOUSE_BASE_URL}/${whid}`);
+  }
+
+  public selectWarehouse(whid: number | undefined): void {
+    this.selectedWarehouseIdSubject.next(whid);
+  }
+
+  public getSelectedWarehouseId(): Observable<number | undefined> {
+    return this.selectedWarehouseIdSubject.asObservable();
+  }
+
+  public getSelectedWarehouseIdValue(): number | undefined {
+    return this.selectedWarehouseIdSubject.value;
   }
 }

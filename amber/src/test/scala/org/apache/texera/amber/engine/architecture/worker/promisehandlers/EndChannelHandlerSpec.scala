@@ -49,6 +49,7 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
 }
+import org.apache.texera.amber.engine.architecture.worker.DataProcessorSpec.loopLimitExec
 import org.apache.texera.amber.engine.architecture.worker.{
   DataProcessor,
   DataProcessorRPCHandlerInitializer,
@@ -392,6 +393,38 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     // Only the input port's own marker. Finalizing the output here would tell the downstream
     // region the executor is done while the second input port is still delivering.
     assert(fixture.drainOutput() == List(FinalizePort(currentPortId, input = true)))
+  }
+
+  it should "fail the finish of an operator whose setting refers to a loop variable no state message carried, before asking it for a state" in {
+    val executor = loopLimitExec()
+    val fixture = new Fixture(executor)
+
+    assert(fixture.endChannel() == EmptyReturn())
+
+    assert(
+      fixture.consoleMessages.map(_.consoleMessage.title) == Seq(
+        new IllegalStateException(
+          "property /limit refers to loop variable n, but no state message carried it"
+        ).toString
+      )
+    )
+    assertPausedByOperatorLogic(fixture.dp)
+    // Neither finish callback ran with the placeholder, and the port is still finalized.
+    assert(executor.calls.isEmpty)
+    assert(fixture.emittedStates.isEmpty)
+    assert(fixture.drainOutput().contains(FinalizePort(currentPortId, input = true)))
+  }
+
+  it should "finish an operator whose setting refers to a loop variable with the value its state message wrote" in {
+    val executor = loopLimitExec()
+    val fixture = new Fixture(executor)
+    fixture.dp.processDataPayload(currentChannelId, StateFrame(State(Map("n" -> 3L))))
+
+    assert(fixture.endChannel() == EmptyReturn())
+
+    assert(fixture.consoleMessages.isEmpty)
+    // The finish callback sees the limit the state message wrote.
+    assert(executor.calls.map(c => (c._1, c._2)) == Seq(("state", 3), ("finish", 3)))
   }
 
   it should "finalize the output once the last input port completes" in {

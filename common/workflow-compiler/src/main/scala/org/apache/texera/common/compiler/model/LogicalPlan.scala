@@ -23,12 +23,14 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
 import java.util
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
@@ -85,6 +87,49 @@ case class LogicalPlan(
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
   }
+
+  /**
+    * The operators inside some loop block, on a path LoopStart -> ... -> operator -> ... -> LoopEnd
+    * whose two ends match, each with the LoopStarts of the blocks it is inside: those with a path
+    * to it on which no LoopEnd closes their block (a LoopEnd closes the innermost block the path
+    * opened). A control operator is not inside its own block, but an inner block's are inside the
+    * outer one. The property panel decides where it offers `$K` with its own walk from each
+    * operator (`getEnclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` checks that the
+    * two agree on the same graph.
+    */
+  lazy val enclosingLoopStarts: Map[OperatorIdentity, Set[OperatorIdentity]] = {
+    val order = getTopologicalOpIds.asScala.toList
+    // 1 for a LoopStart, which opens a block, -1 for a LoopEnd, which closes one, 0 otherwise.
+    val change = operatorMap.map {
+      case (id, _: LoopStartOpDesc) => id -> 1
+      case (id, _: LoopEndOpDesc)   => id -> -1
+      case (id, _)                  => id -> 0
+    }
+    val upstream = links.groupMap(_.toOpId)(_.fromOpId).withDefaultValue(Nil)
+    val downstream = links.groupMap(_.fromOpId)(_.toOpId).withDefaultValue(Nil)
+    // The most blocks a path from each operator closes that it did not open, the operator
+    // included; a block closed below is one besides a LoopEnd's own.
+    val closing = order.reverse.foldLeft(Map.empty[OperatorIdentity, Int]) { (closing, id) =>
+      closing.updated(id, (0 :: downstream(id).map(closing)).max - change(id))
+    }
+    val closedBelow = order.filter(id => closing(id) > (if (change(id) < 0) 1 else 0)).toSet
+    order
+      .filter(change(_) > 0)
+      .flatMap { start =>
+        // The most blocks a path from `start` leaves open at each operator, its own still open.
+        val open = order.dropWhile(_ != start).tail.foldLeft(Map(start -> 1)) { (open, id) =>
+          upstream(id).flatMap(open.get).maxOption.map(_ + change(id)) match {
+            case Some(blocks) if blocks > 0 => open.updated(id, blocks)
+            case _                          => open
+          }
+        }
+        (open.keySet - start).intersect(closedBelow).map(_ -> start)
+      }
+      .groupMap(_._1)(_._2)
+      .map { case (id, starts) => id -> starts.toSet }
+  }
+
+  def operatorsInsideLoopBlocks: Set[OperatorIdentity] = enclosingLoopStarts.keySet
 
   /**
     * Resolves each scan source operator's user-given file name to a URI and sets it on the

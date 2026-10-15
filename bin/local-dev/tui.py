@@ -279,7 +279,7 @@ def _jvm(name: str, port: int, project: Optional[str], own_src: str) -> Service:
 
 SERVICES: list[Service] = [
     Service("postgres",   "docker", 5432),
-    Service("minio",      "docker", 9000),
+    Service("rustfs",     "docker", 9000),
     Service("lakefs",     "docker", 8000),
     Service("lakekeeper", "docker", 8181),
     Service("litellm",    "docker", 4000),
