@@ -86,7 +86,7 @@
         nz-button
         nzSize="small"
         type="button"
-        (click)="inspect(selected[0])">
+        (click)="macros.inspect$.next(selected[0])">
         Inspect pinned version
       </button>
       <button

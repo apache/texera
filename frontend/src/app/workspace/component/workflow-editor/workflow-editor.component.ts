@@ -57,7 +57,9 @@ import { AgentInteractionComponent } from "../agent/agent-interaction/agent-inte
 import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import { MacroService } from "../../service/macro/macro.service";
-import { isMacro } from "../../../common/util/workflow-macro";
+import { isMacro, macroType } from "../../../common/util/workflow-macro";
+import { MacroInspectorComponent } from "../left-panel/operator-menu/macro-inspector.component";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -176,7 +178,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private config: GuiConfigService,
     private agentService: AgentService,
     private jupyterPanelService: JupyterPanelService,
-    private macroService: MacroService
+    private macroService: MacroService,
+    private notification: NotificationService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -184,6 +187,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private operatorSummaries: Map<string, OperatorResultSummary> = new Map();
 
   ngOnInit(): void {
+    this.macroService.inspect$.pipe(untilDestroyed(this)).subscribe(id => void this.inspectMacro(id));
     // Cache the tool constructors
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
@@ -920,6 +924,41 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
         }
       });
+  }
+
+  private async inspectMacro(id: string): Promise<void> {
+    const content = this.workflowActionService.getWorkflowContent();
+    const op = content.operators.find(o => o.operatorID === id);
+    const definition = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
+    if (!definition) return;
+    const wid = this.workflowActionService.getWorkflowMetadata().wid;
+    try {
+      await this.macroService.refresh();
+    } catch (e) {
+      this.notification.error(e instanceof Error ? e.message : String(e));
+    }
+    this.nzModalService.create({
+      nzTitle: "Macro definition",
+      nzContent: MacroInspectorComponent,
+      nzWidth: 900,
+      nzStyle: { maxWidth: "calc(100vw - 32px)" },
+      nzFooter: null,
+      nzData: {
+        definition,
+        dependencies: content.macroDependencies,
+        library: this.macroService.library$.value,
+        runtime: {
+          operatorID: id,
+          getExpansion: () =>
+            this.workflowActionService.getWorkflowMetadata().wid === wid &&
+            this.workflowActionService
+              .getWorkflowContent()
+              .operators.some(o => o.operatorID === id && o.operatorType === macroType(definition))
+              ? this.workflowActionService.getMacroExpansion()
+              : undefined,
+        },
+      },
+    });
   }
 
   /**

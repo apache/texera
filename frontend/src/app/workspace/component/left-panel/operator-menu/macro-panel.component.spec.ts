@@ -23,7 +23,6 @@ import { MacroService } from "../../../service/macro/macro.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { NzModalService } from "ng-zorro-antd/modal";
 import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 
@@ -77,7 +76,6 @@ describe("MacroPanelComponent", () => {
           },
         },
         { provide: NotificationService, useValue: notification },
-        { provide: NzModalService, useValue: { create: vi.fn() } },
       ],
     });
   });
@@ -182,31 +180,5 @@ describe("MacroPanelComponent", () => {
     expect(fixture.componentInstance.targetLabel("inputs", { portID: "input-0", operatorID: "leaf" })).toBe(
       "Filter / input-0"
     );
-  });
-
-  it("ties inspector runtime context to the selected workflow instance and pinned version", async () => {
-    let wid = 1;
-    const definition = { id: "macro", version: 1, name: "Macro" };
-    const op = { operatorID: "instance", operatorType: "WorkflowMacro:macro:1" };
-    const content = { operators: [op], macroDependencies: [definition] };
-    const expanded = { paths: {}, ports: {} };
-    actions.getWorkflowContent = () => content;
-    actions.getWorkflowMetadata = () => ({ wid });
-    actions.getMacroExpansion = () => expanded;
-    const fixture = TestBed.createComponent(MacroPanelComponent);
-    fixture.detectChanges();
-    const create = vi.spyOn((fixture.componentInstance as any).modal, "create").mockReturnValue({});
-    await fixture.componentInstance.inspect("instance");
-    const data = (create.mock.calls[0][0] as any).nzData;
-    expect(data.runtime.operatorID).toBe("instance");
-    expect(data.runtime.getExpansion()).toBe(expanded);
-    wid = 2;
-    expect(data.runtime.getExpansion()).toBeUndefined();
-    wid = 1;
-    op.operatorType = "WorkflowMacro:macro:2";
-    expect(data.runtime.getExpansion()).toBeUndefined();
-    content.operators = [];
-    expect(data.runtime.getExpansion()).toBeUndefined();
-    fixture.destroy();
   });
 });

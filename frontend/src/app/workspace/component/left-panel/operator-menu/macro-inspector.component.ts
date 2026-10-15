@@ -27,6 +27,7 @@ import {
   MacroDefinition,
   MacroExpansion,
   macroType,
+  macroRuntimeID,
   rollupMacroStatus,
 } from "../../../../common/util/workflow-macro";
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
@@ -58,7 +59,6 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
   private paper?: joint.dia.Paper;
   private path: string[];
   private expanded?: MacroExpansion;
-  private runtimePaths = new Map<string, string>();
   public get editURL(): string | undefined {
     const matches = this.data.library.filter(d => d.id === this.definition.id);
     const source = matches.length === 1 ? matches[0] : undefined;
@@ -109,9 +109,6 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
     const body = this.definition.content;
     this.statistics = {};
     this.expanded = this.path.length ? expandMacros({ ...body, macroDependencies: this.data.dependencies }) : undefined;
-    this.runtimePaths = new Map(
-      Object.entries(this.expanded?.paths ?? {}).map(([id, path]) => [JSON.stringify(path), id])
-    );
     body.operators.forEach(op => {
       const cell = this.ui.getJointOperatorElement(op, body.operatorPositions[op.operatorID] ?? { x: 0, y: 0 });
       cell.attr("rect.body/stroke", "#bfbfbf");
@@ -140,9 +137,9 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
     const states = this.status.getCurrentState(),
       statistics = this.status.getCurrentStatistics();
     const mapped = Object.fromEntries(
-      Object.entries(expanded?.paths ?? {}).flatMap(([id, path]) => {
-        const local = this.runtimePaths.get(JSON.stringify(path.slice(this.path.length)));
-        return local && this.path.every((part, index) => path[index] === part) && statistics[id]
+      Object.entries(expanded ? this.expanded?.paths ?? {} : {}).flatMap(([local, path]) => {
+        const id = macroRuntimeID([...this.path, ...path.slice(0, -1)], path[path.length - 1]);
+        return expanded?.paths[id] && statistics[id]
           ? [[local, { ...statistics[id], operatorState: states[id] ?? OperatorState.Uninitialized }]]
           : [];
       })

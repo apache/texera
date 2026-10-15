@@ -166,7 +166,7 @@ describe("MacroInspectorComponent", () => {
     expect(count("right")).toBe("0");
     status.clearStatus();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain("#workers: 1");
+    expect(fixture.nativeElement.textContent).not.toMatch(/#workers:\s*1/);
     expect(fixture.nativeElement.textContent).not.toContain("Completed");
     fixture.destroy();
     const markup = fixture.nativeElement.innerHTML;
@@ -178,10 +178,15 @@ describe("MacroInspectorComponent", () => {
     const { fixture, status, updates, count, drill } = runtimeFixture();
     expect(count("left")).toBe("4");
     const getExpansion = data.runtime.getExpansion;
+    data.runtime.getExpansion = () => ({ ...getExpansion(), paths: {} });
+    status.setExternalStatus(updates);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.statistics).toEqual({});
+    expect(fixture.nativeElement.textContent).not.toMatch(/#workers:\s*1/);
     data.runtime.getExpansion = () => undefined;
     status.setExternalStatus(updates);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain("#workers: 1");
+    expect(fixture.nativeElement.textContent).not.toMatch(/#workers:\s*1/);
     data.runtime.getExpansion = getExpansion;
     status.setExternalStatus(updates);
     fixture.detectChanges();

@@ -53,6 +53,7 @@ import { WarehouseService } from "../../../common/service/warehouse/warehouse.se
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { expandMacros, isMacro, MacroDefinition, portKey } from "../../../common/util/workflow-macro";
 import { WorkflowContent } from "../../../common/type/workflow";
+import { LogicalPort } from "../../types/workflow-common.interface";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -619,13 +620,8 @@ export class ExecuteWorkflowService {
         .map(o => o.operatorID);
     }
     const byID = new Map(subDAG.operators.map(op => [op.operatorID, op]));
-    const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-      return byID.get(operatorID)!.inputPorts.findIndex(port => port.portID === inputPortID);
-    };
-
-    const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-      return byID.get(operatorID)!.outputPorts.findIndex(port => port.portID === outputPortID);
-    };
+    const portOrdinal = (end: LogicalPort, direction: "inputPorts" | "outputPorts"): number =>
+      byID.get(end.operatorID)![direction].findIndex(port => port.portID === end.portID);
 
     const operators: LogicalOperator[] = subDAG.operators.map(op => ({
       ...op.operatorProperties,
@@ -635,16 +631,12 @@ export class ExecuteWorkflowService {
       outputPorts: op.outputPorts,
     }));
 
-    const links: LogicalLink[] = subDAG.links.map(link => {
-      const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
-      const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
-      return {
-        fromOpId: link.source.operatorID,
-        fromPortId: { id: outputPortIdx, internal: false },
-        toOpId: link.target.operatorID,
-        toPortId: { id: inputPortIdx, internal: false },
-      };
-    });
+    const links: LogicalLink[] = subDAG.links.map(link => ({
+      fromOpId: link.source.operatorID,
+      fromPortId: { id: portOrdinal(link.source, "outputPorts"), internal: false },
+      toOpId: link.target.operatorID,
+      toPortId: { id: portOrdinal(link.target, "inputPorts"), internal: false },
+    }));
 
     const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 

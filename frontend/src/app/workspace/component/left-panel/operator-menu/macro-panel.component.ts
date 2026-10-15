@@ -19,10 +19,8 @@
 import { Component } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzInputModule } from "ng-zorro-antd/input";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { v4 as uuid } from "uuid";
 import { MacroService } from "../../../service/macro/macro.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -32,13 +30,11 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { isMacro, MacroDefinition, MacroPort, macroType } from "../../../../common/util/workflow-macro";
 import { FormFieldBinding } from "../../../../common/type/workflow";
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
-import { MacroInspectorComponent } from "./macro-inspector.component";
 import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 
-@UntilDestroy()
 @Component({
   selector: "texera-macro-panel",
-  imports: [NgIf, NgFor, FormsModule, NzModalModule, NzButtonModule, NzInputModule, OperatorLabelComponent],
+  imports: [NgIf, NgFor, FormsModule, NzButtonModule, NzInputModule, OperatorLabelComponent],
   templateUrl: "./macro-panel.component.html",
   styleUrls: ["./macro.component.scss"],
 })
@@ -74,13 +70,8 @@ export class MacroPanelComponent {
     public actions: WorkflowActionService,
     public metadata: OperatorMetadataService,
     public forms: FormBindingService,
-    private notification: NotificationService,
-    private modal: NzModalService
-  ) {
-    this.macros.inspect$.pipe(untilDestroyed(this)).subscribe(id => {
-      if (id) this.inspect(id);
-    });
-  }
+    private notification: NotificationService
+  ) {}
   public opened(event: Event): void {
     if ((event.target as HTMLDetailsElement).open) void this.refresh();
   }
@@ -107,41 +98,6 @@ export class MacroPanelComponent {
     } finally {
       this.busy = false;
     }
-  }
-  public async inspect(id: string): Promise<void> {
-    const content = this.actions.getWorkflowContent();
-    const op = content.operators.find(o => o.operatorID === id);
-    const definition = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
-    if (!definition) return;
-    const wid = this.actions.getWorkflowMetadata().wid;
-    try {
-      await this.macros.refresh();
-    } catch (e) {
-      this.notification.error(e instanceof Error ? e.message : String(e));
-    }
-    this.modal.create({
-      nzTitle: "Macro definition",
-      nzContent: MacroInspectorComponent,
-      nzWidth: 900,
-      nzStyle: { maxWidth: "calc(100vw - 32px)" },
-      nzFooter: null,
-      nzData: {
-        definition,
-        dependencies: content.macroDependencies,
-        library: this.macros.library$.value,
-        runtime: {
-          operatorID: id,
-          getExpansion: () =>
-            this.actions.getWorkflowMetadata().wid === wid &&
-            this.actions
-              .getWorkflowContent()
-              .operators.some(o => o.operatorID === id && o.operatorType === macroType(definition))
-              ? this.actions.getMacroExpansion()
-              : undefined,
-        },
-      },
-    });
-    this.macros.inspect$.next(undefined);
   }
   public targets(direction: "inputs" | "outputs"): { value: string; label: string }[] {
     return this.options("portID", op =>

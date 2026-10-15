@@ -68,6 +68,8 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
+import { macroInstance } from "../../../common/util/workflow-macro";
+import { MacroService } from "../../service/macro/macro.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -436,6 +438,55 @@ describe("WorkflowEditorComponent", () => {
       undoRedoService = TestBed.inject(UndoRedoService);
       workflowVersionService = TestBed.inject(WorkflowVersionService);
       fixture.detectChanges();
+    });
+
+    it("opens the selected pinned instance without an Operators panel and guards its runtime context", async () => {
+      const actions = TestBed.inject(WorkflowActionService);
+      const definition = {
+        id: "macro",
+        version: 1,
+        name: "Macro",
+        content: {
+          ...actions.getWorkflowContent(),
+          operators: [mockSentimentPredicate],
+          macroInterface: {
+            id: "macro",
+            inputs: [
+              { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
+            ],
+            outputs: [
+              { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
+            ],
+          },
+        },
+      };
+      actions.setMacroDependencies([definition]);
+      actions.addOperator(macroInstance(definition, "instance"), mockPoint);
+      let current = actions.getWorkflowContent(),
+        wid = 1;
+      vi.spyOn(actions, "getWorkflowMetadata").mockImplementation(() => ({ wid }) as any);
+      vi.spyOn(actions, "getWorkflowContent").mockImplementation(() => current);
+      vi.spyOn(TestBed.inject(MacroService), "refresh").mockResolvedValue([]);
+      const create = vi.spyOn((component as any).nzModalService, "create").mockReturnValue({});
+      component.paper.trigger(
+        "cell:pointerdblclick",
+        { model: component.paper.getModelById("instance") },
+        { shiftKey: false }
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(create).toHaveBeenCalledOnce();
+      const data = (create.mock.calls[0][0] as any).nzData;
+      expect(data.definition).toEqual(definition);
+      expect(data.runtime.operatorID).toBe("instance");
+      expect(data.runtime.getExpansion()).toBeDefined();
+      wid = 2;
+      expect(data.runtime.getExpansion()).toBeUndefined();
+      wid = 1;
+      current = { ...current, operators: [{ ...current.operators[0], operatorType: "WorkflowMacro:macro:2" }] };
+      expect(data.runtime.getExpansion()).toBeUndefined();
+      current = { ...current, operators: [] };
+      expect(data.runtime.getExpansion()).toBeUndefined();
     });
 
     it("should react to operator highlight event and change the appearance of the operator to be highlighted", () => {

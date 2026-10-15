@@ -50,6 +50,9 @@ const require = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message);
 };
 const fields = (content?: WorkflowContent): FormFieldBinding[] => content?.formBinding?.fields ?? [];
+const namespace = "33269d11-7448-5d6d-9aeb-68826068e94d";
+export const macroRuntimeID = (chain: string[], id: string): string =>
+  chain.length ? uuid(JSON.stringify([...chain, id]), namespace) : id;
 
 export function macroInstance(d: MacroDefinition, operatorID: string): OperatorPredicate {
   require(d.content?.macroInterface, "Missing macro interface");
@@ -98,9 +101,6 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
   const ports: Record<string, LogicalPort[]> = Object.create(null);
   const operators: OperatorPredicate[] = [];
   const links: WorkflowContent["links"] = [];
-  const namespace = "33269d11-7448-5d6d-9aeb-68826068e94d";
-  const runtimeID = (chain: string[], id: string): string =>
-    chain.length ? uuid(JSON.stringify([...chain, id]), namespace) : id;
 
   const visit = (body: WorkflowContent, chain: string[], stack: string[]): Map<string, LogicalPort[]> => {
     require(body && Array.isArray(body.operators) && Array.isArray(body.links), "Malformed macro graph");
@@ -137,7 +137,7 @@ export function expandMacros(content: WorkflowContent): MacroExpansion {
     };
     for (const op of body.operators.filter(op => !op.isDisabled)) {
       if (!isMacro(op)) {
-        const id = runtimeID(chain, op.operatorID);
+        const id = macroRuntimeID(chain, op.operatorID);
         require(!Object.hasOwn(paths, id), "Duplicate runtime operator ID");
         operators.push({ ...cloneDeep(op), operatorID: id });
         paths[id] = [...chain, op.operatorID];
@@ -267,25 +267,24 @@ export function extractMacro(content: WorkflowContent, selected: readonly string
     .forEach(l => follow(l.target.operatorID));
   const operators = content.operators.filter(o => ids.has(o.operatorID));
   const links = content.links.filter(l => ids.has(l.source.operatorID) && ids.has(l.target.operatorID));
-  const boundary = (direction: "inputs" | "outputs"): MacroPort[] =>
-    operators
+  const boundary = (direction: "inputs" | "outputs"): MacroPort[] => {
+    const connections = groupBy(content.links, link => {
+      const end = direction === "inputs" ? link.target : link.source;
+      return portKey(end.operatorID, direction, end.portID);
+    });
+    return operators
       .flatMap(op =>
         (direction === "inputs" ? op.inputPorts : op.outputPorts)
-          .filter(
-            p =>
-              !links.some(l => {
-                const end = direction === "inputs" ? l.target : l.source;
-                return end.operatorID === op.operatorID && end.portID === p.portID;
-              }) ||
-              content.links.some(l => {
-                const end = direction === "inputs" ? l.target : l.source,
-                  other = direction === "inputs" ? l.source : l.target;
-                return end.operatorID === op.operatorID && end.portID === p.portID && !ids.has(other.operatorID);
-              })
-          )
+          .filter(p => {
+            const edges = connections[portKey(op.operatorID, direction, p.portID)] ?? [];
+            return (
+              !edges.length || edges.some(l => !ids.has((direction === "inputs" ? l.source : l.target).operatorID))
+            );
+          })
           .map(p => ({ ...p, targets: [{ operatorID: op.operatorID, portID: p.portID }] }))
       )
       .map((p, i) => ({ ...p, portID: `${direction === "inputs" ? "input" : "output"}-${i}` }));
+  };
   return cloneDeep({
     ...content,
     operators,
@@ -303,16 +302,17 @@ export function adoptMacroVersion(
   next: MacroDefinition
 ): OperatorPredicate {
   require(previous.id === next.id && op.operatorType === macroType(previous), "Different macro definition");
-  const signature = (d: MacroDefinition) =>
-    JSON.stringify([
-      d.content.macroInterface!.inputs.map(p => p.portID).sort(),
-      d.content.macroInterface!.outputs.map(p => p.portID).sort(),
-      fields(d.content)
-        .map(f => f.id)
-        .sort(),
-    ]);
-  require(signature(previous) ===
-    signature(next), "Macro interface changed; insert the new version and reconnect explicitly");
+  const signature = (d: MacroDefinition) => [
+    d.content.macroInterface!.inputs.map(p => p.portID).sort(),
+    d.content.macroInterface!.outputs.map(p => p.portID).sort(),
+    fields(d.content)
+      .map(f => f.id)
+      .sort(),
+  ];
+  require(isEqual(
+    signature(previous),
+    signature(next)
+  ), "Macro interface changed; insert the new version and reconnect explicitly");
   return {
     ...macroInstance(next, op.operatorID),
     operatorProperties: cloneDeep(op.operatorProperties),
@@ -406,44 +406,42 @@ export function rollupMacroStatus(
     const leaves = expanded.content.operators.filter(o => expanded.paths[o.operatorID]?.[0] === op.operatorID);
     const updates = leaves.map(o => status[o.operatorID]).filter(Boolean);
     if (!updates.length) continue;
-    const boundaryTargets = (direction: "inputs" | "outputs") =>
-      (direction === "inputs" ? op.inputPorts : op.outputPorts).map(
-        p => expanded.ports[portKey(op.operatorID, direction, p.portID)] ?? []
-      );
-    const counts = (direction: "inputs" | "outputs"): Record<string, number> =>
-      Object.fromEntries(
-        boundaryTargets(direction).map((targets, index) => [
-          String(index),
-          Math.max(
-            0,
-            ...targets.map(target => {
-              const leaf = leaves.find(o => o.operatorID === target.operatorID)!;
-              const ports = direction === "inputs" ? leaf.inputPorts : leaf.outputPorts;
-              const ordinal = ports.findIndex(p => p.portID === target.portID);
-              const update = status[target.operatorID];
-              const metrics = direction === "inputs" ? update?.inputPortMetrics : update?.outputPortMetrics;
-              return metrics !== undefined
-                ? metrics[String(ordinal)] ?? 0
+    const boundary = (direction: "inputs" | "outputs") => {
+      const values = (direction === "inputs" ? op.inputPorts : op.outputPorts).map(p => {
+        const targets = (expanded.ports[portKey(op.operatorID, direction, p.portID)] ?? []).map(target => {
+          const leaf = leaves.find(o => o.operatorID === target.operatorID)!;
+          const ports = direction === "inputs" ? leaf.inputPorts : leaf.outputPorts;
+          const update = status[target.operatorID];
+          const metrics = direction === "inputs" ? update?.inputPortMetrics : update?.outputPortMetrics;
+          return {
+            rows:
+              metrics !== undefined
+                ? metrics[String(ports.findIndex(p => p.portID === target.portID))] ?? 0
                 : ports.length === 1
                   ? (direction === "inputs" ? update?.aggregatedInputRowCount : update?.aggregatedOutputRowCount) ?? 0
-                  : 0;
-            })
-          ),
-        ])
-      );
-    // The wire format has only aggregate bytes per leaf, so a multiport boundary cannot be split exactly.
-    const size = (direction: "inputs" | "outputs"): number | undefined => {
-      const values = boundaryTargets(direction).map(targets => {
-        const target = targets.length === 1 ? targets[0] : undefined;
-        const leaf = leaves.find(o => o.operatorID === target?.operatorID);
-        if (!leaf || (direction === "inputs" ? leaf.inputPorts : leaf.outputPorts).length !== 1) return undefined;
-        const update = status[leaf.operatorID];
-        return direction === "inputs" ? update?.aggregatedInputSize : update?.aggregatedOutputSize;
+                  : 0,
+            // The wire format cannot split a leaf's aggregate bytes across multiple ports.
+            size:
+              ports.length === 1
+                ? direction === "inputs"
+                  ? update?.aggregatedInputSize
+                  : update?.aggregatedOutputSize
+                : undefined,
+          };
+        });
+        return {
+          rows: Math.max(0, ...targets.map(t => t.rows)),
+          size: targets.length === 1 ? targets[0].size : undefined,
+        };
       });
-      return values.every(value => value !== undefined) ? sumBy(values, value => value ?? 0) : undefined;
+      return {
+        ports: Object.fromEntries(values.map((value, index) => [String(index), value.rows])),
+        rows: sumBy(values, value => value.rows),
+        size: values.every(value => value.size !== undefined) ? sumBy(values, value => value.size ?? 0) : undefined,
+      };
     };
-    const inputs = counts("inputs"),
-      outputs = counts("outputs");
+    const inputs = boundary("inputs"),
+      outputs = boundary("outputs");
     const priority = [
       OperatorState.Recovering,
       OperatorState.Pausing,
@@ -459,12 +457,12 @@ export function rollupMacroStatus(
         updates.length === leaves.length && updates.every(s => s.operatorState === OperatorState.Completed)
           ? OperatorState.Completed
           : priority.find(state => updates.some(s => s.operatorState === state)) ?? OperatorState.Uninitialized,
-      aggregatedInputRowCount: Object.values(inputs).reduce((a, b) => a + b, 0),
-      aggregatedInputSize: size("inputs"),
-      inputPortMetrics: inputs,
-      aggregatedOutputRowCount: Object.values(outputs).reduce((a, b) => a + b, 0),
-      aggregatedOutputSize: size("outputs"),
-      outputPortMetrics: outputs,
+      aggregatedInputRowCount: inputs.rows,
+      aggregatedInputSize: inputs.size,
+      inputPortMetrics: inputs.ports,
+      aggregatedOutputRowCount: outputs.rows,
+      aggregatedOutputSize: outputs.size,
+      outputPortMetrics: outputs.ports,
       numWorkers: sumBy(updates, s => s.numWorkers ?? 0),
       aggregatedDataProcessingTime: sumBy(updates, s => s.aggregatedDataProcessingTime ?? 0),
       aggregatedControlProcessingTime: sumBy(updates, s => s.aggregatedControlProcessingTime ?? 0),

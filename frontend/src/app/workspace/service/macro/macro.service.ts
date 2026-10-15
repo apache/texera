@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, firstValueFrom, from, mergeMap, toArray } from "rxjs";
+import { BehaviorSubject, firstValueFrom, from, mergeMap, Subject, toArray } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -41,7 +41,7 @@ import Ajv from "ajv";
 @Injectable({ providedIn: "root" })
 export class MacroService {
   public readonly library$ = new BehaviorSubject<MacroDefinition[]>([]);
-  public readonly inspect$ = new BehaviorSubject<string | undefined>(undefined);
+  public readonly inspect$ = new Subject<string>();
   private refreshing?: Promise<MacroDefinition[]>;
 
   constructor(
@@ -63,18 +63,15 @@ export class MacroService {
     const failed: string[] = [];
     const loaded = await firstValueFrom(
       from(entries).pipe(
-        mergeMap(
-          entry =>
-            firstValueFrom(this.persist.retrieveWorkflow(entry.workflow.wid!))
-              .then(workflow => (workflow.content.macroInterface ? this.pin(workflow) : undefined))
-              .catch((error: unknown) => {
-                failed.push(
-                  `${entry.workflow.name ?? entry.workflow.wid}: ${error instanceof Error ? error.message : String(error)}`
-                );
-                return undefined;
-              }),
-          6
-        ),
+        mergeMap(async ({ workflow: entry }) => {
+          try {
+            const workflow = await firstValueFrom(this.persist.retrieveWorkflow(entry.wid!));
+            return workflow.content.macroInterface ? await this.pin(workflow) : undefined;
+          } catch (error) {
+            failed.push(`${entry.name ?? entry.wid}: ${error instanceof Error ? error.message : String(error)}`);
+            return undefined;
+          }
+        }, 6),
         toArray()
       )
     );
@@ -98,8 +95,7 @@ export class MacroService {
     expandMacros(content);
     const definition = { id: content.macroInterface.id, version, name: workflow.name, wid: workflow.wid, content };
     mergeMacroDefinitions(this.actions.getMacroDependencies(), [definition], content.macroDependencies ?? []);
-    this.metadata.registerMacros(content.macroDependencies ?? []);
-    macroSchema(definition, type => this.metadata.getOperatorSchema(type));
+    macroSchema(definition, type => this.metadata.getOperatorSchema(type, content.macroDependencies ?? []));
     return definition;
   }
 
@@ -203,7 +199,8 @@ export class MacroService {
     const updated = adoptMacroVersion(op!, previous, latest);
     if (
       !new Ajv({ strict: false }).validate(
-        macroSchema(latest, type => this.metadata.getOperatorSchema(type)).jsonSchema,
+        macroSchema(latest, type => this.metadata.getOperatorSchema(type, latest.content.macroDependencies ?? []))
+          .jsonSchema,
         updated.operatorProperties
       )
     ) {

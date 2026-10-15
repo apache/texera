@@ -24,7 +24,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { ExecutionMode, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
-import { expandMacros, macroType } from "../../../common/util/workflow-macro";
+import { expandMacros, macroInstance, macroType } from "../../../common/util/workflow-macro";
 
 describe("MacroService", () => {
   const op: OperatorPredicate = {
@@ -236,6 +236,38 @@ describe("MacroService", () => {
     const before = JSON.stringify(content);
     await expect(service.adoptLatest(content.operators[0].operatorID)).rejects.toThrow(/Conflicting macro version/);
     expect(JSON.stringify(content)).toBe(before);
+  });
+
+  it("validates adoption against the version's bundled schemas instead of another library entry", async () => {
+    const previous = await service.createFromSelection("Clean");
+    content = { ...content, operators: [{ ...content.operators[0], operatorProperties: { value: "mine" } }] };
+    const child = {
+      ...previous,
+      id: "child",
+      content: {
+        ...previous.content,
+        macroInterface: { ...previous.content.macroInterface!, id: "child" },
+        formBinding: { fields: [{ id: "forward", operatorID: "leaf", propertyKey: "value", displayName: "Value" }] },
+      },
+    };
+    const latest = {
+      ...previous,
+      version: 6,
+      content: {
+        ...previous.content,
+        operators: [macroInstance(child, "leaf")],
+        macroDependencies: [child],
+        formBinding: { fields: [{ id: "value", operatorID: "leaf", propertyKey: "forward", displayName: "Value" }] },
+      },
+    };
+    vi.spyOn(service, "refresh").mockResolvedValue([latest]);
+    metadata.getOperatorSchema.mockImplementation((_type: string, definitions: any[] = []) => ({
+      jsonSchema: { properties: { forward: { type: definitions.some(d => d.id === child.id) ? "string" : "number" } } },
+    }));
+    await service.adoptLatest(content.operators[0].operatorID);
+    expect(content.operators[0].operatorType).toBe(macroType(latest));
+    expect(content.operators[0].operatorProperties).toEqual({ value: "mine" });
+    expect(expandMacros(content).content.operators[0].operatorProperties).toEqual({ value: "mine" });
   });
 
   it("excludes conflicting library versions instead of resolving them to the current workflow's snapshot", async () => {
