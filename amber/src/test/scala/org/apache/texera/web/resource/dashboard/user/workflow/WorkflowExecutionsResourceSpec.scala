@@ -34,6 +34,7 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{
@@ -356,7 +357,7 @@ class WorkflowExecutionsResourceSpec
   ): Unit =
     ExecutionResultService.persistOperatorPortResultUri(
       eid,
-      OperatorPortResultUriAvailable(globalPortId, uri)
+      OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SET_SNAPSHOT)
     )
 
   // ─── existing tests (preserved) ───────────────────────────────────────────
@@ -723,6 +724,26 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .fetchOne()
     assert(row.getResultSize.longValue() == threeGiB)
+  }
+
+  "updateResultCount" should "set RESULT_COUNT on the matching (eid, globalPortId) row" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val globalPortId = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("op-count"), "main"),
+      PortIdentity(),
+      input = false
+    )
+    insertOperatorPortResult(eid, globalPortId, URI.create("vfs:///c"))
+
+    WorkflowExecutionsResource.updateResultCount(eid, globalPortId, 25L)
+
+    val row = getDSLContext
+      .selectFrom(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .fetchOne()
+    assert(row.getResultCount == 25L)
   }
 
   // ─── new: updateRuntimeStatsSize / updateConsoleMessageSize ───────────────

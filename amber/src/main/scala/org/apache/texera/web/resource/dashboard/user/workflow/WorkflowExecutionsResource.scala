@@ -414,6 +414,26 @@ object WorkflowExecutionsResource {
   }
 
   /**
+    * Updates the row count of the corresponding Iceberg document in the database.
+    *
+    * @param eid          Execution ID associated with the result.
+    * @param globalPortId Global port identifier for the operator output.
+    * @param count        Number of rows in the result.
+    */
+  def updateResultCount(
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity,
+      count: Long
+  ): Unit = {
+    context
+      .update(OPERATOR_PORT_EXECUTIONS)
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT, java.lang.Long.valueOf(count))
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .execute()
+  }
+
+  /**
     * Updates the size of the runtime statistics stored via Iceberg document.
     *
     * @param eid Execution ID associated with the runtime statistics document.
