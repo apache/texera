@@ -174,7 +174,7 @@ jobs:
 
           # Export the single-node directory from the tagged source
           mkdir -p "$TEMP_DIR/_raw"
-          git archive --format=tar "$TAG_NAME" -- bin/single-node/ sql/ NOTICE licenses/LICENSE-CC-BY-4.0.txt | tar -x -C "$TEMP_DIR/_raw"
+          git archive --format=tar "$TAG_NAME" -- bin/single-node/ bin/observability/ sql/ NOTICE licenses/LICENSE-CC-BY-4.0.txt | tar -x -C "$TEMP_DIR/_raw"
 
           # Copy deployment files
           cp "$TEMP_DIR/_raw/bin/single-node/docker-compose.yml" "$BUNDLE_DIR/"
@@ -187,9 +187,18 @@ jobs:
           cp "$TEMP_DIR/_raw/licenses/LICENSE-CC-BY-4.0.txt" "$BUNDLE_DIR/licenses/"
           cp -r "$TEMP_DIR/_raw/sql" "$BUNDLE_DIR/"
 
+          # Observability configs (OTel collector + Parca) referenced by the
+          # opt-in observability compose profiles. Shipped next to the compose
+          # file so the ../observability mounts resolve in the flattened bundle.
+          cp -r "$TEMP_DIR/_raw/bin/observability" "$BUNDLE_DIR/observability"
+
           # Patch the SQL mount path for the self-contained bundle layout
           # In the repo it's ../../sql (relative to bin/single-node/), in the bundle it's ./sql
           sed -i 's|../../sql|./sql|g' "$BUNDLE_DIR/docker-compose.yml"
+
+          # Patch the observability mount paths: ../observability (relative to
+          # bin/single-node/ in the repo) becomes ./observability in the bundle.
+          sed -i 's|../observability|./observability|g' "$BUNDLE_DIR/docker-compose.yml"
 
           # Generate a release-pinned .env file with the version tag
           # Start from the source .env and ensure IMAGE_REGISTRY and IMAGE_TAG are set
