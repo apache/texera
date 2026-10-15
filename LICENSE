@@ -289,8 +289,8 @@ This product bundles the Iris example dataset, as distributed with scikit-learn:
 This product bundles TypeScript generated from Protocol Buffers' descriptor.proto,
 including its documentation comments:
   - frontend/src/app/common/type/proto/google/protobuf/descriptor.ts
-  Copyright 2008 Google LLC
-  Source: https://github.com/protocolbuffers/protobuf
+  Copyright 2008 Google Inc. All rights reserved.
+  Source: https://github.com/protocolbuffers/protobuf/blob/v33.4/src/google/protobuf/descriptor.proto
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
 
 Trademarks
