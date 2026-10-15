@@ -129,6 +129,15 @@ class HubResourceSpec
   // ---------------------------------------------------------------------------
 
   private val thirdUid = 9003
+  // An owner whose uid falls inside the java.lang.Integer cache (-128..127), where two
+  // boxes of the same value are the same object. The isOwner cases below use it next to
+  // the 9001-9003 uids so both sides of that cache boundary are covered.
+  private val cachedUid = 42
+  // The cache boundary itself. 127 is the highest value java.lang.Integer caches and 128 the
+  // lowest it does not, so these two are the pair that actually pins where identity stops
+  // agreeing with value. 42 and 9001 only sit comfortably on either side of them.
+  private val lastCachedUid = 127
+  private val firstUncachedUid = 128
   private val Ds: EntityType = EntityType.Dataset
   private val Md: EntityType = EntityType.Model
 
@@ -377,6 +386,9 @@ class HubResourceSpec
     // A third liker, needed by the ranking cases below to make "most liked" a
     // strict order (3 > 2 > 1) rather than a tie between two users' likes.
     userDao.insert(makeUser(thirdUid, "hub_third"))
+    userDao.insert(makeUser(cachedUid, "hub_cached_uid"))
+    userDao.insert(makeUser(lastCachedUid, "hub_uid_127"))
+    userDao.insert(makeUser(firstUncachedUid, "hub_uid_128"))
 
     val wf = new Workflow
     wf.setWid(Integer.valueOf(wid))
@@ -1137,17 +1149,70 @@ class HubResourceSpec
     entry.coverImage shouldBe empty
   }
 
-  // NOTE: `isOwner == true` is deliberately not asserted anywhere. WorkflowResource's
-  // mapWorkflowEntries compares the two uids with `AnyRef.eq` (reference equality on
-  // boxed Integers), so it is true only for uids that land in the java.lang.Integer
-  // cache (-128..127); this suite's uids (9001-9003) are outside it, so the owner's own
-  // request reports false today. Asserting it either way would either cement that bug or
-  // force this suite onto unrealistically small uids. The two negatives below hold for
-  // the current implementation and for a value-equality fix alike.
+  // WorkflowResource's mapWorkflowEntries compares the record's uid with the caller's,
+  // both boxed Integers. Only value equality gets this right: reference equality holds
+  // for two boxes of the same value solely inside the java.lang.Integer cache
+  // (-128..127), so the pair below pins both sides of that boundary.
+  it should "set isOwner for the owner's own request when the uid is outside the Integer cache" in {
+    val id = seedWorkflow(811003, "wf_mine_uncached", owner = ownerUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the owner's own request when the uid is inside the Integer cache" in {
+    val id = seedWorkflow(811004, "wf_mine_cached", owner = cachedUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(cachedUid)).head.isOwner shouldBe true
+  }
+
+  // 127 and 128 are the boundary proper. Under the old reference comparison 127 passed and
+  // 128 failed, so this pair localises the break to one increment rather than to the gap
+  // between 42 and 9001.
+  it should "set isOwner for the highest uid inside the Integer cache (127)" in {
+    val id = seedWorkflow(811006, "wf_mine_uid_127", owner = lastCachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(lastCachedUid)
+    ).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the lowest uid outside the Integer cache (128)" in {
+    val id = seedWorkflow(811007, "wf_mine_uid_128", owner = firstUncachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(firstUncachedUid)
+    ).head.isOwner shouldBe true
+  }
+
   it should "clear isOwner for a different uid and for an anonymous (null) uid" in {
     val id = seedWorkflow(811002, "wf_not_mine", owner = ownerUid)
 
     fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(likerUid)).head.isOwner shouldBe false
+    fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  // workflow_of_user is LEFT JOINed, so a workflow with no ownership row yields a null
+  // uid. The access row is still granted because that is the only way the entry reaches
+  // mapWorkflowEntries' privilege dereference with something non-null.
+  it should "clear isOwner for a workflow with no ownership row" in {
+    val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
+    grantWorkflowAccess(811005, ownerUid, PrivilegeEnum.READ)
+
+    val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
+    entry.ownerId shouldBe null
+    entry.isOwner shouldBe false
+  }
+
+  // Both sides null at once: an anonymous caller looking at a workflow with no ownership
+  // row. Scala's `==` reports two nulls as equal, so the `uid != null` guard in
+  // mapWorkflowEntries is the only thing keeping this false. Without this case, deleting
+  // that guard as redundant would leave the whole suite green.
+  it should "clear isOwner when an anonymous caller sees a workflow with no ownership row" in {
+    val id = seedWorkflow(811008, "wf_unowned_anon", withOwnerRows = false)
+    grantWorkflowAccess(811008, ownerUid, PrivilegeEnum.READ)
+
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
   }
 

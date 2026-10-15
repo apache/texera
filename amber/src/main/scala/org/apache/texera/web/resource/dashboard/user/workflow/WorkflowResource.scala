@@ -318,7 +318,7 @@ object WorkflowResource {
       .map(workflowRecord =>
         DashboardWorkflow(
           if (uid != null)
-            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
+            workflowRecord.into(WORKFLOW_OF_USER).getUid == uid
           else false,
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
