@@ -25,6 +25,49 @@ package org.apache.texera.amber.operator
 object StandaloneHelpers {
 
   /**
+    * Row equality as the set operators' `HashSet[Tuple]` decides it, for
+    * Intersect, Difference and Symmetric Difference.
+    *
+    * Two rows meet only when both their hashes and `equals` agree. `equals` is
+    * Scala's `==` on each field, under which NaN equals nothing, not even a
+    * copy of its own row. The hash is Java's, from each double's bits, so 0.0
+    * and -0.0 land apart. pandas' duplicate checks count both pairs as equal.
+    */
+  val SetRowKeys: String =
+    """def _texera_set_row_keys(df):
+      |    # One key per row, equal exactly where the engine's rows are. A null
+      |    # is read off the column's mask, since a stored NaN is not one.
+      |    import math
+      |
+      |    def key(v, missing):
+      |        if missing:
+      |            return None
+      |        if isinstance(v, float):
+      |            if math.isnan(v):
+      |                return object()
+      |            return (v, math.copysign(1.0, v))
+      |        return v
+      |
+      |    return [
+      |        tuple(key(v, m) for v, m in zip(values, missing))
+      |        for values, missing in zip(
+      |            df.itertuples(index=False, name=None), df.isna().to_numpy()
+      |        )
+      |    ]
+      |
+      |
+      |def _texera_set_select(df, keep):
+      |    # The rows the engine's HashSet holds, the first of each key, that
+      |    # `keep` accepts.
+      |    seen = set()
+      |    picked = []
+      |    for i, key in enumerate(_texera_set_row_keys(df)):
+      |        if key not in seen and keep(key):
+      |            picked.append(i)
+      |        seen.add(key)
+      |    return df.iloc[picked].reset_index(drop=True)""".stripMargin
+
+  /**
     * A Python transcription of `AttributeTypeUtils`, for operators that cast a
     * column to a declared type.
     *
