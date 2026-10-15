@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
-import org.apache.texera.amber.core.tuple.{Attribute, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
@@ -159,7 +159,9 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // happens to carry that name and then drop it. Only the right key needs
   // locating: the merge leaves every left name alone and suffixes a right one
   // that collides.
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     val leftLit = objectMapper.writeValueAsString(leftAttributeName)
     val rightLit = objectMapper.writeValueAsString(rightAttributeName)
     val loOp = if (includeLeftBound) ">=" else ">"
@@ -172,6 +174,20 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
       case Some(TimeIntervalType.SECOND) => "seconds"
       case _                             => "days" // DAY or unset
     }
+    // The engine adds the constant in the right key's declared type. An INTEGER
+    // bound is an Int sum, so the constant is cut to 32 bits and the sum wraps
+    // past Int.MaxValue, where pandas holds the column as int64 and does
+    // neither. A LONG wraps in int64 as it does in Java. The key is widened to
+    // float64 first, which holds every such sum exactly, since NumPy refuses
+    // 2**31 against an int32 column.
+    val declared = inputSchemas
+      .get(operatorInfo.inputPorts.last.id)
+      .flatMap(schema => scala.util.Try(schema.getAttribute(rightAttributeName)).toOption)
+      .map(_.getType)
+    val numericBound =
+      if (declared.contains(AttributeType.INTEGER))
+        s"""(_iv_r.astype("float64") + ${constant.toInt} + 2**31) % 2**32 - 2**31"""
+      else s"_iv_r + $constant"
     s"""_pairs = in1df.merge(in2df, how="cross", suffixes=("", "#@1"))
        |_iv_l = _pairs[$leftLit]
        |_iv_r = _pairs[$rightLit if $rightLit not in in1df.columns else $rightLit + "#@1"]
@@ -182,7 +198,7 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |    _iv_l = _iv_l.dt.floor("ms")
        |    _iv_r = _iv_r.dt.floor("ms")
        |else:
-       |    _iv_hi = _iv_r + $constant
+       |    _iv_hi = $numericBound
        |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)
        |out1df = _pairs[_iv_match].reset_index(drop=True)""".stripMargin
   }

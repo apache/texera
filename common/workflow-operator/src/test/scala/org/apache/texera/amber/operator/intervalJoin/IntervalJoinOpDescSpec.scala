@@ -243,6 +243,71 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     check(includeBounds = false)
   }
 
+  // The engine adds the constant in the key's declared type: an INTEGER bound
+  // is an Int sum, with the constant cut to 32 bits, and wraps past
+  // Int.MaxValue, and a LONG one wraps past Long.MaxValue. Each case feeds the
+  // right row first and the left rows in ascending order, as the executor
+  // assumes.
+  it should "add the constant in the key's declared type as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val cases = Seq(
+      (AttributeType.INTEGER, 10L, 0L, Seq(3L, 20L)),
+      (AttributeType.INTEGER, 10L, 2147483640L, Seq(2147483645L)),
+      (AttributeType.INTEGER, 4294967306L, 0L, Seq(5L, 20L)),
+      (AttributeType.LONG, 10L, 9223372036854775800L, Seq(9223372036854775805L))
+    )
+    cases.foreach {
+      case (attrType, constant, right, lefts) =>
+        val dtype = if (attrType == AttributeType.INTEGER) "int32" else "int64"
+        def value(v: Long): Any = if (attrType == AttributeType.INTEGER) v.toInt else v
+        val leftSchema = Schema().add(new Attribute("l", attrType))
+        val rightSchema = Schema().add(new Attribute("r", attrType))
+        val d = new IntervalJoinOpDesc("l", "r", constant, true, true, TimeIntervalType.DAY)
+
+        val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(d))
+        exec.open()
+        val engine =
+          try {
+            exec.processTuple(Tuple(rightSchema, Array[Any](value(right))), 1)
+            lefts.flatMap { l =>
+              exec
+                .processTuple(Tuple(leftSchema, Array[Any](value(l))), 0)
+                .map(_.getFields.mkString(" "))
+            }
+          } finally exec.close()
+
+        val code = d.generateStandaloneCode(
+          Map(PortIdentity() -> leftSchema, PortIdentity(1) -> rightSchema)
+        )
+        val driver =
+          s"""import numpy as np
+             |import pandas as pd
+             |
+             |in1df = pd.DataFrame({"l": np.array(${lefts
+            .mkString("[", ", ", "]")}, dtype="$dtype")})
+             |in2df = pd.DataFrame({"r": np.array([$right], dtype="$dtype")})
+             |$code
+             |for row in out1df.itertuples(index=False):
+             |    print(" ".join(str(int(v)) for v in row))
+             |""".stripMargin
+
+        val script = Files.createTempFile("intervaljoin-bound-", ".py")
+        script.toFile.deleteOnExit()
+        Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+        val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+        val out = Source.fromInputStream(process.getInputStream).mkString
+        process.waitFor(120, TimeUnit.SECONDS)
+        withClue(s"$attrType constant $constant, python said:\n$out\nscript:\n$driver") {
+          process.exitValue() shouldBe 0
+          out.trim.linesIterator.filter(_.nonEmpty).toSeq shouldBe engine
+        }
+    }
+  }
+
   "IntervalJoinOpDesc" should "round-trip its fields through the polymorphic base" in {
     val d = configured()
     d.constant = 42L
