@@ -69,7 +69,8 @@ export class ErrorFrameComponent implements OnInit {
     // then fetch error from the compilation state store
     errorMessages = errorMessages.concat(Object.values(compilationErrorMap));
     if (this.operatorId) {
-      errorMessages = errorMessages.filter(err => err.operatorId === this.operatorId);
+      const graph = this.workflowActionService.getTexeraGraph();
+      errorMessages = errorsForOperator(errorMessages, this.operatorId, id => graph.hasOperator(id));
     }
     this.categoryToErrorMapping = errorMessages.reduce((acc, obj) => {
       const key = obj.type.name;
@@ -106,4 +107,17 @@ export class ErrorFrameComponent implements OnInit {
       return acc;
     }, new Map<string, WorkflowFatalError[]>());
   }
+}
+
+/**
+ * The errors to show for one operator: its own errors, plus errors that are not tied to any
+ * operator on the canvas. A Python UDF that fails while starting reports its error from the
+ * coordinator ("unknown operator"), and the user looks for it by clicking that UDF.
+ */
+export function errorsForOperator(
+  errors: readonly WorkflowFatalError[],
+  operatorId: string,
+  isOnCanvas: (id: string) => boolean
+): WorkflowFatalError[] {
+  return errors.filter(err => err.operatorId === operatorId || !isOnCanvas(err.operatorId));
 }

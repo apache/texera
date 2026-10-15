@@ -39,7 +39,7 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { ErrorFrameComponent } from "./error-frame/error-frame.component";
+import { ErrorFrameComponent, errorsForOperator } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
@@ -346,7 +346,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     errorMessages = errorMessages.concat(Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()));
     // finally, if any operatorId is given, filter out those with matched Id
     if (operatorId) {
-      errorMessages = errorMessages.filter(err => err.operatorId === operatorId);
+      const graph = this.workflowActionService.getTexeraGraph();
+      errorMessages = errorsForOperator(errorMessages, operatorId, id => graph.hasOperator(id));
     }
     return errorMessages;
   }
