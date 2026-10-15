@@ -69,23 +69,26 @@ object ResourceAccess {
     ).flatMap(record => Option(record.value1()))
       .contains(uid)
 
+  /** The owner always has WRITE, whatever their own access row says. */
   def privilegeOf[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ResourceTables[R, A],
       id: Integer,
       uid: Integer
   ): PrivilegeEnum =
-    Option(
-      ctx
-        .select(resource.privilegeField)
-        .from(resource.accessTable)
-        .where(
-          resource.accessIdField
-            .eq(id)
-            .and(resource.accessUidField.eq(uid))
-        )
-        .fetchOneInto(classOf[PrivilegeEnum])
-    ).getOrElse(PrivilegeEnum.NONE)
+    if (userOwns(ctx, resource, id, uid)) PrivilegeEnum.WRITE
+    else
+      Option(
+        ctx
+          .select(resource.privilegeField)
+          .from(resource.accessTable)
+          .where(
+            resource.accessIdField
+              .eq(id)
+              .and(resource.accessUidField.eq(uid))
+          )
+          .fetchOneInto(classOf[PrivilegeEnum])
+      ).getOrElse(PrivilegeEnum.NONE)
 
   def userHasWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -93,8 +96,7 @@ object ResourceAccess {
       id: Integer,
       uid: Integer
   ): Boolean =
-    userOwns(ctx, resource, id, uid) ||
-      privilegeOf(ctx, resource, id, uid) == PrivilegeEnum.WRITE
+    privilegeOf(ctx, resource, id, uid) == PrivilegeEnum.WRITE
 
   def userHasReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -174,7 +176,7 @@ object ResourceAccess {
   }
 
   /**
-    * Every resource of this type the user may see: the ones they hold an explicit grant on, plus
+    * Every resource of this type the user may see: the ones they own or hold an explicit grant on, plus
     * every public one, with public entries dropped when they duplicate a granted entry.
     *
     * @param pojoClass  the generated POJO the resource table maps into
@@ -199,18 +201,20 @@ object ResourceAccess {
       .from(
         resource.table
           .leftJoin(resource.accessTable)
-          .on(resource.accessIdField.eq(resource.idField))
+          .on(resource.accessIdField.eq(resource.idField).and(resource.accessUidField.eq(uid)))
           .leftJoin(USER)
           .on(USER.UID.eq(resource.ownerUidField))
       )
-      .where(resource.accessUidField.eq(uid))
+      .where(resource.accessUidField.eq(uid).or(resource.ownerUidField.eq(uid)))
       .fetch()
       .asScala
       .toList
       .flatMap { record =>
         val entity = record.into(resource.table).into(pojoClass)
-        val privilege = record.into(resource.accessTable).get(resource.privilegeField)
         val isOwner = record.into(resource.table).get(resource.ownerUidField) == uid
+        val privilege =
+          if (isOwner) PrivilegeEnum.WRITE
+          else record.into(resource.accessTable).get(resource.privilegeField)
         fromGrant(entity, record.into(USER).getEmail, privilege, isOwner)
           .map(entry => (idOf(entity), entry))
       }
@@ -257,6 +261,7 @@ object ResourceAccess {
       throw new BadRequestException(s"No registered user with email $email")
     }
     val granteeUid = grantee.getUid
+    requireNotOwner(ctx, resource, id, granteeUid)
     val granted = PrivilegeEnum.valueOf(privilege)
 
     ctx
@@ -275,7 +280,8 @@ object ResourceAccess {
   /**
     * Removes the user's explicit grant; a no-op when they hold none.
     *
-    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource.
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource, or the
+    *                                          user is its owner.
     */
   def revoke[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -286,6 +292,7 @@ object ResourceAccess {
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
     val granteeUid = new UserDao(ctx.configuration()).fetchOneByEmail(email).getUid
+    requireNotOwner(ctx, resource, id, granteeUid)
 
     ctx
       .delete(resource.accessTable)
@@ -311,6 +318,16 @@ object ResourceAccess {
       )
     }
 
+  private def requireNotOwner[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Unit =
+    if (userOwns(ctx, resource, id, uid)) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
+
   private def requireReadAccess[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ResourceTables[R, A],
@@ -324,7 +341,7 @@ object ResourceAccess {
     }
 
   /**
-    * Emails of the owners of every resource the caller has an explicit grant on, for the
+    * Emails of the owners of every resource the caller owns or has an explicit grant on, for the
     * owner facet on list pages.
     */
   def ownerEmailsVisibleTo[R <: Record, A <: Record](
@@ -337,9 +354,9 @@ object ResourceAccess {
       .from(USER)
       .join(resource.table)
       .on(resource.ownerUidField.eq(USER.UID))
-      .join(resource.accessTable)
-      .on(resource.accessIdField.eq(resource.idField))
-      .where(resource.accessUidField.eq(uid))
+      .leftJoin(resource.accessTable)
+      .on(resource.accessIdField.eq(resource.idField).and(resource.accessUidField.eq(uid)))
+      .where(resource.accessUidField.eq(uid).or(resource.ownerUidField.eq(uid)))
       .fetchInto(classOf[String])
 
 }

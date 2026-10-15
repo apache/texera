@@ -90,13 +90,16 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       uid: Integer
   ): Option[(Integer, DashboardClickableFileEntry)] = {
     val resource = pojo(record)
+    val isOwner = ownerUidOf(resource) == uid
     repositorySize(resource).map { size =>
       idOf(resource) -> entry(
         resource,
         record.into(USER).into(classOf[User]).getEmail,
-        Option(record.get(access.privilegeColumn, classOf[PrivilegeEnum]))
-          .getOrElse(PrivilegeEnum.NONE),
-        ownerUidOf(resource) == uid,
+        if (isOwner) PrivilegeEnum.WRITE
+        else
+          Option(record.get(access.privilegeColumn, classOf[PrivilegeEnum]))
+            .getOrElse(PrivilegeEnum.NONE),
+        isOwner,
         size
       )
     }

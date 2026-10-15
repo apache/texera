@@ -139,6 +139,7 @@ class ComputingUnitAccessResource {
       computingUnitUserAccessDao
         .fetchByCuid(cuid)
         .asScala
+        .filterNot(access => isOwner(cuid, access.getUid))
         .map(access => {
           val user = userDao.fetchOneByUid(access.getUid)
           AccessEntry(
@@ -165,6 +166,9 @@ class ComputingUnitAccessResource {
     }
 
     val granteeId = resolveUidByEmail(email)
+    if (isOwner(cuid, granteeId)) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
 
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
@@ -192,6 +196,9 @@ class ComputingUnitAccessResource {
     }
 
     val granteeId = resolveUidByEmail(email)
+    if (isOwner(cuid, granteeId)) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
 
     withTransaction(context) { ctx =>
       ctx
