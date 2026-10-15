@@ -18,14 +18,15 @@
  */
 
 import { HttpClient, HttpParams } from "@angular/common/http";
-import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
-import { catchError, filter, map } from "rxjs/operators";
+import { Injectable, Injector } from "@angular/core";
+import { EMPTY, Observable, of, ReplaySubject, Subject, throwError } from "rxjs";
+import { catchError, concatMap, filter, finalize, map, take, tap } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
@@ -59,13 +60,96 @@ export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
+  /**
+   * Saves, one at a time and in call order. Two saves in flight at once can reach the backend out
+   * of order, and then the older content wins: the canvas's autosave (debounced) and a Save or a
+   * view switch are independent requests, and the Form View's own queue only orders that page's
+   * saves. Ordering them here, at the one place every save goes through, covers all of them and
+   * lets a caller that hands over on completion (the view switches) know that everything asked for
+   * before it has landed too. Each request snapshots its payload when asked for; it is sent when its
+   * turn comes, and its outcome is relayed to that caller alone. A failed save fails its own caller
+   * and does not hold up the next.
+   *
+   * A response is relayed with the page's current name and description in place of its own (see
+   * withLocalEdits): those are the two fields a user edits, and a response answers the save it was
+   * sent for, which may be older than an edit made since. Callers feed the response back as the
+   * workflow's metadata; without this, a rename made while a save was out came back undone.
+   */
+  private readonly persistQueue = new Subject<{
+    send: Observable<Workflow>;
+    result: Subject<Workflow>;
+    sentWid: number | undefined;
+  }>();
+
+  /** Saves asked for and not yet answered (or failed); see whenSavesDrained. */
+  private pendingSaves = 0;
+  private readonly savesDrained = new Subject<void>();
+
   constructor(
     private http: HttpClient,
-    private notificationService: NotificationService
-  ) {}
+    private notificationService: NotificationService,
+    // Looked up lazily, at response time: the persist service is also used by the dashboard, where
+    // no workflow is open and constructing the (graph-owning) action service would be a side effect.
+    private injector: Injector
+  ) {
+    this.persistQueue
+      .pipe(
+        concatMap(({ send, result, sentWid }) =>
+          send.pipe(
+            map(updated => this.withLocalEdits(updated, sentWid)),
+            tap({
+              next: updated => result.next(updated),
+              error: (err: unknown) => result.error(err),
+              complete: () => result.complete(),
+            }),
+            catchError(() => EMPTY),
+            finalize(() => this.saveDone())
+          )
+        )
+      )
+      .subscribe();
+  }
 
   /**
-   * persists a workflow to backend database and returns its updated information (e.g., new wid)
+   * Emits once every save asked for so far has been answered or has failed; at once when none is
+   * pending. For a caller that leaves its view on completion (the Form View switch): its own save
+   * completing is not enough. A save queued behind it (a rename's, a description's) is still sent
+   * -- this service outlives the view -- but it answers to the component that asked for it, and a
+   * component the route has destroyed shows no error and feeds back no response.
+   */
+  public whenSavesDrained(): Observable<void> {
+    return this.pendingSaves === 0 ? of(undefined) : this.savesDrained.pipe(take(1));
+  }
+
+  private saveDone(): void {
+    this.pendingSaves -= 1;
+    if (this.pendingSaves === 0) {
+      this.savesDrained.next();
+    }
+  }
+
+  /**
+   * The response with the page's current name and description: a response carries the values the
+   * save was sent with, and an edit made since would be undone by feeding them back.
+   *
+   * Only for a response that is the page's, which is one whose save went out with the id the page
+   * still holds: the open workflow's, or the default id of a workflow this very save created and
+   * the page still holds under it. Left alone otherwise: another workflow is open by now, or the
+   * page was cleared meanwhile (clearWorkflow puts the default id back, but this save went out with
+   * the real one). Nothing local belongs to those.
+   */
+  private withLocalEdits(response: Workflow, sentWid: number | undefined): Workflow {
+    const current = this.injector.get(WorkflowActionService).getWorkflowMetadata();
+    if (current.wid !== sentWid) {
+      return response;
+    }
+    return { ...response, name: current.name, description: current.description };
+  }
+
+  /**
+   * persists a workflow to backend database and returns its updated information (e.g., new wid).
+   * The request is queued behind any save still in flight (see persistQueue); the returned
+   * observable completes once this save has come back.
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
@@ -79,7 +163,7 @@ export class WorkflowPersistService {
     // backend does not read it on this endpoint (publishing goes through /public and /private),
     // and it is not reliably known here anyway, since the metadata fed back after a save names
     // it differently (see WorkflowUtilService.parseWorkflowInfo).
-    return this.http
+    const send = this.http
       .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
         name: workflow.name,
@@ -90,6 +174,12 @@ export class WorkflowPersistService {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+    // Replayed, so a caller that subscribes after the queue has already relayed the outcome (a
+    // save that was quick, or a synchronous test double) still receives it.
+    const result = new ReplaySubject<Workflow>(1);
+    this.pendingSaves += 1;
+    this.persistQueue.next({ send, result, sentWid: workflow.wid });
+    return result.asObservable();
   }
 
   /**
@@ -99,12 +189,16 @@ export class WorkflowPersistService {
    */
   public createWorkflow(
     newWorkflowContent: WorkflowContent,
-    newWorkflowName: string = DEFAULT_WORKFLOW_NAME
+    newWorkflowName: string = DEFAULT_WORKFLOW_NAME,
+    defaultView?: DefaultView
   ): Observable<DashboardWorkflow> {
     return this.http
       .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
         content: JSON.stringify(newWorkflowContent),
+        // Bound onto the workflow row on the server, so an uploaded form-default workflow
+        // still opens as a form. Omitted (server default CANVAS) when the file carries none.
+        ...(defaultView === undefined ? {} : { defaultView }),
       })
       .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }

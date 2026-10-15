@@ -17,6 +17,7 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 import functools
 from typing import Any, Dict, Iterator, Optional, Set, Union
 
@@ -25,11 +26,25 @@ from core.models.schema.attribute_type import AttributeType, FROM_STRING_PARSER_
 from loguru import logger
 
 
+class Resource(Enum):
+    """A Texera resource whose version a UiParameter names, instead of free text.
+
+        model_dir = self.UiParameter("MODEL", AttributeType.STRING, value=Resource.MODEL).value
+
+    The property panel offers that resource's browser, and the value the UDF receives
+    is the local directory the chosen version is mounted at.
+    """
+
+    MODEL = "model"
+    DATASET = "dataset"
+
+
 @dataclass(frozen=True)
 class _UiParameterValue:
     name: str
     type: AttributeType
     value: Any
+    resource: Optional[Resource] = None
 
 
 class _UiParameterSupport:
@@ -104,6 +119,9 @@ class _UiParameterSupport:
         """
         Return the current UI parameter value parsed as attr_type.
 
+        Pass value=Resource.MODEL or value=Resource.DATASET to have it name a version
+        of that resource; the parameter must then be a string.
+
         Re-reading the same name with the same type is idempotent. Reusing a
         name with a different type is rejected because the parsed value would be
         ambiguous.
@@ -112,6 +130,8 @@ class _UiParameterSupport:
             if attr_type is not None:
                 raise TypeError("UiParameter.type was provided multiple times.")
             attr_type = kwargs.pop("type")
+
+        resource = kwargs.pop("value", None)
 
         if kwargs:
             unexpected_arguments = ", ".join(sorted(kwargs))
@@ -127,6 +147,18 @@ class _UiParameterSupport:
             raise TypeError(
                 f"UiParameter.type must be an AttributeType, got {attr_type!r}."
             )
+
+        if resource is not None:
+            if not isinstance(resource, Resource):
+                raise TypeError(
+                    f"UiParameter.value must be a Resource, got {resource!r}."
+                )
+            # What the UDF receives is a directory path.
+            if attr_type is not AttributeType.STRING:
+                raise TypeError(
+                    f"UiParameter '{name}' names a {resource.name.lower()}, so its type "
+                    f"must be AttributeType.STRING, not {attr_type.name}."
+                )
 
         self._ensure_ui_parameter_state()
         existing_type = self._ui_parameter_name_types.get(name)
@@ -151,6 +183,7 @@ class _UiParameterSupport:
             name=name,
             type=attr_type,
             value=self._parse(raw_value, attr_type),
+            resource=resource,
         )
 
     @staticmethod

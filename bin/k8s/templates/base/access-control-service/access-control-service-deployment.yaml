@@ -37,6 +37,9 @@ spec:
       # for a dedicated identity.
       serviceAccountName: {{ .Values.accessControlService.serviceAccountName }}
       {{- end }}
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}
       containers:
         - name: {{ .Values.accessControlService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.accessControlService.imageName }}:{{ .Values.texera.imageTag }}
@@ -59,6 +62,18 @@ spec:
             # The uid regex this service routes Jupyter on is built from the same prefix.
             - name: KUBERNETES_JUPYTER_BASE_URL
               value: {{ include "texera.jupyter.basePath" . }}
+            {{- end }}
+            {{- if .Values.mounter.enabled }}
+            # Passed from the chart rather than left to the kubernetes.conf defaults, so that
+            # changing a value here reaches the service that reads it.
+            - name: KUBERNETES_MOUNTER_ENABLED
+              value: "{{ .Values.mounter.enabled }}"
+            - name: KUBERNETES_COMPUTE_UNIT_POD_NAME_PREFIX
+              value: {{ .Values.workflowComputingUnitPool.podNamePrefix }}
+            - name: KUBERNETES_MOUNTER_PORT
+              value: "{{ .Values.mounter.port }}"
+            - name: FILE_SERVICE_URL
+              value: http://{{ .Values.fileService.name }}-svc:{{ .Values.fileService.service.port }}
             {{- end }}
             {{- if .Values.litellm.enabled }}
             # LLM gateway used to serve /api/chat and /api/models to the agent service.

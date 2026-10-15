@@ -30,11 +30,19 @@ class SubstringSearchOpExec(descString: String) extends FilterOpExec {
   this.setFilterFunc(findSubstring)
 
   private def findSubstring(tuple: Tuple): Boolean = {
-    val content = tuple.getField(desc.attribute).toString
-    if (desc.isCaseSensitive) {
-      content.contains(desc.substring)
+    val field = tuple.getField[Any](desc.attribute)
+    // A row with nothing in the column matches nothing. FilterPredicate answers the
+    // same way: once a field is null, every condition but IS_NULL / IS_NOT_NULL is
+    // false. An empty cell is ordinary input, since a blank in a CSV arrives as null.
+    if (field == null) {
+      false
     } else {
-      content.toLowerCase.contains(desc.substring.toLowerCase)
+      val content = field.toString
+      if (desc.isCaseSensitive) {
+        content.contains(desc.substring)
+      } else {
+        content.toLowerCase.contains(desc.substring.toLowerCase)
+      }
     }
   }
 }

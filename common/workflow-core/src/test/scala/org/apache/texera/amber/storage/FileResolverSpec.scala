@@ -40,7 +40,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 
 class FileResolverSpec
     extends AnyFlatSpec
@@ -175,6 +175,24 @@ class FileResolverSpec
     assert(localUri == Paths.get(localCsvFilePath).toUri)
   }
 
+  "FileResolver" should "resolve an absolute local path written with forward slashes" in {
+    // On Windows this is `C:/...`, whose drive letter `java.net.URI` parses as a scheme.
+    val localFile = Files.createTempFile("file-resolver-spec", ".txt")
+    try {
+      val absolutePath = localFile.toAbsolutePath.toString.replace('\\', '/')
+
+      assert(FileResolver.resolve(absolutePath) == localFile.toUri)
+    } finally {
+      Files.deleteIfExists(localFile)
+    }
+  }
+
+  "FileResolver" should "not pass a missing Windows path through as a URI" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve("C:/x/y.txt")
+    }
+  }
+
   "FileResolver" should "resolve dataset file correctly" in {
     val datasetACsvUri = FileResolver.resolve(datasetACsvFilePath)
     val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
@@ -235,16 +253,28 @@ class FileResolverSpec
     }
   }
 
-  "isFileResolved" should "return true when the path has a non-empty scheme" in {
+  "isFileResolved" should "return true when the path has a multi-letter scheme" in {
     assert(FileResolver.isFileResolved("s3://bucket/key"))
     assert(
       FileResolver.isFileResolved(s"${FileResolver.DATASET_FILE_URI_SCHEME}:///repo/hash/file.csv")
     )
+    assert(FileResolver.isFileResolved("file:///C:/x/y.txt"))
+    assert(FileResolver.isFileResolved("file:/tmp/y.txt"))
+    assert(FileResolver.isFileResolved("vfs:///repo/hash/file.csv"))
+    assert(FileResolver.isFileResolved("https://example.com/y.txt"))
   }
 
   it should "return false when the path has no scheme" in {
     assert(!FileResolver.isFileResolved("some/random/path"))
     assert(!FileResolver.isFileResolved("/test_user@test.com/test_dataset/v1/1.txt"))
+  }
+
+  it should "return false for an absolute Windows path" in {
+    // `java.net.URI` parses the drive letter as a one-letter scheme
+    assert(!FileResolver.isFileResolved("C:/x/y.txt"))
+    assert(!FileResolver.isFileResolved("c:/x/y.txt"))
+    // a backslash is illegal in a URI, so this form never parsed as one
+    assert(!FileResolver.isFileResolved("C:\\x\\y.txt"))
   }
 
   it should "return false for a malformed URI" in {
@@ -278,6 +308,56 @@ class FileResolverSpec
 
   it should "return None for a null path" in {
     assert(FileResolver.parseDatasetOwnerAndName(null).isEmpty)
+  }
+
+  "resolveRepositoryVersion" should "resolve a dataset version path to its repository and commit" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset/v2")
+        == ((testDataset.getRepositoryName, testDatasetVersion2.getVersionHash))
+    )
+  }
+
+  it should "resolve a model version path to its repository and commit" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/model/test_user@test.com/test_model/v1")
+        == ((testModel.getRepositoryName, testModelVersion1.getVersionHash))
+    )
+  }
+
+  it should "resolve a legacy unprefixed dataset version path" in {
+    assert(
+      FileResolver.resolveRepositoryVersion("/test_user@test.com/test_dataset/v1")
+        == ((testDataset.getRepositoryName, testDatasetVersion1.getVersionHash))
+    )
+  }
+
+  it should "reject a path that names a file rather than a version" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion(dataset1TxtFilePath)
+    }
+  }
+
+  it should "reject a path that stops short of a version" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset")
+    }
+  }
+
+  it should "reject an empty or null path" in {
+    assertThrows[FileNotFoundException](FileResolver.resolveRepositoryVersion(""))
+    assertThrows[FileNotFoundException](FileResolver.resolveRepositoryVersion(null))
+  }
+
+  it should "reject a version that does not exist" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_dataset/v99")
+    }
+  }
+
+  it should "not resolve a model under the dataset prefix" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveRepositoryVersion("/dataset/test_user@test.com/test_model/v1")
+    }
   }
 
   override protected def afterAll(): Unit = {

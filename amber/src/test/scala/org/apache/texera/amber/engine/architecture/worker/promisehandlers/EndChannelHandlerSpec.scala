@@ -44,11 +44,15 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   EmptyRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
+  BroadcastPartitioning,
+  OneToOnePartitioning
+}
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
 }
+import org.apache.texera.amber.engine.architecture.worker.DataProcessorSpec.loopLimitExec
 import org.apache.texera.amber.engine.architecture.worker.{
   DataProcessor,
   DataProcessorRPCHandlerInitializer,
@@ -59,6 +63,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{StateFrame, WorkflowF
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.ControlThrowable
@@ -87,11 +92,10 @@ import scala.util.control.ControlThrowable
   * The `forall` in step 5 is why the fixture always registers two input ports: a worker whose
   * other input port is still open must NOT finalize its output, or the downstream region would
   * see the executor finish while data is still arriving on the second port. The fixture pins that
-  * `forall`, but only over link-fed ports: `InputManager.isPortCompleted` branches, and for a port
-  * fed from materialization it reports the reader THREAD's `finished` flag and ignores
-  * `completed` entirely. That arm needs storage-backed input ports, which this fixture cannot
-  * build without real Iceberg documents, so substituting `getPort(p).completed` for
-  * `isPortCompleted(p)` is not distinguishable here — a known, stated gap rather than coverage.
+  * `forall`. A port fed from materialization is completed the same way, by the END this handler
+  * processes, whatever its reader thread has done since enqueuing that END, so the fixture can
+  * register such a port with a reader thread that never starts and still expect the output to be
+  * finalized.
   *
   * `produceStateOnFinish` has no override in main today — `OperatorExecutor` returns `None` for
   * every port — so the "operator produced a state" arm is reachable only through a test executor.
@@ -139,10 +143,14 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     * @param otherInputPortCompleted   whether the *other* input port has already finished. The
     *                                  common single-input case behaves like `true`: the channel
     *                                  being ended is the last one open.
+    * @param currentPortMaterialized   whether the ended port is read from materialization, by a
+    *                                  reader thread that is never started here, so it has not
+    *                                  returned when END is processed.
     */
   private class Fixture(
       executor: OperatorExecutor,
-      otherInputPortCompleted: Boolean = true
+      otherInputPortCompleted: Boolean = true,
+      currentPortMaterialized: Boolean = false
   ) {
     val sent: ArrayBuffer[WorkflowFIFOMessage] = ArrayBuffer()
 
@@ -157,7 +165,16 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
 
     // Two input ports on two different channels; only one of them is the channel the ECM came in
     // on, so a handler that picked an arbitrary channel would read the wrong port.
-    dp.inputManager.addPort(currentPortId, schema, List.empty, List.empty)
+    if (currentPortMaterialized) {
+      dp.inputManager.addPort(
+        currentPortId,
+        schema,
+        List(new URI("file:///end-channel-spec")),
+        List(BroadcastPartitioning(batchSize, Seq(currentChannelId)))
+      )
+    } else {
+      dp.inputManager.addPort(currentPortId, schema, List.empty, List.empty)
+    }
     dp.inputManager.addPort(otherPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(currentChannelId).setPortId(currentPortId)
     dp.inputGateway.getChannel(otherChannelId).setPortId(otherPortId)
@@ -392,6 +409,56 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     // Only the input port's own marker. Finalizing the output here would tell the downstream
     // region the executor is done while the second input port is still delivering.
     assert(fixture.drainOutput() == List(FinalizePort(currentPortId, input = true)))
+  }
+
+  it should "fail the finish of an operator whose setting refers to a loop variable no state message carried, before asking it for a state" in {
+    val executor = loopLimitExec()
+    val fixture = new Fixture(executor)
+
+    assert(fixture.endChannel() == EmptyReturn())
+
+    assert(
+      fixture.consoleMessages.map(_.consoleMessage.title) == Seq(
+        new IllegalStateException(
+          "property /limit refers to loop variable n, but no state message carried it"
+        ).toString
+      )
+    )
+    assertPausedByOperatorLogic(fixture.dp)
+    // Neither finish callback ran with the placeholder, and the port is still finalized.
+    assert(executor.calls.isEmpty)
+    assert(fixture.emittedStates.isEmpty)
+    assert(fixture.drainOutput().contains(FinalizePort(currentPortId, input = true)))
+  }
+
+  it should "finish an operator whose setting refers to a loop variable with the value its state message wrote" in {
+    val executor = loopLimitExec()
+    val fixture = new Fixture(executor)
+    fixture.dp.processDataPayload(currentChannelId, StateFrame(State(Map("n" -> 3L))))
+
+    assert(fixture.endChannel() == EmptyReturn())
+
+    assert(fixture.consoleMessages.isEmpty)
+    // The finish callback sees the limit the state message wrote.
+    assert(executor.calls.map(c => (c._1, c._2)) == Seq(("state", 3), ("finish", 3)))
+  }
+
+  it should "finalize the output when the last input port is read from materialization, before its reader thread has returned" in {
+    val fixture = new Fixture(new RecordingExecutor(), currentPortMaterialized = true)
+    val reader = fixture.dp.inputManager.getInputPortReaderThreads(currentPortId).head
+
+    fixture.endChannel()
+
+    // The DP thread can process END before the reader thread that enqueued it returns. Leaving
+    // the output unfinalized then would hang the region: nothing ends it later.
+    assert(reader.getState == Thread.State.NEW)
+    assert(
+      fixture.drainOutput() == List(
+        FinalizePort(currentPortId, input = true),
+        FinalizePort(outputPortId, input = false),
+        FinalizeExecutor()
+      )
+    )
   }
 
   it should "finalize the output once the last input port completes" in {

@@ -98,7 +98,8 @@ CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN'
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
-CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'ORCID');
+CREATE TYPE workflow_computing_unit_termination_reason_enum AS ENUM ('USER_REQUESTED', 'GARBAGE_COLLECTED');
+CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'ORCID', 'APPLE');
 CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
 
@@ -246,11 +247,40 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     cuid               SERIAL PRIMARY KEY,
     creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     terminate_time     TIMESTAMP  DEFAULT NULL,
+    termination_reason workflow_computing_unit_termination_reason_enum DEFAULT NULL,
     type               workflow_computing_unit_type_enum,
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
+
+-- does not restrict who may use the image.
+CREATE TABLE IF NOT EXISTS cu_image
+(
+    iid            SERIAL PRIMARY KEY,
+    name           VARCHAR(128) NOT NULL,
+    -- What the administrator supplied, normalised to an image reference.
+    source_ref     VARCHAR(512) NOT NULL,
+    -- The digest source_ref resolved to when last validated; an upstream tag can move.
+    source_digest  VARCHAR(128),
+    status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING'
+        CONSTRAINT ck_cu_image_status
+            CHECK (status IN ('PENDING', 'VALIDATING', 'READY', 'FAILED')),
+    -- What a unit is started from: source_ref pinned to the digest above.
+    -- Counts validations of this row, so a retry gets a job name of its own.
+    attempt        INT          NOT NULL DEFAULT 0,
+    validation_log TEXT,
+    created_by     INT,
+    creation_time  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES "user" (uid) ON DELETE SET NULL,
+    UNIQUE (name),
+    -- One row per reference; the service's own check is a read-then-write and so cannot
+    -- stop two simultaneous registrations of the same link.
+    UNIQUE (source_ref)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cu_image_source_digest ON cu_image (source_digest);
 
 -- Per-user warehouse registrations (#6870): one row per warehouse a user registered.
 -- Base columns only; the assume-role (BYO-S3) columns come in a later change.
@@ -304,6 +334,10 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (whid) REFERENCES user_warehouse(whid) ON DELETE SET NULL
 );
+
+-- Postgres indexes only the referenced side of a foreign key, so cuid needs its own index for the
+-- idle computing unit sweep and every other per-computing-unit lookup on this table.
+CREATE INDEX idx_workflow_executions_cuid ON workflow_executions (cuid);
 
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
