@@ -84,6 +84,4 @@ binary `NOTICE`/`LICENSE` files (`audit_jar_licenses.py`,
 | `utils/` | Shared shell helpers (`resolve-texera-home.sh`, `texera-logging.sh`) sourced by other scripts. |
 | `pylsp/` | Dockerized Python language server used by the UDF editor. |
 | `y-websocket-server/` | Dockerized Yjs websocket server backing collaborative editing. |
-| `forum/` | Flarum-based community forum setup (install scripts and seed SQL). |
-| `config.php`, `.htaccess` | Flarum runtime config and Apache rewrite rules for the forum. |
 | `litellm-config.yaml` | LiteLLM proxy configuration for AI features. |

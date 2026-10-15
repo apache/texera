@@ -581,7 +581,6 @@ describe("AdminSettingsComponent wiring", () => {
     "models_enabled",
     "compute_enabled",
     "quota_enabled",
-    "forum_enabled",
     "about_enabled",
   ] as const;
 
@@ -667,14 +666,7 @@ describe("AdminSettingsComponent wiring", () => {
     it("locks the Your Work children until Your Work itself is on", () => {
       // Indexed by key, not position: adding a tab shifts these and would silently drop one.
       const yourWorkChildren = (
-        [
-          "workflows_enabled",
-          "datasets_enabled",
-          "models_enabled",
-          "compute_enabled",
-          "quota_enabled",
-          "forum_enabled",
-        ] as const
+        ["workflows_enabled", "datasets_enabled", "models_enabled", "compute_enabled", "quota_enabled"] as const
       ).map(key => SWITCH_KEYS.indexOf(key));
 
       component.sidebarTabs.your_work_enabled = false;

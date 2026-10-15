@@ -35,7 +35,6 @@ import { AdminExecutionComponent } from "./dashboard/component/admin/execution/a
 import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
-import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { FeedbackComponent } from "./dashboard/component/user/feedback/feedback.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
@@ -184,10 +183,6 @@ routes.push({
         {
           path: "quota",
           component: UserQuotaComponent,
-        },
-        {
-          path: "discussion",
-          component: FlarumComponent,
         },
         {
           path: "feedback",

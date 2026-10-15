@@ -46,7 +46,6 @@ function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
     datasets_enabled: false,
     models_enabled: false,
     quota_enabled: false,
-    forum_enabled: false,
     about_enabled: false,
     ...overrides,
   };

@@ -206,9 +206,8 @@ class OrcidAuthResource {
     )
 
     // No provider id in the claims. `jwtClaims`' second parameter is specifically the GOOGLE one —
-    // it writes a claim named `googleId` — and the frontend spends that claim as a Flarum account
-    // password (`flarum.service.ts`). An ORCID iD is public, so putting it there would set a
-    // guessable password on that account; the iD is in `auth_provider` for anything that needs it.
+    // it writes a claim named `googleId` — so an ORCID iD does not belong there; the iD is in
+    // `auth_provider` for anything that needs it.
     TokenIssueResponse(jwtToken(jwtClaims(user)))
   }
 }

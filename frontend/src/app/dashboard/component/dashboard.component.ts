@@ -20,8 +20,6 @@
 import { Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { FlarumService } from "../service/user/flarum/flarum.service";
-import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
@@ -38,7 +36,6 @@ import {
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_MODEL,
-  USER_DISCUSSION,
   USER_PYTHON_VENV,
   USER_QUOTA,
   USER_WAREHOUSE,
@@ -91,7 +88,6 @@ export class DashboardComponent implements OnInit {
   isAdmin: boolean = this.userService.isAdmin();
   isLogin = this.userService.isLogin();
   public buildNumber: string = Version.buildNumber;
-  displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
   showLinks: boolean = false;
@@ -113,7 +109,6 @@ export class DashboardComponent implements OnInit {
     models_enabled: false,
     compute_enabled: false,
     quota_enabled: false,
-    forum_enabled: false,
     about_enabled: false,
   };
 
@@ -126,7 +121,6 @@ export class DashboardComponent implements OnInit {
   protected readonly USER_WAREHOUSE = USER_WAREHOUSE;
   protected readonly USER_PYTHON_VENV = USER_PYTHON_VENV;
   protected readonly USER_QUOTA = USER_QUOTA;
-  protected readonly USER_DISCUSSION = USER_DISCUSSION;
   protected readonly USER_FEEDBACK = USER_FEEDBACK;
   protected readonly ADMIN_USER = ADMIN_USER;
   protected readonly ADMIN_GMAIL = ADMIN_GMAIL;
@@ -140,7 +134,6 @@ export class DashboardComponent implements OnInit {
   constructor(
     private userService: UserService,
     private router: Router,
-    private flarumService: FlarumService,
     private ngZone: NgZone,
     private route: ActivatedRoute,
     private adminSettingsService: AdminSettingsService,
@@ -168,7 +161,6 @@ export class DashboardComponent implements OnInit {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
-          this.forumLogin();
         });
       });
 
@@ -230,35 +222,6 @@ export class DashboardComponent implements OnInit {
           error: () => {},
         });
     });
-  }
-
-  forumLogin(attemptRegister: boolean = true) {
-    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
-      this.flarumService
-        .auth()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (response: any) => {
-            document.cookie = `flarum_remember=${response.token};path=/`;
-          },
-          error: (err: unknown) => {
-            // Stop retrying on a missing/broken forum service, or once we have
-            // already attempted a registration, to avoid an infinite
-            // auth -> register -> auth loop when auth keeps failing.
-            if ([404, 500].includes((err as HttpErrorResponse).status) || !attemptRegister) {
-              this.displayForum = false;
-            } else {
-              this.flarumService
-                .register()
-                .pipe(untilDestroyed(this))
-                .subscribe({
-                  next: () => this.forumLogin(false),
-                  error: () => (this.displayForum = false),
-                });
-            }
-          },
-        });
-    }
   }
 
   checkRoute() {

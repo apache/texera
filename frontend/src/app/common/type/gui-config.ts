@@ -64,6 +64,5 @@ export interface SidebarTabs {
   datasets_enabled: boolean;
   models_enabled: boolean;
   quota_enabled: boolean;
-  forum_enabled: boolean;
   about_enabled: boolean;
 }
