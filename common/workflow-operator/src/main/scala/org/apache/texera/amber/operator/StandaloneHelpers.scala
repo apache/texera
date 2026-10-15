@@ -144,6 +144,43 @@ object StandaloneHelpers {
       |    return float(x)
       |
       |
+      |def _texera_java_double(text):
+      |    # Double.parseDouble on the trimmed text, which a read field reaches
+      |    # through `toDouble`. It takes a trailing d or f as a type suffix and
+      |    # 0x...p... as a hex literal, both of which float() refuses. A hex
+      |    # literal too large for a double is an infinity in Java, where
+      |    # float.fromhex raises.
+      |    text = text.strip()
+      |    if text[-1:] in ("d", "D", "f", "F"):
+      |        text = text[:-1]
+      |    if text.lstrip("+-")[:2].lower() == "0x":
+      |        try:
+      |            return float.fromhex(text)
+      |        except OverflowError:
+      |            return float("-inf") if text.startswith("-") else float("inf")
+      |    return float(text)
+      |
+      |
+      |def _texera_read_doubles(s):
+      |    # pandas leaves a DOUBLE column as text when a cell reads in Java and
+      |    # not as a plain float: "NaN", "2d", "0x1p3". Read those the engine's
+      |    # way. "NaN" is a value, and float64 reports a NaN as missing to every
+      |    # operator that reads the mask, so a column holding one goes into the
+      |    # nullable Float64, which keeps the empty cells alone null.
+      |    import numpy as np
+      |
+      |    if pd.api.types.is_numeric_dtype(s):
+      |        return s
+      |    holes = s.isna().to_numpy()
+      |    values = np.array(
+      |        [np.nan if hole else _texera_java_double(x) for x, hole in zip(s, holes)],
+      |        dtype="float64",
+      |    )
+      |    if np.isnan(values[~holes]).any():
+      |        values = pd.arrays.FloatingArray(values, holes)
+      |    return pd.Series(values, index=s.index, name=s.name)
+      |
+      |
       |def _texera_cast_string(s):
       |    # `toString` on the field, so the COLUMN's type decides the text and
       |    # not the shape of the value: a double keeps its point, whether or not
