@@ -397,9 +397,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
-   * The unit the workflow last ran on, else any unit that is running — and the warehouse it last
-   * wrote to, for the preselect (#7817). `selectUnit` is false when the unit was already settled by
-   * a remembered choice and only the warehouse still needs the lookup.
+   * The unit the workflow last ran on if it is still listed, else any unit that is running — and
+   * the warehouse it last wrote to, for the preselect (#7817). `selectUnit` is false when the unit
+   * was already settled by a remembered choice and only the warehouse still needs the lookup.
    */
   private selectFromLastExecution(wid: number, selectUnit: boolean = true): void {
     // The workflow can change while the lookup is out; that later change decided for itself, so an
@@ -412,22 +412,45 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
           if (stillShown()) {
             if (selectUnit) {
-              this.selectComputingUnit(wid, latestWorkflowExecution.cuId);
+              this.selectFromLoadedUnits(wid, latestWorkflowExecution.cuId);
             }
             this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
             this.applyWarehousePreselect();
           }
         },
         error: () => {
-          const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
-          if (selectUnit && stillShown() && runningUnit) {
-            this.selectComputingUnit(wid, runningUnit.computingUnit.cuid);
+          if (selectUnit && stillShown()) {
+            this.selectFromLoadedUnits(wid);
           }
           // No execution history: still preselect a warehouse (the first one).
           if (stillShown()) {
             this.applyWarehousePreselect();
           }
         },
+      });
+  }
+
+  /**
+   * Selects `preferred` once the unit list has loaded and still holds it, else the first running
+   * unit, else nothing.
+   */
+  private selectFromLoadedUnits(wid: number, preferred?: number): void {
+    this.computingUnitStatusService
+      .getAllComputingUnits()
+      .pipe(
+        filter(units => units.length > 0),
+        take(1),
+        untilDestroyed(this)
+      )
+      .subscribe(units => {
+        // Skip if the workflow changed while the list was loading.
+        if (wid !== this.workflowId) {
+          return;
+        }
+        const unit = units.find(u => u.computingUnit.cuid === preferred) ?? units.find(u => u.status === "Running");
+        if (unit) {
+          this.selectComputingUnit(wid, unit.computingUnit.cuid);
+        }
       });
   }
 
