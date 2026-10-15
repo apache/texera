@@ -427,7 +427,6 @@ class ConfigResourceSpec
       "models_enabled",
       "compute_enabled",
       "quota_enabled",
-      "forum_enabled",
       "about_enabled",
       "dataset_single_file_upload_max_size_mib",
       "dataset_multipart_upload_chunk_size_mib",

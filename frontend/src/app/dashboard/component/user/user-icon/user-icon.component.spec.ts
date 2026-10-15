@@ -68,20 +68,5 @@ describe("UserIconComponent", () => {
       expect(navigateSpy).toHaveBeenCalledWith([ABOUT]);
       expect(ABOUT).toBe("/about");
     });
-
-    it("clears the flarum_remember cookie on logout", () => {
-      const router = TestBed.inject(Router);
-      vi.spyOn(router, "navigate").mockResolvedValue(true);
-      const userService = TestBed.inject(UserService);
-      vi.spyOn(userService, "logout").mockImplementation(() => {});
-      // Seed the cookie so we can observe it being cleared. jsdom's
-      // document.cookie is the test surface here; assigning a value with a
-      // past expiry should expire the cookie immediately.
-      document.cookie = "flarum_remember=token; path=/;";
-
-      component.onClickLogout();
-
-      expect(document.cookie).not.toContain("flarum_remember=token");
-    });
   });
 });

@@ -226,8 +226,7 @@ class AuthResourceSpec
 
   // An account can hold a LOCAL and a GOOGLE credential at once, and the frontend reads `googleId`
   // off the token whichever one was used to sign in. It has to be the GOOGLE provider id and not
-  // the login handle: `flarum.service.ts` passes the claim on as an account password, so a token
-  // that carried the handle under that name would be handing the handle out.
+  // the login handle, which is what the claim's name promises.
   it should "carry the account's Google identity in the token of a local sign-in" in {
     val user = seedUser(uname("dual"), "pw")
     seedExternalProvider(user.getUid, ProviderTypeEnum.GOOGLE, s"google-dual-$runId")
@@ -237,8 +236,8 @@ class AuthResourceSpec
     googleIdClaimOf(response.accessToken) shouldBe s"google-dual-$runId"
   }
 
-  // The claim is omitted rather than sent as null for an account that has no Google identity —
-  // `common/type/user.ts` declares it optional, and a null would reach Flarum as a password.
+  // The claim is omitted rather than sent as null for an account that has no Google identity,
+  // since `common/type/user.ts` declares it optional.
   it should "omit googleId from the token of an account with no Google identity" in {
     seedUser(uname("localonly"), "pw")
 

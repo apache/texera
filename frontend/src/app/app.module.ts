@@ -129,7 +129,6 @@ import { SearchResultsComponent } from "./dashboard/component/user/search-result
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
-import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
@@ -205,7 +204,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: true,
         throwNoTokenError: false,
-        disallowedRoutes: ["forum/api/users", "api/config/pre-login", "api/config/settings/public"],
+        disallowedRoutes: ["api/config/pre-login", "api/config/settings/public"],
       },
     }),
     BrowserAnimationsModule,
@@ -337,7 +336,6 @@ registerLocaleData(en);
     SearchComponent,
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
-    FlarumComponent,
     SearchBarComponent,
     ListItemComponent,
     CardItemComponent,
