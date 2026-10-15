@@ -124,6 +124,8 @@ def double_to_long(value: float) -> int:
     :param value: A double (Python float) value.
     :return: The converted long (Python int) value.
     """
+    if numpy.isnan(value):
+        return 0x7FF8000000000000
     # Pack the double value into a binary string of 8 bytes
     packed_value = struct.pack("d", value)
     # Unpack the binary string to a 64-bit integer (int in Python 3)
