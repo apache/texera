@@ -27,7 +27,7 @@ import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -194,7 +194,7 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |if pd.api.types.is_datetime64_any_dtype(_iv_r):
        |    # The engine compares by getTime, so a moment counts only to the
        |    # millisecond. The bound is added before it is cut, as there.
-       |    _iv_hi = (_iv_r + pd.DateOffset($offsetUnit=$constant)).dt.floor("ms")
+       |    _iv_hi = _texera_interval_upper(_iv_r, pd.DateOffset($offsetUnit=$constant)).dt.floor("ms")
        |    _iv_l = _iv_l.dt.floor("ms")
        |    _iv_r = _iv_r.dt.floor("ms")
        |else:
@@ -202,6 +202,9 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)
        |out1df = _pairs[_iv_match].reset_index(drop=True)""".stripMargin
   }
+
+  override def standaloneHelpers(): Seq[String] =
+    Seq(StandaloneHelpers.AttributeCasts, IntervalJoinOpDesc.IntervalUpper)
 
   def this(
       leftTableAttributeName: String,
@@ -220,4 +223,48 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
     this.timeIntervalType = Some(timeIntervalType)
   }
 
+}
+
+object IntervalJoinOpDesc {
+
+  /** The upper bound of each interval, as the executor computes it:
+    * `Timestamp.valueOf(t.toLocalDateTime.plusX(constant))`. The constant is
+    * added on the machine's wall clock, so a day across a daylight-saving
+    * change is 23 or 25 hours, and a month counts from the local date. A wall
+    * clock that falls in a gap or an overlap is read at the standard offset,
+    * as java.util.Date reads it, and one before 1900 at the standard offset
+    * today. Each distinct key is worked out once, since the column holds every
+    * pair of the cross join.
+    */
+  val IntervalUpper: String =
+    """def _texera_interval_upper(s, offset):
+      |    from dateutil.tz import tzlocal
+      |
+      |    zone = _texera_local_zone()
+      |    standard = _texera_standard_offset(zone)
+      |    moved = _texera_local_wall_clocks(s.dt.tz_localize("UTC")) + offset
+      |    seen = {}
+      |
+      |    def instant(wall):
+      |        if pd.isna(wall):
+      |            return pd.NaT
+      |        if wall not in seen:
+      |            moment = wall.to_pydatetime(warn=False)
+      |            if moment.year < 1900:
+      |                seen[wall] = pd.Timestamp(moment - standard)
+      |                return seen[wall]
+      |            tz = zone if zone is not None else tzlocal()
+      |            try:
+      |                early = moment.replace(tzinfo=tz, fold=0)
+      |                late = moment.replace(tzinfo=tz, fold=1)
+      |                if early.utcoffset() == late.utcoffset() or not early.dst():
+      |                    at = early.utcoffset()
+      |                else:
+      |                    at = late.utcoffset()
+      |            except (OSError, OverflowError):
+      |                at = standard
+      |            seen[wall] = pd.Timestamp(moment - at)
+      |        return seen[wall]
+      |
+      |    return pd.Series([instant(w) for w in moved], index=s.index, dtype="datetime64[us]")""".stripMargin
 }
