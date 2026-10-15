@@ -933,6 +933,8 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.TEXT_PLAIN))
   @Path("/owner_name")
   def getOwnerName(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     context
       .select(USER.NAME)
       .from(USER)
@@ -945,6 +947,8 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_name")
   def getWorkflowName(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     publicField(wid, WORKFLOW.PUBLISHED_NAME, WORKFLOW.NAME)
   }
 
@@ -979,6 +983,8 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_description")
   def getWorkflowDescription(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     publicField(wid, WORKFLOW.PUBLISHED_DESCRIPTION, WORKFLOW.DESCRIPTION)
   }
 
