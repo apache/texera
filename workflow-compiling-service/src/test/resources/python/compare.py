@@ -376,6 +376,50 @@ def _declared_booleans(actual_path: str, expected_path: str, columns: list) -> t
     return arrays(actual), arrays(expected)
 
 
+_DOUBLE_TEXT = {"NaN": "nan", "Infinity": "inf", "-Infinity": "-inf", "-0.0": "-0.0"}
+
+
+def _double_kind(cell) -> str:
+    """Which of the values a float64 comparison cannot tell apart this cell is.
+
+    `read_json` reads a null and a NaN as one NaN, and -0.0 equals 0.0, so a side
+    that answered NaN where the other answered null, or flipped a zero's sign,
+    compared equal. Each side spells the four as the engine's writer does.
+    """
+    import math
+
+    if cell is None:
+        return "null"
+    if isinstance(cell, str):
+        return cell
+    if cell != cell:
+        return "NaN"
+    if cell in (math.inf, -math.inf):
+        return "Infinity" if cell > 0 else "-Infinity"
+    if cell == 0.0 and math.copysign(1.0, cell) < 0:
+        return "-0.0"
+    return "number"
+
+
+def _declared_doubles(actual_path: str, expected_path: str, columns: list) -> tuple:
+    """Both sides' declared DOUBLE columns as numbers, plus what kind of value
+    each cell is. The numbers keep the tolerance; the kinds are compared exactly."""
+
+    def split(values):
+        numbers, kinds = {}, {}
+        for column, cells in values.items():
+            kinds[column] = [_double_kind(c) for c in cells]
+            numbers[column] = [
+                float(_DOUBLE_TEXT.get(c, "nan")) if isinstance(c, str)
+                else float("nan") if c is None
+                else float(c)
+                for c in cells
+            ]
+        return numbers, kinds
+
+    return split(_raw_column(actual_path, columns)), split(_raw_column(expected_path, columns))
+
+
 def _run_comparison(
     actual_path: str,
     expected_path: str,
@@ -449,6 +493,20 @@ def _run_comparison(
             actual[column] = bool_a[column]
             expected[column] = bool_e[column]
 
+    double_cols = [
+        name
+        for name, kind in declared.items()
+        if kind == "double" and name in actual.columns and name in expected.columns
+    ]
+    double_kinds_a, double_kinds_e = {}, {}
+    if double_cols:
+        (numbers_a, double_kinds_a), (numbers_e, double_kinds_e) = _declared_doubles(
+            actual_path, expected_path, double_cols
+        )
+        for column in double_cols:
+            actual[column] = pd.array(numbers_a[column], dtype="float64")
+            expected[column] = pd.array(numbers_e[column], dtype="float64")
+
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
     # Two outputs without a row hold no model to ask, and read back from an
@@ -490,6 +548,14 @@ def _run_comparison(
             ]
             + detail
         )
+
+    # Added after the column check, which is about the operator's columns. Each
+    # rides with its row through the sort below and is compared as text.
+    for column in double_cols:
+        if column in actual.columns:
+            kind_column = f"{column} (null/NaN/±Infinity/-0.0)"
+            actual[kind_column] = double_kinds_a[column]
+            expected[kind_column] = double_kinds_e[column]
 
     if unordered:
         # Sort both sides by the same column key so set-equal frames collapse
