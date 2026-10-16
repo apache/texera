@@ -86,7 +86,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // order, which keeps the script stable for a given plan.
     val helpers = topoOrder
       .map(logicalPlan.getOperator)
-      .collect { case gen: StandaloneCodeGenerator => gen.standaloneHelpers() }
+      .collect {
+        case gen: StandaloneCodeGenerator =>
+          gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition)
+      }
       .flatten
       .distinct
     if (helpers.nonEmpty) {
@@ -140,11 +143,24 @@ class WorkflowToPythonTranslator extends LazyLogging {
             }
             .toMap
 
+          // An operator the engine hands its table in another form reads it in
+          // that form here too, under a name of its own, so the upstream frame
+          // another operator reads is not the one converted.
+          val fedVars = gen.standaloneInputAdapter() match {
+            case Some(adapter) =>
+              inVars.map { v =>
+                val fed = s"${v}_${adapter.name.stripPrefix("_texera_")}"
+                script += s"$fed = ${adapter.name}($v)"
+                fed
+              }
+            case None => inVars
+          }
+
           // generateStandaloneCode() returns a code block using in{N}df / out{N}df
           // placeholders; substituteVars() replaces them with the assigned vars.
           script += substituteVars(
             gen.generateStandaloneCode(inputSchemas),
-            inVars,
+            fedVars,
             outVars,
             fileBase(displayName, fileBaseCounts),
             displayName

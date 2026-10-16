@@ -82,11 +82,24 @@ object StandaloneHelpers {
       |    return float(value), True
       |
       |
+      |def _texera_saturate(value, low, high):
+      |    # A Double's toInt and toLong: NaN is 0, anything past the bounds is
+      |    # the nearest bound, the infinities included, and the rest truncates
+      |    # toward zero. Python's int() raises on the first two.
+      |    if value != value:
+      |        return 0
+      |    if value <= low:
+      |        return low
+      |    if value >= high:
+      |        return high
+      |    return int(value)
+      |
+      |
       |def _texera_long_value(value, is_double):
-      |    # Number.longValue(): a Double truncates toward zero and saturates at
-      |    # long's bounds, where a Long is already itself.
+      |    # Number.longValue(): a Double saturates at long's bounds, where a Long
+      |    # is already itself.
       |    if is_double:
-      |        return max(-(2 ** 63), min(2 ** 63 - 1, int(value)))
+      |        return _texera_saturate(value, -(2 ** 63), 2 ** 63 - 1)
       |    return value
       |
       |
@@ -115,11 +128,57 @@ object StandaloneHelpers {
       |    elif isinstance(x, bool):
       |        value = 1 if x else 0
       |    else:
-      |        value = int(x)
+      |        value = x
       |    if wrap:
-      |        return ((value + 2147483648) % 4294967296) - 2147483648
-      |    # int() first: Double.intValue truncates toward zero before it clamps.
-      |    return max(-2147483648, min(2147483647, int(value)))
+      |        return ((int(value) + 2147483648) % 4294967296) - 2147483648
+      |    return _texera_saturate(value, -2147483648, 2147483647)
+      |
+      |
+      |def _texera_text_to_timestamp(s):
+      |    # Read cell by cell, the way the engine reads a column: DateParserUtils
+      |    # is handed one field at a time, so a row states its own format and the
+      |    # rest of the column has no say in it.
+      |    #
+      |    # What is read here is held at microsecond resolution and not the
+      |    # nanoseconds pandas parses into by default, which reach 1677 to 2262:
+      |    # the engine holds a java.sql.Timestamp, where the year 2500 is an
+      |    # ordinary moment and emptying it would answer for a row the run itself
+      |    # had no trouble with. Text is cut to the millisecond, because
+      |    # DateParserUtils reads it into a java.util.Date, which counts no finer.
+      |    # A column that is already a moment is handed back
+      |    # at the resolution it arrived in instead, because parseField returns a
+      |    # java.sql.Timestamp untouched and that class counts nanoseconds.
+      |    #
+      |    # Still coerced, which the strict cast is not: the engine accepts a set
+      |    # of formats no single pandas call states, so text neither can read is
+      |    # answered with an empty cell rather than by ending the run.
+      |    #
+      |    # A reading that states an offset is moved to the zone the machine is
+      |    # set to and then holds that wall clock, which is what the engine does
+      |    # with one: DateParserUtils reads the offset and java.sql.Timestamp
+      |    # keeps no zone of its own. Left alone, the offset travels as far as
+      |    # the conversion below and stops the cast on a value the run reads.
+      |    from dateutil.parser import parse as _parse_date
+      |
+      |    if pd.api.types.is_datetime64_any_dtype(s):
+      |        if getattr(s.dtype, "tz", None) is not None:
+      |            return _texera_local_wall_clocks(s)
+      |        return s
+      |
+      |    zone = _texera_local_zone()
+      |
+      |    def _one(x):
+      |        if pd.isna(x):
+      |            return None
+      |        try:
+      |            parsed = _parse_date(str(x).strip())
+      |        except (ValueError, OverflowError):
+      |            return None
+      |        if parsed.tzinfo is not None:
+      |            parsed = _texera_local_wall_clock(parsed, zone)
+      |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
+      |
+      |    return s.map(_one).astype("datetime64[us]")
       |
       |
       |def _texera_epoch_millis_to_timestamp(s):
@@ -127,21 +186,148 @@ object StandaloneHelpers {
       |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
       |    # result in UTC would put it a whole offset away. Text needs neither: a
       |    # parsed wall clock is already the wall clock.
-      |    # tzlocal() and not the current offset: the zone carries its daylight
-      |    # rules, and each instant needs the offset in force when it happened.
+      |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
+      |
+      |
+      |def _texera_local_zone():
+      |    # The machine's zone by IANA name, as the JVM holds it, so each instant
+      |    # gets the offset in force when it happened. dateutil's tzlocal() knows
+      |    # only today's two offsets. tzlocal maps a Windows zone with the JVM's
+      |    # table.
+      |    import os
+      |    import zoneinfo
+      |
+      |    names = [os.environ.get("TZ", "").lstrip(":")]
+      |    try:
+      |        import tzlocal
+      |
+      |        names.insert(0, str(tzlocal.get_localzone()))
+      |    except Exception:
+      |        pass
+      |    link = os.path.realpath("/etc/localtime")
+      |    if "zoneinfo/" in link:
+      |        names.append(link.split("zoneinfo/", 1)[1])
+      |    for name in names:
+      |        try:
+      |            return zoneinfo.ZoneInfo(name)
+      |        except (ValueError, KeyError):
+      |            continue
+      |    return None
+      |
+      |
+      |def _texera_standard_offset(zone):
+      |    # java.util.Date's zone history starts in 1900, and an instant before
+      |    # that takes the zone's standard offset today.
+      |    import datetime
+      |    import time
+      |
+      |    if zone is None:
+      |        return datetime.timedelta(seconds=-time.timezone)
+      |    now = datetime.datetime.now(zone)
+      |    return now.utcoffset() - now.dst()
+      |
+      |
+      |def _texera_local_wall_clock(moment, zone):
+      |    # The wall clock the machine's zone shows at an instant that states its
+      |    # offset.
+      |    #
+      |    # With no zone named, tzlocal() is the closest there is. Windows'
+      |    # localtime refuses an instant before 1970, and tzlocal() asks it, so
+      |    # such an instant takes the standard offset too.
+      |    import datetime
+      |
       |    from dateutil.tz import tzlocal
       |
-      |    return (
-      |        pd.to_datetime(s, unit="ms", errors="coerce", utc=True)
-      |        .dt.tz_convert(tzlocal())
-      |        .dt.tz_localize(None)
-      |    )
+      |    utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+      |    if utc < datetime.datetime(1900, 1, 1):
+      |        return utc + _texera_standard_offset(zone)
+      |    if zone is not None:
+      |        return moment.astimezone(zone).replace(tzinfo=None)
+      |    try:
+      |        return moment.astimezone(tzlocal()).replace(tzinfo=None)
+      |    except (OSError, OverflowError):
+      |        return utc + _texera_standard_offset(zone)
+      |
+      |
+      |def _texera_local_wall_clocks(s):
+      |    # The same for a column that states its zone, kept at its own resolution.
+      |    # Without a named zone, a cell Windows refuses is asked through
+      |    # datetime, one at a time, because a single pandas Timestamp swallows
+      |    # the refusal and answers UTC. Only the offset comes from there, so no
+      |    # digit past the microsecond is lost.
+      |    import datetime
+      |
+      |    from dateutil.tz import tzlocal
+      |
+      |    zone = _texera_local_zone()
+      |    utc = s.dt.tz_convert("UTC").dt.tz_localize(None)
+      |    if zone is not None:
+      |        wall = s.dt.tz_convert(zone).dt.tz_localize(None)
+      |        before = utc < pd.Timestamp(1900, 1, 1)
+      |        return wall.where(~before, utc + _texera_standard_offset(zone))
+      |    try:
+      |        return s.dt.tz_convert(tzlocal()).dt.tz_localize(None)
+      |    except (OSError, OverflowError):
+      |        pass
+      |
+      |    def _offset(t):
+      |        if pd.isna(t):
+      |            return 0
+      |        moment = t.to_pydatetime(warn=False)
+      |        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+      |        return int((_texera_local_wall_clock(moment, None) - utc).total_seconds())
+      |
+      |    seconds = pd.Series([_offset(t) for t in s], index=s.index)
+      |    return utc + pd.to_timedelta(seconds, unit="s").astype("timedelta64[s]")
       |
       |
       |def _texera_cast_double(x):
       |    if isinstance(x, str):
       |        return float(x.strip())
       |    return float(x)
+      |
+      |
+      |def _texera_cast_doubles(s):
+      |    # Into a nullable Float64 built from the column's own mask, which holds
+      |    # a NaN apart from an empty cell. float64 holds both as NaN, so text
+      |    # "NaN" cast here came out empty at the next cast.
+      |    holes = s.isna().to_numpy()
+      |    values = _texera_cast_cells(s, _texera_cast_double, 0.0).to_numpy(dtype="float64")
+      |    return pd.Series(pd.arrays.FloatingArray(values, holes), index=s.index, name=s.name)
+      |
+      |
+      |def _texera_java_text(x):
+      |    # The text Java's toString gives the value Texera holds. A double past
+      |    # 1e7 or under 1e-3 is written in E notation, where Python's str()
+      |    # waits until 1e16 and 1e-4. Its digits are the shortest that read back
+      |    # as the same value, as from JDK 19; an earlier JDK sometimes writes
+      |    # more, 9.999999999999999E22 for 1e23. A java.sql.Timestamp writes every
+      |    # digit of its nanoseconds, trailing zeros dropped but never all of them,
+      |    # where Python writes no fraction on a whole second and six digits
+      |    # otherwise. A boolean is written in lower case.
+      |    import datetime
+      |    import decimal
+      |
+      |    if pd.api.types.is_bool(x):
+      |        return "true" if x else "false"
+      |    if isinstance(x, datetime.datetime):
+      |        nanos = x.microsecond * 1000 + getattr(x, "nanosecond", 0)
+      |        return x.strftime("%Y-%m-%d %H:%M:%S") + "." + (f"{nanos:09d}".rstrip("0") or "0")
+      |    if pd.api.types.is_integer(x):
+      |        return str(int(x))
+      |    if pd.api.types.is_float(x):
+      |        value = float(x)
+      |        if value != value:
+      |            return "NaN"
+      |        if value in (float("inf"), float("-inf")):
+      |            return "Infinity" if value > 0 else "-Infinity"
+      |        if value == 0 or 1e-3 <= abs(value) < 1e7:
+      |            return repr(value)
+      |        sign, digits, exponent = decimal.Decimal(repr(value)).as_tuple()
+      |        power = len(digits) + exponent - 1
+      |        kept = "".join(map(str, digits)).rstrip("0") or "0"
+      |        return ("-" if sign else "") + kept[0] + "." + (kept[1:] or "0") + "E" + str(power)
+      |    return str(x)
       |
       |
       |def _texera_cast_string(s):
@@ -153,20 +339,20 @@ object StandaloneHelpers {
       |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
       |    if pd.api.types.is_integer_dtype(s):
       |        return s.map(lambda x: None if pd.isna(x) else str(int(x)))
-      |    if pd.api.types.is_datetime64_any_dtype(s):
-      |        # java.sql.Timestamp.toString: trailing zeros dropped from the
-      |        # fraction, but never all of them. Python's own str() writes no
-      |        # fraction at all on a whole second and six digits otherwise.
-      |        def _ts(x):
-      |            if pd.isna(x):
-      |                return None
-      |            text = x.strftime("%Y-%m-%d %H:%M:%S.%f").rstrip("0")
-      |            return text + "0" if text.endswith(".") else text
+      |    return _texera_cast_cells(s, _texera_java_text, None)
       |
-      |        return s.map(_ts)
-      |    return s.map(
-      |        lambda x: None
-      |        if pd.isna(x)
-      |        else ("true" if x else "false") if pd.api.types.is_bool(x) else str(x)
+      |
+      |def _texera_cast_cells(s, cast, hole):
+      |    # Each cell through `cast`, and `hole` where the cell is empty. The
+      |    # column's own mask says which cells are empty, not each value: a
+      |    # nullable float column holds NaN as a value, and `Series.map` and
+      |    # `Series.apply` hand its holes over as NaN too, so asking the value
+      |    # empties a stored NaN the engine casts like any other double.
+      |    holes = s.isna().to_numpy()
+      |    return pd.Series(
+      |        [hole if empty else cast(x) for x, empty in zip(s, holes)],
+      |        index=s.index,
+      |        name=s.name,
+      |        dtype=object,
       |    )""".stripMargin
 }
