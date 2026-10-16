@@ -304,4 +304,31 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
       case other                   => fail(s"expected OpExecWithCode, got $other")
     }
   }
+
+  private val defaultCode: String =
+    PythonUdfTemplateTestUtils.defaultCode(classOf[PythonUDFOpDescV2])
+
+  "PythonUDFOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
+    PythonUdfTemplateTestUtils.activeLines(defaultCode) shouldBe List("from pytexera import *")
+    defaultCode should include("Keep exactly ONE class")
+    defaultCode should include("never `return` a value")
+    defaultCode should include("super().__init__()")
+    defaultCode should include("UDFOperatorV2 -> process_tuple")
+    defaultCode should include("UDFBatchOperator -> process_batch")
+    defaultCode should include("UDFTableOperator -> process_table")
+    defaultCode should include("UiParameter")
+  }
+
+  it should "leave exactly one active class after uncommenting any one template class" in {
+    for (
+      className <- List("ProcessTupleOperator", "ProcessBatchOperator", "ProcessTableOperator")
+    ) {
+      val active = PythonUdfTemplateTestUtils.activeLines(
+        PythonUdfTemplateTestUtils.uncommentClass(defaultCode, className)
+      )
+      active.head shouldBe "from pytexera import *"
+      active.count(_.startsWith("class ")) shouldBe 1
+      active.exists(_.startsWith(s"class $className(")) shouldBe true
+    }
+  }
 }
