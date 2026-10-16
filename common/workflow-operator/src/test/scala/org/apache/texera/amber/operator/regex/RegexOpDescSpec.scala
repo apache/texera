@@ -98,6 +98,16 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
     RegexOpDesc.unicodeBoundaries("""\[\b""") shouldBe """\[(?u:\b)"""
   }
 
+  "RegexOpDesc.unicodeCase" should
+    "scope a leading u around the rest and keep each shorthand ASCII" in {
+    RegexOpDesc.unicodeCase("""\w[é\d]""") shouldBe """\w[é\d]"""
+    RegexOpDesc.unicodeCase("(?iu)é") shouldBe "(?i)(?u:é)"
+    RegexOpDesc.unicodeCase("""(?u)\w[\s][é\d][^\W][^é\S][\w^]""") shouldBe
+      """(?u:(?a:\w)(?a:[\s])(?:[é]|(?a:[\d]))(?a:[^\W])(?:(?![é])(?a:[^\S]))(?:[\^]|(?a:[\w])))"""
+    RegexOpDesc.unicodeCase("""x(?iu:é)\d\\w""") shouldBe """x(?iu:é)(?a:\d)\\w"""
+    RegexOpDesc.unicodeCase("(?iux)é # note") shouldBe "(?ix)(?u:é # note\n)"
+  }
+
   // Pattern without UNICODE_CASE ignores case for ASCII letters only, and its
   // \w, \d and \s are ASCII, while Java 17's \b takes any letter or digit as
   // part of a word. Each pattern runs through RegexOpExec and through the
@@ -118,7 +128,15 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
       ("""^\w$""", false, Seq("ß", "s")),
       ("""\bcafé\b""", false, Seq("cafés", "café", "un café noir")),
       ("""\Bé""", false, Seq("café", "é")),
-      ("""\\b""", false, Seq("""\b""", "b"))
+      ("""\\b""", false, Seq("""\b""", "b")),
+      // An inline u folds case by Unicode and leaves \w, \d and \s ASCII.
+      ("(?iu)é", false, Seq("é", "É", "x", null)),
+      ("(?u)é", true, Seq("É", "é", "x")),
+      ("""(?iu)\w""", false, Seq("é", "e", "\u212a")),
+      ("""(?iu)^[é\w]+$""", false, Seq("Éa", "e", "!")),
+      ("""(?iu)[^é\W]""", false, Seq("É", "é", "e")),
+      ("""x(?iu:é)\d""", false, Seq("xÉ3", "xÉ\u0663", "XÉ3")),
+      ("(?iux)é # note", false, Seq("É", "x"))
     )
     val schema = Schema().add("v", AttributeType.STRING).add("i", AttributeType.INTEGER)
     val runs = cases.map {
@@ -147,7 +165,8 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
         (engine, script)
     }
 
-    val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
+    // The values arrive as JSON arrays, so a missing one reads as null.
+    val driver = (Seq("import pandas as pd", "null = None") ++ runs.map(_._2)).mkString("\n")
     val file = Files.createTempFile("regex-engine-parity-", ".py")
     file.toFile.deleteOnExit()
     Files.write(file, driver.getBytes(StandardCharsets.UTF_8))

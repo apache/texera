@@ -87,7 +87,9 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // \w, \d and \s are ASCII, where Python's re is Unicode for all four, so the
     // pattern runs under re.ASCII. Java 17's \b still takes any letter or digit
     // as part of a word, so \b and \B keep Python's Unicode meaning.
-    val pyLiteral = pyStringLiteral(RegexOpDesc.unicodeBoundaries(Option(regex).getOrElse("")))
+    val pyLiteral = pyStringLiteral(
+      RegexOpDesc.unicodeBoundaries(RegexOpDesc.unicodeCase(Option(regex).getOrElse("")))
+    )
     val caseArg = if (caseInsensitive) "False" else "True"
     val attrLit = pyStringLiteral(attribute)
     // The rows with nothing in the column are dropped before the match rather than
@@ -107,6 +109,77 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 }
 
 object RegexOpDesc {
+
+  private val LeadingFlags = """^(?:\(\?[a-zA-Z]*(?:-[a-zA-Z]*)?\))+""".r
+  private val FlagGroup = """\(\?([a-zA-Z]*)(?:-([a-zA-Z]*))?\)""".r
+  private val TurnsUnicodeOn = """\(\?[a-zA-Z]*u[a-zA-Z]*(?:-[a-zA-Z]*)?[:)]""".r
+  private val Shorthands = "wWdDsS"
+
+  /** Java's inline u flag folds case by Unicode and changes nothing else, while
+    * Python refuses a global u beside re.ASCII and its u also widens \w, \d and
+    * \s. So a leading u becomes a (?u:...) scope around the rest, and once any u
+    * is on, each \w, \d and \s is scoped back to ASCII. A class holding one is
+    * split, so its other letters still fold.
+    */
+  def unicodeCase(pattern: String): String = {
+    if (TurnsUnicodeOn.findFirstIn(pattern).isEmpty) return pattern
+    val lead = LeadingFlags.findPrefixOf(pattern).getOrElse("")
+    val leadGroups = FlagGroup.findAllMatchIn(lead).toList
+    val leadOn = leadGroups.exists(_.group(1).contains('u'))
+    val out = new StringBuilder
+    leadGroups.foreach { g =>
+      val on = g.group(1).filterNot(_ == 'u')
+      val off = Option(g.group(2)).getOrElse("").filterNot(_ == 'u')
+      if (on.nonEmpty || off.nonEmpty) out.append(s"(?$on${if (off.isEmpty) "" else s"-$off"})")
+    }
+    if (leadOn) out.append("(?u:")
+
+    var i = lead.length
+    while (i < pattern.length) {
+      val c = pattern.charAt(i)
+      if (c == '\\' && i + 1 < pattern.length) {
+        val next = pattern.charAt(i + 1)
+        if (Shorthands.contains(next)) out.append(s"(?a:\\$next)")
+        else out.append(c).append(next)
+        i += 2
+      } else if (c == '[') {
+        var j = i + 1
+        val negated = j < pattern.length && pattern.charAt(j) == '^'
+        if (negated) j += 1
+        val others = new StringBuilder
+        val ascii = new StringBuilder
+        // A ']' right after '[' or '[^' is a literal, not the end.
+        if (j < pattern.length && pattern.charAt(j) == ']') { others.append(']'); j += 1 }
+        while (j < pattern.length && pattern.charAt(j) != ']') {
+          if (pattern.charAt(j) == '\\' && j + 1 < pattern.length) {
+            val next = pattern.charAt(j + 1)
+            (if (Shorthands.contains(next)) ascii else others).append('\\').append(next)
+            j += 2
+          } else { others.append(pattern.charAt(j)); j += 1 }
+        }
+        if (ascii.isEmpty || j >= pattern.length)
+          out.append(pattern.substring(i, math.min(j + 1, pattern.length)))
+        else {
+          val rest = if (others.toString.startsWith("^")) "\\" + others else others.toString
+          out.append(
+            (negated, rest.isEmpty) match {
+              case (false, true)  => s"(?a:[$ascii])"
+              case (false, false) => s"(?:[$rest]|(?a:[$ascii]))"
+              case (true, true)   => s"(?a:[^$ascii])"
+              case (true, false)  => s"(?:(?![$rest])(?a:[^$ascii]))"
+            }
+          )
+        }
+        i = j + 1
+      } else {
+        out.append(c)
+        i += 1
+      }
+    }
+    // Under the x flag a trailing comment would swallow the closing parenthesis.
+    if (leadOn) out.append(if (leadGroups.exists(_.group(1).contains('x'))) "\n)" else ")")
+    out.toString
+  }
 
   /** Rewrites each \b and \B outside a character class as a group scoped to
     * Unicode, so it keeps that meaning under re.ASCII. An escaped character is
