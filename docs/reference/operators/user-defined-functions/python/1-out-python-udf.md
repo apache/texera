@@ -27,6 +27,8 @@ tags: [user-defined-functions, python]
 
 [Home](../../../) > [User Defined Functions](../../) > [Python](../)
 
+> New to Python UDFs? Start with the [Guide to Use a Python UDF](/docs/tutorials/guide-to-use-python-udf/). It covers the required import, choosing one class, and common errors.
+
 ### Input Properties
 
 | Property | Requirement | Type | Default | Description |
