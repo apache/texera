@@ -107,10 +107,12 @@ object StandaloneRunner extends LazyLogging {
         gen.generateStandaloneCode(inputSchemas),
         inputs,
         outputPaths,
-        gen.standaloneHelpers(),
+        gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition),
+        gen.standaloneInputAdapter().map(_.name),
         gen.standaloneImports(),
         exactIntegers,
-        integralOutputColumns(outputSchemas, outputPaths.keys.toSeq),
+        declaredOutputColumns(outputSchemas, outputPaths.keys.toSeq, IntegralTypes),
+        declaredOutputColumns(outputSchemas, outputPaths.keys.toSeq, Set(AttributeType.DOUBLE)),
         gen.standaloneSourceName()
       )
     Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
@@ -178,9 +180,11 @@ object StandaloneRunner extends LazyLogging {
       inputs: Map[Int, Path],
       outputs: Map[Int, Path],
       helpers: Seq[String],
+      inputAdapter: Option[String],
       imports: Seq[String],
       exactIntegers: Boolean,
       integralOutputs: Map[Int, Seq[String]],
+      doubleOutputs: Map[Int, Seq[String]],
       sourceFileName: Option[String]
   ): String = {
     val sb = new StringBuilder
@@ -237,6 +241,31 @@ object StandaloneRunner extends LazyLogging {
     sb.append("    return df\n")
     sb.append("\n")
 
+    // The engine writes NaN and the infinities as text and keeps -0.0's sign;
+    // to_json writes the first three as null and -0.0 as 0.0, so a script that
+    // answered NaN where the engine answered null compared equal. isna() is the
+    // column's own answer: in float64 a NaN is a null, in Float64 only the mask is.
+    sb.append("def _texera_encode_doubles(df, columns):\n")
+    sb.append("    def _texera_double(_v):\n")
+    sb.append("        try:\n")
+    sb.append("            _f = float(_v)\n")
+    sb.append("        except (TypeError, ValueError):\n")
+    sb.append("            return _v\n")
+    sb.append("        if _f != _f:\n")
+    sb.append("            return 'NaN'\n")
+    sb.append("        if _f in (float('inf'), float('-inf')):\n")
+    sb.append("            return 'Infinity' if _f > 0 else '-Infinity'\n")
+    sb.append("        if _f == 0.0 and str(_f).startswith('-'):\n")
+    sb.append("            return '-0.0'\n")
+    sb.append("        return _f\n")
+    sb.append("    for _c in columns:\n")
+    sb.append("        if _c in df.columns:\n")
+    sb.append("            _null = df[_c].isna()\n")
+    sb.append("            df[_c] = [None if _n else _texera_double(_v)\n")
+    sb.append("                      for _v, _n in zip(df[_c].to_numpy(dtype=object), _null)]\n")
+    sb.append("    return df\n")
+    sb.append("\n")
+
     // A model column arrives as the cast's pickle marker followed by the pickle,
     // and the worker's ArrowTableTupleProvider unpickles such a cell before the
     // operator sees it. Same test and slice, so the script is handed the model
@@ -268,6 +297,38 @@ object StandaloneRunner extends LazyLogging {
       sb.append("    return {_c: pd.array(_v, dtype='Int64') for _c, _v in _values.items()}\n")
       sb.append("\n")
     }
+
+    // `read_json` reads the engine's "NaN" and a null as one float64 NaN, while
+    // the engine still holds them apart. A source hands a column holding a real
+    // NaN over as Float64, which keeps them apart too, and an ordinary column as
+    // float64. Only the columns that hold one are changed, so every other run
+    // keeps the float64 it had.
+    sb.append("def _texera_verify_doubles(_path, _columns):\n")
+    sb.append(
+      "    _special = {'NaN': float('nan'), 'Infinity': float('inf'), " +
+        "'-Infinity': float('-inf')}\n"
+    )
+    sb.append("    _values = {_c: [] for _c in _columns}\n")
+    sb.append("    with open(_path, 'r', encoding='utf-8') as _f:\n")
+    sb.append("        for _line in _f:\n")
+    sb.append("            _line = _line.strip()\n")
+    sb.append("            if not _line:\n")
+    sb.append("                continue\n")
+    sb.append("            _row = json.loads(_line)\n")
+    sb.append("            for _c in _columns:\n")
+    sb.append("                _values[_c].append(_row.get(_c))\n")
+    sb.append("    _out = {}\n")
+    sb.append("    for _c, _v in _values.items():\n")
+    sb.append("        if 'NaN' in _v:\n")
+    sb.append("            _out[_c] = pd.arrays.FloatingArray(\n")
+    sb.append(
+      "                pd.array([0.0 if _x is None else _special.get(_x, _x) " +
+        "for _x in _v], dtype='float64').to_numpy(),\n"
+    )
+    sb.append("                pd.array([_x is None for _x in _v], dtype=bool).to_numpy(),\n")
+    sb.append("            )\n")
+    sb.append("    return _out\n")
+    sb.append("\n")
 
     // TIMESTAMP columns are handed to the operator as datetime64 (see the
     // prologue below) to match the schema-typed runtime path, but the runtime
@@ -406,6 +467,15 @@ object StandaloneRunner extends LazyLogging {
           sb.append(s"if ${py(col)} in in${n}df.columns:\n")
           sb.append(s"    in${n}df[${py(col)}] = in${n}df[${py(col)}].astype('float64')\n")
         }
+        doubleColumns(path) match {
+          case Seq() => ()
+          case cols =>
+            val names = cols.map(py).mkString(", ")
+            sb.append(
+              s"for _c, _a in _texera_verify_doubles(${py(path.toString)}, [$names]).items():\n"
+            )
+            sb.append(s"    in${n}df[_c] = _a\n")
+        }
         // A boolean column the fixture punched a hole in comes back as float64,
         // so the operator is handed 1.0 and 0.0 where the run had true and
         // false. The nullable dtype carries both the values and the hole. One
@@ -480,6 +550,13 @@ object StandaloneRunner extends LazyLogging {
       sb.append(s"${StandaloneCodeGenerator.SourceFilePlaceholder} = ${py(name)}\n\n")
     }
 
+    // What the translator feeds such an operator, so the run checks the script a
+    // real export writes rather than the prologue's frames as they were read.
+    inputAdapter.foreach { adapter =>
+      inputs.keys.toSeq.sorted.foreach(n => sb.append(s"in${n}df = $adapter(in${n}df)\n"))
+      sb.append("\n")
+    }
+
     sb.append("# ── operator body ──\n")
     sb.append(body)
     if (!body.endsWith("\n")) sb.append('\n')
@@ -502,8 +579,10 @@ object StandaloneRunner extends LazyLogging {
           s"json.dump({str(_c): str(_t) for _c, _t in out${n}df.dtypes.items()}, " +
             s"open(${py(path.toString + ".dtypes.json")}, 'w'))\n"
         )
+        val doubles = doubleOutputs.getOrElse(n, Seq.empty).map(py).mkString(", ")
         sb.append(
-          s"_texera_encode_obj_cols(_texera_encode_ts_cols($frame))" +
+          s"_texera_encode_obj_cols(_texera_encode_ts_cols(" +
+            s"_texera_encode_doubles($frame, [$doubles])))" +
             s".to_json(${py(path.toString)}, orient='records', lines=True)\n"
         )
     }
@@ -589,16 +668,19 @@ object StandaloneRunner extends LazyLogging {
     * survive that. A caller with no schemas to hand over names no column, and
     * the epilogue then writes each frame as pandas holds it.
     */
-  private def integralOutputColumns(
+  private val IntegralTypes: Set[AttributeType] = Set(AttributeType.INTEGER, AttributeType.LONG)
+
+  private def declaredOutputColumns(
       outputSchemas: Map[PortIdentity, Schema],
-      ports: Seq[Int]
+      ports: Seq[Int],
+      types: Set[AttributeType]
   ): Map[Int, Seq[String]] =
     ports.map { port =>
       val declared = outputSchemas
         .get(PortIdentity(port - 1))
         .toSeq
         .flatMap(_.getAttributes)
-        .filter(a => a.getType == AttributeType.INTEGER || a.getType == AttributeType.LONG)
+        .filter(a => types.contains(a.getType))
         .map(_.getName)
       port -> declared
     }.toMap
