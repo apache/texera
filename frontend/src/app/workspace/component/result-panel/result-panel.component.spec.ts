@@ -382,7 +382,6 @@ describe("ResultPanelComponent", () => {
 
     it("tears down a stale error frame when the failed execution has no error for the selected operator", () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
-      workflowActionService.addOperator(mockScanPredicate, mockPoint);
       // Keep the highlight aligned with currentOperatorId so the clear-on-selection-change
       // path is skipped and we can prove the delete branch (not the wholesale clear) fires.
       component.currentOperatorId = "3";
@@ -393,33 +392,15 @@ describe("ResultPanelComponent", () => {
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
       vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
         state: ExecutionState.Failed,
-        errorMessages: [makeFatalError("1")],
+        errorMessages: [makeFatalError("someOtherOperator")],
       });
-      // A real fatal error exists, but it belongs to another operator on the canvas, so the
-      // id filter strips it and the stale frame is removed.
-      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([makeFatalError("1")]);
+      // A real fatal error exists, but it belongs to a different operator, so the id filter
+      // strips it and the stale frame is removed.
+      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([makeFatalError("someOtherOperator")]);
 
       component.rerenderResultPanel();
 
       expect(component.frameComponentConfigs.has("Static Error")).toBe(false);
-    });
-
-    it("shows the error frame for the selected operator when the run failed with an error not tied to any operator", () => {
-      // #8736: a Python UDF that fails while starting reports from the coordinator, so its
-      // error says "unknown operator". Clicking the UDF must still show that error.
-      workflowActionService.addOperator(mockResultPredicate, mockPoint);
-      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
-      vi.spyOn(executeWorkflowService, "getExecutionState").mockReturnValue({
-        state: ExecutionState.Failed,
-        errorMessages: [makeFatalError("unknown operator")],
-      });
-      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([makeFatalError("unknown operator")]);
-
-      component.rerenderResultPanel();
-
-      const errorConfig = component.frameComponentConfigs.get("Static Error");
-      expect(errorConfig?.component).toBe(ErrorFrameComponent);
-      expect(errorConfig?.componentInputs).toEqual({ operatorId: "3" });
     });
 
     it("shows an operator error frame when the compilation failed with a matching error", () => {

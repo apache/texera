@@ -106,8 +106,6 @@ describe("ErrorFrameComponent", () => {
 
     it("keeps only the errors of the bound operator when operatorId is set", () => {
       component.operatorId = "op1";
-      // Both operators are on the canvas, so op2's error belongs to another operator.
-      vi.spyOn(actionService.getTexeraGraph(), "hasOperator").mockReturnValue(true);
       vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([
         fatalError({ operatorId: "op1", type: { name: "X" } }),
         fatalError({ operatorId: "op2", type: { name: "X" } }),
@@ -118,22 +116,6 @@ describe("ErrorFrameComponent", () => {
 
       expect(component.categoryToErrorMapping.get("X")).toHaveLength(1);
       expect(component.categoryToErrorMapping.get("X")![0].operatorId).toBe("op1");
-    });
-
-    it("also keeps errors that are not tied to any operator on the canvas", () => {
-      // A Python UDF that fails while starting reports its error from the coordinator,
-      // so the error carries "unknown operator" instead of the UDF's id.
-      component.operatorId = "op1";
-      vi.spyOn(actionService.getTexeraGraph(), "hasOperator").mockImplementation(id => id !== "unknown operator");
-      vi.spyOn(executeWorkflowService, "getErrorMessages").mockReturnValue([
-        fatalError({ operatorId: "unknown operator", type: { name: "X" } }),
-        fatalError({ operatorId: "op2", type: { name: "X" } }),
-      ]);
-      vi.spyOn(compilingService, "getWorkflowCompilationErrors").mockReturnValue({});
-
-      component.renderError();
-
-      expect(component.categoryToErrorMapping.get("X")!.map(e => e.operatorId)).toEqual(["unknown operator"]);
     });
 
     it("strips the exception prefix and 'requirement failed:' for COMPILATION_ERROR", () => {
