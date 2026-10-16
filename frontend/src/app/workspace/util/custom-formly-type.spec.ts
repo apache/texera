@@ -22,16 +22,16 @@ import { customFormlyFieldType, NON_FORM_FIELD_TYPES, CANVAS_ONLY_FORMLY_TYPES }
 describe("NON_FORM_FIELD_TYPES", () => {
   it("blocks only the code editor from being a form field, not the drag-reorder list", () => {
     expect(NON_FORM_FIELD_TYPES.has("codearea")).toBe(true);
-    // a drag-reorder property is still a valid form field (it just renders without the drag)
+    // a drag-reorder property is still a valid form field, and the form renders it with its drag (#8761)
     expect(NON_FORM_FIELD_TYPES.has("repeat-section-dnd")).toBe(false);
   });
 });
 
 describe("CANVAS_ONLY_FORMLY_TYPES", () => {
-  it("holds the widgets the form falls back from: the code editor and the drag-reorder list", () => {
+  it("holds the widgets the form falls back from: the code editor, and the code editor only", () => {
     expect(CANVAS_ONLY_FORMLY_TYPES.has("codearea")).toBe(true);
-    // the drag has nowhere to attach on a form, so an exposed one degrades to the default control
-    expect(CANVAS_ONLY_FORMLY_TYPES.has("repeat-section-dnd")).toBe(true);
+    // the drag-reorder list carries its own drop list, so the form renders it, drag and all (#8761)
+    expect(CANVAS_ONLY_FORMLY_TYPES.has("repeat-section-dnd")).toBe(false);
     // an ordinary custom widget (a picker/uploader) is rendered as itself, not fallen back from
     expect(CANVAS_ONLY_FORMLY_TYPES.has("datasetversionselector")).toBe(false);
   });

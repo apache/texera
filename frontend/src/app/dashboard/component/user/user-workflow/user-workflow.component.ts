@@ -43,10 +43,20 @@ import { DownloadService } from "../../../service/user/download/download.service
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import {
-  MappingContent,
+  GeneratedWorkflowContent,
   NotebookMigrationService,
 } from "../../../../workspace/service/notebook-migration/notebook-migration.service";
-import { LlmRequestTimeoutError, Notebook } from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  LlmRequestTimeoutError,
+  LlmResponseTruncatedError,
+  Notebook,
+} from "../../../../workspace/service/notebook-migration/migration-llm";
+import {
+  FolderDocument,
+  folderRootName,
+  pickedFileObject,
+  pickedFilePath,
+} from "../../../../workspace/service/notebook-migration/folder-assembly";
 import {
   NotebookImportModalComponent,
   NotebookImportModalData,
@@ -64,17 +74,6 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
-
-/**
- * What a conversion yields, whichever input produced it. `notebook` is the uploaded one for an
- * .ipynb and the LLM-derived one for a .py; either way it is what gets stored and shown in the
- * Jupyter panel.
- */
-interface GeneratedWorkflow {
-  workflowContent: WorkflowContent;
-  mappingContent: MappingContent;
-  notebook: Notebook;
-}
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -301,18 +300,32 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       nzCentered: true,
       nzBodyStyle: { paddingTop: "4px" },
       nzData: {
-        requestImport: (file, model) => this.generateWorkflowFromFile(file, model),
+        requestImport: (selection, model) => this.generateWorkflowFromSelection(selection, model),
       },
     });
   }
 
   /**
-   * Generate a workflow from an uploaded notebook or Python file, save it, store the mapping,
-   * and open it. Resolves true on success (modal closes), false to keep the modal open on a bad
-   * file or a failure.
+   * Generate a workflow from the modal's selection, save it, store the mapping, and open it.
+   * Resolves true on success (modal closes), false to keep it open on a bad selection or failure.
+   *
+   * A folder arrives as the whole picked list, so the selection's shape picks the branch before
+   * the extension does.
    */
-  private async generateWorkflowFromFile(file: NzUploadFile, model: string): Promise<boolean> {
-    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+  private async generateWorkflowFromSelection(
+    selection: NzUploadFile | NzUploadFile[],
+    model: string
+  ): Promise<boolean> {
+    if (Array.isArray(selection)) {
+      const generated = await this.generateFromFolder(selection, model);
+      // Null means the step already told the user what went wrong.
+      if (!generated) {
+        return false;
+      }
+      return this.saveAndOpenGenerated(this.deriveFolderName(selection), generated);
+    }
+
+    const fileExtension = selection.name.split(".").pop()?.toLowerCase();
     if (fileExtension !== "ipynb" && fileExtension !== "py") {
       this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       return false;
@@ -320,18 +333,17 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
 
     const generated =
       fileExtension === "ipynb"
-        ? await this.generateFromNotebook(file, model)
-        : await this.generateFromScript(file, model);
-    // Null means the step already told the user what went wrong.
+        ? await this.generateFromNotebook(selection, model)
+        : await this.generateFromScript(selection, model);
     if (!generated) {
       return false;
     }
 
-    return this.saveAndOpenGenerated(file, generated);
+    return this.saveAndOpenGenerated(this.deriveWorkflowName(selection.name), generated);
   }
 
   /** Read and convert an .ipynb. Null after reporting a read or generation failure. */
-  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
+  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
     let notebook: Notebook;
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
@@ -352,7 +364,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Read and convert a .py. The notebook comes back derived, since the upload had no cells. */
-  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflow | null> {
+  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
     let scriptSource: string;
     try {
       scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
@@ -370,10 +382,32 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Read and convert a picked directory. The notebook comes back derived, as it does for a .py. */
+  private async generateFromFolder(files: NzUploadFile[], model: string): Promise<GeneratedWorkflowContent | null> {
+    let folder: FolderDocument;
+    try {
+      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject));
+    } catch (error) {
+      // parseFolder names what was wrong with the selection, so its message is shown as-is.
+      this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
+      console.error("Folder read failed:", error);
+      return null;
+    }
+
+    try {
+      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model);
+    } catch (error) {
+      this.reportGenerationFailure(error, "folder");
+      return null;
+    }
+  }
+
   // A timeout is worth telling apart from a transport error: the user can act on it by picking
   // a faster model or trimming the input.
-  private reportGenerationFailure(error: unknown, input: "notebook" | "script"): void {
-    if (error instanceof LlmRequestTimeoutError) {
+  private reportGenerationFailure(error: unknown, input: "notebook" | "script" | "folder"): void {
+    if (error instanceof LlmResponseTruncatedError) {
+      this.notificationService.error(`${error.message} This ${input} may be too large to convert.`);
+    } else if (error instanceof LlmRequestTimeoutError) {
       this.notificationService.error(
         `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
       );
@@ -384,17 +418,18 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Persist the generated workflow, attach its notebook and mapping, then open it. Shared by both
-   * inputs: once a conversion has produced a workflow and a notebook, nothing downstream differs.
+   * Persist the generated workflow, attach its notebook and mapping, then open it. Shared by all
+   * three inputs: once a conversion has produced a workflow and a notebook, nothing downstream
+   * differs.
    */
-  private async saveAndOpenGenerated(file: NzUploadFile, generated: GeneratedWorkflow): Promise<boolean> {
+  private async saveAndOpenGenerated(name: string, generated: GeneratedWorkflowContent): Promise<boolean> {
     // Commit point: persisting captures the expensive LLM result. On failure nothing was created,
     // so returning false to let the user retry is safe.
     let wid: number;
     try {
       // workflow.name is VARCHAR(128); cap the base so base + suffix fits the column.
       const generatedSuffix = "_GENERATED_BY_LLM";
-      const generatedName = this.deriveWorkflowName(file.name).slice(0, 128 - generatedSuffix.length);
+      const generatedName = name.slice(0, 128 - generatedSuffix.length);
       const createdWorkflow = await firstValueFrom(
         this.workflowPersistService.createWorkflow(generated.workflowContent, generatedName + generatedSuffix)
       );
@@ -432,6 +467,13 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       this.notificationService.warning("Workflow created. You can open it from your dashboard.");
     }
     return true;
+  }
+
+  // The workflow is named after the selected folder. Nothing to strip: a folder name has no
+  // extension, which is why this does not go through deriveWorkflowName.
+  private deriveFolderName(files: NzUploadFile[]): string {
+    const folderName = folderRootName(pickedFilePath(files[0])) ?? "";
+    return folderName.trim() === "" ? DEFAULT_WORKFLOW_NAME : folderName;
   }
 
   // Strips the extension from a file name, falling back to DEFAULT_WORKFLOW_NAME when empty.
