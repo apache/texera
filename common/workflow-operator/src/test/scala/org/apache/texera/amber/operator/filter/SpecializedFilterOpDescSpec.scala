@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneOffset}
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import scala.io.Source
 import scala.util.Try
@@ -143,14 +144,33 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
         ComparisonType.GREATER_THAN -> "1",
         ComparisonType.EQUAL_TO -> "NaN",
         ComparisonType.LESS_THAN -> "Infinity",
-        ComparisonType.EQUAL_TO -> "-0.0"
+        ComparisonType.EQUAL_TO -> "-0.0",
+        // Hex past the largest double rounds to infinity, and below the
+        // smallest to a zero that keeps its sign.
+        ComparisonType.EQUAL_TO -> "0x1.fffffffffffff8p1023",
+        ComparisonType.EQUAL_TO -> "-0x1p-1080"
+      )
+    ),
+    Column(
+      AttributeType.DOUBLE,
+      Seq(Double.PositiveInfinity, 1.0, null, Double.NegativeInfinity),
+      """pd.arrays.FloatingArray(
+        |    np.array([np.inf, 1.0, 0.0, -np.inf]),
+        |    np.array([False, False, True, False]),
+        |)""".stripMargin,
+      Seq(
+        ComparisonType.EQUAL_TO -> "0x1p1024",
+        ComparisonType.EQUAL_TO -> "-0x1p1024",
+        ComparisonType.LESS_THAN -> "0x1p1024d",
+        ComparisonType.EQUAL_TO -> "0x1p0"
       )
     ),
     Column(
       AttributeType.STRING,
-      Seq("1", "2", "10", "abc", null, " 3 ", "nan", "2d"),
-      """pd.Series(["1", "2", "10", "abc", None, " 3 ", "nan", "2d"], dtype=object)""",
+      Seq("1", "2", "10", "abc", null, " 3 ", "nan", "2d", "0x1p2000"),
+      """pd.Series(["1", "2", "10", "abc", None, " 3 ", "nan", "2d", "0x1p2000"], dtype=object)""",
       Seq(
+        ComparisonType.EQUAL_TO -> "Infinity",
         ComparisonType.EQUAL_TO -> "1",
         ComparisonType.GREATER_THAN -> "2",
         ComparisonType.EQUAL_TO -> "1.0",
@@ -202,6 +222,47 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
   // getTime. Each predicate runs through SpecializedFilterOpExec and through
   // the export, and the rows each keeps are named by their input position.
   it should "keep the rows the engine keeps for each column type" taggedAs NeedsPythonPackages in {
+    expectTheRowsTheEngineKeeps(columns)
+  }
+
+  // The engine holds a value with an offset as the wall clock it shows in the
+  // JVM's zone. A zone away from UTC, and a half hour off any whole hour, so a
+  // reading in UTC or a dropped offset keeps a different row.
+  it should "read a timestamp value with an offset in the machine's zone" taggedAs
+    NeedsPythonPackages in {
+    val zone = "Asia/Kolkata"
+    val previous = TimeZone.getDefault
+    TimeZone.setDefault(TimeZone.getTimeZone(zone))
+    try {
+      val utcMidnight = midnight + 19800000000L
+      expectTheRowsTheEngineKeeps(
+        Seq(
+          Column(
+            AttributeType.TIMESTAMP,
+            Seq(timestamp(utcMidnight), timestamp(midnight), null),
+            s"""pd.Series(np.array([$utcMidnight, $midnight, "NaT"], dtype="datetime64[us]"))""",
+            Seq(
+              ComparisonType.EQUAL_TO -> "2024-01-01T00:00:00Z",
+              ComparisonType.EQUAL_TO -> "2024-01-01 00:00:00",
+              ComparisonType.EQUAL_TO -> "2024-01-01T00:00:00+05:30",
+              ComparisonType.EQUAL_TO -> "2023-12-31T16:00:00-08:00",
+              ComparisonType.GREATER_THAN -> "2024-01-01T00:00:00Z",
+              ComparisonType.LESS_THAN -> "2024-01-01T00:00:00Z"
+            )
+          )
+        ),
+        pythonZone = Some(zone)
+      )
+    } finally TimeZone.setDefault(previous)
+  }
+
+  /** Runs each predicate through SpecializedFilterOpExec and through the export,
+    * and expects the export to keep the same rows, named by input position.
+    */
+  private def expectTheRowsTheEngineKeeps(
+      columns: Seq[Column],
+      pythonZone: Option[String] = None
+  ): Unit = {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
 
@@ -238,7 +299,9 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     val file = Files.createTempFile("filter-engine-parity-", ".py")
     file.toFile.deleteOnExit()
     Files.write(file, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, file.toString).redirectErrorStream(true).start()
+    val builder = new ProcessBuilder(python, file.toString).redirectErrorStream(true)
+    pythonZone.foreach(builder.environment().put("TZ", _))
+    val process = builder.start()
     val out = Source.fromInputStream(process.getInputStream).mkString
     process.waitFor(120, TimeUnit.SECONDS)
 

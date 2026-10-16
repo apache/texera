@@ -133,7 +133,12 @@ object SpecializedFilterOpDesc {
       |        if text[-1] in "dDfF":
       |            text = text[:-1]
       |        if body[:2] in ("0x", "0X"):
-      |            return float.fromhex(text)
+      |            # Java rounds a hex value past the largest double to infinity
+      |            # where float.fromhex raises.
+      |            try:
+      |                return float.fromhex(text)
+      |            except OverflowError:
+      |                return float("-inf") if text.startswith("-") else float("inf")
       |        return float(text)
       |
       |    # Double.compareTo: NaN equals itself and sits above every number, and
@@ -190,10 +195,18 @@ object SpecializedFilterOpDesc {
       |        # Both sides by getTime, so only whole milliseconds count. The
       |        # engine reads the value with DateParserUtils, which takes more
       |        # formats than pandas; a value pandas cannot read raises here.
-      |        target = pd.Timestamp(java_trim(value)).floor("ms")
+      |        # A reading with an offset is an instant, which the engine holds as
+      |        # the wall clock it shows in the machine's zone.
+      |        def wall_clock(ts):
+      |            ts = pd.Timestamp(ts).floor("ms")
+      |            if ts.tzinfo is None:
+      |                return ts
+      |            return pd.Timestamp(ts.to_pydatetime().astimezone().replace(tzinfo=None))
+      |
+      |        target = wall_clock(java_trim(value))
       |
       |        def order(v):
-      |            return compared(pd.Timestamp(v).floor("ms"), target)
+      |            return compared(wall_clock(v), target)
       |
       |    else:
       |        try:
