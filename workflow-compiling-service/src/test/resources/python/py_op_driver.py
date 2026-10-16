@@ -57,6 +57,7 @@ import base64
 import datetime
 import inspect
 import json
+import math
 import pickle
 import sys
 import traceback
@@ -293,7 +294,13 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
     if attr_type in (AttributeType.INT, AttributeType.LONG):
         return int(value)
     if attr_type == AttributeType.DOUBLE:
-        return float(value)
+        value = float(value)
+        # The engine's writer spells these as text; json.dumps would write a
+        # bare Infinity, which is not JSON. A NaN never gets here: the worker
+        # casts it to null before the row leaves, and so does the branch above.
+        if value in (math.inf, -math.inf):
+            return "Infinity" if value > 0 else "-Infinity"
+        return value
     if attr_type == AttributeType.BOOL:
         return bool(value)
     if attr_type == AttributeType.BINARY:
