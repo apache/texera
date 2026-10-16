@@ -156,6 +156,9 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   Fold such a column the way the executor folds it. pandas' reductions turn the NaN into a
   null or skip it, depending on the call: `max` over the column gives null, the same `max`
   per group gives the largest number.
+  A Python operator does not meet this. pyamber hands it a DOUBLE column as `float64`, where
+  a NaN and a null are one value, and the translator feeds its fragment a `float64` copy the
+  same way, so write such a fragment against `float64`.
 - The fragment answers the same inputs the operator answers. A guard, the page it writes, and
   any number it computes have to match on both sides. One path refusing a table the other
   draws is a divergence the verification will not catch, because it only compares runs that
@@ -175,8 +178,7 @@ reference, and as the generated script. The outputs are compared per port, by da
 - Nothing is added to the spec for a new operator. It reflects over `@JsonSubTypes` and keeps
   whatever implements `StandaloneCodeGenerator`.
 - The run proves the two paths agree, not that either is correct.
-- Some differences never reach the comparison. The script reads a DOUBLE column as
-  `float64`, so a null and a NaN arrive as one value. CI runs in UTC, so a zone offset
+- Some differences never reach the comparison. CI runs in UTC, so a zone offset
   cannot show. A table file carries one timestamp resolution. Test these in the operator's
   own spec: run the executor and the fragment on the same rows and compare the two, as
   `AggregateOpDescSpec` and `TextInputSourceOpDescSpec` do, rather than holding the
@@ -234,12 +236,15 @@ A knob takes a hostile column only where one carries the type it already reads, 
   `predict` output on the training features is compared.
 - Both paths seed numpy's global RNG identically, so sklearn fits draw the same numbers.
 - Every operator also gets an empty-cell run, on the same table with one cell emptied per
-  column, and an empty-table run, on the same columns with no rows under them. The two ask
-  different questions: the first table still has a value in every column somewhere, so code
-  that reads a column's range or its quantiles still finds one, while the second has nothing
-  to read and an operator that assumed otherwise raises instead of passing the emptiness
-  through. An upstream filter that matches nothing hands an operator exactly that.
-- Withhold either only through `variantsNotRun`, with a reason.
+  column; an empty-table run, on the same columns with no rows under them; and a
+  special-doubles run, with NaN, both infinities, -0.0 and a null in every DOUBLE column.
+  The first two ask different questions: the first table still has a value in every column
+  somewhere, so code that reads a column's range or its quantiles still finds one, while the
+  second has nothing to read and an operator that assumed otherwise raises instead of
+  passing the emptiness through. An upstream filter that matches nothing hands an operator
+  exactly that. The third holds the values a `float64` frame cannot tell apart, and the
+  comparison checks what kind each DOUBLE cell is exactly, beside the number.
+- Withhold any of them only through `variantsNotRun`, with a reason.
 
 ### Running it
 
