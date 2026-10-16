@@ -139,7 +139,13 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
           new Attribute("y_int", AttributeType.INTEGER),
           new Attribute("pred_long", AttributeType.LONG),
           new Attribute("label_str", AttributeType.STRING),
-          new Attribute("pred_str", AttributeType.STRING)
+          new Attribute("pred_str", AttributeType.STRING),
+          new Attribute("ts_a", AttributeType.TIMESTAMP),
+          new Attribute("ts_b", AttributeType.TIMESTAMP),
+          new Attribute("bin_a", AttributeType.BINARY),
+          new Attribute("bin_b", AttributeType.BINARY),
+          new Attribute("lb_a", AttributeType.LARGE_BINARY),
+          new Attribute("lb_b", AttributeType.LARGE_BINARY)
         )
       )
     )
@@ -170,6 +176,32 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
       "Actual Value 'y_int' (integer) and Predicted Value 'pred_str' (string) hold different " +
         "kinds of label, so a classification metric cannot compare them"
+  }
+
+  it should "reject a matching BINARY or LARGE_BINARY pair for every metric" in {
+    Seq("bin" -> "binary", "lb" -> "large_binary").foreach {
+      case (prefix, typeName) =>
+        val d = scorer(regression = false, s"${prefix}_a", s"${prefix}_b")
+        d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+        the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
+          s"Actual Value '${prefix}_a' and Predicted Value '${prefix}_b' are $typeName columns, " +
+            "which Accuracy cannot score as labels"
+    }
+  }
+
+  it should "reject a matching TIMESTAMP pair for the per-class metrics only" in {
+    val d = scorer(regression = false, "ts_a", "ts_b")
+    d.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.f1Score)
+    the[RuntimeException] thrownBy d.getOutputSchemas(inputSchemas(d)) should have message
+      "Actual Value 'ts_a' and Predicted Value 'ts_b' are timestamp columns, which F1 Score " +
+        "cannot score as labels"
+  }
+
+  it should "accept a matching TIMESTAMP pair scored by Accuracy alone" in {
+    val d = scorer(regression = false, "ts_a", "ts_b")
+    d.classificationMetrics = List(classificationMetricsFnc.accuracy)
+    noException should be thrownBy d.getOutputSchemas(inputSchemas(d))
   }
 
   it should "reject a non-numeric column once the task is regression" in {

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# DEFAULT CACHE REGION
+# Runs the unit tests for issue-claims.js, the issue-claim logic behind
+# pr-assignment.yml. The infra CI job discovers this file by its test_*.sh
+# name; the cases themselves live in issue-claims.test.js and use Node's
+# built-in test runner, which the ubuntu and macOS runner images ship with.
 
-jcs.default=DC
-jcs.default.cacheattributes=org.apache.commons.jcs3.engine.CompositeCacheAttributes
-jcs.default.cacheattributes.MaxObjects=10
-jcs.default.cacheattributes.MemoryCacheName=org.apache.commons.jcs3.engine.memory.lru.LRUMemoryCache
-jcs.default.elementattributes.IsSpool=true
+set -euo pipefail
 
-jcs.auxiliary.DC=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheFactory
-jcs.auxiliary.DC.attributes=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheAttributes
-jcs.auxiliary.DC.attributes.DiskPath=/tmp/disk_cache
-jcs.auxiliary.DC.attributes.MaxKeySize=0
+command -v node >/dev/null || { echo "node is required to run these tests" >&2; exit 1; }
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+node --test "$script_dir/issue-claims.test.js"
