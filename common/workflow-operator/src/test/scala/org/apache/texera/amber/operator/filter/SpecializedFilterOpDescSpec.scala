@@ -256,6 +256,38 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     } finally TimeZone.setDefault(previous)
   }
 
+  // The offset is the one the zone had at that instant, not today's. Mexico
+  // City kept summer time in 2021 and stood an hour further west in 1931, so
+  // today's standard offset keeps the other row of each pair.
+  it should "read a timestamp value with the offset its zone had at that instant" taggedAs
+    NeedsPythonPackages in {
+    val zone = "America/Mexico_City"
+    val previous = TimeZone.getDefault
+    TimeZone.setDefault(TimeZone.getTimeZone(zone))
+    try {
+      val walls = Seq(
+        LocalDateTime.of(2021, 6, 30, 19, 0),
+        LocalDateTime.of(2021, 6, 30, 18, 0),
+        LocalDateTime.of(1930, 12, 31, 17, 0),
+        LocalDateTime.of(1930, 12, 31, 18, 0)
+      ).map(_.toEpochSecond(ZoneOffset.UTC) * 1000000L)
+      expectTheRowsTheEngineKeeps(
+        Seq(
+          Column(
+            AttributeType.TIMESTAMP,
+            walls.map(timestamp),
+            s"""pd.Series(np.array([${walls.mkString(", ")}], dtype="datetime64[us]"))""",
+            Seq(
+              ComparisonType.EQUAL_TO -> "2021-07-01T00:00:00Z",
+              ComparisonType.EQUAL_TO -> "1931-01-01T00:00:00Z"
+            )
+          )
+        ),
+        pythonZone = Some(zone)
+      )
+    } finally TimeZone.setDefault(previous)
+  }
+
   /** Runs each predicate through SpecializedFilterOpExec and through the export,
     * and expects the export to keep the same rows, named by input position.
     */

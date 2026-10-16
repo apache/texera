@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -90,7 +90,8 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
     s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
   }
 
-  override def standaloneHelpers(): Seq[String] = Seq(SpecializedFilterOpDesc.FilterPredicates)
+  override def standaloneHelpers(): Seq[String] =
+    Seq(StandaloneHelpers.AttributeCasts, SpecializedFilterOpDesc.FilterPredicates)
 }
 
 object SpecializedFilterOpDesc {
@@ -196,12 +197,15 @@ object SpecializedFilterOpDesc {
       |        # engine reads the value with DateParserUtils, which takes more
       |        # formats than pandas; a value pandas cannot read raises here.
       |        # A reading with an offset is an instant, which the engine holds as
-      |        # the wall clock it shows in the machine's zone.
+      |        # the wall clock it shows in the machine's zone, with the offset
+      |        # that zone had at that instant.
+      |        zone = _texera_local_zone()
+      |
       |        def wall_clock(ts):
       |            ts = pd.Timestamp(ts).floor("ms")
       |            if ts.tzinfo is None:
       |                return ts
-      |            return pd.Timestamp(ts.to_pydatetime().astimezone().replace(tzinfo=None))
+      |            return pd.Timestamp(_texera_local_wall_clock(ts.to_pydatetime(), zone))
       |
       |        target = wall_clock(java_trim(value))
       |
