@@ -1856,6 +1856,125 @@ class TestMainLoop:
         return collected
 
     @pytest.mark.timeout(30)
+    def test_pause_landing_before_completion_defers_it_until_resume(
+        self,
+        mock_link,
+        mock_control_output_channel,
+        input_queue,
+        output_queue,
+        main_loop,
+        main_loop_thread,
+        mock_assign_input_port,
+        mock_assign_output_port,
+        mock_add_input_channel,
+        mock_add_partitioning,
+        mock_initialize_executor,
+        mock_start_channel,
+        mock_end_of_upstream,
+        mock_resume,
+        command_sequence,
+        monkeypatch,
+        reraise,
+    ):
+        # A PauseWorker command can land in the window between the last control
+        # check inside _process_end_channel and the complete() at its tail --
+        # the coordinator pauses on its own schedule, and nothing in that window
+        # drains control. The worker is then PAUSED when complete() runs, and
+        # PAUSED -> COMPLETED is forbidden by the transition graph (in BOTH
+        # runtimes -- see WorkerStateManager.scala, which this graph mirrors),
+        # so transit_to raised InvalidTransitionException and killed the main
+        # loop thread. Observed as flaky ReconfigurationIntegrationSpec failures
+        # on the amber-integration job (issue #5913).
+        #
+        # Completion must instead wait for Resume, matching Scala's DPThread:
+        # while paused it only picks control channels, so a paused worker never
+        # advances to completion.
+        #
+        # The race is made deterministic by pausing inside all_ports_completed()
+        # -- the last thing _process_end_channel calls before complete(), with
+        # no control check in between, i.e. exactly the production window.
+        main_loop_thread.daemon = True
+        main_loop_thread.start()
+
+        for setup_msg in [
+            mock_assign_input_port,
+            mock_assign_output_port,
+            mock_add_input_channel,
+            mock_add_partitioning,
+            mock_initialize_executor,
+        ]:
+            input_queue.put(setup_msg)
+            assert output_queue.get() == DCMElement(
+                tag=mock_control_output_channel,
+                payload=DirectControlMessagePayloadV2(
+                    return_invocation=ReturnInvocation(
+                        command_id=command_sequence,
+                        return_value=ControlReturn(empty_return=EmptyReturn()),
+                    )
+                ),
+            )
+
+        original_all_ports_completed = (
+            main_loop.context.input_manager.all_ports_completed
+        )
+
+        def pause_in_the_pre_completion_window():
+            completed = original_all_ports_completed()
+            if completed:
+                main_loop.context.pause_manager.pause(PauseType.USER_PAUSE)
+            return completed
+
+        monkeypatch.setattr(
+            main_loop.context.input_manager,
+            "all_ports_completed",
+            pause_in_the_pre_completion_window,
+        )
+
+        input_queue.put(mock_start_channel)
+        input_queue.put(mock_end_of_upstream)
+
+        expected_worker_completed = self._expected_worker_completed_dcm(
+            mock_control_output_channel
+        )
+
+        # Negative direction: while paused the worker must hold short of
+        # completion -- still alive, not COMPLETED, and no WorkerExecutionCompleted
+        # announced to the coordinator.
+        held = self._drain_until(
+            output_queue,
+            lambda items: expected_worker_completed in items,
+            timeout=2.0,
+        )
+        assert main_loop_thread.is_alive(), (
+            "main loop thread died while paused -- complete() attempted the "
+            "forbidden PAUSED -> COMPLETED transition instead of waiting for Resume"
+        )
+        assert expected_worker_completed not in held, (
+            "worker announced completion while paused; it must wait for Resume"
+        )
+        assert main_loop.context.state_manager.confirm_state(WorkerState.PAUSED), (
+            "expected the worker to sit in PAUSED, got "
+            f"{main_loop.context.state_manager.get_current_state()}"
+        )
+
+        # Positive direction: Resume releases the held completion.
+        input_queue.put(mock_resume)
+        collected = self._drain_until(
+            output_queue,
+            lambda items: expected_worker_completed in items,
+        )
+
+        if not main_loop.context.state_manager.confirm_state(WorkerState.COMPLETED):
+            pytest.fail(
+                "worker did not reach COMPLETED after Resume. "
+                f"state={main_loop.context.state_manager.get_current_state()}, "
+                f"collected={collected}"
+            )
+        assert expected_worker_completed in collected
+
+        reraise()
+
+    @pytest.mark.timeout(30)
     def test_zero_tuple_channel_completes_worker(
         self,
         mock_link,
