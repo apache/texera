@@ -22,7 +22,12 @@ package org.apache.texera.amber.translator
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.operator.{
+  LogicalOp,
+  PythonOperatorDescriptor,
+  StandaloneCodeGenerator
+}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,6 +64,21 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
 
   private def stub(id: String, block: String): LogicalOp = {
     val op = new StubOp(block)
+    op.setOperatorId(id)
+    op
+  }
+
+  /** A stub the engine would run in pyamber, which is all the input adapter asks. */
+  private class PythonStubOp(block: String) extends StubOp(block) with PythonOperatorDescriptor {
+    override def generatePythonCode(): String = ""
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map.empty
+  }
+
+  private def pythonStub(id: String, block: String): LogicalOp = {
+    val op = new PythonStubOp(block)
     op.setOperatorId(id)
     op
   }
@@ -132,6 +152,40 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
       LogicalPlan(List(first, second), List(link(first, second)))
     )
     script should include("df2 = df1.copy()")
+  }
+
+  /** pyamber hands a Python operator float64, where a NaN and a null are one value,
+    * and a source can hand the script Float64, which keeps them apart. The
+    * operator reads a converted copy, so the frame another operator reads from the
+    * same upstream is the one the source wrote.
+    */
+  it should "feed a Python operator a converted copy of each input" in {
+    val source = upstream("source")
+    val python = pythonStub("python", "out1df = in1df.copy()")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(source, python), List(link(source, python)))
+    )
+    script should include("df1_python_operator_input = _texera_python_operator_input(df1)")
+    script should include("df2 = df1_python_operator_input.copy()")
+  }
+
+  it should "leave an operator the engine runs on the JVM reading its upstream as it is" in {
+    val first = upstream("first")
+    val second = upstream("second")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(first, second), List(link(first, second)))
+    )
+    script should not include "_texera_python_operator_input"
+  }
+
+  it should "define the Python operator input helper once and leave the upstream frame alone" in {
+    val source = upstream("source")
+    val pythons = List("a", "b").map(id => pythonStub(id, "out1df = in1df.copy()"))
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(source :: pythons, pythons.map(link(source, _)))
+    )
+    script.linesIterator.count(_ == "def _texera_python_operator_input(df):") shouldBe 1
+    script should not include "df1 = _texera_python_operator_input("
   }
 
   /** Nothing stops a column from being named after a placeholder. The
