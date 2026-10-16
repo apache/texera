@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PortIdentity}
 import org.apache.texera.amber.engine.architecture.common.AmberProcessor
 import org.apache.texera.amber.engine.architecture.logreplay.ReplayLogManager
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
@@ -73,6 +73,12 @@ class DataProcessor(
 
   /** The executor whose loop-variable references `bindStateReferences` has bound. */
   @transient private var executorWithBoundReferences: OperatorExecutor = _
+
+  /** The loop envelope of the last state that arrived on the control-variable port. */
+  private var controlVariableEnvelope: (Long, String) = (0L, "")
+
+  /** Whether a tuple has been turned into control variables; the prototype takes the first row. */
+  private var controlVariableRowTaken = false
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -118,14 +124,18 @@ class DataProcessor(
     try {
       val portIdentity: PortIdentity =
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
-      // The executor sees data: its setting must have its loop variables by now.
-      bindStateReferences()
-      outputManager.outputIterator.setTupleOutput(
-        executor.processTupleMultiPort(
-          tuple,
-          portIdentity.id
+      if (ControlVariablePort.is(portIdentity)) {
+        registerControlVariables(tuple)
+      } else {
+        // The executor sees data: its setting must have its loop variables by now.
+        bindStateReferences()
+        outputManager.outputIterator.setTupleOutput(
+          executor.processTupleMultiPort(
+            tuple,
+            portIdentity.id
+          )
         )
-      )
+      }
 
       statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
 
@@ -136,12 +146,29 @@ class DataProcessor(
     }
   }
 
+  /**
+    * A tuple on the control-variable port becomes control variables, one per column, and is not
+    * handed to the operator. They are registered like a state message and sent on with the loop
+    * envelope of the last state that arrived on the port, so they stay inside the loop block.
+    */
+  private[this] def registerControlVariables(tuple: Tuple): Unit = {
+    if (controlVariableRowTaken) return
+    controlVariableRowTaken = true
+    val state = State(tuple.getSchema.getAttributeNames.zip(tuple.getFields).toMap)
+    val (loopCounter, loopStartId) = controlVariableEnvelope
+    executor.registerState(state, loopCounter)
+    outputManager.emitState(state, loopCounter, loopStartId)
+  }
+
   private[this] def processInputState(
       state: State,
       port: Int,
       loopCounter: Long,
       loopStartId: String
   ): Unit = {
+    if (port == ControlVariablePort.Id.id) {
+      controlVariableEnvelope = (loopCounter, loopStartId)
+    }
     try {
       // Before processState, which then sees the loop variables written into the setting.
       executor.registerState(state, loopCounter)

@@ -44,6 +44,11 @@ export interface WorkflowCompilationResponse
     operatorErrors: {
       [opId: string]: WorkflowFatalError;
     };
+    // for each operator inside a loop block, the ids of the Loop Starts of the blocks it is inside; an
+    // operator outside every block is absent. Sent on a failed compile too: it comes from the logical plan.
+    operatorLoopStarts: {
+      [opId: string]: ReadonlyArray<string>;
+    };
   }> {}
 
 export enum CompilationState {

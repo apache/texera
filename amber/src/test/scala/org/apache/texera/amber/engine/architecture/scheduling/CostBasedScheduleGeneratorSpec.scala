@@ -20,6 +20,7 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.texera.amber.core.workflow.{
+  ControlVariablePort,
   ExecutionMode,
   PhysicalPlan,
   PortIdentity,
@@ -28,7 +29,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -677,4 +678,90 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
     assert(greedyResult.state.subsetOf(scheduleGenerator.physicalPlan.links))
   }
 
+  // ----- control-variable port: PASTA sees a dependency -----
+
+  private def regionOf(result: CostBasedScheduleGenerator#SearchResult, op: LogicalOp): Region =
+    result.regionDAG
+      .vertexSet()
+      .asScala
+      .find(_.getOperators.exists(_.id.logicalOpId == op.operatorIdentifier))
+      .get
+
+  "CostBasedRegionPlanGenerator" should "materialize the edge into a control-variable port and keep the receiver's data edge pipelined" in {
+    // csvA -> keyword (data, pipelinable); csvC -> keyword (control-variable port)
+    val csvA = TestOperators.headerlessSmallCsvScanOpDesc()
+    val csvC = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(csvA, csvC, keyword),
+      List(
+        LogicalLink(
+          csvA.operatorIdentifier,
+          PortIdentity(),
+          keyword.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          csvC.operatorIdentifier,
+          PortIdentity(),
+          keyword.operatorIdentifier,
+          ControlVariablePort.Id
+        )
+      ),
+      new WorkflowContext()
+    )
+    val plan = workflow.physicalPlan
+    val controlLink = plan.links.find(link => ControlVariablePort.is(link.toPortId)).get
+    // The search never considers pipelining it.
+    assert(plan.getBlockingAndDependeeLinks.contains(controlLink))
+    assert(!plan.getNonBridgeNonBlockingLinks.contains(controlLink))
+
+    val result = new CostBasedScheduleGenerator(workflow.context, plan, COORDINATOR)
+      .bottomUpSearch(globalSearch = true)
+
+    assert(regionOf(result, csvA) == regionOf(result, keyword))
+    assert(regionOf(result, csvC) != regionOf(result, keyword))
+    // The port's sender runs in a region before its receiver's.
+    assert(result.regionDAG.containsEdge(regionOf(result, csvC), regionOf(result, keyword)))
+  }
+
+  it should "materialize another edge when pipelining the rest would put a port's sender and receiver in one region" in {
+    // csv -> first, csv -> second (data); first -> second (control-variable port)
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val first = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val second = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(csv, first, second),
+      List(
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(),
+          first.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(),
+          second.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          first.operatorIdentifier,
+          PortIdentity(),
+          second.operatorIdentifier,
+          ControlVariablePort.Id
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val result =
+      new CostBasedScheduleGenerator(workflow.context, workflow.physicalPlan, COORDINATOR)
+        .bottomUpSearch(globalSearch = true)
+
+    assert(regionOf(result, first) != regionOf(result, second))
+    assert(
+      result.regionDAG.getDescendants(regionOf(result, first)).contains(regionOf(result, second))
+    )
+  }
 }

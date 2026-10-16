@@ -69,24 +69,32 @@ class LoopStartOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include("class ProcessLoopStartOperator(LoopStartOperator)")
   }
 
-  it should "place the decoded initialization expression inside open() and the decoded output expression inside process_table()" in {
-    // The user's `initialization` is run in open() to seed self.state;
-    // the user's `output` is run in process_table() against the buffered
-    // table. Pin both call sites so a future refactor that swaps the two
-    // does not silently produce a runnable-looking class that loops over
-    // nothing.
-    val code = desc(init = "i = 0", out = "table.iloc[i]").generatePythonCode()
-    code should include("def open(self)")
-    // The initialization runs through the guarded run_initialization helper
+  it should "hand both cells to the worker in open() and yield the output cell's data in process_table()" in {
+    // The output cell sets control variables, and the worker produces the
+    // state before it drains process_table(), so the cell has to be known
+    // from open(), next to the initialization. process_table() only yields
+    // the data the cell produced. Both cells run through guarded helpers
     // (exec against a globals namespace so comprehensions/lambdas resolve,
-    // then `__builtins__` stripped). loop_counter is runtime-owned and must
-    // not be seeded into the operator's state.
+    // `__builtins__` and the reserved `table`/`D` kept out of the state).
+    val code = desc(init = "i = 0", out = "file = D.line[i]").generatePythonCode()
+    val positions = Seq(
+      "def open(self)",
+      s"self.run_initialization(${decodeExpr("i = 0")})",
+      s"self.run_output(${decodeExpr("file = D.line[i]")})",
+      "def process_table(self, table: Table, port: int)",
+      "yield self.eval_output(table)"
+    ).map(code.indexOf(_))
+    positions should not contain -1
+    positions shouldBe sorted
+    // loop_counter is runtime-owned and must not be seeded into the operator's state.
     code should not include "loop_counter"
-    code should include(s"self.run_initialization(${decodeExpr("i = 0")})")
-    code should include("def process_table(self, table: Table, port: int)")
-    // The output expression runs through the guarded eval_output helper so
-    // the reserved `table` stays out of the persistent loop state.
-    code should include(s"yield self.eval_output(${decodeExpr("table.iloc[i]")}, table)")
+  }
+
+  "LoopStartOpDesc json schema" should "render initialization and output as multi-line text areas" in {
+    // A single-line box shows "i = 0\nfile = D.line[0]" as "i = 0file = D.line[0]"
+    // and cannot take a newline, so a cell of statements could not be typed.
+    assertTextArea(classOf[LoopStartOpDesc], "initialization")
+    assertTextArea(classOf[LoopStartOpDesc], "output")
   }
 
   // Tricky-input round-trips (quotes / newlines / backslashes / unicode)

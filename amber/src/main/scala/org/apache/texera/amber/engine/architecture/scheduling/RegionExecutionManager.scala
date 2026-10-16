@@ -513,7 +513,7 @@ class RegionExecutionManager(
             .filter {
               case (portId, _) =>
                 // keep only the ports that belong to the requested phase
-                isDependeePhase == physicalOp.dependeeInputs.contains(portId)
+                isDependeePhase == physicalOp.readsInDependeePhase(portId)
             }
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
