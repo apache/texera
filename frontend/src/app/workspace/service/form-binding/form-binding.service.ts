@@ -209,13 +209,23 @@ export class FormBindingService {
    * why a run started from either one behaves identically.
    */
   public writeValue(binding: FormFieldBinding, value: unknown): void {
-    const operator = this.getOperator(binding.operatorID);
+    this.writeProperties(binding.operatorID, { [binding.propertyKey]: value });
+  }
+
+  /**
+   * Write several properties of one operator at once, over its current ones: what a card's widget
+   * changed, which is the bound property and whatever siblings it touches the way it does on the
+   * operator property panel (the HuggingFace picker resets the task-scoped fields on a task
+   * change). One edit, as the panel makes one.
+   */
+  public writeProperties(operatorID: string, patch: Record<string, unknown>): void {
+    const operator = this.getOperator(operatorID);
     if (!operator) {
       return;
     }
-    this.workflowActionService.setOperatorProperty(binding.operatorID, {
+    this.workflowActionService.setOperatorProperty(operatorID, {
       ...operator.operatorProperties,
-      [binding.propertyKey]: value,
+      ...patch,
     });
   }
 
