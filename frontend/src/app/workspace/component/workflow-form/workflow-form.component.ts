@@ -68,6 +68,7 @@ import { VisualizationFrameContentComponent } from "../visualization-panel-conte
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
+import { ReadOnlyCardDirective } from "./read-only-card.directive";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
 
@@ -167,6 +168,7 @@ interface ResultChoice {
     WorkflowEditorComponent,
     MiniMapComponent,
     CoeditorUserIconComponent,
+    ReadOnlyCardDirective,
   ],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
