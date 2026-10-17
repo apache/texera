@@ -214,7 +214,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.15"
       - name: Install Python dependencies
         # Mirrors amber-integration's installer in build.yml so the bench
         # subprocess imports resolve identically (pytorch CPU index +
@@ -241,8 +241,8 @@ jobs:
       - name: Generate Python proto bindings
         run: bash bin/python-proto-gen.sh
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
-      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
+      - uses: coursier/cache-action@057d08c2f9a2c4e7a4d33df3aae657b7db88b8cc # v8.2.0
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -383,7 +383,7 @@ jobs:
       - name: Publish throughput
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1.22.2
         with:
           name: Arrow Flight E2E Throughput
           tool: customBiggerIsBetter
@@ -402,7 +402,7 @@ jobs:
       - name: Publish latency
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1.22.2
         with:
           name: Arrow Flight E2E Latency
           tool: customSmallerIsBetter
