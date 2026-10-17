@@ -46,7 +46,9 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
-import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES } from "../../util/custom-formly-type";
+import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES, FIELD_OPERATOR_ID_PROP } from "../../util/custom-formly-type";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import type { UiUdfParameter } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -302,7 +304,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // disabled here exactly when it is disabled there.
     private validationWorkflowService: ValidationWorkflowService,
     private config: GuiConfigService,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   ngOnInit(): void {
@@ -488,6 +491,18 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .getCompilationStateInfoChangedStream()
       .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
       .subscribe(() => this.rebuildFormOrDefer(false));
+
+    // A Python UDF's code declares its UI parameters (`self.UiParameter(...)`); the parser announces
+    // them when the code changes, and the operator property panel's frame writes them onto the
+    // operator -- for the operator it shows, and only while it acts as the editor. A parameter added
+    // from a Form View card (the ui-udf-parameters widget's Add parameter) changes the code with the
+    // panel closed or on another step, so the form writes them then; see writeUiParameters.
+    this.uiUdfParametersSyncService.uiParametersChanged$
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorId, parameters }) => {
+        this.writeUiParameters(operatorId, parameters);
+        this.followUiParameters(operatorId);
+      });
 
     // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
     // to follow at once, which is the whole point of editing them side by side. Today this fires for
@@ -844,6 +859,46 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .filter((r): r is RenderedField => r !== undefined);
   }
 
+  /**
+   * Write the UI parameters a Python UDF's code declares onto the operator, as the operator
+   * property panel's frame does for the operator it shows while it acts as the editor. The frame
+   * does that only then, so the form writes when the frame does not: a writer only (a reader's card
+   * changes no code, and may not write), not while the step panel shows that very step live (the
+   * frame writes then, and the same write twice is churn), and only for an operator still on the
+   * graph. The same value the frame writes: the operator's properties with the declared list.
+   */
+  private writeUiParameters(operatorId: string, parameters: UiUdfParameter[]): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const frameWrites = this.selectedOperatorId === operatorId && this.panelLive;
+    if (!this.canEdit || frameWrites || !graph.hasOperator(operatorId)) {
+      return;
+    }
+    this.workflowActionService.setOperatorProperty(operatorId, {
+      ...cloneDeep(graph.getOperator(operatorId).operatorProperties),
+      uiParameters: cloneDeep(parameters),
+    });
+  }
+
+  /**
+   * Once the declared parameters are written -- by writeUiParameters, or by the step panel's frame
+   * for the step it shows live, whose subscription runs after this page's -- the operator has the new
+   * rows while this page's card for them still shows the old ones: a card is rebuilt from the
+   * compilation result, half a second and a round trip later. A value typed into the card in that
+   * window would have gone back with the old rows (the card writes its whole list), dropping the row
+   * just declared. So the cards are rebuilt right after the current tick, once every writer has
+   * written, when a card shows that operator's parameters; held while the reader is typing, as every
+   * rebuild is. The compilation result rebuilds them once more, to the same rows.
+   */
+  private followUiParameters(operatorId: string): void {
+    const shown = this.rendered.some(
+      card => card.resolved.binding.operatorID === operatorId && card.resolved.binding.propertyKey === "uiParameters"
+    );
+    if (!shown) {
+      return;
+    }
+    this.later(() => this.rebuildFormOrDefer(true), 0);
+  }
+
   private renderField(resolved: ResolvedField): RenderedField | undefined {
     const { binding } = resolved;
     // A broken input (its operator gone) has no schema to build a field from. Only an author ever
@@ -891,6 +946,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     field.props = {
       ...(field.props ?? {}),
       label: binding.displayName || schemaLabel,
+      // The operator the input belongs to rides on the field: nothing is highlighted on the form, so
+      // a shared widget that needs its operator (the ui-udf-parameters renderer, adding a declared
+      // parameter to the operator's code) reads it here, and the same mark tells it which host it is
+      // on where the two must differ (its columns follow the author's overrides here, and keep their
+      // fixed headers on the panel).
+      [FIELD_OPERATOR_ID_PROP]: binding.operatorID,
     };
 
     const form = new FormGroup({});
@@ -1043,7 +1104,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         // override (setFieldOverride).
         const schemaOwnLabel = (node.props?.label as string) || path;
         if (override.displayName) {
-          node.props = { ...(node.props ?? {}), label: override.displayName };
+          // The name replaces the label, and is kept apart as well (authorName, where the label
+          // wrapper puts a name being typed): a widget that draws its own headers (ui-udf-parameters)
+          // tells the author's name from the schema's title by it, since the label carries both.
+          node.props = { ...node.props, label: override.displayName, authorName: override.displayName };
         }
         if (this.authoring) {
           // An author edits the sub-field's label where it appears and keeps hidden fields on

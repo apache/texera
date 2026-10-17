@@ -138,7 +138,11 @@ export function setupHarness() {
     // The heat-map overlay's view; reset by the views on leaving the workspace, kept on a hand-over.
     setHeatmapView: vi.fn(),
   };
+  // The parser's announcement of the UI parameters a Python UDF's code declares.
+  const uiParametersChanged = new Subject<{ operatorId: string; parameters: unknown[] }>();
+  const uiUdfParametersSyncService = { uiParametersChanged$: uiParametersChanged.asObservable() };
   const workflowActionService = {
+    setOperatorProperty: vi.fn(),
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
     reloadWorkflow: vi.fn(),
@@ -381,6 +385,8 @@ export function setupHarness() {
     computingUnitStatusService,
     workflowConsoleService,
     workflowWebsocketService,
+    uiUdfParametersSyncService,
+    uiParametersChanged,
     panelResizeService,
     validationWorkflowService,
     host,

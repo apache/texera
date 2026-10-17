@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormControl, UntypedFormArray } from "@angular/forms";
+import { FormControl, FormGroup, UntypedFormArray } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { FormlyFieldConfig } from "@ngx-formly/core";
@@ -153,6 +153,10 @@ describe("UiUdfParametersComponent", () => {
     expect(valueOf(unknownRow)?.type).toBeUndefined();
   });
 
+  it("configures no value editor for a row formly has not built", () => {
+    expect(() => (component as any).configureValueEditor(undefined, "model")).not.toThrow();
+  });
+
   it("should find the rows before Formly narrows the field's model to them", () => {
     const rows = [{ inputType: "dataset", attribute: { attributeName: "DATA" } }];
     const operatorProperties = { code: "", uiParameters: rows };
@@ -244,6 +248,298 @@ describe("UiUdfParametersComponent", () => {
     });
   });
 
+  // The Form View's per-sub-field overrides (#8438) land on a row's sub-fields as props.label and
+  // hide; this widget hides the formly labels and draws fixed headers, which papered over both (#8763).
+  describe("on the Form View (props.operatorID set by the form)", () => {
+    const model = [{ value: "42", attribute: { attributeName: "threshold", attributeType: "double" } }];
+
+    it("is on the panel until formly hands it a field, and on the form once the field names its operator", () => {
+      (component as any).field = undefined;
+      expect(component.onFormView).toBe(false);
+      // The template may read the columns before formly hands the widget its field.
+      expect(component.columns).toBe(component.fieldColumns);
+      (component as any).field = { props: { operatorID: "op-form" } };
+      expect(component.onFormView).toBe(true);
+    });
+
+    /** A row as the form's walk decorates it for a reader: the name renamed, the type hidden. */
+    function decoratedRow(): FormlyFieldConfig {
+      return {
+        fieldGroup: [
+          { key: "value" },
+          {
+            key: "attribute",
+            fieldGroup: [
+              // The form puts a saved rename on the label and, kept apart, on authorName.
+              { key: "attributeName", props: { label: "Parameter", authorName: "Parameter" } },
+              { key: "attributeType", hide: true },
+            ],
+          },
+        ],
+      };
+    }
+    /** Populates the widget as formly's build does, and reads the headers as the template does. */
+    function populate(field: FormlyFieldConfig): string[] {
+      (component as any).field = field;
+      component.onPopulate(field);
+      return component.columns.map(column => component.columnLabel(column));
+    }
+    const headers = () =>
+      Array.from(
+        fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .col-title") as NodeListOf<HTMLElement>
+      ).map(cell => cell.textContent?.trim());
+
+    it("shows a renamed column under its new name and leaves a hidden one out, in the header and the cells", () => {
+      // formly clones the template into the rows, so a row carries what the walk put on the template.
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: decoratedRow(),
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Parameter"]);
+
+      fixture.detectChanges();
+      expect(headers()).toEqual(["Value", "Parameter"]);
+      expect(fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row:not(.header) .field-cell")).toHaveLength(2);
+    });
+
+    // The draft row names and types the parameter being added, so it draws all three cells. With a
+    // column hidden, a filtered header left the name box under the wrong heading (Copilot on #8846).
+    it("shows the three fixed columns while the draft row is open, so its cells line up with the header", () => {
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: decoratedRow(),
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Parameter"]);
+
+      component.draftVisible = true;
+      fixture.detectChanges();
+
+      expect(headers()).toEqual(["Value", "Parameter", "Type"]);
+      const cellsIn = (selector: string) => fixture.nativeElement.querySelectorAll(selector).length;
+      expect(cellsIn(".ui-udf-parameter-row.draft .field-cell")).toBe(3);
+      expect(cellsIn(".ui-udf-parameter-row:not(.header):not(.draft) .field-cell")).toBe(3);
+
+      // Closing the draft gives the author's hide back.
+      component.draftVisible = false;
+      fixture.detectChanges();
+      expect(headers()).toEqual(["Value", "Parameter"]);
+    });
+
+    it("reads the first row when formly builds the rows on demand", () => {
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: () => decoratedRow(),
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Parameter"]);
+    });
+
+    it("leaves a column out when the group it sits in is hidden, not only when it is itself", () => {
+      // formly hides the children with the group but marks only the group.
+      const row = decoratedRow();
+      const attribute = row.fieldGroup![1];
+      attribute.hide = true;
+      attribute.fieldGroup![1].hide = undefined;
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: () => row,
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value"]);
+    });
+
+    it("shows the author's name for a column while it is being renamed, and follows the typing", () => {
+      // While authoring, the label wrapper blanks props.label and keeps the name in props.authorName,
+      // which the name box updates on every keystroke without a rebuild.
+      const row = decoratedRow();
+      const name = row.fieldGroup![1].fieldGroup![0];
+      name.props = { label: "", authorName: "Parameter (draft)" };
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: () => row,
+        fieldGroup: [row],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Parameter (draft)"]);
+
+      name.props["authorName"] = "Threshold";
+      fixture.detectChanges();
+      expect(headers()).toEqual(["Value", "Threshold"]);
+    });
+
+    it("keeps the fixed headers while there are no rows yet: nothing to read them from, and the list is not shown", () => {
+      const field = {
+        model: [],
+        props: { operatorID: "op-form" },
+        fieldArray: () => decoratedRow(),
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Name", "Type"]);
+    });
+
+    it("keeps the fixed headers on the operator property panel, whatever the sub-fields carry", () => {
+      const field = { model, fieldArray: decoratedRow(), fieldGroup: [] } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Name", "Type"]);
+    });
+
+    it("keeps the panel's fixed header for a column the author did not rename, whatever the schema calls it", () => {
+      // formly puts the schema's own title on every sub-field's label; the panel never shows it, so
+      // neither does the form: only the author's name (authorName) replaces a fixed header.
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: {
+          fieldGroup: [
+            { key: "value", props: { label: "Value" } },
+            {
+              key: "attribute",
+              fieldGroup: [
+                { key: "attributeName", props: { label: "Attribute Name" } },
+                { key: "attributeType", props: { label: "Attribute Type" } },
+              ],
+            },
+          ],
+        },
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Name", "Type"]);
+    });
+
+    it("reads the columns live, so a hide that lands on the row after populate takes the column out", () => {
+      // The form's hide reaches a row's sub-field after formly has built the row; a list fixed at
+      // populate kept the hidden column.
+      const row = decoratedRow();
+      (row.fieldGroup![1].fieldGroup![1] as FormlyFieldConfig).hide = undefined;
+      const field = { model, props: { operatorID: "op-form" }, fieldArray: row, fieldGroup: [] } as FormlyFieldConfig;
+      expect(populate(field)).toEqual(["Value", "Parameter", "Type"]);
+
+      const builtType = component.getColumnField(field.fieldGroup![0], component.fieldColumns[2])!;
+      builtType.hide = true;
+
+      expect(component.columns.map(column => component.columnLabel(column))).toEqual(["Value", "Parameter"]);
+    });
+
+    it("hands back the same column list while nothing changed, so the header does not redraw on every check", () => {
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: decoratedRow(),
+        fieldGroup: [],
+      } as FormlyFieldConfig;
+      populate(field);
+
+      const first = component.columns;
+      expect(component.columns).toBe(first);
+    });
+
+    it("locks the value cells of a read-only reader's card", () => {
+      // The Form View marks a reader's field props.disabled; the widget's own "the value is editable"
+      // used to re-enable the control after formly had disabled it.
+      const value = new FormControl("42");
+      const row = rowConfig([{ key: "value", formControl: value }, { key: "attributeName" }, { key: "attributeType" }]);
+      const field = {
+        model,
+        props: { operatorID: "op-form", disabled: true },
+        fieldArray: () => row,
+        fieldGroup: [row],
+      } as FormlyFieldConfig;
+
+      component.onPopulate(field);
+
+      expect(value.disabled).toBe(true);
+    });
+
+    it("offers Add parameter on the Form View as on the panel, and adds to the card's operator", () => {
+      // Nothing is highlighted on the form (or another step is), so the field's own operator is the
+      // one the declaration goes into; the highlighted operator is the panel's rule only.
+      (component as any).field = { model: [], fieldGroup: [], props: { operatorID: "op-form" } };
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".add-parameter-button")).not.toBeNull();
+
+      component.draftVisible = true;
+      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+      expect(syncServiceMock.addParameter).toHaveBeenCalledWith("op-form", "threshold", "double");
+      expect(component.draftVisible).toBe(false);
+    });
+
+    it("offers Add parameter on a writer's card while the canvas's modification flag is off, as the Form View holds it outside edit mode", () => {
+      workflowActionServiceMock.checkWorkflowModificationEnabled.mockReturnValue(false);
+      (component as any).field = {
+        model: [],
+        fieldGroup: [],
+        props: { operatorID: "op-form" },
+        formControl: new FormGroup({}),
+      };
+      fixture.detectChanges();
+
+      expect(component.editable).toBe(true);
+      expect(fixture.nativeElement.querySelector(".add-parameter-button")).not.toBeNull();
+
+      component.draftVisible = true;
+      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+      expect(syncServiceMock.addParameter).toHaveBeenCalledWith("op-form", "threshold", "double");
+    });
+
+    it("hides Add parameter on a reader's card, whose field the form disables, and adds nothing", () => {
+      const control = new FormGroup({});
+      control.disable();
+      (component as any).field = {
+        model: [],
+        fieldGroup: [],
+        props: { operatorID: "op-form", disabled: true },
+        formControl: control,
+      };
+      fixture.detectChanges();
+
+      expect(component.editable).toBe(false);
+      expect(fixture.nativeElement.querySelector(".add-parameter-button")).toBeNull();
+
+      component.draftVisible = true;
+      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+      expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
+      expect(component.draftVisible).toBe(true);
+    });
+
+    // formly disables controls, not arrays: a reader's table with no parameters yet has an enabled
+    // array control, so the form's own mark on the field is what says the card is a reader's.
+    it("hides Add parameter on a reader's card whose table has no parameters yet, its array control enabled", () => {
+      (component as any).field = {
+        model: [],
+        fieldGroup: [],
+        props: { operatorID: "op-form", disabled: true },
+        formControl: new FormGroup({}),
+      };
+      fixture.detectChanges();
+
+      expect(component.editable).toBe(false);
+      expect(fixture.nativeElement.querySelector(".add-parameter-button")).toBeNull();
+
+      component.draftVisible = true;
+      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+      expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
+    });
+  });
+
+  it("adds nothing while the workflow may not be modified, whoever calls", () => {
+    workflowActionServiceMock.checkWorkflowModificationEnabled.mockReturnValue(false);
+    component.draftVisible = true;
+
+    component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+    expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
+    expect(component.draftVisible).toBe(true);
+  });
+
   it("should add a parameter for the highlighted operator and close the draft row", () => {
     component.draftVisible = true;
 
@@ -252,6 +548,15 @@ describe("UiUdfParametersComponent", () => {
     expect(syncServiceMock.addParameter).toHaveBeenCalledWith(operatorId, "threshold", "double");
     expect(component.draftVisible).toBe(false);
     expect(notificationServiceMock.error).not.toHaveBeenCalled();
+  });
+
+  it("adds to the highlighted operator as well before formly has handed the widget its field", () => {
+    (component as any).field = undefined;
+    component.draftVisible = true;
+
+    component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
+
+    expect(syncServiceMock.addParameter).toHaveBeenCalledWith(operatorId, "threshold", "double");
   });
 
   it("should surface edit errors and keep the draft row open", () => {
@@ -544,7 +849,7 @@ describe("UiUdfParametersComponent", () => {
 
       fixture.detectChanges();
 
-      expect(component.workflowModificationEnabled).toBe(false);
+      expect(component.editable).toBe(false);
       // Offering "Add parameter" on a read-only or running workflow would push a code edit
       // through the sync service onto a graph that must not be modified.
       expect(query(".add-parameter-button")).toBeNull();
