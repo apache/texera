@@ -19,9 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import com.twitter.util.{Await, Duration, Future}
+import com.twitter.util.{Await, Duration, Future, Promise}
 import org.apache.pekko.actor.{Actor, ActorRef, Props}
-import org.apache.pekko.testkit.{TestActorRef, TestKit}
+import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
@@ -181,8 +181,11 @@ object RegionExecutionManagerTestSupport {
 
   class CoordinatorHarness(
       rpcProbe: CoordinatorRpcProbe,
-      beforeCleanup: () => Unit = () => ()
+      beforeCleanup: () => Unit,
+      servicesPromise: Promise[(PekkoActorService, PekkoActorRefMappingService)]
   ) extends WorkflowActor(None, COORDINATOR) {
+    servicesPromise.setValue((actorService, actorRefMappingService))
+
     override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ()
 
     override def getQueuedCredit(channelId: ChannelIdentity): Long = 0
@@ -289,12 +292,14 @@ trait RegionExecutionManagerTestSupport { self: TestKit =>
       rpcProbe: CoordinatorRpcProbe = new CoordinatorRpcProbe(_ => None),
       beforeCleanup: () => Unit = () => ()
   ): CoordinatorHarnessFixture = {
-    val coordinatorRef = TestActorRef(new CoordinatorHarness(rpcProbe, beforeCleanup))
-    coordinatorRef.underlyingActor.actorService.getAvailableNodeAddressesFunc = () =>
-      Array(coordinatorRef.path.address)
+    val servicesPromise = Promise[(PekkoActorService, PekkoActorRefMappingService)]()
+    val coordinatorRef =
+      system.actorOf(Props(new CoordinatorHarness(rpcProbe, beforeCleanup, servicesPromise)))
+    val (harnessActorService, harnessActorRefService) = Await.result(servicesPromise, testTimeout)
+    harnessActorService.getAvailableNodeAddressesFunc = () => Array(coordinatorRef.path.address)
     CoordinatorHarnessFixture(
-      actorService = coordinatorRef.underlyingActor.actorService,
-      actorRefService = coordinatorRef.underlyingActor.actorRefMappingService
+      actorService = harnessActorService,
+      actorRefService = harnessActorRefService
     )
   }
 
