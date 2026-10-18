@@ -1,0 +1,774 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Provenance of every image and media file in the repository.
+#
+# Binary files cannot carry a license header, so this manifest records where
+# each one came from. Every entry has:
+#
+#   path     repository-relative path
+#   origin   project-made  created by Texera contributors for the project
+#            third-party   taken from an external source; `source` and
+#                          `license` say where from and under what terms, and
+#                          the file must be listed in LICENSE (and in
+#                          frontend/LICENSE-binary when shipped in the frontend)
+#            unknown       not yet established; see #8984
+#   source   where a third-party file came from (third-party only)
+#   license  SPDX identifier or other terms (third-party only)
+#   notes    evidence for the entry, or what still has to happen
+#
+# Add an entry whenever you add an image or media file.
+
+files:
+  - path: docs/system-screenshot.png
+    origin: project-made
+    notes: "Screenshot of the Texera workflow editor."
+  - path: frontend/src/assets/Tutor_End_Sample.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_Intro_Drag_Result.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_Intro_Drag_Srouce.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_Intro_Sample.jpeg
+    origin: project-made
+    notes: "Screenshot of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_JointJS_Sample.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_OpenResult_Sample.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_OpenSection_Sample.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/Tutor_Property_Sample.gif
+    origin: project-made
+    notes: "Screen recording of the Texera UI for the tutorial."
+  - path: frontend/src/assets/card_background.jpg
+    origin: unknown
+    notes: "Added in 289dd5574 (2024-10-28). Abstract low-poly artwork; embedded metadata is Adobe Illustrator CS6, title 'Print'. Looks like stock art."
+  - path: frontend/src/assets/logos/ORCID-iD_icon_24x24.png
+    origin: third-party
+    source: "ORCID iD icon, https://doi.org/10.23640/07243.5008697"
+    license: "CC0-1.0"
+    notes: "Listed in LICENSE; ORCID trademark."
+  - path: frontend/src/assets/logos/android-chrome-192x192.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/android-chrome-512x512.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/apple-logo-white.svg
+    origin: third-party
+    source: "https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple"
+    license: "Apple Sign in with Apple usage guidelines"
+    notes: "Listed in LICENSE; Apple trademark."
+  - path: frontend/src/assets/logos/apple-touch-icon.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/favicon-16x16.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/favicon-32x32.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/favicon.ico
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/full_logo_small.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/logos/logo.png
+    origin: project-made
+    notes: "Texera logo."
+  - path: frontend/src/assets/notebook_migration_tool/python_file_diagram.png
+    origin: third-party
+    source: "Project-made diagram that includes Google Material Symbols icons; https://github.com/google/material-design-icons"
+    license: "Apache-2.0"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
+    origin: third-party
+    source: "Project-made diagram that includes Google Material Symbols icons; https://github.com/google/material-design-icons"
+    license: "Apache-2.0"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    origin: third-party
+    source: "Project-made diagram that includes Google Material Symbols icons and the Project Jupyter logo; https://github.com/google/material-design-icons"
+    license: "Apache-2.0 AND BSD-3-Clause"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/operator_images/AdhocSink.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/view-result.png, a third-party folder. Byte-identical to SimpleSink.png, ViewResults.png."
+  - path: frontend/src/assets/operator_images/Aggregate.png
+    origin: unknown
+    notes: "Added in 486c61e3d (2018-11-28). Byte-identical to Aggregation.png."
+  - path: frontend/src/assets/operator_images/Aggregation.png
+    origin: unknown
+    notes: "Added in 486c61e3d (2018-11-28). Byte-identical to Aggregate.png."
+  - path: frontend/src/assets/operator_images/ArrowSource.png
+    origin: third-party
+    source: "Apache Arrow logo, https://arrow.apache.org"
+    license: "Apache-2.0"
+    notes: "Not yet listed in LICENSE."
+  - path: frontend/src/assets/operator_images/AsterixDBSource.png
+    origin: third-party
+    source: "Apache AsterixDB logo, https://asterixdb.apache.org"
+    license: "Apache-2.0"
+    notes: "Not yet listed in LICENSE."
+  - path: frontend/src/assets/operator_images/BarChart.png
+    origin: unknown
+    notes: "Current version from 7c2ef14fe (2021-05-07); first added in bb199cc0f (2017-08-28)."
+  - path: frontend/src/assets/operator_images/BoxViolinPlot.png
+    origin: unknown
+    notes: "Added in 1658865f1 (2025-04-09)."
+  - path: frontend/src/assets/operator_images/BubbleChart.png
+    origin: unknown
+    notes: "Added in d0ecd2ca7 (2023-08-02)."
+  - path: frontend/src/assets/operator_images/BulletChart.png
+    origin: unknown
+    notes: "Added in 32fe5fddc (2025-04-15)."
+  - path: frontend/src/assets/operator_images/CSVFileScan.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVOldFileScan.png, FileLister.png, FileScan.png, FileScanOp.png, JSONLFileScan.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/CSVOldFileScan.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, FileLister.png, FileScan.png, FileScanOp.png, JSONLFileScan.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/CandlestickChart.png
+    origin: unknown
+    notes: "Added in 1e0220d25 (2024-07-07)."
+  - path: frontend/src/assets/operator_images/CarpetPlot.png
+    origin: unknown
+    notes: "Added in 0485b4d6d (2026-04-19)."
+  - path: frontend/src/assets/operator_images/CartesianProduct.png
+    origin: unknown
+    notes: "Added in d411a751f (2023-05-15)."
+  - path: frontend/src/assets/operator_images/ChoroplethMap.png
+    origin: unknown
+    notes: "Added in 866fa8a09 (2025-09-19)."
+  - path: frontend/src/assets/operator_images/Comparison.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/compare.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/ContinuousErrorBands.png
+    origin: unknown
+    notes: "Added in 232ca5fed (2024-07-05)."
+  - path: frontend/src/assets/operator_images/ContourPlot.png
+    origin: unknown
+    notes: "Added in b26b6b792 (2024-07-09)."
+  - path: frontend/src/assets/operator_images/Dendrogram.png
+    origin: unknown
+    notes: "Added in 0d6729656 (2025-04-08)."
+  - path: frontend/src/assets/operator_images/DictionaryMatcher.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/dictionarySearch.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/DictionarySource.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/dictionary.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/Difference.png
+    origin: unknown
+    notes: "Added in 214494450 (2021-07-06)."
+  - path: frontend/src/assets/operator_images/Distinct.png
+    origin: unknown
+    notes: "Added in 09d88121b (2021-05-24)."
+  - path: frontend/src/assets/operator_images/DotPlot.png
+    origin: unknown
+    notes: "Added in 837fba160 (2023-08-02)."
+  - path: frontend/src/assets/operator_images/DualInputPortsPythonUDFV2.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/DumbbellPlot.png
+    origin: third-party
+    source: "Freepik icon dumbbell_206254, https://www.freepik.com/icon/dumbbell_206254 (named in #2149)"
+    license: "Freepik licence"
+    notes: "Not a Category A licence; must be replaced."
+  - path: frontend/src/assets/operator_images/Dummy.png
+    origin: unknown
+    notes: "Added in 39dd199a1 (2024-03-02). Embedded metadata names an author: Author=Luca Negrini."
+  - path: frontend/src/assets/operator_images/ECDFPlot.png
+    origin: unknown
+    notes: "Added in 782069dbf (2026-04-20)."
+  - path: frontend/src/assets/operator_images/EmojiSentiment.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/emojiAnalysis.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/FigureFactoryTable.png
+    origin: unknown
+    notes: "Added in e3d90df19 (2024-07-05)."
+  - path: frontend/src/assets/operator_images/FileLister.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, CSVOldFileScan.png, FileScan.png, FileScanOp.png, JSONLFileScan.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/FileScan.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, CSVOldFileScan.png, FileLister.png, FileScanOp.png, JSONLFileScan.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/FileScanOp.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, CSVOldFileScan.png, FileLister.png, FileScan.png, JSONLFileScan.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/FileSource.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/fileSource.png, a third-party folder. Byte-identical to LocalFileScan.png."
+  - path: frontend/src/assets/operator_images/FilledAreaPlot.png
+    origin: unknown
+    notes: "Added in a6bb44176 (2023-08-03)."
+  - path: frontend/src/assets/operator_images/Filter.png
+    origin: unknown
+    notes: "Added in f1b37f2fa (2020-08-10)."
+  - path: frontend/src/assets/operator_images/FunnelPlot.png
+    origin: unknown
+    notes: "Added in 08d167858 (2024-02-26). Embedded metadata: made in Canva."
+  - path: frontend/src/assets/operator_images/FuzzyTokenMatcher.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/fuzzy.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/FuzzyTokenSource.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/fuzzySource.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/GanttChart.png
+    origin: unknown
+    notes: "Added in 3deb6aa33 (2023-08-01)."
+  - path: frontend/src/assets/operator_images/GaugeChart.png
+    origin: unknown
+    notes: "Added in 1c8076f31 (2025-06-30)."
+  - path: frontend/src/assets/operator_images/HTMLVisualizer.png
+    origin: unknown
+    notes: "Added in 9c8d5f18c (2021-06-03)."
+  - path: frontend/src/assets/operator_images/HashJoin.png
+    origin: unknown
+    notes: "Added in 60fbb114b (2021-01-26). Byte-identical to IntervalJoin.png."
+  - path: frontend/src/assets/operator_images/HdfsFileScan.png
+    origin: third-party
+    source: "Apache Hadoop HDFS logo, https://hadoop.apache.org"
+    license: "Apache-2.0"
+    notes: "Not yet listed in LICENSE."
+  - path: frontend/src/assets/operator_images/HeatMap.png
+    origin: unknown
+    notes: "Added in 16f52ab40 (2024-02-14)."
+  - path: frontend/src/assets/operator_images/HierarchyChart.png
+    origin: unknown
+    notes: "Added in 7aa5560b0 (2023-09-15)."
+  - path: frontend/src/assets/operator_images/Histogram.png
+    origin: unknown
+    notes: "Added in 54cf0bc4d (2024-03-07)."
+  - path: frontend/src/assets/operator_images/Histogram2D.png
+    origin: unknown
+    notes: "Added in 354421985 (2025-07-02)."
+  - path: frontend/src/assets/operator_images/HuggingFace.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/HuggingFaceIrisLogisticRegression.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/HuggingFaceSentimentAnalysis.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png
+    origin: unknown
+    notes: "Added in 5e29b9a4a (2024-05-05)."
+  - path: frontend/src/assets/operator_images/HuggingFaceTextSummarization.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/IcicleChart.png
+    origin: unknown
+    notes: "Added in 7bd314172 (2024-07-06)."
+  - path: frontend/src/assets/operator_images/If.png
+    origin: unknown
+    notes: "Added in 9b9c20025 (2025-01-14)."
+  - path: frontend/src/assets/operator_images/ImageVisualizer.png
+    origin: unknown
+    notes: "Added in 1c2c5d2ff (2023-08-09)."
+  - path: frontend/src/assets/operator_images/Intersect.png
+    origin: unknown
+    notes: "Added in 9e7442a84 (2021-06-21)."
+  - path: frontend/src/assets/operator_images/IntervalJoin.png
+    origin: unknown
+    notes: "Added in 60fbb114b (2021-01-26). Byte-identical to HashJoin.png."
+  - path: frontend/src/assets/operator_images/JSONLFileScan.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, CSVOldFileScan.png, FileLister.png, FileScan.png, FileScanOp.png, ScanSource.png."
+  - path: frontend/src/assets/operator_images/JavaUDF.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/JoinDistance.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/characterjoin.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/KNNClassifierTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to KNNRegressorTrainer.png."
+  - path: frontend/src/assets/operator_images/KNNRegressorTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to KNNClassifierTrainer.png."
+  - path: frontend/src/assets/operator_images/KeywordMatcher.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/keywordSearch.png, a third-party folder. Byte-identical to KeywordSearch.png."
+  - path: frontend/src/assets/operator_images/KeywordSearch.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/keywordSearch.png, a third-party folder. Byte-identical to KeywordMatcher.png."
+  - path: frontend/src/assets/operator_images/KeywordSource.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/keywordSource.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/Limit.png
+    origin: unknown
+    notes: "Added in 820be5cdd (2020-11-23)."
+  - path: frontend/src/assets/operator_images/LineChart.png
+    origin: unknown
+    notes: "Current version from 7c2ef14fe (2021-05-07); first added in bb199cc0f (2017-08-28)."
+  - path: frontend/src/assets/operator_images/LocalFileScan.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/fileSource.png, a third-party folder. Byte-identical to FileSource.png."
+  - path: frontend/src/assets/operator_images/LoopEnd.png
+    origin: unknown
+    notes: "Added in 1a2e2bc49 (2026-07-17)."
+  - path: frontend/src/assets/operator_images/LoopStart.png
+    origin: unknown
+    notes: "Added in 1a2e2bc49 (2026-07-17)."
+  - path: frontend/src/assets/operator_images/MySQLSource.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/MysqlSink.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/NestedTable.png
+    origin: unknown
+    notes: "Added in c09999e8a (2025-05-07)."
+  - path: frontend/src/assets/operator_images/NetworkGraph.png
+    origin: unknown
+    notes: "Added in 6e2ed4c6a (2025-01-24)."
+  - path: frontend/src/assets/operator_images/NlpEntity.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/entityRecognition.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/NlpSentiment.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/sentimentAnalysis.png, a third-party folder. Byte-identical to SentimentAnalysis.png."
+  - path: frontend/src/assets/operator_images/NlpSplit.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/sentencesplit.png, a third-party folder. Byte-identical to ToLowerCase.png."
+  - path: frontend/src/assets/operator_images/NltkSentiment.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/ParallelCoordinatesPlot.png
+    origin: unknown
+    notes: "Added in b919fcd33 (2026-04-20)."
+  - path: frontend/src/assets/operator_images/PieChart.png
+    origin: unknown
+    notes: "Current version from 2b201abb4 (2023-08-02); first added in bb199cc0f (2017-08-28)."
+  - path: frontend/src/assets/operator_images/PolarChart.png
+    origin: unknown
+    notes: "Added in 8cd1570dd (2026-04-17)."
+  - path: frontend/src/assets/operator_images/PostgreSQLSource.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/Projection.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/projection.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/PythonLambdaFunction.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/PythonTableReducer.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/PythonUDFSourceV2.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/PythonUDFV2.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/QuiverPlot.png
+    origin: unknown
+    notes: "Added in 277c7e8d6 (2024-07-14)."
+  - path: frontend/src/assets/operator_images/RUDF.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/RUDFSource.png
+    origin: project-made
+    notes: "Typographic icon, redrawn in #5686."
+  - path: frontend/src/assets/operator_images/RadarChart.png
+    origin: unknown
+    notes: "Added in c1bb23094 (2026-03-04)."
+  - path: frontend/src/assets/operator_images/RadarPlot.png
+    origin: unknown
+    notes: "Added in d868b8522 (2026-04-17)."
+  - path: frontend/src/assets/operator_images/RandomKSampling.png
+    origin: unknown
+    notes: "Added in 9ab7ab259 (2020-11-07). Byte-identical to ReservoirSampling.png."
+  - path: frontend/src/assets/operator_images/RangeSlider.png
+    origin: unknown
+    notes: "Added in 449e588d5 (2025-05-06)."
+  - path: frontend/src/assets/operator_images/RedditSearch.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/Regex.png
+    origin: unknown
+    notes: "Added in 486c61e3d (2018-11-28). Byte-identical to RegexSource.png."
+  - path: frontend/src/assets/operator_images/RegexMatcher.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/regexMatch.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/RegexSource.png
+    origin: unknown
+    notes: "Added in 486c61e3d (2018-11-28). Byte-identical to Regex.png."
+  - path: frontend/src/assets/operator_images/RegexSplit.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/regex.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/ReservoirSampling.png
+    origin: unknown
+    notes: "Added in 9ab7ab259 (2020-11-07). Byte-identical to RandomKSampling.png."
+  - path: frontend/src/assets/operator_images/SVCTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to SVMClassifierTrainer.png, SVMRegressorTrainer.png, SVRTrainer.png."
+  - path: frontend/src/assets/operator_images/SVMClassifierTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to SVCTrainer.png, SVMRegressorTrainer.png, SVRTrainer.png."
+  - path: frontend/src/assets/operator_images/SVMRegressorTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to SVCTrainer.png, SVMClassifierTrainer.png, SVRTrainer.png."
+  - path: frontend/src/assets/operator_images/SVRTrainer.png
+    origin: unknown
+    notes: "Added in 9b9d10920 (2024-07-01). Byte-identical to SVCTrainer.png, SVMClassifierTrainer.png, SVMRegressorTrainer.png."
+  - path: frontend/src/assets/operator_images/Sampler.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/sampling.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/SankeyDiagram.png
+    origin: third-party
+    source: "Adobe Stock asset 873461140 (\"Diagram sankey icon\" by Ghori), per its embedded metadata"
+    license: "Adobe Stock licence"
+    notes: "Not redistributable under a Category A licence; must be replaced."
+  - path: frontend/src/assets/operator_images/ScanSource.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/scan.png, a third-party folder. Byte-identical to CSVFileScan.png, CSVOldFileScan.png, FileLister.png, FileScan.png, FileScanOp.png, JSONLFileScan.png."
+  - path: frontend/src/assets/operator_images/Scatter3DChart.png
+    origin: unknown
+    notes: "Added in fdaa9eb4d (2024-02-12)."
+  - path: frontend/src/assets/operator_images/ScatterMatrixChart.png
+    origin: unknown
+    notes: "Added in ad10c353c (2024-02-26)."
+  - path: frontend/src/assets/operator_images/Scatterplot.png
+    origin: unknown
+    notes: "Added in df16f8fe9 (2021-05-14)."
+  - path: frontend/src/assets/operator_images/Scorer.png
+    origin: unknown
+    notes: "Added in bce0f44ca (2024-06-27)."
+  - path: frontend/src/assets/operator_images/SentimentAnalysis.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/sentimentAnalysis.png, a third-party folder. Byte-identical to NlpSentiment.png."
+  - path: frontend/src/assets/operator_images/SimilarityJoin.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/similarityjoin.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/SimpleSink.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/view-result.png, a third-party folder. Byte-identical to AdhocSink.png, ViewResults.png."
+  - path: frontend/src/assets/operator_images/SklearnAdaptiveBoosting.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingAdaptiveBoosting.png."
+  - path: frontend/src/assets/operator_images/SklearnBagging.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingBagging.png."
+  - path: frontend/src/assets/operator_images/SklearnBernoulliNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingBernoulliNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingComplementNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnDecisionTree.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingDecisionTree.png."
+  - path: frontend/src/assets/operator_images/SklearnDummy.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingDummy.png."
+  - path: frontend/src/assets/operator_images/SklearnExtraTree.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingExtraTree.png."
+  - path: frontend/src/assets/operator_images/SklearnExtraTrees.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingExtraTrees.png."
+  - path: frontend/src/assets/operator_images/SklearnGaussianNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingGaussianNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnGradientBoosting.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingGradientBoosting.png."
+  - path: frontend/src/assets/operator_images/SklearnKNN.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingKNN.png."
+  - path: frontend/src/assets/operator_images/SklearnLinearRegression.png
+    origin: unknown
+    notes: "Added in 33eda18d7 (2024-05-06). Byte-identical to SklearnTrainingLinearRegression.png."
+  - path: frontend/src/assets/operator_images/SklearnLinearSVM.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingLinearSVM.png."
+  - path: frontend/src/assets/operator_images/SklearnLogisticRegression.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingLogisticRegression.png."
+  - path: frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingLogisticRegressionCV.png."
+  - path: frontend/src/assets/operator_images/SklearnMultiLayerPerceptron.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingMultiLayerPerceptron.png."
+  - path: frontend/src/assets/operator_images/SklearnMultinomialNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingMultinomialNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnNearestCentroid.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingNearestCentroid.png."
+  - path: frontend/src/assets/operator_images/SklearnPassiveAggressive.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingPassiveAggressive.png."
+  - path: frontend/src/assets/operator_images/SklearnPerceptron.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingPerceptron.png."
+  - path: frontend/src/assets/operator_images/SklearnPrediction.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05)."
+  - path: frontend/src/assets/operator_images/SklearnProbabilityCalibration.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingProbabilityCalibration.png."
+  - path: frontend/src/assets/operator_images/SklearnRandomForest.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingRandomForest.png."
+  - path: frontend/src/assets/operator_images/SklearnRidge.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingRidge.png."
+  - path: frontend/src/assets/operator_images/SklearnRidgeCV.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingRidgeCV.png."
+  - path: frontend/src/assets/operator_images/SklearnSDG.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingSDG.png."
+  - path: frontend/src/assets/operator_images/SklearnSVM.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnTrainingSVM.png."
+  - path: frontend/src/assets/operator_images/SklearnTesting.png
+    origin: unknown
+    notes: "Added in 3e92803d8 (2026-02-14)."
+  - path: frontend/src/assets/operator_images/SklearnTrainingAdaptiveBoosting.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnAdaptiveBoosting.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingBagging.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnBagging.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingBernoulliNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnBernoulliNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingComplementNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnComplementNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingDecisionTree.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnDecisionTree.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingDummy.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnDummy.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingExtraTree.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnExtraTree.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingExtraTrees.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnExtraTrees.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingGaussianNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnGaussianNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingGradientBoosting.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnGradientBoosting.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingKNN.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnKNN.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingLinearRegression.png
+    origin: unknown
+    notes: "Added in 33eda18d7 (2024-05-06). Byte-identical to SklearnLinearRegression.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingLinearSVM.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnLinearSVM.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingLogisticRegression.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnLogisticRegression.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnLogisticRegressionCV.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingMultiLayerPerceptron.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnMultiLayerPerceptron.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingMultinomialNaiveBayes.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnMultinomialNaiveBayes.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingNearestCentroid.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnNearestCentroid.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingPassiveAggressive.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnPassiveAggressive.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingPerceptron.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnPerceptron.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnProbabilityCalibration.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingRandomForest.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnRandomForest.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingRidge.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnRidge.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnRidgeCV.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingSDG.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnSDG.png."
+  - path: frontend/src/assets/operator_images/SklearnTrainingSVM.png
+    origin: unknown
+    notes: "Added in 7d30341cb (2024-05-05). Byte-identical to SklearnSVM.png."
+  - path: frontend/src/assets/operator_images/Sleep.png
+    origin: unknown
+    notes: "Added in 288a990b5 (2025-07-11)."
+  - path: frontend/src/assets/operator_images/Sort.png
+    origin: unknown
+    notes: "Added in e2e0d274d (2024-04-02). Byte-identical to StableMergeSort.png."
+  - path: frontend/src/assets/operator_images/SortPartitions.png
+    origin: unknown
+    notes: "Added in 444dfc463 (2022-05-27)."
+  - path: frontend/src/assets/operator_images/Split.png
+    origin: unknown
+    notes: "Added in cc6680e88 (2022-04-15)."
+  - path: frontend/src/assets/operator_images/StableMergeSort.png
+    origin: unknown
+    notes: "Added in e2e0d274d (2024-04-02). Byte-identical to Sort.png."
+  - path: frontend/src/assets/operator_images/StripChart.png
+    origin: unknown
+    notes: "Added in b3317c1fa (2025-10-19)."
+  - path: frontend/src/assets/operator_images/SubstringSearch.png
+    origin: unknown
+    notes: "Added in d217b8c20 (2025-10-15)."
+  - path: frontend/src/assets/operator_images/SymmetricDifference.png
+    origin: unknown
+    notes: "Added in 214494450 (2021-07-06)."
+  - path: frontend/src/assets/operator_images/TablesPlot.png
+    origin: unknown
+    notes: "Added in c77c1ea17 (2024-03-20)."
+  - path: frontend/src/assets/operator_images/TernaryContour.png
+    origin: unknown
+    notes: "Added in bda608431 (2026-04-22)."
+  - path: frontend/src/assets/operator_images/TernaryPlot.png
+    origin: unknown
+    notes: "Added in 2fee4dffc (2024-07-04)."
+  - path: frontend/src/assets/operator_images/TextInput.png
+    origin: unknown
+    notes: "Added in a54a0eb99 (2023-04-17)."
+  - path: frontend/src/assets/operator_images/TimeSeries.png
+    origin: unknown
+    notes: "Added in 1905ca39b (2023-08-02)."
+  - path: frontend/src/assets/operator_images/TimeSeriesPlot.png
+    origin: unknown
+    notes: "Added in b811f4add (2025-07-10)."
+  - path: frontend/src/assets/operator_images/ToLowerCase.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/sentencesplit.png, a third-party folder. Byte-identical to NlpSplit.png."
+  - path: frontend/src/assets/operator_images/TreePlot.png
+    origin: unknown
+    notes: "Added in 7bf2382f6 (2025-07-07)."
+  - path: frontend/src/assets/operator_images/TwitterConverter.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/TwitterFeed.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/TwitterFullArchiveSearch.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/TwitterSearch.png
+    origin: unknown
+    notes: "Vendor logo or photo; being replaced under #8982."
+  - path: frontend/src/assets/operator_images/TypeCasting.png
+    origin: third-party
+    source: "Noun Project icon 2103686, https://thenounproject.com/term/transform/2103686/ (named in #929)"
+    license: "unknown; Noun Project icons are usually CC-BY-3.0"
+    notes: "Author and licence still to be confirmed; not yet listed in LICENSE."
+  - path: frontend/src/assets/operator_images/URLFetcher.png
+    origin: unknown
+    notes: "Added in 847aa3e30 (2023-02-03)."
+  - path: frontend/src/assets/operator_images/URLVisualizer.png
+    origin: unknown
+    notes: "Added in 52861fea9 (2023-07-09)."
+  - path: frontend/src/assets/operator_images/Union.png
+    origin: unknown
+    notes: "Current version from 6af8a4bcc (2021-01-04); first added in 820be5cdd (2020-11-23)."
+  - path: frontend/src/assets/operator_images/UnnestString.png
+    origin: unknown
+    notes: "Added in 374e0a1ca (2021-11-16)."
+  - path: frontend/src/assets/operator_images/ViewResults.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/view-result.png, a third-party folder. Byte-identical to AdhocSink.png, SimpleSink.png."
+  - path: frontend/src/assets/operator_images/VolcanoPlot.png
+    origin: unknown
+    notes: "Added in 9695d85a1 (2025-05-18)."
+  - path: frontend/src/assets/operator_images/WaterfallChart.png
+    origin: unknown
+    notes: "Added in d39713381 (2024-09-10)."
+  - path: frontend/src/assets/operator_images/WindRoseChart.png
+    origin: unknown
+    notes: "Added in fee6f8caa (2026-04-16)."
+  - path: frontend/src/assets/operator_images/WordCloud.png
+    origin: unknown
+    notes: "Current version from 85562b702 (2022-06-07); first added in bb199cc0f (2017-08-28). Byte-identical to WordCloudV2.png."
+  - path: frontend/src/assets/operator_images/WordCloudV2.png
+    origin: unknown
+    notes: "Current version from 85562b702 (2022-06-07); first added in bb199cc0f (2017-08-28). Byte-identical to WordCloud.png."
+  - path: frontend/src/assets/operator_images/WordCount.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/counting.png, a third-party folder."
+  - path: frontend/src/assets/operator_images/WordCountIndexSource.png
+    origin: unknown
+    notes: "Added in 486c61e3d (2018-11-28)."
+  - path: frontend/src/assets/operator_images/comment-bubble.png
+    origin: project-made
+    notes: "Original drawing, added in #8804."
+  - path: frontend/src/assets/operator_images/run-icon.png
+    origin: unknown
+    notes: "Added in bb199cc0f (2017-08-28). Originally added as textdb/textdb-angular-gui/thirdparty/images/run-icon.png, a third-party folder."
+  - path: frontend/src/assets/sample-audio.wav
+    origin: project-made
+    notes: "Self-created, per #5568."
+  - path: frontend/src/assets/sample-image.png
+    origin: project-made
+    notes: "Original drawing, added in #8987."
+  - path: frontend/src/assets/sample-video.mp4
+    origin: project-made
+    notes: "Self-created, per #5568."
+  - path: frontend/src/assets/svg/operator-reuse-cache-invalid.svg
+    origin: third-party
+    source: "https://www.svgrepo.com"
+    license: "MIT"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/svg/operator-reuse-cache-valid.svg
+    origin: third-party
+    source: "https://www.svgrepo.com"
+    license: "MIT"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/svg/operator-view-result.svg
+    origin: third-party
+    source: "https://www.svgrepo.com"
+    license: "MIT"
+    notes: "Listed in LICENSE"
+  - path: frontend/src/assets/texera_email_screenshot.png
+    origin: project-made
+    notes: "Rendering of the project's contact address."
+  - path: frontend/src/assets/workflow_gui.png
+    origin: project-made
+    notes: "Screenshot of the Texera workflow editor."
+  - path: frontend/src/favicon.ico
+    origin: third-party
+    source: "Angular CLI default project favicon, https://github.com/angular/angular-cli"
+    license: "MIT"
+    notes: "Not yet listed in LICENSE. Not shipped in the binary (angular.json only copies src/assets); candidate for removal."
