@@ -17,6 +17,7 @@
  * under the License.
  */
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
+import { from } from "rxjs";
 import { JsonPipe, NgFor, NgIf } from "@angular/common";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
@@ -60,7 +61,7 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
   private path: string[];
   private expanded?: MacroExpansion;
   public get editURL(): string | undefined {
-    const matches = this.data.library.filter(d => d.id === this.definition.id);
+    const matches = this.macros.library$.value.filter(d => d.id === this.definition.id);
     const source = matches.length === 1 ? matches[0] : undefined;
     return source?.wid ? workspaceCanvasUrl(source.wid) : undefined;
   }
@@ -69,7 +70,6 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
     private data: {
       definition: MacroDefinition;
       dependencies: MacroDefinition[];
-      library: MacroDefinition[];
       runtime?: { operatorID: string; getExpansion: () => MacroExpansion | undefined };
     },
     private ui: JointUIService,
@@ -84,6 +84,12 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.render();
     this.changeDetector.detectChanges();
+    from(this.macros.refresh())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.changeDetector.markForCheck(),
+        error: (error: unknown) => this.notification.error(error instanceof Error ? error.message : String(error)),
+      });
     this.status
       .getStatisticsUpdateStream()
       .pipe(untilDestroyed(this))
@@ -167,7 +173,6 @@ export class MacroInspectorComponent implements AfterViewInit, OnDestroy {
     this.copying = true;
     try {
       this.definition = await this.macros.copyDefinition(this.definition, this.data.dependencies);
-      this.data.library = this.macros.library$.value;
       this.stack = [];
       this.path = [];
       this.render();

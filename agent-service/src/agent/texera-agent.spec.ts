@@ -878,6 +878,8 @@ describe("delegate mode", () => {
     await agent.sendMessage("one");
     const retrieves = () => urls.filter(u => u.includes("/api/workflow/7")).length;
     expect(retrieves()).toBe(1);
+    const compileCall = fetchSpy.mock.calls.find(([url]: [unknown]) => String(url).includes("/api/compile"));
+    expect(compileCall?.[1]?.headers).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
     expect(
       agent
         .getWorkflowState()

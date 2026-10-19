@@ -18,6 +18,9 @@
  */
 
 import { Component } from "@angular/core";
+import { combineLatest } from "rxjs";
+import { MacroService } from "../../../service/macro/macro.service";
+import { macroType } from "../../../../common/util/workflow-macro";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
@@ -83,7 +86,8 @@ export class OperatorMenuComponent {
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private macros: MacroService
   ) {
     // clear the search box if an operator is dropped from operator search box
     this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
@@ -94,14 +98,14 @@ export class OperatorMenuComponent {
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
       .subscribe(canModify => (this.canModify = canModify));
-    this.operatorMetadataService
-      .getOperatorMetadata()
+    combineLatest([this.operatorMetadataService.getOperatorMetadata(), this.macros.library$])
       .pipe(untilDestroyed(this))
-      .subscribe(operatorMetadata => {
+      .subscribe(([operatorMetadata, definitions]) => {
         const ops = operatorMetadata.operators.filter(
           operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy"
         );
         this.groupNames = operatorMetadata.groups;
+        this.opList.clear();
         ops.forEach(x => {
           if (x.operatorType !== "Sleep") {
             const group = x.additionalMetadata.operatorGroupName;
@@ -113,7 +117,13 @@ export class OperatorMenuComponent {
         this.opList.forEach(value => {
           value.sort((a, b) => a.operatorType.localeCompare(b.operatorType));
         });
-        this.fuse.setCollection(ops);
+        this.fuse.setCollection([
+          ...ops,
+          ...definitions.map(d =>
+            this.operatorMetadataService.getOperatorSchema(macroType(d), [d, ...(d.content.macroDependencies ?? [])])
+          ),
+        ]);
+        this.search(this.searchInputValue);
       });
   }
 
@@ -122,13 +132,11 @@ export class OperatorMenuComponent {
    * whenever the search box text is changed, perform the search using fuse.js
    */
   onInput(e: Event): void {
-    const v = (e.target as HTMLInputElement).value;
-    if (v === null || v.trim().length === 0) {
-      this.autocompleteOptions = [];
-    }
-    this.autocompleteOptions = this.fuse.search(v).map(item => {
-      return item.item;
-    });
+    this.search((e.target as HTMLInputElement).value);
+  }
+
+  private search(value: string): void {
+    this.autocompleteOptions = this.fuse.search(value).map(item => item.item);
   }
 
   /**

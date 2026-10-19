@@ -598,3 +598,59 @@ describe("executeOperatorAndFormat — cancellation", () => {
     ).rejects.toThrow("aborted");
   });
 });
+
+describe("nested macro execution", () => {
+  test("executes one pinned instance and returns its leaf result under the canvas ID", async () => {
+    const { macroWorkflow } = await import("../macro-test-data");
+    const state = new WorkflowState();
+    state.setWorkflowContent(macroWorkflow());
+    fetchSpy.mockImplementation(async (_url: unknown, request: unknown) => {
+      const plan = JSON.parse((request as RequestInit).body as string).logicalPlan;
+      expect(plan.operators).toHaveLength(1);
+      expect(plan.operators[0]).toMatchObject({ operatorType: "TestOp", value: "café 東京" });
+      expect(plan.opsToViewResult).toEqual([plan.operators[0].operatorID]);
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          state: "Completed",
+          operators: {
+            [plan.operators[0].operatorID]: {
+              state: "Completed",
+              inputTuples: 0,
+              outputTuples: 1,
+              resultMode: "table",
+              result: [{ value: "café 東京" }],
+            },
+          },
+        }),
+      } as Response;
+    });
+    const onResult = mock(() => {});
+    const result = await executeOperatorAndFormat(state, cfg(), "one", { onResult });
+    expect(result).toContain("café 東京");
+    expect(onResult).toHaveBeenCalledWith("one", expect.objectContaining({ outputTuples: 1 }));
+    expect(validateSpy.mock.calls.every(([type]: [string]) => type === "TestOp")).toBe(true);
+    state.destroy();
+  });
+  test("rejects missing and recursive pinned definitions before HTTP execution", async () => {
+    const { macroWorkflow } = await import("../macro-test-data");
+    for (const mutate of [
+      (c: any) => {
+        c.macroDependencies = [];
+      },
+      (c: any) => {
+        c.macroDependencies[0].content.operators[0].operatorType = "WorkflowMacro:outer:1";
+      },
+    ]) {
+      const content = macroWorkflow();
+      mutate(content);
+      const state = new WorkflowState();
+      state.setWorkflowContent(content);
+      const result = await executeOperatorAndFormat(state, cfg(), "one");
+      expect(result).toMatch(/missing.*version|recursive/i);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      state.destroy();
+    }
+  });
+});

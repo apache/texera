@@ -51,6 +51,8 @@ import {
 } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
+import { macroInstance } from "../../../../common/util/workflow-macro";
+
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
   let undoRedo: UndoRedoService;
@@ -93,6 +95,45 @@ describe("WorkflowActionService", () => {
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("reads nested legacy bundles from shared metadata without rewriting their snapshots", () => {
+    const inner = {
+      id: "inner",
+      version: 1,
+      name: "Inner",
+      content: {
+        ...service.getWorkflowContent(),
+        operators: [mockScanPredicate],
+        macroInterface: { id: "inner", inputs: [], outputs: [] },
+      },
+    };
+    const outer = {
+      id: "outer",
+      version: 1,
+      name: "Outer",
+      content: {
+        ...inner.content,
+        operators: [macroInstance(inner, "child")],
+        macroDependencies: [inner],
+        macroInterface: { id: "outer", inputs: [], outputs: [] },
+      },
+    };
+    const legacy = [outer],
+      before = JSON.stringify(legacy);
+    const shared = texeraGraph.sharedModel.contentMetaMap;
+    shared.set("macroDependencies", legacy);
+    expect(service.getMacroDependencies()).toHaveLength(2);
+    expect(service.getMacroDependencies().every(d => !d.content.macroDependencies)).toBe(true);
+    expect(JSON.stringify(legacy)).toBe(before);
+    service.addOperator(macroInstance(outer, "root"), { x: 0, y: 0 });
+    expect(service.getMacroExpansion()!.content.operators).toHaveLength(1);
+    shared.set("macroDependencies", [{ ...outer, version: 2 }]);
+    expect(service.getMacroDependencies().find(d => d.id === "outer")!.version).toBe(2);
+    expect(service.getMacroExpansion()).toBeUndefined();
+    shared.set("macroDependencies", [{ ...outer, version: 0 }]);
+    expect(() => service.getMacroExpansion()).not.toThrow();
+    expect(service.getMacroExpansion()).toBeUndefined();
+  });
 
   it("undoes macro metadata together with its graph transaction", () => {
     syncSharedDoc();

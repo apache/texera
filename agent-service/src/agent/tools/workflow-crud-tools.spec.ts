@@ -505,3 +505,28 @@ describe("createAddOperatorTool", () => {
     expect(state.getAllOperators()).toHaveLength(0);
   });
 });
+
+test("validates proposed nested macro properties through their pinned leaf schemas", async () => {
+  const { macroWorkflow } = await import("../macro-test-data");
+  const content = macroWorkflow();
+  content.macroDependencies[0].content.macroDependencies[0].content.macroDependencies[0].content.formBinding.fields[0].propertyKey =
+    "count";
+  const state = new WorkflowState();
+  state.setWorkflowContent(content);
+  const modify = createModifyOperatorTool(state, context);
+  expect(await runTool(modify, { operatorId: "one", properties: { value: 42 } })).not.toContain("[ERROR]");
+  expect(state.getOperator("one")!.operatorProperties.value).toBe(42);
+  for (const isDisabled of [false, true]) {
+    state.setWorkflowContent({
+      ...state.getWorkflowContent(),
+      operators: state.getAllOperators().map(op => (op.operatorID === "one" ? { ...op, isDisabled } : op)),
+    });
+    const before = JSON.stringify(state.getWorkflowContent());
+    expect(await runTool(modify, { operatorId: "one", properties: { value: "bad" } })).toContain("[ERROR]");
+    expect(await runTool(modify, { operatorId: "one", properties: { unknown: 1 } })).toContain(
+      "Unknown macro property"
+    );
+    expect(JSON.stringify(state.getWorkflowContent())).toBe(before);
+  }
+  state.destroy();
+});

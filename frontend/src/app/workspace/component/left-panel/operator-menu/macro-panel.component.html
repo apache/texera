@@ -16,90 +16,93 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<details
-  class="macro-library"
-  (toggle)="opened($event)">
-  <summary>Macros <span class="badge">{{ macros.library$.value.length }}</span></summary>
-  <div class="section-header">
-    <span class="muted">Saved macros</span>
-    <button
-      nz-button
-      nzSize="small"
-      type="button"
-      aria-label="Refresh library"
-      (click)="refresh()"
-      [nzLoading]="busy">
-      Refresh
-    </button>
-  </div>
-  <p
-    *ngIf="!busy && !macros.library$.value.length"
-    class="empty-state">
-    No saved macros yet. Create one from a selection below.
-  </p>
-  <p
-    *ngIf="macros.library$.value.length"
-    class="muted">
-    Drag a macro onto the canvas.
-  </p>
-  <div
-    *ngFor="let definition of macros.library$.value; trackBy: trackDefinition"
-    class="library-entry"
-    [title]="definition.name + ' · v' + definition.version">
-    <texera-operator-label [operator]="metadata.getOperatorSchema(type(definition))"></texera-operator-label>
-  </div>
-  <form
-    class="content-section"
-    (ngSubmit)="create()">
-    <label for="macro-name">Create a macro</label>
-    <p
-      class="muted"
-      aria-live="polite">
-      {{ selectionHint }}
-    </p>
-    <input
-      nz-input
-      id="macro-name"
-      name="macroName"
-      aria-label="Macro name"
-      placeholder="Name your macro"
-      [(ngModel)]="name"
-      [disabled]="!canModify || busy" />
-    <button
-      nz-button
-      nzType="primary"
-      nzBlock
-      type="submit"
-      data-action="create"
-      [nzLoading]="busy"
-      [disabled]="!canModify || busy || !name.trim() || !selected.length">
-      Create from selection
-    </button>
-  </form>
-  <section
-    *ngIf="selectedMacro"
-    class="content-section">
-    <strong>Selected macro</strong>
-    <p class="muted">This instance keeps its pinned version until you update it.</p>
-    <div class="actions">
+<nz-collapse
+  nzBordered="false"
+  nzExpandIconPosition="end">
+  <nz-collapse-panel
+    nzHeader="Macros"
+    (nzActiveChange)="$event && refresh()">
+    <div class="section-header">
+      <span class="muted">Saved macros</span>
       <button
         nz-button
         nzSize="small"
         type="button"
-        (click)="macros.inspect$.next(selected[0])">
-        Inspect pinned version
-      </button>
-      <button
-        nz-button
-        nzSize="small"
-        type="button"
-        (click)="update()"
-        [disabled]="!canModify || busy">
-        Use latest version
+        aria-label="Refresh library"
+        (click)="refresh()"
+        [nzLoading]="busy">
+        Refresh
       </button>
     </div>
-  </section>
-</details>
+    <p
+      *ngIf="!busy && !macros.library$.value.length"
+      class="empty-state">
+      No saved macros yet. Create one from a selection below.
+    </p>
+    <p
+      *ngIf="macros.library$.value.length"
+      class="muted">
+      Drag a macro onto the canvas.
+    </p>
+    <div
+      *ngFor="let definition of macros.library$.value; trackBy: trackDefinition"
+      class="operator-label"
+      [title]="definition.name + ' · v' + definition.version">
+      <texera-operator-label [operator]="metadata.getOperatorSchema(type(definition))"></texera-operator-label>
+    </div>
+    <form
+      class="content-section"
+      (ngSubmit)="create()">
+      <label for="macro-name">Create a macro</label>
+      <p
+        class="muted"
+        aria-live="polite">
+        {{ selectionHint }}
+      </p>
+      <input
+        nz-input
+        id="macro-name"
+        name="macroName"
+        aria-label="Macro name"
+        placeholder="Name your macro"
+        [(ngModel)]="name"
+        [disabled]="!canModify || busy" />
+      <button
+        nz-button
+        nzType="primary"
+        nzBlock
+        type="submit"
+        data-action="create"
+        [nzLoading]="busy"
+        [disabled]="!canModify || busy || !name.trim() || !selected.length">
+        Create from selection
+      </button>
+    </form>
+    <section
+      *ngIf="selectedMacro"
+      class="content-section">
+      <strong>Selected macro</strong>
+      <p class="muted">This instance keeps its pinned version until you update it.</p>
+      <div class="actions">
+        <button
+          nz-button
+          nzSize="small"
+          type="button"
+          (click)="macros.inspect$.next(selected[0])">
+          Inspect pinned version
+        </button>
+        <button
+          nz-button
+          nzSize="small"
+          type="button"
+          (click)="update()"
+          [disabled]="!canModify || busy">
+          Use latest version
+        </button>
+      </div>
+    </section>
+  </nz-collapse-panel>
+</nz-collapse>
 <section
   *ngIf="actions.getMacroInterface() as boundary"
   class="macro-interface">
@@ -152,18 +155,17 @@
         </button>
       </div>
     </div>
-    <select
-      class="ant-input"
+    <nz-select
+      nzShowSearch
       [attr.aria-label]="direction === 'inputs' ? 'Input target' : 'Output target'"
+      [nzPlaceHolder]="direction === 'inputs' ? 'Choose an input' : 'Choose an output'"
       [(ngModel)]="portTargets[direction]"
-      [disabled]="!canModify">
-      <option value="">{{ direction === 'inputs' ? 'Choose an input' : 'Choose an output' }}</option>
-      <option
+      [nzDisabled]="!canModify">
+      <nz-option
         *ngFor="let p of targets(direction); trackBy: trackOption"
-        [value]="p.value">
-        {{ p.label }}
-      </option>
-    </select>
+        [nzValue]="p.value"
+        [nzLabel]="p.label"></nz-option>
+    </nz-select>
     <button
       nz-button
       nzSize="small"
@@ -200,18 +202,17 @@
         Remove property
       </button>
     </div>
-    <select
-      class="ant-input"
+    <nz-select
+      nzShowSearch
       aria-label="Property target"
+      nzPlaceHolder="Choose a property"
       [(ngModel)]="propertyTarget"
-      [disabled]="!canModify">
-      <option value="">Choose a property</option>
-      <option
+      [nzDisabled]="!canModify">
+      <nz-option
         *ngFor="let p of properties(); trackBy: trackOption"
-        [value]="p.value">
-        {{ p.label }}
-      </option>
-    </select>
+        [nzValue]="p.value"
+        [nzLabel]="p.label"></nz-option>
+    </nz-select>
     <button
       nz-button
       nzSize="small"

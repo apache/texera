@@ -103,7 +103,7 @@ export class MacroService {
     return this.saveDefinition(
       {
         ...definition.content,
-        macroDependencies: dependencies,
+        macroDependencies: mergeMacroDefinitions(dependencies),
         macroInterface: { ...definition.content.macroInterface!, id: uuid() },
       },
       definition.name + " copy"

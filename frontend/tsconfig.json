@@ -6,6 +6,9 @@
     "paths": {
       "path": [
         "./node_modules/path-browserify"
+      ],
+      "@texera/workflow-macros": [
+        "../common/workflow-core/src/main/typescript/workflow-macros/index.ts"
       ]
     },
     "strict": true,

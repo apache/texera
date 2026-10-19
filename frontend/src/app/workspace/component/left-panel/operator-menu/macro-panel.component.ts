@@ -21,6 +21,8 @@ import { NgFor, NgIf } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzInputModule } from "ng-zorro-antd/input";
+import { NzCollapseModule } from "ng-zorro-antd/collapse";
+import { NzSelectModule } from "ng-zorro-antd/select";
 import { v4 as uuid } from "uuid";
 import { MacroService } from "../../../service/macro/macro.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -34,15 +36,24 @@ import { FormBindingService } from "../../../service/form-binding/form-binding.s
 
 @Component({
   selector: "texera-macro-panel",
-  imports: [NgIf, NgFor, FormsModule, NzButtonModule, NzInputModule, OperatorLabelComponent],
+  imports: [
+    NgIf,
+    NgFor,
+    FormsModule,
+    NzButtonModule,
+    NzInputModule,
+    NzCollapseModule,
+    NzSelectModule,
+    OperatorLabelComponent,
+  ],
   templateUrl: "./macro-panel.component.html",
   styleUrls: ["./macro.component.scss"],
 })
 export class MacroPanelComponent {
   public name = "";
   public busy = false;
-  public portTargets = { inputs: "", outputs: "" };
-  public propertyTarget = "";
+  public portTargets: Record<"inputs" | "outputs", string | null> = { inputs: null, outputs: null };
+  public propertyTarget: string | null = null;
   public readonly directions = ["inputs", "outputs"] as const;
   public readonly type = macroType;
   public readonly trackDefinition = (_: number, d: MacroDefinition) => macroType(d);
@@ -72,9 +83,6 @@ export class MacroPanelComponent {
     public forms: FormBindingService,
     private notification: NotificationService
   ) {}
-  public opened(event: Event): void {
-    if ((event.target as HTMLDetailsElement).open) void this.refresh();
-  }
   public async refresh(): Promise<void> {
     await this.perform(() => this.macros.refresh());
   }
@@ -135,8 +143,8 @@ export class MacroPanelComponent {
     const target = JSON.parse(selected.value);
     this.forms.addBinding(target.operatorID, target.propertyKey);
   }
-  public add(direction: "inputs" | "outputs", target: string): void {
-    if (!this.canModify || !this.targets(direction).some(p => p.value === target)) return;
+  public add(direction: "inputs" | "outputs", target: string | null): void {
+    if (!this.canModify || !target || !this.targets(direction).some(p => p.value === target)) return;
     this.updatePorts(direction, ports => [
       ...ports,
       {
@@ -153,7 +161,12 @@ export class MacroPanelComponent {
     this.updatePorts(direction, ports => ports.map(p => (p.portID === port.portID ? { ...p, displayName } : p)));
   }
   public addTarget(port: MacroPort): void {
-    if (!this.canModify || !this.targets("inputs").some(p => p.value === this.portTargets.inputs)) return;
+    if (
+      !this.canModify ||
+      !this.portTargets.inputs ||
+      !this.targets("inputs").some(p => p.value === this.portTargets.inputs)
+    )
+      return;
     const target = JSON.parse(this.portTargets.inputs);
     if (port.targets.some(p => p.operatorID === target.operatorID && p.portID === target.portID)) return;
     this.updatePorts("inputs", ports =>

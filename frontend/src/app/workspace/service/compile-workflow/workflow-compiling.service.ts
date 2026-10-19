@@ -43,8 +43,7 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { addCompilationError, areAllPortSchemasEqual } from "../../../common/util/workflow-compilation-utils";
 import { parseLogicalOperatorPortID } from "../../../common/util/logical-operator-port-serde";
-import { expandMacros, isMacro, portKey } from "../../../common/util/workflow-macro";
-import { WorkflowContent } from "../../../common/type/workflow";
+import { isMacro, mapMacroCompilation } from "../../../common/util/workflow-macro";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -105,7 +104,7 @@ export class WorkflowCompilingService {
               undefined,
               this.workflowActionService.getMacroDependencies?.() ?? []
             );
-            return this.compile(logicalPlan).pipe(map(response => this.mapMacroSchemas(response, content)));
+            return this.compile(logicalPlan).pipe(map(response => mapMacroCompilation(response, content)));
           }).pipe(
             catchError((error: unknown) => {
               const graph = this.workflowActionService.getTexeraGraph();
@@ -150,36 +149,6 @@ export class WorkflowCompilingService {
 
   public getWorkflowCompilationState(): CompilationState {
     return this.currentCompilationStateInfo.state;
-  }
-
-  private mapMacroSchemas(
-    response: WorkflowCompilationResponse,
-    content: WorkflowContent
-  ): WorkflowCompilationResponse {
-    if (!content.operators.some(isMacro)) return response;
-    const expanded = expandMacros(content);
-    const schemas = { ...response.operatorOutputSchemas };
-    const errors = { ...response.operatorErrors };
-    for (const op of content.operators.filter(isMacro)) {
-      const outputs: Record<string, PortSchema | undefined> = {};
-      op.outputPorts.forEach((port, index) => {
-        const target = expanded.ports[portKey(op.operatorID, "outputs", port.portID)]?.[0];
-        const leaf = expanded.content.operators.find(o => o.operatorID === target?.operatorID);
-        const ordinal = leaf?.outputPorts.findIndex(p => p.portID === target?.portID);
-        const schema =
-          target && ordinal !== undefined
-            ? schemas[target.operatorID]?.[serializePortIdentity({ id: ordinal, internal: false })]
-            : undefined;
-        if (schema) outputs[serializePortIdentity({ id: index, internal: false })] = schema;
-      });
-      schemas[op.operatorID] = outputs;
-    }
-    for (const [id, error] of Object.entries(response.operatorErrors ?? {})) {
-      const path = expanded.paths[id];
-      if (path?.length > 1)
-        errors[path[0]] = { ...error, operatorId: path[0], message: `${path.slice(1).join(" / ")}: ${error.message}` };
-    }
-    return { ...response, operatorOutputSchemas: schemas, operatorErrors: errors };
   }
 
   public getWorkflowCompilationErrors(): Readonly<Record<string, WorkflowFatalError>> {

@@ -17,14 +17,13 @@
  * under the License.
  */
 
+import { expandMacros, isMacro, macroResultAliases, type MacroExpansion } from "./util/workflow-macros";
 import { Subject, Observable, merge, Subscription } from "rxjs";
 import type {
   OperatorPredicate,
   OperatorLink,
   WorkflowContent,
   LogicalPlan,
-  LogicalOperator,
-  LogicalLink,
   Point,
   CommentBox,
   WorkflowSettings,
@@ -56,9 +55,7 @@ export class WorkflowState {
   private operatorPositions: Map<string, Point> = new Map();
   private commentBoxes: CommentBox[] = [];
   private settings: WorkflowSettings = { ...DEFAULT_WORKFLOW_SETTINGS };
-  // Opaque Form View definition carried through unchanged (the agent never touches it);
-  // see WorkflowContent.formBinding.
-  private formBinding: unknown = undefined;
+  private contentMeta: Pick<WorkflowContent, "formBinding" | "macroInterface" | "macroDependencies"> = {};
   private operatorsToViewResult: Set<string> = new Set();
 
   private operatorIdCounter: number = 0;
@@ -401,71 +398,87 @@ export class WorkflowState {
       links: this.getAllLinks(),
       commentBoxes: [...this.commentBoxes],
       settings: { ...this.settings },
-      // Only re-emit the key when the loaded workflow carried one, so plain workflows
-      // stay byte-identical (JSON.stringify would otherwise add "formBinding":null).
-      ...(this.formBinding !== undefined ? { formBinding: this.formBinding } : {}),
+      ...this.contentMeta,
     };
   }
 
-  setWorkflowContent(content: WorkflowContent): void {
+  setWorkflowContent({
+    operators,
+    links,
+    operatorPositions,
+    commentBoxes,
+    settings,
+    ...contentMeta
+  }: WorkflowContent): void {
     this.operators.clear();
     this.links.clear();
     this.operatorPositions.clear();
 
-    for (const op of content.operators) {
+    for (const op of operators) {
       this.operators.set(op.operatorID, op);
     }
-    for (const link of content.links) {
+    for (const link of links) {
       this.links.set(link.linkID, link);
     }
 
-    if (content.operatorPositions) {
-      for (const [id, pos] of Object.entries(content.operatorPositions)) {
+    if (operatorPositions) {
+      for (const [id, pos] of Object.entries(operatorPositions)) {
         this.operatorPositions.set(id, pos);
       }
     }
 
-    this.commentBoxes = content.commentBoxes ? [...content.commentBoxes] : [];
+    this.commentBoxes = commentBoxes ? [...commentBoxes] : [];
 
-    this.settings = content.settings ? { ...content.settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
+    this.settings = settings ? { ...settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
 
-    this.formBinding = content.formBinding;
+    this.contentMeta = contentMeta;
   }
 
-  toLogicalPlan(): LogicalPlan {
-    const enabledOperators = this.getAllEnabledOperators();
+  getMacroExpansion(): MacroExpansion<WorkflowContent> | undefined {
+    const content = this.getWorkflowContent();
+    return content.operators.some(isMacro) ? expandMacros(content) : undefined;
+  }
 
-    const operators: LogicalOperator[] = enabledOperators.map(op => ({
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      ...op.operatorProperties,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    const operatorIds = new Set(operators.map(op => op.operatorID));
-
-    const links: LogicalLink[] = this.getAllLinks()
-      .filter(link => operatorIds.has(link.source.operatorID) && operatorIds.has(link.target.operatorID))
-      .map(link => {
-        const sourceOp = this.getOperator(link.source.operatorID)!;
-        const targetOp = this.getOperator(link.target.operatorID)!;
-
-        const fromPortIdx = sourceOp.outputPorts.findIndex(p => p.portID === link.source.portID);
-        const toPortIdx = targetOp.inputPorts.findIndex(p => p.portID === link.target.portID);
-
-        return {
-          fromOpId: link.source.operatorID,
-          fromPortId: { id: fromPortIdx >= 0 ? fromPortIdx : 0, internal: false },
-          toOpId: link.target.operatorID,
-          toPortId: { id: toPortIdx >= 0 ? toPortIdx : 0, internal: false },
-        };
-      });
-
+  toLogicalPlan(targetOperatorId?: string, expanded = this.getMacroExpansion()): LogicalPlan {
+    let graph = targetOperatorId
+      ? this.getSubDAG(targetOperatorId)
+      : { operators: this.getAllEnabledOperators(), links: this.getAllLinks() };
+    if (expanded) {
+      const selected = new Set(graph.operators.map(op => op.operatorID));
+      const operators = expanded.content.operators.filter(op => selected.has(expanded.paths[op.operatorID][0]));
+      const ids = new Set(operators.map(op => op.operatorID));
+      graph = {
+        operators,
+        links: expanded.content.links.filter(
+          link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID)
+        ),
+      };
+    }
+    const byId = new Map(graph.operators.map(op => [op.operatorID, op]));
+    const ordinal = (id: string, port: string, direction: "inputPorts" | "outputPorts") =>
+      Math.max(
+        0,
+        byId.get(id)![direction].findIndex(p => p.portID === port)
+      );
+    const aliases = expanded ? macroResultAliases(this.getWorkflowContent(), expanded) : {};
+    const results = targetOperatorId !== undefined ? [targetOperatorId] : [...this.operatorsToViewResult];
     return {
-      operators,
-      links,
-      opsToViewResult: Array.from(this.operatorsToViewResult).filter(id => operatorIds.has(id)),
+      operators: graph.operators.map(op => ({
+        ...op.operatorProperties,
+        operatorID: op.operatorID,
+        operatorType: op.operatorType,
+        inputPorts: op.inputPorts,
+        outputPorts: op.outputPorts,
+      })),
+      links: graph.links
+        .filter(link => byId.has(link.source.operatorID) && byId.has(link.target.operatorID))
+        .map(link => ({
+          fromOpId: link.source.operatorID,
+          fromPortId: { id: ordinal(link.source.operatorID, link.source.portID, "outputPorts"), internal: false },
+          toOpId: link.target.operatorID,
+          toPortId: { id: ordinal(link.target.operatorID, link.target.portID, "inputPorts"), internal: false },
+        })),
+      opsToViewResult: results.map(id => aliases[id] ?? id).filter(id => byId.has(id)),
       opsToReuseResult: [],
     };
   }
@@ -480,7 +493,7 @@ export class WorkflowState {
     this.operatorPositions.clear();
     this.commentBoxes = [];
     this.settings = { ...DEFAULT_WORKFLOW_SETTINGS };
-    this.formBinding = undefined;
+    this.contentMeta = {};
     this.operatorsToViewResult.clear();
     this.validationErrors = {};
     this.workflowEmpty = true;

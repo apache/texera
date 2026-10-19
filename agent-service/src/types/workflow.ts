@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import type { MacroDefinition, MacroInterface } from "@texera/workflow-macros";
+
 interface LogicalPort {
   readonly operatorID: string;
   readonly portID: string;
@@ -119,6 +121,8 @@ export interface WorkflowContent {
   // save untouched -- rebuilding content without it would leave a workflow whose default_view
   // is form with a form that has no fields. Carried through opaquely.
   readonly formBinding?: unknown;
+  readonly macroInterface?: MacroInterface;
+  readonly macroDependencies?: MacroDefinition<WorkflowContent>[];
 }
 
 type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";

@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { WorkflowCompilationResponse } from "../api/compile-api";
 import { describe, expect, test } from "bun:test";
 import { WorkflowState } from "./workflow-state";
 import type { OperatorPredicate, OperatorLink, ValidationError, WorkflowContent } from "../types/workflow";
@@ -431,4 +432,66 @@ describe("WorkflowState - workflow content round-trip", () => {
 
     expect("formBinding" in state.getWorkflowContent()).toBe(false);
   });
+});
+
+describe("macro workflow compatibility", () => {
+  test("preserves pinned snapshots and definition interfaces through agent edits and reset", async () => {
+    const { macroWorkflow } = await import("./macro-test-data");
+    const original = macroWorkflow();
+    const state = new WorkflowState();
+    state.setWorkflowContent(original);
+    state.updateOperatorDisplayName("one", "Renamed");
+    expect(state.getWorkflowContent()).toEqual({
+      ...original,
+      operators: [{ ...original.operators[0], customDisplayName: "Renamed" }, original.operators[1]],
+    });
+    const definition = original.macroDependencies[0].content;
+    state.setWorkflowContent(definition);
+    expect(state.getWorkflowContent()).toEqual(definition);
+    state.reset();
+    expect(state.getWorkflowContent()).not.toHaveProperty("macroDependencies");
+    expect(state.getWorkflowContent()).not.toHaveProperty("macroInterface");
+    state.destroy();
+  });
+  test("expands legacy nested bundles consistently for compilation without changing snapshots", async () => {
+    const { macroWorkflow } = await import("./macro-test-data");
+    const original = macroWorkflow(),
+      before = JSON.stringify(original);
+    const state = new WorkflowState();
+    state.setWorkflowContent(original);
+    const plan = state.toLogicalPlan();
+    expect(plan.operators).toHaveLength(2);
+    expect(plan.operators.map(op => op.operatorType)).toEqual(["TestOp", "TestOp"]);
+    expect(plan.operators.map(op => op.value)).toEqual(["café 東京", "other"]);
+    expect(plan.operators[0].operatorID).toBe("2f4a4c9e-b586-5c8b-b7d1-a71a203acf22");
+    expect(new Set(plan.operators.map(op => op.operatorID)).size).toBe(2);
+    expect(state.toLogicalPlan()).toEqual(plan);
+    expect(JSON.stringify(original)).toBe(before);
+    state.destroy();
+  });
+});
+
+test("projects compiled schemas and errors back onto macro canvas IDs", async () => {
+  const { macroWorkflow } = await import("./macro-test-data");
+  const { expandMacros, mapMacroCompilation } = await import("./util/workflow-macros");
+  const content = macroWorkflow(),
+    expanded = expandMacros(content);
+  const leaf = expanded.content.operators[0].operatorID;
+  const response: WorkflowCompilationResponse = {
+    physicalPlan: { regions: [] },
+    operatorOutputSchemas: { [leaf]: { "0_false": [{ attributeName: "value", attributeType: "string" }] } },
+    operatorErrors: { [leaf]: { message: "invalid column", operatorId: leaf, type: "schema" } },
+  };
+  const before = JSON.stringify(response);
+  const mapped = mapMacroCompilation(response, content, expanded);
+  expect(mapped.operatorOutputSchemas.one).toEqual(response.operatorOutputSchemas[leaf]);
+  expect(mapped.operatorOutputSchemas.two).toEqual({});
+  expect(mapped.operatorErrors.one).toMatchObject({
+    operatorId: "one",
+    message: expect.stringContaining("invalid column"),
+  });
+  expect(JSON.stringify(response)).toBe(before);
+  expect(mapped.physicalPlan).toBe(response.physicalPlan);
+  const empty: WorkflowCompilationResponse = { operatorOutputSchemas: {}, operatorErrors: {} };
+  expect(mapMacroCompilation(empty, content).operatorOutputSchemas.one).toEqual({});
 });

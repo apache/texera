@@ -24,7 +24,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { ExecutionMode, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
-import { expandMacros, macroInstance, macroType } from "../../../common/util/workflow-macro";
+import { expandMacros, macroInstance, mergeMacroDefinitions, macroType } from "../../../common/util/workflow-macro";
 
 describe("MacroService", () => {
   const op: OperatorPredicate = {
@@ -66,7 +66,7 @@ describe("MacroService", () => {
         content = { ...content, operators: ops.map(o => o.op), links };
       }),
       setMacroDependencies: vi.fn(d => {
-        content = { ...content, macroDependencies: d };
+        content = { ...content, macroDependencies: mergeMacroDefinitions(d) };
       }),
       setFormBinding: vi.fn(f => {
         content = { ...content, formBinding: f };
@@ -283,5 +283,27 @@ describe("MacroService", () => {
     await expect(service.refresh()).rejects.toThrow(/Conflicting macro version/);
     expect(service.library$.value).toEqual([]);
     expect(content.macroDependencies).toEqual([previous]);
+  });
+  it("stores repeated creation as a flat bundle while preserving the saved bodies", async () => {
+    actions.getJointGraphWrapper = () => ({
+      getCurrentHighlightedOperatorIDs: () => content.operators.map(op => op.operatorID),
+    });
+    actions.addOperatorsAndLinks.mockImplementation((ops: any[], links: WorkflowContent["links"]) => {
+      content = {
+        ...content,
+        operators: ops.map(({ op }) => op),
+        links,
+        operatorPositions: Object.fromEntries(ops.map(({ op, pos }) => [op.operatorID, pos])),
+      };
+    });
+    for (let depth = 1; depth <= 8; depth++) {
+      await service.createFromSelection(`Nested ${depth}`);
+      expect(content.macroDependencies!.every(d => !d.content.macroDependencies)).toBe(true);
+    }
+    expect(JSON.stringify(content).length).toBeLessThan(20000);
+    expect(expandMacros(content).content.operators[0].operatorProperties).toEqual(op.operatorProperties);
+    for (const [saved] of persist.createWorkflow.mock.calls) {
+      expect((saved.macroDependencies ?? []).every((d: any) => !d.content.macroDependencies)).toBe(true);
+    }
   });
 });

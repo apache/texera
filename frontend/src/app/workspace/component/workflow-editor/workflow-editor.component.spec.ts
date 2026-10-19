@@ -466,7 +466,7 @@ describe("WorkflowEditorComponent", () => {
         wid = 1;
       vi.spyOn(actions, "getWorkflowMetadata").mockImplementation(() => ({ wid }) as any);
       vi.spyOn(actions, "getWorkflowContent").mockImplementation(() => current);
-      vi.spyOn(TestBed.inject(MacroService), "refresh").mockResolvedValue([]);
+      vi.spyOn(TestBed.inject(MacroService), "refresh").mockReturnValue(new Promise(() => {}));
       const create = vi.spyOn((component as any).nzModalService, "create").mockReturnValue({});
       component.paper.trigger(
         "cell:pointerdblclick",

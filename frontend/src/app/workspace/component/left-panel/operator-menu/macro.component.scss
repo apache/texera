@@ -20,7 +20,6 @@
   display: block;
   min-width: 0;
 }
-.macro-library,
 .macro-interface {
   padding: 12px;
   border-bottom: 1px solid #f0f0f0;
@@ -28,9 +27,6 @@
 summary {
   cursor: pointer;
   font-weight: 600;
-}
-summary .badge {
-  float: right;
 }
 .badge {
   display: inline-block;
@@ -75,23 +71,16 @@ p {
   border-radius: 6px;
   background: #fafafa;
 }
-.library-entry {
-  padding: 0 8px;
-  margin: 6px 0;
-  border: 1px solid #e6e9f0;
-  border-radius: 6px;
-  cursor: grab;
-}
-.library-entry:hover {
-  border-color: #91caff;
-  background: #f0f5ff;
+.operator-label {
+  padding-left: 7px;
+  height: 32px;
 }
 label {
   display: block;
   font-weight: 600;
 }
 input,
-select {
+nz-select {
   width: 100%;
   min-width: 0;
   margin: 8px 0;

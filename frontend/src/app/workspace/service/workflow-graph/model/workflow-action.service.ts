@@ -124,6 +124,7 @@ export class WorkflowActionService {
   private workflowResetSubject = new Subject<void>();
   public readonly macroChanged$ = new Subject<void>();
   private macroExpansionCache?: { key: string; expanded: MacroExpansion };
+  private macroDefinitionsCache?: { source: MacroDefinition[]; definitions: MacroDefinition[] };
 
   // The Form View definition. Presentation, not structure, but it still lives in the shared
   // doc (shared-model contentMetaMap, key "formBinding") so a co-editor sees it live and no
@@ -1108,15 +1109,20 @@ export class WorkflowActionService {
   }
 
   public getMacroDependencies(): MacroDefinition[] {
-    return (this.readContentMeta("macroDependencies") as MacroDefinition[]) ?? [];
+    const source = this.readContentMeta("macroDependencies") as MacroDefinition[] | undefined;
+    if (source === undefined) return [];
+    if (this.macroDefinitionsCache?.source !== source) {
+      this.macroDefinitionsCache = { source, definitions: mergeMacroDefinitions(source) };
+    }
+    return this.macroDefinitionsCache.definitions;
   }
 
   public getMacroExpansion(): MacroExpansion | undefined {
-    const content = this.getWorkflowContent();
-    if (!content.operators.some(isMacro)) return undefined;
-    const key = JSON.stringify([content.operators, content.links, content.macroDependencies]);
-    if (this.macroExpansionCache?.key === key) return this.macroExpansionCache.expanded;
     try {
+      const content = this.getWorkflowContent();
+      if (!content.operators.some(isMacro)) return undefined;
+      const key = JSON.stringify([content.operators, content.links, content.macroDependencies]);
+      if (this.macroExpansionCache?.key === key) return this.macroExpansionCache.expanded;
       const expanded = expandMacros(content);
       this.macroExpansionCache = { key, expanded };
       return expanded;

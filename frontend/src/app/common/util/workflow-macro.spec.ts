@@ -22,6 +22,7 @@ import { DefaultView } from "../../dashboard/type/workflow-metadata.interface";
 import { OperatorPredicate, OperatorLink } from "../../workspace/types/workflow-common.interface";
 import {
   expandMacros,
+  mergeMacroDefinitions,
   extractMacro,
   macroInstance,
   macroType,
@@ -221,6 +222,47 @@ describe("workflow macros", () => {
       expect.objectContaining({ type: "string", minLength: 1 })
     );
     expect(() => macroSchema(d, () => ({ jsonSchema: { properties: {} } }) as OperatorSchema)).toThrow(/schema/i);
+  });
+
+  it("resolves shared property schemas once through deep nesting and rereads changed metadata", () => {
+    const definitions = new Map<string, ReturnType<typeof definition>>();
+    let d = definition("depth-0");
+    d.content.formBinding.fields.push({ id: "other", operatorID: "b", propertyKey: "value", displayName: "Other" });
+    definitions.set(macroType(d), d);
+    for (let depth = 1; depth <= 10; depth++) {
+      const child = d;
+      d = {
+        ...definition(`depth-${depth}`),
+        content: {
+          ...graph([macroInstance(child, "child")]),
+          macroInterface: {
+            id: `depth-${depth}`,
+            inputs: [{ portID: "input-0", displayName: "Rows", targets: [{ operatorID: "child", portID: "input-0" }] }],
+            outputs: [
+              { portID: "output-0", displayName: "Clean", targets: [{ operatorID: "child", portID: "output-0" }] },
+            ],
+          },
+          formBinding: {
+            fields: ["value", "other"].map(id => ({ id, operatorID: "child", propertyKey: id, displayName: id })),
+          },
+        },
+      };
+      definitions.set(macroType(d), d);
+    }
+    const leaf = vi.fn(
+      () =>
+        ({
+          jsonSchema: { properties: { value: { type: "string", default: "original" } } },
+        }) as unknown as OperatorSchema
+    );
+    const schema = (type: string): OperatorSchema =>
+      definitions.has(type) ? macroSchema(definitions.get(type)!, schema) : leaf();
+    expect(schema(macroType(d)).jsonSchema.properties?.other).toEqual(
+      expect.objectContaining({ type: "string", default: "default" })
+    );
+    expect(leaf).toHaveBeenCalledTimes(1);
+    leaf.mockReturnValue({ jsonSchema: { properties: {} } } as OperatorSchema);
+    expect(() => schema(macroType(d))).toThrow(/schema/i);
   });
 
   it("allows an exposed optional property to be filled even when its definition has no value yet", () => {
@@ -503,5 +545,52 @@ describe("workflow macros", () => {
       aggregatedOutputRowCount: 5,
       numWorkers: 1,
     });
+  });
+});
+
+describe("macro bundle normalization", () => {
+  it("reads legacy nested bundles and compares immutable bodies independently of packaging", () => {
+    const child = definition("child", 1);
+    const parent = {
+      ...definition("parent", 1),
+      content: {
+        ...extractMacro(
+          { ...graph([macroInstance(child, "nested")]), macroDependencies: [child] },
+          ["nested"],
+          "parent"
+        ),
+      },
+    };
+    const legacy = { ...graph([macroInstance(parent, "root")]), macroDependencies: [parent] };
+    const before = JSON.stringify(legacy);
+    const flat = mergeMacroDefinitions([
+      parent,
+      { ...parent, content: { ...parent.content, macroDependencies: undefined } },
+    ]);
+    expect(flat).toHaveLength(2);
+    expect(flat.every(d => !d.content.macroDependencies)).toBe(true);
+    expect(expandMacros(legacy).content.operators).toHaveLength(2);
+    expect(JSON.stringify(legacy)).toBe(before);
+    const conflicting = structuredClone(child);
+    conflicting.content.operators[0] = {
+      ...conflicting.content.operators[0],
+      operatorProperties: { value: "different" },
+    };
+    expect(() => mergeMacroDefinitions([parent, conflicting])).toThrow(/conflicting/i);
+  });
+  it("keeps repeated extraction linear and exports all required snapshots", () => {
+    let content = graph([op("leaf")]);
+    for (let depth = 1; depth <= 12; depth++) {
+      const body = extractMacro(content, [content.operators[0].operatorID], `level-${depth}`);
+      const d = { id: `level-${depth}`, version: 1, name: `Level ${depth}`, content: body };
+      const instance = macroInstance(d, `instance-${depth}`);
+      content = {
+        ...graph([instance]),
+        macroDependencies: mergeMacroDefinitions(content.macroDependencies ?? [], [d]),
+      };
+      expect(content.macroDependencies!.every(d => !d.content.macroDependencies)).toBe(true);
+    }
+    expect(JSON.stringify(content).length).toBeLessThan(20000);
+    expect(expandMacros(JSON.parse(JSON.stringify(content))).content.operators).toHaveLength(1);
   });
 });

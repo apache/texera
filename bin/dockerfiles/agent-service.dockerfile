@@ -28,6 +28,7 @@ FROM oven/bun:1-alpine
 
 WORKDIR /app
 
+COPY common/workflow-core/src/main/typescript/workflow-macros /common/workflow-core/src/main/typescript/workflow-macros
 COPY agent-service/package.json agent-service/bun.lock ./
 
 RUN bun install --frozen-lockfile --production

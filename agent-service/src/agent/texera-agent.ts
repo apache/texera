@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { mapMacroCompilation } from "./util/workflow-macros";
 import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
@@ -553,8 +554,10 @@ export class TexeraAgent {
           let compilationResult: WorkflowCompilationResponse | null = null;
           if (this.workflowState.getAllOperators().length > 0) {
             try {
+              const content = this.workflowState.getWorkflowContent();
               const logicalPlan = this.workflowState.toLogicalPlan();
-              compilationResult = await compileWorkflowAsync(logicalPlan);
+              const response = await compileWorkflowAsync(logicalPlan, this.delegateConfig?.userToken);
+              compilationResult = response ? mapMacroCompilation(response, content) : null;
             } catch (e: any) {
               this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
             }

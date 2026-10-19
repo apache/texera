@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { expandMacros, isMacro } from "../util/workflow-macros";
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowState } from "../workflow-state";
@@ -243,10 +244,28 @@ Examples:
         if (!operator) return createErrorResult(`Operator ${args.operatorId} not found. ${inputInfo}`);
 
         if (args.properties && context?.metadataStore) {
+          const metadataStore = context.metadataStore;
           const mergedProperties = { ...operator.operatorProperties, ...args.properties };
-          const validation = context.metadataStore.validateOperatorProperties(operator.operatorType, mergedProperties);
-          if (!validation.isValid) {
-            const compactSchema = context.metadataStore.getCompactSchema(operator.operatorType);
+          const expanded = isMacro(operator)
+            ? expandMacros({
+                ...workflowState.getWorkflowContent(),
+                operators: workflowState
+                  .getAllOperators()
+                  .map(op =>
+                    op.operatorID === operator.operatorID
+                      ? { ...op, operatorProperties: mergedProperties, isDisabled: false }
+                      : op
+                  ),
+              })
+            : undefined;
+          const candidates = expanded
+            ? expanded.content.operators.filter(op => expanded.paths[op.operatorID][0] === operator.operatorID)
+            : [{ ...operator, operatorProperties: mergedProperties }];
+          const validation = candidates
+            .map(op => metadataStore.validateOperatorProperties(op.operatorType, op.operatorProperties))
+            .find(validation => !validation.isValid);
+          if (validation) {
+            const compactSchema = metadataStore.getCompactSchema(operator.operatorType);
             const schemaStr = compactSchema ? ` Expected: ${formatCompactSchemaForError(compactSchema)}.` : "";
             return createErrorResult(
               `Invalid properties for "${operator.operatorType}": ${formatValidationErrors(validation)}.${schemaStr} ${inputInfo}`

@@ -52,7 +52,7 @@ describe("MacroInspectorComponent", () => {
   let data: any, macros: any, notification: any;
   beforeEach(() => {
     data = { definition, dependencies: [], library: [definition] };
-    macros = { copyDefinition: vi.fn(), library$: { value: [] } };
+    macros = { copyDefinition: vi.fn(), refresh: vi.fn(async () => []), library$: { value: [definition] } };
     notification = { error: vi.fn(), success: vi.fn() };
     TestBed.configureTestingModule({
       imports: [MacroInspectorComponent],
@@ -224,7 +224,7 @@ describe("MacroInspectorComponent", () => {
     fixture.componentInstance.stack.push(definition);
     fixture.componentInstance.back();
     expect(fixture.nativeElement.querySelector("svg")).toBeTruthy();
-    data.library = [];
+    macros.library$.value = [];
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector("a")).toBeNull();
   });

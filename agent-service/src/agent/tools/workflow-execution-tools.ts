@@ -17,13 +17,15 @@
  * under the License.
  */
 
+import { macroResultAliases } from "../util/workflow-macros";
+import type { WorkflowContent, OperatorPredicate, OperatorLink } from "../../types/workflow";
 import { z } from "zod";
 import { tool } from "ai";
 import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
+import type { LogicalPlan } from "../../api/execution-api";
 import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
@@ -96,14 +98,9 @@ function validateOperatorSchema(operatorType: string, operatorProperties: Record
   return validation.isValid ? { isValid: true, messages: {} } : { isValid: false, messages: validation.messages };
 }
 
-function validateOperatorConnection(operatorId: string, workflowState: WorkflowState): OperatorValidation {
-  const operator = workflowState.getOperator(operatorId);
-  if (!operator) {
-    return { isValid: false, messages: { error: `Operator ${operatorId} not found` } };
-  }
-
+function validateOperatorConnection(operator: OperatorPredicate, allLinks: OperatorLink[]): OperatorValidation {
+  const operatorId = operator.operatorID;
   const numInputLinksByPort = new Map<string, number>();
-  const allLinks = workflowState.getAllLinks();
 
   for (const link of allLinks) {
     if (link.target.operatorID === operatorId) {
@@ -150,12 +147,12 @@ function combineValidations(...validations: OperatorValidation[]): OperatorValid
   return { isValid, messages };
 }
 
-function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResult {
+function validateWorkflow(content: WorkflowContent): WorkflowValidationResult {
   const errors: Record<string, Record<string, string>> = {};
 
-  for (const operator of workflowState.getAllEnabledOperators()) {
+  for (const operator of content.operators) {
     const schemaValidation = validateOperatorSchema(operator.operatorType, operator.operatorProperties);
-    const connectionValidation = validateOperatorConnection(operator.operatorID, workflowState);
+    const connectionValidation = validateOperatorConnection(operator, content.links);
     const combined = combineValidations(schemaValidation, connectionValidation);
 
     if (!combined.isValid) {
@@ -166,78 +163,6 @@ function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResul
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
-  };
-}
-
-function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string[]): LogicalPlan {
-  const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
-  const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;
-
-  let operatorsList: { operatorID: string; operatorType: string; [key: string]: any }[];
-  let linksList: LogicalLink[];
-
-  const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-    const op = workflowState.getOperator(operatorID);
-    if (!op) return 0;
-    const idx = op.inputPorts.findIndex(port => port.portID === inputPortID);
-    return idx >= 0 ? idx : 0;
-  };
-
-  const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-    const op = workflowState.getOperator(operatorID);
-    if (!op) return 0;
-    const idx = op.outputPorts.findIndex(port => port.portID === outputPortID);
-    return idx >= 0 ? idx : 0;
-  };
-
-  if (targetOperatorId) {
-    const subDAG = workflowState.getSubDAG(targetOperatorId);
-
-    operatorsList = subDAG.operators.map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    linksList = subDAG.links.map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPortId: { id: getOutputPortOrdinal(link.source.operatorID, link.source.portID), internal: false },
-      toOpId: link.target.operatorID,
-      toPortId: { id: getInputPortOrdinal(link.target.operatorID, link.target.portID), internal: false },
-    }));
-  } else {
-    operatorsList = workflowState.getAllEnabledOperators().map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    linksList = workflowState.getAllLinks().map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPortId: { id: getOutputPortOrdinal(link.source.operatorID, link.source.portID), internal: false },
-      toOpId: link.target.operatorID,
-      toPortId: { id: getInputPortOrdinal(link.target.operatorID, link.target.portID), internal: false },
-    }));
-  }
-
-  let allOpsToView: string[];
-  if (opsToViewResult && opsToViewResult.length > 0) {
-    const operatorIds = new Set(operatorsList.map(op => op.operatorID));
-    allOpsToView = opsToViewResult.filter(id => operatorIds.has(id));
-  } else {
-    allOpsToView = operatorsList
-      .filter(op => !linksList.some(link => link.fromOpId === op.operatorID))
-      .map(op => op.operatorID);
-  }
-
-  return {
-    operators: operatorsList,
-    links: linksList,
-    opsToViewResult: allOpsToView,
   };
 }
 
@@ -437,7 +362,11 @@ export async function executeOperatorAndFormat(
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
-    const logicalPlan = buildLogicalPlan(workflowState, [operatorId]);
+    const expanded = workflowState.getMacroExpansion();
+    const logicalPlan = workflowState.toLogicalPlan(operatorId, expanded);
+    const aliases = expanded ? macroResultAliases(workflowState.getWorkflowContent(), expanded) : {};
+    const resultId = aliases[operatorId] ?? operatorId;
+    const canvasIds = Object.fromEntries(Object.entries(aliases).map(([canvas, runtime]) => [runtime, canvas]));
 
     if (logicalPlan.operators.length === 0) {
       return createErrorResult("Cannot execute: workflow has no operators.");
@@ -445,7 +374,20 @@ export async function executeOperatorAndFormat(
 
     // Only block on the target operator's validation errors; upstream issues will
     // surface as runtime errors that correctly identify the failing operator.
-    const validationResult = validateWorkflow(workflowState);
+    const validationResult = validateWorkflow(expanded?.content ?? workflowState.getWorkflowContent());
+    if (expanded) {
+      for (const [id, errors] of Object.entries(validationResult.errors)) {
+        const path = expanded.paths[id];
+        if (path?.length > 1) {
+          validationResult.errors[path[0]] = {
+            ...validationResult.errors[path[0]],
+            ...Object.fromEntries(
+              Object.entries(errors).map(([field, message]) => [`${path.slice(1).join(" / ")}: ${field}`, message])
+            ),
+          };
+        }
+      }
+    }
     if (!validationResult.isValid) {
       const targetErrors = validationResult.errors[operatorId];
       if (targetErrors) {
@@ -492,7 +434,7 @@ export async function executeOperatorAndFormat(
       return createErrorResult(errorText);
     }
 
-    const opInfo = result.operators[operatorId];
+    const opInfo = result.operators[resultId];
     if (!opInfo) {
       return createErrorResult(
         formatExecutionError(undefined, undefined, [`No result found for operator: ${operatorId}`])
@@ -518,7 +460,7 @@ export async function executeOperatorAndFormat(
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
         if (info && !info.error) {
-          options.onResult(opId, info);
+          options.onResult(canvasIds[opId] ?? opId, info);
         }
       }
     }

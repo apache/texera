@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { By } from "@angular/platform-browser";
 import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, EMPTY } from "rxjs";
 import { MacroPanelComponent } from "./macro-panel.component";
@@ -82,9 +83,9 @@ describe("MacroPanelComponent", () => {
   it("shows the definition controls and maps chosen leaf ports explicitly", () => {
     const fixture = TestBed.createComponent(MacroPanelComponent);
     fixture.detectChanges();
-    const select = fixture.nativeElement.querySelector('select[aria-label="Input target"]') as HTMLSelectElement;
-    select.value = select.options[1].value;
-    select.dispatchEvent(new Event("change"));
+    fixture.debugElement
+      .query(By.css('nz-select[aria-label="Input target"]'))
+      .triggerEventHandler("ngModelChange", fixture.componentInstance.targets("inputs")[0].value);
     fixture.detectChanges();
     (fixture.nativeElement.querySelector('[data-action="add-input"]') as HTMLButtonElement).click();
     expect(actions.setMacroInterface).toHaveBeenCalledWith(
@@ -114,9 +115,9 @@ describe("MacroPanelComponent", () => {
   it("exposes a chosen leaf property without requiring Form View to be enabled", () => {
     const fixture = TestBed.createComponent(MacroPanelComponent);
     fixture.detectChanges();
-    const select = fixture.nativeElement.querySelector('select[aria-label="Property target"]') as HTMLSelectElement;
-    select.value = select.options[1].value;
-    select.dispatchEvent(new Event("change"));
+    fixture.debugElement
+      .query(By.css('nz-select[aria-label="Property target"]'))
+      .triggerEventHandler("ngModelChange", fixture.componentInstance.properties()[0].value);
     fixture.detectChanges();
     fixture.nativeElement.querySelector('[data-action="add-property"]').click();
     expect(actions.setFormBinding).toHaveBeenCalledWith({
@@ -140,7 +141,7 @@ describe("MacroPanelComponent", () => {
     actions.checkWorkflowModificationEnabled = () => false;
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain("Read-only workflow");
-    expect(fixture.nativeElement.querySelector("summary").textContent).toContain("Macros");
+    expect(fixture.nativeElement.querySelector(".ant-collapse-header").textContent).toContain("Macros");
   });
 
   it("submits a named selection from the keyboard and clears the name only after success", async () => {

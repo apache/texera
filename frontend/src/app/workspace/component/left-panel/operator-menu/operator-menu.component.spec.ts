@@ -39,6 +39,9 @@ import type { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete"
 import type * as joint from "jointjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
+import { MacroService } from "../../../service/macro/macro.service";
+import { macroType } from "../../../../common/util/workflow-macro";
+
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
   let fixture: ComponentFixture<OperatorMenuComponent>;
@@ -72,6 +75,31 @@ describe("OperatorPanelComponent", () => {
     fixture = TestBed.createComponent(OperatorMenuComponent);
     fixture.detectChanges();
     component = fixture.componentInstance;
+  });
+
+  it("finds loaded saved macros through the existing operator search and selection flow", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const definition = {
+      id: "saved",
+      version: 1,
+      name: "Saved 清理",
+      content: { ...actions.getWorkflowContent(), macroInterface: { id: "saved", inputs: [], outputs: [] } },
+    };
+    component.searchInputValue = "Saved 清理";
+    component.onInput({ target: { value: "Saved 清理" } } as unknown as Event);
+    expect(component.autocompleteOptions).toEqual([]);
+    TestBed.inject(OperatorMetadataService).registerMacros([definition]);
+    TestBed.inject(MacroService).library$.next([definition]);
+    expect(component.autocompleteOptions.map(op => op.operatorType)).toContain(macroType(definition));
+    component.onSelectionChange({ nzValue: component.autocompleteOptions[0] } as NzAutocompleteOptionComponent);
+    expect(
+      actions
+        .getTexeraGraph()
+        .getAllOperators()
+        .some(op => op.operatorType === macroType(definition))
+    ).toBe(true);
+    TestBed.inject(MacroService).library$.next([]);
+    expect(component.autocompleteOptions).toEqual([]);
   });
 
   it("should create", () => {

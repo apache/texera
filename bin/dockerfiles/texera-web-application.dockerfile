@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 build-essential git ca-certificates
 
 WORKDIR /frontend
+COPY common/workflow-core/src/main/typescript/workflow-macros /common/workflow-core/src/main/typescript/workflow-macros
 COPY frontend /frontend
 RUN rm -f /frontend/.yarnrc.yml
 RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path 4.5.1

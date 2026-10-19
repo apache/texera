@@ -17,238 +17,28 @@
  * under the License.
  */
 
-import { v5 as uuid } from "uuid";
-import { cloneDeep, groupBy, isEqual, sumBy } from "lodash-es";
+import { cloneDeep, groupBy, isEqual, memoize, sumBy } from "lodash-es";
 import { WorkflowContent, FormFieldBinding } from "../type/workflow";
-import { LogicalPort, OperatorPredicate, PortDescription } from "../../workspace/types/workflow-common.interface";
+import { LogicalPort, OperatorPredicate } from "../../workspace/types/workflow-common.interface";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
 import { CustomJSONSchema7 } from "../../workspace/types/custom-json-schema.interface";
 import { OperatorRuntimeStatus, OperatorState } from "../../workspace/types/execute-workflow.interface";
 
-export interface MacroPort extends PortDescription {
-  targets: LogicalPort[];
-}
-export interface MacroInterface {
-  /** Stable across definition versions and deployments. */
-  id: string;
-  inputs: MacroPort[];
-  outputs: MacroPort[];
-}
-export interface MacroDefinition {
-  id: string;
-  version: number;
-  name: string;
-  /** Source workflow, used only when this deployment's library has the same definition id. */
-  wid?: number;
-  content: WorkflowContent;
-}
-export const isMacro = (op: OperatorPredicate): boolean => op.operatorType.startsWith("WorkflowMacro:");
-export const macroType = (d: MacroDefinition): string => `WorkflowMacro:${d.id}:${d.version}`;
-export const portKey = (id: string, direction: "inputs" | "outputs", port: string): string =>
-  JSON.stringify([id, direction, port]);
+export { isMacro, macroType, portKey, macroInstance } from "@texera/workflow-macros";
+export type { MacroInterface, MacroPort } from "@texera/workflow-macros";
+import { isMacro, macroType, portKey, macroInstance, createMacroRuntime } from "@texera/workflow-macros";
+import { v5 as uuid } from "uuid";
+import type { MacroDefinition as Definition, MacroExpansion as Expansion, MacroPort } from "@texera/workflow-macros";
+const macros = createMacroRuntime(uuid, isEqual);
+export const { expandMacros, macroRuntimeID, macroResultAliases, mapMacroCompilation } = macros;
+export type MacroDefinition = Definition<WorkflowContent>;
+export type MacroExpansion = Expansion<WorkflowContent>;
+export const mergeMacroDefinitions = (...bundles: MacroDefinition[][]): MacroDefinition[] =>
+  macros.mergeMacroDefinitions(...bundles);
 const require = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message);
 };
 const fields = (content?: WorkflowContent): FormFieldBinding[] => content?.formBinding?.fields ?? [];
-const namespace = "33269d11-7448-5d6d-9aeb-68826068e94d";
-export const macroRuntimeID = (chain: string[], id: string): string =>
-  chain.length ? uuid(JSON.stringify([...chain, id]), namespace) : id;
-
-export function macroInstance(d: MacroDefinition, operatorID: string): OperatorPredicate {
-  require(d.content?.macroInterface, "Missing macro interface");
-  return {
-    operatorID,
-    operatorType: macroType(d),
-    operatorVersion: String(d.version),
-    operatorProperties: {},
-    inputPorts: d.content.macroInterface!.inputs.map(({ targets, ...p }) => p),
-    outputPorts: d.content.macroInterface!.outputs.map(({ targets, ...p }) => p),
-    showAdvanced: false,
-    customDisplayName: d.name,
-  };
-}
-
-export interface MacroExpansion {
-  content: WorkflowContent;
-  /** Runtime id -> instance chain followed by the definition's leaf id. */
-  paths: Record<string, string[]>;
-  /** Canvas boundary -> runtime ports, for result and schema lookup. */
-  ports: Record<string, LogicalPort[]>;
-}
-
-/** One immutable snapshot per identity/version, shared by imports, libraries and clipboard operations. */
-export function mergeMacroDefinitions(...bundles: MacroDefinition[][]): MacroDefinition[] {
-  const definitions = new Map<string, MacroDefinition>();
-  for (const d of bundles.flat()) {
-    require(d &&
-      typeof d.id === "string" &&
-      typeof d.name === "string" &&
-      d.id.length &&
-      Number.isSafeInteger(d.version) &&
-      d.version > 0 &&
-      d.content?.macroInterface?.id === d.id, "Malformed macro definition");
-    const previous = definitions.get(macroType(d));
-    require(!previous || isEqual(previous.content, d.content), "Conflicting macro version");
-    definitions.set(macroType(d), d);
-  }
-  return [...definitions.values()];
-}
-
-/** A pure, deterministic expansion used by both compilers and executions. Definitions stay immutable. */
-export function expandMacros(content: WorkflowContent): MacroExpansion {
-  const definitions = new Map(mergeMacroDefinitions(content.macroDependencies ?? []).map(d => [macroType(d), d]));
-  const paths: Record<string, string[]> = Object.create(null);
-  const ports: Record<string, LogicalPort[]> = Object.create(null);
-  const operators: OperatorPredicate[] = [];
-  const links: WorkflowContent["links"] = [];
-
-  const visit = (body: WorkflowContent, chain: string[], stack: string[]): Map<string, LogicalPort[]> => {
-    require(body && Array.isArray(body.operators) && Array.isArray(body.links), "Malformed macro graph");
-    require(chain.length <= 32, "Macro nesting exceeds 32 levels");
-    const ops = new Map<string, OperatorPredicate>();
-    for (const op of body.operators) {
-      require(op &&
-        typeof op.operatorID === "string" &&
-        op.operatorID.length &&
-        !ops.has(op.operatorID), "Duplicate or invalid operator ID");
-      require(typeof op.operatorType === "string" &&
-        Array.isArray(op.inputPorts) &&
-        Array.isArray(op.outputPorts) &&
-        op.operatorProperties &&
-        typeof op.operatorProperties === "object" &&
-        !Array.isArray(op.operatorProperties), "Malformed operator");
-      for (const group of [op.inputPorts, op.outputPorts]) {
-        require(group.every(p => p && typeof p.portID === "string" && p.portID.length) &&
-          new Set(group.map(p => p.portID)).size === group.length, "Duplicate or invalid operator port");
-      }
-      ops.set(op.operatorID, op);
-    }
-    const resolved = new Map<string, LogicalPort[]>();
-    const endpoint = (p: LogicalPort, direction: "inputs" | "outputs"): LogicalPort[] => {
-      const op = ops.get(p?.operatorID);
-      require(op &&
-        (direction === "inputs" ? op.inputPorts : op.outputPorts).some(
-          port => port.portID === p.portID
-        ), "Missing operator or port in macro graph");
-      if (op!.isDisabled) return [];
-      const result = resolved.get(portKey(p.operatorID, direction, p.portID));
-      require(result, "Missing exposed macro port");
-      return result!;
-    };
-    for (const op of body.operators.filter(op => !op.isDisabled)) {
-      if (!isMacro(op)) {
-        const id = macroRuntimeID(chain, op.operatorID);
-        require(!Object.hasOwn(paths, id), "Duplicate runtime operator ID");
-        operators.push({ ...cloneDeep(op), operatorID: id });
-        paths[id] = [...chain, op.operatorID];
-        for (const direction of ["inputs", "outputs"] as const) {
-          for (const p of direction === "inputs" ? op.inputPorts : op.outputPorts) {
-            resolved.set(portKey(op.operatorID, direction, p.portID), [{ operatorID: id, portID: p.portID }]);
-          }
-        }
-        continue;
-      }
-      const d = definitions.get(op.operatorType);
-      require(d, `Missing macro version: ${op.operatorType}`);
-      require(op.operatorVersion === String(d!.version), "Macro version does not match its pinned definition");
-      require(!stack.includes(op.operatorType), "Recursive macro reference");
-      const inner = cloneDeep(d!.content);
-      const bindings = fields(inner);
-      for (const [key, value] of Object.entries(op.operatorProperties)) {
-        const binding = bindings.find(f => f.id === key);
-        require(binding, `Unknown macro property: ${key}`);
-        const target = inner.operators.find(o => o.operatorID === binding!.operatorID);
-        require(target &&
-          (!isMacro(target) ||
-            fields(definitions.get(target.operatorType)?.content).some(
-              f => f.id === binding!.propertyKey
-            )), "Missing exposed macro property");
-        inner.operators[inner.operators.indexOf(target!)] = {
-          ...target!,
-          operatorProperties: { ...target!.operatorProperties, [binding!.propertyKey]: cloneDeep(value) },
-        };
-      }
-      const innerPorts = visit(inner, [...chain, op.operatorID], [...stack, op.operatorType]);
-      for (const direction of ["inputs", "outputs"] as const) {
-        const boundary = inner.macroInterface![direction];
-        const declared = direction === "inputs" ? op.inputPorts : op.outputPorts;
-        require(declared.length === boundary!.length &&
-          declared.every(p =>
-            boundary!.some(b => b.portID === p.portID)
-          ), "Macro instance interface differs from its pinned version");
-        for (const p of boundary!) {
-          // visit already validated each boundary target; disabled operators have no runtime port.
-          const targets = p.targets.flatMap(t => innerPorts.get(portKey(t.operatorID, direction, t.portID)) ?? []);
-          resolved.set(portKey(op.operatorID, direction, p.portID), targets);
-          if (!chain.length) ports[portKey(op.operatorID, direction, p.portID)] = targets;
-        }
-      }
-    }
-    if (body.macroInterface) {
-      require(typeof body.macroInterface.id === "string" &&
-        body.macroInterface.id.length, "Invalid macro interface ID");
-      for (const direction of ["inputs", "outputs"] as const) {
-        const boundary = body.macroInterface[direction];
-        require(Array.isArray(boundary) &&
-          boundary.every(p => p && typeof p.portID === "string" && p.portID.length) &&
-          new Set(boundary.map(p => p.portID)).size === boundary.length, "Duplicate or invalid macro port");
-        boundary.forEach(p => {
-          require(Array.isArray(p.targets) &&
-            p.targets.length &&
-            (direction === "inputs" ||
-              p.targets.length === 1), "An output must map to one output port; inputs must have targets");
-          require(new Set(p.targets.map(t => portKey(t?.operatorID, direction, t?.portID))).size ===
-            p.targets.length, "Duplicate macro target");
-          p.targets.forEach(t => endpoint(t, direction));
-        });
-      }
-      require(new Set(fields(body).map(f => f.id)).size === fields(body).length, "Duplicate exposed macro property");
-      fields(body).forEach(f =>
-        require(f &&
-          typeof f.id === "string" &&
-          f.id.length &&
-          typeof f.propertyKey === "string" &&
-          ops.has(f.operatorID), "Invalid exposed macro property")
-      );
-    }
-    require(new Set(body.links.map(l => l?.linkID)).size === body.links.length, "Duplicate link ID");
-    for (const l of body.links) {
-      require(l && typeof l.linkID === "string" && l.linkID.length, "Invalid link ID");
-      const sources = endpoint(l.source, "outputs");
-      const targets = endpoint(l.target, "inputs");
-      for (const source of sources)
-        for (const target of targets) {
-          links.push({
-            linkID:
-              chain.length || sources.length * targets.length > 1
-                ? uuid(JSON.stringify([chain, l.linkID, source, target]), namespace)
-                : l.linkID,
-            source,
-            target,
-          });
-        }
-    }
-    return resolved;
-  };
-  visit(content, [], []);
-  const children = groupBy(links, l => l.source.operatorID);
-  const visiting = new Set<string>(),
-    visited = new Set<string>();
-  const checkCycle = (id: string): void => {
-    require(!visiting.has(id), "Workflow contains a cycle");
-    if (visited.has(id)) return;
-    visiting.add(id);
-    if (Object.hasOwn(children, id)) children[id].forEach(link => checkCycle(link.target.operatorID));
-    visiting.delete(id);
-    visited.add(id);
-  };
-  operators.forEach(op => checkCycle(op.operatorID));
-  return {
-    content: { ...content, operators, links, macroInterface: undefined, macroDependencies: undefined },
-    paths,
-    ports,
-  };
-}
 
 /** Capture a convex selection; re-entering it through unselected nodes would create a macro cycle. */
 export function extractMacro(content: WorkflowContent, selected: readonly string[], id: string): WorkflowContent {
@@ -287,6 +77,7 @@ export function extractMacro(content: WorkflowContent, selected: readonly string
   };
   return cloneDeep({
     ...content,
+    ...(content.macroDependencies ? { macroDependencies: mergeMacroDefinitions(content.macroDependencies) } : {}),
     operators,
     links,
     operatorPositions: Object.fromEntries(operators.map(o => [o.operatorID, content.operatorPositions[o.operatorID]])),
@@ -325,6 +116,7 @@ export function adoptMacroVersion(
 
 /** Exposed Form View fields become the macro's ordinary operator properties, including nested macros. */
 export function macroSchema(d: MacroDefinition, getSchema: (type: string) => OperatorSchema): OperatorSchema {
+  const schemaFor = memoize((type: string) => getSchema(type).jsonSchema);
   const properties: Record<string, CustomJSONSchema7> = Object.create(null);
   const resolve = (value: any, root: CustomJSONSchema7, op: OperatorPredicate, refs: string[] = []): any => {
     if (Array.isArray(value)) return value.map(v => resolve(v, root, op, refs));
@@ -355,7 +147,7 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
   for (const f of fields(d.content)) {
     const op = d.content.operators.find(o => o.operatorID === f.operatorID);
     require(op, "Missing exposed property operator");
-    const root = getSchema(op!.operatorType).jsonSchema;
+    const root = schemaFor(op!.operatorType);
     const schema = root.properties?.[f.propertyKey];
     require(schema && typeof schema !== "boolean", "Missing exposed property schema");
     properties[f.id] = {
@@ -381,18 +173,6 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
       outputPorts: d.content.macroInterface!.outputs.map(p => ({ displayName: p.displayName })),
     },
   };
-}
-
-export function macroResultAliases(content: WorkflowContent, expanded = expandMacros(content)): Record<string, string> {
-  const aliases: Record<string, string> = Object.create(null);
-  for (const op of content.operators.filter(isMacro)) {
-    const output = op.outputPorts.flatMap(p => expanded.ports[portKey(op.operatorID, "outputs", p.portID)] ?? [])[0];
-    const sink = expanded.content.operators.find(
-      o => expanded.paths[o.operatorID]?.[0] === op.operatorID && o.operatorType.toLowerCase().includes("sink")
-    );
-    if (output || sink) aliases[op.operatorID] = output?.operatorID ?? sink!.operatorID;
-  }
-  return aliases;
 }
 
 /** Count the external boundaries; summing every internal edge would multiply the row counts. */

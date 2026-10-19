@@ -59,7 +59,6 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
 import { MacroService } from "../../service/macro/macro.service";
 import { isMacro, macroType } from "../../../common/util/workflow-macro";
 import { MacroInspectorComponent } from "../left-panel/operator-menu/macro-inspector.component";
-import { NotificationService } from "../../../common/service/notification/notification.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -178,8 +177,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private config: GuiConfigService,
     private agentService: AgentService,
     private jupyterPanelService: JupyterPanelService,
-    private macroService: MacroService,
-    private notification: NotificationService
+    private macroService: MacroService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -187,7 +185,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private operatorSummaries: Map<string, OperatorResultSummary> = new Map();
 
   ngOnInit(): void {
-    this.macroService.inspect$.pipe(untilDestroyed(this)).subscribe(id => void this.inspectMacro(id));
+    this.macroService.inspect$.pipe(untilDestroyed(this)).subscribe(id => this.inspectMacro(id));
     // Cache the tool constructors
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
@@ -926,17 +924,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private async inspectMacro(id: string): Promise<void> {
+  private inspectMacro(id: string): void {
     const content = this.workflowActionService.getWorkflowContent();
     const op = content.operators.find(o => o.operatorID === id);
     const definition = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
     if (!definition) return;
     const wid = this.workflowActionService.getWorkflowMetadata().wid;
-    try {
-      await this.macroService.refresh();
-    } catch (e) {
-      this.notification.error(e instanceof Error ? e.message : String(e));
-    }
     this.nzModalService.create({
       nzTitle: "Macro definition",
       nzContent: MacroInspectorComponent,
@@ -946,7 +939,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       nzData: {
         definition,
         dependencies: content.macroDependencies,
-        library: this.macroService.library$.value,
         runtime: {
           operatorID: id,
           getExpansion: () =>

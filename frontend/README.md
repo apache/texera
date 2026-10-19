@@ -67,6 +67,10 @@ from other uses of the same definition. Editable copies start without execution 
 In the definition's Macros panel, configure input/output mappings and exposed operator properties.
 A macro definition runs through a workflow. Compilation recursively expands it into ordinary operators.
 Workflow JSON exports include pinned definitions, so importing does not depend on the original deployment.
+External datasets and connections still need access on the destination deployment.
+The editor and agent share the graph expansion in `common/workflow-core/src/main/typescript/workflow-macros`.
+Agent edits preserve pinned snapshots, and agent compilation and execution use the same expanded operators as the editor.
+Imports accept older nested bundles; new saves share one definition body per version instead of copying bundles recursively.
 
 ## Project layout
 

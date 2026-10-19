@@ -58,6 +58,21 @@ describe("compileWorkflowAsync", () => {
     expect(await compileWorkflowAsync(plan)).toBeNull();
   });
 
+  test("forwards the user's authentication to the protected compiler", async () => {
+    const compilation = { operatorOutputSchemas: {}, operatorErrors: {} };
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(compilation)));
+    expect(await compileWorkflowAsync(plan, "user-token")).toEqual(compilation);
+    expect(fetchSpy.mock.calls[0][1]?.headers).toEqual({
+      Authorization: "Bearer user-token",
+      "Content-Type": "application/json",
+    });
+  });
+
+  test("returns no schemas when the compiler rejects a stale token", async () => {
+    spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+    expect(await compileWorkflowAsync(plan, "expired-token")).toBeNull();
+  });
+
   test("returns null when fetch rejects", async () => {
     spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     expect(await compileWorkflowAsync(plan)).toBeNull();
