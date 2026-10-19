@@ -29,3 +29,7 @@ protoc --plugin="$GUI_DIR/node_modules/.bin/protoc-gen-ts_proto" \
   "$WORKFLOW_PROTO" \
   "$VIRTUALIDENTITY_PROTO" \
   --proto_path="$PROTOBUF_DIR"
+
+# ts-proto also emits TypeScript for the imports used only for ScalaPB options
+# (scalapb.proto and its descriptor.proto); nothing imports it, so drop it.
+rm -rf "$GUI_PROTO_DIR/proto/scalapb" "$GUI_PROTO_DIR/proto/google"
