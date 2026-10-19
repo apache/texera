@@ -232,16 +232,33 @@ describe("CodeEditorComponent (browser)", () => {
     vi.restoreAllMocks();
   });
 
-  // Builds a fixture for the highlighted operator, but defers the
-  // detectChanges/ngAfterViewInit step so the caller can stage `code` /
-  // `formControl` (and the EditorApp's fake editor) before the subscribe body
-  // fires. Returns the fixture, the fake editor, and the component instance.
-  function makeFixtureWithFakes() {
-    const predicate = { ...mockJavaUDFPredicate };
+  // Builds a fixture for a Java UDF operator, told its operator the way the
+  // codearea button tells it, but defers the detectChanges step (ngOnInit +
+  // ngAfterViewInit) so the caller can stage `formControl`, the shared text
+  // and the EditorApp's fake editor before the subscribe body fires. The
+  // shared text is staged on the graph, where ngOnInit reads it from: a `code`
+  // property on the predicate becomes a Y.Text on the shared
+  // operator-properties map, and that is what the subscribe body binds to (and
+  // crosses the `if (!this.code) return;` gate with). Returns the fixture, the
+  // fake editor, the component instance and that shared text (undefined when
+  // staged without one).
+  function makeFixtureWithFakes(options: { withSharedCode?: boolean } = {}) {
+    const { withSharedCode = true } = options;
+    const predicate = { ...mockJavaUDFPredicate, operatorProperties: withSharedCode ? { code: "" } : {} };
     workflowActionService.addOperator(predicate, mockPoint);
     workflowActionService.getJointGraphWrapper().highlightOperators(predicate.operatorID);
+    const sharedCode = withSharedCode
+      ? ((
+          workflowActionService
+            .getTexeraGraph()
+            .getSharedOperatorType(predicate.operatorID)
+            .get("operatorProperties") as any
+        ).get("code") as Y.Text)
+      : undefined;
 
     const fixture = TestBed.createComponent(CodeEditorComponent);
+    // The opener names the operator; see makeFixture in the jsdom spec.
+    fixture.componentRef.setInput("currentOperatorId", predicate.operatorID);
     const editor = makeFakeEditor();
     // The component pulls the editor back out of `EditorApp.getEditor()` inside
     // its start path (and again from `adjustEditorSize`), so the mocked
@@ -249,11 +266,7 @@ describe("CodeEditorComponent (browser)", () => {
     editorAppMock.getEditor.mockReturnValue(editor);
     const c = fixture.componentInstance as any;
     c.formControl = new FormControl({ value: "", disabled: false });
-    // A YText must live inside a Y.Doc to be useful; the binding stub doesn't
-    // care, but we stage it as if it came from the shared model so the
-    // subscribe body crosses the `if (!this.code) return;` gate.
-    c.code = new Y.Doc().getText("code");
-    return { fixture, editor, c: c as CodeEditorComponent };
+    return { fixture, editor, c: c as CodeEditorComponent, sharedCode };
   }
 
   // The component's subscribe path runs `from(startEditor()).pipe(...)`,
@@ -367,8 +380,7 @@ describe("CodeEditorComponent (browser)", () => {
   });
 
   it("initializeMonacoEditor: leaves the binding unwired when the operator has no shared code", async () => {
-    const { fixture, editor, c } = makeFixtureWithFakes();
-    (c as any).code = undefined;
+    const { fixture, editor } = makeFixtureWithFakes({ withSharedCode: false });
 
     fixture.detectChanges();
     await flush();
@@ -412,10 +424,8 @@ describe("CodeEditorComponent (browser)", () => {
   });
 
   it("initializeDiffEditor: diffs this operator's latest-version code against the shared text", async () => {
-    const { fixture, c } = makeFixtureWithFakes();
-    const sharedText = new Y.Doc().getText("code");
-    sharedText.insert(0, "shared editing text");
-    (c as any).code = sharedText;
+    const { fixture, sharedCode } = makeFixtureWithFakes();
+    sharedCode!.insert(0, "shared editing text");
     // The decoy operator is listed FIRST, so picking anything other than the
     // entry matching `currentOperatorId` surfaces the wrong version.
     vi.spyOn(workflowActionService, "getTempWorkflow").mockReturnValue({

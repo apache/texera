@@ -2038,6 +2038,26 @@ describe("OperatorPropertyEditFrameComponent", () => {
       });
       expect(getField("code")?.type).toBe("codearea");
     });
+
+    // The Form View's read-only inspection of a step mounts this frame with actsAsEditor=false and
+    // inert, so its code button cannot be pressed; told so, the button keeps its usual face rather
+    // than offering a view it cannot open (#8760).
+    it("marks the code field as an inspection when not acting as the editor", () => {
+      component.actsAsEditor = false;
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { code: { type: "string", description: "Input your code here" } },
+      });
+      expect(getField("code")?.props?.["inspect"]).toBe(true);
+    });
+
+    it("leaves the code field unmarked when acting as the editor", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { code: { type: "string", description: "Input your code here" } },
+      });
+      expect(getField("code")?.props?.["inspect"]).toBeUndefined();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────

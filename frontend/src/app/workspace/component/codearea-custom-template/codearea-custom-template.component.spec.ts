@@ -17,8 +17,10 @@
  * under the License.
  */
 
+import { reflectComponentType } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
+import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -56,6 +58,52 @@ describe("CodeareaCustomTemplateComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  describe("what the button says", () => {
+    const label = () =>
+      (fixture.nativeElement.querySelector("#editor-button button") as HTMLElement).textContent!.trim();
+    const greyed = () =>
+      (fixture.nativeElement.querySelector("#editor-button button") as HTMLElement).classList.contains("readonly");
+
+    it("offers an edit while the control is editable", () => {
+      fixture.detectChanges();
+
+      expect(label()).toBe("Edit code content");
+      expect(greyed()).toBe(false);
+    });
+
+    // The canvas, for a workflow one cannot write: the control is read-only and the button still
+    // opens the editor, which then shows the code without letting it be changed.
+    it("offers a view while the control is read-only and the button still works", () => {
+      component.field.formControl.disable();
+      fixture.detectChanges();
+
+      expect(label()).toBe("View code content");
+      expect(greyed()).toBe(true);
+    });
+
+    // The Form View's read-only inspection of a step: the whole panel is inert, so the button
+    // cannot be pressed at all. It keeps its usual face there, greyed with the rest, rather than
+    // promising a view it cannot open (#8760).
+    it("keeps its usual face, greyed, on a read-only inspection where it cannot be pressed", () => {
+      component.field = { props: { inspect: true }, formControl: new FormControl({ value: "", disabled: true }) };
+      fixture.detectChanges();
+
+      expect(label()).toBe("Edit code content");
+      expect(greyed()).toBe(true);
+    });
+
+    // The inspecting frame disables its form group as it is built, and formly adds the controls to
+    // that group afterwards, so whether this control ends up disabled depends on the order. The
+    // button's face does not follow that race.
+    it("is greyed on an inspection even when its control was left enabled", () => {
+      component.field = { props: { inspect: true }, formControl: new FormControl() };
+      fixture.detectChanges();
+
+      expect(label()).toBe("Edit code content");
+      expect(greyed()).toBe(true);
+    });
+  });
+
   /**
    * The component's whole job is to keep one shared, per-operator "is the editor open" flag in
    * sync across three inputs: this component's own open/close, the same operator's editor opened
@@ -64,13 +112,14 @@ describe("CodeareaCustomTemplateComponent", () => {
    * reopen) the wrong operator's editor.
    *
    * `openEditor` is driven directly rather than through the template button: it calls
-   * `codeEditorService.vc.createComponent`, and `vc` is a ViewContainerRef the real workspace
+   * `codeEditorService.host.createComponent`, and the host is a ViewContainerRef the view in front
    * supplies. The tests below install a fake one so the component's own bookkeeping is observable
    * without standing up a Monaco editor.
    */
   describe("editor-open state", () => {
     let codeEditorService: CodeEditorService;
     let destroyCallbacks: (() => void)[];
+    let editorHost: { createComponent: () => any };
 
     // The highlighted operator is what getOperatorID reads, and it is the key every
     // setEditorState/getEditorState call is scoped by.
@@ -103,15 +152,24 @@ describe("CodeareaCustomTemplateComponent", () => {
 
       codeEditorService = TestBed.inject(CodeEditorService);
       destroyCallbacks = [];
-      // Stand-in for the workspace's ViewContainerRef. Records the onDestroy hook the component
-      // registers so the close path can be triggered without a real component teardown.
-      codeEditorService.vc = {
-        createComponent: () => ({
-          instance: {} as any,
-          onDestroy: (cb: () => void) => destroyCallbacks.push(cb),
-          destroy: () => destroyCallbacks.forEach(cb => cb()),
-        }),
-      } as any;
+      // Stand-in for a view's editor outlet. Records the inputs the component sets on the editor and
+      // the onDestroy hook it registers, so the close path can be triggered without a real
+      // component teardown.
+      editorHost = {
+        createComponent: () => {
+          const ref = {
+            instance: {} as any,
+            inputs: {} as Record<string, unknown>,
+            setInput: (name: string, value: unknown) => {
+              ref.inputs[name] = value;
+            },
+            onDestroy: (cb: () => void) => destroyCallbacks.push(cb),
+            destroy: () => destroyCallbacks.forEach(cb => cb()),
+          };
+          return ref;
+        },
+      };
+      codeEditorService.attachHost(editorHost as any);
     });
 
     it("marks the operator's editor open and hands the field's control to it", () => {
@@ -123,6 +181,21 @@ describe("CodeareaCustomTemplateComponent", () => {
       expect(component.componentRef!.instance.formControl).toBe(component.field.formControl);
 
       expect(publishedEditorState(highlightedOperatorId())).toBe(true);
+    });
+
+    // The fake host records whatever name setInput is given; the real ComponentRef would log and
+    // ignore an input the editor does not declare, so the names are checked against its declaration.
+    it("sets only inputs the editor declares", () => {
+      component.openEditor();
+
+      const declared = reflectComponentType(CodeEditorComponent)!.inputs.map(input => input.templateName);
+      expect(declared).toEqual(expect.arrayContaining(Object.keys((component.componentRef as any).inputs)));
+    });
+
+    it("tells the editor its operator, which is the highlighted one", () => {
+      component.openEditor();
+
+      expect((component.componentRef as any).inputs).toEqual({ currentOperatorId: highlightedOperatorId() });
     });
 
     it("clears the flag again when the editor component is destroyed", () => {
@@ -156,6 +229,24 @@ describe("CodeareaCustomTemplateComponent", () => {
 
       expect(remoteComponent.isEditorOpen).toBe(true);
       expect(remoteComponent.componentRef).toBeDefined();
+    });
+
+    // The Form View can show several exposed code cards at once; a shadowed co-editor's open names
+    // one operator, and only that operator's editor opens here (#8760).
+    it("stays closed when a co-editor opens another operator's editor", () => {
+      const opened = new Subject<{ operatorId: string }>();
+      vi.spyOn(TestBed.inject(CoeditorPresenceService), "getCoeditorOpenedCodeEditorSubject").mockReturnValue(
+        opened.asObservable()
+      );
+      const remoteFixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
+      const remoteComponent = remoteFixture.componentInstance;
+      remoteComponent.field = { props: {}, formControl: new FormControl() } as any;
+      remoteFixture.detectChanges();
+
+      opened.next({ operatorId: "another-operator" });
+
+      expect(remoteComponent.isEditorOpen).toBe(false);
+      expect(remoteComponent.componentRef).toBeUndefined();
     });
 
     it("tears this client's editor down when any co-editor closes one, whichever operator it names", () => {
@@ -272,6 +363,39 @@ describe("CodeareaCustomTemplateComponent", () => {
 
       codeEditorService.setEditorState(highlightedOperatorId(), false);
       expect(component.isEditorOpen).toBe(false);
+    });
+
+    // Every view that mounts a codearea hosts the editor (#8760), so this is a guard, not a state:
+    // a click, or a co-editor's open, must not throw or render Monaco into nothing.
+    describe("without an editor host", () => {
+      beforeEach(() => {
+        codeEditorService.detachHost(editorHost as any);
+        fixture.detectChanges();
+      });
+
+      it("opens nothing and marks nothing open on a click", () => {
+        expect(() => component.openEditor()).not.toThrow();
+
+        expect(component.isEditorOpen).toBe(false);
+        expect(component.componentRef).toBeUndefined();
+        expect(publishedEditorState(highlightedOperatorId())).toBe(false);
+      });
+
+      it("stays closed when a co-editor opens theirs, instead of throwing", () => {
+        const opened = new Subject<{ operatorId: string }>();
+        vi.spyOn(TestBed.inject(CoeditorPresenceService), "getCoeditorOpenedCodeEditorSubject").mockReturnValue(
+          opened.asObservable()
+        );
+        const remoteFixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
+        const remoteComponent = remoteFixture.componentInstance;
+        remoteComponent.field = { props: {}, formControl: new FormControl() } as any;
+        remoteFixture.detectChanges();
+
+        expect(() => opened.next({ operatorId: highlightedOperatorId() })).not.toThrow();
+
+        expect(remoteComponent.isEditorOpen).toBe(false);
+        expect(remoteComponent.componentRef).toBeUndefined();
+      });
     });
   });
 });

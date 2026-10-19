@@ -55,6 +55,27 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
   public isEditorOpen: boolean = false;
   private operatorID: string = "";
 
+  /**
+   * Whether the button offers a look at the code rather than an edit: the control is read-only and
+   * the button still works, as on the canvas for a workflow one cannot write. Not on the Form View's
+   * read-only inspection of a step, where the whole panel is inert and nothing in it can be pressed:
+   * there the button keeps its usual face, "Edit code content", greyed out with the rest of the
+   * panel, rather than promising a view it cannot open (#8760).
+   */
+  get viewOnly(): boolean {
+    return this.field.formControl.disabled && !this.inspect;
+  }
+
+  /**
+   * A read-only inspection mount (see viewOnly). The button is greyed out on it whatever its
+   * control's state: the inspecting frame disables its form group as it is built, and formly adds
+   * the controls to that group afterwards, so whether this one ends up disabled depends on the
+   * order -- the button's face should not.
+   */
+  get inspect(): boolean {
+    return this.field.props?.["inspect"] === true;
+  }
+
   constructor(
     private coeditorPresenceService: CoeditorPresenceService,
     private codeEditorService: CodeEditorService,
@@ -62,10 +83,16 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
     private workflowActionService: WorkflowActionService
   ) {
     super();
+    // A shadowed co-editor opening their editor opens the same operator's here, not whatever
+    // operator this codearea happens to be on: only the codearea on that operator answers (#8760).
     this.coeditorPresenceService
       .getCoeditorOpenedCodeEditorSubject()
       .pipe(untilDestroyed(this))
-      .subscribe(_ => this.openEditor());
+      .subscribe(({ operatorId }) => {
+        if (operatorId === this.operatorID) {
+          this.openEditor();
+        }
+      });
     this.coeditorPresenceService
       .getCoeditorClosedCodeEditorSubject()
       .pipe(untilDestroyed(this))
@@ -84,7 +111,17 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
   }
 
   openEditor(): void {
-    this.componentRef = this.codeEditorService.vc.createComponent(CodeEditorComponent);
+    // Without a host there is nothing to open into. Every view that mounts a codearea hosts the
+    // editor today (the operator canvas and the Form View), so this is a guard, not a state the
+    // button shows: a co-editor's open reaching a codearea with no host must not throw or mark
+    // this operator's editor open.
+    const host = this.codeEditorService.host;
+    if (!host) {
+      return;
+    }
+    this.componentRef = host.createComponent(CodeEditorComponent);
+    // The editor is told its operator by its opener, rather than reading the highlight itself.
+    this.componentRef.setInput("currentOperatorId", this.operatorID);
     this.componentRef.instance.componentRef = this.componentRef;
     this.componentRef.instance.formControl = this.field.formControl;
     this.isEditorOpen = true;

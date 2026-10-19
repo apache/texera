@@ -960,6 +960,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (customType) {
         mappedField.type = customType;
       }
+      // A read-only inspection of a step (the Form View outside edit mode mounts this frame with
+      // actsAsEditor=false, and inert) cannot press anything in it, the code button included. The
+      // button is told, so it keeps its usual face there -- "Edit code content", greyed out with the
+      // rest -- instead of offering a view it cannot open (#8760).
+      if (customType === "codearea" && !this.actsAsEditor) {
+        mappedField.props = { ...mappedField.props, inspect: true };
+      }
 
       if (this.currentOperatorSchema?.operatorType === "HuggingFace") {
         applyHuggingFaceFieldBindings(mappedField);
