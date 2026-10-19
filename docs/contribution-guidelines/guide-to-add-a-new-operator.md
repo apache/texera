@@ -128,8 +128,9 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   local offset and agree again on a machine set to UTC. `ArrowUtils` states the convention;
   follow it wherever an operator turns a number into a moment. Where an existing executor
   already uses the machine's zone, as TypeCasting and Aggregate do, call
-  `_texera_local_wall_clocks` and `_texera_local_zone` rather than `tzlocal()` or `gettz()`,
-  which know only today's offsets. Java reads a moment before 1900 at the standard offset.
+  `_texera_local_wall_clocks` and `_texera_local_zone` rather than `tzlocal()` or `gettz()`.
+  `tzlocal()` knows only today's offsets. `gettz()` reads the zone's history on Unix but falls
+  back to today's offsets on Windows. Java reads a moment before 1900 at the standard offset.
 - Text becomes a moment the way `DateParserUtils` reads it, and a value becomes text the way
   Java's `toString` writes it. Call `_texera_text_to_timestamp` and `_texera_java_text` from
   `StandaloneHelpers.AttributeCasts` rather than `pd.to_datetime` or `str()`, which keep
