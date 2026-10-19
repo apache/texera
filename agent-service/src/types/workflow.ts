@@ -17,65 +17,28 @@
  * under the License.
  */
 
-import type { MacroDefinition, MacroInterface } from "@texera/workflow-macros";
-
-interface LogicalPort {
-  readonly operatorID: string;
-  readonly portID: string;
-}
+import type {
+  MacroDefinition,
+  MacroInterface,
+  OperatorPredicate as CoreOperator,
+  OperatorLink,
+  PortDescription,
+} from "@texera/workflow-macros";
+export type { OperatorLink, PortDescription } from "@texera/workflow-macros";
 
 interface PortIdentity {
   readonly id: number;
   readonly internal: boolean;
 }
 
-type PartitionInfo =
-  | { readonly type: "hash"; readonly hashAttributeNames: string[] }
-  | {
-      readonly type: "range";
-      readonly rangeAttributeNames: string[];
-      readonly rangeMin: number;
-      readonly rangeMax: number;
-    }
-  | { readonly type: "single" }
-  | { readonly type: "broadcast" }
-  | { readonly type: "none" };
-
-export interface PortDescription {
-  readonly portID: string;
-  readonly displayName?: string;
-  readonly disallowMultiInputs?: boolean;
-  readonly isDynamicPort?: boolean;
-  readonly partitionRequirement?: PartitionInfo;
-  readonly dependencies?: { id: number; internal: boolean }[];
-}
-
-export interface OperatorPredicate {
-  readonly operatorID: string;
-  readonly operatorType: string;
-  readonly operatorVersion: string;
+export interface OperatorPredicate extends CoreOperator {
   readonly operatorProperties: Record<string, any>;
-  readonly inputPorts: PortDescription[];
-  readonly outputPorts: PortDescription[];
-  readonly dynamicInputPorts?: boolean;
-  readonly dynamicOutputPorts?: boolean;
-  readonly showAdvanced: boolean;
-  readonly isDisabled?: boolean;
-  readonly viewResult?: boolean;
-  readonly markedForReuse?: boolean;
-  readonly customDisplayName?: string;
 }
 
 export interface LogicalOperator {
   readonly operatorID: string;
   readonly operatorType: string;
   readonly [key: string]: any;
-}
-
-export interface OperatorLink {
-  readonly linkID: string;
-  readonly source: LogicalPort;
-  readonly target: LogicalPort;
 }
 
 export interface LogicalLink {

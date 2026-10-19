@@ -18,28 +18,40 @@
  */
 
 /** The graph contract shared by browser and agent execution; presentation content passes through untouched. */
-export interface MacroOperator {
+export interface OperatorPredicate {
   readonly operatorID: string;
   readonly operatorType: string;
   readonly operatorVersion: string;
   readonly operatorProperties: Readonly<Record<string, any>>;
-  readonly inputPorts: MacroPortDescription[];
-  readonly outputPorts: MacroPortDescription[];
+  readonly inputPorts: PortDescription[];
+  readonly outputPorts: PortDescription[];
+  readonly dynamicInputPorts?: boolean;
+  readonly dynamicOutputPorts?: boolean;
   readonly showAdvanced: boolean;
   readonly isDisabled?: boolean;
   readonly viewResult?: boolean;
   readonly markedForReuse?: boolean;
   readonly customDisplayName?: string;
 }
-interface LogicalPort {
+export interface LogicalPort {
   readonly operatorID: string;
   readonly portID: string;
 }
-interface MacroPortDescription {
+export type PartitionInfo =
+  | Readonly<{ type: "hash"; hashAttributeNames: string[] }>
+  | Readonly<{ type: "range"; rangeAttributeNames: string[]; rangeMin: number; rangeMax: number }>
+  | Readonly<{ type: "single" }>
+  | Readonly<{ type: "broadcast" }>
+  | Readonly<{ type: "none" }>;
+export interface PortDescription {
   readonly portID: string;
   readonly displayName?: string;
+  readonly disallowMultiInputs?: boolean;
+  readonly isDynamicPort?: boolean;
+  readonly partitionRequirement?: PartitionInfo;
+  readonly dependencies?: { id: number; internal: boolean }[];
 }
-interface MacroLink {
+export interface OperatorLink {
   readonly linkID: string;
   readonly source: LogicalPort;
   readonly target: LogicalPort;
@@ -49,7 +61,7 @@ interface ExposedField {
   operatorID: string;
   propertyKey: string;
 }
-export interface MacroPort extends MacroPortDescription {
+export interface MacroPort extends PortDescription {
   targets: LogicalPort[];
 }
 export interface MacroInterface {
@@ -58,8 +70,8 @@ export interface MacroInterface {
   outputs: MacroPort[];
 }
 export interface MacroContent {
-  operators: MacroOperator[];
-  links: MacroLink[];
+  operators: OperatorPredicate[];
+  links: OperatorLink[];
   macroInterface?: MacroInterface;
   macroDependencies?: MacroDefinition[];
   formBinding?: unknown;
@@ -72,7 +84,7 @@ export interface MacroDefinition<C extends MacroContent = MacroContent> {
   content: C;
 }
 
-export const isMacro = (op: MacroOperator): boolean => op.operatorType.startsWith("WorkflowMacro:");
+export const isMacro = (op: OperatorPredicate): boolean => op.operatorType.startsWith("WorkflowMacro:");
 export const macroType = (d: MacroDefinition): string => `WorkflowMacro:${d.id}:${d.version}`;
 export const portKey = (id: string, direction: "inputs" | "outputs", port: string): string =>
   JSON.stringify([id, direction, port]);
@@ -84,7 +96,7 @@ const fields = (content?: MacroContent): ExposedField[] => {
   require(Array.isArray(value), "Invalid exposed macro properties");
   return value;
 };
-export function macroInstance(d: MacroDefinition, operatorID: string): MacroOperator {
+export function macroInstance(d: MacroDefinition, operatorID: string): OperatorPredicate {
   require(d.content?.macroInterface, "Missing macro interface");
   return {
     operatorID,
@@ -104,6 +116,42 @@ export interface MacroExpansion<C extends MacroContent = MacroContent> {
   paths: Record<string, string[]>;
   /** Canvas boundary -> runtime ports, for result and schema lookup. */
   ports: Record<string, LogicalPort[]>;
+}
+
+/** Keep a canvas subgraph's runtime leaves and the links between them. */
+export function expandMacroSubgraph(graph: Pick<MacroContent, "operators">, expanded: MacroExpansion) {
+  const selected = new Set(graph.operators.map(op => op.operatorID));
+  const operators = expanded.content.operators.filter(op => selected.has(expanded.paths[op.operatorID][0]));
+  const ids = new Set(operators.map(op => op.operatorID));
+  return {
+    operators,
+    links: expanded.content.links.filter(link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID)),
+  };
+}
+
+/** Texera's wire graph uses port ordinals; the agent retains its legacy fallback to port zero. */
+export function toLogicalGraph(graph: Pick<MacroContent, "operators" | "links">, minimumPortOrdinal = -1) {
+  const byID = new Map(graph.operators.map(op => [op.operatorID, op]));
+  const ordinal = (end: LogicalPort, direction: "inputPorts" | "outputPorts") =>
+    Math.max(
+      minimumPortOrdinal,
+      byID.get(end.operatorID)![direction].findIndex(port => port.portID === end.portID)
+    );
+  return {
+    operators: graph.operators.map(op => ({
+      ...op.operatorProperties,
+      operatorID: op.operatorID,
+      operatorType: op.operatorType,
+      inputPorts: op.inputPorts,
+      outputPorts: op.outputPorts,
+    })),
+    links: graph.links.map(link => ({
+      fromOpId: link.source.operatorID,
+      fromPortId: { id: ordinal(link.source, "outputPorts"), internal: false },
+      toOpId: link.target.operatorID,
+      toPortId: { id: ordinal(link.target, "inputPorts"), internal: false },
+    })),
+  };
 }
 
 /** Hosts supply their existing UUID v5 and equality implementations; the graph core has no runtime dependencies. */
@@ -146,13 +194,13 @@ export function createMacroRuntime(
     const definitions = new Map(mergeMacroDefinitions(content.macroDependencies ?? []).map(d => [macroType(d), d]));
     const paths: Record<string, string[]> = Object.create(null);
     const ports: Record<string, LogicalPort[]> = Object.create(null);
-    const operators: MacroOperator[] = [];
+    const operators: OperatorPredicate[] = [];
     const links: MacroContent["links"] = [];
 
     const visit = (body: MacroContent, chain: string[], stack: string[]): Map<string, LogicalPort[]> => {
       require(body && Array.isArray(body.operators) && Array.isArray(body.links), "Malformed macro graph");
       require(chain.length <= 32, "Macro nesting exceeds 32 levels");
-      const ops = new Map<string, MacroOperator>();
+      const ops = new Map<string, OperatorPredicate>();
       for (const op of body.operators) {
         require(op &&
           typeof op.operatorID === "string" &&

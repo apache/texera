@@ -18,6 +18,7 @@
  */
 
 import { expandMacros, isMacro, macroResultAliases, type MacroExpansion } from "./util/workflow-macros";
+import { expandMacroSubgraph, toLogicalGraph } from "@texera/workflow-macros";
 import { Subject, Observable, merge, Subscription } from "rxjs";
 import type {
   OperatorPredicate,
@@ -443,42 +444,14 @@ export class WorkflowState {
     let graph = targetOperatorId
       ? this.getSubDAG(targetOperatorId)
       : { operators: this.getAllEnabledOperators(), links: this.getAllLinks() };
-    if (expanded) {
-      const selected = new Set(graph.operators.map(op => op.operatorID));
-      const operators = expanded.content.operators.filter(op => selected.has(expanded.paths[op.operatorID][0]));
-      const ids = new Set(operators.map(op => op.operatorID));
-      graph = {
-        operators,
-        links: expanded.content.links.filter(
-          link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID)
-        ),
-      };
-    }
-    const byId = new Map(graph.operators.map(op => [op.operatorID, op]));
-    const ordinal = (id: string, port: string, direction: "inputPorts" | "outputPorts") =>
-      Math.max(
-        0,
-        byId.get(id)![direction].findIndex(p => p.portID === port)
-      );
+    if (expanded) graph = expandMacroSubgraph(graph, expanded);
+    const ids = new Set(graph.operators.map(op => op.operatorID));
+    const links = graph.links.filter(link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID));
     const aliases = expanded ? macroResultAliases(this.getWorkflowContent(), expanded) : {};
     const results = targetOperatorId !== undefined ? [targetOperatorId] : [...this.operatorsToViewResult];
     return {
-      operators: graph.operators.map(op => ({
-        ...op.operatorProperties,
-        operatorID: op.operatorID,
-        operatorType: op.operatorType,
-        inputPorts: op.inputPorts,
-        outputPorts: op.outputPorts,
-      })),
-      links: graph.links
-        .filter(link => byId.has(link.source.operatorID) && byId.has(link.target.operatorID))
-        .map(link => ({
-          fromOpId: link.source.operatorID,
-          fromPortId: { id: ordinal(link.source.operatorID, link.source.portID, "outputPorts"), internal: false },
-          toOpId: link.target.operatorID,
-          toPortId: { id: ordinal(link.target.operatorID, link.target.portID, "inputPorts"), internal: false },
-        })),
-      opsToViewResult: results.map(id => aliases[id] ?? id).filter(id => byId.has(id)),
+      ...toLogicalGraph({ ...graph, links }, 0),
+      opsToViewResult: results.map(id => aliases[id] ?? id).filter(id => ids.has(id)),
       opsToReuseResult: [],
     };
   }

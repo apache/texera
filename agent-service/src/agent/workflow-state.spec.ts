@@ -177,6 +177,27 @@ describe("WorkflowState - getSubDAG", () => {
 });
 
 describe("WorkflowState - toLogicalPlan", () => {
+  test("keeps the empty plan and legacy missing-port fallback without serializing dangling links", () => {
+    const state = new WorkflowState();
+    expect(state.toLogicalPlan()).toEqual({ operators: [], links: [], opsToViewResult: [], opsToReuseResult: [] });
+    state.addOperator(makeOperator("café", { operatorProperties: { operatorID: "user value", value: "東京" } }));
+    state.addOperator(makeOperator("dst"));
+    state.addLink({
+      linkID: "missing ports",
+      source: { operatorID: "café", portID: "missing" },
+      target: { operatorID: "dst", portID: "missing" },
+    });
+    state.addLink(makeLink("dangling", "absent", "dst"));
+    const before = JSON.stringify(state.getWorkflowContent());
+    const plan = state.toLogicalPlan();
+    expect(plan.operators[0]).toMatchObject({ operatorID: "café", value: "東京" });
+    expect(plan.links).toEqual([
+      { fromOpId: "café", fromPortId: { id: 0, internal: false }, toOpId: "dst", toPortId: { id: 0, internal: false } },
+    ]);
+    expect(JSON.stringify(state.getWorkflowContent())).toBe(before);
+    state.destroy();
+  });
+
   test("produces operators, port-indexed links, and an empty reuse list", () => {
     const state = new WorkflowState();
     state.addOperator(makeOperator("op1"));
@@ -435,6 +456,22 @@ describe("WorkflowState - workflow content round-trip", () => {
 });
 
 describe("macro workflow compatibility", () => {
+  test("run-up-to selects only the requested macro instance and leaves its pinned snapshot untouched", async () => {
+    const { macroWorkflow } = await import("./macro-test-data");
+    const content = macroWorkflow(),
+      before = JSON.stringify(content);
+    const state = new WorkflowState();
+    state.setWorkflowContent(content);
+    const plan = state.toLogicalPlan("one");
+    expect(plan.operators.map(op => op.value)).toEqual(["café 東京"]);
+    expect(plan.opsToViewResult).toEqual([plan.operators[0].operatorID]);
+    expect(plan.links).toEqual([]);
+    expect(state.toLogicalPlan("absent").operators).toEqual([]);
+    expect(JSON.stringify(content)).toBe(before);
+    expect(state.getWorkflowContent()).toEqual(content);
+    state.destroy();
+  });
+
   test("preserves pinned snapshots and definition interfaces through agent edits and reset", async () => {
     const { macroWorkflow } = await import("./macro-test-data");
     const original = macroWorkflow();

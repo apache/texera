@@ -94,7 +94,7 @@ export class MacroService {
     if (!content.macroInterface) throw new Error("Saved version is not a macro definition");
     expandMacros(content);
     const definition = { id: content.macroInterface.id, version, name: workflow.name, wid: workflow.wid, content };
-    mergeMacroDefinitions(this.actions.getMacroDependencies(), [definition], content.macroDependencies ?? []);
+    mergeMacroDefinitions(this.actions.getMacroDependencies(), [definition]);
     macroSchema(definition, type => this.metadata.getOperatorSchema(type, content.macroDependencies ?? []));
     return definition;
   }
@@ -191,11 +191,7 @@ export class MacroService {
       );
     const latest = matches[0];
     if (!latest) throw new Error("Definition is not in this deployment's accessible macro library");
-    const definitions = mergeMacroDefinitions(
-      this.actions.getMacroDependencies(),
-      [latest],
-      latest.content.macroDependencies ?? []
-    );
+    const definitions = mergeMacroDefinitions(this.actions.getMacroDependencies(), [latest]);
     const updated = adoptMacroVersion(op!, previous, latest);
     if (
       !new Ajv({ strict: false }).validate(

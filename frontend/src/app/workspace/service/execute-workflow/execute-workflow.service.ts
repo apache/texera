@@ -24,7 +24,6 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
   ExecutionState,
   ExecutionStateInfo,
-  LogicalLink,
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
@@ -52,8 +51,7 @@ import { unavailableComputingUnitReason } from "../../../common/util/computing-u
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { expandMacros, isMacro, MacroDefinition, portKey } from "../../../common/util/workflow-macro";
-import { WorkflowContent } from "../../../common/type/workflow";
-import { LogicalPort } from "../../types/workflow-common.interface";
+import { expandMacroSubgraph, toLogicalGraph } from "@texera/workflow-macros";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -599,15 +597,9 @@ export class ExecuteWorkflowService {
         operators: workflowGraph.getAllOperators(),
         links: workflowGraph.getAllLinks(),
         macroDependencies: dependencies,
-      } as WorkflowContent);
+      });
       const original = subDAG.operators;
-      const selected = new Set(original.map(o => o.operatorID));
-      const operators = expanded.content.operators.filter(o => selected.has(expanded.paths[o.operatorID][0]));
-      const ids = new Set(operators.map(o => o.operatorID));
-      subDAG = {
-        operators,
-        links: expanded.content.links.filter(l => ids.has(l.source.operatorID) && ids.has(l.target.operatorID)),
-      };
+      subDAG = expandMacroSubgraph(subDAG, expanded);
       resultIDs = resultIDs.flatMap(id => {
         const op = original.find(o => o.operatorID === id);
         return op && isMacro(op)
@@ -619,32 +611,13 @@ export class ExecuteWorkflowService {
         .filter(o => o.markedForReuse || reuseIDs.includes(expanded.paths[o.operatorID]?.[0]))
         .map(o => o.operatorID);
     }
-    const byID = new Map(subDAG.operators.map(op => [op.operatorID, op]));
-    const portOrdinal = (end: LogicalPort, direction: "inputPorts" | "outputPorts"): number =>
-      byID.get(end.operatorID)![direction].findIndex(port => port.portID === end.portID);
-
-    const operators: LogicalOperator[] = subDAG.operators.map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    const links: LogicalLink[] = subDAG.links.map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPortId: { id: portOrdinal(link.source, "outputPorts"), internal: false },
-      toOpId: link.target.operatorID,
-      toPortId: { id: portOrdinal(link.target, "inputPorts"), internal: false },
-    }));
-
     const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
     const opsToViewResult: string[] = Array.from(intersection(operatorIds, new Set(resultIDs)));
 
     const opsToReuseResult: string[] = Array.from(intersection(operatorIds, new Set(reuseIDs)));
 
-    return { operators, links, opsToViewResult, opsToReuseResult };
+    return { ...toLogicalGraph(subDAG), opsToViewResult, opsToReuseResult };
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {

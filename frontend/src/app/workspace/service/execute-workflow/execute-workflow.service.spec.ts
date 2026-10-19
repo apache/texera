@@ -162,6 +162,56 @@ describe("ExecuteWorkflowService", () => {
     }
   });
 
+  it("preserves ordinary multi-port plans, authoritative operator IDs, and empty graphs", () => {
+    const source = {
+      ...mockScanPredicate,
+      operatorID: "café",
+      operatorProperties: { operatorID: "user value", value: "東京" },
+      outputPorts: [{ portID: "left" }, { portID: "right" }],
+    };
+    const target = {
+      ...mockSentimentPredicate,
+      operatorID: "target",
+      inputPorts: [{ portID: "first" }, { portID: "second" }],
+    };
+    const graph = new WorkflowGraph(
+      [source, target],
+      [
+        {
+          linkID: "connection",
+          source: { operatorID: "café", portID: "right" },
+          target: { operatorID: "target", portID: "second" },
+        },
+      ]
+    );
+    const empty = new WorkflowGraph();
+    try {
+      const plan = ExecuteWorkflowService.getLogicalPlanRequest(graph, "target");
+      expect(plan.operators.find(op => op.operatorID === "café")).toMatchObject({
+        value: "東京",
+        outputPorts: source.outputPorts,
+      });
+      expect(plan.links).toEqual([
+        {
+          fromOpId: "café",
+          fromPortId: { id: 1, internal: false },
+          toOpId: "target",
+          toPortId: { id: 1, internal: false },
+        },
+      ]);
+      expect(graph.getOperator("café")).toEqual(source);
+      expect(ExecuteWorkflowService.getLogicalPlanRequest(empty)).toEqual({
+        operators: [],
+        links: [],
+        opsToViewResult: [],
+        opsToReuseResult: [],
+      });
+    } finally {
+      graph.sharedModel.destroy();
+      empty.sharedModel.destroy();
+    }
+  });
+
   it("reports a missing macro bundle without throwing or resetting the execution", () => {
     const actions = TestBed.inject(WorkflowActionService);
     const d = {

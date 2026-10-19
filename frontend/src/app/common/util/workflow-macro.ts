@@ -19,10 +19,11 @@
 
 import { cloneDeep, groupBy, isEqual, memoize, sumBy } from "lodash-es";
 import { WorkflowContent, FormFieldBinding } from "../type/workflow";
-import { LogicalPort, OperatorPredicate } from "../../workspace/types/workflow-common.interface";
+import { OperatorPredicate } from "../../workspace/types/workflow-common.interface";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
 import { CustomJSONSchema7 } from "../../workspace/types/custom-json-schema.interface";
 import { OperatorRuntimeStatus, OperatorState } from "../../workspace/types/execute-workflow.interface";
+import { assert } from "./assert";
 
 export { isMacro, macroType, portKey, macroInstance } from "@texera/workflow-macros";
 export type { MacroInterface, MacroPort } from "@texera/workflow-macros";
@@ -33,21 +34,20 @@ const macros = createMacroRuntime(uuid, isEqual);
 export const { expandMacros, macroRuntimeID, macroResultAliases, mapMacroCompilation } = macros;
 export type MacroDefinition = Definition<WorkflowContent>;
 export type MacroExpansion = Expansion<WorkflowContent>;
-export const mergeMacroDefinitions = (...bundles: MacroDefinition[][]): MacroDefinition[] =>
-  macros.mergeMacroDefinitions(...bundles);
-const require = (condition: unknown, message: string): void => {
-  if (!condition) throw new Error(message);
-};
+export const mergeMacroDefinitions = macros.mergeMacroDefinitions<WorkflowContent>;
 const fields = (content?: WorkflowContent): FormFieldBinding[] => content?.formBinding?.fields ?? [];
 
 /** Capture a convex selection; re-entering it through unselected nodes would create a macro cycle. */
 export function extractMacro(content: WorkflowContent, selected: readonly string[], id: string): WorkflowContent {
-  require(selected.length > 0, "Select at least one operator");
+  assert(selected.length > 0, "Select at least one operator");
   const ids = new Set(selected);
-  require(selected.every(id => content.operators.some(o => o.operatorID === id)), "Missing selected operator");
+  assert(
+    selected.every(id => content.operators.some(o => o.operatorID === id)),
+    "Missing selected operator"
+  );
   const escaped = new Set<string>();
   const follow = (from: string): void => {
-    require(!ids.has(from), "Selection must not leave and re-enter the macro");
+    assert(!ids.has(from), "Selection must not leave and re-enter the macro");
     if (escaped.has(from)) return;
     escaped.add(from);
     content.links.filter(l => l.source.operatorID === from).forEach(l => follow(l.target.operatorID));
@@ -92,7 +92,7 @@ export function adoptMacroVersion(
   previous: MacroDefinition,
   next: MacroDefinition
 ): OperatorPredicate {
-  require(previous.id === next.id && op.operatorType === macroType(previous), "Different macro definition");
+  assert(previous.id === next.id && op.operatorType === macroType(previous), "Different macro definition");
   const signature = (d: MacroDefinition) => [
     d.content.macroInterface!.inputs.map(p => p.portID).sort(),
     d.content.macroInterface!.outputs.map(p => p.portID).sort(),
@@ -100,10 +100,10 @@ export function adoptMacroVersion(
       .map(f => f.id)
       .sort(),
   ];
-  require(isEqual(
-    signature(previous),
-    signature(next)
-  ), "Macro interface changed; insert the new version and reconnect explicitly");
+  assert(
+    isEqual(signature(previous), signature(next)),
+    "Macro interface changed; insert the new version and reconnect explicitly"
+  );
   return {
     ...macroInstance(next, op.operatorID),
     operatorProperties: cloneDeep(op.operatorProperties),
@@ -123,12 +123,12 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
     if (!value || typeof value !== "object") return value;
     if (value.$ref) {
       const { $ref, ...rest } = value;
-      require($ref.startsWith("#/") && !refs.includes($ref), "Missing or recursive exposed property schema reference");
+      assert($ref.startsWith("#/") && !refs.includes($ref), "Missing or recursive exposed property schema reference");
       const target = $ref
         .slice(2)
         .split("/")
         .reduce((node: any, key: string) => node?.[key.replace(/~1/g, "/").replace(/~0/g, "~")], root);
-      require(target, "Missing exposed property schema reference");
+      assert(target, "Missing exposed property schema reference");
       return resolve({ ...target, ...rest }, root, op, [...refs, $ref]);
     }
     return Object.fromEntries(
@@ -146,18 +146,16 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
   };
   for (const f of fields(d.content)) {
     const op = d.content.operators.find(o => o.operatorID === f.operatorID);
-    require(op, "Missing exposed property operator");
-    const root = schemaFor(op!.operatorType);
+    assert(op, "Missing exposed property operator");
+    const root = schemaFor(op.operatorType);
     const schema = root.properties?.[f.propertyKey];
-    require(schema && typeof schema !== "boolean", "Missing exposed property schema");
+    assert(schema && typeof schema !== "boolean", "Missing exposed property schema");
     properties[f.id] = {
-      ...resolve(schema, root, op!),
+      ...resolve(schema, root, op),
       title: f.displayName,
       description: f.helpText,
       default: cloneDeep(
-        Object.prototype.hasOwnProperty.call(op!.operatorProperties, f.propertyKey)
-          ? op!.operatorProperties[f.propertyKey]
-          : (schema as CustomJSONSchema7).default
+        Object.hasOwn(op.operatorProperties, f.propertyKey) ? op.operatorProperties[f.propertyKey] : schema.default
       ),
     };
   }
