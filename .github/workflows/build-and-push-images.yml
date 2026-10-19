@@ -360,6 +360,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
+
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
@@ -381,7 +390,11 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
@@ -446,6 +459,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
+
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
@@ -467,7 +489,11 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
