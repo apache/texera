@@ -222,6 +222,28 @@ describe("HubWorkflowDetailComponent", () => {
     });
   });
 
+  // Leaving a document is not discarding it: Chrome may keep this one in the back/forward cache
+  // and restore it with its JavaScript state as it was left, re-running nothing. A workflow
+  // cleared on beforeunload would stay cleared on a page that looks live, so this preview would
+  // come back empty (#8601, the shape #8599 reports and #8600 fixed elsewhere).
+  describe("leaving the page", () => {
+    it("keeps the workflow when the browser unloads", () => {
+      build({ modalData: { wid: 1 } });
+
+      window.dispatchEvent(new Event("beforeunload"));
+
+      expect(workflowActionServiceMock.clearWorkflow).not.toHaveBeenCalled();
+    });
+
+    it("clears the workflow when the component is destroyed, which is when the route really left", () => {
+      build({ modalData: { wid: 1 } });
+
+      component.ngOnDestroy();
+
+      expect(workflowActionServiceMock.clearWorkflow).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("ngOnInit", () => {
     it("early-returns when wid is undefined", () => {
       build({ modalData: undefined, routeId: undefined, detectChanges: false });

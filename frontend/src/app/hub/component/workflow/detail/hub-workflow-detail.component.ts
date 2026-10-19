@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, HostListener, Inject, LOCALE_ID, OnDestroy, OnInit, Optional } from "@angular/core";
+import { AfterViewInit, Component, Inject, LOCALE_ID, OnDestroy, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -160,7 +160,15 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     this.loadWorkflowWithId(this.wid);
   }
 
-  @HostListener("window:beforeunload")
+  /**
+   * Deliberately not bound to `window:beforeunload` as well. That event fires whenever the browser
+   * leaves a document, but leaving is not discarding: Chrome may keep the document in the
+   * back/forward cache and restore it on the way back with its JavaScript state exactly as it was
+   * left, re-running nothing. A workflow cleared from a beforeunload binding stays cleared on a
+   * page that looks live, so this preview would have come back empty (#8601 -- the same shape as
+   * #8599, fixed for the workspace and the Form View in #8600). Angular destroys this component
+   * when the route really leaves, which is where the clear belongs and where it stays.
+   */
   ngOnDestroy() {
     this.workflowActionService.clearWorkflow();
   }
