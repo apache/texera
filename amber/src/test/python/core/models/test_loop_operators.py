@@ -332,7 +332,7 @@ class TestLoopRunsToCompletion:
             )
             start.open()
             if back_edge is not None:
-                start.process_state(back_edge, port=0)
+                start.state = back_edge
             for row in rows:
                 list(start.process_tuple(row, port=0))
             emitted.extend(o for o in start.on_finish(port=0) if o is not None)
