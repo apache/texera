@@ -29,4 +29,3 @@ protoc --plugin="$GUI_DIR/node_modules/.bin/protoc-gen-ts_proto" \
   "$WORKFLOW_PROTO" \
   "$VIRTUALIDENTITY_PROTO" \
   --proto_path="$PROTOBUF_DIR"
-
