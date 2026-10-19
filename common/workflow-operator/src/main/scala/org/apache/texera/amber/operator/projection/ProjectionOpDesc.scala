@@ -108,25 +108,31 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     )
   }
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     val units = Option(attributes).getOrElse(List.empty)
     // The engine refuses an empty selection, so the script says so too. Passing
     // the frame through would hand back data where a run would have stopped.
     if (units.isEmpty)
       return """raise ValueError("Please select at least one attribute to project.")"""
 
+    // The column each unit reads, as the table spells it. See [[columnAsStored]].
+    val stored = (u: AttributeUnit) =>
+      columnAsStored(u.getOriginalAttribute, inputSchemas.values.headOption)
+
     if (isDrop) {
       // Drop mode ignores aliases (matches ProjectionOpExec).
-      val cols = units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
+      val cols = units.map(u => pyStringLiteral(stored(u))).mkString("[", ", ", "]")
       s"out1df = in1df.drop(columns=$cols)"
     } else {
-      val originals =
-        units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
-      // AttributeUnit.getAlias returns originalAttribute when alias is blank,
-      // so an explicit rename is only needed when they differ.
+      val originals = units.map(u => pyStringLiteral(stored(u))).mkString("[", ", ", "]")
+      // The output column is named by AttributeUnit.getAlias, which returns
+      // originalAttribute as written when alias is blank: the engine keeps the
+      // setting's case, not the table's. A rename is only needed where they differ.
       val renames = units
-        .filter(u => u.getAlias != u.getOriginalAttribute)
-        .map(u => s"""${pyStringLiteral(u.getOriginalAttribute)}: ${pyStringLiteral(u.getAlias)}""")
+        .filter(u => u.getAlias != stored(u))
+        .map(u => s"""${pyStringLiteral(stored(u))}: ${pyStringLiteral(u.getAlias)}""")
       if (renames.isEmpty) {
         s"out1df = in1df[$originals].copy()"
       } else {

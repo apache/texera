@@ -84,7 +84,8 @@ class RegexOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // quantifiers, etc.) may behave differently in Python's re engine.
     val pyLiteral = pyStringLiteral(Option(regex).getOrElse(""))
     val caseArg = if (caseInsensitive) "False" else "True"
-    val attrLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // The rows with nothing in the column are dropped before the match rather than
     // left to `na=False`, which by then has no null to see.
     //

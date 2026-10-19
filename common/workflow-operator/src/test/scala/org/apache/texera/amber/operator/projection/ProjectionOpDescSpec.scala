@@ -229,6 +229,27 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
   }
 
+  // The engine reads `FIELD1` from a column `field1`, since Schema ignores case, and
+  // names the kept column as the setting writes it. pandas would raise a KeyError on
+  // `FIELD1`, so the script reads the column as the table spells it.
+  it should "read a column named in a different case from the table" in {
+    val inputSchemas = Map(PortIdentity() -> schema)
+
+    val keep = new ProjectionOpDesc
+    keep.attributes = List(new AttributeUnit("FIELD1", ""), new AttributeUnit("Field2", "f2"))
+    assert(
+      keep.generateStandaloneCode(inputSchemas) ==
+        """out1df = in1df[["field1", "field2"]].rename(columns={"field1": "FIELD1", "field2": "f2"})"""
+    )
+
+    val drop = new ProjectionOpDesc
+    drop.attributes = List(new AttributeUnit("FIELD1", ""))
+    drop.isDrop = true
+    assert(
+      drop.generateStandaloneCode(inputSchemas) == """out1df = in1df.drop(columns=["field1"])"""
+    )
+  }
+
   // Schema propagation and the executor both refuse an empty selection, so the
   // script stops where a run would have. Passing the frame through would answer
   // with data a run never produces.

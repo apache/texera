@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.substringSearch
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -79,5 +81,17 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     ss.attribute shouldBe "body"
     ss.substring shouldBe "lo"
     ss.isCaseSensitive shouldBe true
+  }
+
+  // The engine reads `Body` from a column `body`, since Schema ignores case. pandas
+  // would raise a KeyError on `Body`, so the script reads the column as the table
+  // spells it.
+  "SubstringSearchOpDesc.generateStandaloneCode" should
+    "read a column named in a different case from the table" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("body", AttributeType.STRING)))
+    val code = newDesc("Body", "lo", caseSensitive = false).generateStandaloneCode(inputSchemas)
+    code should include("""in1df["body"]""")
+    code should not include "Body"
   }
 }

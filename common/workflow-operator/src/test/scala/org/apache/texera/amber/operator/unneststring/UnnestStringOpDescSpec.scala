@@ -214,6 +214,17 @@ class UnnestStringOpDescSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  // The engine reads `N` from a column `n`, since Schema ignores case. pandas would
+  // raise a KeyError on `N`, so the script reads the column as the table spells it.
+  it should "read a column named in a different case from the table" in {
+    val op = newDesc(",", "N", "piece")
+    val schemas = Map(PortIdentity(0) -> Schema().add(new Attribute("n", AttributeType.STRING)))
+    val code = op.generateStandaloneCode(schemas)
+    code should include("""in1df[in1df["n"].notna()]""")
+    code should include("""_texera_cast_string(out1df["n"])""")
+    code should not include "\"N\""
+  }
+
   "UnnestStringOpDesc" should "round-trip its fields through the polymorphic base" in {
     val restored =
       objectMapper.readValue(
