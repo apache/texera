@@ -27,6 +27,17 @@
       [class.result-preview__summary--error]="preview.kind === 'error'"
       >{{ preview.summary }}</span
     >
+    <button
+      *ngIf="pinnable"
+      type="button"
+      class="result-preview__pin"
+      title="Pin the result next to the operator"
+      (click)="pin.emit()">
+      <span
+        nz-icon
+        nzType="pushpin"></span>
+      Pin
+    </button>
   </div>
   <table
     *ngIf="preview.columns.length > 0"

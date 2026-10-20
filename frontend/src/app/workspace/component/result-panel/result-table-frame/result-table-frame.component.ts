@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import {
   NzTableQueryParams,
@@ -41,6 +41,7 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { isAudioUrl, isVideoUrl, isImageUrl } from "../../../../common/util/media-type.util";
+import { isDefined } from "../../../../common/util/predicate";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -94,6 +95,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   // which of the operator's output ports to show. The running execution reports only on the first,
   // so another port is read when shown, and its counts and statistics are not followed live.
   @Input() portIndex = 0;
+  // The height the table has to fill in a window of its own. Left out, the table fills the result
+  // panel and follows its height.
+  @Input() containerHeight?: number;
 
   // display result table
   currentColumns?: TableColumn[];
@@ -118,6 +122,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
+
+  /**
+   * Whether any column has statistics to show. Until they arrive there are none, and an output
+   * port past the first never has any, as the statistics are the first port's.
+   */
+  get hasTableStats(): boolean {
+    return Object.keys(this.tableStats).length > 0;
+  }
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
 
@@ -134,6 +146,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
+    private elementRef: ElementRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
     // Read by the template only (the export button's flag); the template can see a protected member.
@@ -141,7 +154,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (isDefined(this.containerHeight)) this.fitPageSizeToContainer(this.containerHeight);
     if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
+    // A new height alone only resizes the page, as dragging the result panel's edge does.
+    if (Object.keys(changes).every(key => key === "containerHeight")) return;
     // another port's rows are not this port's, so a new port starts from an empty table
     if (changes.portIndex && !changes.portIndex.firstChange) {
       this.currentResult = [];
@@ -224,12 +240,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       });
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
-      this.panelHeight = size.height;
-      this.adjustPageSizeBasedOnPanelSize(size.height);
-      let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-      while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
-        this.currentPageIndex -= 1;
-      }
+      // a table given its own height to fill does not follow the result panel's
+      if (isDefined(this.containerHeight)) return;
+      this.fitPageSize(size.height);
     });
 
     if (this.operatorId) {
@@ -325,14 +338,50 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       PAGINATION_HEIGHT +
       SEARCH_BAR_HEIGHT_WITH_MARGIN;
 
-    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
+    this.setPageSize(Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT)));
+  }
 
+  private setPageSize(newPageSize: number): void {
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
     this.pageSize = newPageSize;
     this.resizeService.pageSize = newPageSize;
 
     this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
+  }
+
+  /** As many rows to a page as fill the result panel, keeping the page within the result. */
+  private fitPageSize(height: number): void {
+    this.panelHeight = height;
+    this.adjustPageSizeBasedOnPanelSize(height);
+    this.keepPageWithinResult();
+  }
+
+  /**
+   * In a window of its own, the table measures what it draws around its rows, the search bar,
+   * header, statistics and pager, so its rows take up the rest. Until a row is drawn there is
+   * nothing to measure, and the panel's rule stands in.
+   */
+  private fitPageSizeToContainer(height: number): void {
+    const table = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(".result-table");
+    const rows = Array.from(table?.querySelectorAll<HTMLElement>("tbody tr.ant-table-row") ?? []);
+    const rowsHeight = rows.reduce((sum, row) => sum + row.offsetHeight, 0);
+    if (!table || rowsHeight === 0) {
+      this.fitPageSize(height);
+      return;
+    }
+    const aroundRows = table.offsetHeight - rowsHeight;
+    const pageSize = Math.max(1, Math.floor((height - aroundRows) / (rowsHeight / rows.length)));
+    if (pageSize === this.pageSize) return;
+    this.setPageSize(pageSize);
+    this.keepPageWithinResult();
+  }
+
+  private keepPageWithinResult(): void {
+    let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
+    while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
+      this.currentPageIndex -= 1;
+    }
   }
 
   /**
@@ -438,6 +487,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (pageData.table.length === 0) this.isLoadingResult = false;
         this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
         this.changeDetectorRef.detectChanges();
+        // the rows are drawn now, so a table in a window can measure what fits
+        if (isDefined(this.containerHeight)) this.fitPageSizeToContainer(this.containerHeight);
       });
   }
 
