@@ -133,9 +133,9 @@ export interface OperatorResultSummary {
   readonly totalTuplesCount: number;
 }
 
-// Mirrors agent-service's canonical per-operator summary, but the frontend only
-// consumes `resultSummary`. Its state/errorMessages/consoleMessages
-// are intentionally omitted here (no consumer reads them) to keep the surface minimal.
+// One operator's entry in agent-service's `/operator-results` payload: the
+// `resultSummary` of its canonical per-operator summary, the only field the frontend
+// reads (state/errorMessages/consoleMessages stay in agent-service).
 export interface OperatorExecutionSummary {
   readonly resultSummary?: OperatorResultSummary;
 }
