@@ -18,14 +18,7 @@
  */
 
 import type { OperatorExecutionSummary } from "../../types/execution";
-import {
-  formatExecuteOperatorResult,
-  formatSampleTuplesAsTsv,
-  getOperatorErrorText,
-  getOperatorWarnings,
-  redactVisualizationPayloads,
-  tupleColumns,
-} from "./tools-utility";
+import { formatOperatorOutput, getOperatorErrorText } from "./tools-utility";
 
 export function formatOperatorResult(operatorId: string, opInfo: OperatorExecutionSummary): string {
   const errorText = getOperatorErrorText(opInfo);
@@ -33,26 +26,5 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorExecuti
     return `[ERROR] ${errorText}`;
   }
 
-  const resultSummary = opInfo.resultSummary;
-  const sampleTuples = resultSummary?.sampleTuples;
-  if (!sampleTuples || !Array.isArray(sampleTuples)) {
-    return "(no result data)";
-  }
-
-  const displayTuples = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
-
-  const headers = displayTuples.length > 0 ? tupleColumns(displayTuples[0][1]) : [];
-  const columns = headers.length;
-
-  const dataString = formatSampleTuplesAsTsv(displayTuples);
-
-  // Output shape only; input-port shapes are derivable by the agent from the DAG
-  // links plus each upstream operator's own output shape shown in context.
-  const outputRows = resultSummary.totalTuplesCount;
-  const metadataLines = [`Output table shape: (${outputRows}, ${columns})`, ...getOperatorWarnings(opInfo)].filter(
-    Boolean
-  );
-
-  const briefSummary = formatExecuteOperatorResult(operatorId);
-  return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
+  return formatOperatorOutput(operatorId, opInfo);
 }
