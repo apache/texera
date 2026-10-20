@@ -673,43 +673,41 @@ export class AgentService {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
 
-      return this.http
-        .post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders(undefined, workflowId))
-        .pipe(
-          map(response => {
-            const agentInfo: AgentInfo = {
-              id: response.id,
-              name: response.name,
-              modelType: response.modelType,
-              isBaselineMode: false,
-              createdAt: new Date(response.createdAt),
-              state: this.mapStateToAgentState(response.state),
-              delegate: response.delegate
-                ? {
-                    userInfo: response.delegate.userInfo,
-                    workflowId: response.delegate.workflowId,
-                    workflowName: response.delegate.workflowName,
-                  }
-                : undefined,
-              settings: response.settings,
-            };
+      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders(undefined, workflowId)).pipe(
+        map(response => {
+          const agentInfo: AgentInfo = {
+            id: response.id,
+            name: response.name,
+            modelType: response.modelType,
+            isBaselineMode: false,
+            createdAt: new Date(response.createdAt),
+            state: this.mapStateToAgentState(response.state),
+            delegate: response.delegate
+              ? {
+                  userInfo: response.delegate.userInfo,
+                  workflowId: response.delegate.workflowId,
+                  workflowName: response.delegate.workflowName,
+                }
+              : undefined,
+            settings: response.settings,
+          };
 
-            this.agents.set(response.id, agentInfo);
-            // Pass workflowId to enable workflow polling from backend database
-            const tracking = this.getOrCreateStateTracking(response.id, workflowId);
-            // Set the initial state from the API response (agent is AVAILABLE after creation)
-            tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
-            this.agentChangeSubject.next();
+          this.agents.set(response.id, agentInfo);
+          // Pass workflowId to enable workflow polling from backend database
+          const tracking = this.getOrCreateStateTracking(response.id, workflowId);
+          // Set the initial state from the API response (agent is AVAILABLE after creation)
+          tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
+          this.agentChangeSubject.next();
 
-            return agentInfo;
-          }),
-          catchError((error: unknown) => {
-            const err = error as { error?: { error?: string }; message?: string };
-            const errorMsg = err.error?.error || err.message || "Failed to create agent";
-            this.notificationService.error(errorMsg);
-            return throwError(() => new Error(errorMsg));
-          })
-        );
+          return agentInfo;
+        }),
+        catchError((error: unknown) => {
+          const err = error as { error?: { error?: string }; message?: string };
+          const errorMsg = err.error?.error || err.message || "Failed to create agent";
+          this.notificationService.error(errorMsg);
+          return throwError(() => new Error(errorMsg));
+        })
+      );
     });
   }
 
@@ -827,23 +825,21 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http
-        .get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`, this.agentHeaders())
-        .pipe(
-          map(response =>
-            response.data.map((model: LiteLLMModel) => ({
-              id: model.id,
-              name: this.formatModelName(model.id),
-              description: `Model: ${model.id}`,
-              icon: "robot",
-            }))
-          ),
-          catchError((error: unknown) => {
-            console.error("Failed to fetch models from API:", error);
-            return of([]);
-          }),
-          shareReplay(1)
-        );
+      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`, this.agentHeaders()).pipe(
+        map(response =>
+          response.data.map((model: LiteLLMModel) => ({
+            id: model.id,
+            name: this.formatModelName(model.id),
+            description: `Model: ${model.id}`,
+            icon: "robot",
+          }))
+        ),
+        catchError((error: unknown) => {
+          console.error("Failed to fetch models from API:", error);
+          return of([]);
+        }),
+        shareReplay(1)
+      );
     }
     return this.modelTypes$;
   }
@@ -1182,10 +1178,9 @@ export class AgentService {
    */
   public getAvailableOperatorTypes(agentId: string): Observable<Array<{ type: string; description: string }>> {
     return this.http
-      .get<Array<{ type: string; description: string }>>(
-        `${this.AGENT_API_BASE}/agents/${agentId}/operator-types`,
-        this.agentHeaders(agentId)
-      )
+      .get<
+        Array<{ type: string; description: string }>
+      >(`${this.AGENT_API_BASE}/agents/${agentId}/operator-types`, this.agentHeaders(agentId))
       .pipe(catchError(() => of([])));
   }
 
