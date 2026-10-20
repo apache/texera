@@ -52,7 +52,7 @@ trait ResumeHandler {
               cp.workflowExecution
                 .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
                 .getWorkerExecution(workerId)
-                .update(System.nanoTime(), resp.state)
+                .updateState(resp.stateVersion, resp.state)
             }
           }
           .toSeq

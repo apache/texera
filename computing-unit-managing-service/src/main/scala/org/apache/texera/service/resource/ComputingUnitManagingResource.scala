@@ -26,7 +26,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
-import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
+import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
@@ -42,7 +42,17 @@ import org.apache.texera.common.config.{
 }
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import org.apache.texera.dao.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_COMPUTING_UNIT,
+  WORKFLOW_EXECUTIONS
+}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTerminationReasonEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   UserDao,
@@ -50,24 +60,255 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
-import org.apache.texera.service.resource.ComputingUnitState._
 import org.apache.texera.service.util.{
+  ComputingUnitHelpers,
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
   KubernetesClient
 }
-import org.jooq.{DSLContext, EnumType}
+import org.jooq.{Condition, DSLContext, EnumType}
+import org.jooq.impl.DSL.{boolOr, exists, max, selectOne}
+import org.slf4j.LoggerFactory
 import play.api.libs.json._
 
 import java.sql.Timestamp
 import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.control.NonFatal
 
 object ComputingUnitManagingResource {
+  private[resource] val logger = LoggerFactory.getLogger(classOf[ComputingUnitManagingResource])
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
       .createDSLContext()
+
+  private[resource] case class IdleComputingUnitCandidate(
+      unit: WorkflowComputingUnit,
+      username: Option[String]
+  )
+
+  /**
+    * The codes persisted in `workflow_executions.status`. These are the collapsed codes produced
+    * by amber's `Utils.maptoStatusCode`, NOT the ordinals of `WorkflowAggregatedState`, and this
+    * service cannot depend on the amber module to reuse either. Keep this in sync with
+    * `Utils.maptoStatusCode`.
+    *
+    * Only the terminal codes are listed, and the sweep treats every other code as an execution
+    * still in flight. That direction matters: `maptoStatusCode` collapses PAUSING, RESUMING,
+    * UNKNOWN and TERMINATED alike to -1, so enumerating the non-terminal codes instead would
+    * leave a paused-or-resuming execution looking idle and get its computing unit deleted out
+    * from under its owner.
+    *
+    * Known limitation: a non-terminal code is trusted without a time bound, so a row that never
+    * reaches 3/4/5 keeps its computing unit off this sweep indefinitely -- not for one more
+    * sweep, but permanently. Two ways in:
+    *   - a row left stuck at RUNNING -- a coordinator that died in place, an OOM inside the
+    *     container -- because nothing ever rewrites it;
+    *   - a row whose *final* status is -1, because `maptoStatusCode` gives an execution that
+    *     ended the same code as one that is merely paused. Today that is UNKNOWN, the fallback
+    *     `WorkflowExecution.getState` returns for a worker mix it cannot name. TERMINATED maps
+    *     to -1 as well, but is a worker-level state: `ExecutionUtils.aggregateStates` reports a
+    *     COMPLETED-or-TERMINATED worker set as COMPLETED, so it does not reach this column
+    *     today. If amber ever persists it, it lands in this same bucket.
+    * Neither is separable here -- a -1 carries nothing that distinguishes an ended execution
+    * from a live one, so the fix belongs in what amber persists. Nothing else reclaims such a
+    * unit either: `ComputingUnitHelpers.reconcileVanishedKubernetesUnits` only runs when someone
+    * calls a listing endpoint, and it keys off a vanished pod rather than a stale execution row.
+    * Tracked as a follow-up in apache/texera#8618.
+    */
+  private[resource] object TerminalWorkflowExecutionStatus extends Enumeration {
+    val Completed: Value = Value(3)
+    val Failed: Value = Value(4)
+    val Killed: Value = Value(5)
+
+    def dbStatuses: Seq[java.lang.Short] =
+      values.toSeq.map(status => Short.box(status.id.toShort))
+  }
+
+  private[resource] def lastComputingUnitActivityTime(
+      unit: WorkflowComputingUnit,
+      latestUpdateTime: Option[Timestamp],
+      latestStartTime: Option[Timestamp]
+  ): Timestamp =
+    Seq(
+      latestUpdateTime,
+      latestStartTime,
+      Option(unit.getCreationTime)
+    ).flatten.maxBy(_.getTime)
+
+  private[resource] def shouldTerminateIdleComputingUnit(
+      hasActiveExecution: Boolean,
+      lastExecutionTime: Timestamp,
+      cutoff: Timestamp
+  ): Boolean =
+    !hasActiveExecution && lastExecutionTime.before(cutoff)
+
+  /**
+    * Terminates every Kubernetes computing unit whose last execution activity is older than
+    * `idleTimeoutMinutes`, returning the units terminated so the caller can log their owners.
+    */
+  def terminateIdleKubernetesComputingUnits(
+      idleTimeoutMinutes: Long
+  ): List[TerminatedComputingUnitInfo] =
+    terminateIdleKubernetesComputingUnits(
+      idleTimeoutMinutes,
+      new Timestamp(System.currentTimeMillis()),
+      KubernetesClient
+    )
+
+  /**
+    * The client is a by-name parameter -- not the global singleton -- so the sweep is unit-testable
+    * with a stub and a sweep that terminates nothing never forces the singleton; the public
+    * overload binds the production [[KubernetesClient]]. Same seam as
+    * [[org.apache.texera.service.util.ComputingUnitHelpers.singleUnitStatus]].
+    */
+  private[resource] def terminateIdleKubernetesComputingUnits(
+      idleTimeoutMinutes: Long,
+      now: Timestamp,
+      k8s: => KubernetesClient
+  ): List[TerminatedComputingUnitInfo] = {
+    val cutoff = new Timestamp(now.getTime - idleTimeoutMinutes * 60 * 1000)
+    idleKubernetesComputingUnitCandidates(cutoff).flatMap(candidate =>
+      terminateIdleKubernetesComputingUnitCandidate(candidate, cutoff, now, k8s)
+    )
+  }
+
+  private[resource] def idleKubernetesComputingUnitCandidates(
+      cutoff: Timestamp
+  ): List[IdleComputingUnitCandidate] = {
+    // All three questions asked per computing unit -- is any execution still active, when did an
+    // execution last report progress, when did one last start -- are aggregates over the same rows
+    // grouped by the same key, so one grouped query answers them for every unit at once. The left
+    // joins keep units that have no executions (both max() are NULL) and units whose owner row is
+    // gone (name is NULL), matching what a per-unit scan would produce.
+    val latestUpdateTime = max(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)
+    val latestStartTime = max(WORKFLOW_EXECUTIONS.STARTING_TIME)
+    val hasActiveExecution =
+      boolOr(WORKFLOW_EXECUTIONS.STATUS.notIn(TerminalWorkflowExecutionStatus.dbStatuses: _*))
+
+    withTransaction(context) { ctx =>
+      ctx
+        .select(
+          WORKFLOW_COMPUTING_UNIT.asterisk(),
+          USER.NAME,
+          latestUpdateTime,
+          latestStartTime,
+          hasActiveExecution
+        )
+        .from(WORKFLOW_COMPUTING_UNIT)
+        .leftJoin(WORKFLOW_EXECUTIONS)
+        .on(WORKFLOW_EXECUTIONS.CUID.eq(WORKFLOW_COMPUTING_UNIT.CUID))
+        .leftJoin(USER)
+        .on(USER.UID.eq(WORKFLOW_COMPUTING_UNIT.UID))
+        .where(
+          WORKFLOW_COMPUTING_UNIT.TYPE
+            .eq(WorkflowComputingUnitTypeEnum.kubernetes)
+            .and(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+        )
+        .groupBy(WORKFLOW_COMPUTING_UNIT.CUID, USER.NAME)
+        .fetch()
+        .asScala
+        .flatMap { record =>
+          val unit = record.into(WORKFLOW_COMPUTING_UNIT).into(classOf[WorkflowComputingUnit])
+          val lastExecutionTime = lastComputingUnitActivityTime(
+            unit,
+            Option(record.get(latestUpdateTime)),
+            Option(record.get(latestStartTime))
+          )
+
+          // bool_or over zero matching executions yields NULL, which means "no active execution"
+          val active = Option(record.get(hasActiveExecution)).exists(_.booleanValue())
+          if (shouldTerminateIdleComputingUnit(active, lastExecutionTime, cutoff)) {
+            Some(
+              IdleComputingUnitCandidate(
+                unit,
+                Option(record.get(USER.NAME)).filter(_.nonEmpty)
+              )
+            )
+          } else {
+            None
+          }
+        }
+        .toList
+    }
+  }
+
+  /**
+    * Every execution row that would have kept `cuid` out of the scan's result: one that is not in
+    * a terminal state, or one whose activity lands at or after `cutoff`. Re-asserted inside the
+    * terminating UPDATE so a run started between the scan and the update takes the unit off the
+    * table -- the scan reads every candidate before terminating any of them, so that window is as
+    * wide as the whole sweep, not an instant.
+    */
+  private[resource] def liveExecutionExists(cuid: Integer, cutoff: Timestamp): Condition =
+    exists(
+      selectOne()
+        .from(WORKFLOW_EXECUTIONS)
+        .where(
+          WORKFLOW_EXECUTIONS.CUID
+            .eq(cuid)
+            .and(
+              WORKFLOW_EXECUTIONS.STATUS
+                .notIn(TerminalWorkflowExecutionStatus.dbStatuses: _*)
+                .or(WORKFLOW_EXECUTIONS.STARTING_TIME.ge(cutoff))
+                .or(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME.ge(cutoff))
+            )
+        )
+    )
+
+  private[resource] def terminateIdleKubernetesComputingUnitCandidate(
+      candidate: IdleComputingUnitCandidate,
+      cutoff: Timestamp,
+      terminationTime: Timestamp,
+      k8s: => KubernetesClient
+  ): Option[TerminatedComputingUnitInfo] = {
+    val unit = candidate.unit
+    val cuid = unit.getCuid
+    val reason = WorkflowComputingUnitTerminationReasonEnum.GARBAGE_COLLECTED
+    try {
+      withTransaction(context) { ctx =>
+        // Stamp the row first and delete the pod second, within one transaction per unit. The
+        // guards the scan applied are repeated in the WHERE clause, so a unit a user terminated
+        // or started a run on in the meantime updates zero rows and is left alone. Deleting an
+        // absent pod is a no-op and deleting a live one is idempotent, so letting a delete
+        // failure roll the stamp back only costs a retry next round -- whereas stamping after a
+        // failed delete would leave a live pod behind a row that says terminated.
+        val marked = ctx
+          .update(WORKFLOW_COMPUTING_UNIT)
+          .set(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME, terminationTime)
+          .set(WORKFLOW_COMPUTING_UNIT.TERMINATION_REASON, reason)
+          .where(
+            WORKFLOW_COMPUTING_UNIT.CUID
+              .eq(cuid)
+              .and(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+              .and(WORKFLOW_COMPUTING_UNIT.TYPE.eq(WorkflowComputingUnitTypeEnum.kubernetes))
+              .andNot(liveExecutionExists(cuid, cutoff))
+          )
+          .execute() == 1
+
+        if (!marked) {
+          None
+        } else {
+          k8s.deletePod(cuid)
+          Some(
+            TerminatedComputingUnitInfo(
+              cuid = cuid,
+              name = unit.getName,
+              uid = unit.getUid,
+              username = candidate.username,
+              reason = reason
+            )
+          )
+        }
+      }
+    } catch {
+      case NonFatal(t) =>
+        logger.warn(s"Failed to terminate idle Kubernetes computing unit cuid=$cuid", t)
+        None
+    }
+  }
 
   private def icebergEnvironmentVariables: Map[String, Any] = {
     val base = Map[String, Any](
@@ -89,6 +330,61 @@ object ComputingUnitManagingResource {
     }
   }
 
+  // Required: the endpoints default to localhost:9092 (LakeFSFileDocument,
+  // ResultExportService) and the secret to a published literal (auth.conf), none of which
+  // suits a real deployment. Forwarded raw -- the endpoints are trimmed by their own readers,
+  // and trimming the secret would leave the unit and this service verifying the token against
+  // different keys, since AuthConfig does not trim.
+  private val requiredComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_FILE_SERVICE_GET_DATASET_PRESIGNED_URL_ENDPOINT,
+    EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT,
+    EnvironmentalVariable.ENV_AUTH_JWT_SECRET
+  )
+
+  // Overrides, forwarded only when set: application.conf defaults the payload size to 1024,
+  // so its absence is not an error. USER_SYS_ENABLED and
+  // SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR are absent from both lists --
+  // their conf keys went away with #3831 and #3542, so nothing reads them.
+  // TODO: use AmberConfig here; it is only accessible in workflow-executing-service
+  private val optionalComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB
+  )
+
+  /**
+    * Returns the variables, or fails with a 503 listing every one that is unset or blank.
+    *
+    * A WebApplicationException so the message survives: dropwizard replaces a plain 500's
+    * with generic text. 503 because the deployment is not ready, not the request wrong.
+    */
+  private[resource] def requiredComputingUnitEnv(
+      lookup: String => Option[String]
+  ): Map[String, String] = {
+    // Blank counts as missing: the chart renders every value as "{{ .value }}", so an unset
+    // one arrives as "" rather than absent.
+    val looked =
+      requiredComputingUnitEnvNames.map(name => name -> lookup(name).filter(_.trim.nonEmpty))
+    val missing = looked.collect { case (name, None) => name }
+    if (missing.nonEmpty) {
+      throw new ServiceUnavailableException(
+        "This deployment cannot create a computing unit. Unset or blank environment " +
+          s"variable(s): ${missing.mkString(", ")}."
+      )
+    }
+    looked.collect { case (name, Some(value)) => name -> value }.toMap
+  }
+
+  /**
+    * The overrides that are set, trimmed. A blank one is dropped rather than forwarded, and
+    * a padded one is trimmed, because HOCON reads " 1024" as a string and refuses it as an
+    * int -- the unit then dies at startup naming nothing.
+    */
+  private[resource] def optionalComputingUnitEnv(
+      lookup: String => Option[String]
+  ): Map[String, String] =
+    optionalComputingUnitEnvNames.flatMap { name =>
+      lookup(name).map(_.trim).filter(_.nonEmpty).map(name -> _)
+    }.toMap
+
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
     icebergEnvironmentVariables ++ Map(
@@ -104,28 +400,17 @@ object ComputingUnitManagingResource {
       EnvironmentalVariable.ENV_S3_ENDPOINT -> StorageConfig.s3Endpoint,
       EnvironmentalVariable.ENV_S3_REGION -> StorageConfig.s3Region,
       EnvironmentalVariable.ENV_S3_AUTH_USERNAME -> StorageConfig.s3Username,
-      EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password,
-      EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
-        .get,
-      EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
-        .get,
-      // Variables for amber setting
-      // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-      EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
-        .get,
-      EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
-        .get,
-      EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
-        .get,
-      EnvironmentalVariable.ENV_AUTH_JWT_SECRET -> EnvironmentalVariable
-        .get(EnvironmentalVariable.ENV_AUTH_JWT_SECRET)
-        .get
-    )
+      EnvironmentalVariable.ENV_S3_AUTH_PASSWORD -> StorageConfig.s3Password
+    ) ++ requiredComputingUnitEnv(EnvironmentalVariable.get) ++
+      optionalComputingUnitEnv(EnvironmentalVariable.get)
+
+  case class TerminatedComputingUnitInfo(
+      cuid: Integer,
+      name: String,
+      uid: Integer,
+      username: Option[String],
+      reason: WorkflowComputingUnitTerminationReasonEnum
+  )
 
   case class WorkflowComputingUnitCreationParams(
       name: String,
@@ -135,7 +420,9 @@ object ComputingUnitManagingResource {
       gpuLimit: String,
       jvmMemorySize: String,
       shmSize: String,
-      uri: Option[String] = None
+      uri: Option[String] = None,
+      /** A curated image to start this unit from, instead of the deployment's own. */
+      iid: Option[Int] = None
   )
 
   case class WorkflowComputingUnitResourceLimit(
@@ -152,10 +439,13 @@ object ComputingUnitManagingResource {
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       status: String,
+      // User-friendly explanation of a failing/degraded status; serialized as null when there is
+      // nothing to explain or the endpoint does not authorize the caller to view it.
+      statusReason: Option[String],
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
       accessPrivilege: EnumType,
-      ownerGoogleAvatar: String,
+      ownerAvatar: String,
       ownerName: String
   )
 
@@ -173,7 +463,6 @@ object ComputingUnitManagingResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
 class ComputingUnitManagingResource {
-
   private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
     val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
     val unit = wcDao.fetchOneByCuid(cuid)
@@ -194,41 +483,6 @@ class ComputingUnitManagingResource {
       case "local"      => ComputingUnitConfig.localComputingUnitEnabled
       case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
       case _            => false // Any unknown types are disabled by default
-    }
-  }
-
-  private def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
-    unit.getType match {
-      // ── Local CUs are always "running" ──────────────────────────────
-      case WorkflowComputingUnitTypeEnum.local =>
-        Running
-
-      // ── Kubernetes CUs – only explicit "Running" counts as running ─
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val phaseOpt = KubernetesClient
-          .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
-          .map(_.getStatus.getPhase)
-
-        if (phaseOpt.contains("Running")) Running else Pending
-
-      // ── Any other (unknown) type is treated as pending ──────────────
-      case _ =>
-        Pending
-    }
-  }
-
-  private def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val metrics = KubernetesClient.getPodMetrics(unit.getCuid)
-        WorkflowComputingUnitMetrics(
-          metrics.getOrElse("cpu", ""),
-          metrics.getOrElse("memory", "")
-        )
-      case _ =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
     }
   }
 
@@ -366,6 +620,18 @@ class ComputingUnitManagingResource {
         throw new ForbiddenException(s"Unsupported computing-unit type: ${param.unitType}")
     }
 
+    // Resolved before anything is written. Starting from an image that is not ready would
+    // leave a computing-unit row behind that can never run.
+    val curatedImage: Option[String] = param.iid.map { iid =>
+      CuratedImageResource
+        .readyImageFor(iid)
+        .getOrElse(
+          throw new ForbiddenException(
+            s"Image $iid is not available. It must exist and have passed its check."
+          )
+        )
+    }
+
     withTransaction(context) { ctx =>
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
@@ -390,6 +656,12 @@ class ComputingUnitManagingResource {
               "gpuLimit" -> param.gpuLimit,
               "jvmMemorySize" -> param.jvmMemorySize,
               "shmSize" -> param.shmSize,
+              // The name is stored with the id because a curated image can be removed
+              // while a unit started from it is still up, and "what is this running?"
+              // should still have an answer then.
+              "iid" -> param.iid,
+              "imageName" -> param.iid.flatMap(CuratedImageResource.nameOf),
+              "curatedImage" -> curatedImage,
               "nodeAddresses" -> Json.arr() // filled in later
             )
           )
@@ -411,7 +683,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -429,8 +701,8 @@ class ComputingUnitManagingResource {
 
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
-      val ownerGoogleAvatar: String =
-        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      val ownerAvatar: String =
+        ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
@@ -462,7 +734,8 @@ class ComputingUnitManagingResource {
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
               EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
             ),
-            Some(param.shmSize)
+            Some(param.shmSize),
+            curatedImage
           )
 
         } catch {
@@ -474,13 +747,17 @@ class ComputingUnitManagingResource {
         }
       }
 
+      // The creator is always the owner, so the status reason is never withheld here.
+      val (status, statusReason) =
+        ComputingUnitHelpers.getComputingUnitStatusWithReason(insertedUnit)
       DashboardWorkflowComputingUnit(
         insertedUnit,
-        getComputingUnitStatus(insertedUnit).toString,
-        getComputingUnitMetrics(insertedUnit),
+        status.toString,
+        statusReason,
+        ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
-        ownerGoogleAvatar,
+        ownerAvatar,
         ownerUsername
       )
     }
@@ -528,63 +805,48 @@ class ComputingUnitManagingResource {
           (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
         }
 
-      val allUnits = ownedUnits ++ sharedUnits
-      val ownerUids: List[Integer] = allUnits.map(_.getUid).distinct
       val userDao = new UserDao(ctx.configuration())
-      val ownerInfoMap: Map[Integer, (String, String)] =
-        userDao
-          .fetchByUid(ownerUids: _*)
-          .asScala
-          .map { u =>
-            val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
-            val name = Option(u.getName).filter(_.nonEmpty).orNull
-            u.getUid -> (avatar, name)
-          }
-          .toMap
 
-      // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
-      // GC-ed by the cluster), we treat the corresponding computing unit as
-      // terminated from the system's point of view. Here we eagerly update its
-      // terminateTime in the database **before** we build the response list so
-      // that subsequent API calls will no longer return this unit.
-      allUnits.foreach { unit =>
-        if (
-          unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
-          !KubernetesClient.podExists(unit.getCuid)
-        ) {
-          unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
-          computingUnitDao.update(unit)
-        }
+      // Pair each unit with the caller's privilege (owned default to WRITE), one row per cuid, so
+      // a unit that is both owned and shared is reconciled/rendered exactly once.
+      val unitsWithPrivilege =
+        (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++
+          sharedUnits.map(u => (u, sharedUnitInfo(u.getCuid))))
+          .distinctBy { case (unit, _) => unit.getCuid }
+          .filter { case (unit, _) => unit.getTerminateTime == null }
+      val privilegeByCuid = unitsWithPrivilege.map {
+        case (unit, privilege) => unit.getCuid -> privilege
+      }.toMap
+      val candidateUnits = unitsWithPrivilege.map { case (unit, _) => unit }
+
+      // Pod snapshots decide which Kubernetes units are still alive (by pod-name presence).
+      val podSnapshots = ComputingUnitHelpers.podSnapshotsFor(candidateUnits)
+
+      val liveUnits =
+        ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
+          computingUnitDao,
+          candidateUnits,
+          podSnapshots
+        )
+
+      // Metrics only for survivors, so fetch after reconciliation.
+      val podMetrics = ComputingUnitHelpers.podMetricsFor(liveUnits)
+
+      val ownerInfoMap =
+        ComputingUnitHelpers.resolveOwnerInfo(userDao, liveUnits.map(_.getUid).distinct)
+
+      liveUnits.map { unit =>
+        val isOwner = unit.getUid.equals(uid)
+        ComputingUnitHelpers.buildDashboardUnit(
+          unit,
+          isOwner = isOwner,
+          canViewStatusReason = isOwner,
+          accessPrivilege = privilegeByCuid(unit.getCuid),
+          ownerInfo = ownerInfoMap,
+          podSnapshots = podSnapshots,
+          podMetrics = podMetrics
+        )
       }
-
-      // For shared units, we need to check the access privilege which are saved in different table
-      // to streamline the process, we combine owned units with default WRITE privilege and use sharedUnitInfo
-      // to get the privilege for shared units.
-      (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++ sharedUnits.map(u =>
-        (u, sharedUnitInfo(u.getCuid))
-      ))
-        .distinctBy { case (unit, _) => unit.getCuid }
-        .filter { case (unit, _) => unit.getTerminateTime == null }
-        .filter {
-          case (unit, _) =>
-            unit.getType match {
-              case WorkflowComputingUnitTypeEnum.kubernetes =>
-                KubernetesClient.podExists(unit.getCuid)
-              case _ => true
-            }
-        }
-        .map {
-          case (unit, privilege) =>
-            DashboardWorkflowComputingUnit(
-              computingUnit = unit,
-              isOwner = unit.getUid.equals(uid),
-              accessPrivilege = privilege,
-              status = getComputingUnitStatus(unit).toString,
-              metrics = getComputingUnitMetrics(unit),
-              ownerGoogleAvatar = ownerInfoMap.getOrElse(unit.getUid, (null, null))._1,
-              ownerName = ownerInfoMap.getOrElse(unit.getUid, (null, null))._2
-            )
-        }
     }
   }
 
@@ -606,16 +868,22 @@ class ComputingUnitManagingResource {
     val unit = getComputingUnitByCuid(context, cuid)
     val userDao = new UserDao(context.configuration())
     val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
-    val ownerGoogleAvatar: String =
-      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+    val ownerAvatar: String =
+      ownerUser.flatMap(u => Option(u.getAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
       ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
+    val isOwner = unit.getUid.equals(user.getUid)
+    val (status, statusReason) = ComputingUnitHelpers.getComputingUnitStatusWithReason(unit)
+
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
-      status = getComputingUnitStatus(unit).toString,
-      metrics = getComputingUnitMetrics(unit),
-      isOwner = unit.getUid.equals(user.getUid),
+      status = status.toString,
+      // The direct and regular-user listing endpoints remain owner-gated; the separate admin
+      // listing authorizes administrators to view reasons without marking them as owners.
+      statusReason = if (isOwner) statusReason else None,
+      metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
+      isOwner = isOwner,
       accessPrivilege = {
         val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
         val access = cuAccessDao
@@ -632,7 +900,7 @@ class ComputingUnitManagingResource {
           PrivilegeEnum.NONE
         }
       },
-      ownerGoogleAvatar,
+      ownerAvatar,
       ownerUsername
     )
   }
@@ -651,7 +919,8 @@ class ComputingUnitManagingResource {
       @PathParam("cuid") cuid: Integer,
       @Auth user: SessionUser
   ): Response = {
-    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
+    // ADMINs may terminate any unit; everyone else must own it.
+    if (!user.isRoleOf(UserRoleEnum.ADMIN) && !userOwnComputingUnit(context, cuid, user.getUid)) {
       return Response
         .status(Response.Status.BAD_REQUEST)
         .entity(s"User has no access to the computing unit")
@@ -668,8 +937,17 @@ class ComputingUnitManagingResource {
         KubernetesClient.deletePod(cuid)
       }
 
+      val terminationReason = WorkflowComputingUnitTerminationReasonEnum.USER_REQUESTED
       unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
+      unit.setTerminationReason(terminationReason)
       cuDao.update(unit)
+      // owner_* describes the unit, terminated_by_* the caller: an ADMIN may terminate a unit
+      // they do not own, so a single `uid`/`username` pair would mix the two identities.
+      logger.info(
+        s"Terminated computing unit: cuid=${unit.getCuid}, name=${unit.getName}, " +
+          s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
+          s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
+      )
     }
     Response.ok().build()
   }
@@ -748,7 +1026,7 @@ class ComputingUnitManagingResource {
       throw new BadRequestException("User has no access to the computing unit")
     }
     val computingUnit = getComputingUnitByCuid(context, cuid.toInt)
-    getComputingUnitMetrics(computingUnit)
+    ComputingUnitHelpers.getComputingUnitMetrics(computingUnit)
   }
 
   @GET

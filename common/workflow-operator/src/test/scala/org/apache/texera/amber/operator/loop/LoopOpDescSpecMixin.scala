@@ -74,6 +74,18 @@ trait LoopOpDescSpecMixin extends Matchers {
     physical.outputPorts.size shouldBe opDesc.operatorInfo.outputPorts.size
   }
 
+  /** Pins whether the GUI may draw more than one link into this operator's
+    * input port. Only Loop Start restricts it -- the scheduler resolves its
+    * loop bookkeeping URIs from that port's single reader. Loop End accepts
+    * fan-in (a loop body may branch and converge on it); the runtime consumes
+    * the loop state once per iteration however many branches replay it.
+    */
+  protected def assertDisallowsMultiInputLinks(
+      opDesc: LogicalOp,
+      expected: Boolean
+  ): Assertion =
+    opDesc.operatorInfo.inputPorts.head.disallowMultiLinks shouldBe expected
+
   protected def assertOpExecWithPythonCodeForClass(
       physical: PhysicalOp,
       expectedSubclassDecl: String

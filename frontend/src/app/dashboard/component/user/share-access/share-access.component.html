@@ -19,7 +19,7 @@
 
 <div
   class="access-button-group"
-  *ngIf="isPublic !== null && type !== 'computing-unit'">
+  *ngIf="isPublic !== null">
   <button
     nz-button
     class="access-button"
@@ -33,7 +33,7 @@
       class="button-icon"></div>
     <div class="button-text">
       <div class="button-text-header">Private</div>
-      <p>Only collaborators can view this workflow {{ type }}</p>
+      <p>Only collaborators can view this {{ type }}</p>
     </div>
   </button>
 

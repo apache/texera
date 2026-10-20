@@ -171,7 +171,7 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
 
     val operatorExecution = regionExecution.initOperatorExecution(physicalOpId("a"))
     val workerExecution = operatorExecution.initWorkerExecution(ActorVirtualIdentity("w0"))
-    workerExecution.update(1L, WorkerState.PAUSED)
+    workerExecution.updateState(1L, WorkerState.PAUSED)
 
     assert(we.getState == WorkflowAggregatedState.PAUSED)
     assert(!we.isCompleted)
@@ -182,8 +182,12 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
     val regionExecution = we.initRegionExecution(regionWithPort(0, "a"))
 
     val operatorExecution = regionExecution.initOperatorExecution(physicalOpId("a"))
-    operatorExecution.initWorkerExecution(ActorVirtualIdentity("w0")).update(1L, WorkerState.PAUSED)
-    operatorExecution.initWorkerExecution(ActorVirtualIdentity("w1")).update(1L, WorkerState.READY)
+    operatorExecution
+      .initWorkerExecution(ActorVirtualIdentity("w0"))
+      .updateState(1L, WorkerState.PAUSED)
+    operatorExecution
+      .initWorkerExecution(ActorVirtualIdentity("w1"))
+      .updateState(1L, WorkerState.READY)
 
     assert(we.getState == WorkflowAggregatedState.UNKNOWN)
     assert(!we.isCompleted)

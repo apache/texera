@@ -49,7 +49,7 @@ trait WorkerStateUpdatedHandler {
       .find(_.hasOperatorExecution(physicalOpId))
       .map(_.getOperatorExecution(physicalOpId))
       .foreach(operatorExecution =>
-        operatorExecution.getWorkerExecution(ctx.sender).update(System.nanoTime(), msg.state)
+        operatorExecution.getWorkerExecution(ctx.sender).updateState(msg.stateVersion, msg.state)
       )
     val stats = cp.workflowExecution.getAllRegionExecutionsStats
     sendToClient(ExecutionStatsUpdate(stats))

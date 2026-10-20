@@ -60,6 +60,24 @@
     nz-menu
     id="property-buttons"
     [ngClass]="{'shadow':  !width}">
+    <!-- Choosing which settings the form offers happens by ticking them in this very
+         panel, so the switch that turns those tick boxes on belongs here rather than in
+         a row of file and delete icons across the toolbar. Offered wherever the Form View
+         feature is enabled. -->
+    <button
+      nz-button
+      [nzType]="choosing ? 'primary' : 'text'"
+      class="choose-fields"
+      (click)="toggleChoosing()"
+      *ngIf="width && formViewFeatureEnabled"
+      nz-tooltip
+      nzTooltipPlacement="bottomRight"
+      [attr.aria-label]="choosing ? 'Done choosing fields' : 'Choose Form View fields'"
+      [nzTooltipTitle]="choosing ? 'Done choosing fields' : 'Choose Form View fields'">
+      <span
+        nz-icon
+        nzType="check-square"></span>
+    </button>
     <button
       nz-button
       nzType="text"

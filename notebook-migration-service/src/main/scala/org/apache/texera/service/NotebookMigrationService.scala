@@ -35,6 +35,7 @@ import org.apache.texera.dao.SqlServer
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
+import org.apache.texera.service.util.JupyterTokenDeriver
 
 class NotebookMigrationService
     extends Application[NotebookMigrationServiceConfiguration]
@@ -61,6 +62,9 @@ class NotebookMigrationService
       configuration: NotebookMigrationServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Refuse to boot a misconfigured per-user Jupyter rather than failing per request.
+    JupyterTokenDeriver.validateConfiguration()
+
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 

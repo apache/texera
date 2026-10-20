@@ -38,7 +38,7 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutions
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
-import org.apache.texera.workflow.WorkflowCompiler
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 
 import java.net.URI
 import scala.collection.mutable
@@ -110,11 +110,15 @@ class WorkflowExecutionService(
 
   def executeWorkflow(): Unit = {
     try {
-      workflow = new WorkflowCompiler(workflowContext)
-        .compile(request.logicalPlan)
+      val compilationResult = new WorkflowCompiler(workflowContext)
+        .compile(request.logicalPlan, CompilationErrorHandling.Strict)
+      workflow = Workflow.fromCompilationResult(workflowContext, compilationResult)
     } catch {
       case err: Throwable =>
+        // stop here: `workflow` is still null, so falling through would NPE
+        // below and mask the reported compilation error
         errorHandler(err)
+        return
     }
 
     client = ComputingUnitMaster.createAmberRuntime(

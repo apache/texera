@@ -16,7 +16,7 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
+ThisBuild / version      := "1.4.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
@@ -117,9 +117,12 @@ val nettyDependencyOverrides = Seq(
 // keep the org.apache.log4j API available at runtime.
 ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 
+// Dependency-free helpers (retry/backoff, ...) that any module may depend on. Keep it that way:
+// anything added here reaches the classpath of every service that depends on it.
+lazy val Util = (project in file("common/util")).settings(commonModuleSettings)
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
-lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings)
+lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings).dependsOn(DAO)
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
   .configs(Test)
@@ -156,7 +159,7 @@ lazy val PyBuilder = (project in file("common/pybuilder"))
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO, Config, PyBuilder)
+  .dependsOn(DAO, Config, PyBuilder, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
@@ -164,7 +167,12 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .configs(Test)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test", Auth % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false,
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
@@ -202,9 +210,10 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
+  .dependsOn(WorkflowCore % "test->test") // reuse RustFSContainer in MockLakeFS
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -212,7 +221,7 @@ lazy val FileService = (project in file("file-service"))
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     ) ++ nettyDependencyOverrides,
-    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    // Each testcontainers-based suite starts its own LakeFS/RustFS/Postgres stack
     // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
     // so every suite gets its own forked JVM; sbt runs forked groups one at a
     // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
@@ -225,8 +234,14 @@ lazy val FileService = (project in file("file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // MockTexeraDB, to force a UDF's execution-time binding
+lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -238,7 +253,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -274,10 +289,12 @@ lazy val TexeraProject = (project in file("."))
     Auth,
     Config,
     Resource,
+    Util,
     DAO,
     PyBuilder,
     WorkflowCore,
     WorkflowOperator,
+    WorkflowCompiler,
     // services
     AccessControlService,
     ComputingUnitManagingService,

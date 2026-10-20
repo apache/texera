@@ -17,8 +17,6 @@
  * under the License.
  */
 
-import { merge, Subject } from "rxjs";
-
 export function ContextManager<Context>(defaultContext: Context) {
   abstract class ContextManager {
     private static contextStack: Context[] = [defaultContext];
@@ -53,43 +51,4 @@ export function ContextManager<Context>(defaultContext: Context) {
   }
 
   return ContextManager;
-}
-
-export function ObservableContextManager<Context>(defaultContext: Context) {
-  abstract class ObservableContextManager extends ContextManager(defaultContext) {
-    private static enterStream = new Subject<[exiting: Context, entering: Context]>();
-    private static exitStream = new Subject<[exiting: Context, entering: Context]>();
-    private static changeContextStream = ObservableContextManager.createChangeContextStream();
-
-    public static getEnterStream() {
-      return this.enterStream.asObservable();
-    }
-
-    public static getExitStream() {
-      return this.exitStream.asObservable();
-    }
-
-    public static getChangeContextStream() {
-      return this.changeContextStream;
-    }
-
-    private static createChangeContextStream() {
-      return merge(this.getEnterStream(), this.getExitStream());
-    }
-
-    protected static enter(context: Context): void {
-      const oldContext = this.getContext();
-      const newContext = context;
-      super.enter(context);
-      this.enterStream.next([oldContext, newContext]);
-    }
-
-    protected static exit(): void {
-      const oldContext = this.getContext();
-      super.exit();
-      const newContext = this.getContext();
-      this.exitStream.next([oldContext, newContext]);
-    }
-  }
-  return ObservableContextManager;
 }

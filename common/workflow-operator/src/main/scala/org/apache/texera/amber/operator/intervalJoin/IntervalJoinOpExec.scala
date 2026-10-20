@@ -210,7 +210,11 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(desc.constant))
           case Some(TimeIntervalType.SECOND) =>
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(desc.constant))
-          case None =>
+          case _ =>
+            // Unset interval type falls back to day semantics. This has to be a
+            // catch-all rather than `case None`: an absent JSON field
+            // deserializes to Some(null), not None, so matching only on None
+            // threw a MatchError instead of taking the fallback.
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
         }
       result = processNumValue(

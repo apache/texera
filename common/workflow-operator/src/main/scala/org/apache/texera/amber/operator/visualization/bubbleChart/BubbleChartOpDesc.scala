@@ -20,12 +20,16 @@
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -39,7 +43,17 @@ import javax.validation.constraints.NotNull
   */
 
 // type can be numerical only
-class BubbleChartOpDesc extends PythonOperatorDescriptor {
+// The z column is the bubble size, which plotly express divides by a scale
+// factor, so text aborts the run. The x and y axes are positions and take any
+// type, the way a scatter plot's do.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "zValue": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
+class BubbleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
 
   @JsonProperty(value = "xValue", required = true)
   @JsonSchemaTitle("X-Column")
@@ -65,13 +79,15 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "enableColor", defaultValue = "false")
   @JsonSchemaTitle("Enable Color")
   @JsonPropertyDescription("Colors bubbles using a data column")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["colorCategory"]}""")
   var enableColor: Boolean = false
 
-  @JsonProperty(value = "colorCategory", required = true)
+  @JsonProperty(value = "colorCategory", required = false)
   @JsonSchemaTitle("Color-Column")
-  @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
+  @JsonPropertyDescription(
+    "Optional data column to color bubbles with; leave empty for uniform bubbles"
+  )
   @AutofillAttributeName
-  @NotNull(message = "Color-Column cannot be empty")
   var colorCategory: EncodableString = ""
 
   override def getOutputSchemas(
@@ -104,11 +120,10 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
     assert(xValue.nonEmpty, "X-Column cannot be empty")
     assert(yValue.nonEmpty, "Y-Column cannot be empty")
     assert(zValue.nonEmpty, "Z-Column cannot be empty")
+    // An unset column counts as "no color" even with the toggle on, else px.scatter(color='') fails.
+    val colorArg = if (enableColor && colorCategory.nonEmpty) pyb", color=$colorCategory" else pyb""
     pyb"""
-         |        if '$enableColor' == 'true':
-         |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100, color=$colorCategory))
-         |        else:
-         |            fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue, size_max=100))
+         |        fig = go.Figure(px.scatter(table, x=$xValue, y=$yValue, size=$zValue$colorArg, size_max=100))
          |"""
   }
 
@@ -145,5 +160,57 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+  // Output is an HTML chart, not a tabular DataFrame.
+  // The translator skips it in the leaf-DataFrame print block.
+  override def producesDataFrame(): Boolean = false
+
+  override def generateStandaloneCode(): String = {
+    // Same rule as the platform path: an unset column is "no color" even with the
+    // toggle on, else px.scatter(color='') fails.
+    val colorArg =
+      if (enableColor && colorCategory.nonEmpty) s""", color=${pyStringLiteral(colorCategory)}"""
+      else ""
+    val xLit = pyStringLiteral(xValue)
+    val yLit = pyStringLiteral(yValue)
+    val zLit = pyStringLiteral(zValue)
+
+    // The error page is written to the same file a plotted chart lands in, so a
+    // reason for "no chart" is where the reader looks for the chart — printing it
+    // to the terminal alone left that file absent. The heading is the
+    // runtime path's, TreeMap and all, so both paths say the same thing.
+    // render_error's continuation line keeps the runtime path's indentation, since
+    // the HTML is triple-quoted and those spaces reach the browser.
+    s"""def render_error(error_msg):
+       |    return '''<h1>TreeMap is not available.</h1>
+       |                  <p>Reasons are: {} </p>
+       |               '''.format(error_msg)
+       |
+       |def fail(error_msg):
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(render_error(error_msg))
+       |    print(f"Bubble chart error: {error_msg}")
+       |
+       |if in1df.empty:
+       |    fail("Input table is empty.")
+       |else:
+       |    # Bound to a name of its own: the same frame can feed another branch
+       |    # of the plan, which must still see every row.
+       |    chart_df = in1df.dropna(subset=[$xLit, $yLit, $zLit])
+       |    if chart_df.empty:
+       |        fail("No valid rows left (every row has at least 1 missing value).")
+       |    else:
+       |        fig = go.Figure(px.scatter(
+       |            chart_df,
+       |            x=$xLit,
+       |            y=$yLit,
+       |            size=$zLit,
+       |            size_max=100$colorArg
+       |        ))
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+       |        fig.write_json(outputJson)
+       |        fig.write_html(outputHtml)
+       |        print("Bubble chart saved to " + outputHtml)""".stripMargin
   }
 }

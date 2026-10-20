@@ -68,13 +68,16 @@ trait PauseHandler {
                       // send a pause message
                       workerInterface.pauseWorker(EmptyRequest(), mkContext(worker)).flatMap {
                         resp =>
-                          workerExecution.update(System.nanoTime(), resp.state)
+                          workerExecution.updateState(resp.stateVersion, resp.state)
                           workerInterface
                             .queryStatistics(EmptyRequest(), mkContext(worker))
                             // get the stats and current input tuple from the worker
                             .map {
                               case WorkerMetricsResponse(metrics) =>
-                                workerExecution.update(System.nanoTime(), metrics.workerStatistics)
+                                workerExecution.updateStats(
+                                  System.nanoTime(),
+                                  metrics.workerStatistics
+                                )
                             }
                       }
                     }.toSeq

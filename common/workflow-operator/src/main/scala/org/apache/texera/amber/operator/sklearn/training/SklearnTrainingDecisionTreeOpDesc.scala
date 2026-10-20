@@ -22,4 +22,5 @@ package org.apache.texera.amber.operator.sklearn.training
 class SklearnTrainingDecisionTreeOpDesc extends SklearnTrainingOpDesc {
   override def getImportStatements = "from sklearn.tree import DecisionTreeClassifier"
   override def getUserFriendlyModelName = "Training: Decision Tree"
+  override def handlesMissingValues = true
 }

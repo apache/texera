@@ -42,6 +42,11 @@ class LoopStartOpDesc extends LoopOpDesc {
   // this operator's input-port state URI and ships it to workers at setup.
   override protected def isLoopStart: Boolean = true
 
+  // The scheduler resolves this loop's bookkeeping URIs from this port's
+  // single reader (WorkflowExecutionManager requires exactly one storage
+  // pair), so fan-in here has no meaning -- put a Union before the loop.
+  override protected def disallowMultiInputLinks: Boolean = true
+
   // `initialization` and `output` are base64-wrapped by `pyb`; see
   // LoopOpDesc.generatePythonCode.
   override def generatePythonCode(): String = {

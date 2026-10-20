@@ -16,6 +16,7 @@
 # under the License.
 
 import pytest
+from loguru import logger
 
 from core.architecture.managers.statistics_manager import StatisticsManager
 from proto.org.apache.texera.amber.core import PortIdentity
@@ -138,10 +139,102 @@ class TestStatisticsManagerExecutionTime:
     def test_idle_time_clamped_to_zero_when_processing_overshoots(self):
         # When data+control exceed total_execution_time (e.g. update_total was
         # called before all increase_* calls for that interval), idle_time is
-        # clamped to 0 and a warning is logged. It must never be negative.
+        # clamped to 0. It must never be negative.
+        # No drift warning fires HERE, despite the shape of the scenario: the
+        # increase_* calls come after update_total, so processing_total was
+        # still 0 when the guard ran. The warning path needs the opposite
+        # order and is covered in TestStatisticsManagerDriftWarnings.
         mgr = StatisticsManager()
         mgr.initialize_worker_start_time(1_000)
         mgr.update_total_execution_time(1_100)  # 100ns total
         mgr.increase_data_processing_time(80)
         mgr.increase_control_processing_time(50)  # 130 > 100
         assert mgr.get_statistics().idle_time == 0
+
+
+def _capture(call) -> list:
+    """Run `call` with a record-capturing loguru sink attached and return the
+    records. The sink is attached at DEBUG, not WARNING, so that a diagnostic
+    silently DEMOTED below WARNING stays distinguishable from one that is gone
+    -- a WARNING-level sink cannot tell those two apart. loguru's logger is a
+    process-global singleton and the pytest process is shared, so the removal
+    has to happen in a finally or a leaked sink poisons every sibling suite.
+    (loguru does not propagate to stdlib logging, so caplog is not an option.)
+    """
+    records: list = []
+    handler_id = logger.add(lambda m: records.append(m.record), level="DEBUG")
+    try:
+        call()
+    finally:
+        logger.remove(handler_id)
+    return records
+
+
+def _messages(call) -> list:
+    return [r["message"] for r in _capture(call)]
+
+
+class TestStatisticsManagerDriftWarnings:
+    """The two warning paths in update_total_execution_time. Both are pure
+    diagnostics -- the value is still stored -- so the assertions pin the
+    message CONTENT and the log LEVEL, otherwise swapping the two warning
+    bodies, or escalating one to ERROR, would survive."""
+
+    def test_non_monotonic_total_execution_time_warns_and_still_stores(self):
+        mgr = StatisticsManager()
+        # The worker start time and the stored total are deliberately DIFFERENT
+        # literals (100 vs 1000). Were they equal, the message assertion below
+        # could be satisfied by _worker_start_time standing in for
+        # _total_execution_time, and would then pin neither field.
+        mgr.initialize_worker_start_time(100)
+        mgr.update_total_execution_time(1_100)  # total_execution_time = 1000
+
+        # new_total = 500 < stored 1000 -> clock went backwards.
+        records = _capture(lambda: mgr.update_total_execution_time(600))
+
+        joined = "".join(r["message"] for r in records)
+        assert "non-monotonic time" in joined
+        assert "new total 500ns < current total 1000ns" in joined
+        # Not the other warning: 500 >= data(0) + control(0).
+        assert "idle_time drift" not in joined
+        # A defensive diagnostic against clock skew, not an alert: exactly one
+        # record, and it stays at WARNING.
+        assert [r["level"].name for r in records] == ["WARNING"]
+        # Last write still wins -- the warning does not veto the update.
+        assert mgr.get_statistics().idle_time == 500
+
+        # Boundary: the guard is `<`, so re-sending the SAME timestamp is
+        # monotonic and must stay silent. main_loop calls this repeatedly, so
+        # `<=` here would warn on every unchanged timestamp.
+        assert _messages(lambda: mgr.update_total_execution_time(600)) == []
+        assert mgr.get_statistics().idle_time == 500
+
+    def test_idle_drift_warns_naming_data_and_control_totals(self):
+        mgr = StatisticsManager()
+        mgr.initialize_worker_start_time(1_000)
+        mgr.increase_data_processing_time(80)
+        mgr.increase_control_processing_time(50)  # processing_total = 130
+
+        # new_total = 100 < 130 -> idle_time would go negative.
+        records = _capture(lambda: mgr.update_total_execution_time(1_100))
+
+        joined = "".join(r["message"] for r in records)
+        assert "idle_time drift" in joined
+        assert "total_execution_time (100ns) < data (80ns) + control (50ns)" in joined
+        # Not the other warning: 100 >= stored total 0.
+        assert "non-monotonic time" not in joined
+        assert [r["level"].name for r in records] == ["WARNING"]
+        assert mgr.get_statistics().idle_time == 0
+
+        # No false alarm on the boundary. A fresh manager whose total lands
+        # EXACTLY on data+control has idle_time 0, not negative, so neither
+        # warning may fire. This pins both operands of the comparison as well
+        # as the boundary: comparing the stored total instead of new_total, or
+        # multiplying data by control instead of adding them, each makes this
+        # block warn.
+        mgr2 = StatisticsManager()
+        mgr2.initialize_worker_start_time(1_000)
+        mgr2.increase_data_processing_time(80)
+        mgr2.increase_control_processing_time(50)
+        assert _messages(lambda: mgr2.update_total_execution_time(1_130)) == []
+        assert mgr2.get_statistics().idle_time == 0

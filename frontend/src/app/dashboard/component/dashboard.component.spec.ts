@@ -44,15 +44,17 @@ import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import {
   ABOUT,
+  ADMIN_COMPUTING_UNIT,
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
   ADMIN_SETTINGS,
+  ADMIN_CU_IMAGE,
   ADMIN_USER,
   USER_COMPUTING_UNIT,
   USER_DATASET,
   USER_DISCUSSION,
-  USER_PROJECT,
   USER_QUOTA,
+  USER_WAREHOUSE,
   USER_WORKFLOW,
 } from "../../app-routing.constant";
 
@@ -163,12 +165,23 @@ describe("DashboardComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should render Google sign-in button when user is NOT logged in", () => {
+  // Sign-in moved to the dedicated /login page, so the shell offers a link to it rather than
+  // rendering a provider button of its own.
+  it("should render a sign-in link, not a provider button, when the user is NOT logged in", () => {
     (userServiceMock.isLogin as Mock).mockReturnValue(false);
+    component.isLogin = false;
     fixture.detectChanges();
 
-    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
-    expect(googleSignInBtn).toBeTruthy();
+    expect(fixture.debugElement.query(By.css("asl-google-signin-button"))).toBeNull();
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeTruthy();
+  });
+
+  it("should not render the sign-in link when the user IS logged in", () => {
+    (userServiceMock.isLogin as Mock).mockReturnValue(true);
+    component.isLogin = true;
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css(".nav-login-link"))).toBeNull();
   });
 
   it("should render the powered-by attribution when attributionEnabled is true", () => {
@@ -246,20 +259,21 @@ describe("DashboardComponent", () => {
   it("should hide the navbar on workflow workspace routes", () => {
     expect(component.isNavbarEnabled("/user/workflow/42")).toBe(false);
     expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
-    expect(component.isNavbarEnabled("/user/project")).toBe(true);
   });
 
   it("exposes route constants without the legacy /dashboard prefix", () => {
-    expect(USER_PROJECT).toBe("/user/project");
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");
     expect(USER_COMPUTING_UNIT).toBe("/user/compute");
+    expect(USER_WAREHOUSE).toBe("/user/warehouse");
     expect(USER_QUOTA).toBe("/user/quota");
     expect(USER_DISCUSSION).toBe("/user/discussion");
     expect(ADMIN_USER).toBe("/admin/user");
     expect(ADMIN_EXECUTION).toBe("/admin/execution");
+    expect(ADMIN_COMPUTING_UNIT).toBe("/admin/compute");
     expect(ADMIN_GMAIL).toBe("/admin/gmail");
     expect(ADMIN_SETTINGS).toBe("/admin/settings");
+    expect(ADMIN_CU_IMAGE).toBe("/admin/cu-image");
     expect(ABOUT).toBe("/about");
   });
 
@@ -272,10 +286,11 @@ describe("DashboardComponent", () => {
       home_enabled: true,
       workflow_enabled: true,
       dataset_enabled: true,
+      model_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,
@@ -283,33 +298,65 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs) + 4 admin links + 1 about link + 1 feedback link = 13
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(13);
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 6 admin links (incl. Computing Units
+    // and CU Images) + 1 about link + 1 feedback link = 15
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(15);
   });
 
+  const menuItemByLabel = (label: string) =>
+    fixture.debugElement
+      .queryAll(By.css("li[nz-menu-item]"))
+      .find(de => (de.nativeElement.textContent || "").trim() === label);
+
+  it("shows the Computing Units item to admins only", () => {
+    (userServiceMock.isLogin as Mock).mockReturnValue(true);
+    component.isLogin = true;
+
+    component.isAdmin = false;
+    fixture.detectChanges();
+    expect(menuItemByLabel("Computing Units")).toBeUndefined();
+
+    component.isAdmin = true;
+    fixture.detectChanges();
+    expect(menuItemByLabel("Computing Units")).toBeTruthy();
+  });
+
+  describe("warehouse tab gating (#6933)", () => {
+    beforeEach(() => {
+      (userServiceMock.isLogin as Mock).mockReturnValue(true);
+      component.isLogin = true;
+      component.sidebarTabs = { ...component.sidebarTabs, your_work_enabled: true };
+    });
+
+    it("shows the Warehouses item only while the deployment's config enables the feature", () => {
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+      fixture.detectChanges();
+      expect(menuItemByLabel("Warehouses")).toBeUndefined();
+
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      fixture.detectChanges();
+      expect(menuItemByLabel("Warehouses")).toBeTruthy();
+    });
+  });
+
+  // `componentInstance` is the `NzMenuItemComponent`; its `nzMatchRouter` input decides whether the item is
+  // highlighted on its active route.
   describe("sidebar active-route highlighting (#3490)", () => {
     const fullSidebarTabs = {
       hub_enabled: false,
       home_enabled: true,
       workflow_enabled: true,
       dataset_enabled: true,
+      model_enabled: true,
       your_work_enabled: true,
-      projects_enabled: true,
       workflows_enabled: true,
       datasets_enabled: true,
+      models_enabled: true,
       compute_enabled: true,
       quota_enabled: true,
       forum_enabled: true,
       about_enabled: true,
     };
-
-    // Find a rendered nz-menu-item <li> by its visible label; componentInstance is the
-    // NzMenuItemComponent, whose nzMatchRouter input decides whether it gets the
-    // .ant-menu-item-selected highlight on its active route.
-    const menuItemByLabel = (label: string) =>
-      fixture.debugElement
-        .queryAll(By.css("li[nz-menu-item]"))
-        .find(de => (de.nativeElement.textContent || "").trim() === label);
 
     beforeEach(() => {
       (userServiceMock.isLogin as Mock).mockReturnValue(true);

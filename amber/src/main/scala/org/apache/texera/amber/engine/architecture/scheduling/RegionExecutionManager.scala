@@ -20,9 +20,10 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
-import com.twitter.util.{Duration => TwitterDuration, Future, JavaTimer, Return, Throw, Timer}
+import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{DocumentFactory, RepositoryMountManager, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
@@ -51,8 +52,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
-import org.apache.texera.amber.engine.common.AmberLogging
+import org.apache.texera.amber.engine.common.{AmberLogging, Utils}
 import org.apache.texera.amber.engine.common.FutureBijection._
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
@@ -65,11 +65,14 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object RegionExecutionManager {
 
-  // Max EndWorker retries before termination fails. ~30s at DefaultKillRetryDelay (200ms).
-  private[scheduling] val DefaultMaxTerminationAttempts: Int = 150
+  // Terminating a region is deterministic: `EndWorker` plus `gracefulStop` either succeed, or the
+  // engine has a bug that retrying cannot fix. Retries therefore only ride out a transient
+  // failure. With `Utils.retry`'s doubling backoff, 4 attempts from a 200ms base wait
+  // 200 + 400 + 800 ms = 1.4s in the worst case, where the former 150 attempts at a flat 200ms
+  // held a whole region's teardown for ~30s before the failure surfaced.
+  private[scheduling] val DefaultMaxTerminationAttempts: Int = 4
 
-  private[scheduling] val DefaultKillRetryDelay: TwitterDuration =
-    TwitterDuration.fromMilliseconds(200)
+  private[scheduling] val DefaultKillRetryBaseBackoffMs: Long = 200L
 }
 
 /**
@@ -106,12 +109,17 @@ class RegionExecutionManager(
     coordinatorConfig: CoordinatorConfig,
     actorService: PekkoActorService,
     actorRefService: PekkoActorRefMappingService,
+    // Region-termination retry budget, handed to `Utils.retry`: `maxTerminationAttempts`
+    // attempts, waiting `killRetryBaseBackoffMs` before the first retry and doubling after each.
     maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
-    killRetryDelay: TwitterDuration = RegionExecutionManager.DefaultKillRetryDelay,
-    // Loop-back write addresses (Loop Start logical op id -> its input port's
-    // state URI), shipped to every worker in InitializeExecutorRequest. See
-    // WorkflowExecutionManager.loopStartStateUris.
-    loopStartStateUris: Map[String, String] = Map.empty
+    killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
+    killRetryTimer: Timer = new JavaTimer(true),
+    // Loop bookkeeping addresses (Loop Start logical op id -> its input
+    // port's BASE materialization URI), shipped to every worker in
+    // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
+    loopStartPortUris: Map[String, String] = Map.empty,
+    // Mounts the repositories a region's operators name; a parameter so a test can observe it.
+    ensureMounted: Set[String] => Unit = RepositoryMountManager.ensureAllMounted
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -126,7 +134,9 @@ class RegionExecutionManager(
     Unexecuted
   )
   private val terminationFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
-  private val killRetryTimer: Timer = new JavaTimer(true)
+  // Both launch phases pass through launchPhaseExecutionInternal; the second must await the
+  // first's mount rather than repeat it or race past it, hence a shared future, not a flag.
+  private val mountFutureRef: AtomicReference[Future[Unit]] = new AtomicReference(null)
 
   /**
     * Sync the status of `RegionExecution` and transition this manager's phase to `Completed` only when the
@@ -135,8 +145,16 @@ class RegionExecutionManager(
     *
     * Additionally, this method will also terminate all the workers of this region:
     *
-    * 1.  An `EndWorker` control message is first sent to all the workers. This will be the last message each worker
-    * receives. We wait for all workers have replied to indicate they have finished processing all control messages.
+    * 1.  An `EndWorker` control message is first sent to all the workers. We wait for all workers to reply that they
+    * have finished processing all control messages; a worker that has not fails the request, and
+    * `terminateWorkersWithRetry` re-sends `EndWorker` after `killRetryDelay`.
+    *
+    * Because a worker rejects `EndWorker` while work is still queued for it, termination must not be triggered from
+    * inside the handler of a request sent by one of these workers — the `EndWorker` would be emitted before that
+    * handler's own reply and overtake it on their shared FIFO control channel. Such handlers therefore send themselves
+    * a `CoordinatorInitiateAdvanceRegionExecutions` instead of advancing inline, which defers the advance that reaches
+    * here to a later coordinator round (see `PortCompletedHandler`). That orders the replies already produced; for one
+    * the coordinator has not produced yet, `EndHandler` does not count a queued reply as work.
     *
     * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (pekko message) to each
     * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by
@@ -210,11 +228,11 @@ class RegionExecutionManager(
     // 3. Log whether the kills were successful
     gracefulStopRequests.transform {
       case Return(_) =>
-        logger.info(s"Region ${region.id.id} successfully terminated.")
+        logger.debug(s"Region ${region.id.id} successfully terminated.")
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).update(System.nanoTime(), WorkerState.TERMINATED)
+              opExec.getWorkerExecution(workerId).forceTerminate()
             }
         }
         Future.Unit // propagate success
@@ -224,38 +242,42 @@ class RegionExecutionManager(
     }
   }
 
-  private def terminateWorkersWithRetry(
-      regionExecution: RegionExecution,
-      attempt: Int = 1
-  ): Future[Unit] = {
-    terminateWorkers(regionExecution).rescue {
-      case err if attempt >= maxTerminationAttempts =>
-        val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
-          case (_, opExec) => opExec.getWorkerIds
-        }.toSeq
-        val attemptsLabel = if (attempt == 1) "1 attempt" else s"$attempt attempts"
-        logger.error(
-          s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
-            s"Workers still not terminated: ${workerIds.mkString(", ")}.",
-          err
-        )
-        Future.exception(
-          new IllegalStateException(
-            s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
-              s"(workers still not terminated: ${workerIds.mkString(", ")}).",
+  private def terminateWorkersWithRetry(regionExecution: RegionExecution): Future[Unit] = {
+    Utils
+      .retry(
+        attempts = maxTerminationAttempts,
+        baseBackoffTimeInMS = killRetryBaseBackoffMs,
+        timer = killRetryTimer,
+        onRetry = (err, attempt, backoffTimeInMS) =>
+          logger.warn(
+            s"Failed to terminate region ${region.id.id} on attempt $attempt of " +
+              s"$maxTerminationAttempts. Retrying in $backoffTimeInMS ms.",
             err
           )
-        )
-      case err =>
-        logger.warn(
-          s"Failed to terminate region ${region.id.id} on attempt $attempt of $maxTerminationAttempts. " +
-            s"Retrying in ${killRetryDelay.inMilliseconds} ms.",
-          err
-        )
-        Future
-          .sleep(killRetryDelay)(killRetryTimer)
-          .flatMap(_ => terminateWorkersWithRetry(regionExecution, attempt + 1))
-    }
+      ) {
+        terminateWorkers(regionExecution)
+      }
+      .rescue {
+        // Every attempt failed. Name the workers that are still alive so the user can act on it.
+        case err =>
+          val workerIds = regionExecution.getAllOperatorExecutions.flatMap {
+            case (_, opExec) => opExec.getWorkerIds
+          }.toSeq
+          val attemptsLabel =
+            if (maxTerminationAttempts <= 1) "1 attempt" else s"$maxTerminationAttempts attempts"
+          logger.error(
+            s"Region ${region.id.id} could not be terminated after $attemptsLabel; giving up. " +
+              s"Workers still not terminated: ${workerIds.mkString(", ")}.",
+            err
+          )
+          Future.exception(
+            new IllegalStateException(
+              s"Region ${region.id.id} could not be terminated after $attemptsLabel " +
+                s"(workers still not terminated: ${workerIds.mkString(", ")}).",
+              err
+            )
+          )
+      }
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed
@@ -337,6 +359,23 @@ class RegionExecutionManager(
   }
 
   /**
+    * Mount every repository this region's operators name before any of them receives its code,
+    * which already refers to the mount paths. It happens here rather than in a worker because
+    * workers are created before either phase launches. Operators carry no mount code: they only
+    * name what they need, through `PhysicalOp.mountLocators`.
+    */
+  private def mountRegionRepositories(): Future[Unit] = {
+    val mount = Promise[Unit]()
+    if (mountFutureRef.compareAndSet(null, mount)) {
+      mount.become(Future {
+        val locators = region.getOperators.flatMap(_.mountLocators)
+        if (locators.nonEmpty) ensureMounted(locators)
+      })
+    }
+    mountFutureRef.get
+  }
+
+  /**
     * Unified logic for launching either of the two phases asynchronously.
     */
   private def launchPhaseExecutionInternal(
@@ -367,6 +406,7 @@ class RegionExecutionManager(
       )
     )
     Future(())
+      .flatMap(_ => mountRegionRepositories())
       .flatMap(_ => initExecutors(operatorsToRun, resourceConfig))
       .flatMap(_ => assignPortsLogic())
       .flatMap(_ => connectChannelsLogic())
@@ -421,6 +461,17 @@ class RegionExecutionManager(
     )
   }
 
+  /**
+    * Tags a failed worker RPC with the worker it targeted, so the `FatalError` surfaced for a
+    * region that cannot be launched can point at the failing operator/worker.
+    */
+  private def attributeFailureTo[T](workerId: ActorVirtualIdentity)(rpc: Future[T]): Future[T] =
+    rpc.rescue {
+      case err: WorkflowRuntimeException if err.relatedWorkerId.isDefined => Future.exception(err)
+      case err =>
+        Future.exception(new WorkflowRuntimeException(err.getMessage, err, Some(workerId)))
+    }
+
   private def initExecutors(
       operators: Set[PhysicalOp],
       resourceConfig: ResourceConfig
@@ -430,15 +481,18 @@ class RegionExecutionManager(
         operators
           .flatMap(physicalOp => {
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
+            val opExecInitInfo = physicalOp.executableOpExecInitInfo
             workerConfigs.map(_.workerId).map { workerId =>
-              asyncRPCClient.workerInterface.initializeExecutor(
-                InitializeExecutorRequest(
-                  workerConfigs.length,
-                  physicalOp.opExecInitInfo,
-                  physicalOp.isSourceOperator,
-                  loopStartStateUris
-                ),
-                asyncRPCClient.mkContext(workerId)
+              attributeFailureTo(workerId)(
+                asyncRPCClient.workerInterface.initializeExecutor(
+                  InitializeExecutorRequest(
+                    workerConfigs.length,
+                    opExecInitInfo,
+                    physicalOp.isSourceOperator,
+                    loopStartPortUris
+                  ),
+                  asyncRPCClient.mkContext(workerId)
+                )
               )
             }
           })
@@ -517,15 +571,17 @@ class RegionExecutionManager(
           case (globalPortId, (storageUris, partitionings, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient.workerInterface.assignPort(
-                  AssignPortRequest(
-                    globalPortId.portId,
-                    globalPortId.input,
-                    schema.toRawSchema,
-                    storageUris,
-                    partitionings
-                  ),
-                  asyncRPCClient.mkContext(workerId)
+                attributeFailureTo(workerId)(
+                  asyncRPCClient.workerInterface.assignPort(
+                    AssignPortRequest(
+                      globalPortId.portId,
+                      globalPortId.input,
+                      schema.toRawSchema,
+                      storageUris,
+                      partitionings
+                    ),
+                    asyncRPCClient.mkContext(workerId)
+                  )
                 )
             }
         }
@@ -553,8 +609,10 @@ class RegionExecutionManager(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.workerInterface
-              .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+            attributeFailureTo(workerId)(
+              asyncRPCClient.workerInterface
+                .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+            )
           }
           .toSeq
       )
@@ -580,16 +638,19 @@ class RegionExecutionManager(
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
-              asyncRPCClient.workerInterface
-                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
-                .map(resp =>
-                  // update worker state
-                  workflowExecution
-                    .getRegionExecution(region.id)
-                    .getOperatorExecution(opId)
-                    .getWorkerExecution(workerId)
-                    .update(System.nanoTime(), resp.state)
-                )
+              attributeFailureTo(workerId)(
+                asyncRPCClient.workerInterface
+                  .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+              ).map(resp =>
+                // Update worker state, ordered by the worker's logical state version
+                // (not arrival time) so this RUNNING snapshot cannot clobber a later
+                // COMPLETED if the response arrives after the worker has finished.
+                workflowExecution
+                  .getRegionExecution(region.id)
+                  .getOperatorExecution(opId)
+                  .getWorkerExecution(workerId)
+                  .updateState(resp.stateVersion, resp.state)
+              )
             }
         }
         .toSeq

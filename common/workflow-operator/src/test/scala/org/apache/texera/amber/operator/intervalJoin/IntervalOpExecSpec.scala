@@ -28,10 +28,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random.{nextInt, nextLong}
+import scala.util.Random
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1
+
+  // The generated inputs, the order they are fed in, and the interval constant all
+  // used to come from the global unseeded `scala.util.Random`, so every run drove
+  // the operator down a different set of branches. Each generator below is seeded
+  // from this constant and created fresh at its use site, so the inputs are
+  // identical on every run and independent of test execution order.
+  private val Seed: Long = 20260819L
 
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
@@ -240,8 +247,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    val leftOrder = LazyList.continually(nextInt(10)).take(leftInput.length).toList
-    val rightOrder = LazyList.continually(nextInt(10)).take(rightInput.length).toList
+    val orderRandom = new Random(Seed)
+    val leftOrder = LazyList.continually(orderRandom.nextInt(10)).take(leftInput.length).toList
+    val rightOrder = LazyList.continually(orderRandom.nextInt(10)).take(rightInput.length).toList
     val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
@@ -483,8 +491,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    val pointList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
-    val rangeList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
+    val dataRandom = new Random(Seed)
+    val pointList: Array[Long] = LazyList.continually(dataRandom.nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = LazyList.continually(dataRandom.nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",
@@ -492,7 +501,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
-      nextInt(1000).toLong,
+      dataRandom.nextInt(1000).toLong,
       pointList,
       rangeList
     )
@@ -517,6 +526,35 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(out.head.getFields.length == 4)
       } finally exec.close()
     }
+  }
+
+  it should "fall back to day semantics when timeIntervalType is left unset" in {
+    // Every other test builds the desc through the 6-argument constructor,
+    // which always supplies Some(...). Leaving `timeIntervalType` unset omits
+    // the property, and it deserializes back as Some(null) — neither a
+    // recognised unit nor None. That is what used to throw a MatchError, and
+    // it is why the fallback has to be a catch-all instead of `case None`.
+    val desc = new IntervalJoinOpDesc()
+    desc.leftAttributeName = "point"
+    desc.rightAttributeName = "range"
+    desc.constant = 3L
+    desc.includeLeftBound = true
+    desc.includeRightBound = true
+
+    val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+    exec.open()
+    try {
+      val base = Timestamp.valueOf("2020-03-05 00:00:00")
+      assert(exec.processTuple(timeStampTuple("range", 1, base), right).isEmpty)
+
+      // The fallback adds `constant` DAYS, so +2 days is inside [base, base+3d]
+      // and +4 days is outside. Dates avoid Feb 29 and DST boundaries.
+      val inside = Timestamp.valueOf("2020-03-07 00:00:00")
+      assert(exec.processTuple(timeStampTuple("point", 1, inside), left).toList.size == 1)
+
+      val outside = Timestamp.valueOf("2020-03-09 00:00:00")
+      assert(exec.processTuple(timeStampTuple("point", 1, outside), left).toList.isEmpty)
+    } finally exec.close()
   }
 
   it should "reject a join key whose type does not support interval comparison" in {

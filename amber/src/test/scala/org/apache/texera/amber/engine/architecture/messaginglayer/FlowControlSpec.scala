@@ -20,9 +20,11 @@
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
 import org.apache.texera.common.config.ApplicationConfig
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import org.apache.texera.amber.engine.common.ambermessage.{
+  DataFrame,
   WorkflowFIFOMessage,
   WorkflowFIFOMessagePayload,
   WorkflowMessage
@@ -48,6 +50,11 @@ class FlowControlSpec extends AnyFlatSpec {
   assert(msgSize == 200L)
 
   private val maxBytes = ApplicationConfig.maxCreditAllowedInBytesPerChannel
+
+  // One-field schema, used only to build the oversized DataFrame payload that
+  // trips the size-cap guard.
+  private val payloadAttr = new Attribute("payload", AttributeType.STRING)
+  private val payloadSchema: Schema = Schema().add(payloadAttr)
 
   "FlowControl" should "report full credit and not be overloaded initially" in {
     val fc = new FlowControl()
@@ -116,6 +123,33 @@ class FlowControlSpec extends AnyFlatSpec {
     assert(fc.isOverloaded, "stash still has msg(2L), so overloaded must remain true")
   }
 
+  // The fast path below the size-cap guard: while every message stays under the
+  // cap, each one is forwarded immediately rather than stashed, is charged exactly
+  // its own size against the credit, and never flips the overloaded flag. Running
+  // a whole batch rather than a single message is what catches accounting that is
+  // right for the first message and then drifts. (The guard itself is covered by
+  // "reject a message larger than the whole credit cap" further down.)
+  it should "forward every under-cap message and charge its size against the credit" in {
+    val batch = 1000L
+    // Fixture precondition: the whole batch must fit under the cap, otherwise the
+    // expectations below would be describing the stashing path instead.
+    assert(
+      batch * msgSize < maxBytes,
+      s"fixture no longer exercises the fast path: $batch * $msgSize >= $maxBytes"
+    )
+
+    val fc = new FlowControl()
+    (1L to batch).foreach { i =>
+      val out = fc.getMessagesToSend(msg(i)).toList
+      assert(out == List(msg(i)), s"message $i must be forwarded, not stashed")
+      assert(
+        fc.getCredit == maxBytes - i * msgSize,
+        s"after $i forwarded messages the credit must be down by $i * $msgSize"
+      )
+      assert(!fc.isOverloaded, s"must not be overloaded after $i under-cap messages")
+    }
+  }
+
   "FlowControl.updateQueuedCredit" should "shrink the available credit" in {
     val fc = new FlowControl()
     fc.updateQueuedCredit(100L)
@@ -146,25 +180,37 @@ class FlowControlSpec extends AnyFlatSpec {
   // Edge / invalid-input cases — credit math under abnormal conditions
   // ---------------------------------------------------------------------------
 
-  "FlowControl" should "trip the size-cap assertion for a message that exceeds maxByteAllowed" in {
-    // Build a payload whose getInMemSize returns a value larger than the
-    // configured per-channel cap. We do this by ratcheting up the Pekko-side
-    // size accounting via an oversized DataFrame stand-in: emulate by
-    // exhausting credit to <= 0 and then sending a payload that's already
-    // larger than 0 — but the assertion in source compares creditNeeded
-    // against `maxByteAllowed`, not credit. Since FixedSizePayload is 200L
-    // and maxByteAllowed is multi-GB, we cannot synthesize a too-big payload
-    // in unit-test scope without producing terabytes. Instead, lock down
-    // the *guard* shape: a message at exactly maxByteAllowed is allowed by
-    // the assertion (not strictly greater), so any 200L payload always
-    // passes — confirm that 1000 sequential 200L messages all pass the
-    // assertion regardless of credit accounting.
+  // The size-cap guard at the top of getMessagesToSend. A payload larger than the
+  // entire per-channel cap could never be sent, so FlowControl rejects it outright
+  // rather than stashing it forever. Reaching a multi-GB reported size costs
+  // almost no memory: DataFrame.inMemSize sums Tuple.inMemSize across its array
+  // without deduplicating, so an array holding the same tuple reference many
+  // times reports an oversized payload while allocating one tuple and N pointers.
+  "FlowControl.getMessagesToSend" should "reject a message larger than the whole credit cap" in {
+    val bigTuple = Tuple.builder(payloadSchema).add(payloadAttr, "x" * 100000).build()
+    val copies = (maxBytes / bigTuple.inMemSize + 1).toInt
+    val oversized = NetworkMessage(
+      1L,
+      WorkflowFIFOMessage(channelId, 1L, DataFrame(Array.fill(copies)(bigTuple)))
+    )
+    // Fixture precondition: the payload really is over the cap, so the guard is
+    // the thing under test rather than the out-of-credit branch below it.
+    val reportedSize = WorkflowMessage.getInMemSize(oversized.internalMessage)
+    assert(
+      reportedSize > maxBytes,
+      s"fixture payload is not oversized: $reportedSize <= $maxBytes"
+    )
+
     val fc = new FlowControl()
-    (1L to 1000L).foreach(i => fc.getMessagesToSend(msg(i)))
-    succeed
+    val thrown = intercept[AssertionError](fc.getMessagesToSend(oversized))
+    assert(thrown.getMessage.contains("too big to send through flow control"))
+    // The rejection must leave the channel untouched — not half-charged, and not
+    // marked overloaded as the out-of-credit branch would have done.
+    assert(fc.getCredit == maxBytes)
+    assert(!fc.isOverloaded)
   }
 
-  it should "eventually drain the stash across many ack cycles (multi-run)" in {
+  "FlowControl" should "eventually drain the stash across many ack cycles (multi-run)" in {
     val fc = new FlowControl()
     // Saturate credit and stash a batch of messages.
     fc.updateQueuedCredit(maxBytes)

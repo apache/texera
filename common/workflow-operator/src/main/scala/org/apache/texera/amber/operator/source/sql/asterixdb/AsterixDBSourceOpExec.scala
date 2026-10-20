@@ -308,7 +308,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
       .map((entry: (String, Int)) => {
         s"if_missing(${entry._1},null) field_${entry._2}"
       })
-      .mkString(", ")} FROM $desc.database.$desc.table WHERE 1 = 1 "
+      .mkString(", ")} FROM ${desc.database}.${desc.table} WHERE 1 = 1 "
   }
 
   override def addLimit(queryBuilder: StringBuilder): Unit = {

@@ -15,18 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import fs
 import importlib
 import inspect
 import itertools
 import sys
+import tempfile
+import traceback
 from cached_property import cached_property
-from fs.base import FS
 from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional
 
 from core.models import Operator, SourceOperator
+
+
+def pytexera_names() -> set:
+    """Names that `from pytexera import *` brings into a UDF."""
+    import pytexera
+
+    return set(pytexera.__all__)
 
 
 class ExecutorManager:
@@ -46,30 +53,42 @@ class ExecutorManager:
     def __init__(self):
         self.executor: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
+        # Owns the tmp directory's lifetime; see `tmp_dir`.
+        self._tmp_dir_handle: Optional[tempfile.TemporaryDirectory] = None
 
     @cached_property
-    def fs(self) -> FS:
+    def tmp_dir(self) -> Path:
         """
-        Creates a tmp fs for storing source code, which will be removed when the
-        workflow is completed.
+        Creates a tmp directory for storing source code, which will be removed
+        when the workflow is completed.
         :return:
         """
         # TODO:
         #       For various reasons when the workflow is not completed successfully,
-        #  the tmp fs could not be closed properly. This means it may leave files
-        #  in the /var/tmp folder after a partially started or failed execution.
-        #       A full-life-cycle management of tmp fs is required to consider all
-        #  possible errors happened during execution. However, the full-life-cycle
-        #  management could be hard due to errors from JAVA side which causes force
-        #  kill on the Python process.
+        #  the tmp directory could not be removed properly. This means it may leave
+        #  files in the /var/tmp folder after a partially started or failed
+        #  execution.
+        #       A full-life-cycle management of the tmp directory is required to
+        #  consider all possible errors happened during execution. However, the
+        #  full-life-cycle management could be hard due to errors from JAVA side
+        #  which causes force kill on the Python process.
         #       As each python file is usually tiny in size, and the OS can
         #  periodically clean up /var/tmp anyway, the full-life-cycle management is
         #  not a priority to be fixed.
-        temp_fs = fs.open_fs("temp://")
-        root = Path(temp_fs.getsyspath("/"))
+        #       `TemporaryDirectory` is held on the instance rather than using a
+        #  bare `mkdtemp` so that a manager abandoned without `close()` still has
+        #  its directory reclaimed when it is garbage-collected. `fs` gave us that
+        #  for free (`FS.__del__` -> `TempFS.close()` -> `clean()`); dropping it
+        #  would turn every abandoned manager into a permanent leak. Force kill
+        #  runs no finalizers either way, which is the case the TODO above is about.
+        #  `ignore_cleanup_errors=True` matches TempFS's `ignore_clean_errors=True`.
+        self._tmp_dir_handle = tempfile.TemporaryDirectory(
+            prefix="texera-udf-", ignore_cleanup_errors=True
+        )
+        root = Path(self._tmp_dir_handle.name)
         logger.debug(f"Opening a tmp directory at {root}.")
         sys.path.append(str(root))
-        return temp_fs
+        return root
 
     def gen_module_file_name(self) -> Tuple[str, str]:
         """
@@ -83,7 +102,9 @@ class ExecutorManager:
         file_name = f"{module_name}.py"
         return module_name, file_name
 
-    def load_executor_definition(self, code: str) -> type(Operator):
+    def load_executor_definition(self, code: str, is_source: bool = False) -> type(
+        Operator
+    ):
         """
         Load the given executor code in string into a class definition
         :param code: str, python code that defines an Operator, should contain one
@@ -92,41 +113,254 @@ class ExecutorManager:
         """
         module_name, file_name = self.gen_module_file_name()
 
-        with self.fs.open(file_name, "w") as file:
+        file_path = self.tmp_dir.joinpath(file_name)
+        # Pin the encoding: importlib always decodes source as UTF-8 (PEP
+        # 3120), while the builtin open() writes in the locale encoding, so a
+        # UDF containing non-ASCII text would fail to write under a non-UTF-8
+        # locale (cp1252, LC_ALL=C). `fs` was passing encoding="utf-8" and
+        # newline="" to io.open on our behalf; both are now explicit.
+        with open(file_path, "w", encoding="utf-8", newline="\n") as file:
             file.write(code)
-        logger.debug(
-            "A tmp py file is written to "
-            f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
-        )
+        logger.debug(f"A tmp py file is written to {file_path}.")
 
+        # Clear importlib's directory listing cache so freshly written
+        # temporary modules are discoverable on systems with coarse mtime.
+        importlib.invalidate_caches()
         # gen_module_file_name guarantees module_name is unique across
         # the process, so import_module will always cleanly load source
-        # from the tmp fs we just wrote — no re-import / reload dance.
-        executor_module = importlib.import_module(module_name)
+        # from the tmp directory we just wrote — no re-import / reload dance.
+        try:
+            executor_module = importlib.import_module(module_name)
+        except SyntaxError as error:
+            # SyntaxError carries its own line number; only correct it for the
+            # injected UI-parameter hook, keeping the error itself as raised.
+            self._correct_syntax_error_line(error, code)
+            raise
+        except Exception as error:
+            self._add_user_code_hint(error, str(file_path), code)
+            raise
         self.operator_module_name = module_name
 
+        # Deduplicate by identity: an alias such as `Y = X` is the same class.
         executors = list(
-            filter(self.is_concrete_operator, executor_module.__dict__.values())
+            {
+                id(value): value
+                for value in executor_module.__dict__.values()
+                if self.is_concrete_operator(value)
+            }.values()
         )
-        assert len(executors) == 1, "There should be one and only one Operator defined"
+        assert len(executors) == 1, self._explain_operator_count(
+            executors, executor_module, is_source
+        )
         return executors[0]
+
+    # Each pytexera base class and the one method a subclass must implement.
+    _BASE_CLASS_METHODS = {
+        "UDFOperatorV2": "process_tuple",
+        "UDFBatchOperator": "process_batch",
+        "UDFTableOperator": "process_table",
+        "UDFSourceOperator": "produce",
+    }
+
+    @classmethod
+    def _base_class_pairing(cls) -> str:
+        return ", ".join(
+            f"{base} -> {method}" for base, method in cls._BASE_CLASS_METHODS.items()
+        )
+
+    @classmethod
+    def _explain_operator_count(cls, executors: list, module, is_source: bool) -> str:
+        """
+        Explain why a UDF module does not define exactly one concrete Operator,
+        naming the classes involved and how to fix them.
+        """
+        opening = "There should be one and only one Operator defined. "
+        example = (
+            "`class GenerateOperator(UDFSourceOperator):`"
+            if is_source
+            else "`class ProcessTupleOperator(UDFOperatorV2):`"
+        )
+        if len(executors) > 1:
+            names = ", ".join(executor.__name__ for executor in executors)
+            return opening + (
+                f"Found {len(executors)}: {names}. Keep one and delete or comment "
+                "out the others."
+            )
+
+        user_classes = [
+            value
+            for value in module.__dict__.values()
+            if inspect.isclass(value) and value.__module__ == module.__name__
+        ]
+        abstract_classes = [c for c in user_classes if issubclass(c, Operator)]
+        if not abstract_classes:
+            if user_classes:
+                names = ", ".join(c.__name__ for c in user_classes)
+                verb = "does not" if len(user_classes) == 1 else "do not"
+                bases = (
+                    "UDFSourceOperator"
+                    if is_source
+                    else "UDFOperatorV2, UDFBatchOperator or UDFTableOperator"
+                )
+                return (
+                    f"{names} {verb} subclass a pytexera base class. "
+                    f"Subclass {bases}, e.g. {example}"
+                )
+            return opening + (
+                f"No Operator class was found. Uncomment or write exactly one class, "
+                f"e.g. {example}, and keep `from pytexera import *` at the top."
+            )
+
+        explanations = []
+        mentions_udf_bases = False
+        for abstract_class in abstract_classes:
+            name = abstract_class.__name__
+            missing = sorted(abstract_class.__abstractmethods__)
+            udf_bases = [
+                base.__name__
+                for base in abstract_class.__mro__
+                if base.__name__ in cls._BASE_CLASS_METHODS
+            ]
+            if len(udf_bases) > 1:
+                mentions_udf_bases = True
+                explanations.append(
+                    f"{name} uses more than one base class ({', '.join(udf_bases)}). "
+                    "Subclass exactly one."
+                )
+            elif len(udf_bases) == 1:
+                mentions_udf_bases = True
+                base_name = udf_bases[0]
+                explanation = (
+                    f"{name} subclasses {base_name} but does not implement "
+                    f"{', '.join(missing)}."
+                )
+                for other_base, method in cls._BASE_CLASS_METHODS.items():
+                    if other_base != base_name and method in abstract_class.__dict__:
+                        explanation += (
+                            f" If you meant {method}, subclass {other_base} instead."
+                        )
+                explanations.append(explanation)
+            else:
+                explanations.append(f"{name} does not implement {', '.join(missing)}.")
+        pairing = (
+            f" Each base class needs its own method: {cls._base_class_pairing()}."
+            if mentions_udf_bases
+            else ""
+        )
+        return " ".join(explanations) + pairing
+
+    # The UI-parameter injector (PythonUdfUiParameterInjector) appends this hook
+    # method to the end of the first UDF class, shifting the lines after it.
+    # Known limitations: the hook is found by its reserved name and its body is
+    # assumed to be the lines indented under its header, matching what the
+    # injector generates today; nothing checks that the two stay in sync.
+    # Only load errors are corrected; tracebacks of errors raised while the UDF
+    # runs (e.g. in process_tuple) still use the loaded code's line numbers.
+    _INJECTED_HOOK_NAME = "_texera_injected_ui_parameters"
+
+    @classmethod
+    def _correct_syntax_error_line(cls, error: SyntaxError, code: str) -> None:
+        """
+        Map a SyntaxError's start and end lines past the injected UI-parameter
+        hook. Each is mapped on its own, since a range can start before the hook
+        and end after it; a line inside the hook is left as reported.
+        """
+        if error.lineno is not None:
+            line = cls._user_line(code, error.lineno)
+            if line is not None:
+                error.lineno = line
+        if error.end_lineno is not None:
+            end_line = cls._user_line(code, error.end_lineno)
+            if end_line is not None:
+                error.end_lineno = end_line
+
+    @classmethod
+    def _user_line(cls, code: str, line: int) -> Optional[int]:
+        """
+        Map a line number in the code that was loaded back to the user's code by
+        skipping the injected UI-parameter hook (its decorator, header and body).
+        Returns None for a line inside the hook, which the user did not write.
+        """
+        lines = code.splitlines()
+        header = next(
+            (
+                i
+                for i, text in enumerate(lines)
+                if text.lstrip().startswith(f"def {cls._INJECTED_HOOK_NAME}(")
+            ),
+            None,
+        )
+        if header is None:
+            return line
+        start = header - 1 if lines[header - 1].strip() == "@overrides" else header
+        indent = len(lines[header]) - len(lines[header].lstrip())
+        end = header + 1
+        # The hook's body is the run of lines indented deeper than its header.
+        while (
+            end < len(lines)
+            and lines[end].strip()
+            and len(lines[end]) - len(lines[end].lstrip()) > indent
+        ):
+            end += 1
+        injected = end - start
+        # Lines are 1-based; the hook occupies lines start+1 .. end.
+        if line > end:
+            return line - injected
+        return None if line > start else line
+
+    @classmethod
+    def _add_user_code_hint(
+        cls, error: Exception, file_path: str, code: str = ""
+    ) -> None:
+        """
+        Attach a note to an error raised while importing user code, saying
+        which line of the UDF failed and, for common mistakes, how to fix it.
+        The error itself is left unchanged, so its type, message and
+        attributes stay exactly as raised; the note is shown with it.
+        """
+        location = ""
+        user_lines = [
+            frame.lineno
+            for frame in traceback.extract_tb(error.__traceback__)
+            if frame.filename == file_path
+        ]
+        if user_lines:
+            line = cls._user_line(code, user_lines[-1])
+            location = (
+                f"({type(error).__name__} at line {line} of the UDF code)"
+                if line is not None
+                else f"({type(error).__name__} in the generated UI-parameter code)"
+            )
+        fix = ""
+        if isinstance(error, NameError) and error.name in pytexera_names():
+            fix = "Add `from pytexera import *` at the top of the UDF."
+        elif "No super class method found" in str(error):
+            fix = (
+                f"The method must match the base class: {cls._base_class_pairing()}. "
+                "If it is a helper method, remove @overrides instead."
+            )
+        if fix:
+            error.add_note(f"{location}. {fix}" if location else fix)
+        elif location:
+            error.add_note(location)
 
     def close(self) -> None:
         """
-        Close the tmp fs and release all resources created within it.
+        Remove the tmp directory and release all resources created within it.
         This also evicts the loaded operator module from ``sys.modules``
-        and removes the tmp fs path from ``sys.path`` so a single call
-        fully reverses every global side-effect performed by ``fs`` and
+        and removes the tmp directory from ``sys.path`` so a single call
+        fully reverses every global side-effect performed by ``tmp_dir`` and
         ``load_executor_definition``.
         :return:
         """
-        if "fs" not in self.__dict__:
-            # fs was never materialized; nothing to clean up.
+        if "tmp_dir" not in self.__dict__:
+            # the tmp directory was never materialized; nothing to clean up.
             return
-        root = self.fs.getsyspath("/")
-        self.fs.close()
+        root = self.tmp_dir
+        self._tmp_dir_handle.cleanup()
+        self._tmp_dir_handle = None
         try:
-            sys.path.remove(str(Path(root)))
+            sys.path.remove(str(root))
         except ValueError:
             pass
         if self.operator_module_name is not None:
@@ -145,6 +379,18 @@ class ExecutorManager:
             inspect.isclass(cls)
             and issubclass(cls, Operator)
             and not inspect.isabstract(cls)
+        )
+
+    @staticmethod
+    def _source_mismatch_message(is_source: bool) -> str:
+        if is_source:
+            return (
+                "Please use SourceOperator API for source operators: this is a "
+                "1-out UDF, so subclass UDFSourceOperator and implement produce()."
+            )
+        return (
+            "This UDF reads input, so it cannot use UDFSourceOperator: subclass "
+            "UDFOperatorV2, UDFBatchOperator or UDFTableOperator instead."
         )
 
     def initialize_executor(self, code: str, is_source: bool, language: str) -> None:
@@ -174,11 +420,11 @@ class ExecutorManager:
                 )
             self.executor = executor_class(code)
         else:
-            executor: type(Operator) = self.load_executor_definition(code)
+            executor: type(Operator) = self.load_executor_definition(code, is_source)
             self.executor = executor()
             self.executor.is_source = is_source
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
-            "Please use SourceOperator API for source operators."
+            self._source_mismatch_message(is_source)
         )
 
     def update_executor(self, code: str, is_source: bool) -> None:
@@ -192,11 +438,11 @@ class ExecutorManager:
         :return:
         """
         original_internal_state = self.executor.__dict__
-        executor: type(Operator) = self.load_executor_definition(code)
+        executor: type(Operator) = self.load_executor_definition(code, is_source)
         self.executor = executor()
         self.executor.is_source = is_source
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
-            "Please use SourceOperator API for source operators."
+            self._source_mismatch_message(is_source)
         )
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
