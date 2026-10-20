@@ -70,10 +70,10 @@ function resolveInputLinks(
 ): { links: Omit<OperatorLink, "linkID">[] } | { error: string } {
   const links: Omit<OperatorLink, "linkID">[] = [];
   for (const [portIndexStr, sourceOpIds] of Object.entries(inputOperatorIds ?? {})) {
-    const targetPortIdx = parseInt(portIndexStr, 10);
-    if (isNaN(targetPortIdx) || targetPortIdx < 0) {
+    if (!/^\d+$/.test(portIndexStr)) {
       return { error: `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}` };
     }
+    const targetPortIdx = parseInt(portIndexStr, 10);
     if (targetPortIdx >= inputPorts.length) {
       return {
         error: `Input port index ${targetPortIdx} out of range. Operator "${operatorId}" has ${inputPorts.length} input port(s). ${inputInfo}`,
@@ -82,6 +82,9 @@ function resolveInputLinks(
     const targetPortId = inputPorts[targetPortIdx].portID;
 
     for (const sourceOpId of sourceOpIds) {
+      if (sourceOpId === operatorId) {
+        return { error: `Operator "${operatorId}" cannot be its own input source. ${inputInfo}` };
+      }
       const sourceOp = workflowState.getOperator(sourceOpId);
       if (!sourceOp) {
         return {
