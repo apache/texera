@@ -335,6 +335,41 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("selectTuple", () => {
+    it.each([10, 25, 50, 100])("requests a row on the next %i-row page with a backend-safe column limit", pageSize => {
+      const events = mockWorkflowWebsocketService.subscribeToEvent.mock.results[0]
+        .value as Subject<PaginatedResultEvent>;
+      const received: unknown[] = [];
+      service.selectTuple(pageSize, pageSize).subscribe(result => received.push(result.tuple));
+      const request = mockWorkflowWebsocketService.send.mock.calls[0][1] as {
+        requestID: string;
+        columnLimit: number;
+      };
+      // ResultPaginationRequest.columnLimit is a Scala Int, not a JavaScript safe integer.
+      expect(request.columnLimit).toBe(2_147_483_647);
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({ pageIndex: 2, pageSize, columnOffset: 0 })
+      );
+      events.next({
+        requestID: request.requestID,
+        operatorID: "testOperator",
+        pageIndex: 2,
+        table: [{ id: pageSize + 1, category: "日本", missing: "NULL" }],
+        schema: [],
+      });
+      expect(received).toEqual([{ id: pageSize + 1, category: "日本", missing: "NULL" }]);
+    });
+
+    it("returns no tuple when the server answers an empty page", () => {
+      const events = mockWorkflowWebsocketService.subscribeToEvent.mock.results[0]
+        .value as Subject<PaginatedResultEvent>;
+      const received: unknown[] = [];
+      service.selectTuple(100, 100).subscribe(result => received.push(result.tuple));
+      const request = mockWorkflowWebsocketService.send.mock.calls[0][1] as { requestID: string };
+      events.next({ requestID: request.requestID, operatorID: "testOperator", pageIndex: 2, table: [], schema: [] });
+      expect(received).toEqual([undefined]);
+    });
+
     it("should return the correct tuple and schema", async () => {
       const testSchema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
@@ -409,6 +444,7 @@ describe("OperatorPaginationResultService", () => {
         schema: [{ attributeName: "id", attributeType: "integer" }],
       });
       expect(service.getCurrentPageIndex()).toBe(2);
+      expect(service.getCurrentPageSize()).toBe(10);
     });
 
     it("fetches from the server and resolves once the matching page event arrives", () => {
@@ -422,6 +458,7 @@ describe("OperatorPaginationResultService", () => {
         expect.objectContaining({ operatorID: "testOperator", pageIndex: 3, pageSize: 10 })
       );
       expect(service.getCurrentPageIndex()).toBe(3);
+      expect(service.getCurrentPageSize()).toBe(10);
 
       const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
       const page: PaginatedResultEvent = {
@@ -484,12 +521,15 @@ describe("OperatorPaginationResultService", () => {
       (service as any).pendingRequests.set("req", new Subject());
       (service as any).currentPageIndex = 5;
       (service as any).currentTotalNumTuples = 99;
+      service.selectPage(5, 25);
+      expect(service.getCurrentPageSize()).toBe(25);
 
       service.reset();
 
       expect((service as any).resultCache.size).toBe(0);
       expect((service as any).pendingRequests.size).toBe(0);
       expect(service.getCurrentPageIndex()).toBe(1);
+      expect(service.getCurrentPageSize()).toBeUndefined();
       expect(service.getCurrentTotalNumTuples()).toBe(0);
     });
   });

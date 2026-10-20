@@ -17,7 +17,16 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges,
+  ViewChild,
+} from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import {
   NzTableQueryParams,
@@ -31,7 +40,6 @@ import {
 } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
-import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -48,6 +56,7 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { ResultCellIconComponent } from "./result-cell-icon.component";
 
 export type MediaCellType = "video" | "audio" | "image" | "text";
 
@@ -75,6 +84,7 @@ export type MediaCellType = "video" | "audio" | "image" | "text";
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
+    ResultCellIconComponent,
     NzTableComponent,
     NzTheadComponent,
     NzTrDirective,
@@ -88,6 +98,7 @@ export type MediaCellType = "video" | "audio" | "image" | "text";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+  @ViewChild("tableContainer") private tableContainer?: ElementRef<HTMLElement>;
 
   // display result table
   currentColumns?: TableColumn[];
@@ -105,14 +116,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   // this starts from **ONE**, not zero
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
-  pageSize = 5;
+  pageSize = 50;
+  readonly pageSizeOptions = [10, 25, 50, 100];
+  hasReceivedResult = false;
+  private resultRequestVersion = 0;
   currentColumnOffset = 0;
   columnLimit = 25;
   columnSearch = "";
-  panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
-  widthPercent: string = "";
+  // Fixed-header tables have separate header/body elements. Give both the same
+  // column widths so statistics cannot widen just the header's intrinsic layout.
+  readonly columnWidth = 180;
   isOperatorFinished: boolean = false;
 
   // Media type of each cell, precomputed once per row when result data arrives so the
@@ -126,7 +141,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
@@ -135,13 +149,36 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes.operatorId) {
+      ++this.resultRequestVersion;
+      this.currentResult = [];
+      this.currentColumns = undefined;
+      this.cellMediaTypes.clear();
+      this.hasReceivedResult = false;
+      this.isLoadingResult = false;
+      this.isFrontPagination = true;
+      this.isOperatorFinished = false;
+      this.currentPageIndex = 1;
+      this.pageSize = 50;
+      this.totalNumTuples = 0;
+      this.currentColumnOffset = 0;
+      this.columnSearch = "";
+      this.tableStats = {};
+      this.prevTableStats = {};
+    }
     this.operatorId = changes.operatorId?.currentValue;
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
-        this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
+        const pageSize = paginatedResultService.getCurrentPageSize();
+        if (pageSize !== undefined && this.pageSizeOptions.includes(pageSize)) {
+          this.pageSize = pageSize;
+        }
+        const pageIndex = paginatedResultService.getCurrentPageIndex();
+        const lastPage = Math.max(1, Math.ceil(this.totalNumTuples / this.pageSize));
+        this.currentPageIndex = Number.isSafeInteger(pageIndex) ? Math.max(1, Math.min(pageIndex, lastPage)) : 1;
         this.changePaginatedResultData();
 
         this.tableStats = paginatedResultService.getStats();
@@ -176,11 +213,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
           return;
         }
-        let columnCount = this.currentColumns?.length;
-        if (columnCount) this.widthPercent = (1 / columnCount) * 100 + "%";
         this.isFrontPagination = false;
         this.totalNumTuples = opUpdate.totalNumTuples;
-        if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
+        const lastPage = Math.max(1, Math.ceil(this.totalNumTuples / this.pageSize));
+        const pageChanged = this.currentPageIndex > lastPage;
+        if (pageChanged) {
+          this.currentPageIndex = lastPage;
+          this.scrollToFirstRow();
+        }
+        if (this.totalNumTuples === 0) {
+          ++this.resultRequestVersion;
+          this.setupResultTable([], 0);
+        } else if (pageChanged || opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
         this.changeDetectorRef.detectChanges();
@@ -203,21 +247,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           }
         }
       });
-
-    this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
-      this.panelHeight = size.height;
-      this.adjustPageSizeBasedOnPanelSize(size.height);
-      let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-      while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
-        this.currentPageIndex -= 1;
-      }
-    });
-
-    if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      if (paginatedResultService) {
-      }
-    }
   }
 
   checkKeys(
@@ -277,46 +306,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Adjusts the number of result rows displayed per page based on the
-   * available vertical space of the Texera results panel.
-   *
-   * The method accounts for fixed UI elements within the panel—such as
-   * headers, column navigation controls, pagination, and the search bar—
-   * to determine the remaining space available for rendering result rows.
-   * The page size is then recalculated using the height of a single table row.
-   *
-   * To maintain a stable user experience during panel resizes, the current
-   * page index is recomputed so that the previously visible results remain
-   * in view and the user does not experience an abrupt jump in the dataset.
-   *
-   * @param panelHeight - The total height (in pixels) of the results panel.
-   */
-  private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const TABLE_HEADER_HEIGHT = 38.62;
-    const PANEL_HEADER_HEIGHT = 64.27; // Includes panel title and tab bar
-    const COLUMN_NAVIGATION_HEIGHT = 56.6; // Previous/Next columns controls
-    const PAGINATION_HEIGHT = 32.63;
-    const SEARCH_BAR_HEIGHT_WITH_MARGIN = 77; // Approximate height for search bar and margins
-    const ROW_HEIGHT = 38.62;
-
-    const usedHeight =
-      TABLE_HEADER_HEIGHT +
-      PANEL_HEADER_HEIGHT +
-      COLUMN_NAVIGATION_HEIGHT +
-      PAGINATION_HEIGHT +
-      SEARCH_BAR_HEIGHT_WITH_MARGIN;
-
-    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
-
-    const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
-
-    this.pageSize = newPageSize;
-    this.resizeService.pageSize = newPageSize;
-
-    this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
-  }
-
-  /**
    * Callback function for table query params changed event
    *   params containing new page index, new page size, and more
    *   (this function will be called when user switch page)
@@ -324,15 +313,33 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param params new parameters
    */
   onTableQueryParamsChange(params: NzTableQueryParams) {
-    if (this.isFrontPagination) {
+    if (
+      !this.operatorId ||
+      !this.pageSizeOptions.includes(params.pageSize) ||
+      !Number.isSafeInteger(params.pageIndex) ||
+      params.pageIndex < 1
+    ) {
       return;
     }
-    if (!this.operatorId) {
-      return;
-    }
-    this.currentPageIndex = params.pageIndex;
+    const sizeChanged = this.pageSize !== params.pageSize;
+    const pageIndex = sizeChanged ? 1 : params.pageIndex;
+    const queryChanged = sizeChanged || this.currentPageIndex !== pageIndex;
+    this.pageSize = params.pageSize;
+    this.currentPageIndex = pageIndex;
 
-    this.changePaginatedResultData();
+    if (queryChanged) {
+      this.scrollToFirstRow();
+    }
+    if (!this.isFrontPagination && queryChanged) {
+      this.changePaginatedResultData();
+    }
+  }
+
+  private scrollToFirstRow(): void {
+    const body = this.tableContainer?.nativeElement.querySelector<HTMLElement>(".ant-table-body");
+    if (body) {
+      body.scrollTop = 0;
+    }
   }
 
   /**
@@ -347,7 +354,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex, pageSize: this.pageSize },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
@@ -358,7 +365,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
             const component = modalRef.componentInstance;
             if (component) {
               component.rowIndex -= 1;
-              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
+              this.showPageForRow(component.rowIndex);
               component.ngOnChanges();
             }
           },
@@ -370,7 +377,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
             const component = modalRef.componentInstance;
             if (component) {
               component.rowIndex += 1;
-              this.currentPageIndex = Math.floor(component.rowIndex / this.pageSize) + 1;
+              this.showPageForRow(component.rowIndex);
               component.ngOnChanges();
             }
           },
@@ -387,6 +394,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     });
   }
 
+  private showPageForRow(rowIndex: number): void {
+    const pageIndex = Math.floor(rowIndex / this.pageSize) + 1;
+    if (pageIndex !== this.currentPageIndex) {
+      this.currentPageIndex = pageIndex;
+      this.scrollToFirstRow();
+      if (!this.isFrontPagination) {
+        this.changePaginatedResultData();
+      }
+    }
+  }
+
   // frontend table data must be changed, because:
   // 1. result panel is opened - must display currently selected page
   // 2. user selects a new page - must display new page data
@@ -400,11 +418,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return;
     }
     this.isLoadingResult = true;
+    const requestVersion = ++this.resultRequestVersion;
+    const operatorId = this.operatorId;
     paginatedResultService
       .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
-        if (this.currentPageIndex === pageData.pageIndex) {
+        if (
+          requestVersion === this.resultRequestVersion &&
+          operatorId === this.operatorId &&
+          this.currentPageIndex === pageData.pageIndex
+        ) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
           this.changeDetectorRef.detectChanges();
         }
@@ -422,12 +446,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
+    this.isLoadingResult = false;
+    this.hasReceivedResult = true;
+    this.totalNumTuples = totalRowCount;
     if (resultData.length < 1) {
+      this.currentResult = [];
+      this.cellMediaTypes.clear();
       return;
     }
-
-    this.isLoadingResult = false;
-    this.changeDetectorRef.detectChanges();
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]

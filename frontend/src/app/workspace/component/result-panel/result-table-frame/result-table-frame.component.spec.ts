@@ -25,7 +25,7 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
-import { NzTableModule, NzTableQueryParams } from "ng-zorro-antd/table";
+import { NzTableComponent, NzTableModule, NzTableQueryParams } from "ng-zorro-antd/table";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
@@ -45,6 +45,7 @@ import { PaginatedResultEvent } from "../../../types/workflow-websocket.interfac
 import { IndexableObject } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 
 type OperatorStatsMap = Record<string, Record<string, Record<string, number>>>;
 
@@ -76,6 +77,7 @@ describe("ResultTableFrameComponent", () => {
     const paginatedResultService = {
       getCurrentTotalNumTuples: vi.fn().mockReturnValue(42),
       getCurrentPageIndex: vi.fn().mockReturnValue(1),
+      getCurrentPageSize: vi.fn().mockReturnValue(undefined),
       getStats: vi.fn().mockReturnValue({ name: { min: 1 } }),
       selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
       ...overrides,
@@ -92,7 +94,12 @@ describe("ResultTableFrameComponent", () => {
     dirtyPageIndices,
   });
 
-  const queryParams = (pageIndex: number): NzTableQueryParams => ({ pageIndex, pageSize: 5, sort: [], filter: [] });
+  const queryParams = (pageIndex: number, pageSize = 50): NzTableQueryParams => ({
+    pageIndex,
+    pageSize,
+    sort: [],
+    filter: [],
+  });
 
   // `commonTestProviders` supplies MockGuiConfigService, which is what the component receives,
   // so the deployment's export switch is driven through it.
@@ -152,8 +159,7 @@ describe("ResultTableFrameComponent", () => {
 
   // NOTE: this exercises the *missing operator* guard, not the empty-result guard - the
   // fixture built in beforeEach has no operatorId, so setupResultTable returns before it
-  // ever looks at the row count. The empty-result guard is covered by
-  // "keeps the existing table when the fetched page comes back empty" below.
+  // ever looks at the row count. Empty pages are tested separately below.
   it("currentResult should not be modified if setupResultTable is called without a selected operator", () => {
     component.currentResult = [{ test: "property" }];
     component.setupResultTable([], 0);
@@ -165,6 +171,104 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("ngOnChanges", () => {
+    it.each([10, 25, 100])(
+      "restores the operator's %i-row page after destroying and recreating its frame",
+      pageSize => {
+        const ws = TestBed.inject(WorkflowWebsocketService);
+        const send = vi.spyOn(ws, "send").mockImplementation(() => {});
+        const events = (ws as any).webSocketResponseSubject;
+        events.next({
+          type: "WebResultUpdateEvent",
+          updates: { op1: paginationUpdate(125, []), op2: paginationUpdate(125, []) },
+          tableStats: {},
+        });
+        const showOperator = (operatorId: string): void => {
+          fixture.destroy();
+          fixture = TestBed.createComponent(ResultTableFrameComponent);
+          component = fixture.componentInstance;
+          fixture.componentRef.setInput("operatorId", operatorId);
+          fixture.detectChanges();
+        };
+        const receivePage = (): void => {
+          const request = send.mock.lastCall![1] as {
+            requestID: string;
+            operatorID: string;
+            pageIndex: number;
+            pageSize: number;
+          };
+          const start = (request.pageIndex - 1) * request.pageSize;
+          events.next({
+            type: "PaginatedResultEvent",
+            requestID: request.requestID,
+            operatorID: request.operatorID,
+            pageIndex: request.pageIndex,
+            schema: [{ attributeName: "id", attributeType: "integer" }],
+            table: Array.from({ length: Math.min(request.pageSize, 125 - start) }, (_, index) => ({
+              id: start + index + 1,
+            })),
+          });
+          fixture.detectChanges();
+        };
+
+        showOperator("op1");
+        receivePage();
+        component.onTableQueryParamsChange(queryParams(1, pageSize));
+        component.onTableQueryParamsChange(queryParams(2, pageSize));
+        receivePage();
+        const previousRows = component.currentResult;
+        expect(previousRows[0]).toEqual({ id: pageSize + 1 });
+
+        showOperator("op2");
+        receivePage();
+        expect(component.pageSize).toBe(50);
+        expect(component.currentPageIndex).toBe(1);
+        showOperator("op1");
+        receivePage();
+        expect(component.pageSize).toBe(pageSize);
+        expect(component.currentPageIndex).toBe(2);
+        expect(component.currentResult).toEqual(previousRows);
+      }
+    );
+
+    it.each([0, -1, 1.5, NaN, Infinity, 10])(
+      "clamps a restored page index of %s before requesting results",
+      pageIndex => {
+        const paginated = makePaginatedResultService({
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
+          getCurrentPageIndex: vi.fn().mockReturnValue(pageIndex),
+        });
+        component.ngOnChanges({ operatorId: new SimpleChange(undefined, "op1", true) });
+        expect(paginated.selectPage).toHaveBeenCalledWith(1, 50, 0, GUI_CONFIG_LIMIT, "");
+        expect(component.currentPageIndex).toBe(1);
+      }
+    );
+
+    it.each([0, -1, 5, 1000, NaN, Infinity])("falls back to 50 rows for unsupported stored page size %s", pageSize => {
+      const paginated = makePaginatedResultService({ getCurrentPageSize: vi.fn().mockReturnValue(pageSize) });
+      component.ngOnChanges({ operatorId: new SimpleChange(undefined, "op1", true) });
+      expect(paginated.selectPage).toHaveBeenCalledWith(1, 50, 0, GUI_CONFIG_LIMIT, "");
+      expect(component.pageSize).toBe(50);
+    });
+
+    it("clears the previous operator's rows, page and search when switching operators", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 60);
+      component.currentPageIndex = 2;
+      component.currentColumnOffset = 15;
+      component.columnSearch = "name";
+      component.isLoadingResult = true;
+      vi.spyOn(workflowResultService, "getPaginatedResultService").mockReturnValue(undefined);
+      component.ngOnChanges({ operatorId: new SimpleChange("op1", "op2", false) });
+      fixture.detectChanges();
+      expect(component.currentResult).toEqual([]);
+      expect(component.currentColumns).toBeUndefined();
+      expect(component.totalNumTuples).toBe(0);
+      expect(component.currentPageIndex).toBe(1);
+      expect(component.columnSearch).toBe("");
+      expect(component.currentColumnOffset).toBe(0);
+      expect(component.isLoadingResult).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain("View Results");
+    });
     it("ignores a change that carries no operator id", () => {
       const getServiceSpy = vi.spyOn(workflowResultService, "getPaginatedResultService");
 
@@ -202,6 +306,34 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("changePaginatedResultData", () => {
+    it("ignores an older response after changing page size on the same page", () => {
+      const oldPage = new Subject<PaginatedResultEvent>();
+      const newPage = new Subject<PaginatedResultEvent>();
+      const paginated = makePaginatedResultService({
+        selectPage: vi.fn().mockReturnValueOnce(oldPage).mockReturnValueOnce(newPage),
+      });
+      component.operatorId = "op1";
+      component.isFrontPagination = false;
+      component.changePaginatedResultData();
+      component.onTableQueryParamsChange(queryParams(1, 25));
+      newPage.next(makePageEvent(1, [{ name: "new" }]));
+      oldPage.next(makePageEvent(1, [{ name: "old" }]));
+
+      expect(paginated.selectPage).toHaveBeenLastCalledWith(1, 25, 0, GUI_CONFIG_LIMIT, "");
+      expect(component.currentResult).toEqual([{ name: "new" }]);
+      expect(component.isLoadingResult).toBe(false);
+    });
+
+    it("does not populate a different operator with a late response", () => {
+      const response = new Subject<PaginatedResultEvent>();
+      makePaginatedResultService({ selectPage: vi.fn().mockReturnValue(response) });
+      component.operatorId = "op1";
+      component.changePaginatedResultData();
+      component.operatorId = "op2";
+      response.next(makePageEvent(1));
+      expect(component.currentResult).toEqual([]);
+    });
+
     it("is a no-op without an operator id or a paginated result service", () => {
       const getServiceSpy = vi.spyOn(workflowResultService, "getPaginatedResultService").mockReturnValue(undefined);
 
@@ -240,26 +372,20 @@ describe("ResultTableFrameComponent", () => {
       expect(component.totalNumTuples).toBe(0);
     });
 
-    it("keeps the existing table when the fetched page comes back empty", () => {
+    it("clears stale rows and loading when the fetched page comes back empty", () => {
       component.operatorId = "op1";
       const row: IndexableObject = { media: "https://example.com/clip.mp4" };
       // build the "existing table" through the real code path so that cellMediaTypes is
       // populated for real, making a guard that wiped it visible in the assertions below
       component.setupResultTable([row], 5);
 
-      // An empty page whose reported total is NONZERO: the row count shrank while the user
-      // sat on a page index past the new end. The two comparands differ, so this pins that
-      // the guard tests the length of the fetched page and not the reported total.
+      component.isLoadingResult = true;
       component.setupResultTable([], 7);
 
-      expect(component.currentResult).toEqual([row]);
-      expect(component.currentColumns?.map(c => c.columnDef)).toEqual(["media"]);
-      // still the total from the non-empty page: the guard returns before totalNumTuples is
-      // reassigned from totalRowCount
-      expect(component.totalNumTuples).toBe(5);
-      // the precomputed media-type map is part of the table state and must survive as well,
-      // otherwise every media cell of the still-displayed table degrades to plain text
-      expect(component.getCellMediaType(row, 0)).toBe("video");
+      expect(component.currentResult).toEqual([]);
+      expect(component.totalNumTuples).toBe(7);
+      expect(component.cellMediaTypes.size).toBe(0);
+      expect(component.isLoadingResult).toBe(false);
     });
 
     it("builds columns from the first row and drops the internal _id column", () => {
@@ -302,6 +428,34 @@ describe("ResultTableFrameComponent", () => {
       vi.spyOn(workflowResultService, "getResultUpdateStream").mockReturnValue(resultUpdates.asObservable());
     });
 
+    it("clamps to the last remaining page when results shrink", () => {
+      const paginated = makePaginatedResultService({
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(60),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(2))),
+      });
+      recreateComponent("op1");
+      component.currentPageIndex = 4;
+      resultUpdates.next({ op1: paginationUpdate(60, [1]) });
+      expect(component.currentPageIndex).toBe(2);
+      expect(paginated.selectPage).toHaveBeenCalledWith(2, 50, 0, GUI_CONFIG_LIMIT, "");
+    });
+
+    it("clears stale rows after a zero-row update even when no page is marked dirty", () => {
+      const pending = new Subject<PaginatedResultEvent>();
+      makePaginatedResultService({ selectPage: vi.fn().mockReturnValue(pending) });
+      recreateComponent("op1");
+      component.setupResultTable([SAMPLE_ROW], 1);
+      component.changePaginatedResultData();
+      resultUpdates.next({ op1: paginationUpdate(0, []) });
+      pending.next(makePageEvent(1));
+      fixture.detectChanges();
+      expect(component.currentResult).toEqual([]);
+      expect(component.currentPageIndex).toBe(1);
+      expect(component.isLoadingResult).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain("Empty result set");
+      expect(fixture.nativeElement.textContent).not.toContain("View Results");
+    });
+
     it("refreshes the table when the currently shown page becomes dirty", () => {
       const paginated = makePaginatedResultService({
         getCurrentTotalNumTuples: vi.fn().mockReturnValue(77),
@@ -315,7 +469,7 @@ describe("ResultTableFrameComponent", () => {
       resultUpdates.next({ op1: paginationUpdate(77, [1]) });
 
       expect(component.isFrontPagination).toBe(false);
-      expect(component.widthPercent).toBe("50%");
+      expect(component.columnWidth).toBe(180);
       expect(paginated.selectPage).toHaveBeenCalledWith(1, component.pageSize, 0, GUI_CONFIG_LIMIT, "");
       expect(component.currentResult).toEqual([SAMPLE_ROW]);
       expect(component.totalNumTuples).toBe(77);
@@ -329,7 +483,7 @@ describe("ResultTableFrameComponent", () => {
 
       expect(component.totalNumTuples).toBe(63);
       expect(component.isFrontPagination).toBe(false);
-      expect(component.widthPercent).toBe("");
+      expect(component.columnWidth).toBe(180);
       expect(paginated.selectPage).not.toHaveBeenCalled();
     });
 
@@ -513,40 +667,69 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("panel resizing", () => {
-    it("recomputes the page size from the available height", () => {
-      component.totalNumTuples = 3;
-
+    it("keeps the default 50-row page when the panel grows", () => {
+      expect(component.pageSize).toBe(50);
       resizeService.changePanelSize(800, 700);
-
-      expect(component.panelHeight).toBe(700);
-      expect(component.pageSize).toBe(11);
-      expect(resizeService.pageSize).toBe(11);
+      expect(component.pageSize).toBe(50);
       expect(component.currentPageIndex).toBe(1);
     });
 
-    it("clamps the page index to the last available page when the panel shrinks", () => {
-      component.totalNumTuples = 3;
-      component.currentPageIndex = 5;
-      component.pageSize = 5;
-
+    it("preserves the selected page and page size without fetching on resize", () => {
+      const fetch = vi.spyOn(component, "changePaginatedResultData");
+      component.totalNumTuples = 100;
+      component.currentPageIndex = 3;
+      component.pageSize = 25;
       resizeService.changePanelSize(800, 300);
-
-      expect(component.pageSize).toBe(1);
+      expect(component.pageSize).toBe(25);
       expect(component.currentPageIndex).toBe(3);
+      expect(fetch).not.toHaveBeenCalled();
     });
   });
 
   describe("onTableQueryParamsChange", () => {
-    it("ignores page changes under front-end pagination or without an operator", () => {
+    it("tracks front-end pagination for absolute row indices without requesting server data", () => {
+      const fetch = vi.spyOn(component, "changePaginatedResultData");
       component.isFrontPagination = true;
       component.operatorId = "op1";
       component.onTableQueryParamsChange(queryParams(3));
-      expect(component.currentPageIndex).toBe(1);
+      expect(component.currentPageIndex).toBe(3);
+      expect(fetch).not.toHaveBeenCalled();
+    });
 
+    it("ignores page changes without an operator", () => {
       component.isFrontPagination = false;
       component.operatorId = undefined;
       component.onTableQueryParamsChange(queryParams(3));
       expect(component.currentPageIndex).toBe(1);
+    });
+
+    it("resets to page one when selecting a different supported page size", () => {
+      const paginated = makePaginatedResultService();
+      component.operatorId = "op1";
+      component.isFrontPagination = false;
+      component.currentPageIndex = 3;
+      component.onTableQueryParamsChange(queryParams(3, 100));
+      expect(component.pageSize).toBe(100);
+      expect(component.currentPageIndex).toBe(1);
+      expect(paginated.selectPage).toHaveBeenCalledWith(1, 100, 0, GUI_CONFIG_LIMIT, "");
+    });
+
+    it.each([0, -1, 5, 1000, NaN, Infinity])("rejects unsupported page size %s", pageSize => {
+      const fetch = vi.spyOn(component, "changePaginatedResultData");
+      component.operatorId = "op1";
+      component.isFrontPagination = false;
+      component.onTableQueryParamsChange(queryParams(1, pageSize));
+      expect(component.pageSize).toBe(50);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it.each([0, -1, 1.5, NaN, Infinity])("rejects invalid page index %s", pageIndex => {
+      const fetch = vi.spyOn(component, "changePaginatedResultData");
+      component.operatorId = "op1";
+      component.isFrontPagination = false;
+      component.onTableQueryParamsChange(queryParams(pageIndex));
+      expect(component.currentPageIndex).toBe(1);
+      expect(fetch).not.toHaveBeenCalled();
     });
 
     it("fetches the newly selected page from the paginated result service", () => {
@@ -565,6 +748,24 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("row detail modal", () => {
+    it("refreshes the table when modal navigation crosses a page boundary", () => {
+      const modalComponent = { rowIndex: 24, ngOnChanges: vi.fn() };
+      const create = vi.spyOn(modalService, "create").mockReturnValue({ componentInstance: modalComponent } as any);
+      const fetch = vi.spyOn(component, "changePaginatedResultData").mockImplementation(() => {});
+      component.operatorId = "op1";
+      component.isFrontPagination = false;
+      component.pageSize = 25;
+      component.totalNumTuples = 60;
+      component.open(24, SAMPLE_ROW);
+      const footer = (create.mock.calls[0][0] as any).nzFooter;
+      footer[1].onClick();
+      expect(component.currentPageIndex).toBe(2);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      footer[0].onClick();
+      expect(component.currentPageIndex).toBe(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
     it("opens the modal for the absolute row index with working footer navigation", () => {
       const modalComponent = { rowIndex: 0, ngOnChanges: vi.fn() };
       const modalRef: any = { componentInstance: modalComponent, destroy: vi.fn() };
@@ -579,7 +780,7 @@ describe("ResultTableFrameComponent", () => {
       const config: any = createSpy.mock.calls[0][0];
       expect(config.nzTitle).toBe("Row Details");
       expect(config.nzContent).toBe(RowModalComponent);
-      expect(config.nzData).toEqual({ operatorId: "op1", rowIndex: 7 });
+      expect(config.nzData).toEqual({ operatorId: "op1", rowIndex: 7, pageSize: 5 });
       expect(config.nzAutofocus).toBeNull();
       const [prev, next, ok] = config.nzFooter;
       expect([prev.label, next.label, ok.label]).toEqual(["<", ">", "OK"]);
@@ -731,9 +932,38 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("template rendering", () => {
-    it("shows the empty-result hint and hides the table until results arrive", () => {
-      expect(fixture.nativeElement.textContent).toContain("Empty result set");
+    it("explains View Results before execution without labelling uncollected results as empty", () => {
+      const text = fixture.nativeElement.textContent;
+      expect(text).not.toContain("Empty result set");
+      expect(text).toContain("View Results");
+      expect(text).toContain("before running");
+      expect(text).toContain("run it again");
+      expect(text).toContain("Final operators collect results automatically");
       expect(fixture.nativeElement.querySelector(".result-table").hidden).toBe(true);
+    });
+
+    it("reports a confirmed empty result without asking the user to enable collection", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([], 0);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Empty result set");
+      expect(fixture.nativeElement.textContent).not.toContain("View Results");
+    });
+
+    it("does not report an empty result while awaiting a response", () => {
+      component.isLoadingResult = true;
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Loading results");
+      expect(fixture.nativeElement.textContent).not.toContain("Empty result set");
+      expect(fixture.nativeElement.textContent).not.toContain("View Results");
+    });
+
+    it("offers bounded page sizes and enables fixed-header vertical scrolling", () => {
+      const table = fixture.debugElement.query(By.directive(NzTableComponent)).componentInstance;
+      expect(table.nzPageSize).toBe(50);
+      expect(table.nzPageSizeOptions).toEqual([10, 25, 50, 100]);
+      expect(table.nzShowSizeChanger).toBe(true);
+      expect(table.nzScroll.y).toBeTruthy();
     });
 
     it("renders headers, per-column stats, and clickable row cells once results arrive", () => {

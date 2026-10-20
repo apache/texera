@@ -20,8 +20,19 @@
 <div
   *ngIf="!currentResult || currentResult.length === 0"
   style="text-align: center">
-  <h4>Empty result set</h4>
-  <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>
+  <h4 *ngIf="isLoadingResult">Loading results…</h4>
+  <ng-container *ngIf="!isLoadingResult">
+    <ng-container *ngIf="!hasReceivedResult; else receivedResult">
+      <h4>No results available to display.</h4>
+      <p>
+        Enable View Results (the eye icon) on intermediate operators before running the workflow. If you enable it after
+        a run, run it again to collect those results. Final operators collect results automatically.
+      </p>
+    </ng-container>
+    <ng-template #receivedResult>
+      <h4>{{ totalNumTuples === 0 ? 'Empty result set' : 'No rows on this page' }}</h4>
+    </ng-template>
+  </ng-container>
 </div>
 <div
   [hidden]="!currentColumns"
@@ -60,7 +71,9 @@
         nzType="right"></i>
     </button>
   </div>
-  <div class="table-container">
+  <div
+    #tableContainer
+    class="table-container">
     <nz-table
       #basicTable
       (nzQueryParams)="onTableQueryParamsChange($event)"
@@ -69,8 +82,10 @@
       [nzLoading]="isLoadingResult"
       [nzPageIndex]="currentPageIndex"
       [nzPageSize]="pageSize"
+      [nzPageSizeOptions]="pageSizeOptions"
+      [nzShowSizeChanger]="true"
       [nzPaginationPosition]="'bottom'"
-      [nzScroll]="{ x: 'max-content'}"
+      [nzScroll]="{ x: ((currentColumns?.length || 1) * columnWidth) + 'px', y: '100%' }"
       [nzSize]="'small'"
       [nzTableLayout]="'fixed'"
       [nzTotal]="totalNumTuples"
@@ -81,7 +96,7 @@
             *ngFor="let column of currentColumns; let i = index"
             ngClass="header-size"
             style="text-align: center"
-            nzWidth="widthPercent">
+            [nzWidth]="columnWidth + 'px'">
             {{ column.header }}
           </th>
         </tr>
@@ -164,30 +179,24 @@
             <span class="cell-content">
               <ng-container [ngSwitch]="getCellMediaType(row, columnIndex)">
                 <ng-container *ngSwitchCase="'video'">
-                  <i
-                    nz-icon
-                    nzType="play-circle"
-                    nzTheme="outline"
+                  <texera-result-cell-icon
+                    type="play-circle"
                     title="Play video"
-                    style="margin-right: 4px"></i>
+                    style="margin-right: 4px"></texera-result-cell-icon>
                   Play Video
                 </ng-container>
                 <ng-container *ngSwitchCase="'audio'">
-                  <i
-                    nz-icon
-                    nzType="sound"
-                    nzTheme="outline"
+                  <texera-result-cell-icon
+                    type="sound"
                     title="Play audio"
-                    style="margin-right: 4px"></i>
+                    style="margin-right: 4px"></texera-result-cell-icon>
                   Play Audio
                 </ng-container>
                 <ng-container *ngSwitchCase="'image'">
-                  <i
-                    nz-icon
-                    nzType="eye"
-                    nzTheme="outline"
+                  <texera-result-cell-icon
+                    type="eye"
                     title="View image"
-                    style="margin-right: 4px"></i>
+                    style="margin-right: 4px"></texera-result-cell-icon>
                   View Image
                 </ng-container>
                 <ng-container *ngSwitchDefault>{{ column.getCell(row) }}</ng-container>
@@ -203,9 +212,7 @@
               nzType="link"
               class="download-button"
               title="Download data">
-              <i
-                nz-icon
-                nzType="cloud-download"></i>
+              <texera-result-cell-icon type="cloud-download"></texera-result-cell-icon>
             </button>
           </td>
         </tr>
