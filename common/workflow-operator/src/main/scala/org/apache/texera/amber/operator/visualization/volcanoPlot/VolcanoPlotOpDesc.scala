@@ -28,6 +28,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
@@ -65,6 +66,14 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Hover column")
+  @JsonPropertyDescription(
+    "Column value to display when a dot is hovered over; leave empty for the first column"
+  )
+  @AutofillAttributeName
+  var hoverName: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
@@ -79,6 +88,23 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
+
+  /** An empty or blank hover column keeps the first column, which is what saved
+    * workflows show.
+    */
+  private def hoverColumn: PythonTemplateBuilder =
+    if (hoverName.trim.nonEmpty) pyb"$hoverName" else pyb"table.columns[0]"
+
+  /** A set hover column that the input lacks gets the operator's error page, like the
+    * two required columns, instead of the ValueError plotly would raise.
+    */
+  private def hoverColumnCheck: PythonTemplateBuilder =
+    if (hoverName.trim.nonEmpty)
+      pyb"""if $hoverName not in table.columns:
+         |            yield {"html-content": self.render_error("Missing hover column in table.")}
+         |            return
+         |"""
+    else pyb""
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -101,7 +127,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
        |        if $pvalueColumn not in table.columns or $effectColumn not in table.columns:
        |            yield {"html-content": self.render_error("Missing required columns in table.")}
        |            return
-       |
+       |        $hoverColumnCheck
        |        # Filter out non-positive p-values to avoid math errors
        |        table = table[table[$pvalueColumn] > 0]
        |        if table.empty:
@@ -114,7 +140,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
        |            table,
        |            x=$effectColumn,
        |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
+       |            hover_name=$hoverColumn,
        |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
        |            title="Volcano Plot"
