@@ -100,7 +100,9 @@ describe("validateToken", () => {
   test("rejects a token without exp (required claim)", () => {
     const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
     const body = b64url(JSON.stringify({ sub: "test-user", userId: 1 }));
-    const signature = b64url(createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${body}`).digest());
+    const signature = b64url(
+      createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${body}`).digest()
+    );
     expect(validateToken(`${header}.${body}.${signature}`)).toBe(false);
   });
 

@@ -73,7 +73,9 @@ async function createAgent(body: Record<string, unknown> = {}, token: string | n
   return app.handle(
     new Request(url(`${API}/agents`), {
       method: "POST",
-      headers: token ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` } : { "Content-Type": "application/json" },
+      headers: token
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+        : { "Content-Type": "application/json" },
       body: JSON.stringify({ modelType: "m", ...body }),
     })
   );

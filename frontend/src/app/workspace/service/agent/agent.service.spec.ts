@@ -1050,8 +1050,7 @@ describe("AgentService", () => {
   describe("setHoveredMessage", () => {
     it("emits the deduplicated union of operator ids across tool calls", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       // Subscribing creates the tracking entry.
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
@@ -1072,8 +1071,7 @@ describe("AgentService", () => {
 
     it("emits empty arrays when the hovered step is cleared", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
       service.setHoveredMessage("agent-1", null);
@@ -1348,8 +1346,7 @@ describe("AgentService", () => {
   describe("setHoveredMessage guards", () => {
     it("emits empty arrays for a non-null step that carries no operator access", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
       // A real step with no operatorAccess map takes the else-branch, distinct from
