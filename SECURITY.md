@@ -175,15 +175,8 @@ Texera can be deployed in several configurations, such as local development, sin
 clusters. For details on supported deployment options and their operational differences, see the deployment guides in
 our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
 
-### Deployment Modes and Security Coverage
-
-Some of Texera's security features rely on Kubernetes. Only the **Kubernetes deployment** (Helm chart under `bin/k8s`)
-provides the full security model described in this document, and it is the mode to use for production and multi-user
-deployments.
-
-**Local deployment on the JVM** (e.g., `bin/local-dev.sh`) and **single-node Docker Compose deployment**
-(`bin/single-node`) are intended for development, testing, evaluation, and single-user or fully-trusted-team use. Their
-security is **not guaranteed**.
+When reading this document, only Kubernetes deployments are considered. Docker Compose and single-node deployments are
+not intended for production.
 
 ### Computing Unit Types
 
@@ -198,7 +191,7 @@ Local computing units run as processes on the same machine as the Texera service
 
 **Security characteristics**:
 
-- Suitable for development, testing, and single-user or fully-trusted-team use
+- Suitable for development, testing, and small team use
 - All computing units share the same host machine
 - No infrastructure-level isolation between users' workflows
 - Deployment managers control all computing resources
@@ -238,7 +231,6 @@ Texera's security model does NOT guarantee:
 - Protection against malicious code in user workflows (users can execute arbitrary code)
 - Isolation of application secrets from UDF code executing within the same process or pod
 - Strong isolation between workflows in local computing units
-- Security of local JVM or Docker Compose deployments (see [Deployment Modes and Security Coverage](#deployment-modes-and-security-coverage))
 - Complete isolation between workflows in Kubernetes computing units within the same namespace
 - Protection against infrastructure-level compromises
 - Protection against deployment manager misconfigurations
