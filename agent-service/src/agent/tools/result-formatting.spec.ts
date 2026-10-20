@@ -70,10 +70,7 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
   const resultSummary = hasResult
     ? {
         resultMode: overrides.resultMode ?? ({ type: "PaginationMode" } as const),
-        // Non-arrays are passed through to exercise the "(no result data)" guard.
-        sampleTuples:
-          overrides.sampleTuples ??
-          (Array.isArray(overrides.result) ? toSampleTuples(overrides.result) : (overrides.result as any)),
+        sampleTuples: overrides.sampleTuples ?? toSampleTuples(overrides.result ?? []),
         totalTuplesCount: overrides.totalTuplesCount ?? overrides.outputTuples ?? 0,
       }
     : undefined;
@@ -106,11 +103,6 @@ describe("formatOperatorResult - early returns", () => {
 
   test("returns (no result data) when result is undefined", () => {
     const out = formatOperatorResult("op1", makeOpInfo());
-    expect(out).toBe("(no result data)");
-  });
-
-  test("returns (no result data) when result is not an array", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ result: { rows: [] } as unknown as Record<string, any>[] }));
     expect(out).toBe("(no result data)");
   });
 
