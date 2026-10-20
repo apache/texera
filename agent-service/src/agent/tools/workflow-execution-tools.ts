@@ -19,15 +19,7 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import {
-  createErrorResult,
-  formatExecuteOperatorResult,
-  formatSampleTuplesAsTsv,
-  getOperatorErrorText,
-  getOperatorWarnings,
-  redactVisualizationPayloads,
-  tupleColumns,
-} from "./tools-utility";
+import { createErrorResult, formatOperatorOutput, getOperatorErrorText } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
@@ -446,15 +438,10 @@ export async function executeOperatorAndFormat(
       return createErrorResult(formatExecutionError([{ operatorId, error: opError }]));
     }
 
-    const resultSummary = opInfo.resultSummary;
-    const sampleTuples = resultSummary?.sampleTuples;
-    if (!sampleTuples || !Array.isArray(sampleTuples)) {
+    // Without a materialized result there is nothing to show; return before caching.
+    if (!opInfo.resultSummary) {
       return "(no result data)";
     }
-
-    const displayTuples = redactVisualizationPayloads(sampleTuples, resultSummary.resultMode);
-    const headers = displayTuples.length > 0 ? tupleColumns(displayTuples[0][1]) : [];
-    const columns = headers.length;
 
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
@@ -465,52 +452,9 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = formatSampleTuplesAsTsv(displayTuples);
-
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
-
-    if (dataString.length > charLimit) {
-      const allLines = dataString.split("\n");
-      const headerLine = allLines[0];
-      const dataRows = allLines.slice(1);
-
-      const reservedSize = headerLine.length + 1;
-
-      const halfLimit = Math.floor((charLimit - reservedSize) / 2);
-
-      let frontSize = 0;
-      const frontRows: string[] = [];
-      for (const row of dataRows) {
-        const rowLen = row.length + 1;
-        if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
-        frontRows.push(row);
-        frontSize += rowLen;
-      }
-
-      let backSize = 0;
-      const backRows: string[] = [];
-      for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
-        const rowLen = dataRows[i].length + 1;
-        if (backSize + rowLen > halfLimit && backRows.length > 0) break;
-        backRows.unshift(dataRows[i]);
-        backSize += rowLen;
-      }
-
-      const keptRows = [...frontRows, ...backRows];
-      dataString = [headerLine, ...keptRows].join("\n");
-    }
-
-    // Output shape only; the agent derives input-port shapes from the DAG + the
-    // upstream operators' own output shapes shown in context.
-    const shapeLine = `Output table shape: (${resultSummary.totalTuplesCount}, ${columns})`;
-
-    const warningLines = getOperatorWarnings(opInfo);
-
-    const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
-
-    const briefSummary = formatExecuteOperatorResult(operatorId);
-    return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
+    return formatOperatorOutput(operatorId, opInfo, charLimit);
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;

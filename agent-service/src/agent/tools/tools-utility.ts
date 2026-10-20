@@ -103,6 +103,72 @@ export function getOperatorWarnings(opInfo: OperatorExecutionSummary): string[] 
   return (opInfo.consoleMessages ?? []).filter(m => m.title.startsWith("WARNING: ")).map(m => m.title);
 }
 
+// The agent-facing rendering of an operator's materialized result, shared by the
+// execute tool and the DAG context: a brief summary, the output shape, warnings,
+// then the sampled tuples as TSV with visualization payloads redacted. With a
+// `charLimit`, the TSV keeps its head and tail within that many characters.
+export function formatOperatorOutput(operatorId: string, opInfo: OperatorExecutionSummary, charLimit?: number): string {
+  const resultSummary = opInfo.resultSummary;
+  if (!resultSummary) {
+    return "(no result data)";
+  }
+
+  const displayTuples = redactVisualizationPayloads(resultSummary.sampleTuples, resultSummary.resultMode);
+  const columns = displayTuples.length > 0 ? tupleColumns(displayTuples[0][1]).length : 0;
+  const tsv = formatSampleTuplesAsTsv(displayTuples);
+
+  // Output shape only: the agent executes every operator it adds or modifies, so an
+  // upstream operator's own output shape (this operator's input) is normally
+  // already in the DAG context.
+  const shapeLine = `Output table shape: (${resultSummary.totalTuplesCount}, ${columns})`;
+
+  return [
+    formatExecuteOperatorResult(operatorId),
+    shapeLine,
+    ...getOperatorWarnings(opInfo),
+    charLimit === undefined ? tsv : truncateTsv(tsv, charLimit),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// Keep a TSV within `charLimit` characters by dropping rows from its middle: the
+// header line plus as many leading and trailing rows as fit in half the budget each.
+function truncateTsv(tsv: string, charLimit: number): string {
+  if (tsv.length <= charLimit) {
+    return tsv;
+  }
+
+  const allLines = tsv.split("\n");
+  const headerLine = allLines[0];
+  const dataRows = allLines.slice(1);
+
+  const reservedSize = headerLine.length + 1;
+
+  const halfLimit = Math.floor((charLimit - reservedSize) / 2);
+
+  let frontSize = 0;
+  const frontRows: string[] = [];
+  for (const row of dataRows) {
+    const rowLen = row.length + 1;
+    if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
+    frontRows.push(row);
+    frontSize += rowLen;
+  }
+
+  let backSize = 0;
+  const backRows: string[] = [];
+  for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
+    const rowLen = dataRows[i].length + 1;
+    if (backSize + rowLen > halfLimit && backRows.length > 0) break;
+    backRows.unshift(dataRows[i]);
+    backSize += rowLen;
+  }
+
+  const keptRows = [...frontRows, ...backRows];
+  return [headerLine, ...keptRows].join("\n");
+}
+
 export function createToolResult(message: string): string {
   return message;
 }
