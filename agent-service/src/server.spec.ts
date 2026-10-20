@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
-import { OperatorState } from "./types/execution";
+import { ConsoleMessageType, OperatorState } from "./types/execution";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -322,9 +322,13 @@ describe("agent read routes", () => {
     expect(Array.isArray((await readJson<{ steps: unknown[] }>(res)).steps)).toBe(true);
   });
 
-  test("GET /:id/operator-results maps the visible operator results", async () => {
+  test("GET /:id/operator-results returns only each visible operator's result summary", async () => {
     const agent = _getAgentForTests(id)!;
-    // The route returns each operator's OperatorExecutionSummary verbatim.
+    const resultSummary = {
+      resultMode: { type: "PaginationMode" },
+      sampleTuples: [[0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }]],
+      totalTuplesCount: 2,
+    };
     (agent as any).getWorkflowResultState = () => ({
       getAllVisible: () =>
         new Map([
@@ -334,27 +338,20 @@ describe("agent read routes", () => {
               operatorInfo: {
                 state: OperatorState.COMPLETED,
                 errorMessages: [],
-                resultSummary: {
-                  resultMode: { type: "PaginationMode" },
-                  sampleTuples: [
-                    [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
-                  ],
-                  totalTuplesCount: 2,
-                },
+                resultSummary,
+                consoleMessages: [{ msgType: ConsoleMessageType.PRINT, title: "stack trace", message: "at ..." }],
               },
             },
           ],
+          ["op-2", { operatorInfo: { state: OperatorState.FAILED, errorMessages: [] } }],
         ]),
     });
 
-    const body = await readJson<{
-      results: Record<string, { state: string; resultSummary: { totalTuplesCount: number; sampleTuples: unknown[] } }>;
-    }>(await getJson(`${API}/agents/${id}/operator-results`));
-    expect(body.results["op-1"].state).toBe("Completed");
-    expect(body.results["op-1"].resultSummary.totalTuplesCount).toBe(2);
-    expect(body.results["op-1"].resultSummary.sampleTuples).toEqual([
-      [0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }],
-    ]);
+    const body = await readJson<{ results: Record<string, unknown> }>(
+      await getJson(`${API}/agents/${id}/operator-results`)
+    );
+    // The popover reads only resultSummary, so state and console messages stay server-side.
+    expect(body.results).toEqual({ "op-1": { resultSummary }, "op-2": {} });
   });
 });
 

@@ -388,12 +388,16 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorExecutionSummary> {
+// Only resultSummary: the frontend's sole consumer (the operator popover) reads
+// nothing else, so state, errors and console messages stay server-side.
+function getOperatorResultSummaries(
+  agent: TexeraAgent
+): Record<string, Pick<OperatorExecutionSummary, "resultSummary">> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorExecutionSummary> = {};
+  const results: Record<string, Pick<OperatorExecutionSummary, "resultSummary">> = {};
   for (const [opId, entry] of visible) {
-    results[opId] = entry.operatorInfo;
+    results[opId] = { resultSummary: entry.operatorInfo.resultSummary };
   }
   return results;
 }
