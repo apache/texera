@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import type { SchemaAttribute } from "./workflow";
+
 export enum WorkflowFatalErrorType {
   COMPILATION_ERROR = "COMPILATION_ERROR",
   EXECUTION_FAILURE = "EXECUTION_FAILURE",
@@ -83,16 +85,11 @@ export interface ConsoleMessageSummary {
   readonly message: string;
 }
 
-// A normalized result tuple using the engine Tuple shape: a schema plus positional fields.
-export interface Attribute {
-  readonly attributeName: string;
-  readonly attributeType: string;
-}
-
 export interface Schema {
-  readonly attributes: ReadonlyArray<Attribute>;
+  readonly attributes: ReadonlyArray<SchemaAttribute>;
 }
 
+// A normalized result tuple using the engine Tuple shape: a schema plus positional fields.
 export interface Tuple {
   readonly schema: Schema;
   readonly fields: ReadonlyArray<unknown>;
