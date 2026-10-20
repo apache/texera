@@ -1070,6 +1070,22 @@ describe("WorkflowFormComponent", () => {
       expect(formBindingService.writeValue).toHaveBeenCalled();
     });
 
+    it("keeps a still-set value when a control emits an absent value before an edit", () => {
+      build(formViewWorkflow).ngOnInit();
+      formBindingService.readValue.mockReturnValue("seed");
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+
+      card.model[key] = undefined;
+      card.form.addControl(key, new FormControl(null));
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+    });
+
     it("ignores an unchanged form emission", () => {
       build(formViewWorkflow).ngOnInit();
       formBindingService.readValue.mockReturnValue("seed");
@@ -1434,14 +1450,293 @@ describe("WorkflowFormComponent", () => {
   });
 
   describe("keeping the inputs in step with the workflow", () => {
-    it("rebuilds the inputs when compilation reports a new state", async () => {
-      build(formViewWorkflow).ngOnInit();
-      const rebuild = vi.spyOn(component as any, "readConfig");
-
+    // Put op-1 on the graph with one exposed property holding `value`, and build its card.
+    const renderCard = (id: string, value: unknown) => {
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([resolved(id, id, { value })]);
+      formBindingService.readValue.mockReturnValue(value);
+      (component as any).readConfig();
+    };
+    const compiled = async () => {
       h.compilationChanged.next("Succeeded");
       await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+    };
+    // Compilation wrote column enums into op-1's schema: the card was built from a schema without them.
+    const changeSchema = () => {
+      (component as any).dynamicSchemaService = {
+        getDynamicSchema: () => ({ jsonSchema: { properties: { n_hvg: { enum: ["a", "b"] } } } }),
+      };
+    };
 
-      expect(rebuild).toHaveBeenCalled();
+    // A compilation changes nothing for most cards -- the one a card's own write triggers, for one.
+    // Rebuilding them anyway redrew every control, dropped the focus and lost a click made just
+    // before the rebuild; the canvas panel redraws only for a schema change, and so does the form.
+    it("leaves the cards alone when compilation changed nothing they show, as the canvas panel does", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const card = component.rendered[0];
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      const choices = vi.spyOn(component as any, "rebuildResultChoices");
+
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+      expect(component.rendered[0]).toBe(card);
+      // The result picker still follows the graph the compilation came from.
+      expect(choices).toHaveBeenCalledTimes(1);
+    });
+
+    it("rebuilds the inputs when compilation changed a card's operator schema (the column enums)", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      changeSchema();
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("rebuilds the inputs when a card's operator left the graph", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      h.hasOperatorIds.delete("op-1");
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("rebuilds the inputs when an operator's value changed under a card (a co-editor's edit)", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      formBindingService.readValue.mockReturnValue("3000");
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    // A card is seeded with its operator's other properties as widget context (the HuggingFace
+    // picker reads `task` to decide which models to load). Nothing but a rebuild re-seeds that, so
+    // a change the canvas or a co-editor makes to a sibling has to count as a change the card shows.
+    it("rebuilds the inputs when another property of a card's operator changed (the widget context)", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { n_hvg: "2000", task: "image-classification" },
+      });
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      h.graphOperators[0].operatorProperties = { n_hvg: "2000", task: "text-generation" };
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    // Two inputs from one step: each card's own property is the other card's sibling, so counting
+    // bound properties as context would make one card's edit rebuild the other -- and with it the
+    // card being edited, which is the churn this PR exists to stop (Copilot).
+    it("leaves both cards alone when one of two inputs from the same step is edited", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.hasOperatorIds.add("op-1");
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "Projection",
+        operatorProperties: { attributes: ["a"], isDrop: false },
+      });
+      h.formlyJsonschema.toFieldConfig = () => ({
+        fieldGroup: [
+          { key: "attributes", props: { label: "Columns" } },
+          { key: "isDrop", props: { label: "Drop" } },
+        ],
+      });
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("attributes", "attributes", { value: ["a"] }),
+        resolved("isDrop", "isDrop", { value: false }),
+      ]);
+      formBindingService.readValue.mockImplementation((_op: string, key: string) =>
+        key === "attributes" ? ["a"] : false
+      );
+      (component as any).readConfig();
+      expect(component.rendered).toHaveLength(2);
+      const cards = [...component.rendered];
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      // One card's edit reaches the operator, and the compilation it triggers comes back.
+      h.graphOperators[0].operatorProperties = { attributes: ["a", "b"], isDrop: false };
+      formBindingService.readValue.mockImplementation((_op: string, key: string) =>
+        key === "attributes" ? ["a", "b"] : false
+      );
+      cards[0].model["attributes"] = ["a", "b"];
+
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+      expect(component.rendered[0]).toBe(cards[0]);
+      expect(component.rendered[1]).toBe(cards[1]);
+    });
+
+    it("leaves the cards alone when the operator's properties only came back in another order", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { n_hvg: "2000", task: "image-classification", device: "cpu" },
+      });
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      // The same properties, the two siblings swapped: a rewrite that reorders keys is not a change.
+      h.graphOperators[0].operatorProperties = { device: "cpu", task: "image-classification", n_hvg: "2000" };
+
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+    });
+
+    // Every bound property is compared against the card that shows it, so none of them is context:
+    // the card's own stays the card's to resolve while its edit is on its way.
+    it("leaves the card's own property out of the context, so a pending edit still wins", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { n_hvg: "2000", task: "image-classification" },
+      });
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      component.rendered[0].pendingWrite = true;
+      h.graphOperators[0].operatorProperties = { n_hvg: "9999", task: "image-classification" };
+      formBindingService.readValue.mockReturnValue("9999");
+
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+    });
+
+    // The graph throws for an operator that is gone, so the context is read behind a hasOperator
+    // guard. A card whose operator went is already a changed set of inputs, so this is the guard
+    // speaking for a state the rebuild check does not otherwise reach.
+    it("reads no context for an operator that is no longer on the graph", () => {
+      build(formViewWorkflow).ngOnInit();
+
+      expect((component as any).contextKeyFor("gone", "n_hvg")).toBe("[]");
+    });
+
+    it("takes formly's blank and an absent operator value as the same value", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", undefined);
+      const card = component.rendered[0];
+
+      card.model[card.resolved.binding.id] = "";
+      expect((component as any).cardsNeedRebuild()).toBe(false);
+
+      card.model[card.resolved.binding.id] = undefined;
+      formBindingService.readValue.mockReturnValue("");
+      expect((component as any).cardsNeedRebuild()).toBe(false);
+    });
+
+    it("rebuilds the inputs when the set of inputs changed (one more exposed)", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("n_hvg", "n_hvg", { value: "2000" }),
+        resolved("tags", "tags", { value: [] }),
+      ]);
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("rebuilds the inputs when a shown card's operator was deleted (the card turns broken)", async () => {
+      build(formViewWorkflow).ngOnInit();
+      component.authoring = true;
+      renderCard("n_hvg", "2000");
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      // Same input, same id, same value on the operator; only its brokenReason is new.
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("n_hvg", "n_hvg", { value: "2000", brokenReason: "The step was removed" }),
+      ]);
+
+      await compiled();
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves an author's broken card alone: it has no schema to follow", async () => {
+      build(formViewWorkflow).ngOnInit();
+      component.authoring = true;
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("n_hvg", "n_hvg", { value: "2000", brokenReason: "The step was removed" }),
+      ]);
+      (component as any).readConfig();
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      await compiled();
+
+      expect(rebuild).not.toHaveBeenCalled();
+    });
+
+    it("does not rebuild for the card's own edit still on its way to the operator, nor once it is written", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+
+      // The first change marks the edit pending; the operator still holds the old value.
+      card.model[key] = "2500";
+      card.form.addControl(key, new FormControl("2500"));
+      card.form.markAsDirty();
+      expect(card.pendingWrite).toBe(true);
+      expect((component as any).cardsNeedRebuild()).toBe(false);
+
+      // Written after the debounce: the operator now holds it, so the two agree.
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+      expect(formBindingService.writeValue).toHaveBeenCalledWith(card.resolved.binding, "2500");
+      expect(card.pendingWrite).toBe(false);
+      formBindingService.readValue.mockReturnValue("2500");
+      expect((component as any).cardsNeedRebuild()).toBe(false);
+    });
+
+    it("writes a card's unwritten edit before a rebuild replaces the card, so the rebuild cannot lose it", () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const card = component.rendered[0];
+      const key = card.resolved.binding.id;
+      vi.useFakeTimers();
+      card.model[key] = "2500";
+      card.form.addControl(key, new FormControl("2500"));
+      card.form.markAsDirty();
+      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+
+      // A rebuild from any source (a step renamed, the definition edited) before the debounce fires.
+      (component as any).readConfig();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeValue).toHaveBeenCalledTimes(1);
+      expect(formBindingService.writeValue).toHaveBeenCalledWith(card.resolved.binding, "2500");
+      expect(card.pendingWrite).toBe(false);
+    });
+
+    it("has no write to flush on a read-only viewer's card", () => {
+      build({ ...formViewWorkflow, readonly: true }).ngOnInit();
+      renderCard("n_hvg", "2000");
+      const card = component.rendered[0];
+      card.pendingWrite = true;
+
+      expect(card.flushWrite).toBeUndefined();
+      expect(() => (component as any).readConfig()).not.toThrow();
+      expect(formBindingService.writeValue).not.toHaveBeenCalled();
     });
 
     it("rebuilds the inputs when a step is renamed, so each card's attribution follows", () => {
@@ -1457,11 +1752,12 @@ describe("WorkflowFormComponent", () => {
 
     it("holds a rebuild while someone is typing and runs it once the focus leaves", async () => {
       build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
       const typing = vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
       const rebuild = vi.spyOn(component as any, "readConfig");
+      changeSchema();
 
-      h.compilationChanged.next("Succeeded");
-      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+      await compiled();
       expect(rebuild).not.toHaveBeenCalled();
 
       // The cursor leaves the field: the held rebuild runs, once. Held rather than dropped, or the
