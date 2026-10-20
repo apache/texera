@@ -132,7 +132,6 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
-import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
@@ -302,7 +301,6 @@ registerLocaleData(en);
     ShareAccessComponent,
     WorkflowExecutionHistoryComponent,
     ConsoleFrameComponent,
-    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     FilesUploaderComponent,

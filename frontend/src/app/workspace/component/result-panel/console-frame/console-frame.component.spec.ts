@@ -35,6 +35,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { mockPoint, mockScanPredicate } from "../../../service/workflow-graph/model/mock-workflow-data";
 
 function consoleMessage(name: string): ConsoleMessage {
   return {
@@ -55,6 +57,8 @@ describe("ConsoleFrameComponent", () => {
 
   let getWorkerIds: ReturnType<typeof vi.fn>;
   let getConsoleMessages: ReturnType<typeof vi.fn>;
+  let getAllConsoleMessages: ReturnType<typeof vi.fn>;
+  let getErrorMessages: ReturnType<typeof vi.fn>;
   let skipTuples: ReturnType<typeof vi.fn>;
   let retryExecution: ReturnType<typeof vi.fn>;
   let send: ReturnType<typeof vi.fn>;
@@ -67,6 +71,8 @@ describe("ConsoleFrameComponent", () => {
   beforeEach(async () => {
     getWorkerIds = vi.fn().mockReturnValue([]);
     getConsoleMessages = vi.fn().mockReturnValue([]);
+    getAllConsoleMessages = vi.fn().mockReturnValue([]);
+    getErrorMessages = vi.fn().mockReturnValue([]);
     skipTuples = vi.fn();
     retryExecution = vi.fn();
     send = vi.fn();
@@ -86,13 +92,18 @@ describe("ConsoleFrameComponent", () => {
           useValue: {
             getExecutionStateStream: () => executionStateStream.asObservable(),
             getWorkerIds,
+            getErrorMessages,
             skipTuples,
             retryExecution,
           },
         },
         {
           provide: WorkflowConsoleService,
-          useValue: { getConsoleMessageUpdateStream: () => consoleUpdateStream.asObservable(), getConsoleMessages },
+          useValue: {
+            getConsoleMessageUpdateStream: () => consoleUpdateStream.asObservable(),
+            getConsoleMessages,
+            getAllConsoleMessages,
+          },
         },
         { provide: WorkflowWebsocketService, useValue: { send } },
         { provide: NotificationService, useValue: { error: notifyError } },
@@ -165,11 +176,47 @@ describe("ConsoleFrameComponent", () => {
       expect(getConsoleMessages).toHaveBeenCalledWith("op1");
     });
 
-    it("renderConsole is a no-op without an operator id", () => {
-      component.operatorId = "";
+    it("renderConsole shows every operator's messages without an operator id, and no workers", () => {
+      component.operatorId = undefined;
+      component.workerIds = ["w-stale"];
       getWorkerIds.mockClear();
+      getAllConsoleMessages.mockReturnValue([
+        { operatorId: "opA", message: { ...consoleMessage("PRINT"), title: "from A" } },
+        { operatorId: "opB", message: { ...consoleMessage("PRINT"), title: "from B" } },
+      ]);
+
       component.renderConsole();
+
       expect(getWorkerIds).not.toHaveBeenCalled();
+      expect(component.workerIds).toEqual([]);
+      expect(component.consoleMessages.map(m => m.title)).toEqual(["from A", "from B"]);
+    });
+
+    it("adds the errors that stopped the run as ERROR messages, only the operator's own when one is set", () => {
+      const fatal = (operatorId: string, message: string) => ({
+        message,
+        details: "java.lang.IllegalArgumentException: bad value",
+        operatorId,
+        workerId: "",
+        type: { name: "EXECUTION_FAILURE" },
+        timestamp: { nanos: 0, seconds: 5 },
+      });
+      getErrorMessages.mockReturnValue([fatal("opA", "requirement failed: A broke"), fatal("opB", "B broke")]);
+      getConsoleMessages.mockReturnValue([consoleMessage("PRINT")]);
+
+      component.displayConsoleMessages("opA");
+
+      expect(component.consoleMessages.length).toBe(2);
+      const error = component.consoleMessages[1];
+      expect(error.msgType.name).toBe("ERROR");
+      expect(error.source).toBe("EXECUTION_FAILURE");
+      // the exception's class name and the requirement's prefix mean nothing to a user
+      expect(error.title).toBe("A broke");
+      expect(error.message).toBe("bad value");
+
+      component.displayConsoleMessages(undefined);
+
+      expect(component.consoleMessages.map(m => m.title)).toEqual(["A broke", "B broke"]);
     });
 
     it("displayConsoleMessages falls back to an empty list for an operator the service has never seen", () => {
@@ -316,6 +363,62 @@ describe("ConsoleFrameComponent", () => {
 
       expect(component.workerIds).toEqual(["w-5"]);
       expect(component.consoleMessages).toEqual([consoleMessage("PRINT")]);
+    });
+  });
+
+  describe("which operator's messages", () => {
+    let actions: WorkflowActionService;
+    const scanId = mockScanPredicate.operatorID;
+    // a worker id ending in its index, as the worker tag's color is read from it
+    const print: ConsoleMessage = { ...consoleMessage("PRINT"), workerId: "w-1" };
+    const scanLabel = () => {
+      const operator = actions.getTexeraGraph().getOperator(scanId);
+      return operator.customDisplayName ?? operator.operatorType;
+    };
+
+    beforeEach(() => {
+      actions = TestBed.inject(WorkflowActionService);
+      actions.addOperator(mockScanPredicate, mockPoint);
+    });
+
+    it("tags each message with its operator while every operator is shown, and a tag narrows to it", () => {
+      const highlight = vi.spyOn(actions, "highlightOperators");
+      getAllConsoleMessages.mockReturnValue([{ operatorId: scanId, message: print }]);
+      component.operatorId = undefined;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      const tag = fixture.debugElement.query(By.css(".operator-tag"));
+      expect((tag.nativeElement as HTMLElement).textContent?.trim()).toBe(scanLabel());
+      expect(fixture.debugElement.query(By.css(".operator-filter-notice"))).toBeNull();
+
+      tag.triggerEventHandler("click", new MouseEvent("click"));
+      expect(highlight).toHaveBeenCalledWith(false, scanId);
+    });
+
+    it("names the one operator shown, without tags, and its close button goes back to every operator", () => {
+      actions.getJointGraphWrapper().highlightOperators(scanId);
+      getConsoleMessages.mockReturnValue([print]);
+      component.operatorId = scanId;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      const notice = fixture.debugElement.query(By.css(".operator-filter-notice"));
+      expect((notice.nativeElement as HTMLElement).textContent).toContain(`Showing: ${scanLabel()}`);
+      expect(fixture.debugElement.query(By.css(".operator-tag"))).toBeNull();
+
+      notice.query(By.css("button")).triggerEventHandler("click", new MouseEvent("click"));
+      expect(actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([]);
+    });
+
+    it("leaves a message from an operator no longer on the canvas untagged", () => {
+      getAllConsoleMessages.mockReturnValue([{ operatorId: "deleted-op", message: print }]);
+      component.operatorId = undefined;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+      expect(fixture.debugElement.query(By.css(".operator-tag"))).toBeNull();
     });
   });
 
@@ -513,6 +616,33 @@ describe("ConsoleFrameComponent", () => {
       flush();
     }));
 
+    // The error that failed the run is turned into a console message on every render. Unless it is
+    // the same message each time, the list takes it for a new one and jumps to its end.
+    it("stays where it is on a re-render while the run's error has not changed", fakeAsync(() => {
+      const fatal = {
+        message: "B broke",
+        details: "",
+        operatorId: "op1",
+        workerId: "w-1",
+        type: { name: "EXECUTION_FAILURE" },
+        timestamp: { nanos: 0, seconds: 5 },
+      };
+      getErrorMessages.mockReturnValue([fatal]);
+      getConsoleMessages.mockReturnValue([withBody]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
+
     it("does not render the debug input group when console input is disabled", () => {
       component.consoleInputEnabled = false;
       fixture.detectChanges();
@@ -645,6 +775,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
           useValue: {
             getExecutionStateStream: () => new Subject<StateEvent>().asObservable(),
             getWorkerIds: () => [],
+            getErrorMessages: () => [],
             skipTuples: () => {},
             retryExecution: () => {},
           },
@@ -654,6 +785,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
           useValue: {
             getConsoleMessageUpdateStream: () => new Subject<void>().asObservable(),
             getConsoleMessages: () => [],
+            getAllConsoleMessages: () => [],
           },
         },
         { provide: WorkflowWebsocketService, useValue: { send: () => {} } },
