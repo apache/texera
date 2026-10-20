@@ -30,7 +30,10 @@ import {
   NzCellEllipsisDirective,
 } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import {
+  OperatorPaginationResultService,
+  WorkflowResultService,
+} from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
@@ -88,6 +91,9 @@ export type MediaCellType = "video" | "audio" | "image" | "text";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+  // which of the operator's output ports to show. The running execution reports only on the first,
+  // so another port is read when shown, and its counts and statistics are not followed live.
+  @Input() portIndex = 0;
 
   // display result table
   currentColumns?: TableColumn[];
@@ -135,9 +141,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
+    if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
     if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      const paginatedResultService = this.paginatedResultService();
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -148,6 +154,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.prevTableStats = this.tableStats;
       }
     }
+  }
+
+  /** The service that pages the port shown. */
+  private paginatedResultService(): OperatorPaginationResultService | undefined {
+    if (!this.operatorId) return undefined;
+    return this.workflowResultService.getPortPaginatedResultService(this.operatorId, this.portIndex);
   }
 
   ngOnInit(): void {
@@ -169,7 +181,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
-        if (!this.operatorId) {
+        // an update is about the operator's first port
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
         const opUpdate = update[this.operatorId];
@@ -190,7 +203,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultTableStats()
       .pipe(untilDestroyed(this))
       .subscribe(([prevStats, currentStats]) => {
-        if (!this.operatorId) {
+        // the statistics are the operator's first port's
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
 
@@ -347,7 +361,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
+      // set the index value and page size to the modal for navigation
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex, portIndex: this.portIndex },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
@@ -395,7 +410,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+    const paginatedResultService = this.paginatedResultService();
     if (!paginatedResultService) {
       return;
     }
