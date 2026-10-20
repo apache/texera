@@ -326,6 +326,21 @@ class ModelUploadResourceSpec
       .map(_.getName) should contain("weights.pt")
   }
 
+  it should "reject a description containing a slash without committing to LakeFS" in {
+    val model = newModel()
+    val mid = model.model.getMid
+
+    uploadOneShot(mid, "weights.pt", Array.fill[Byte](32)(0x1)).getStatus shouldEqual 200
+
+    intercept[BadRequestException] {
+      modelResource.createModelVersion("2024/01 snapshot", mid, sessionUser)
+    }
+
+    // The staged change survived, so a retry with a usable description works.
+    val recovered = modelResource.createModelVersion("2024-01 snapshot", mid, sessionUser)
+    recovered.modelVersion.getName should endWith("2024-01 snapshot")
+  }
+
   "retrieveModelVersionRootFileNodes" should "404 for a version belonging to another model" in {
     val modelA = newModel()
     val modelB = newModel()
