@@ -24,7 +24,7 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowEditorComponent } from "./workflow-editor.component";
+import { RESULT_PREVIEW_DELAY_MS, RESULT_PREVIEW_HIDE_MS, WorkflowEditorComponent } from "./workflow-editor.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -372,6 +372,39 @@ describe("WorkflowEditorComponent", () => {
       expect(linkView.hasTools()).toBe(false);
       component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
       expect(linkView.hasTools()).toBe(false);
+    });
+
+    it("previews a hovered operator's result once the pointer rests, and hides it when the pointer leaves", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      // passing over an operator opens nothing; only a pointer that rests on it does
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      expect(component.resultPreview).toBeNull();
+      tick(1);
+      fixture.detectChanges();
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeTruthy();
+
+      component.paper.trigger("element:mouseleave", view, new MouseEvent("mouseleave"));
+      // the card lingers a moment, so the pointer can cross into it
+      tick(RESULT_PREVIEW_HIDE_MS);
+      fixture.detectChanges();
+      expect(component.resultPreview).toBeNull();
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeNull();
+    }));
+
+    it("leaves the hover to the heat-map tooltip while that overlay is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+
+      expect(component.resultPreview).toBeNull();
     });
 
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
