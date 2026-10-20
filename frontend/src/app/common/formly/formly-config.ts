@@ -22,6 +22,7 @@ import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
 import { AbstractControl } from "@angular/forms";
 import { DelimiterTypeComponent } from "./delimiter/delimiter.type";
 import { DelimiterMode, delimiterError } from "./delimiter/delimiter-presets";
@@ -82,7 +83,7 @@ export const TEXERA_FORMLY_CONFIG = {
       },
     },
     { name: "boolean", extends: "checkbox" },
-    { name: "enum", extends: "select" },
+    { name: "enum", extends: "select", component: SearchableSelectTypeComponent },
     { name: "null", component: NullTypeComponent, wrappers: ["form-field"] },
     { name: "array", component: ArrayTypeComponent },
     { name: "object", component: ObjectTypeComponent },
