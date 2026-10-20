@@ -142,6 +142,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
+    // another port's rows are not this port's, so a new port starts from an empty table
+    if (changes.portIndex && !changes.portIndex.firstChange) {
+      this.currentResult = [];
+      this.currentColumns = undefined;
+    }
     if (this.operatorId) {
       const paginatedResultService = this.paginatedResultService();
       if (paginatedResultService) {
@@ -415,14 +420,24 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return;
     }
     this.isLoadingResult = true;
+    // A reply can arrive after the table moved on to another operator or port; it is not theirs.
+    const operatorId = this.operatorId;
+    const portIndex = this.portIndex;
     paginatedResultService
       .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
-        if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.changeDetectorRef.detectChanges();
+        if (
+          this.operatorId !== operatorId ||
+          this.portIndex !== portIndex ||
+          this.currentPageIndex !== pageData.pageIndex
+        ) {
+          return;
         }
+        // an empty page keeps the rows shown, but the loading is over
+        if (pageData.table.length === 0) this.isLoadingResult = false;
+        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+        this.changeDetectorRef.detectChanges();
       });
   }
 

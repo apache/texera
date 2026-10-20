@@ -223,6 +223,61 @@ describe("ResultTableFrameComponent", () => {
       expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
       expect(component.currentResult).toEqual([SAMPLE_ROW]);
     });
+
+    describe("switching between output ports", () => {
+      const OTHER_ROW: IndexableObject = { _id: 0, name: "bob", score: 75 };
+      // a port's service whose page replies the test sends when it chooses
+      const portService = (total: number) => {
+        const replies = new Subject<PaginatedResultEvent>();
+        const service = {
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(total),
+          getCurrentPageIndex: vi.fn().mockReturnValue(1),
+          getStats: vi.fn().mockReturnValue({}),
+          selectPage: vi.fn().mockReturnValue(replies),
+        };
+        return { service, replies };
+      };
+      const showPort = (portIndex: number) => {
+        component.portIndex = portIndex;
+        component.ngOnChanges({ portIndex: new SimpleChange(1 - portIndex, portIndex, false) });
+      };
+
+      it("clears the previous port's rows when the port shown is empty", () => {
+        const first = portService(1);
+        const second = portService(0);
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+          (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
+        );
+        component.operatorId = "op1";
+        showPort(0);
+        first.replies.next(makePageEvent(1, [SAMPLE_ROW]));
+        expect(component.currentResult).toEqual([SAMPLE_ROW]);
+
+        showPort(1);
+        second.replies.next(makePageEvent(1, []));
+
+        // the empty port shows no rows, and is no longer loading
+        expect(component.currentResult).toEqual([]);
+        expect(component.isLoadingResult).toBe(false);
+      });
+
+      it("ignores a reply from a port that is no longer shown", () => {
+        const first = portService(1);
+        const second = portService(1);
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+          (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
+        );
+        component.operatorId = "op1";
+        showPort(0);
+        showPort(1);
+        second.replies.next(makePageEvent(1, [OTHER_ROW]));
+
+        // port 0's page 1 arrives late, after port 1's
+        first.replies.next(makePageEvent(1, [SAMPLE_ROW]));
+
+        expect(component.currentResult).toEqual([OTHER_ROW]);
+      });
+    });
   });
 
   describe("changePaginatedResultData", () => {
