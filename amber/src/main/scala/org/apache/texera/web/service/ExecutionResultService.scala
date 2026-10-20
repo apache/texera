@@ -93,7 +93,7 @@ object ExecutionResultService {
     pojo.setWorkflowExecutionId(executionId.id.toInt)
     pojo.setGlobalPortId(evt.globalPortId.serializeAsString)
     pojo.setResultUri(evt.uri.toString)
-    pojo.setOutputMode(toOutputModeEnum(evt.mode))
+    pojo.setOutputMode(toOutputModeEnum(evt.mode).orNull)
     new OperatorPortExecutionsDao(
       SqlServer.getInstance().createDSLContext().configuration()
     ).insert(pojo)
@@ -103,12 +103,12 @@ object ExecutionResultService {
     * The stored form of a port's output mode. Recorded with the URI so that a finished
     * execution's results can be listed without the engine's physical plan (#8994).
     */
-  private[service] def toOutputModeEnum(mode: OutputMode): OutputModeEnum =
+  private[service] def toOutputModeEnum(mode: OutputMode): Option[OutputModeEnum] =
     mode match {
-      case OutputMode.SET_SNAPSHOT    => OutputModeEnum.SET_SNAPSHOT
-      case OutputMode.SET_DELTA       => OutputModeEnum.SET_DELTA
-      case OutputMode.SINGLE_SNAPSHOT => OutputModeEnum.SINGLE_SNAPSHOT
-      case OutputMode.Unrecognized(_) => null
+      case OutputMode.SET_SNAPSHOT    => Some(OutputModeEnum.SET_SNAPSHOT)
+      case OutputMode.SET_DELTA       => Some(OutputModeEnum.SET_DELTA)
+      case OutputMode.SINGLE_SNAPSHOT => Some(OutputModeEnum.SINGLE_SNAPSHOT)
+      case OutputMode.Unrecognized(_) => None
     }
 
   private val defaultPageSize: Int = 5

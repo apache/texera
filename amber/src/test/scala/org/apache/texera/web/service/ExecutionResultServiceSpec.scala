@@ -248,15 +248,15 @@ class ExecutionResultServiceSpec
 
   "toOutputModeEnum" should "map every declared output mode to its stored form" in {
     ExecutionResultService.toOutputModeEnum(OutputMode.SET_SNAPSHOT) shouldBe
-      OutputModeEnum.SET_SNAPSHOT
+      Some(OutputModeEnum.SET_SNAPSHOT)
     ExecutionResultService.toOutputModeEnum(OutputMode.SET_DELTA) shouldBe
-      OutputModeEnum.SET_DELTA
+      Some(OutputModeEnum.SET_DELTA)
     ExecutionResultService.toOutputModeEnum(OutputMode.SINGLE_SNAPSHOT) shouldBe
-      OutputModeEnum.SINGLE_SNAPSHOT
+      Some(OutputModeEnum.SINGLE_SNAPSHOT)
   }
 
   it should "store no mode for an unrecognized one" in {
-    ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99)) shouldBe null
+    ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99)) shouldBe None
   }
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {

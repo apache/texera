@@ -414,7 +414,7 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Updates the row count of the corresponding Iceberg document in the database.
+    * Updates the row count stored for this port's result in operator_port_executions.
     *
     * @param eid          Execution ID associated with the result.
     * @param globalPortId Global port identifier for the operator output.
