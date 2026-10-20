@@ -42,6 +42,7 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import type { WebOutputMode } from "../../types/execute-workflow.interface";
+import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -98,17 +99,12 @@ export interface ModelType {
 /**
  * API response types
  */
+export interface Schema {
+  readonly attributes: ReadonlyArray<SchemaAttribute>;
+}
+
 // A normalized result tuple from agent-service (schema + positional fields).
 // Sampled tuples are truncated, so each Tuple carries a synthetic all-STRING schema.
-export interface Attribute {
-  readonly attributeName: string;
-  readonly attributeType: string;
-}
-
-export interface Schema {
-  readonly attributes: ReadonlyArray<Attribute>;
-}
-
 export interface Tuple {
   readonly schema: Schema;
   readonly fields: ReadonlyArray<unknown>;
