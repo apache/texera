@@ -20,7 +20,7 @@
 import type { IndexedTuple, OperatorExecutionSummary, Tuple, WebOutputMode } from "../../types/execution";
 
 // The single definition of "this operator failed": some fatal error carries
-// message text. The engine can emit console ERRORs with empty text, which do
+// message text. Fatal errors can arrive with empty message text, which do
 // not count, matching the previous `error` field's truthiness semantics.
 export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
   return opInfo.errorMessages
