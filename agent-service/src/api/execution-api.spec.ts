@@ -206,6 +206,59 @@ describe("adaptLegacySyncExecutionResult", () => {
     expect(summary.operators.sink.consoleMessages).toBeUndefined();
   });
 
+  test("drops console messages of an unrecognized type instead of rejecting the run", () => {
+    const summary = adaptLegacySyncExecutionResult({
+      success: true,
+      state: "Completed",
+      operators: {
+        target: {
+          state: "Completed",
+          outputTuples: 1,
+          resultMode: "table",
+          result: [{ value: "x" }],
+          consoleLogs: [
+            { msgType: "UNRECOGNIZED", title: "from a newer engine", message: "" },
+            { msgType: "PRINT", title: "WARNING: kept", message: "" },
+          ],
+        },
+      },
+    });
+
+    expect(summary.state).toBe(WorkflowExecutionState.COMPLETED);
+    expect(summary.operators.target.consoleMessages).toEqual([
+      { msgType: ConsoleMessageType.PRINT, title: "WARNING: kept", message: "" },
+    ]);
+  });
+
+  test("leaves console messages absent when none has a recognized type", () => {
+    const summary = adaptLegacySyncExecutionResult({
+      success: true,
+      state: "Completed",
+      operators: {
+        target: {
+          state: "Completed",
+          outputTuples: 0,
+          resultMode: "table",
+          consoleLogs: [{ msgType: "UNRECOGNIZED", title: "", message: "" }],
+        },
+      },
+    });
+
+    expect(summary.operators.target.consoleMessages).toBeUndefined();
+  });
+
+  test("does not require legacy fields the adapter never reads", () => {
+    // inputTuples, inputPortShapes, displayedRows, truncated and warnings are not
+    // part of the canonical model, so their absence must not fail the run.
+    const summary = adaptLegacySyncExecutionResult({
+      success: true,
+      state: "Completed",
+      operators: { target: { state: "Completed", outputTuples: 3, resultMode: "table", result: [] } },
+    });
+
+    expect(summary.operators.target.resultSummary?.totalTuplesCount).toBe(3);
+  });
+
   test("rejects a malformed response instead of trusting an unchecked cast", () => {
     expect(() => adaptLegacySyncExecutionResult({ success: "yes", state: "Completed", operators: {} })).toThrow(
       "Invalid legacy sync-execution response"
