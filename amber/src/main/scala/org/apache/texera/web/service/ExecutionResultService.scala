@@ -524,6 +524,11 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
+          // One entry per operator, so it follows the first output port, as the result updates do.
+          // Keyed by operator, a second port's count would otherwise replace the first's.
+          .filter(uri =>
+            VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
+          )
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
