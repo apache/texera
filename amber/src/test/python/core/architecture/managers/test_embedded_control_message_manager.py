@@ -141,6 +141,15 @@ class TestEcmPortAlignment:
         # Port B is single-channel, so b1 alone completes its port.
         assert mgr.is_ecm_aligned(b1, ecm) is True
 
+    def test_control_channel_does_not_block_data_port_alignment(self):
+        data = _channel("data")
+        control = _channel("control", is_control=True)
+        gw = _gateway_with_ports({"port": {data, control}}, all_channels={data})
+        mgr = EmbeddedControlMessageManager(SELF_ID, gw)
+        ecm = _make_ecm(EmbeddedControlMessageType.PORT_ALIGNMENT)
+
+        assert mgr.is_ecm_aligned(data, ecm) is True
+
     def test_unsupported_ecm_type_raises_value_error(self):
         # The `else: raise ValueError(...)` branch — guard against any new
         # enum value silently falling through.
