@@ -366,7 +366,6 @@ export async function executeOperatorAndFormat(
   options: {
     abortSignal?: AbortSignal;
     onResult?: (operatorId: string, operatorInfo: OperatorExecutionSummary) => void;
-    onResultLegacy?: (operatorId: string, backendStats?: Record<string, string>) => void;
   } = {}
 ): Promise<string> {
   // Serialize executions per workflow to avoid ConcurrentModificationException on the backend.
