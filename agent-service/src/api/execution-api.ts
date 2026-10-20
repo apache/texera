@@ -23,6 +23,7 @@ import {
   OperatorState,
   WorkflowExecutionState,
   WorkflowFatalErrorType,
+  type ConsoleMessageSummary,
   type IndexedTuple,
   type OperatorExecutionSummary,
   type WebOutputMode,
@@ -62,8 +63,11 @@ export interface LogicalPlan {
  * TypeScript types are erased at runtime, so Zod validates the untrusted JSON
  * response before it enters the canonical agent-service execution model.
  */
+// Console messages are auxiliary, so an unrecognized type (a proto value added
+// after this mirror, or ScalaPB's "UNRECOGNIZED") must not reject the whole
+// response: the type is validated as text and unknown ones are dropped below.
 const legacyConsoleMessageSchema = z.object({
-  msgType: z.nativeEnum(ConsoleMessageType),
+  msgType: z.string(),
   title: z.string().default(""),
   message: z.string(),
 });
@@ -76,18 +80,17 @@ const legacyResultModeToWebOutputMode = {
   visualization: { type: "SetSnapshotMode" },
 } satisfies Record<LegacyResultMode, WebOutputMode>;
 
+// Only the fields the adapter reads are validated; zod strips the rest
+// (inputTuples, inputPortShapes, displayedRows, truncated, warnings), so the
+// backend can change them without failing executions.
 const legacyOperatorInfoSchema = z.object({
   state: z.string(),
-  inputTuples: z.number(),
   outputTuples: z.number(),
   resultMode: legacyResultModeSchema,
   result: z.array(z.record(z.unknown())).nullish(),
   totalRowCount: z.number().int().nonnegative().nullish(),
-  displayedRows: z.number().int().nonnegative().nullish(),
-  truncated: z.boolean().nullish(),
   consoleLogs: z.array(legacyConsoleMessageSchema).nullish(),
   error: z.string().nullish(),
-  warnings: z.array(z.string()).nullish(),
 });
 
 const legacySyncExecutionResultSchema = z.object({
@@ -101,6 +104,7 @@ const legacySyncExecutionResultSchema = z.object({
 const internalResultKeys = new Set(["__row_index__", "__is_visualization__"]);
 const operatorStates = new Set<string>(Object.values(OperatorState));
 const workflowStates = new Set<string>(Object.values(WorkflowExecutionState));
+const consoleMessageTypes = new Set<string>(Object.values(ConsoleMessageType));
 
 function normalizeOperatorState(state: string): OperatorState {
   return operatorStates.has(state) ? (state as OperatorState) : OperatorState.UNKNOWN;
@@ -141,6 +145,15 @@ function legacyRowToTuple(row: Record<string, unknown>, fallbackIndex: number): 
   ];
 }
 
+function adaptConsoleMessages(
+  consoleLogs: ReadonlyArray<z.output<typeof legacyConsoleMessageSchema>> | null | undefined
+): ReadonlyArray<ConsoleMessageSummary> | undefined {
+  const messages = (consoleLogs ?? []).flatMap(message =>
+    consoleMessageTypes.has(message.msgType) ? [{ ...message, msgType: message.msgType as ConsoleMessageType }] : []
+  );
+  return messages.length > 0 ? messages : undefined;
+}
+
 function makeWorkflowError(type: WorkflowFatalErrorType, message: string, operatorId: string): WorkflowFatalError {
   const now = Date.now();
   return {
@@ -166,7 +179,7 @@ function adaptOperatorInfo(
           totalTuplesCount: operator.totalRowCount ?? operator.outputTuples,
         };
 
-  const consoleMessages = operator.consoleLogs?.length ? operator.consoleLogs : undefined;
+  const consoleMessages = adaptConsoleMessages(operator.consoleLogs);
   const errorMessages = operator.error
     ? [makeWorkflowError(WorkflowFatalErrorType.EXECUTION_FAILURE, operator.error, operatorId)]
     : [];
