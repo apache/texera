@@ -471,7 +471,7 @@ export function createExecuteOperatorTool(
 ) {
   return tool({
     description:
-      "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the input tables(if any) and output table, and the records in the output table",
+      "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the output table, and the records in the output table",
     inputSchema: z.object({
       operatorId: z.string().describe("The operator ID to view result for."),
     }),
