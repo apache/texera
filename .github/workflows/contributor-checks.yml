@@ -51,7 +51,13 @@ permissions:
 
 jobs:
   contributor-checks:
-    if: github.event.sender.type != 'Bot'
+    # Skip automated PR/issue openers. GitHub App bots (e.g. dependabot)
+    # have sender.type == 'Bot', but Renovate runs under a regular User
+    # account (`renovate-bot`, type: User) and would otherwise be nagged
+    # for not following the template, so exclude it explicitly by login.
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      github.event.sender.login != 'renovate-bot'
     runs-on: ubuntu-latest
     steps:
       # pull_request_target and issues both resolve to the trusted base

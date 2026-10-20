@@ -144,7 +144,12 @@ class ExecutionConsoleService(
     consoleMessageOpIdToWriterMap.getOrElseUpdate(
       opId.id, {
         val uri = VFSURIFactory
-          .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)
+          .createConsoleMessagesURI(
+            workflowContext.workflowId,
+            workflowContext.executionId,
+            opId,
+            warehouse = workflowContext.warehouse
+          )
         val writer = DocumentFactory
           .createDocument(uri, ResultSchema.consoleMessagesSchema)
           .writer("console_messages")
@@ -215,6 +220,31 @@ class ExecutionConsoleService(
       case _ =>
     }
   )
+
+  override def unsubscribeAll(): Unit = {
+    consoleMessageOpIdToWriterMap.values.foreach { writer =>
+      try {
+        writer.close()
+      } catch {
+        case e: Exception =>
+          logger.error("Failed to close console message writer during unsubscribeAll", e)
+      }
+    }
+    consoleMessageOpIdToWriterMap.clear()
+
+    super.unsubscribeAll()
+
+    consoleWriterThread.shutdown()
+    try {
+      if (!consoleWriterThread.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+        consoleWriterThread.shutdownNow()
+      }
+    } catch {
+      case _: InterruptedException =>
+        consoleWriterThread.shutdownNow()
+        Thread.currentThread().interrupt()
+    }
+  }
 
   /**
     * Processes a console message for display, performing truncation if needed.

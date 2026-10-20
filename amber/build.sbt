@@ -35,10 +35,6 @@ Universal / mappings := AddMetaInfLicenseFiles.distMappings(
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
-// to turn on, use: INFO
-// to turn off, use: WARNING
-scalacOptions ++= Seq("-Xelide-below", "WARNING")
-
 // to check feature warnings
 scalacOptions += "-feature"
 // to check deprecation warnings
@@ -69,26 +65,20 @@ Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "test" / "int
 // scalafix still cover it and `sbt Test/runMain` can invoke benches.
 Test / unmanagedSourceDirectories += baseDirectory.value / "src" / "bench" / "scala"
 
-// Test-filter switch driven by the AMBER_TEST_FILTER env var so the
-// amber and amber-integration CI jobs select disjoint subsets without
-// each invocation having to embed a `set Tests.Argument(...)` prefix.
-//   skip-integration : exclude @IntegrationTest-tagged specs (amber job)
-//   integration-only : include only @IntegrationTest-tagged specs (amber-integration job)
-//   (unset)          : run everything (default for local sbt)
-Test / testOptions ++= (sys.env.get("AMBER_TEST_FILTER") match {
-  case Some("skip-integration") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-l", "org.apache.texera.amber.tags.IntegrationTest"))
-  case Some("integration-only") =>
-    Seq(Tests.Argument(TestFrameworks.ScalaTest, "-n", "org.apache.texera.amber.tags.IntegrationTest"))
-  case _ => Nil
-})
+// Lets the amber and amber-integration CI jobs select disjoint subsets without
+// each invocation having to embed a `set Tests.Argument(...)` prefix. See
+// project/TestFilters.scala.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "AMBER_TEST_FILTER",
+  tag = "org.apache.texera.amber.tags.IntegrationTest"
+)
 
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Pekko related
-val pekkoVersion = "1.6.0"
+val pekkoVersion = "1.7.0"
 val pekkoDependencies = Seq(
   "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
   "org.apache.pekko" %% "pekko-remote" % pekkoVersion,
@@ -120,7 +110,7 @@ val dropwizardDependencies = Seq(
   // https://mvnrepository.com/artifact/com.github.toastshaman/dropwizard-auth-jwt
   "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
-  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
+  "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.3.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
@@ -190,8 +180,8 @@ val hadoopDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
 val googleServiceDependencies = Seq(
-  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude("com.google.guava", "guava"),
-  "com.google.api-client" % "google-api-client" % "2.2.0" exclude("com.google.guava", "guava"),
+  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.39.0" exclude("com.google.guava", "guava"),
+  "com.google.api-client" % "google-api-client" % "2.9.0" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
@@ -253,7 +243,7 @@ Compile / compile := (Compile / compile).dependsOn(genPythonProto).value
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
 libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
-libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
+libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.6.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % Test
 // JUnit related dependencies
@@ -290,7 +280,7 @@ libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 libraryDependencies += "com.konghq" % "unirest-java" % "3.14.5"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
-libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.7.0"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
@@ -303,22 +293,22 @@ libraryDependencies += "com.esotericsoftware" % "kryo" % "5.6.2"
 libraryDependencies += "com.esotericsoftware" % "kryo5" % "5.6.0"
 
 // https://mvnrepository.com/artifact/io.altoo/pekko-kryo-serialization
-libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.3.0"
+libraryDependencies += "io.altoo" %% "pekko-kryo-serialization" % "1.5.1"
 
 // https://mvnrepository.com/artifact/io.altoo/scala-kryo-serialization
-libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.3.0"
+libraryDependencies += "io.altoo" %% "scala-kryo-serialization" % "1.5.2"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"
 
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.10.8"
 
 // https://mvnrepository.com/artifact/org.fusesource.leveldbjni/leveldbjni-all
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
 
 // https://mvnrepository.com/artifact/com.github.nscala-time/nscala-time
-libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.32.0"
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.34.0"
 
 // https://mvnrepository.com/artifact/com.google.guava/guava
 libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
@@ -352,10 +342,10 @@ libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2.1"
 
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
-libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
+libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.4.0"
 
 // For supporting deepcopy
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
-libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
+libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.13.0-jdk8"
 
 

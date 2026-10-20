@@ -20,7 +20,6 @@ name: Required Checks
 on:
   push:
     branches:
-      - 'ci-enable/**'
       - 'main'
       - 'release/**'
   pull_request:
@@ -43,8 +42,10 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') }}
 
 jobs:
-  # Decide which build stacks this event needs (label union on PR events; all
-  # stacks on push/merge_group/dispatch). Shared with Backport Checks via the
+  # Decide which build stacks this event needs (label union on PR events and
+  # merge groups — a merge group unions the labels of every PR it contains,
+  # and skips every stack when its tree matches an already-green PR head;
+  # all stacks on push/dispatch). Shared with Backport Checks via the
   # reusable precheck workflow so the label -> stack mapping lives in one place
   # (.github/workflows/precheck.yml). The backport_targets output is unused
   # here — backport preflight/build moved to the Backport Checks workflow.

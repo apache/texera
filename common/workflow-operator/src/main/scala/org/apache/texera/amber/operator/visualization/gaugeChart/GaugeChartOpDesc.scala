@@ -19,12 +19,11 @@
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
@@ -40,15 +39,19 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
   @NotNull(message = "Gauge Value cannot be empty")
   var value: EncodableString = ""
 
+  // Numeric: both are only used as float(). contentAs names the boxed class —
+  // Option erases its element type, and a blank must not read as 0.
   @JsonProperty(value = "delta", required = false)
   @JsonSchemaTitle("Delta")
   @JsonPropertyDescription("The baseline value used to calculate the delta from the gauge value")
-  var delta: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var delta: Option[Double] = None
 
   @JsonProperty(value = "threshold", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("Defines a boundary or target value shown on the gauge chart")
-  var threshold: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var threshold: Option[Double] = None
 
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
@@ -69,21 +72,29 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
-  private val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
+  /** An unset number reaches the generated code as Python's `None`. */
+  private def numberOrNone(value: Option[Double]): PythonLiteral =
+    value.map(_.toString).getOrElse("None")
 
-  private def serializeSteps(steps: List[GaugeChartSteps]): String = {
-    mapper.writeValueAsString(steps)
-  }
+  /** The steps whose bounds are both filled in, as a list literal of numbers.
+    * The field is optional, so an explicit null leaves it null; that is no steps.
+    */
+  private def stepsLiteral: PythonLiteral =
+    Option(steps)
+      .getOrElse(List.empty)
+      .flatMap(step => step.start.zip(step.end))
+      .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+      .mkString("[", ", ", "]")
 
   override def generatePythonCode(): String = {
-    val stepsStr: EncodableString = serializeSteps(steps)
+    val deltaExpr = numberOrNone(delta)
+    val thresholdExpr = numberOrNone(threshold)
+    val stepsExpr = stepsLiteral
 
     pyb"""
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
-         |import json
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
@@ -106,32 +117,23 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |
          |        try:
          |            gauge_value = $value
-         |            try:
-         |                delta_ref = float($delta) if $delta.strip() else None
-         |            except ValueError:
-         |                delta_ref = None
-         |            try:
-         |                threshold_val = float($threshold) if $threshold.strip() else None
-         |            except ValueError:
-         |                threshold_val = None
+         |            delta_ref = $deltaExpr
+         |            threshold_val = $thresholdExpr
          |
          |            table = table.dropna(subset=[gauge_value])
          |            if table.empty:
          |                yield {'html-content': self.render_error("No non-null rows found for the value column.")}
          |                return
          |
-         |            try:
-         |                valid_steps = json.loads($stepsStr)
-         |                step_colors = self.generate_gray_gradient(len(valid_steps))
-         |                steps_list = []
-         |                for index, step_data in enumerate(valid_steps):
-         |                    color = step_colors[index]
-         |                    steps_list.append({
-         |                        "range": [float(step_data["start"]), float(step_data["end"])],
-         |                        "color": color
-         |                    })
-         |            except Exception:
-         |                steps_list = []
+         |            valid_steps = $stepsExpr
+         |            step_colors = self.generate_gray_gradient(len(valid_steps))
+         |            steps_list = []
+         |            for index, step_data in enumerate(valid_steps):
+         |                color = step_colors[index]
+         |                steps_list.append({
+         |                    "range": [step_data["start"], step_data["end"]],
+         |                    "color": color
+         |                })
          |
          |            html_chunks = []
          |            for _, row in table.iterrows():

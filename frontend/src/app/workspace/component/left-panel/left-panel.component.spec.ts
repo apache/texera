@@ -18,6 +18,8 @@
  */
 
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { DebugElement } from "@angular/core";
 import { LeftPanelComponent } from "./left-panel.component";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
@@ -313,6 +315,144 @@ describe("LeftPanelComponent", () => {
     expect(fresh.order).toEqual([1, 2, 3, 4, 5]);
 
     freshFixture.destroy();
+  });
+
+  // ── Rendered template: tab lists + their (click)/event bindings ──
+  describe("template tab rendering & interactions", () => {
+    // Draggable tabs render with the CDK `cdk-drag` class; the collapse "minus"
+    // button does not. Enabled tabs render in `order` sequence, so the frame's
+    // list position is its index among the currently-enabled frames.
+    const tabForFrame = (containerId: string, frame: number): DebugElement | undefined => {
+      const tabs = fixture.debugElement.queryAll(By.css(`#${containerId} li[nz-menu-item].cdk-drag`));
+      const pos = component.order.filter(i => component.items[i].enabled).indexOf(frame);
+      return pos >= 0 ? tabs[pos] : undefined;
+    };
+    const minusOf = (containerId: string): DebugElement | null =>
+      fixture.debugElement.query(By.css(`#${containerId} li[nz-menu-item]:not(.cdk-drag)`));
+
+    it("clicking a tab in the collapsed dock opens that frame", () => {
+      component.width = 0;
+      fixture.detectChanges();
+
+      // collapsed state (width 0) -> #docked-buttons shows the enabled tabs
+      const versionsTab = tabForFrame("docked-buttons", 2);
+      expect(versionsTab).toBeTruthy();
+
+      versionsTab!.triggerEventHandler("click", null);
+
+      expect(component.currentIndex).toBe(2);
+      expect(component.width).toBe(230); // collapsed -> re-opened
+    });
+
+    it("the collapsed dock renders enabled tabs and omits disabled ones", () => {
+      // 1/2/3 are enabled; 4 (Execution History) is disabled in the mock GUI config
+      expect(fixture.debugElement.queryAll(By.css("#docked-buttons li[nz-menu-item].cdk-drag")).length).toBe(3);
+      expect(tabForFrame("docked-buttons", 1)).toBeTruthy();
+      expect(tabForFrame("docked-buttons", 4)).toBeUndefined();
+    });
+
+    it("the docked-bar minus collapses the panel when it is open and undocked", () => {
+      component.width = 300;
+      component.isDocked = false;
+      fixture.detectChanges();
+
+      const minus = minusOf("docked-buttons");
+      expect(minus).toBeTruthy();
+      minus!.triggerEventHandler("click", null);
+
+      expect(component.width).toBe(0);
+      expect(component.currentIndex).toBe(0);
+    });
+
+    it("clicking a tab in the expanded dock switches frames", () => {
+      component.width = 300;
+      component.isDocked = false;
+      fixture.detectChanges();
+
+      const settingsTab = tabForFrame("dock", 3);
+      expect(settingsTab).toBeTruthy();
+      settingsTab!.triggerEventHandler("click", null);
+
+      expect(component.currentIndex).toBe(3);
+    });
+
+    it("the expanded dock's minus collapses the panel when docked", () => {
+      component.width = 300;
+      component.isDocked = true;
+      fixture.detectChanges();
+
+      const minus = minusOf("dock");
+      expect(minus).toBeTruthy();
+      minus!.triggerEventHandler("click", null);
+
+      expect(component.width).toBe(0);
+      expect(component.currentIndex).toBe(0);
+    });
+
+    it("the return button re-docks the panel to its return position", () => {
+      component.width = 300;
+      component.returnPosition = { x: 7, y: 8 };
+      component.dragPosition = { x: 70, y: 80 };
+      component.isDocked = false;
+      fixture.detectChanges();
+
+      const resetBtn = fixture.debugElement.query(By.css("#return-button button"));
+      expect(resetBtn).toBeTruthy();
+      resetBtn.triggerEventHandler("click", null);
+
+      expect(component.isDocked).toBe(true);
+      expect(component.dragPosition).toEqual({ x: 7, y: 8 });
+    });
+
+    it("the return bar's minus collapses the panel", () => {
+      component.width = 300;
+      fixture.detectChanges();
+
+      const minus = minusOf("return-button");
+      expect(minus).toBeTruthy();
+      minus!.triggerEventHandler("click", null);
+
+      expect(component.width).toBe(0);
+      expect(component.currentIndex).toBe(0);
+    });
+
+    it("wires the drop-list reorder from every rendered menu list", () => {
+      component.width = 300;
+      fixture.detectChanges();
+
+      for (const id of ["docked-buttons", "dock", "return-button"]) {
+        component.order = [1, 2, 3, 4, 5];
+        fixture.debugElement
+          .query(By.css(`#${id}`))
+          .triggerEventHandler("cdkDropListDropped", { previousIndex: 0, currentIndex: 1 });
+        expect(component.order).toEqual([2, 1, 3, 4, 5]);
+      }
+    });
+
+    it("wires the resize and drag-start events from the left container", () => {
+      component.width = 300;
+      fixture.detectChanges();
+      const container = fixture.debugElement.query(By.css("#left-container"));
+
+      container.triggerEventHandler("cdkDragStarted", null);
+      expect(component.isDocked).toBe(false);
+
+      const rafSpy = vi
+        .spyOn(window, "requestAnimationFrame")
+        .mockImplementation((cb: FrameRequestCallback): number => {
+          cb(0);
+          return 1;
+        });
+      const cafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+      try {
+        container.triggerEventHandler("nzResize", { width: 345, height: 678 });
+        expect(component.width).toBe(345);
+        expect(component.height).toBe(678);
+      } finally {
+        rafSpy.mockRestore();
+        cafSpy.mockRestore();
+      }
+    });
   });
 
   it("restores the saved left-container style on its first ngOnInit", () => {

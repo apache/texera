@@ -142,7 +142,7 @@ describe("updateYTypeFromObject", () => {
     expect(originalText.toJSON()).toBe("world");
   });
 
-  it("adds new object keys but leaves keys absent from the new object in place", () => {
+  it("adds new object keys and removes the ones the new object no longer carries", () => {
     const doc = new Y.Doc();
     const yMap = attach(doc, "m", createYTypeFromObject({ keep: 1, drop: 2 }));
 
@@ -153,8 +153,21 @@ describe("updateYTypeFromObject", () => {
     // A key present only in the new object is added.
     expect(asMap.has("add")).toBe(true);
     expect(asMap.get("add")).toBe(3);
-    // A key omitted from the new object is retained (an undefined new value never deletes).
-    expect(asMap.get("drop")).toBe(2);
+    // A key the new object has dropped is deleted rather than left behind. Clearing
+    // an operator property is exactly this: the editor sends the properties without
+    // it, and anything retained here is a value the user removed and can no longer see.
+    expect(asMap.has("drop")).toBe(false);
+  });
+
+  it("keeps a key whose new value is explicitly undefined", () => {
+    const doc = new Y.Doc();
+    const yMap = attach(doc, "m", createYTypeFromObject({ a: 1 }));
+
+    updateYTypeFromObject(yMap, { a: undefined } as any);
+
+    // Carrying the key with an undefined value is not the same as dropping it, and
+    // only the latter means removal.
+    expect((yMap as unknown as Y.Map<any>).get("a")).toBe(1);
   });
 
   it("appends new items to a Y.Array in place", () => {
@@ -198,5 +211,122 @@ describe("updateYTypeFromObject", () => {
       user: { name: "bob", roles: ["admin", "dev"] },
       active: false,
     });
+  });
+});
+
+/**
+ * The blocks above drive the shapes production actually stores. These cover the arms that
+ * only a boxed String, a `typeof` the switch lists but no caller passes, or a particular
+ * array alignment can reach.
+ */
+describe("createYTypeFromObject edge kinds", () => {
+  it("returns values of the non-storable primitive kinds unchanged", () => {
+    const fn = () => 0;
+    const sym = Symbol("s");
+    const big = BigInt(9);
+
+    expect(createYTypeFromObject(fn as any)).toBe(fn);
+    expect(createYTypeFromObject(sym as any)).toBe(sym);
+    expect(createYTypeFromObject(big as any)).toBe(big);
+  });
+
+  it("converts a boxed String object into a Y.Text, losing its content", () => {
+    // `typeof` a boxed String is "object", so it reaches the constructor-name check rather
+    // than the "string" case above it.
+    const yText = createYTypeFromObject(new String("boxed") as unknown as object) as unknown as Y.Text;
+
+    expect(yText).toBeInstanceOf(Y.Text);
+    // Characterizing a defect, not an intent: Y.Text's constructor only accepts a primitive,
+    // so the boxed value is dropped and the text comes out empty. Change this to "boxed"
+    // when the branch unwraps the box (`String(obj)`) before constructing the Y.Text.
+    expect(yText.toJSON()).toBe("");
+  });
+});
+
+describe("updateYTypeFromObject edge kinds", () => {
+  it("returns false for the non-storable primitive kinds", () => {
+    const doc = new Y.Doc();
+    const yText = attach(doc, "t", createYTypeFromObject("hi" as unknown as object));
+
+    expect(updateYTypeFromObject(yText, (() => 0) as any)).toBe(false);
+    expect(updateYTypeFromObject(yText, Symbol("s") as any)).toBe(false);
+    expect(updateYTypeFromObject(yText, BigInt(9) as any)).toBe(false);
+  });
+
+  it("leaves a Y.Text untouched when the new string is identical", () => {
+    const doc = new Y.Doc();
+    const yText = attach(doc, "t", createYTypeFromObject("same" as unknown as object)) as unknown as Y.Text;
+    const before = Y.encodeStateAsUpdate(doc);
+
+    expect(updateYTypeFromObject(yText as unknown as YType<object>, "same" as any)).toBe(true);
+
+    expect(yText.toJSON()).toBe("same");
+    // An in-place delete+insert would have produced new document state.
+    expect(Y.encodeStateAsUpdate(doc)).toEqual(before);
+  });
+
+  it("updates a Y.Text from a boxed String", () => {
+    const doc = new Y.Doc();
+    const yText = attach(doc, "t", createYTypeFromObject("old" as unknown as object)) as unknown as Y.Text;
+
+    // Unlike the constructor, `insert` coerces the boxed value, so this arm does carry the
+    // content through.
+    expect(updateYTypeFromObject(yText as unknown as YType<object>, new String("new") as any)).toBe(true);
+
+    expect(yText.toJSON()).toBe("new");
+  });
+
+  it("stores an undefined array entry as null", () => {
+    const doc = new Y.Doc();
+    const yArray = attach(doc, "a", createYTypeFromObject(["keep"])) as unknown as Y.Array<any>;
+
+    expect(updateYTypeFromObject(yArray as unknown as YType<object>, ["keep", undefined] as any)).toBe(true);
+
+    expect(yArray.toJSON()).toEqual(["keep", null]);
+  });
+
+  it("replaces an array element outright when its kind changes", () => {
+    const doc = new Y.Doc();
+    const yArray = attach(doc, "a", createYTypeFromObject([{ a: 1 }, "tail"])) as unknown as Y.Array<any>;
+
+    // A number cannot be updated into the Y.Map that held the object, so the element is
+    // deleted and re-inserted rather than mutated.
+    expect(updateYTypeFromObject(yArray as unknown as YType<object>, [7, "tail"] as any)).toBe(true);
+
+    expect(yArray.toJSON()).toEqual([7, "tail"]);
+  });
+
+  it("aligns an array whose additions sit before its removals", () => {
+    const doc = new Y.Doc();
+    const yArray = attach(doc, "a", createYTypeFromObject(["a", "b", "c"])) as unknown as Y.Array<any>;
+
+    // The longest common subsequence is "a","c"; reaching it forces the walk through both
+    // of its advance arms.
+    expect(updateYTypeFromObject(yArray as unknown as YType<object>, ["a", "x", "y", "c"] as any)).toBe(true);
+
+    expect(yArray.toJSON()).toEqual(["a", "x", "y", "c"]);
+  });
+});
+
+describe("updateYTypeFromObject unsupported kinds", () => {
+  it("returns false for a matching type it has no merge strategy for", () => {
+    // Both sides report the same constructor, so the type-mismatch guard lets them through,
+    // but the dispatch below only knows String, Array and Object.
+    const oldStandIn = { toJSON: () => new Date(0) } as unknown as YType<object>;
+
+    expect(updateYTypeFromObject(oldStandIn, new Date(1) as unknown as object)).toBe(false);
+  });
+});
+
+describe("updateYTypeFromObject identical boxed strings", () => {
+  it("writes nothing when the new value is the very String object already stored", () => {
+    // The String branch is only reachable for a boxed String, and a boxed String never
+    // compares equal to the primitive a Y.Text reports — so the only way to reach the
+    // "already up to date" arm is for both sides to be the same object. A stand-in whose
+    // toJSON returns that object is what makes the comparison meet.
+    const boxed = new String("same");
+    const oldStandIn = { toJSON: () => boxed } as unknown as YType<object>;
+
+    expect(updateYTypeFromObject(oldStandIn, boxed as unknown as object)).toBe(true);
   });
 });

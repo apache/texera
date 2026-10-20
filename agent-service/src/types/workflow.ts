@@ -114,6 +114,11 @@ export interface WorkflowContent {
   readonly links: OperatorLink[];
   readonly commentBoxes: CommentBox[];
   readonly settings: WorkflowSettings;
+  // The Form View definition (which properties are exposed as form fields). The agent
+  // never reads or edits it, but it lives in workflow.content and must survive an agent
+  // save untouched -- rebuilding content without it would leave a workflow whose default_view
+  // is form with a form that has no fields. Carried through opaquely.
+  readonly formBinding?: unknown;
 }
 
 type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";

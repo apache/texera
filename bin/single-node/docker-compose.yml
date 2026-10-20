@@ -18,33 +18,44 @@
 name: texera-single-node
 services:
   # Part1: Specification of the storage services used by Texera
-  # MinIO is an S3-compatible object storage used to store datasets and files.
-  minio:
-    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
-    container_name: texera-minio
+  # RustFS is an S3-compatible object storage used to store datasets and files.
+  rustfs:
+    image: rustfs/rustfs:1.0.0-rc.6
+    container_name: texera-rustfs
     ports:
-      - "${MINIO_PORT:-9000}:9000"
+      - "${RUSTFS_PORT:-9000}:9000"
     env_file:
       - .env
     environment:
-      - MINIO_ROOT_USER=${STORAGE_S3_AUTH_USERNAME}
-      - MINIO_ROOT_PASSWORD=${STORAGE_S3_AUTH_PASSWORD}
+      - RUSTFS_ACCESS_KEY=${STORAGE_S3_AUTH_USERNAME}
+      - RUSTFS_SECRET_KEY=${STORAGE_S3_AUTH_PASSWORD}
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*
+      # Must match STORAGE_S3_REGION: the region is part of the SigV4 scope, and
+      # LakeFS sends its blockstore region on every request.
+      - RUSTFS_REGION=${STORAGE_S3_REGION}
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      # Empty log directory => log to stdout, so `docker compose logs rustfs`
+      # works and no second volume is needed. `warn` keeps that readable; the
+      # server is very chatty at info.
+      - RUSTFS_OBS_LOG_DIRECTORY=
+      - RUSTFS_OBS_LOGGER_LEVEL=warn
     volumes:
-      - minio_data:/data
-    command: server --console-address ":9001" /data
+      - rustfs_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/health"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   # This job creates the S3 bucket used by the Iceberg warehouse that the
-  # Lakekeeper service manages.
-  minio-init:
-    image: minio/mc:RELEASE.2025-05-21T01-59-54Z
-    container_name: texera-minio-init
+  # Lakekeeper service manages. `rc` is RustFS's S3 client, the counterpart of
+  # the `mc` client this used to run.
+  rustfs-init:
+    image: rustfs/rc:v0.1.35
+    container_name: texera-rustfs-init
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     env_file:
       - .env
@@ -53,9 +64,10 @@ services:
     command:
       - |
         set -e
-        mc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD"
-        mc mb --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
-        echo "MinIO bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
+        rc alias set local "$$STORAGE_S3_ENDPOINT" "$$STORAGE_S3_AUTH_USERNAME" "$$STORAGE_S3_AUTH_PASSWORD" \
+          --region "$$STORAGE_S3_REGION" --bucket-lookup path
+        rc bucket create --ignore-existing "local/$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET"
+        echo "RustFS bucket '$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET' is ready."
 
   # PostgreSQL with PGroonga extension for full-text search.
   # Used by lakeFS and Texera's metadata storage.
@@ -83,13 +95,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
     env_file:
       - .env
     environment:
-      # This port also need to be changed if the port of MinIO service is changed
-      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${MINIO_PORT:-9000}
+      # This port also need to be changed if the port of RustFS service is changed
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:${RUSTFS_PORT:-9000}
       - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=${STORAGE_S3_AUTH_USERNAME}
       - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=${STORAGE_S3_AUTH_PASSWORD}
     entrypoint: ["/bin/sh", "-c"]
@@ -126,7 +138,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_started
       lakekeeper-migrate:
         condition: service_completed_successfully
@@ -142,14 +154,14 @@ services:
       start_period: 10s
 
   # One-shot init container that creates the Lakekeeper default project and
-  # the Iceberg warehouse pointing at the MinIO bucket prepared by minio-init.
+  # the Iceberg warehouse pointing at the RustFS bucket prepared by rustfs-init.
   lakekeeper-init:
     image: alpine:3.19
     container_name: texera-lakekeeper-init
     depends_on:
       lakekeeper:
         condition: service_healthy
-      minio-init:
+      rustfs-init:
         condition: service_completed_successfully
     env_file:
       - .env
@@ -222,23 +234,22 @@ services:
           # The warehouse persists its S3 endpoint in Lakekeeper's own DB. The
           # local-dev launcher sets STORAGE_S3_ENDPOINT to the host LAN IP so
           # both this container and the host JVMs (Iceberg remote-signing) reach
-          # the same MinIO — but that IP changes across networks / DHCP leases.
+          # the same RustFS — but that IP changes across networks / DHCP leases.
           # This init is idempotent and would otherwise just skip, leaving a
           # stale endpoint that breaks workflow execution with an opaque Iceberg
           # RESTException. Refresh the stored endpoint on every run (#6195).
           echo "Lakekeeper Warehouse '$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME' already exists. Refreshing its storage endpoint to '$$STORAGE_S3_ENDPOINT'..."
           WAREHOUSE_ID=$$(jq -r --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" '.warehouses[]? | select(.name == $$name) | .id' /tmp/warehouses.txt)
+
+          # The key prefix and the region are both immutable: Lakekeeper rejects
+          # the whole payload when either would change, taking the endpoint with
+          # it. Reuse the profile the warehouse already holds and override only
+          # the endpoint, so no other field can drift out of the stored record.
+          REFRESHED_PROFILE=$$(jq -c --arg name "$$STORAGE_ICEBERG_CATALOG_REST_WAREHOUSE_NAME" --arg endpoint "$$STORAGE_S3_ENDPOINT" '.warehouses[]? | select(.name == $$name) | ."storage-profile" | .endpoint = $$endpoint' /tmp/warehouses.txt)
+
           UPDATE_PAYLOAD=$$(cat <<EOF
         {
-          "storage-profile": {
-            "type": "s3",
-            "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
-            "region": "$$STORAGE_S3_REGION",
-            "endpoint": "$$STORAGE_S3_ENDPOINT",
-            "flavor": "s3-compat",
-            "path-style-access": true,
-            "sts-enabled": false
-          },
+          "storage-profile": $$REFRESHED_PROFILE,
           "storage-credential": {
             "type": "s3",
             "credential-type": "access-key",
@@ -272,6 +283,7 @@ services:
           "storage-profile": {
             "type": "s3",
             "bucket": "$$STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET",
+            "key-prefix": "$$STORAGE_ICEBERG_CATALOG_REST_KEY_PREFIX",
             "region": "$$STORAGE_S3_REGION",
             "endpoint": "$$STORAGE_S3_ENDPOINT",
             "flavor": "s3-compat",
@@ -314,7 +326,7 @@ services:
     container_name: file-service
     restart: unless-stopped
     depends_on:
-      minio:
+      rustfs:
         condition: service_started
       lakefs:
         condition: service_healthy
@@ -470,6 +482,53 @@ services:
       timeout: 3s
       retries: 10
 
+  # NotebookMigrationService provides endpoints for the Jupyter notebook migration tool
+  notebook-migration-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-notebook-migration-service:${IMAGE_TAG:-latest}
+    container_name: notebook-migration-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Interpolation only works in the compose file, not inside .env, so the
+      # browser-facing URL is composed here (same as lakefs's pre-signed endpoint).
+      - STORAGE_JUPYTER_PUBLIC_URL=${TEXERA_HOST}:${JUPYTER_PORT:-9100}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9098/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # JupyterLab instance that the notebook migration tool embeds in an iframe.
+  # Its port is published because the browser loads it directly, not through nginx
+  # (STORAGE_JUPYTER_PUBLIC_URL); notebook-migration-service reaches it in-network
+  # via STORAGE_JUPYTER_INTERNAL_URL.
+  jupyter:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-jupyter:${IMAGE_TAG:-latest}
+    container_name: texera-jupyter
+    restart: unless-stopped
+    ports:
+      - "${JUPYTER_PORT:-9100}:8888"
+    # No env_file here on purpose. Users run arbitrary code in Jupyter, so this
+    # container gets only the two values it needs, not the whole .env (which holds
+    # the DB, S3, LakeFS, and LiteLLM credentials). It also keeps JUPYTER_PORT out:
+    # the base image reads it and would move the server off 8888.
+    environment:
+      # Texera app origin for the iframe CSP frame-ancestors and custom.js postMessage checks.
+      - TEXERA_ORIGIN=${TEXERA_HOST}:${TEXERA_PORT:-8080}
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-texera}
+    healthcheck:
+      # /api returns the server version without requiring the token, so it is a
+      # reliable liveness probe even with auth enabled.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888/api')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
@@ -483,6 +542,7 @@ services:
       - access-control-service
       - workflow-computing-unit-managing-service
       - agent-service
+      - notebook-migration-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -536,6 +596,6 @@ networks:
 
 # persistent volumes
 volumes:
-  minio_data:
+  rustfs_data:
   postgres_data:
   workflow_result_data:

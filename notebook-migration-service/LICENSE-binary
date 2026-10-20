@@ -224,10 +224,10 @@ Scala/Java jars:
   - com.fasterxml.jackson.core.jackson-annotations-2.18.8.jar
   - com.fasterxml.jackson.core.jackson-core-2.18.8.jar
   - com.fasterxml.jackson.core.jackson-databind-2.18.8.jar
-  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
+  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.17.0.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-guava-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar
-  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.16.1.jar
+  - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.17.0.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-base-2.16.1.jar
   - com.fasterxml.jackson.jakarta.rs.jackson-jakarta-rs-json-provider-2.16.1.jar
   - com.fasterxml.jackson.module.jackson-module-blackbird-2.16.1.jar
@@ -242,6 +242,9 @@ Scala/Java jars:
   - com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
   - com.google.j2objc.j2objc-annotations-2.8.jar
   - com.helger.profiler-1.1.1.jar
+  - com.squareup.okhttp3.logging-interceptor-3.12.12.jar
+  - com.squareup.okhttp3.okhttp-3.12.12.jar
+  - com.squareup.okio.okio-1.15.0.jar
   - com.thesamet.scalapb.lenses_2.13-0.11.20.jar
   - com.thesamet.scalapb.scalapb-json4s_2.13-0.12.0.jar
   - com.thesamet.scalapb.scalapb-runtime_2.13-0.11.20.jar
@@ -274,6 +277,32 @@ Scala/Java jars:
   - io.dropwizard.metrics.metrics-json-4.2.25.jar
   - io.dropwizard.metrics.metrics-jvm-4.2.25.jar
   - io.dropwizard.metrics.metrics-logback-4.2.25.jar
+  - io.fabric8.kubernetes-client-6.12.1.jar
+  - io.fabric8.kubernetes-client-api-6.12.1.jar
+  - io.fabric8.kubernetes-httpclient-okhttp-6.12.1.jar
+  - io.fabric8.kubernetes-model-admissionregistration-6.12.1.jar
+  - io.fabric8.kubernetes-model-apiextensions-6.12.1.jar
+  - io.fabric8.kubernetes-model-apps-6.12.1.jar
+  - io.fabric8.kubernetes-model-autoscaling-6.12.1.jar
+  - io.fabric8.kubernetes-model-batch-6.12.1.jar
+  - io.fabric8.kubernetes-model-certificates-6.12.1.jar
+  - io.fabric8.kubernetes-model-common-6.12.1.jar
+  - io.fabric8.kubernetes-model-coordination-6.12.1.jar
+  - io.fabric8.kubernetes-model-core-6.12.1.jar
+  - io.fabric8.kubernetes-model-discovery-6.12.1.jar
+  - io.fabric8.kubernetes-model-events-6.12.1.jar
+  - io.fabric8.kubernetes-model-extensions-6.12.1.jar
+  - io.fabric8.kubernetes-model-flowcontrol-6.12.1.jar
+  - io.fabric8.kubernetes-model-gatewayapi-6.12.1.jar
+  - io.fabric8.kubernetes-model-metrics-6.12.1.jar
+  - io.fabric8.kubernetes-model-networking-6.12.1.jar
+  - io.fabric8.kubernetes-model-node-6.12.1.jar
+  - io.fabric8.kubernetes-model-policy-6.12.1.jar
+  - io.fabric8.kubernetes-model-rbac-6.12.1.jar
+  - io.fabric8.kubernetes-model-resource-6.12.1.jar
+  - io.fabric8.kubernetes-model-scheduling-6.12.1.jar
+  - io.fabric8.kubernetes-model-storageclass-6.12.1.jar
+  - io.fabric8.zjsonpatch-0.3.0.jar
   - io.r2dbc.r2dbc-spi-1.0.0.RELEASE.jar
   - jakarta.inject.jakarta.inject-api-2.0.1.jar
   - jakarta.validation.jakarta.validation-api-3.0.2.jar
@@ -300,6 +329,7 @@ Scala/Java jars:
   - org.scala-lang.scala-reflect-2.13.18.jar
   - org.slf4j.jcl-over-slf4j-2.0.12.jar
   - org.slf4j.log4j-over-slf4j-2.0.12.jar
+  - org.snakeyaml.snakeyaml-engine-2.7.jar
   - org.yaml.snakeyaml-2.2.jar
 
 --------------------------------------------------------------------------------
@@ -327,7 +357,7 @@ Scala/Java jars:
   - net.sourceforge.argparse4j.argparse4j-0.9.0.jar
   - org.checkerframework.checker-qual-3.52.0.jar
   - org.slf4j.jul-to-slf4j-2.0.12.jar
-  - org.slf4j.slf4j-api-2.0.12.jar
+  - org.slf4j.slf4j-api-2.0.13.jar
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License

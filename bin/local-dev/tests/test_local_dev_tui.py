@@ -175,6 +175,38 @@ def test_is_dirty_after_seed_then_edit(tmp_path, monkeypatch, tui):
     assert tui.is_dirty(svc) is True
 
 
+def test_is_dirty_when_edit_shares_the_stamp_mtime(tmp_path, monkeypatch, tui):
+    """An edit landing in the same filesystem timestamp tick as the stamp write
+    must still be seen.
+
+    `test_is_dirty_after_seed_then_edit` above hits this by accident wherever
+    the filesystem's granularity is coarser than its two consecutive writes;
+    here the collision is forced with os.utime, so it holds on every platform.
+    The fast mtime filter must not answer "definitely clean" without consulting
+    the content hash, or `auto` silently skips the rebuild."""
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "BUILD_STAMP_DIR", tmp_path / "stamps")
+    (tmp_path / "stamps").mkdir()
+    _seed_jvm_layout(tmp_path, "config-service/src")
+
+    svc = tui.SERVICES_BY_NAME["config-service"]
+    jar = tmp_path / svc.artifact_jar
+    jar.parent.mkdir(parents=True, exist_ok=True)
+    jar.write_bytes(b"fake-jar-bytes")
+
+    assert tui.is_dirty(svc) is False
+    stamp = tmp_path / "stamps" / svc.name
+
+    # Change the content, then force the source's mtime to exactly the stamp's.
+    src = tmp_path / "config-service/src/Main.scala"
+    src.write_text("object Main { def y = 2 }\n")
+    st = stamp.stat()
+    os.utime(src, ns=(st.st_atime_ns, st.st_mtime_ns))
+    assert src.stat().st_mtime_ns == stamp.stat().st_mtime_ns
+
+    assert tui.is_dirty(svc) is True
+
+
 def test_is_dirty_mtime_bump_without_content_change_stays_clean(tmp_path, monkeypatch, tui):
     """Robustness against `git checkout` touching mtimes — the whole reason we
     moved off pure-mtime detection. After seeding the stamp, simulating a

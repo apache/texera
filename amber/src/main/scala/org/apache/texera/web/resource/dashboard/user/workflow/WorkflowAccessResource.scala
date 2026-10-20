@@ -86,21 +86,19 @@ object WorkflowAccessResource {
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
     if (access == null) {
-      val projectAccess = context
-        .select()
-        .from(PROJECT_USER_ACCESS)
-        .join(WORKFLOW_OF_PROJECT)
-        .on(WORKFLOW_OF_PROJECT.PID.eq(PROJECT_USER_ACCESS.PID))
-        .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
-        .fetchOneInto(classOf[WorkflowUserAccess])
-      if (projectAccess == null) {
-        PrivilegeEnum.NONE
-      } else {
-        projectAccess.getPrivilege
-      }
+      PrivilegeEnum.NONE
     } else {
       access.getPrivilege
     }
+  }
+
+  /**
+    * Whether the user was granted access to the workflow itself, rather than merely being able to
+    * read it because it is public. Granted access sees the author's working copy; public access is
+    * held at the pinned copy while one is pinned.
+    */
+  def hasGrantedAccess(wid: Integer, uid: Integer): Boolean = {
+    !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
   }
 
   def isPublic(wid: Integer): Boolean = {
@@ -190,7 +188,11 @@ class WorkflowAccessResource() {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
 
-    val userUid = userDao.fetchOneByEmail(email).getUid
+    val targetUser = userDao.fetchOneByEmail(email)
+    if (targetUser == null || targetUser.getIsPlaceholder) {
+      throw new BadRequestException(s"No registered user with email $email")
+    }
+    val userUid = targetUser.getUid
     val workflowOwnerUid = context
       .select(WORKFLOW_OF_USER.UID)
       .from(WORKFLOW_OF_USER)

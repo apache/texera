@@ -65,7 +65,6 @@ class DefaultCostEstimatorSpec
     user.setUid(Integer.valueOf(1))
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
   }

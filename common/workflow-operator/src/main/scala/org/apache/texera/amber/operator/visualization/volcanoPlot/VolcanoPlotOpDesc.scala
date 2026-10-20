@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -31,6 +31,16 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 
 import javax.validation.constraints.NotNull
 
+// type constraint: the p-value is filtered with `> 0` and passed to np.log10, and the
+// effect column is the quantitative x axis, so both can only be numeric.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "effectColumn": { "enum": ["integer", "long", "double"] },
+    "pvalueColumn": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
 class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)

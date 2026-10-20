@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -38,9 +38,15 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
   @DecimalMin(value = "0", message = "Font size must be a non-negative number")
   var fontSize: Double = 12
 
+  // Same shapes plotly accepts for a colour as LineConfig's line colour -- see there.
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Color (Hex Code)")
   @JsonPropertyDescription("Font color of the Figure Factory Table")
+  @JsonSchemaInject(json = """
+{
+  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$"
+}
+""")
   var fontColor: EncodableString = "#000000"
 
   @JsonProperty(required = false)
@@ -103,6 +109,9 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
        |import plotly.io
        |
        |class TableChartOperator(UDFTableOperator):
+       |
+       |    def render_error(self, error_msg) -> str:
+       |        return f"<h1>Figure Factory Table is not available.</h1><p>Reason is: {error_msg}</p>"
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |

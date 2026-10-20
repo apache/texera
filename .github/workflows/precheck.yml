@@ -19,9 +19,12 @@
 # Checks (backport preflight/build) call, so the label -> stack mapping and
 # the labeler-wait live in exactly one place. On PR events it waits for the
 # Pull Request Labeler to finish, then maps the PR's labels to the build
-# stacks each requires and to the release/* backport targets. Non-PR events
-# (push / merge_group / workflow_dispatch) run every stack and request no
-# backports.
+# stacks each requires and to the release/* backport targets. Push and
+# workflow_dispatch events run every stack. Merge groups resolve the PRs in
+# the group and either skip every stack (group tree identical to a PR head
+# that already passed Required Checks) or apply the same label -> stack
+# filter using the union of the group's PR labels; resolution failures fall
+# open to a full run. Non-PR events request no backports.
 name: Precheck
 
 on:
@@ -50,6 +53,9 @@ on:
 
 permissions:
   checks: read
+  # contents: read backs the git-data commit lookups (tree SHAs) in the
+  # merge-queue fast path.
+  contents: read
   pull-requests: read
 
 jobs:
@@ -100,6 +106,97 @@ jobs:
             const eventName = context.eventName;
             let labels = [];
 
+            // When true, the LABEL_STACKS filter below applies to `labels`;
+            // when false the event runs every stack.
+            let applyLabelFilter = false;
+
+            // Merge-queue path, two tiers, evaluated per group:
+            //
+            //  1. Fast path — a merge group whose squash result has the same
+            //     git tree as a PR head that already passed Required Checks
+            //     would re-validate byte-identical content: skip every stack.
+            //     Tree equality only holds for a single-entry group whose PR
+            //     was based on the then-current main (or a stacked PR that
+            //     contains the group's other entries), so the skip is
+            //     content-exact rather than heuristic.
+            //  2. Label union — otherwise, resolve every PR in the group from
+            //     its squash commit message (PR_TITLE_AND_DESC squash titles
+            //     end with "(#N)", same convention direct-backport-push.yml
+            //     relies on) and apply the same label -> stack filter a PR
+            //     event gets, using the union of all the group's PR labels.
+            //
+            // Any resolution failure falls open to a full run.
+            let mergeGroupAlreadyValidated = false;
+            if (eventName === "merge_group") {
+              try {
+                const { owner, repo } = context.repo;
+                const mg = context.payload.merge_group;
+                const { data: comparison } = await github.rest.repos.compareCommits({
+                  owner,
+                  repo,
+                  base: mg.base_sha,
+                  head: mg.head_sha,
+                });
+                const prNumbers = comparison.commits.map((c) => {
+                  const m = c.commit.message.split("\n", 1)[0].match(/\(#(\d+)\)\s*$/);
+                  if (!m) throw new Error(`no PR number in the message of ${c.sha}`);
+                  return Number(m[1]);
+                });
+                if (prNumbers.length === 0) {
+                  throw new Error(`no commits between ${mg.base_sha} and ${mg.head_sha}`);
+                }
+                const pullRequests = [];
+                for (const pullNumber of prNumbers) {
+                  const { data: pr } = await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: pullNumber,
+                  });
+                  pullRequests.push(pr);
+                }
+
+                // Tier 1: tree match against the newest entry's PR head.
+                const headPr = pullRequests[pullRequests.length - 1];
+                const mgTree = (
+                  await github.rest.git.getCommit({ owner, repo, commit_sha: mg.head_sha })
+                ).data.tree.sha;
+                const prTree = (
+                  await github.rest.git.getCommit({ owner, repo, commit_sha: headPr.head.sha })
+                ).data.tree.sha;
+                if (mgTree === prTree) {
+                  // The aggregator job in required-checks.yml publishes the
+                  // "Required Checks" check run on the PR head.
+                  const { data: checkData } = await github.rest.checks.listForRef({
+                    owner,
+                    repo,
+                    ref: headPr.head.sha,
+                    check_name: "Required Checks",
+                  });
+                  const check = checkData.check_runs[0];
+                  if (check && check.status === "completed" && check.conclusion === "success") {
+                    mergeGroupAlreadyValidated = true;
+                    core.info(
+                      `Merge group tree matches PR #${headPr.number} head ${headPr.head.sha}, which already passed Required Checks; skipping all stacks.`
+                    );
+                  }
+                }
+
+                // Tier 2: label union across the group's PRs.
+                if (!mergeGroupAlreadyValidated) {
+                  labels = [...new Set(pullRequests.flatMap((pr) => pr.labels.map((l) => l.name)))];
+                  applyLabelFilter = true;
+                  core.info(
+                    `Merge group PRs: ${prNumbers.map((n) => `#${n}`).join(", ")}; label union: ${labels.join(", ") || "(none)"}`
+                  );
+                }
+              } catch (e) {
+                core.warning(`Merge-group PR resolution failed (${e.message}); running all stacks.`);
+                labels = [];
+                applyLabelFilter = false;
+                mergeGroupAlreadyValidated = false;
+              }
+            }
+
             if (eventName === "pull_request") {
               // Re-fetch labels: the labeler may have just added some.
               const { data: pr } = await github.rest.pulls.get({
@@ -108,6 +205,7 @@ jobs:
                 pull_number: context.payload.pull_request.number,
               });
               labels = pr.labels.map((l) => l.name);
+              applyLabelFilter = true;
               core.info(`PR labels: ${labels.join(", ") || "(none)"}`);
             }
 
@@ -183,7 +281,7 @@ jobs:
             let runInfra = true;
             let runPyrightLanguageService = true;
 
-            if (eventName === "pull_request") {
+            if (applyLabelFilter) {
               const stacks = new Set();
               for (const label of labels) {
                 for (const stack of LABEL_STACKS[label] || []) {
@@ -204,6 +302,18 @@ jobs:
               );
             }
 
+            if (mergeGroupAlreadyValidated) {
+              runFrontend = false;
+              runAmber = false;
+              runAmberIntegration = false;
+              runPlatform = false;
+              runPlatformIntegration = false;
+              runPyamber = false;
+              runAgentService = false;
+              runInfra = false;
+              runPyrightLanguageService = false;
+            }
+
             core.setOutput("run_frontend", runFrontend ? "true" : "false");
             core.setOutput("run_amber", runAmber ? "true" : "false");
             core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
@@ -219,7 +329,12 @@ jobs:
             // a feature that does not exist on any release branch). The veto
             // wins even if release/* labels are also present, so adding it
             // mid-review cancels the backport apply-check/build on the re-run.
-            let targets = [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort();
+            // PR events only: merge_group also populates `labels` now, but its
+            // backports are discovered post-merge by direct-backport-push.yml.
+            let targets =
+              eventName === "pull_request"
+                ? [...new Set(labels.filter((n) => /^release\/.+$/.test(n)))].sort()
+                : [];
             if (labels.includes("no-backport-needed")) {
               core.info("no-backport-needed present; skipping all backport targets.");
               targets = [];

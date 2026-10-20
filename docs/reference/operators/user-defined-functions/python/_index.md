@@ -38,3 +38,23 @@ tags: [user-defined-functions, python]
 | [Python UDF](python-udf/) | User-defined function operator in Python script |
 
 **Total**: 5 operators
+
+## UI parameters
+
+The Python UDF, 2-in Python UDF, and 1-out Python UDF operators can expose values in the property panel. Declare each value with `self.UiParameter(...)` inside the UDF class's `open()` method, then use its `.value` in later methods.
+
+```python
+from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+    @overrides
+    def open(self):
+        self.count = self.UiParameter("count", AttributeType.INT).value
+
+    @overrides
+    def process_tuple(self, tuple_: Tuple, port: int):
+        # self.count contains the value entered in the property panel.
+        yield tuple_
+```
+
+Active calls are inferred from the script; commented-out calls are ignored. The supported classes are `ProcessTupleOperator`, `ProcessBatchOperator`, `ProcessTableOperator`, and `GenerateOperator`. Supported types are `STRING`, `INT`/`LONG`, `DOUBLE`, `BOOL`, and `TIMESTAMP`. Empty strings are valid for `STRING`; all other types require a non-empty value before execution.

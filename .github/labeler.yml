@@ -47,6 +47,7 @@ platform:
           - 'computing-unit-managing-service/**'
           - 'config-service/**'
           - 'file-service/**'
+          - 'notebook-migration-service/**'
           - 'workflow-compiling-service/**'
 
 agent-service:

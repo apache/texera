@@ -46,6 +46,9 @@
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
     semanticCommitType: 'fix',
+    // Drop Renovate's default `[SECURITY]` title suffix; the `security`
+    // label below already identifies these PRs.
+    commitMessageSuffix: '',
     // release/v1.2 flags the fix for backporting to the current release
     // line; bump it when a new release branch is cut.
     labels: ['dependencies', 'security', 'release/v1.2'],
@@ -70,9 +73,19 @@
       matchFileNames: ['bin/y-websocket-server/**'],
       semanticCommitScope: 'deps, y-websocket-server',
     },
+    // amber/ holds both the Scala engine and the Python (pyamber) worker,
+    // so the old blanket `pyamber` scope mislabeled Scala bumps. Split by
+    // manager: Python requirement bumps stay `pyamber`, Scala (sbt) bumps
+    // get `amber` (the directory's own name, not the Python-specific one).
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       semanticCommitScope: 'deps, pyamber',
+    },
+    {
+      matchFileNames: ['amber/**'],
+      matchManagers: ['sbt'],
+      semanticCommitScope: 'deps, amber',
     },
 
     // Patch bumps grouped into one weekly PR per area. Minor bumps are
@@ -101,6 +114,7 @@
     },
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       matchUpdateTypes: ['patch'],
       groupName: 'pyamber patch updates',
     },
@@ -131,6 +145,7 @@
     },
     {
       matchFileNames: ['amber/**'],
+      matchManagers: ['pip_requirements'],
       matchUpdateTypes: ['minor'],
       groupName: 'pyamber minor updates',
     },
@@ -160,6 +175,17 @@
       matchPackageNames: ['/^@angular/', '@schematics/angular'],
       matchUpdateTypes: ['major'],
       enabled: false,
+    },
+
+    // config:recommended pulls in :semanticPrefixFixDepsChoreOthers,
+    // which types runtime-dependency bumps as fix(...). We want the
+    // opposite: every routine bump is chore(...), and only
+    // vulnerabilityAlerts (above) uses fix(...). This catch-all runs
+    // last, so it overrides that preset; vulnerabilityAlerts is applied
+    // as a higher-priority layer for security branches and is unaffected.
+    {
+      matchPackageNames: ['*'],
+      semanticCommitType: 'chore',
     },
   ],
 }

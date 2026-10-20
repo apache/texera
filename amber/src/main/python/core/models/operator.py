@@ -24,9 +24,25 @@ from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Pro
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State
-from .table import all_output_to_tuple, table_from_ipc_bytes, table_to_ipc_bytes
+from .table import all_output_to_tuple
 
 import base64
+
+
+def require_yielded(result, method_name: str):
+    """
+    Catch the common case of a user method such as process_table using
+    `return` instead of `yield`: it rejects a returned None, Tuple, dict or
+    DataFrame, which would otherwise fail later with a confusing error.
+    Other values (e.g. a list, or a pandas Series) are passed through
+    unchecked.
+    """
+    if result is None or isinstance(result, (Tuple, dict, pandas.DataFrame)):
+        raise TypeError(
+            f"{method_name} must `yield` results, not `return` them. "
+            "Replace `return x` with `yield x`."
+        )
+    return result
 
 
 class Operator(ABC):
@@ -179,7 +195,7 @@ class SourceOperator(TupleOperatorV2):
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
-        for i in self.produce():
+        for i in require_yielded(self.produce(), "produce"):
             yield from all_output_to_tuple(i)
 
     @overrides.final
@@ -197,7 +213,6 @@ class BatchOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
         self._validate_batch_size(self.BATCH_SIZE)
 
     @staticmethod
@@ -206,30 +221,39 @@ class BatchOperator(TupleOperatorV2):
         if value is None:
             raise ValueError("BATCH_SIZE cannot be None.")
         if type(value) is not int:
-            raise ValueError("BATCH_SIZE cannot be {type(value))}.")
+            raise ValueError(f"BATCH_SIZE cannot be {type(value)}.")
         if value <= 0:
             raise ValueError("BATCH_SIZE should be positive.")
 
+    def _get_batch_data(self) -> MutableMapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_BatchOperator__batch_data"):
+            self._validate_batch_size(self.BATCH_SIZE)
+            self.__batch_data = defaultdict(list)
+        return self.__batch_data
+
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__batch_data[port].append(tuple_)
-        if (
-            self.BATCH_SIZE is not None
-            and len(self.__batch_data[port]) >= self.BATCH_SIZE
-        ):
+        batch_data = self._get_batch_data()
+        batch_data[port].append(tuple_)
+        if self.BATCH_SIZE is not None and len(batch_data[port]) >= self.BATCH_SIZE:
             yield from self._process_batch(port)
 
     @overrides.final
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        batch_data = self._get_batch_data()
         batch = Batch(
             pandas.DataFrame(
                 [
-                    self.__batch_data[port].pop(0).as_series()
-                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                    batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(batch_data[port]), self.BATCH_SIZE))
                 ]
             )
         )
-        for output_batch in self.process_batch(batch, port):
+        for output_batch in require_yielded(
+            self.process_batch(batch, port), "process_batch"
+        ):
             if output_batch is not None:
                 if isinstance(output_batch, pandas.DataFrame):
                     # TODO: integrate into Batch as a helper function.
@@ -242,7 +266,7 @@ class BatchOperator(TupleOperatorV2):
 
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
-        while len(self.__batch_data[port]) != 0:
+        while len(self._get_batch_data()[port]) != 0:
             yield from self._process_batch(port)
 
     @abstractmethod
@@ -268,27 +292,22 @@ class TableOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self._Operator__internal_is_source: bool = False
-        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+
+    def _get_table_data(self) -> Mapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_TableOperator__table_data"):
+            self.__table_data = defaultdict(list)
+        return self.__table_data
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__table_data[port].append(tuple_)
+        self._get_table_data()[port].append(tuple_)
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(self.__table_data[port])
-        yield from self.process_table(table, port)
-
-    def _buffered_table(self, port: int) -> Table:
-        """Tuples buffered for ``port`` so far, materialized as a Table.
-
-        Exposed so subclasses (e.g. ``LoopStartOperator``) can read the
-        buffer outside the ``process_table`` callback without reaching into
-        the parent's name-mangled private field. Inside this class
-        ``self.__table_data`` resolves via normal name mangling, so a future
-        rename of ``TableOperator`` keeps callers transparent.
-        """
-        return Table(self.__table_data[port])
+        table = Table(self._get_table_data()[port])
+        yield from require_yielded(self.process_table(table, port), "process_table")
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -308,10 +327,13 @@ class TableOperator(TupleOperatorV2):
 # namespaces the loop expressions run in. It is NOT user state: a user loop
 # variable of the same name collides with it, so both operators raise on
 # collision (see ``_reserved_name_error``) rather than silently dropping the
-# user's value. The envelope names (``loop_counter`` / ``loop_start_id``) never
-# enter user state -- they ride the StateFrame envelope (see
-# ``core.models.payload``). The loop-back write address is setup config, not
-# state (see ``loopStartStateUris`` on the ``InitializeExecutorRequest`` proto).
+# user's value. The table itself never rides the State content: the LoopEnd
+# runtime reads it from the Loop Start's input-port materialization at consume
+# time and injects it via ``attach_loop_table``. The envelope names
+# (``loop_counter`` / ``loop_start_id``) never enter user state -- they ride
+# the StateFrame envelope (see ``core.models.payload``). The loop bookkeeping
+# base URI is setup config, not state (see ``loopStartPortUris`` on the
+# ``InitializeExecutorRequest`` proto).
 _TABLE_KEY = "table"
 _RESERVED_STATE_KEYS: frozenset = frozenset({_TABLE_KEY})
 
@@ -359,8 +381,9 @@ class LoopStartOperator(TableOperator):
 
     ``open()`` seeds ``self.state`` with the user's loop variables;
     ``process_state`` merges upstream state in; ``produce_state_on_finish``
-    emits those variables plus the input table (Arrow IPC; see
-    ``table_to_ipc_bytes`` in ``core.models.table``) to the matching LoopEnd.
+    emits those variables to the matching LoopEnd. The input table does NOT
+    ride the state: the LoopEnd runtime reads it from this operator's
+    input-port materialization at consume time (``loopStartPortUris``).
     ``loop_counter`` and the nested pass-through are owned by
     ``MainLoop._process_state_frame``, not this operator.
 
@@ -404,18 +427,15 @@ class LoopStartOperator(TableOperator):
 
     @overrides.final
     def produce_state_on_finish(self, port: int) -> State:
-        # Emit the user's loop variables plus the buffered input table for the
-        # matching LoopEnd. The table rides as an Arrow IPC stream, not pickle
-        # (see `table_to_ipc_bytes` in core.models.table for why). Reads the
-        # buffer through `_buffered_table` so a rename of `TableOperator`
-        # doesn't silently break this.
-        # A user loop variable named `table` would be overwritten by the input
-        # table below, so flag the collision instead of silently dropping it.
+        # Emit the user's loop variables for the matching LoopEnd. The input
+        # table does NOT ride the state: the LoopEnd runtime reads it from
+        # this operator's input-port materialization at consume time
+        # (loopStartPortUris). A user loop variable named `table` would be
+        # silently shadowed by that injected table in the LoopEnd's
+        # update/condition namespaces, so flag the collision here.
         if _TABLE_KEY in self.state:
             raise _reserved_name_error(_TABLE_KEY)
-        produced = State(self.state)
-        produced[_TABLE_KEY] = table_to_ipc_bytes(self._buffered_table(port))
-        return produced
+        return State(self.state)
 
 
 class LoopEndOperator(TableOperator):
@@ -428,9 +448,10 @@ class LoopEndOperator(TableOperator):
     ``eval_condition``); all substantive logic lives here.
 
     ``process_table`` yields each input table through as-is; ``process_state``
-    runs the user's ``update`` and persists only user variables back into
-    ``self.state`` (keeping the decoded table on ``self._loop_table``);
-    ``condition()`` decides whether ``MainLoop.complete()`` fires the back-edge.
+    runs the user's ``update`` (against the table the runtime attached via
+    ``attach_loop_table``) and persists only user variables back into
+    ``self.state``; ``condition()`` decides whether ``MainLoop.complete()``
+    fires the back-edge.
 
     Subclass contract: the generated subclass overrides ``process_state()`` and
     ``condition()`` only; all other methods are ``@overrides.final``.
@@ -452,6 +473,16 @@ class LoopEndOperator(TableOperator):
         # AttributeError; a None _loop_table means "nothing consumed yet" and
         # condition() short-circuits to False (see eval_condition).
         self.state: State = State()
+        # Set by the runtime (attach_loop_table) right before the matching
+        # consume and taken (cleared) by run_update. The clear is defensive
+        # rather than load-bearing today -- a worker instance handles a single
+        # iteration (workers are recreated per region execution), so there is
+        # no second consume within one instance for a stale table to leak
+        # into -- but nothing may run an update against a table it was not
+        # explicitly handed. It stays separate from _loop_table because
+        # _loop_table doubles as the "consumed" marker that condition()
+        # short-circuits on, and only a SUCCESSFUL update may set that.
+        self._attached_table: Optional[Table] = None
         self._loop_table: Optional[Table] = None
 
     @overrides.final
@@ -459,14 +490,30 @@ class LoopEndOperator(TableOperator):
         yield table
 
     @overrides.final
+    def attach_loop_table(self, table: Table) -> None:
+        # Runtime-only hook: MainLoop reads the loop's input table from the
+        # Loop Start's input-port materialization (loopStartPortUris) and
+        # attaches it here right before the matching consume, so the table
+        # never has to ride inside the State content through the loop body.
+        self._attached_table = table
+
+    @overrides.final
     def run_update(self, update_code: str, state: State) -> None:
         # Run the user's `update` in a throwaway namespace seeded with the
         # incoming loop variables and the input table, then persist the user
-        # variables back into self.state. The table arrives as an Arrow IPC
-        # stream, not pickle (see `table_to_ipc_bytes` in core.models.table
-        # for why); the decoded table is kept on self._loop_table so
-        # condition() can read it after the update.
-        input_table = table_from_ipc_bytes(state[_TABLE_KEY])
+        # variables back into self.state. The table is attached by the runtime
+        # (attach_loop_table) from the Loop Start's input materialization; on
+        # a successful update it is kept on self._loop_table so condition()
+        # can read it afterwards.
+        if self._attached_table is None:
+            raise RuntimeError(
+                "loop input table was not attached before the update; the "
+                "runtime must call attach_loop_table on the matching consume"
+            )
+        input_table = self._attached_table
+        # Take it: a later iteration that never got a table must raise above
+        # rather than silently run the update against the previous one.
+        self._attached_table = None
         namespace = {**state, _TABLE_KEY: input_table}
         # Pass the namespace as exec globals (not a locals-only mapping) so a
         # comprehension / generator expression / lambda in the user's `update`

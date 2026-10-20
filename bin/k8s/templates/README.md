@@ -27,7 +27,7 @@ these subdirectories are purely organizational — they do not change rendering.
 | Folder | Contains | Renders when |
 |--------|----------|--------------|
 | `base/` | Resources every deployment needs: the Texera micro-service Deployments/Services, the Envoy Gateway + routes, Postgres/LakeFS/Lakekeeper wiring, the computing-unit pool, RBAC and namespaces. | Always. |
-| `on-prem/` | Resources only used by a self-hosted / local deployment, e.g. the in-cluster MinIO persistence. | Gated on the relevant on-prem value (e.g. `minio.enabled`). |
+| `on-prem/` | Resources only used by a self-hosted / local deployment, e.g. the in-cluster RustFS persistence. | Gated on the relevant on-prem value (e.g. `rustfs.enabled`). |
 | `aws/` | Resources only used on AWS/EKS, e.g. the external-S3 credentials Secret, the AWS NLB/EIP `EnvoyProxy`, and the autoscaler warm-pool placeholder. | Gated so they render to nothing off AWS (empty by default). |
 
 Within `base/`, templates are further grouped into one subfolder per

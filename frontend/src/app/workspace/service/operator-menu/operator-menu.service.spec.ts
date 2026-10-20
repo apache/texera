@@ -34,7 +34,9 @@ import {
   mockScanPredicate,
   mockScanSentimentLink,
   mockSentimentPredicate,
+  mockSentimentResultLink,
 } from "../workflow-graph/model/mock-workflow-data";
+import { CommentBox } from "../../types/workflow-common.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { Subscription } from "rxjs";
@@ -456,6 +458,160 @@ describe("OperatorMenuService", () => {
         "Some of the links that you selected don't have operators attached to both ends of them. " +
           "These links won't be pasted, since links can't exist without operators."
       );
+    });
+  });
+
+  /**
+   * Copying and pasting a *single* link, comment box, or operator never reaches the code that
+   * relates two of them: JS skips a one-element sort comparator entirely, and the overlap scan has
+   * nothing to scan against. The suite above copies exactly one of each, so the layer sorting and
+   * the collision check against elements already on the canvas both went unexercised.
+   */
+  describe("ordering and collision across multiple elements", () => {
+    let originalClipboard: PropertyDescriptor | undefined;
+    let writeText: ReturnType<typeof vi.fn>;
+    let readText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+      writeText = vi.fn().mockResolvedValue(undefined);
+      readText = vi.fn();
+      Object.defineProperty(navigator, "clipboard", { value: { writeText, readText }, configurable: true });
+    });
+
+    afterEach(() => {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        delete (navigator as any).clipboard;
+      }
+    });
+
+    /**
+     * Adds the three mock operators and the two links between them. Multi-select is deliberately
+     * left off: adding an element turns it back off, so each test enables it once everything it
+     * needs is on the canvas.
+     */
+    function buildChain() {
+      workflowActionService.addOperatorsAndLinks(
+        [
+          { op: mockScanPredicate, pos: mockPoint },
+          { op: mockSentimentPredicate, pos: mockPoint },
+          { op: mockResultPredicate, pos: mockPoint },
+        ],
+        [mockScanSentimentLink, mockSentimentResultLink]
+      );
+      return workflowActionService.getJointGraphWrapper();
+    }
+
+    it("serializes the copied links by joint layer rather than by highlight order", () => {
+      const wrapper = buildChain();
+      wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+      wrapper.setMultiSelectMode(true);
+      wrapper.highlightLinks(mockScanSentimentLink.linkID, mockSentimentResultLink.linkID);
+
+      // Send the link highlighted *second* to the back, so layer order is the reverse of highlight
+      // order: a comparator that never ran, or that subtracted the other way round, would show up.
+      workflowActionService.getJointGraph().getCell(mockSentimentResultLink.linkID).toBack();
+      expect(wrapper.getCellLayer(mockSentimentResultLink.linkID)).toBeLessThan(
+        wrapper.getCellLayer(mockScanSentimentLink.linkID)
+      );
+      expect(wrapper.getCurrentHighlightedLinkIDs()).toEqual([
+        mockScanSentimentLink.linkID,
+        mockSentimentResultLink.linkID,
+      ]);
+
+      service.saveHighlightedElements();
+
+      const serialized = JSON.parse(writeText.mock.calls[0][0]);
+      expect(serialized.links.map((link: any) => link.linkID)).toEqual([
+        mockSentimentResultLink.linkID,
+        mockScanSentimentLink.linkID,
+      ]);
+    });
+
+    it("serializes the copied comment boxes by joint layer rather than by highlight order", () => {
+      const wrapper = buildChain();
+      const boxA = { ...mockCommentBox, commentBoxID: "comment-box-a" };
+      const boxB = { ...mockCommentBox, commentBoxID: "comment-box-b" };
+      workflowActionService.addCommentBox(boxA);
+      workflowActionService.addCommentBox(boxB);
+      wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+      wrapper.unhighlightCommentBoxes(...wrapper.getCurrentHighlightedCommentBoxIDs());
+      wrapper.setMultiSelectMode(true);
+      wrapper.highlightCommentBoxes(boxA.commentBoxID, boxB.commentBoxID);
+
+      workflowActionService.getJointGraph().getCell(boxB.commentBoxID).toBack();
+      expect(wrapper.getCellLayer(boxB.commentBoxID)).toBeLessThan(wrapper.getCellLayer(boxA.commentBoxID));
+      expect(wrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([boxA.commentBoxID, boxB.commentBoxID]);
+
+      service.saveHighlightedElements();
+
+      const serialized = JSON.parse(writeText.mock.calls[0][0]);
+      expect(serialized.commentBoxes.map((box: any) => box.commentBoxID)).toEqual([
+        boxB.commentBoxID,
+        boxA.commentBoxID,
+      ]);
+    });
+
+    it("shifts a pasted comment box clear of one already on the canvas", async () => {
+      // One COPY_OFFSET puts the pasted box on {320, 420}, where a box already sits, so the overlap
+      // scan has to push it one offset further. Were canvas boxes left out of that scan the paste
+      // would stop at {320, 420} and land on top of the existing one.
+      const existingBox: CommentBox = {
+        commentBoxID: "existing-box",
+        comments: [],
+        commentBoxPosition: { x: 320, y: 420 },
+      };
+      workflowActionService.addCommentBox(existingBox);
+      readText.mockResolvedValue(
+        JSON.stringify({
+          operators: [],
+          operatorPositions: {},
+          links: [],
+          commentBoxes: [{ commentBoxID: "clipboard-box", comments: [], commentBoxPosition: { x: 300, y: 400 } }],
+        })
+      );
+
+      service.performPasteOperation();
+      await flushAsync();
+
+      const pasted = workflowActionService
+        .getTexeraGraph()
+        .getAllCommentBoxes()
+        .filter(box => box.commentBoxID !== existingBox.commentBoxID);
+      expect(pasted.length).toBe(1);
+      expect(pasted[0].commentBoxPosition).toEqual({ x: 340, y: 440 });
+    });
+
+    it("leaves both ends of a pasted link blank when neither of its operators was copied", async () => {
+      const addSpy = vi.spyOn(workflowActionService, "addOperatorsAndLinks").mockImplementation(() => {});
+      readText.mockResolvedValue(
+        JSON.stringify({
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: { x: 100, y: 100 } },
+          // the first link starts at the copied operator; the second joins two operators that were not
+          links: [mockScanSentimentLink, mockSentimentResultLink],
+          commentBoxes: [],
+        })
+      );
+
+      service.performPasteOperation();
+      await flushAsync();
+
+      const [operatorsAndPositions, maybeLinks] = addSpy.mock.calls[0];
+      const pastedOperatorID = operatorsAndPositions[0].op.operatorID;
+      const links = maybeLinks!;
+      expect(links.length).toBe(2);
+      // the link starting at the copied operator is rewired on its source side, port kept as-is
+      expect(links[0].source).toEqual({
+        operatorID: pastedOperatorID,
+        portID: mockScanSentimentLink.source.portID,
+      });
+      expect(links[0].target).toEqual({ operatorID: "", portID: "" });
+      // the link touching neither copied operator is rewired on neither side
+      expect(links[1].source).toEqual({ operatorID: "", portID: "" });
+      expect(links[1].target).toEqual({ operatorID: "", portID: "" });
     });
   });
 });

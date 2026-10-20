@@ -23,6 +23,7 @@ import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
@@ -36,26 +37,44 @@ class CSVOldScanSourceOpExec private[csvOld] (
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
   val schema: Schema = desc.sourceSchema()
+  private val skippedRows = new SkippedRowReporter()
+
+  override def getWarnings: Seq[String] = skippedRows.warnings
+
   override def produceTuple(): Iterator[TupleLike] = {
 
-    val tuples = rows
-      .map(fields =>
-        try {
-          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
-            fields.toArray,
-            schema.getAttributes
-              .map((attr: Attribute) => attr.getType)
-              .toArray
-          )
-          TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
-        } catch {
-          case _: Throwable => null
-        }
-      )
+    val tuples = rows.zipWithIndex
+      .map {
+        case (fields, index) =>
+          try {
+            val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
+              fields.toArray,
+              schema.getAttributes
+                .map((attr: Attribute) => attr.getType)
+                .toArray
+            )
+            TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
+          } catch {
+            case e: Throwable =>
+              // Skip the unparsable row but surface it as a warning instead of
+              // dropping it silently. `rows` already dropped header and offset, so
+              // the absolute 1-based data-row number adds the offset back.
+              skippedRows.record(
+                ScanRowParseError.skipWarning(
+                  fields,
+                  schema,
+                  desc.inferSampleSize,
+                  Some(desc.windowOffset + index + 1),
+                  e
+                )
+              )
+              null
+          }
+      }
       .filter(tuple => tuple != null)
 
-    if (desc.limit.isDefined)
-      tuples.take(desc.limit.get)
+    if (desc.windowLimit.isDefined)
+      tuples.take(desc.windowLimit.get)
     else {
       tuples
     }
@@ -68,7 +87,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
     val filePath = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
     reader = CSVReader.open(filePath.toString, desc.fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
+    val startOffset = desc.windowOffset + (if (desc.hasHeader) 1 else 0)
     rows = reader.iterator.drop(startOffset)
   }
 

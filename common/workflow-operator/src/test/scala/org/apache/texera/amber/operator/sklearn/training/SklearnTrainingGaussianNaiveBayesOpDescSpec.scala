@@ -44,7 +44,7 @@ class SklearnTrainingGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with Match
     d.countVectorizer shouldBe false
     d.tfidfTransformer shouldBe false
     d.target shouldBe null
-    d.text shouldBe null
+    d.text shouldBe empty
   }
 
   "SklearnTrainingGaussianNaiveBayesOpDesc.getOutputSchemas" should
@@ -75,5 +75,16 @@ class SklearnTrainingGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with Match
     val r = restored.asInstanceOf[SklearnTrainingGaussianNaiveBayesOpDesc]
     r.target shouldBe "label"
     r.countVectorizer shouldBe true
+  }
+
+  "SklearnTrainingGaussianNaiveBayesOpDesc.getOutputSchemas" should
+    "reject Count Vectorizer the same way its classifier counterpart does" in {
+    val d = new SklearnTrainingGaussianNaiveBayesOpDesc
+    d.target = "y"
+    d.text = List("note")
+    d.countVectorizer = true
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("Training: Gaussian Naive Bayes")
+    thrown.getMessage should include("Multinomial, Bernoulli or Complement Naive Bayes")
   }
 }

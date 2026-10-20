@@ -1,0 +1,183 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.service.`type`
+
+import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.texera.amber.core.storage.ResourceType
+
+import scala.collection.mutable
+
+// LakeFSFileNode represents a unique file in a versioned resource (dataset or model).
+// Its full path is in the format of:
+// /<resourceType>/ownerEmail/resourceName/versionName/fileRelativePath
+// e.g. /dataset/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
+//      /model/bob@texera.com/sentimentModel/v1/model.pt
+class LakeFSFileNode(
+    val name: String, // direct name of this node
+    val nodeType: String, // "file" or "directory"
+    val parent: LakeFSFileNode, // the parent node
+    val ownerEmail: String,
+    val size: Option[Long] = None, // size of the file in bytes, None if directory
+    var children: Option[List[LakeFSFileNode]] = None // Only populated if 'type' is 'directory'
+) {
+
+  // Ensure the type is either "file" or "directory"
+  require(nodeType == "file" || nodeType == "directory", "type must be 'file' or 'directory'")
+
+  // Getters for the parameters
+  def getName: String = name
+
+  def getNodeType: String = nodeType
+
+  def getParent: LakeFSFileNode = parent
+
+  def getOwnerEmail: String = ownerEmail
+
+  def getSize: Option[Long] = size
+
+  def getChildren: List[LakeFSFileNode] = children.getOrElse(List())
+
+  // Method to get the full file path
+  def getFilePath: String = {
+    val pathComponents = new mutable.ArrayBuffer[String]()
+    var currentNode: LakeFSFileNode = this
+    while (currentNode != null) {
+      if (currentNode.parent != null) { // Skip the root node to avoid double slashes
+        pathComponents.prepend(currentNode.name)
+      }
+      currentNode = currentNode.parent
+    }
+    "/" + pathComponents.mkString("/")
+  }
+}
+
+object LakeFSFileNode {
+
+  /**
+    * Converts a map of LakeFS committed objects into a structured file node tree.
+    *
+    * The tree is rooted at the resource-type segment (`dataset` or `model`), which
+    * [[LakeFSFileNode.getFilePath]] emits as the first path component. That prefix is
+    * what `FileResolver` keys on to pick the backing table, so it must match the
+    * resource the objects actually came from.
+    *
+    * @param resourceType The resource type the objects belong to (dataset or model).
+    * @param map A mapping from `(ownerEmail, resourceName, versionName)` to a list of committed objects.
+    * @return A list of root-level file nodes.
+    */
+  def fromLakeFSRepositoryCommittedObjects(
+      resourceType: ResourceType.Value,
+      map: Map[(String, String, String), List[ObjectStats]]
+  ): List[LakeFSFileNode] = {
+    val rootNode = new LakeFSFileNode("/", "directory", null, "")
+
+    // Root the tree at the resource-type prefix node (a directory node named e.g. "dataset").
+    val resourceTypeNode =
+      new LakeFSFileNode(resourceType.toString, "directory", rootNode, "")
+    rootNode.children = Some(List(resourceTypeNode))
+
+    // Owner level nodes map
+    val ownerNodes = mutable.Map[String, LakeFSFileNode]()
+
+    map.foreach {
+      case ((ownerEmail, resourceName, versionName), objects) =>
+        val ownerNode = ownerNodes.getOrElseUpdate(
+          ownerEmail, {
+            val newNode = new LakeFSFileNode(ownerEmail, "directory", resourceTypeNode, ownerEmail)
+            resourceTypeNode.children = Some(resourceTypeNode.getChildren :+ newNode)
+            newNode
+          }
+        )
+
+        val resourceNode = ownerNode.getChildren.find(_.getName == resourceName).getOrElse {
+          val newNode = new LakeFSFileNode(resourceName, "directory", ownerNode, ownerEmail)
+          ownerNode.children = Some(ownerNode.getChildren :+ newNode)
+          newNode
+        }
+
+        val versionNode = resourceNode.getChildren.find(_.getName == versionName).getOrElse {
+          val newNode = new LakeFSFileNode(versionName, "directory", resourceNode, ownerEmail)
+          resourceNode.children = Some(resourceNode.getChildren :+ newNode)
+          newNode
+        }
+
+        // Directories only. Registering leaves would let "model" be reused as the parent of
+        // "model/weights.bin", dropping the object it stands for from the tree and the size.
+        val directoryMap = mutable.Map[String, LakeFSFileNode]()
+        directoryMap("") = versionNode // Root of the resource version
+
+        // Process each object (file or directory) from LakeFS
+        objects.foreach { obj =>
+          val pathParts = obj.getPath.split("/").toList
+          var currentPath = ""
+          var parentNode: LakeFSFileNode = versionNode
+          //TODO: To check the logic of promoting the leaf vs duplicating the leaf
+          pathParts.zipWithIndex.foreach {
+            case (part, idx) =>
+              currentPath = if (currentPath.isEmpty) part else s"$currentPath/$part"
+
+              // Positional, not by value: "model/model" would otherwise make the directory
+              // the leaf.
+              val isFile = idx == pathParts.length - 1
+              val nodeType = if (isFile) "file" else "directory"
+              val fileSize = if (isFile) Some(obj.getSizeBytes.longValue()) else None
+
+              val node = directoryMap.getOrElse(
+                currentPath, {
+                  val newNode = new LakeFSFileNode(part, nodeType, parentNode, ownerEmail, fileSize)
+                  parentNode.children = Some(parentNode.getChildren :+ newNode)
+                  if (!isFile) directoryMap(currentPath) = newNode
+                  newNode
+                }
+              )
+
+              parentNode = node // Move parent reference deeper for next iteration
+          }
+        }
+    }
+
+    // Sorting function to sort children of a node alphabetically in descending order
+    def sortChildren(node: LakeFSFileNode): Unit = {
+      node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
+      node.getChildren.foreach(sortChildren)
+    }
+
+    // Apply the sorting to the root node
+    sortChildren(rootNode)
+
+    rootNode.getChildren
+  }
+
+  /**
+    * Traverses a given list of LakeFSFileNode and returns the total size of all files.
+    *
+    * @param nodes List of root-level LakeFSFileNode.
+    * @return Total size in bytes.
+    */
+  def calculateTotalSize(nodes: List[LakeFSFileNode]): Long = {
+    def traverse(node: LakeFSFileNode): Long = {
+      val fileSize = node.getSize.getOrElse(0L)
+      val childrenSize = node.getChildren.map(traverse).sum
+      fileSize + childrenSize
+    }
+
+    nodes.map(traverse).sum
+  }
+}

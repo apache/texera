@@ -65,7 +65,6 @@ class ComputingUnitAccessResourceSpec
   private val ownerUser: User = {
     val user = new User
     user.setName("cu_owner")
-    user.setPassword("123")
     user.setEmail("cu_owner@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -74,7 +73,6 @@ class ComputingUnitAccessResourceSpec
   private val granteeUser: User = {
     val user = new User
     user.setName("cu_grantee")
-    user.setPassword("123")
     user.setEmail("cu_grantee@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -83,7 +81,6 @@ class ComputingUnitAccessResourceSpec
   private val strangerUser: User = {
     val user = new User
     user.setName("cu_stranger")
-    user.setPassword("123")
     user.setEmail("cu_stranger@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
@@ -168,6 +165,21 @@ class ComputingUnitAccessResourceSpec
     }
     ex.getResponse.getStatus shouldEqual 400
     ex.getMessage should include("User with the given email does not exist")
+    accessEmails(cuid) shouldBe empty
+  }
+
+  it should "reject granting to a placeholder account with a 400" in {
+    val placeholder = new User
+    placeholder.setName("cu_placeholder")
+    placeholder.setEmail("cu-placeholder@test.com")
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    placeholder.setIsPlaceholder(true)
+    new UserDao(getDSLContext.configuration()).insert(placeholder)
+
+    val ex = intercept[BadRequestException] {
+      accessResource.grantAccess(ownerSession, cuid, "cu-placeholder@test.com", PrivilegeEnum.READ)
+    }
+    ex.getResponse.getStatus shouldEqual 400
     accessEmails(cuid) shouldBe empty
   }
 

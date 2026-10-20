@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { Subject } from "rxjs";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -32,7 +33,12 @@ import { WorkflowUtilService } from "../../../service/workflow-graph/util/workfl
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../../../service/workflow-graph/model/workflow-graph";
-import { AttributeType, CompilationState, OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
+import {
+  AttributeType,
+  CompilationState,
+  OperatorPortSchemaMap,
+  SchemaAttribute,
+} from "../../../types/workflow-compiling.interface";
 import { ValidationWorkflowService } from "../../../service/validation/validation-workflow.service";
 
 describe("TypecastingDisplayComponent", () => {
@@ -263,6 +269,59 @@ describe("TypecastingDisplayComponent", () => {
       compilationStateInfoChangedStream.next(CompilationState.Succeeded);
 
       expect(rerenderSpy).toHaveBeenCalled();
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  // The schema table is only rendered once the component decides to display the
+  // type-casting information, so these drive that state and assert the markup.
+  describe("template rendering", () => {
+    const renderSchema = (schema: Partial<SchemaAttribute>[], display = true): void => {
+      component.schemaToDisplay = schema;
+      component.displayTypeCastingSchemaInformation = display;
+      fixture.detectChanges();
+    };
+
+    const rowCells = (): string[][] =>
+      fixture.debugElement
+        .queryAll(By.css("tbody tr"))
+        .map(row => row.queryAll(By.css("td")).map(cell => (cell.nativeElement.textContent ?? "").trim()));
+
+    it("renders no table while the type-casting information is hidden", () => {
+      renderSchema([{ attributeName: "a", attributeType: "string" as AttributeType }], false);
+
+      expect(fixture.debugElement.query(By.css("nz-table"))).toBeNull();
+    });
+
+    it("renders the header cells once the table is displayed", () => {
+      renderSchema([]);
+
+      const headers = fixture.debugElement.queryAll(By.css("thead th")).map(th => th.nativeElement.textContent.trim());
+      expect(headers).toEqual(["Attribute Name", "Attribute Type"]);
+    });
+
+    it("renders the table's no-data arm for an empty schema", () => {
+      renderSchema([]);
+
+      // nz-table renders a single placeholder row instead of attribute rows; assert on
+      // the shape (one row, one spanning cell) rather than the localized placeholder text.
+      const rows = rowCells();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toHaveLength(1);
+    });
+
+    it("renders one row per attribute with its name and type", () => {
+      renderSchema([
+        { attributeName: "id", attributeType: "long" as AttributeType },
+        { attributeName: "label", attributeType: "string" as AttributeType },
+        { attributeName: "score", attributeType: "double" as AttributeType },
+      ]);
+
+      expect(rowCells()).toEqual([
+        ["id", "long"],
+        ["label", "string"],
+        ["score", "double"],
+      ]);
     });
   });
 });

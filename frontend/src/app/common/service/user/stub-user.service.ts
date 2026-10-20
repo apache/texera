@@ -57,6 +57,14 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("Method not implemented.");
   }
 
+  orcidLogin(code: string): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  appleLogin(): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
   isLogin(): boolean {
     return this.user !== undefined;
   }
@@ -71,7 +79,11 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   logout(): void {}
 
-  register(username: string, password: string): Observable<void> {
+  register(username: string, email: string, password: string): Observable<{ verificationRequired: boolean }> {
+    return of({ verificationRequired: false });
+  }
+
+  registerVerify(username: string, email: string, password: string, code: string): Observable<void> {
     return of();
   }
 
@@ -83,7 +95,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     return this.user;
   }
 
-  getAvatar(googleAvatar: string): Observable<string | undefined> {
+  getAvatar(avatarUrl: string): Observable<string | undefined> {
     return of(undefined);
   }
 

@@ -19,7 +19,6 @@ name: Release Auditing
 on:
   push:
     branches:
-      - 'ci-enable/**'
       - 'main'
   pull_request:
   merge_group:

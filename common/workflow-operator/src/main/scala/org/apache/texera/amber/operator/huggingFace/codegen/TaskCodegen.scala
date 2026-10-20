@@ -25,7 +25,7 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
   * Inputs the dispatcher passes through to each TaskCodegen.
   *
   * User-provided string fields are typed as [[EncodableString]] so the
-  * `pyb"..."` macro in [[PythonCodegenBase]] emits them as base64-decoded
+  * `pyb"..."` macro in [[HuggingFaceCodegenBase]] emits them as base64-decoded
   * runtime expressions rather than raw Python string literals — required to
   * pass `PythonCodeRawInvalidTextSpec`'s leakage check.
   */
@@ -57,7 +57,7 @@ final case class CodegenContext(
   * `*Codegen` objects and adding them to that map.
   *
   * Snippets returned by these methods are Python source spliced into the
-  * shared template assembled by [[PythonCodegenBase.render]]. Snippets must
+  * shared template assembled by [[HuggingFaceCodegenBase.render]]. Snippets must
   * NOT directly inline user-provided strings — reference the per-instance
   * attributes `self.HF_API_TOKEN`, `self.MODEL_ID`, `self.PROMPT_COLUMN`,
   * etc. that the base class initializes from `CodegenContext` via the
