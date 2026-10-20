@@ -29,6 +29,7 @@ import { WarehouseService } from "../../../common/service/warehouse/warehouse.se
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 /**
  * Minimal WebSocket double. Installed with vi.stubGlobal so the service's
@@ -103,6 +104,7 @@ describe("AgentService", () => {
   }
 
   beforeEach(() => {
+    AuthService.removeAccessToken();
     selectedUnit = null;
     selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
@@ -131,6 +133,7 @@ describe("AgentService", () => {
   });
 
   afterEach(() => {
+    AuthService.removeAccessToken();
     httpMock.verify();
     // Belt and braces: TestBed rebuilds the injector per test, so the spies installed
     // on the service's own collaborators are already discarded with it. This keeps the
@@ -589,6 +592,19 @@ describe("AgentService", () => {
         withLocation({ protocol: "https:", host: "texera.example.org" }, () => service.activateAgent("agent-1"));
 
         expect(FakeWebSocket.latest().url).toBe("wss://texera.example.org/api/agents/agent-1/react");
+      });
+
+      it("appends access-token query parameter when authenticated", () => {
+        seedAgent("agent-auth");
+        AuthService.setAccessToken("test-jwt-token");
+        try {
+          withLocation({ protocol: "https:", host: "texera.example.org" }, () => service.activateAgent("agent-auth"));
+          expect(FakeWebSocket.latest().url).toBe(
+            "wss://texera.example.org/api/agents/agent-auth/react?access-token=test-jwt-token"
+          );
+        } finally {
+          AuthService.removeAccessToken();
+        }
       });
 
       it("logs a payload that is not valid JSON instead of throwing out of the handler", () => {
@@ -1126,6 +1142,26 @@ describe("AgentService", () => {
       service.getAgentSettings("agent-2").subscribe();
       const req = httpMock.expectOne(r => r.url === "/api/agents/agent-2/settings");
       expect(req.request.headers.get("X-Agent-Workflow-Id")).toBeNull();
+      req.flush({});
+    });
+
+    it("attaches Authorization header when AuthService has an access token", () => {
+      AuthService.setAccessToken("test-jwt-token");
+      try {
+        service.getAgentSettings("agent-1").subscribe();
+        const req = httpMock.expectOne(r => r.url === "/api/agents/agent-1/settings");
+        expect(req.request.headers.get("Authorization")).toBe("Bearer test-jwt-token");
+        req.flush({});
+      } finally {
+        AuthService.removeAccessToken();
+      }
+    });
+
+    it("omits Authorization header when unauthenticated", () => {
+      AuthService.removeAccessToken();
+      service.getAgentSettings("agent-2").subscribe();
+      const req = httpMock.expectOne(r => r.url === "/api/agents/agent-2/settings");
+      expect(req.request.headers.get("Authorization")).toBeNull();
       req.flush({});
     });
 

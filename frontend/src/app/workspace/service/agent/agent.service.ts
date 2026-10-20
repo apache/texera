@@ -41,6 +41,7 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 /**
  * Agent settings for API (serializable format).
@@ -233,15 +234,18 @@ export class AgentService {
 
   /**
    * Build HTTP headers for agent-service requests.
-   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
+   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s,
+   * and Authorization Bearer token for access control.
    */
-  private agentHeaders(agentId?: string): { headers: HttpHeaders } {
+  private agentHeaders(agentId?: string, workflowId?: number): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
-    if (agentId) {
-      const wid = this.agentStateTracking.get(agentId)?.workflowId;
-      if (wid !== undefined) {
-        headers = headers.set("X-Agent-Workflow-Id", String(wid));
-      }
+    const token = AuthService.getAccessToken();
+    if (token) {
+      headers = headers.set("Authorization", `Bearer ${token}`);
+    }
+    const wid = (agentId ? this.agentStateTracking.get(agentId)?.workflowId : undefined) ?? workflowId;
+    if (wid !== undefined) {
+      headers = headers.set("X-Agent-Workflow-Id", String(wid));
     }
     return { headers };
   }
@@ -253,7 +257,7 @@ export class AgentService {
    */
   private syncAgentsWithBackend(): void {
     this.http
-      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`)
+      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders())
       .pipe(catchError(() => of({ agents: [] })))
       .subscribe(response => {
         const backendAgentIds = new Set(response.agents.map(a => a.id));
@@ -407,7 +411,11 @@ export class AgentService {
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
     // Build WebSocket URL
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    let wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    if (token) {
+      wsUrl += `?access-token=${encodeURIComponent(token)}`;
+    }
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -665,7 +673,7 @@ export class AgentService {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
 
-      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
+      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders(undefined, workflowId)).pipe(
         map(response => {
           const agentInfo: AgentInfo = {
             id: response.id,
@@ -745,7 +753,7 @@ export class AgentService {
    * Also syncs local cache with backend - removes any stale agents that no longer exist on the backend.
    */
   public getAllAgents(): Observable<AgentInfo[]> {
-    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`).pipe(
+    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders()).pipe(
       map(response => {
         const agents = response.agents.map(a => ({
           id: a.id,
@@ -817,7 +825,9 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
+      this.modelTypes$ = this.http
+        .get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`, this.agentHeaders())
+        .pipe(
         map(response =>
           response.data.map((model: LiteLLMModel) => ({
             id: model.id,

@@ -24,8 +24,10 @@
 // perform WS upgrades.
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { env } from "./config/env";
+import { JWT_SECRET } from "./config/jwt";
 
 const API = env.API_PREFIX;
 
@@ -33,18 +35,26 @@ let app: ReturnType<typeof buildApp>;
 let port: number;
 const openSockets: WebSocket[] = [];
 
-function mintTestToken(): string {
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+function mintTestToken(claims: Record<string, unknown> = {}): string {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = b64url(
     JSON.stringify({
       sub: "tester",
       userId: 1,
       email: "tester@example.com",
       role: "REGULAR",
       exp: Math.floor(Date.now() / 1000) + 3600,
+      ...claims,
     })
-  ).toString("base64url");
-  return `${header}.${payload}.test-signature`;
+  );
+  const signature = b64url(
+    createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${payload}`).digest()
+  );
+  return `${header}.${payload}.${signature}`;
 }
 
 const TOKEN = mintTestToken();
@@ -111,8 +121,9 @@ function collect(ws: WebSocket): Collector {
   };
 }
 
-function connect(agentId: string): { ws: WebSocket; messages: Collector } {
-  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react`);
+function connect(agentId: string, token: string | null = TOKEN): { ws: WebSocket; messages: Collector } {
+  const query = token ? `?access-token=${encodeURIComponent(token)}` : "";
+  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react${query}`);
   openSockets.push(ws);
   return { ws, messages: collect(ws) };
 }
@@ -150,6 +161,20 @@ afterEach(() => {
 });
 
 describe(`WS ${API}/agents/:id/react`, () => {
+  test("rejects connection without token", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id, null);
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Unauthorized");
+  });
+
+  test("rejects connection with invalid token", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id, "bad-token");
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Unauthorized");
+  });
+
   test("sends a results-free snapshot frame on connect", async () => {
     const id = await createAgent();
     const { ws, messages } = connect(id);

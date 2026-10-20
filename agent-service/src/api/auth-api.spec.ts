@@ -18,21 +18,33 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
+import { JWT_SECRET } from "../config/jwt";
 import { createAuthHeaders, extractBearerToken, extractUserFromToken, validateToken } from "./auth-api";
 
-/**
- * Builds a well-formed three-segment token carrying the given payload. All three segments are
- * required — `decodeJWT` rejects anything that is not exactly three — but only the payload one is
- * decoded, so the header and signature just have to be present.
- */
-function tokenWith(payload: Record<string, unknown>): string {
-  const encoded = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
-  return `header.${encoded}.signature`;
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
 }
 
 /** `exp` is a UNIX second count, so expiries are built in seconds throughout. */
 function nowInSeconds(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+/**
+ * Builds a properly signed HS256 JWT using JWT_SECRET with default valid fields.
+ */
+function tokenWith(payload: Record<string, unknown>, secret = JWT_SECRET): string {
+  const fullPayload = {
+    sub: "test-user",
+    userId: 1,
+    exp: nowInSeconds() + 3600,
+    ...payload,
+  };
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(fullPayload));
+  const signature = b64url(createHmac("sha256", new TextEncoder().encode(secret)).update(`${header}.${body}`).digest());
+  return `${header}.${body}.${signature}`;
 }
 
 describe("extractUserFromToken", () => {
@@ -48,30 +60,31 @@ describe("extractUserFromToken", () => {
   });
 
   test("defaults a missing email to empty and a missing role to REGULAR", () => {
-    // Role defaulting is a privilege decision: absent must mean least privilege, never admin.
-    const user = extractUserFromToken(tokenWith({ userId: 7, sub: "grace" }));
+    const token = tokenWith({ userId: 7, sub: "grace", email: undefined, role: undefined });
+    const user = extractUserFromToken(token);
 
     expect(user.email).toBe("");
     expect(user.role).toBe("REGULAR");
   });
 
-  test("rejects a token missing its signature segment even when the payload decodes", () => {
-    // The payload here is perfectly good JSON, so only the segment-count check stands between an
-    // unsigned token and a populated user record.
-    const payload = Buffer.from(JSON.stringify({ userId: 1, sub: "ada" }), "utf-8").toString("base64");
-
-    expect(() => extractUserFromToken(`header.${payload}`)).toThrow(/Failed to decode JWT/);
+  test("rejects a token missing its signature segment", () => {
+    const payload = Buffer.from(JSON.stringify({ userId: 1, sub: "ada" }), "utf-8").toString("base64url");
+    expect(() => extractUserFromToken(`header.${payload}`)).toThrow(/Invalid or expired token/);
   });
 
   test("rejects a token with too many segments", () => {
-    const payload = Buffer.from(JSON.stringify({ userId: 1, sub: "ada" }), "utf-8").toString("base64");
-
-    expect(() => extractUserFromToken(`header.${payload}.signature.extra`)).toThrow(/Failed to decode JWT/);
+    const payload = Buffer.from(JSON.stringify({ userId: 1, sub: "ada" }), "utf-8").toString("base64url");
+    expect(() => extractUserFromToken(`header.${payload}.signature.extra`)).toThrow(/Invalid or expired token/);
   });
 
   test("rejects a token whose payload is not JSON", () => {
-    const notJson = Buffer.from("<html>", "utf-8").toString("base64");
-    expect(() => extractUserFromToken(`header.${notJson}.signature`)).toThrow(/Failed to decode JWT/);
+    const notJson = Buffer.from("<html>", "utf-8").toString("base64url");
+    expect(() => extractUserFromToken(`header.${notJson}.signature`)).toThrow(/Invalid or expired token/);
+  });
+
+  test("rejects a mis-signed token", () => {
+    const badToken = tokenWith({ userId: 1, sub: "ada" }, "wrong-secret");
+    expect(() => extractUserFromToken(badToken)).toThrow(/Invalid or expired token/);
   });
 });
 
@@ -84,21 +97,18 @@ describe("validateToken", () => {
     expect(validateToken(tokenWith({ userId: 1, exp: nowInSeconds() - 60 }))).toBe(false);
   });
 
-  test("treats a token with no expiry as valid forever", () => {
-    // Deliberate: tokens minted without `exp` never expire. Pinned because it is a policy choice
-    // that reads like an oversight, and flipping it would lock out every non-expiring token.
-    expect(validateToken(tokenWith({ userId: 1 }))).toBe(true);
+  test("rejects a token without exp (required claim)", () => {
+    const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const body = b64url(JSON.stringify({ sub: "test-user", userId: 1 }));
+    const signature = b64url(createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${body}`).digest());
+    expect(validateToken(`${header}.${body}.${signature}`)).toBe(false);
   });
 
-  test("rejects a malformed token rather than letting the decode failure escape", () => {
-    // isTokenExpired swallows the decode error and reports "expired", so callers get false here
-    // instead of an exception. A caller that only catches would otherwise let a junk token through.
+  test("rejects a malformed token rather than letting error escape", () => {
     expect(validateToken("not-a-token")).toBe(false);
   });
 
   test("expiry is compared in seconds, not milliseconds", () => {
-    // exp is a UNIX second count; reading it as milliseconds would place every real token in 1970
-    // and reject it. A far-future second count must still validate.
     expect(validateToken(tokenWith({ exp: nowInSeconds() + 3600 }))).toBe(true);
   });
 });

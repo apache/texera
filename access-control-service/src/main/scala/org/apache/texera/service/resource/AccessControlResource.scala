@@ -29,7 +29,7 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
 import org.apache.texera.common.config.{GuiConfig, KubernetesConfig, LLMConfig}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserJupyterDao, WorkflowComputingUnitDao}
 
 import java.net.{URI, URLDecoder}
@@ -47,6 +47,8 @@ object AccessControlResource extends LazyLogging {
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
   private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
+  // Agent service: authenticate any /api/agents request (Phase 1 — see #5561).
+  private val apiAgents: Regex = """.*/api/agents.*""".r
   // Path patterns whose cuid lives in the URL path rather than the query string.
   private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
   private val pvePackagesCuidPath: Regex =
@@ -84,6 +86,8 @@ object AccessControlResource extends LazyLogging {
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
           pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
+      case apiAgents() =>
+        checkAgentAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
         Response.status(Response.Status.FORBIDDEN).build()
@@ -125,6 +129,60 @@ object AccessControlResource extends LazyLogging {
     }
   }
 
+  // Extract the bearer token from the access-token query param, the
+  // Authorization header, or a "token" field in the body (in that order).
+  private def extractBearerToken(
+      uriInfo: UriInfo,
+      headers: HttpHeaders,
+      bodyOpt: Option[String]
+  ): String = {
+    val qToken = Option(uriInfo.getQueryParameters().getFirst("access-token"))
+      .map(_.trim)
+      .filter(_.nonEmpty)
+    val hToken = Option(headers.getRequestHeader("Authorization"))
+      .flatMap(_.asScala.headOption)
+      .map(_.replaceFirst("(?i)^Bearer\\s+", "")) // case-insensitive "Bearer "
+      .map(_.trim)
+      .filter(_.nonEmpty)
+    val bToken = bodyOpt.flatMap(extractTokenFromBody)
+    qToken.orElse(hToken).orElse(bToken).getOrElse("")
+  }
+
+  // Phase 1 agent authorization: authenticate the JWT and require a
+  // REGULAR/ADMIN role. Any such user may reach any agent for now; per-agent
+  // ownership is deferred (see #5302 / #5561). On success, forward the user
+  // identity headers so the agent service can trust them.
+  private def checkAgentAccess(
+      uriInfo: UriInfo,
+      headers: HttpHeaders,
+      bodyOpt: Option[String]
+  ): Response = {
+    val token = extractBearerToken(uriInfo, headers, bodyOpt)
+    val userSession: Optional[SessionUser] =
+      try parseToken(token)
+      catch {
+        case e: Exception =>
+          logger.error(s"Failed parsing token for agent request: $e")
+          Optional.empty()
+      }
+
+    if (userSession.isEmpty) {
+      return Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+
+    val user = userSession.get()
+    if (!(user.isRoleOf(UserRoleEnum.REGULAR) || user.isRoleOf(UserRoleEnum.ADMIN))) {
+      return Response.status(Response.Status.FORBIDDEN).build()
+    }
+
+    Response
+      .ok()
+      .header(HeaderField.UserId, user.getUid.toString)
+      .header(HeaderField.UserName, user.getName)
+      .header(HeaderField.UserEmail, user.getEmail)
+      .build()
+  }
+
   private def checkComputingUnitAccess(
       uriInfo: UriInfo,
       headers: HttpHeaders,
@@ -141,16 +199,7 @@ object AccessControlResource extends LazyLogging {
       s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams"
     )
 
-    val token: String = {
-      val qToken = queryParams.get("access-token").filter(_.nonEmpty)
-      val hToken = Option(headers.getRequestHeader("Authorization"))
-        .flatMap(_.asScala.headOption)
-        .map(_.replaceFirst("(?i)^Bearer\\s+", "")) // case-insensitive "Bearer "
-        .map(_.trim)
-        .filter(_.nonEmpty)
-      val bToken = bodyOpt.flatMap(extractTokenFromBody)
-      qToken.orElse(hToken).orElse(bToken).getOrElse("")
-    }
+    val token: String = extractBearerToken(uriInfo, headers, bodyOpt)
     logger.info(s"token extracted from request $token")
 
     val cuid = queryParams.get("cuid").filter(_.nonEmpty).getOrElse {
