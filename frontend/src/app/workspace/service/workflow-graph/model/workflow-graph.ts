@@ -35,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isWorkflowColor, WorkflowColor } from "../../../types/workflow-color";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -46,6 +47,8 @@ type restrictedMethods =
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
+  | "setOperatorsColor"
+  | "operatorColorChangedSubject"
   | "addPort"
   | "removePort"
   | "operatorAddSubject"
@@ -97,6 +100,7 @@ export class WorkflowGraph {
   private readonly centerEventSubject = new Subject<void>();
 
   public readonly operatorAddSubject = new Subject<OperatorPredicate>();
+  public readonly operatorColorChangedSubject = new Subject<OperatorPredicate>();
 
   public readonly operatorDeleteSubject = new Subject<{
     deletedOperatorID: string;
@@ -836,6 +840,41 @@ export class WorkflowGraph {
    */
   public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
     return this.getAllLinks().filter(link => link.source.operatorID === operatorID);
+  }
+
+  /** Apply one named presentation preset (or remove it) in a distinct, atomic undo step. */
+  public setOperatorsColor(operatorIDs: readonly string[], color: WorkflowColor | undefined): void {
+    if (color !== undefined && !isWorkflowColor(color)) {
+      throw new Error("Invalid workflow color");
+    }
+    const ids = [...new Set(operatorIDs)];
+    // Validate the entire selection first: a removed operator must not leave a partial edit.
+    ids.forEach(id => this.assertOperatorExists(id));
+    const changed = ids.filter(id =>
+      color === undefined ? this.getSharedOperatorType(id).has("color") : this.getOperator(id).color !== color
+    );
+    if (changed.length === 0) return;
+
+    this.sharedModel.undoManager.stopCapturing();
+    try {
+      this.bundleActions(() => {
+        changed.forEach(id => {
+          const operator = this.getSharedOperatorType(id);
+          if (color === undefined) {
+            (operator as unknown as Y.Map<unknown>).delete("color");
+          } else {
+            // Replace the named preset atomically, rather than merging concurrent text edits.
+            operator.set("color", new Y.Text(color));
+          }
+        });
+      });
+    } finally {
+      this.sharedModel.undoManager.stopCapturing();
+    }
+  }
+
+  public getOperatorColorChangedStream(): Observable<OperatorPredicate> {
+    return this.operatorColorChangedSubject.asObservable();
   }
 
   /**

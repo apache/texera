@@ -27,6 +27,7 @@ import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
+import { getWorkflowColorFill } from "../../types/workflow-color";
 
 /**
  * Defines the SVG path for the delete button
@@ -979,7 +980,7 @@ export class JointUIService {
 
   public static getOperatorFillColor(operator: OperatorPredicate): string {
     const isDisabled = operator.isDisabled ?? false;
-    return isDisabled ? "#E0E0E0" : "#FFFFFF";
+    return isDisabled ? "#E0E0E0" : getWorkflowColorFill(operator.color, "#FFFFFF");
   }
 
   public static getOperatorCacheDisplayText(

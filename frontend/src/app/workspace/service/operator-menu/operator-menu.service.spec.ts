@@ -40,6 +40,8 @@ import { CommentBox } from "../../types/workflow-common.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { Subscription } from "rxjs";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { OperatorColorPickerComponent } from "../../component/workflow-editor/operator-color-picker/operator-color-picker.component";
 
 describe("OperatorMenuService", () => {
   let service: OperatorMenuService;
@@ -57,6 +59,7 @@ describe("OperatorMenuService", () => {
         // error/info toasts) so the spec doesn't boot the real execution/notification stacks
         // (websocket heartbeats, NgZorro notification overlays).
         { provide: ExecuteWorkflowService, useValue: { executeWorkflow: vi.fn() } },
+        { provide: NzModalService, useValue: { create: vi.fn() } },
         {
           provide: NotificationService,
           useValue: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
@@ -81,6 +84,47 @@ describe("OperatorMenuService", () => {
 
   it("should be created", () => {
     expect(service).toBeTruthy();
+  });
+
+  it("opens the color picker with a snapshot of all selected operators, including sinks", () => {
+    workflowActionService.addOperatorsAndLinks([
+      { op: mockScanPredicate, pos: mockPoint },
+      { op: mockResultPredicate, pos: { x: 400, y: 100 } },
+    ]);
+    const create = vi.spyOn(TestBed.inject(NzModalService), "create").mockReturnValue({} as never);
+    expect(service.isOperatorColorClickable).toBe(true);
+    service.openOperatorColorPicker();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nzTitle: "Operator color",
+        nzContent: OperatorColorPickerComponent,
+        nzData: { operatorIDs: [mockScanPredicate.operatorID, mockResultPredicate.operatorID] },
+      })
+    );
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(mockScanPredicate.operatorID);
+    expect(create.mock.calls[0][0].nzData).toEqual({
+      operatorIDs: [mockScanPredicate.operatorID, mockResultPredicate.operatorID],
+    });
+  });
+
+  it("does not open a color picker with no operators selected", () => {
+    const create = vi.spyOn(TestBed.inject(NzModalService), "create");
+    expect(service.isOperatorColorClickable).toBe(false);
+    service.openOperatorColorPicker();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("does not open a color picker when editing is locked or metadata is readonly", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const create = vi.spyOn(TestBed.inject(NzModalService), "create");
+    workflowActionService.disableWorkflowModification();
+    expect(service.isOperatorColorClickable).toBe(false);
+    service.openOperatorColorPicker();
+    workflowActionService.enableWorkflowModification();
+    workflowActionService.setWorkflowMetadata({ ...workflowActionService.getWorkflowMetadata(), readonly: true });
+    expect(service.isOperatorColorClickable).toBe(false);
+    service.openOperatorColorPicker();
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("starts with empty highlighted snapshots", () => {
@@ -412,6 +456,25 @@ describe("OperatorMenuService", () => {
       expect(texeraGraph.getAllCommentBoxes().length).toBe(1);
       // the pasted comment box is a distinct copy, not the original.
       expect(texeraGraph.getAllCommentBoxes()[0].commentBoxID).not.toBe(mockCommentBox.commentBoxID);
+    });
+
+    it("preserves operator colors through the actual copy and paste path", async () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.setOperatorsColor([mockScanPredicate.operatorID], "purple");
+      const write = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", { value: { readText, writeText: write }, configurable: true });
+      service.saveHighlightedElements();
+      const serialized = write.mock.calls[0][0];
+      expect(JSON.parse(serialized).operators[0].color).toBe("purple");
+      readText.mockResolvedValue(serialized);
+      service.performPasteOperation();
+      await flushAsync();
+      const copy = workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .find(op => op.operatorID !== mockScanPredicate.operatorID)!;
+      expect(copy.color).toBe("purple");
+      expect(workflowActionService.getJointGraph().getCell(copy.operatorID).attr("rect.body/fill")).toBe("#efdbff");
     });
 
     it("notifies the user when the clipboard holds no pasteable elements", async () => {
