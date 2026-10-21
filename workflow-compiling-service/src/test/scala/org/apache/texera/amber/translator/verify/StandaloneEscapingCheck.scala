@@ -21,7 +21,6 @@ package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
-import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -61,7 +60,7 @@ object StandaloneEscapingCheck {
     // already get a hostile variant in the normal verify run.
     val operators = OperatorBehaviorSpec
       .discoverStandaloneOperators()
-      .filterNot(classOf[SourceOperatorDescriptor].isAssignableFrom)
+      .filterNot(SourceCategoryRunner.runsAsSource)
     val dir = Files.createTempDirectory("standalone-escaping-")
     dir.toFile.deleteOnExit()
 

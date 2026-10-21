@@ -20,7 +20,6 @@
 package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -64,7 +63,7 @@ class ConfigCoverageSpec extends AnyFlatSpec with Matchers {
   }
 
   private def runnable(opClass: Class[_ <: LogicalOp]): Boolean =
-    if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass))
+    if (SourceCategoryRunner.runsAsSource(opClass))
       SourceCategoryRunner.canRun(opClass)
     else
       TransformVerificationRunner

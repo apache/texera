@@ -19,8 +19,6 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
-
 import java.nio.file.Files
 
 /**
@@ -47,7 +45,7 @@ object StandaloneInputCheck {
   def run(): Seq[String] = {
     val operators = OperatorBehaviorSpec
       .discoverStandaloneOperators()
-      .filterNot(classOf[SourceOperatorDescriptor].isAssignableFrom)
+      .filterNot(SourceCategoryRunner.runsAsSource)
     val dir = Files.createTempDirectory("standalone-input-")
     dir.toFile.deleteOnExit()
 

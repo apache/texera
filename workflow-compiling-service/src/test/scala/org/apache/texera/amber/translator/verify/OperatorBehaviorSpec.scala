@@ -21,7 +21,6 @@ package org.apache.texera.amber.translator.verify
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
-import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.translator.verify.tags.IntegrationTest
 import org.scalatest.ParallelTestExecution
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,7 +53,7 @@ class OperatorBehaviorSpec extends AnyFlatSpec with Matchers with ParallelTestEx
     if (!OperatorBehaviorSpec.isSelected(name)) {
       // Only a local run sets those, and CI therefore runs the lot.
       name should "NARROWED OUT — outside this run's VERIFY_ONLY / VERIFY_SKIP" ignore {}
-    } else if (classOf[SourceOperatorDescriptor].isAssignableFrom(opClass)) {
+    } else if (SourceCategoryRunner.runsAsSource(opClass)) {
       // A source has no input port, so its own runner writes the shared table
       // into the file format each one reads.
       if (SourceCategoryRunner.canRun(opClass)) {

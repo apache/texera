@@ -29,11 +29,12 @@ import org.apache.parquet.schema.{LogicalTypeAnnotation, MessageType, Types}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, ScanSourceOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.file.{FileScanOpDesc, FileScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -137,9 +138,6 @@ object SourceCategoryRunner {
     * ignored test's name and the coverage table.
     */
   private val knownIssues: Map[Class[_ <: LogicalOp], String] = Map(
-    classOf[FileScanOpDesc] ->
-      ("input-driven source: filenames arrive on an input port at runtime, but this runner " +
-        "feeds sources no inputs — Path B's generated code references an undefined in1df"),
     classOf[URLFetcherOpDesc] ->
       ("live-network source: the operator fetches a real URL over the network, so its " +
         "output is non-deterministic and depends on external connectivity — it cannot be " +
@@ -153,6 +151,15 @@ object SourceCategoryRunner {
     Try(opDescClass.getDeclaredConstructor().newInstance()).toOption.collect {
       case scan: ScanSourceOpDesc => scan.fileTypeName
     }.flatten
+
+  /** Whether this runner is the one to verify `opDescClass`: a source with no
+    * input port. A source that reads its file names from an input port, as File
+    * Scan does, is fed a table like a transform instead.
+    */
+  def runsAsSource(opDescClass: Class[_ <: LogicalOp]): Boolean =
+    classOf[SourceOperatorDescriptor].isAssignableFrom(opDescClass) &&
+      Try(opDescClass.getDeclaredConstructor().newInstance().operatorInfo.inputPorts.isEmpty)
+        .getOrElse(true)
 
   def canRun(opDescClass: Class[_ <: LogicalOp]): Boolean =
     curatedHandlersByClass.contains(opDescClass) ||
@@ -900,48 +907,59 @@ object FileScanSourceHandler extends SourceHandler {
     path
   }
 
-  /** A line the window skips is never parsed, so it may be one the type refuses.
+  /** Each scenario's file, written into the directory it is given, with the
+    * attribute type and the settings that read it. Shared with File Scan, which
+    * reads the same files from the paths its input names.
+    *
+    * A line the window skips is never parsed, so it may be one the type refuses.
     * A boolean line is read as the engine reads one, where 1 is true. The charset
     * the Encoding field names is the one the bytes are in. With Extract on, the
     * engine reads the entries inside the archive and names each one by its own
     * name, line by line or whole.
     */
-  override def scenarios: Seq[(String, Path => LogicalOp)] =
+  private[verify] val files: Seq[(String, Path => (Path, FileAttributeType, Seq[String]))] =
     Seq(
       "integers past a line skipped" -> (dir =>
-        described(
+        (
           text(dir, "not a number\n1\n2\n3\n"),
           FileAttributeType.INTEGER,
-          """"fileScanOffset":1"""
+          Seq(""""fileScanOffset":1""")
         )
       ),
-      "booleans" -> (dir => described(text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN)),
+      "booleans" -> (dir => (text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN, Seq())),
       "timestamps" -> (dir =>
-        described(text(dir, TextInputHandler.TimestampLines + "\n"), FileAttributeType.TIMESTAMP)
+        (text(dir, TextInputHandler.TimestampLines + "\n"), FileAttributeType.TIMESTAMP, Seq())
       ),
       "UTF-16" -> (dir =>
-        described(
+        (
           text(dir, "première\ndeuxième\n", StandardCharsets.UTF_16),
           FileAttributeType.STRING,
-          """"encoding":"UTF_16""""
+          Seq(""""encoding":"UTF_16"""")
         )
       ),
-      "archive" -> (dir => described(archive(dir), FileAttributeType.STRING, """"extract":true""")),
+      "archive" -> (dir => (archive(dir), FileAttributeType.STRING, Seq(""""extract":true"""))),
       "archive, lines named" -> (dir =>
-        described(
+        (
           archive(dir),
           FileAttributeType.STRING,
-          """"extract":true""",
-          """"outputFileName":true"""
+          Seq(""""extract":true""", """"outputFileName":true""")
         )
       ),
       "archive, entries named" -> (dir =>
-        described(
+        (
           archive(dir),
           FileAttributeType.SINGLE_STRING,
-          """"extract":true""",
-          """"outputFileName":true"""
+          Seq(""""extract":true""", """"outputFileName":true""")
         )
       )
     )
+
+  override def scenarios: Seq[(String, Path => LogicalOp)] =
+    files.map {
+      case (label, write) =>
+        label -> { (dir: Path) =>
+          val (file, attributeType, fields) = write(dir)
+          described(file, attributeType, fields: _*)
+        }
+    }
 }
