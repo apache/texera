@@ -85,6 +85,8 @@ export interface ConsoleMessageSummary {
   readonly message: string;
 }
 
+// Schema, Tuple and IndexedTuple are mirrored by the frontend in
+// workspace/service/agent/agent.service.ts; keep both copies in sync.
 export interface Schema {
   readonly attributes: ReadonlyArray<SchemaAttribute>;
 }
