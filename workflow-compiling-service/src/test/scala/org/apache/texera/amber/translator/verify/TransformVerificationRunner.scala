@@ -431,12 +431,10 @@ object TransformVerificationRunner {
     else pinned.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", "")
   }
 
-  /** Why one kind of run is left out for an operator. The distinction is whether
-    * anyone should be waiting for it: [[PendingFix]] is a debt someone closes,
-    * [[ByDesign]] is an answer that will not change.
+  /** Why one kind of run is left out for an operator: [[ByDesign]], an answer
+    * that will not change.
     */
   sealed trait NotRunReason
-  final case class PendingFix(issue: String) extends NotRunReason
   final case class ByDesign(why: String) extends NotRunReason
 
   final case class NotRun(op: Class[_], kind: String, reason: NotRunReason)
