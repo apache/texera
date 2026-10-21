@@ -149,9 +149,9 @@ object StandaloneHelpers {
       |    # at the resolution it arrived in instead, because parseField returns a
       |    # java.sql.Timestamp untouched and that class counts nanoseconds.
       |    #
-      |    # Still coerced, which the strict cast is not: the engine accepts a set
-      |    # of formats no single pandas call states, so text neither can read is
-      |    # answered with an empty cell rather than by ending the run.
+      |    # Text no format reads ends the run, as the engine's parseField ends its
+      |    # own. dateutil is handed each cell alone, as DateParserUtils is, and
+      |    # reads every format the verify runs hand the engine.
       |    #
       |    # A reading that states an offset is moved to the zone the machine is
       |    # set to and then holds that wall clock, which is what the engine does
@@ -172,8 +172,8 @@ object StandaloneHelpers {
       |            return None
       |        try:
       |            parsed = _parse_date(str(x).strip())
-      |        except (ValueError, OverflowError):
-      |            return None
+      |        except (ValueError, OverflowError) as e:
+      |            raise ValueError(f"Failed to parse type str to Timestamp: {x}") from e
       |        if parsed.tzinfo is not None:
       |            parsed = _texera_local_wall_clock(parsed, zone)
       |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
