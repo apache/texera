@@ -99,6 +99,8 @@ export interface ModelType {
 /**
  * API response types
  */
+// Schema, Tuple, IndexedTuple, tupleColumns and tupleToRecord mirror agent-service's
+// src/types/execution.ts and src/agent/tools/tools-utility.ts; keep both copies in sync.
 export interface Schema {
   readonly attributes: ReadonlyArray<SchemaAttribute>;
 }
