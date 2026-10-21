@@ -44,6 +44,7 @@ import org.apache.texera.amber.operator.huggingFace.HuggingFaceSpamSMSDetectionO
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingGaussianNaiveBayesOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
+import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
 import org.apache.texera.amber.operator.sklearn.{
   SklearnAdaptiveBoostingOpDesc,
   SklearnBaggingOpDesc,
@@ -498,6 +499,12 @@ object TransformVerificationRunner {
           "COUNT(*)'s empty attribute; the fixture pairs each function with a " +
           "compatible column already"
       ),
+      RunRow(
+        classOf[FileScanOpDesc],
+        "attributeType=large binary",
+        "a large binary is written to object storage, and the harness gives the " +
+          "executor no storage to write it to"
+      ),
       // The one estimator that fits on nothing: it never reads a feature. Both
       // paths hand back a model, but one with no classes, which raises on any row
       // it is asked to predict, so there is no answer to compare it by.
@@ -566,9 +573,27 @@ object TransformVerificationRunner {
         "what a hyperparameter's value may hold is decided by the parameter beside " +
           "it, and every one of those is a number or a word from a fixed set, so a " +
           "spliced a\"b fails at the conversion rather than at any escaping"
+      ),
+      RunRow(
+        classOf[FileScanOpDesc],
+        "extract=true",
+        "the file it is handed is the shared table's JSON, not an archive, so the " +
+          "engine finds no archiver for it and Python's zipfile refuses it alike"
       )
-    ) ++ noRowsToFit ++ refusesNonFinite
+    ) ++ fileScanTypedLines ++ noRowsToFit ++ refusesNonFinite
   }
+
+  // The sweep reads the shared table's JSON as each type a line can be cast to,
+  // and its first line is `[`, which no parser takes. File Scan's own scenarios
+  // read files whose lines are of the type, so these only ask that both refuse.
+  private def fileScanTypedLines: Seq[RunRow] =
+    Seq("integer", "long", "double", "boolean", "timestamp").map { t =>
+      RunRow(
+        classOf[FileScanOpDesc],
+        s"attributeType=$t",
+        s"the shared table's JSON lines are text, so parsing the first as $t fails on both sides"
+      )
+    }
 
   // sklearn checks its input for finite values before it fits or predicts, and
   // raises on a NaN or an infinity alike. Both paths call the same library, so
