@@ -31,9 +31,10 @@ tags: [utilities]
 
 | Operator | Description |
 |----------|-------------|
+| [Audio Attribute Extractor](audio-attribute-extractor/) | Measure waveform, loudness, noisiness, pitch, onsets or beats over time from audio files |
 | [Random K Sampling](random-k-sampling/) | Random sampling with given percentage |
 | [Reservoir Sampling](reservoir-sampling/) | Reservoir Sampling with k items being kept randomly |
 | [Split](split/) | Split data to two different ports |
 | [Unnest String](unnest-string/) | Unnest the string values in the column separated by a delimiter to multiple values |
 
-**Total**: 4 operators
+**Total**: 5 operators

@@ -36,6 +36,7 @@ import org.apache.texera.amber.core.workflow.WorkflowContext.{
 }
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
+import org.apache.texera.amber.operator.audio.AudioAttributeExtractorOpDesc
 import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
 import org.apache.texera.amber.operator.difference.DifferenceOpDesc
@@ -284,6 +285,7 @@ trait StateTransferFunc
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
+    new Type(value = classOf[AudioAttributeExtractorOpDesc], name = "AudioAttributeExtractor"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),

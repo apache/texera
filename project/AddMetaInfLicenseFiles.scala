@@ -25,7 +25,7 @@ import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
  * Each jar's META-INF/LICENSE describes only what is in that specific jar:
  *  - Modules without vendored code get Apache 2.0 only.
  *  - workflow-operator gets Apache 2.0 plus the mbknor-jackson-jsonschema
- *    attribution and the full MIT license text.
+ *    and librosa attributions and the full MIT and ISC license texts.
  *
  * NOTICE and DISCLAIMER are copied as-is from the repo root.
  *
@@ -52,16 +52,18 @@ object AddMetaInfLicenseFiles {
     lines.take(cutoffIndex).mkString("\n").trim + "\n"
   }
 
-  /** The vendored code section for workflow-operator (mbknor-jackson-jsonschema). */
+  /** The vendored code section for workflow-operator (mbknor-jackson-jsonschema, librosa). */
   private def workflowOperatorVendoredSection(rootDir: File): String = {
     val mitLicense = IO.read(rootDir / "licenses" / "LICENSE-MIT.txt")
+    // Read from licenses/, the only license folder the Docker builds copy.
+    val iscLicense = IO.read(rootDir / "licenses" / "LICENSE-ISC.txt")
     s"""
        |--------------------------------------------------------------------------------
        |THIRD-PARTY DEPENDENCIES
        |--------------------------------------------------------------------------------
        |
-       |This jar bundles compiled code from the following third-party project.
-       |The full license text is included below.
+       |This jar bundles code from the following third-party projects.
+       |Their full license texts are included below.
        |
        |MIT License
        |--------------------------------------
@@ -71,11 +73,26 @@ object AddMetaInfLicenseFiles {
        |  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
        |  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
        |
+       |ISC License
+       |--------------------------------------
+       |
+       |This product bundles code derived from librosa (onset strength, tempo estimation
+       |and beat tracking), embedded in the Audio Attribute Extractor's generated Python:
+       |  - org/apache/texera/amber/operator/audio/codegen/BeatTrackerCodegen$$.class
+       |  Copyright (c) 2013--2026, librosa development team
+       |  Source: https://github.com/librosa/librosa (version 1.0.0)
+       |
        |--------------------------------------------------------------------------------
        |Full text of the MIT License:
        |--------------------------------------------------------------------------------
        |
        |${mitLicense.trim}
+       |
+       |--------------------------------------------------------------------------------
+       |Full text of the ISC License:
+       |--------------------------------------------------------------------------------
+       |
+       |${iscLicense.trim}
        |""".stripMargin
   }
 
@@ -109,8 +126,9 @@ object AddMetaInfLicenseFiles {
     }.taskValue
   )
 
-  /** Settings for workflow-operator which contains vendored mbknor-jackson-jsonschema code.
-   *  META-INF/LICENSE contains Apache 2.0 plus the mbknor attribution and MIT license text. */
+  /** Settings for workflow-operator which contains vendored mbknor-jackson-jsonschema code
+   *  and librosa-derived code. META-INF/LICENSE contains Apache 2.0 plus their
+   *  attributions and the MIT and ISC license texts. */
   lazy val workflowOperatorSettings: Seq[Setting[_]] = Seq(
     Compile / resourceGenerators += Def.task {
       val managed = (Compile / resourceManaged).value
