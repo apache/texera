@@ -225,8 +225,10 @@ Angular / npm packages:
   - rxjs@7.8.2
 
 Third-party assets:
-  - Google Material Symbols icons (psychology, smart_toy)
+  - Google Material Symbols icons (psychology, smart_toy, snippet_folder)
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/python_file_diagram.png
+    frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
     https://github.com/google/material-design-icons
 
 --------------------------------------------------------------------------------

@@ -59,7 +59,7 @@ export class SearchService {
    * @param params - Additional search filter parameters.
    * @param start - The starting index for paginated results.
    * @param count - The number of results to retrieve.
-   * @param type - The type of resource to search for ("workflow", "dataset", "file", "model", or null (all resource type)).
+   * @param type - The type of resource to search for ("workflow", "dataset", "model", or null (all resource type)).
    * @param orderBy - Specifies the sorting method.
    * @param isLogin - Indicates if the user is logged in.
    *    - `isLogin = true`: Use the authenticated search endpoint, retrieving both user-accessible and public resources based on `includePublic`.
@@ -73,7 +73,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "file" | "dataset" | "model" | null,
+    type: "workflow" | "dataset" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean = false
@@ -106,9 +106,7 @@ export class SearchService {
           // and the search bar are unaffected. Not corrected here: that belongs in the
           // `LoadMoreFunction` contract shared by all five callers of `SearchResultsComponent.reset`,
           // and removing the backend half (#7461) ends the only condition that produces such rows.
-          results: result.results.filter(
-            item => item.workflow != null || item.file != null || item.dataset != null || item.model != null
-          ),
+          results: result.results.filter(item => item.workflow != null || item.dataset != null || item.model != null),
         }))
       );
   }
@@ -134,7 +132,7 @@ export class SearchService {
    * @param params        Additional search filter parameters.
    * @param start         The starting index for paginated results.
    * @param count         The number of results to retrieve.
-   * @param type          The type of resource to search for ("workflow", "dataset", "file", "model", or null (all resource type)).
+   * @param type          The type of resource to search for ("workflow", "dataset", "model", or null (all resource type)).
    * @param orderBy       Specifies the sorting method.
    * @param isLogin       Indicates if the user is logged in.
    * @param includePublic Specifies whether to include public resources in the search results.
@@ -149,7 +147,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "dataset" | "file" | "model" | null,
+    type: "workflow" | "dataset" | "model" | null,
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean

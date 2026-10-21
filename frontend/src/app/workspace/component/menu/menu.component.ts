@@ -18,7 +18,7 @@
  */
 
 import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet, AsyncPipe } from "@angular/common";
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, TemplateRef, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -32,7 +32,7 @@ import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../service/heatmap/heatmap-overlay-persistence";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, tap } from "rxjs/operators";
+import { catchError, debounceTime, tap, timeout } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -44,6 +44,7 @@ import { firstValueFrom, of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
+import { WorkflowToPythonService } from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
@@ -74,6 +75,8 @@ import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzBadgeComponent } from "ng-zorro-antd/badge";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -90,6 +93,15 @@ import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.s
  * @author Henry Chen
  *
  */
+/**
+ * How long the Form View hand-over waits for the save queue to drain after its own save has
+ * completed (see saveThenOpenFormView). Long enough for a slow save queued behind it to land,
+ * short enough that a request which never answers does not read as a hang.
+ */
+export const HANDOVER_DRAIN_TIMEOUT_MS = 10_000;
+/** What the bounded wait yields past the bound, in place of the drain. */
+const DRAIN_TIMED_OUT = "drain timed out" as const;
+
 @UntilDestroy()
 @Component({
   selector: "texera-menu",
@@ -132,6 +144,9 @@ export class MenuComponent implements OnInit, OnDestroy {
   public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
+  // whether the last compilation of the workflow failed. A workflow that cannot compile cannot be executed,
+  // so it is treated the same way as one that fails the schema / port validation.
+  public isWorkflowCompilable: boolean = true;
   public isSaving: boolean = false;
   /** A Form View hand-over is in progress (saving, then the route); a second click is a no-op. */
   private handingOverToFormView = false;
@@ -155,6 +170,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  @ViewChild("workflowPythonScriptModal", { static: true }) workflowPythonScriptModal?: TemplateRef<void>;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -180,6 +196,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private location: Location,
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService,
     public workflowPersistService: WorkflowPersistService,
     public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
@@ -196,6 +213,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private warehouseService: WarehouseService,
     protected config: GuiConfigService,
     private router: Router,
+    private workflowToPythonService: WorkflowToPythonService,
     private jupyterPanelService: JupyterPanelService,
     private fileSaverService: FileSaverService
   ) {
@@ -251,6 +269,16 @@ export class MenuComponent implements OnInit, OnDestroy {
       .subscribe(value => {
         this.isWorkflowEmpty = value.workflowEmpty;
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // the compilation errors are reported per operator on the canvas and in the result panel, but a workflow
+    // that cannot compile cannot be executed either, so the run button has to reflect the compilation state too
+    this.workflowCompilingService
+      .getCompilationStateInfoChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(state => {
+        this.isWorkflowCompilable = state !== CompilationState.Failed;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
@@ -388,14 +416,27 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.onClickRunHandler = behavior.onClick;
   }
 
+  // the execution states in which the run button starts a new run rather than controlling one
+  private buttonStartsRun(): boolean {
+    return [
+      ExecutionState.Uninitialized,
+      ExecutionState.Completed,
+      ExecutionState.Terminated,
+      ExecutionState.Killed,
+      ExecutionState.Failed,
+    ].includes(this.executionState);
+  }
+
   public getRunButtonBehavior(): {
     text: string;
     icon: string;
     disable: boolean;
     onClick: () => void;
   } {
-    // If workflow is invalid, always disable and show "Invalid Workflow"
-    if (!this.isWorkflowValid) {
+    // If workflow is invalid, always disable and show "Invalid Workflow". A failed compile
+    // does the same, but only where the button would start a run: a compile can answer
+    // after the run started, and it must not take Pause/Resume away from that run.
+    if (!this.isWorkflowValid || (!this.isWorkflowCompilable && this.buttonStartsRun())) {
       return {
         text: "Invalid Workflow",
         icon: "warning",
@@ -461,16 +502,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     // the click into the create-warehouse modal. Only in the states whose
     // button would start a run: mid-execution the button is Pause/Resume/Kill,
     // and losing the last warehouse must not take that control away.
-    if (
-      this.computingUnitSelectionComponent?.warehouseRequiredButMissing &&
-      [
-        ExecutionState.Uninitialized,
-        ExecutionState.Completed,
-        ExecutionState.Terminated,
-        ExecutionState.Killed,
-        ExecutionState.Failed,
-      ].includes(this.executionState)
-    ) {
+    if (this.computingUnitSelectionComponent?.warehouseRequiredButMissing && this.buttonStartsRun()) {
       return {
         text: "Warehouse",
         icon: "plus-circle",
@@ -716,6 +748,61 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.jupyterPanelService.openJupyterNotebookPanel();
   }
 
+  public isTranslatingToPython = false;
+  public pythonCodeForModal = "";
+
+  public onClickExportAsPython(): void {
+    // Exporting the valid part of the graph answers a workflow with a required
+    // value missing by leaving that operator and its links out, and handing back
+    // a script that runs and is not the workflow. The button is disabled in that
+    // state; this says the same thing for a click that arrives another way.
+    if (this.isWorkflowEmpty || !this.isWorkflowValid) {
+      this.notificationService.error("This workflow cannot be exported yet: fix the errors the canvas reports first.");
+      return;
+    }
+
+    // The whole graph, now that it is known to be whole.
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+
+    this.isTranslatingToPython = true;
+    this.workflowToPythonService
+      .convertToPython(logicalPlan)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: response => {
+          this.isTranslatingToPython = false;
+          if (response.type === "success") {
+            this.pythonCodeForModal = response.pythonCode ?? "";
+            this.modalService.create({
+              nzTitle: "Workflow as Python Script",
+              nzContent: this.workflowPythonScriptModal ?? "",
+              nzFooter: null,
+              nzWidth: 800,
+            });
+          } else {
+            this.notificationService.error(response.errorMessage ?? "Failed to translate workflow to Python.");
+          }
+        },
+        error: () => {
+          this.isTranslatingToPython = false;
+          this.notificationService.error("Request failed while translating workflow to Python.");
+        },
+      });
+  }
+
+  public async copyPythonCodeToClipboard(): Promise<void> {
+    if (!this.pythonCodeForModal) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.pythonCodeForModal);
+      this.notificationService.success("Python script copied to clipboard");
+    } catch (error) {
+      this.notificationService.error("Failed to copy Python script");
+    }
+  }
+
   public onClickExportWorkflow(): void {
     // The same shape the dashboard download produces (see exportedWorkflow): the content plus the
     // landing view as a sibling key, so a file exported here uploads as a form-default workflow too.
@@ -755,11 +842,16 @@ export class MenuComponent implements OnInit, OnDestroy {
     // than carrying changes that were never stored into a view that has no reason to say so. The
     // form's own switch (openRegularCanvas) does the same.
     //
-    // Two more things the hand-over must not lose. An autosave already in flight when the switch
+    // Three more things the hand-over must not lose. An autosave already in flight when the switch
     // is clicked: WorkflowPersistService sends saves one at a time and in order, so ours lands after
-    // it and completes after it. And an edit made while our save is out (the page stays editable
-    // until the route): workflowChanged marks it, and the drain below saves once more before handing
-    // over, so the switch does not leave that edit to an autosave that would fire under the other view.
+    // it and completes after it. A graph edit made while our save is out (the page stays editable
+    // until the route): workflowChanged marks it, and saveThenOpenFormView saves once more before
+    // handing over, so the switch does not leave that edit to an autosave that would fire under the
+    // other view. And a save queued behind ours (a rename's or a description's, which save through
+    // the menu itself and do not go through workflowChanged): the route would not abort it, but its
+    // outcome answers to this component -- the error shown, the response fed back -- and this
+    // component is gone once the route lands. So the hand-over leaves only once the service's save
+    // queue has drained.
     this.handingOverToFormView = true;
     this.isSaving = true;
     this.saveThenOpenFormView(wid);
@@ -787,14 +879,33 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.notificationService.error("Could not save. Your latest changes are not stored yet.");
         },
         complete: () => {
-          if (this.editedSinceSwitchSnapshot) {
-            // An edit landed while the save was out; store it here rather than leave it to an
-            // autosave that would fire under the other view.
-            this.saveThenOpenFormView(target);
-            return;
-          }
-          this.isSaving = false;
-          this.openFormViewPage(target);
+          // A save queued behind ours (a rename's, a description's: those save through the menu
+          // itself, not the autosave) answers to this component: its error is shown here, its
+          // response fed back here, and neither reaches a component the route has destroyed. Leave
+          // once it has answered; a failure of its own is reported by its caller and does not hold
+          // the hand-over.
+          //
+          // Bounded, because this is a wait on requests this component did not make: a save queued
+          // behind ours that never answers -- neither completes nor fails, which the queue does
+          // count -- would otherwise hold the spinner and the button for good. Past the bound the
+          // hand-over leaves as it did before this wait existed, the request going on in the
+          // service with nobody left to answer to.
+          this.workflowPersistService
+            .whenSavesDrained()
+            .pipe(timeout({ first: HANDOVER_DRAIN_TIMEOUT_MS, with: () => of(DRAIN_TIMED_OUT) }), untilDestroyed(this))
+            .subscribe(outcome => {
+              // The page stayed editable while our save was out and while the queue drained. An
+              // edit landed in either window is stored here rather than left to an autosave that
+              // would fire under the other view -- checked after the drain, so the two windows
+              // are one. Not past the bound: a save then would queue behind the request that never
+              // answers, and never complete.
+              if (outcome !== DRAIN_TIMED_OUT && this.editedSinceSwitchSnapshot) {
+                this.saveThenOpenFormView(target);
+                return;
+              }
+              this.isSaving = false;
+              this.openFormViewPage(target);
+            });
         },
       });
   }
@@ -997,7 +1108,7 @@ export class MenuComponent implements OnInit, OnDestroy {
    */
   runWorkflow(): void {
     // Use the existing flags that were already updated via subscriptions
-    if (!this.isWorkflowValid || this.isWorkflowEmpty) {
+    if (!this.isWorkflowValid || !this.isWorkflowCompilable || this.isWorkflowEmpty) {
       return;
     }
 

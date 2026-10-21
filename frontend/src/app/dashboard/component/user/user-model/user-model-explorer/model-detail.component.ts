@@ -25,7 +25,6 @@ import { Observable, of } from "rxjs";
 import { format } from "date-fns";
 import { NgIf, NgClass, NgFor } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { NzResizeEvent, NzResizableDirective, NzResizeHandleComponent } from "ng-zorro-antd/resizable";
 import { NzCardComponent, NzCardMetaComponent } from "ng-zorro-antd/card";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
@@ -33,9 +32,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { NzLayoutComponent, NzContentComponent, NzSiderComponent } from "ng-zorro-antd/layout";
-import { NzEmptyComponent } from "ng-zorro-antd/empty";
-import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
@@ -64,9 +60,7 @@ import {
   getRelativePathFromDatasetFileNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
-import { VersionUploaderComponent } from "../../version-uploader/version-uploader.component";
-import { UserDatasetFileRendererComponent } from "../../user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
-import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
+import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
 
 @UntilDestroy()
 @Component({
@@ -85,14 +79,6 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzIconDirective,
     NzButtonComponent,
     NzWaveDirective,
-    NzLayoutComponent,
-    NzContentComponent,
-    NzSiderComponent,
-    NzResizableDirective,
-    NzResizeHandleComponent,
-    NzEmptyComponent,
-    NzCollapseComponent,
-    NzCollapsePanelComponent,
     NzSelectComponent,
     NzOptionComponent,
     NzTabsComponent,
@@ -101,9 +87,7 @@ import { UserDatasetVersionFiletreeComponent } from "../../user-dataset/user-dat
     NzInputDirective,
     NzSwitchComponent,
     MarkdownDescriptionComponent,
-    VersionUploaderComponent,
-    UserDatasetFileRendererComponent,
-    UserDatasetVersionFiletreeComponent,
+    VersionsFilesBrowserComponent,
   ],
 })
 export class ModelDetailComponent implements OnInit {
@@ -142,8 +126,10 @@ export class ModelDetailComponent implements OnInit {
   public likeCount: number = 0;
   public isLiked: boolean = false;
 
-  public isRightBarCollapsed = false;
+  // The versions/files browser is presentational; its two toolbar flags live here (maximizing
+  // the file view also hides the page header) and are shared through two-way bindings.
   public isMaximized = false;
+  public isRightBarCollapsed = false;
 
   public isLogin: boolean = this.userService.isLogin();
   public currentUid: number | undefined = this.userService.getCurrentUser()?.uid;
@@ -153,7 +139,7 @@ export class ModelDetailComponent implements OnInit {
   public readonly frameworks = MODEL_FRAMEWORKS;
   public readonly formats = MODEL_FORMATS;
 
-  @ViewChild(VersionUploaderComponent) private versionUploader?: VersionUploaderComponent;
+  @ViewChild(VersionsFilesBrowserComponent) private versionsFilesBrowser?: VersionsFilesBrowserComponent<ModelVersion>;
 
   // Renaming mid-upload strands the in-flight parts under the old name, so the Settings tab
   // blocks it until the panel is idle.
@@ -178,19 +164,6 @@ export class ModelDetailComponent implements OnInit {
         this.isLogin = this.userService.isLogin();
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
-  }
-
-  // Resizable sider holding the version picker and the file tree.
-  MAX_SIDER_WIDTH = 600;
-  MIN_SIDER_WIDTH = 150;
-  siderWidth = 400;
-  id = -1;
-
-  onSideResize({ width }: NzResizeEvent): void {
-    cancelAnimationFrame(this.id);
-    this.id = requestAnimationFrame(() => {
-      this.siderWidth = width!;
-    });
   }
 
   ngOnInit(): void {
@@ -448,26 +421,6 @@ export class ModelDetailComponent implements OnInit {
       .subscribe();
   }
 
-  async copyCurrentFilePath(): Promise<void> {
-    if (!this.currentDisplayedFileName) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(this.currentDisplayedFileName);
-      this.notificationService.success("File path copied to clipboard");
-    } catch {
-      this.notificationService.error("Failed to copy file path");
-    }
-  }
-
-  onClickScaleTheView(): void {
-    this.isMaximized = !this.isMaximized;
-  }
-
-  onClickHideRightBar(): void {
-    this.isRightBarCollapsed = !this.isRightBarCollapsed;
-  }
-
   isDownloadAllowed(): boolean {
     if (this.isOwner) {
       return true;
@@ -494,7 +447,7 @@ export class ModelDetailComponent implements OnInit {
           );
           // Undefined only when the panel is not rendered, which is the same write-access
           // condition that gates the tree's delete control.
-          this.versionUploader?.notePathStaged(relativePath);
+          this.versionsFilesBrowser?.notePathStaged(relativePath);
         },
         error: () => this.notificationService.error("Failed to delete the file"),
       });

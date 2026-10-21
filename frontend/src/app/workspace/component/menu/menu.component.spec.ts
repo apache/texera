@@ -24,9 +24,10 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
 import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { take } from "rxjs/operators";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
-import { MenuComponent } from "./menu.component";
+import { HANDOVER_DRAIN_TIMEOUT_MS, MenuComponent } from "./menu.component";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import type { ExecutionDurationUpdateEvent } from "../../types/workflow-websocket.interface";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -57,6 +58,8 @@ import { USER_WORKFLOW, workspaceFormUrl } from "../../../app-routing.constant";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { MockGuiConfigService } from "../../../common/service/gui-config.service.mock";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 import type { Mocked } from "vitest";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
@@ -75,8 +78,10 @@ describe("MenuComponent", () => {
   let notificationService: NotificationService;
   let location: Location;
   let validationStream$: BehaviorSubject<ValidationOutput>;
+  let compilationStream$: Subject<CompilationState>;
 
   beforeEach(async () => {
+    compilationStream$ = new Subject<CompilationState>();
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
       providers: [
@@ -93,6 +98,11 @@ describe("MenuComponent", () => {
           },
         },
         { provide: UserService, useClass: StubUserService },
+        {
+          // stubbed so the debounced compile request of the real service does not outlive the test injector
+          provide: WorkflowCompilingService,
+          useValue: { getCompilationStateInfoChangedStream: () => compilationStream$.asObservable() },
+        },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -241,6 +251,89 @@ describe("MenuComponent", () => {
     expect(component.isSaving).toBe(false);
   });
 
+  it("leaves only once every queued save has landed, not just its own", () => {
+    // A rename made while the switch's save is out saves through the menu itself and is queued
+    // behind the switch's save; the hand-over waits for the queue to drain, so that save's error
+    // or response still reaches this component rather than one the route has destroyed.
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(workflowPersistService, "persistWorkflow").mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const drained$ = new Subject<void>();
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(drained$.asObservable());
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+
+    expect(navigate).not.toHaveBeenCalled(); // its own save is done, another is still queued
+    drained$.next();
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("saves once more when an edit lands while the hand-over waits for the queue to drain", () => {
+    // Waiting for a queued save is a second window the page stays editable in, after the one the
+    // switch's own save opened; an edit made in it is stored before leaving, like one made in the first.
+    const edits = new Subject<unknown>();
+    vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+    component.ngOnInit();
+    component.writeAccess = true;
+    vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+    vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+    const persistSpy = vi
+      .spyOn(workflowPersistService, "persistWorkflow")
+      .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+    const drained$ = new Subject<void>();
+    // One emission per call, as the service's whenSavesDrained gives.
+    vi.spyOn(workflowPersistService, "whenSavesDrained").mockImplementation(() => drained$.pipe(take(1)));
+    const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+    component.onClickOpenFormView();
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    edits.next(undefined); // an edit while a queued save is still being waited for
+    drained$.next();
+
+    expect(persistSpy).toHaveBeenCalledTimes(2); // saved once more instead of leaving
+    expect(navigate).not.toHaveBeenCalled();
+    drained$.next(); // nothing queued behind the second save
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith(7);
+    expect(component.isSaving).toBe(false);
+  });
+
+  it("leaves after a bound when a save queued behind its own never answers", () => {
+    // The wait is on a request this component did not make; one that never answers must not hold
+    // the spinner and the button for good. Past the bound the hand-over leaves as it did before
+    // the wait existed, and an edit landed meanwhile is not saved again: that save would queue
+    // behind the request that never answers.
+    vi.useFakeTimers();
+    try {
+      const edits = new Subject<unknown>();
+      vi.spyOn(component["workflowActionService"], "workflowChanged").mockReturnValue(edits.asObservable());
+      component.ngOnInit();
+      component.writeAccess = true;
+      vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
+      vi.spyOn(component["workflowActionService"], "setWorkflowMetadata").mockImplementation(() => {});
+      const persistSpy = vi
+        .spyOn(workflowPersistService, "persistWorkflow")
+        .mockReturnValue(of({ wid: 7, name: "saved" } as any));
+      vi.spyOn(workflowPersistService, "whenSavesDrained").mockReturnValue(new Subject<void>().asObservable());
+      const navigate = vi.spyOn(component as any, "openFormViewPage").mockImplementation(() => {});
+
+      component.onClickOpenFormView();
+      edits.next(undefined); // an edit while the queue is waited for
+      vi.advanceTimersByTime(HANDOVER_DRAIN_TIMEOUT_MS - 1);
+      expect(navigate).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+
+      expect(navigate).toHaveBeenCalledWith(7);
+      expect(persistSpy).toHaveBeenCalledTimes(1); // not saved again behind a request that never answers
+      expect(component.isSaving).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("ignores a second click while the hand-over is already in progress", () => {
     component.writeAccess = true;
     vi.spyOn(component["workflowActionService"], "getWorkflowMetadata").mockReturnValue({ wid: 7 } as any);
@@ -313,6 +406,18 @@ describe("MenuComponent", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
       component.isWorkflowEmpty = false;
+
+      const behavior = component.getRunButtonBehavior();
+
+      expect(behavior.text).toBe("Invalid Workflow");
+      expect(behavior.icon).toBe("warning");
+      expect(behavior.disable).toBe(true);
+    });
+
+    it("returns 'Invalid Workflow' when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
 
       const behavior = component.getRunButtonBehavior();
 
@@ -612,6 +717,53 @@ describe("MenuComponent", () => {
     expect(component.runDisable).toBe(true);
   });
 
+  describe("export as Python", () => {
+    // Exporting the valid part of the graph answers a workflow with a required
+    // value missing by leaving that operator and its links out, and handing back
+    // a script that runs and is not the workflow.
+    it("refuses a workflow the canvas reports errors on", () => {
+      const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const convert = vi.spyOn(component["workflowToPythonService"], "convertToPython");
+      validationStream$.next({
+        errors: { "operator-1": { isValid: false, messages: { attribute: "required" } } } as any,
+        workflowEmpty: false,
+      });
+
+      component.onClickExportAsPython();
+
+      expect(convert).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
+      expect(component.isTranslatingToPython).toBe(false);
+    });
+
+    it("refuses an empty workflow", () => {
+      vi.spyOn(notificationService, "error").mockImplementation(() => {});
+      const convert = vi.spyOn(component["workflowToPythonService"], "convertToPython");
+      validationStream$.next({ errors: {}, workflowEmpty: true });
+
+      component.onClickExportAsPython();
+
+      expect(convert).not.toHaveBeenCalled();
+    });
+
+    // The whole graph, not the valid part of it: the two agree once the workflow
+    // is valid, and asking for the valid part is what dropped operators.
+    it("sends the whole graph once the workflow is valid", () => {
+      const convert = vi
+        .spyOn(component["workflowToPythonService"], "convertToPython")
+        .mockReturnValue(of({ type: "success", pythonCode: "print(1)" } as any));
+      const validSubgraph = vi.spyOn(validationWorkflowService, "getValidTexeraGraph");
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(validSubgraph).not.toHaveBeenCalled();
+      expect(convert).toHaveBeenCalled();
+      expect(convert.mock.calls[0][0].operators).toHaveLength(1);
+    });
+  });
+
   describe("hasOperators", () => {
     it("returns false on an empty graph", () => {
       expect(component.hasOperators()).toBe(false);
@@ -694,6 +846,19 @@ describe("MenuComponent", () => {
     it("does nothing when the workflow is invalid", () => {
       component.isWorkflowValid = false;
       component.isWorkflowEmpty = false;
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
+
+      component.runWorkflow();
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(component.computingUnitSelectionComponent.showAddComputeUnitModalVisible).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the workflow does not compile", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.isWorkflowCompilable = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
       const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification");
 
       component.runWorkflow();
@@ -914,6 +1079,19 @@ describe("MenuComponent", () => {
       const parsed = JSON.parse(await readBlob(saveAs.mock.calls[0][0] as Blob));
       expect("defaultView" in parsed).toBe(false);
     });
+  });
+
+  it("copyPythonCodeToClipboard writes the generated Python script to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+    component.pythonCodeForModal = "print('hello')";
+
+    await component.copyPythonCodeToClipboard();
+
+    expect(writeText).toHaveBeenCalledWith("print('hello')");
+    expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
+    vi.unstubAllGlobals();
   });
 
   // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on
@@ -1867,6 +2045,53 @@ describe("MenuComponent", () => {
       } finally {
         stateFixture.destroy();
       }
+    });
+
+    it("re-applies the run button behavior on every compilation state event", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      component.executionState = ExecutionState.Uninitialized;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.isWorkflowCompilable).toBe(false);
+      expect(component.runButtonText).toBe("Invalid Workflow");
+      expect(component.runDisable).toBe(true);
+
+      compilationStream$.next(CompilationState.Succeeded);
+      expect(component.isWorkflowCompilable).toBe(true);
+      expect(component.runButtonText).toBe("Run");
+      expect(component.runDisable).toBe(false);
+    });
+
+    it("keeps Pause and Resume when a compile fails after the run started", () => {
+      component.isWorkflowValid = true;
+      component.isWorkflowEmpty = false;
+      component.computingUnitStatus = ComputingUnitState.Running;
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => true,
+        configurable: true,
+      });
+
+      component.executionState = ExecutionState.Running;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Pause");
+      expect(component.runDisable).toBe(false);
+
+      component.executionState = ExecutionState.Paused;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Resume");
+      expect(component.runDisable).toBe(false);
+
+      // the failure still blocks the next run once this one ends
+      component.executionState = ExecutionState.Completed;
+      compilationStream$.next(CompilationState.Failed);
+      expect(component.runButtonText).toBe("Invalid Workflow");
+      expect(component.runDisable).toBe(true);
     });
 
     it("deactivates the export button unless the feature is on and results exist", () => {

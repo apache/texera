@@ -1010,12 +1010,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       },
     };
 
-    // highlight on OperatorHighlightStream or GroupHighlightStream or CommentBoxHighlightStream
-    merge(
-      this.wrapper.getJointOperatorHighlightStream(),
-      this.wrapper.getJointGroupHighlightStream(),
-      this.wrapper.getJointCommentBoxHighlightStream()
-    )
+    // highlight on OperatorHighlightStream or CommentBoxHighlightStream
+    merge(this.wrapper.getJointOperatorHighlightStream(), this.wrapper.getJointCommentBoxHighlightStream())
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID => {
@@ -1023,12 +1019,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         })
       );
 
-    // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream or CommentBoxUnhighlightStream
-    merge(
-      this.wrapper.getJointOperatorUnhighlightStream(),
-      this.wrapper.getJointGroupUnhighlightStream(),
-      this.wrapper.getJointCommentBoxUnhighlightStream()
-    )
+    // unhighlight on OperatorUnhighlightStream or CommentBoxUnhighlightStream
+    merge(this.wrapper.getJointOperatorUnhighlightStream(), this.wrapper.getJointCommentBoxUnhighlightStream())
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID => {
