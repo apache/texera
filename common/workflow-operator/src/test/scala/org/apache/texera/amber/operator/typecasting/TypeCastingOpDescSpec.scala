@@ -501,8 +501,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
 
     // One frame rather than a row at a time, unlike the casts that refuse a
-    // value: this one coerces, and the column is where a format that is not the
-    // first row's would be lost.
+    // value: every case here reads, and the column is where a format that is not
+    // the first row's would be lost.
     val values = timestampCases.map(v => "\"" + v + "\"").mkString("[", ", ", "]")
     val driver =
       s"""import pandas as pd
@@ -602,11 +602,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     fromEngine shouldBe nanosecondCases
   }
 
-  // The one place the script is meant to differ, and the reason it cannot simply
-  // parse strictly: the engine accepts a set of formats no single pandas call
-  // states, so text neither can read leaves an empty cell instead of ending an
-  // exported run halfway.
-  it should "leave a cell it cannot read empty rather than refusing it" taggedAs NeedsPythonPackages in {
+  // Text no format reads ends the run on both sides. The engine's parseField
+  // throws, and the script raises the engine's message rather than leaving the
+  // cell empty.
+  it should "refuse a cell it cannot read, as the engine does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
@@ -636,10 +635,9 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     val out = Source.fromInputStream(process.getInputStream).mkString
     process.waitFor(120, TimeUnit.SECONDS)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
-      cellsOf(out) shouldBe Seq("null", "null", "2024-03-05 14:09:07")
+      process.exitValue() should not be 0
+      out should include("Failed to parse type str to Timestamp: not a date")
     }
-    // The engine refuses the same text, which is the difference this coercion is.
     engineAnswer("not a date", AttributeType.TIMESTAMP) shouldBe "error"
   }
 
