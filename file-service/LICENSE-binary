@@ -441,36 +441,37 @@ Scala/Java jars:
   - org.slf4j.log4j-over-slf4j-2.0.12.jar
   - org.xerial.snappy.snappy-java-1.1.10.7.jar
   - org.yaml.snakeyaml-2.2.jar
-  - software.amazon.awssdk.annotations-2.29.51.jar
-  - software.amazon.awssdk.apache-client-2.29.51.jar
-  - software.amazon.awssdk.arns-2.29.51.jar
-  - software.amazon.awssdk.auth-2.29.51.jar
-  - software.amazon.awssdk.aws-core-2.29.51.jar
-  - software.amazon.awssdk.aws-query-protocol-2.29.51.jar
-  - software.amazon.awssdk.aws-xml-protocol-2.29.51.jar
-  - software.amazon.awssdk.checksums-2.29.51.jar
-  - software.amazon.awssdk.checksums-spi-2.29.51.jar
-  - software.amazon.awssdk.crt-core-2.29.51.jar
-  - software.amazon.awssdk.endpoints-spi-2.29.51.jar
-  - software.amazon.awssdk.http-auth-2.29.51.jar
-  - software.amazon.awssdk.http-auth-aws-2.29.51.jar
-  - software.amazon.awssdk.http-auth-aws-eventstream-2.29.51.jar
-  - software.amazon.awssdk.http-auth-spi-2.29.51.jar
-  - software.amazon.awssdk.http-client-spi-2.29.51.jar
-  - software.amazon.awssdk.identity-spi-2.29.51.jar
-  - software.amazon.awssdk.json-utils-2.29.51.jar
-  - software.amazon.awssdk.metrics-spi-2.29.51.jar
-  - software.amazon.awssdk.netty-nio-client-2.29.51.jar
-  - software.amazon.awssdk.profiles-2.29.51.jar
-  - software.amazon.awssdk.protocol-core-2.29.51.jar
-  - software.amazon.awssdk.regions-2.29.51.jar
-  - software.amazon.awssdk.retries-2.29.51.jar
-  - software.amazon.awssdk.retries-spi-2.29.51.jar
-  - software.amazon.awssdk.s3-2.29.51.jar
-  - software.amazon.awssdk.sdk-core-2.29.51.jar
-  - software.amazon.awssdk.sts-2.29.51.jar
-  - software.amazon.awssdk.third-party-jackson-core-2.29.51.jar
-  - software.amazon.awssdk.utils-2.29.51.jar
+  - software.amazon.awssdk.annotations-2.53.1.jar
+  - software.amazon.awssdk.apache-client-2.53.1.jar
+  - software.amazon.awssdk.arns-2.53.1.jar
+  - software.amazon.awssdk.auth-2.53.1.jar
+  - software.amazon.awssdk.aws-core-2.53.1.jar
+  - software.amazon.awssdk.aws-query-protocol-2.53.1.jar
+  - software.amazon.awssdk.aws-xml-protocol-2.53.1.jar
+  - software.amazon.awssdk.checksums-2.53.1.jar
+  - software.amazon.awssdk.checksums-spi-2.53.1.jar
+  - software.amazon.awssdk.crt-core-2.53.1.jar
+  - software.amazon.awssdk.endpoints-spi-2.53.1.jar
+  - software.amazon.awssdk.http-auth-2.53.1.jar
+  - software.amazon.awssdk.http-auth-aws-2.53.1.jar
+  - software.amazon.awssdk.http-auth-aws-eventstream-2.53.1.jar
+  - software.amazon.awssdk.http-auth-spi-2.53.1.jar
+  - software.amazon.awssdk.http-client-spi-2.53.1.jar
+  - software.amazon.awssdk.identity-spi-2.53.1.jar
+  - software.amazon.awssdk.json-utils-2.53.1.jar
+  - software.amazon.awssdk.metrics-spi-2.53.1.jar
+  - software.amazon.awssdk.netty-nio-client-2.53.1.jar
+  - software.amazon.awssdk.profiles-2.53.1.jar
+  - software.amazon.awssdk.protocol-core-2.53.1.jar
+  - software.amazon.awssdk.regions-2.53.1.jar
+  - software.amazon.awssdk.retries-2.53.1.jar
+  - software.amazon.awssdk.retries-spi-2.53.1.jar
+  - software.amazon.awssdk.s3-2.53.1.jar
+  - software.amazon.awssdk.sdk-core-2.53.1.jar
+  - software.amazon.awssdk.sts-2.53.1.jar
+  - software.amazon.awssdk.third-party-jackson-core-2.53.1.jar
+  - software.amazon.awssdk.utils-2.53.1.jar
+  - software.amazon.awssdk.utils-lite-2.53.1.jar
   - software.amazon.eventstream.eventstream-1.0.1.jar
 
 --------------------------------------------------------------------------------
