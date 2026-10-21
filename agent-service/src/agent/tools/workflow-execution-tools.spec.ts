@@ -551,7 +551,7 @@ describe("executeOperatorAndFormat - execution failures", () => {
     expect(info.errorMessages[0].message).toContain("kaboom");
   });
 
-  test("formats compilation errors as general errors when the run state is CompilationFailed", async () => {
+  test("formats compilation errors under their own heading when the run state is CompilationFailed", async () => {
     const state = makeState(makeOperator("op1"));
     setFetchResolving(
       legacyJsonResponse({
@@ -564,8 +564,26 @@ describe("executeOperatorAndFormat - execution failures", () => {
 
     const out = await executeOperatorAndFormat(state, makeConfig(), "op1");
 
-    // Compilation errors are workflow-level errors, so they render under the general "Error:" header.
-    expect(out).toBe("[ERROR] Execution failed due to the following error:\nError:\n  type mismatch");
+    expect(out).toBe("[ERROR] Execution failed due to the following error:\nCompilation error:\n  type mismatch");
+  });
+
+  test("keeps compilation errors apart from other workflow-level errors", async () => {
+    const state = makeState(makeOperator("op1"));
+    setFetchResolving(
+      legacyJsonResponse({
+        success: false,
+        state: "Failed",
+        operators: {},
+        compilationErrors: { op1: "type mismatch" },
+        errors: ["type mismatch", "worker crashed"],
+      })
+    );
+
+    const out = await executeOperatorAndFormat(state, makeConfig(), "op1");
+
+    expect(out).toBe(
+      "[ERROR] Execution failed due to the following error:\nCompilation error:\n  type mismatch\nError:\n  worker crashed"
+    );
   });
 
   test("reports a timeout when the workflow was KILLED, ignoring any accompanying errors", async () => {
