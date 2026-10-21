@@ -520,6 +520,8 @@ object CanonicalSourceFixture {
     * `a"b\c_nanos` holds digits past the millisecond, which a reader keeps or cuts
     * as the engine's own does. It stays out of the canonical table, where a
     * Python operator is handed a datetime, which counts no finer than microseconds.
+    * `in1df` is named like the variable a script binds an input to, so a plan
+    * that reads this file shows whether the translator renames the column too.
     */
   private val sourceColumns: Seq[(Attribute, Int => AnyRef)] = Seq(
     new Attribute("a\"b\\c_big", AttributeType.LONG) -> (i => Long.box(9007199254740993L + 2 * i)),
@@ -534,7 +536,8 @@ object CanonicalSourceFixture {
           i % 3
         )
       )
-    )
+    ),
+    new Attribute("in1df", AttributeType.STRING) -> (i => Seq("x", "y", "z")(i % 3))
   )
 
   val schema: Schema =
