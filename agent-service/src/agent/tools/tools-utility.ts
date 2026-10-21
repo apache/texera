@@ -29,6 +29,9 @@ export function getOperatorErrorText(opInfo: OperatorExecutionSummary): string {
     .join("; ");
 }
 
+// tupleColumns and tupleToRecord are mirrored by the frontend in
+// workspace/service/agent/agent.service.ts; keep both copies in sync.
+
 // The column names of a tuple, in schema order.
 export function tupleColumns(tuple: Tuple): string[] {
   return tuple.schema.attributes.map(a => a.attributeName);
