@@ -51,7 +51,9 @@ import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
-import java.nio.file.{Files, Path}
+import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import java.nio.file.{Files, Path, Paths}
 import java.util
 
 /**
@@ -152,7 +154,8 @@ object CuratedHandlers {
     IfTransformHandler,
     RegexTransformHandler,
     SklearnPredictionTransformHandler,
-    SklearnTestingTransformHandler
+    SklearnTestingTransformHandler,
+    FileScanTransformHandler
   )
 
   val byClass: Map[Class[_ <: LogicalOp], TransformHandler] =
@@ -196,6 +199,57 @@ object CuratedHandlers {
     path
   }
 
+}
+
+/** Curated INPUT for [[FileScanOpDesc]], which reads the files its input names
+  * rather than a table. Its one row names the shared table's own file, so the
+  * scan reads the data every other operator reads, and no file is written for it.
+  */
+object FileScanTransformHandler extends TransformHandler {
+  override val opDescClass: Class[_ <: LogicalOp] = classOf[FileScanOpDesc]
+
+  override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
+    val shared = Paths.get(getClass.getResource(CanonicalFixture.fixtureResource).toURI)
+    val input = CuratedHandlers.writeFixture(
+      testRoot.resolve("input_port_0.jsonl"),
+      Seq("filename" -> AttributeType.STRING),
+      Seq(Seq(shared.toString))
+    )
+    (new FileScanOpDesc(), Map(PortIdentity(0) -> input))
+  }
+
+  /** File Scan Source's files, each read the way that scenario reads it, from the
+    * path this input names: the two operators share the engine's reader and differ
+    * only in where the path comes from. The shared table's JSON lines are text, so
+    * these are what exercise a typed line, an encoding the bytes are in, and an
+    * archive.
+    */
+  override def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
+    FileScanSourceHandler.files.map {
+      case (label, write) =>
+        val dir = testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
+        Files.createDirectories(dir)
+        val (file, attributeType, fields) = write(dir)
+        // The source names its encoding `encoding`, this operator `fileEncoding`.
+        // `extract` and `outputFileName` are vals, so they are deserialized in.
+        val op = objectMapper.readValue(
+          (""""operatorType":"FileScanOp"""" +: fields.map(
+            _.replace("\"encoding\"", "\"fileEncoding\"")
+          ))
+            .mkString("{", ",", "}"),
+          classOf[FileScanOpDesc]
+        )
+        op.attributeType = attributeType
+        val input = CuratedHandlers.writeFixture(
+          dir.resolve("input_port_0.jsonl"),
+          Seq("filename" -> AttributeType.STRING),
+          Seq(Seq(file.toString))
+        )
+        (label, op, Map(PortIdentity(0) -> input))
+    }
+
+  // The one cell is the path the scan opens, so a hole leaves nothing to read.
+  override def nullsKeepFilled: Option[Set[String]] = None
 }
 
 /**
