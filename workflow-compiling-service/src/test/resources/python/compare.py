@@ -92,6 +92,25 @@ import sys
 # rather than once per DataFrame comparison.
 
 
+def _holds_pickle(frame, col) -> bool:
+    """Whether every value in `col` is a base64 pickle, which is how a model is
+    written. A column the frame lacks, or one with no value, holds none."""
+    import base64
+    import pickle
+
+    if col not in frame.columns:
+        return False
+    cells = [v for v in frame[col] if isinstance(v, str)]
+    if not cells:
+        return False
+    try:
+        for v in cells:
+            pickle.loads(base64.b64decode(v))
+    except Exception:
+        return False
+    return True
+
+
 def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None:
     """For each model column, unpickle both sides and assert their predictions
     on the probe set match. Raises AssertionError on any divergence."""
@@ -506,6 +525,19 @@ def _run_comparison(
         for column in double_cols:
             actual[column] = pd.array(numbers_a[column], dtype="float64")
             expected[column] = pd.array(numbers_e[column], dtype="float64")
+
+    # A BINARY column is not always a model: File Scan hands back a file's bytes.
+    # Bytes neither side can unpickle are plain data, compared exactly with the
+    # rest of the frame. A column one side lacks, or one side can unpickle, stays
+    # a model column, so a model on one side only still fails as one.
+    model_cols = [
+        col
+        for col in model_cols
+        if col not in actual.columns
+        or col not in expected.columns
+        or _holds_pickle(actual, col)
+        or _holds_pickle(expected, col)
+    ]
 
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
