@@ -39,6 +39,11 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private val inputSchema = new Schema(new Attribute("filename", AttributeType.STRING))
 
+  // How a UTF-8 file's lines are read: decoded from its bytes, then split where
+  // `open(..., "r")` splits them.
+  private val utf8Lines = """io.StringIO(_texera_decode(_f.read(), "utf-8"), newline=None)"""
+  private val utf8Whole = """_texera_decode(_f.read(), "utf-8")"""
+
   var fileScanOpDesc: FileScanOpDesc = _
 
   before {
@@ -158,8 +163,8 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
           |
           |_rows = []
           |for _fn in (_texera_file_name(r) for r in in1df.itertuples(index=False)):
-          |    with open(_fn, "r", encoding="utf-8") as _f:
-          |        _rows.extend(l.rstrip("\n") for l in _f)
+          |    with open(_fn, "rb") as _f:
+          |        _rows.extend(l.rstrip("\n") for l in io.StringIO(_texera_decode(_f.read(), "utf-8"), newline=None))
           |out1df = pd.DataFrame({"line": _rows})""".stripMargin
     )
   }
@@ -175,7 +180,9 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // The enum name is "US_ASCII", not a Python codec name.
   it should "render the encoding as a Python codec name" in {
     fileScanOpDesc.fileEncoding = FileDecodingMethod.ASCII
-    assert(fileScanOpDesc.generateStandaloneCode().contains("""encoding="us-ascii""""))
+    assert(
+      fileScanOpDesc.generateStandaloneCode().contains("""_texera_decode(_f.read(), "us-ascii")""")
+    )
   }
 
   it should "read the whole file in single-value mode, keeping the filename only when asked" in {
@@ -183,12 +190,12 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     fileScanOpDesc.outputFileName = true
     val withName = fileScanOpDesc.generateStandaloneCode()
-    assert(withName.contains("        _rows.append((_fn, _f.read()))"))
+    assert(withName.contains(s"        _rows.append((_fn, $utf8Whole))"))
     assert(withName.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
 
     fileScanOpDesc.outputFileName = false
     val withoutName = fileScanOpDesc.generateStandaloneCode()
-    assert(withoutName.contains("        _rows.append(_f.read())"))
+    assert(withoutName.contains(s"        _rows.append($utf8Whole)"))
     assert(withoutName.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
 
     // A line carries the name of the file it came from, as the whole file does,
@@ -198,28 +205,28 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     fileScanOpDesc.outputFileName = true
     val lines = fileScanOpDesc.generateStandaloneCode()
-    assert(lines.contains("""        _rows.extend((_fn, l.rstrip("\n")) for l in _f)"""))
+    assert(lines.contains(s"""        _rows.extend((_fn, l.rstrip("\\n")) for l in $utf8Lines)"""))
     assert(lines.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
 
     fileScanOpDesc.outputFileName = false
     val bareLines = fileScanOpDesc.generateStandaloneCode()
-    assert(bareLines.contains("""        _rows.extend(l.rstrip("\n") for l in _f)"""))
+    assert(bareLines.contains(s"""        _rows.extend(l.rstrip("\\n") for l in $utf8Lines)"""))
     assert(bareLines.endsWith("""out1df = pd.DataFrame({"line": _rows})"""))
   }
 
   it should "keep a whole file's CRLF in the export, as the engine does" in {
     // The engine decodes the bytes as they are. The text reader's default turns a
     // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
+    // A whole file is decoded from its bytes and goes through no reader at all.
     fileScanOpDesc.attributeType = FileAttributeType.SINGLE_STRING
-    assert(
-      fileScanOpDesc
-        .generateStandaloneCode()
-        .contains("""    with open(_fn, "r", encoding="utf-8", newline="") as _f:""")
-    )
+    val whole = fileScanOpDesc.generateStandaloneCode()
+    assert(whole.contains("""    with open(_fn, "rb") as _f:"""))
+    assert(!whole.contains("StringIO"))
 
-    // Lines keep the default, which ends a line where the engine's reader does.
+    // Lines split in universal-newline mode, which ends a line where the engine's
+    // reader does.
     fileScanOpDesc.attributeType = FileAttributeType.STRING
-    assert(!fileScanOpDesc.generateStandaloneCode().contains("newline="))
+    assert(fileScanOpDesc.generateStandaloneCode().contains(utf8Lines))
   }
 
   it should "open binary attribute types in binary mode" in {
@@ -247,25 +254,26 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(
           fileScanOpDesc
             .generateStandaloneCode()
-            .contains(s"        _rows.extend($cast for l in _f)")
+            .contains(s"        _rows.extend($cast for l in $utf8Lines)")
         )
     }
     // The number and boolean casts call out of the body, so the script has to
-    // carry the definitions.
+    // carry the definitions, beside the decoder every text read calls.
+    val decode = FileScanOpDesc.DecodeHelper
     fileScanOpDesc.attributeType = FileAttributeType.INTEGER
-    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.NumberParsers))
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.NumberParsers, decode))
     fileScanOpDesc.attributeType = FileAttributeType.DOUBLE
     assert(
       fileScanOpDesc.standaloneHelpers() ==
-        Seq(StandaloneHelpers.AttributeCasts, TextSourceOpDesc.NumberParsers)
+        Seq(StandaloneHelpers.AttributeCasts, TextSourceOpDesc.NumberParsers, decode)
     )
     fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
     assert(
       fileScanOpDesc.standaloneHelpers() ==
-        Seq(TextSourceOpDesc.NumberParsers, TextSourceOpDesc.BooleanParser)
+        Seq(TextSourceOpDesc.NumberParsers, TextSourceOpDesc.BooleanParser, decode)
     )
     fileScanOpDesc.attributeType = FileAttributeType.STRING
-    assert(fileScanOpDesc.standaloneHelpers().isEmpty)
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(decode))
     // A timestamp line is read as text and parsed as a column, as CSV parses one.
     fileScanOpDesc.attributeType = FileAttributeType.TIMESTAMP
     assert(
@@ -273,7 +281,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         .generateStandaloneCode()
         .endsWith("""out1df["line"] = _texera_text_to_timestamp(out1df["line"])""")
     )
-    assert(fileScanOpDesc.standaloneHelpers() == Seq(StandaloneHelpers.AttributeCasts))
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(StandaloneHelpers.AttributeCasts, decode))
   }
 
   it should "slice the raw lines before converting them when a limit or offset is set" in {
@@ -284,7 +292,9 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[3:])")
+        .contains(
+          s"        _rows.extend(_texera_parse_int(l, 32) for l in $utf8Lines.readlines()[3:])"
+        )
     )
 
     fileScanOpDesc.fileScanOffset = None
@@ -292,7 +302,9 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[:5])")
+        .contains(
+          s"        _rows.extend(_texera_parse_int(l, 32) for l in $utf8Lines.readlines()[:5])"
+        )
     )
 
     fileScanOpDesc.fileScanOffset = Option(3)
@@ -300,7 +312,9 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       fileScanOpDesc
         .generateStandaloneCode()
-        .contains("        _rows.extend(_texera_parse_int(l, 32) for l in _f.readlines()[3:][:5])")
+        .contains(
+          s"        _rows.extend(_texera_parse_int(l, 32) for l in $utf8Lines.readlines()[3:][:5])"
+        )
     )
   }
 
@@ -319,13 +333,8 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(code.contains("        for _name in _z.namelist():"))
     assert(code.contains("""            if _name.startswith("__MACOSX"):"""))
     assert(code.contains("            with _z.open(_name) as _f:"))
-    // A zip entry opens binary whatever the column holds, so a text line is
-    // decoded rather than read through a text-mode handle.
-    assert(
-      code.contains(
-        """                _rows.extend(l.rstrip("\n") for l in io.TextIOWrapper(_f, encoding="utf-8"))"""
-      )
-    )
+    // A zip entry is read the way a file is: decoded from its bytes, then split.
+    assert(code.contains(s"""                _rows.extend(l.rstrip("\\n") for l in $utf8Lines)"""))
     assert(desc.standaloneImports() == Seq("import io", "import zipfile"))
     assert(!code.contains("WARNING"))
   }
@@ -338,7 +347,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val code = desc.generateStandaloneCode()
 
-    assert(code.contains("""                _rows.append((_name, _f.read().decode("utf-8")))"""))
+    assert(code.contains(s"                _rows.append((_name, $utf8Whole))"))
     assert(code.endsWith("""out1df = pd.DataFrame(_rows, columns=["filename", "line"])"""))
     assert(desc.standaloneImports() == Seq("import zipfile"))
   }

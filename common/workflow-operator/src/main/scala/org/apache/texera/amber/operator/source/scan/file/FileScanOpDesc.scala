@@ -114,6 +114,14 @@ class FileScanOpDesc
     buf += "_rows = []"
     buf += "for _fn in (_texera_file_name(r) for r in in1df.itertuples(index=False)):"
 
+    // Every file opens binary and is decoded by `_texera_decode`, which reads the
+    // bytes the way the engine's reader does (see that helper). A whole file keeps
+    // its text as decoded, so a CRLF stays a CRLF. Lines go through a StringIO in
+    // universal-newline mode, which ends a line where `open(..., "r")` does, and so
+    // where the engine does.
+    val readWholeOf = if (isBinary) "_f.read()" else s"_texera_decode(_f.read(), $encLit)"
+    val linesOf = s"io.StringIO(_texera_decode(_f.read(), $encLit), newline=None)"
+
     // With extract on the engine reads the files INSIDE the archive, one tuple
     // per entry, and skips the entries macOS adds. `zipfile` is the reader that
     // matches: the platform casts what it opened to a ZipArchiveInputStream, so
@@ -126,25 +134,10 @@ class FileScanOpDesc
         buf += """            if _name.startswith("__MACOSX"):"""
         buf += "                continue"
         buf += "            with _z.open(_name) as _f:"
-        // A zip entry only opens binary, so text is decoded here rather than by
-        // the reader. TextIOWrapper, not splitlines: it ends a line where
-        // `open(..., "r")` does, which is what the non-extract branch reads with.
-        (
-          " " * 16,
-          "_name",
-          if (isBinary) "_f.read()" else s"_f.read().decode($encLit)",
-          s"io.TextIOWrapper(_f, encoding=$encLit)"
-        )
+        (" " * 16, "_name", readWholeOf, linesOf)
       } else {
-        // A whole file reads with `newline=""`: the engine decodes its bytes as they
-        // are, so a CRLF stays a CRLF, where the text reader's default would turn it
-        // into a LF. Lines keep the default, which ends a line where the engine does.
-        val openArgs =
-          if (isBinary) """"rb""""
-          else if (attributeType.isSingle) s""""r", encoding=$encLit, newline="""""
-          else s""""r", encoding=$encLit"""
-        buf += s"    with open(_fn, $openArgs) as _f:"
-        (" " * 8, "_fn", "_f.read()", "_f")
+        buf += "    with open(_fn, \"rb\") as _f:"
+        (" " * 8, "_fn", readWholeOf, linesOf)
       }
 
     // Whatever the flag says, as the platform now reads it: every row carries the
@@ -193,10 +186,36 @@ class FileScanOpDesc
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] = TextSourceOpDesc.lineHelpers(attributeType)
+  override def standaloneHelpers(): Seq[String] = {
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+    TextSourceOpDesc.lineHelpers(attributeType) ++
+      (if (isBinary) Seq.empty else Seq(FileScanOpDesc.DecodeHelper))
+  }
 
-  override def standaloneImports(): Seq[String] =
-    if (!extract) Seq.empty
-    else if (attributeType.isSingle) Seq("import zipfile")
-    else Seq("import io", "import zipfile")
+  override def standaloneImports(): Seq[String] = {
+    val readsLines =
+      !attributeType.isSingle && attributeType != FileAttributeType.BINARY &&
+        attributeType != FileAttributeType.LARGE_BINARY
+    (if (readsLines) Seq("import io") else Seq.empty) ++
+      (if (extract) Seq("import zipfile") else Seq.empty)
+  }
+}
+
+object FileScanOpDesc {
+
+  /** The engine decodes through Java's InputStreamReader, which puts U+FFFD in
+    * place of any bytes it cannot decode rather than failing, and reads UTF-16
+    * with no byte-order mark as big-endian. Python's codecs refuse both, so a file
+    * read under the wrong encoding ended the script where the engine read on.
+    */
+  val DecodeHelper: String =
+    """def _texera_decode(raw, encoding):
+      |    if encoding == "utf-16":
+      |        if raw[:2] == b"\xfe\xff":
+      |            return raw[2:].decode("utf-16-be", "replace")
+      |        if raw[:2] == b"\xff\xfe":
+      |            return raw[2:].decode("utf-16-le", "replace")
+      |        return raw.decode("utf-16-be", "replace")
+      |    return raw.decode(encoding, "replace")""".stripMargin
 }
