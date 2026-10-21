@@ -76,6 +76,7 @@ import org.apache.texera.amber.operator.sklearn.training.{
   SklearnTrainingBernoulliNaiveBayesOpDesc,
   SklearnTrainingComplementNaiveBayesOpDesc,
   SklearnTrainingDecisionTreeOpDesc,
+  SklearnTrainingDummyClassifierOpDesc,
   SklearnTrainingExtraTreeOpDesc,
   SklearnTrainingExtraTreesOpDesc,
   SklearnTrainingGradientBoostingOpDesc,
@@ -431,13 +432,25 @@ object TransformVerificationRunner {
     else pinned.map { case (field, value) => s"$field=${value.asText}" }.mkString(", ", ", ", "")
   }
 
-  /** Why one kind of run is left out for an operator: [[ByDesign]], an answer
-    * that will not change.
+  /** Why one kind of run does not get a comparison. [[ByDesign]] is a run that
+    * cannot be set up, so it is left out. [[BothRefuse]] is a run both paths
+    * must refuse: it still runs, and passes only when each path raises, since a
+    * script that answers where the engine refuses is as wrong as a different
+    * answer.
     */
   sealed trait NotRunReason
   final case class ByDesign(why: String) extends NotRunReason
+  final case class BothRefuse(why: String) extends NotRunReason
 
-  final case class NotRun(op: Class[_], kind: String, reason: NotRunReason)
+  /** `except` names the members of `op`'s family the row does not cover, for the
+    * one that behaves otherwise.
+    */
+  final case class NotRun(
+      op: Class[_],
+      kind: String,
+      reason: NotRunReason,
+      except: Seq[Class[_]] = Seq.empty
+  )
 
   /** The runs an operator does not get, and why.
     *
@@ -472,18 +485,33 @@ object TransformVerificationRunner {
     } yield NotRun(op, label, dense)
 
     // Fitting a model on nothing has no answer to compare, and both paths say so
-    // the same way. sklearn refuses outright ("Found array with 0 sample(s) while
-    // a minimum of 1 is required"), and where an estimator does fit on nothing,
-    // the row a comparison would predict on to tell two models apart is missing
-    // too. Withheld across both estimator hierarchies rather than one row each,
-    // since the reason is the estimator's, not the operator's.
-    val nothingToFit = ByDesign(
+    // the same way: sklearn refuses outright ("Found array with 0 sample(s) while
+    // a minimum of 1 is required"). Listed across both estimator hierarchies
+    // rather than one row each, since the reason is the estimator's, not the
+    // operator's. The dummy classifier is the exception: it never reads a
+    // feature, so it does fit on nothing, and both paths hand back a model. That
+    // model has no classes and raises on any row it is asked to predict, so
+    // there is no answer to compare it by.
+    val nothingToFit = BothRefuse(
       "an estimator has no rows to fit on, and sklearn refuses rather than " +
-        "returning a model; where one does fit on nothing, no row is left to " +
-        "predict on, so two models cannot be told apart either"
+        "returning a model"
     )
     val noRowsToFit = Seq(
-      NotRun(classOf[SklearnModelOpDesc], RunKind.EmptyTable, nothingToFit),
+      NotRun(
+        classOf[SklearnModelOpDesc],
+        RunKind.EmptyTable,
+        nothingToFit,
+        except = Seq(classOf[SklearnTrainingDummyClassifierOpDesc])
+      ),
+      NotRun(
+        classOf[SklearnTrainingDummyClassifierOpDesc],
+        RunKind.EmptyTable,
+        ByDesign(
+          "the dummy classifier fits on nothing into a model with no classes, which " +
+            "cannot predict anything, so there is no answer to compare; both paths " +
+            "do return one"
+        )
+      ),
       // Named on its own because it is the one estimator outside that hierarchy:
       // it mixes in SklearnFittableColumns directly. Keying the row on the trait
       // instead would also withhold SklearnTestingOpDesc, which passes.
@@ -492,7 +520,7 @@ object TransformVerificationRunner {
       NotRun(
         classOf[MachineLearningScorerOpDesc],
         RunKind.EmptyTable,
-        ByDesign(
+        BothRefuse(
           "the operator refuses a table where no row carries an actual value, and " +
             "an empty one carries none; the refusal is the operator's own and both " +
             "paths raise it"
@@ -536,7 +564,7 @@ object TransformVerificationRunner {
       NotRun(
         classOf[SpecializedFilterOpDesc],
         RunKind.HostileText,
-        ByDesign(
+        BothRefuse(
           "`id > 8` compares against an INTEGER column, and the platform parses the " +
             "predicate value as that column's type, so the number parser refuses the " +
             "hostile string before any escaping could matter"
@@ -545,7 +573,7 @@ object TransformVerificationRunner {
       NotRun(
         classOf[SklearnMLOperatorDescriptor[_]],
         RunKind.HostileText,
-        ByDesign(
+        BothRefuse(
           "what a hyperparameter's value may hold is decided by the parameter beside " +
             "it, and every one of those is a number or a word from a fixed set, so a " +
             "spliced a\"b fails at the conversion rather than at any escaping"
@@ -560,7 +588,7 @@ object TransformVerificationRunner {
   // column arrived, and the run fails either way. Listed one by one rather than
   // by family: the two dummy classifiers never read a feature, and they pass.
   private def refusesNonFinite: Seq[NotRun] = {
-    val notFinite = ByDesign(
+    val notFinite = BothRefuse(
       "the library refuses a NaN or an infinity in what it fits, predicts or draws, " +
         "and both paths call it, so both raise on this table"
     )
@@ -637,11 +665,22 @@ object TransformVerificationRunner {
     */
   private def withheldRunsFor(opClass: Class[_ <: LogicalOp]): Seq[(String, NotRunReason)] =
     variantsNotRun
-      .collect { case NotRun(op, kind, reason) if op.isAssignableFrom(opClass) => kind -> reason }
+      .collect {
+        case NotRun(op, kind, reason, except)
+            if op.isAssignableFrom(opClass) && !except.exists(_.isAssignableFrom(opClass)) =>
+          kind -> reason
+      }
       .distinctBy(_._1)
 
   private def notRun(opClass: Class[_ <: LogicalOp], kind: String): Boolean =
-    withheldRunsFor(opClass).exists(_._1 == kind)
+    withheldRunsFor(opClass).exists {
+      case (k, ByDesign(_)) => k == kind
+      case _                => false
+    }
+
+  /** Why both paths must refuse this kind of run, if they must. */
+  private def refusal(opClass: Class[_ <: LogicalOp], kind: String): Option[String] =
+    withheldRunsFor(opClass).collectFirst { case (k, BothRefuse(why)) if k == kind => why }
 
   /** Visualization operators with deterministic Plotly JSON validation. */
   val visualizationJsonOps: Set[Class[_]] = Set(
@@ -908,8 +947,10 @@ object TransformVerificationRunner {
           if (runs.size == 1) testRoot
           else testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
         Files.createDirectories(workDir)
-        try runVariant(opClass, opDesc, inputs, workDir)
-        catch {
+        try refusal(opClass, kindOf(label)) match {
+          case Some(why) => runExpectingRefusal(opClass, opDesc, inputs, workDir, why)
+          case None      => runVariant(opClass, opDesc, inputs, workDir)
+        } catch {
           case e: Throwable =>
             throw new AssertionError(s"[variant: $label] ${e.getMessage}", e)
         }
@@ -1091,6 +1132,66 @@ object TransformVerificationRunner {
       .flatMap(path => Try(Files.readAllLines(path).asScala.count(_.trim.nonEmpty)).toOption)
       .filter(_ > 0)
       .getOrElse(ConfigGenerator.DefaultRowCount)
+
+  /** Run a variant both paths must refuse, and pass only when each raises.
+    *
+    * What each says is not compared: the engine's refusal is a Java or a Python
+    * exception and the script's is a Python traceback, so their wording differs
+    * even when the cause is the same. That one of them answered is the finding.
+    */
+  private def runExpectingRefusal(
+      opClass: Class[_ <: LogicalOp],
+      opDesc: LogicalOp,
+      inputs: Map[PortIdentity, Path],
+      workDir: Path,
+      why: String
+  ): Unit = {
+    val actualDir = workDir.resolve("actual")
+    Files.createDirectories(actualDir)
+    // A copy for the same reason as in [[runVariant]]: Path A may rewrite it.
+    val opDescForPathA =
+      objectMapper
+        .readValue(objectMapper.writeValueAsString(opDesc), opClass)
+        .asInstanceOf[LogicalOp]
+    val pathAIsPython = classOf[PythonOperatorDescriptor].isAssignableFrom(opClass)
+    val pathA = Try {
+      if (pathAIsPython)
+        PyOpExecHarness.execute(opDescForPathA, inputs = inputs, outputDir = actualDir)
+      else OpExecHarness.execute(opDescForPathA, inputs = inputs, outputDir = actualDir)
+    }
+    val standaloneInputs: Map[Int, Path] =
+      inputs.toSeq
+        .sortBy(_._1.id)
+        .zipWithIndex
+        .map { case ((_, path), idx) => (idx + 1) -> path }
+        .toMap
+    val pathB = Try {
+      StandaloneRunner.run(
+        opDesc = opDesc,
+        inputs = standaloneInputs,
+        outputPortCount = opDesc.operatorInfo.outputPorts.size,
+        workDir = workDir,
+        exactIntegers = !pathAIsPython
+      )
+    }
+    // A script that does not compile, or is never generated, has not refused
+    // the input: only a run that ends in an error counts.
+    val scriptRefused = pathB match {
+      case Failure(_: StandaloneExecutionException) => true
+      case _                                        => false
+    }
+    if (pathA.isSuccess || !scriptRefused) {
+      def said(t: Try[_]): String =
+        t match {
+          case Success(_) => "answered"
+          case Failure(e) => s"raised ${e.getClass.getSimpleName}: ${e.getMessage}"
+        }
+      throw new AssertionError(
+        s"both paths should refuse this run ($why), but Texera ${said(pathA)}, " +
+          s"and the script ${said(pathB)}"
+      )
+    }
+  }
 
   /** Run one configured variant of `opDesc` through both paths against `inputs`,
     * writing all intermediate/output files under `workDir`, and assert parity on
