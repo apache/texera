@@ -19,4 +19,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ .Values.jupyterPool.namespace }}
+  {{- with .Values.jupyterPool.namespaceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}

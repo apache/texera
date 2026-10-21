@@ -32,6 +32,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-{{ .Values.litellm.name }}
+      {{- with .Values.litellm.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.global.texeraMicroServiceRuntimeClass }}
       runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}

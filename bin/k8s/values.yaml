@@ -68,6 +68,17 @@ postgresql:
       existingClaim: "postgresql-data-pvc"
     initdb:
       scriptsConfigMap: "postgresql-init-script"
+    podAnnotations:
+      linkerd.io/inject: "enabled"
+      config.linkerd.io/opaque-ports: "5432"
+      config.linkerd.io/proxy-enable-native-sidecar: "true"
+    networkPolicy:
+      # Meshed clients send opaque-port traffic to the Linkerd inbound proxy
+      # port (4143), not 5432, so the chart's NetworkPolicy must allow it.
+      extraIngress:
+        - ports:
+            - port: 4143
+              protocol: TCP
 
 # Object storage (S3) used by the Texera services. Leave storage.s3.endpoint
 # empty to use the in-cluster RustFS (the `rustfs:` block below). Set it to an
@@ -138,6 +149,10 @@ rustfs:
     enabled: true
     size: 20Gi
     storageClass: local-path
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/opaque-ports: "9000,9001"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 lakefs:
   # The blockstore below points LakeFS at the in-cluster RustFS. To use an
@@ -152,6 +167,10 @@ lakefs:
     secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   service:
     port: 8000
+  # Also applied to the chart's own lakefs-setup-job.
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   lakefsConfig: |
     database:
       type: postgres
@@ -179,6 +198,13 @@ lakekeeper:
       pullPolicy: IfNotPresent
     service:
       externalPort: 8181
+    podAnnotations:
+      linkerd.io/inject: "enabled"
+      config.linkerd.io/proxy-enable-native-sidecar: "true"
+    dbMigrations:
+      podAnnotations:
+        linkerd.io/inject: "enabled"
+        config.linkerd.io/proxy-enable-native-sidecar: "true"
   externalDatabase:
     type: postgres
     host_read: texera-postgresql
@@ -211,6 +237,9 @@ lakekeeperInit:
     # Object-key prefix for this warehouse. Must stay non-empty: a warehouse at the
     # bucket root overlaps every per-user warehouse's prefix (#7739).
     keyPrefix: "shared"
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
@@ -224,6 +253,9 @@ exampleDataLoader:
   password: texera
   datasetDir: datasets
   workflowDir: workflows
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 webserver:
   name: webserver
@@ -232,6 +264,9 @@ webserver:
   service:
     type: ClusterIP
     port: 8080
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 notebookMigrationService:
   # Turns the whole notebook migration tool on or off: the service, its route, the per-user
@@ -244,6 +279,9 @@ notebookMigrationService:
   service:
     type: ClusterIP
     port: 9098
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   # Origin the browser reaches Texera on, used for the JupyterLab iframe URL and for the
   # CSP that lets Texera embed it. Required wherever there is no DNS name, such as a
   # port-forward or a NodePort. Falls back to the gateway hostname when left empty.
@@ -261,10 +299,22 @@ jupyterPool:
   # Note: like the computing unit pool, this namespace can collide when several Texera
   # deployments share a cluster.
   namespace: texera-jupyter-pool
+  # JupyterLab pods are created at runtime, so the mesh is enabled for the whole namespace.
+  # The pool's ResourceQuota rejects containers without requests, so the injected
+  # linkerd-init/linkerd-proxy get them here too.
+  namespaceAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
+    config.linkerd.io/proxy-cpu-request: "10m"
+    config.linkerd.io/proxy-memory-request: "32Mi"
   imageName: texera-jupyter
   # Pull the image onto every node ahead of time, so a first-time pull cannot outlast the
   # bounded wait for a new pod to answer. Costs one small pod per node.
   prepullImage: true
+  # The prepuller DaemonSet runs in the release namespace, not the pool.
+  prepullerPodAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   # Path prefix each user's JupyterLab is served under; the uid is appended, so user 7 is
   # served at /jupyter/7/. Drives the pod's base_url, the gateway route and the uid regex
   # access-control matches on, so all three move together.
@@ -296,6 +346,9 @@ workflowComputingUnitManager:
   service:
     type: ClusterIP
     port: 8888
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 workflowCompilingService:
   name: workflow-compiling-service
@@ -304,6 +357,9 @@ workflowCompilingService:
   service:
     type: ClusterIP
     port: 9090
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 fileService:
   name: file-service
@@ -312,6 +368,9 @@ fileService:
   service:
     type: ClusterIP
     port: 9092
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 configService:
   name: config-service
@@ -320,6 +379,9 @@ configService:
   service:
     type: ClusterIP
     port: 9094
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 accessControlService:
   name: access-control-service
@@ -333,6 +395,9 @@ accessControlService:
   service:
     type: ClusterIP
     port: 9096
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 agentService:
   enabled: true
@@ -342,6 +407,9 @@ agentService:
   service:
     type: ClusterIP
     port: 3001
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 litellm:
   enabled: true
@@ -351,6 +419,9 @@ litellm:
   service:
     type: ClusterIP
     port: 4000
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   masterKey: "sk-texera-litellm-key"
   # Postgres persistence: the database is created by the postgres init script and
   # LiteLLM stores keys/spend (and model config when storeModelInDb is true) there.
@@ -395,6 +466,18 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
+  # Computing units, curated-image validation jobs and prepulls are created at runtime, so
+  # the mesh is enabled for the whole namespace. The pool's ResourceQuota rejects containers
+  # without requests, so the injected linkerd-init/linkerd-proxy get them here too.
+  namespaceAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
+    config.linkerd.io/proxy-cpu-request: "10m"
+    config.linkerd.io/proxy-memory-request: "32Mi"
+  # The computing-unit-master image prepuller DaemonSet, which runs in the release namespace.
+  prepullerPodAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   # Computing unit pods are named "<podNamePrefix>-<cuid>". The manager creates them under
   # this name and the mounter reads a CU's id back out of it, so both are given this value.
   podNamePrefix: computing-unit
@@ -434,6 +517,9 @@ mounter:
   # cache is sized by the data, so the two generally belong on different volumes.
   cacheRoot: ""
   serviceAccountName: texera-mounter-service-account
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
   # The mounter authenticates its callers: a caller presents a service-account token
   # projected for the mounter's audience, which the mounter verifies with TokenReview and
   # matches against the one identity it serves. Neither the audience nor that identity is
@@ -550,6 +636,9 @@ yWebsocketServer:
   name: y-websocket-server
   replicaCount: 1
   image: texera/y-websocket-server:latest
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 
 pythonLanguageServer:
@@ -562,6 +651,9 @@ pythonLanguageServer:
     limits:
       cpu: "100m"
       memory: "100Mi"
+  podAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
 
 # Metrics Server configuration
 metrics-server:
@@ -612,8 +704,24 @@ gatewayConfig:
   # e.g., "texera-tls"
   tlsSecretName: ""
 
+  # Annotations for the Envoy proxy pods that serve the Gateway.
+  envoyProxyPodAnnotations:
+    linkerd.io/inject: "enabled"
+    config.linkerd.io/proxy-enable-native-sidecar: "true"
+
 # Envoy Gateway Configuration
 envoy-gateway:
+  deployment:
+    pod:
+      annotations:
+        linkerd.io/inject: "enabled"
+        config.linkerd.io/proxy-enable-native-sidecar: "true"
+  certgen:
+    job:
+      pod:
+        annotations:
+          linkerd.io/inject: "enabled"
+          config.linkerd.io/proxy-enable-native-sidecar: "true"
   config:
     envoyGateway:
       extensionApis:
