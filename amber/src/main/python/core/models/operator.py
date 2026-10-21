@@ -323,7 +323,7 @@ class TableOperator(TupleOperatorV2):
 
     def _collected_table(self, port: int) -> Table:
         """The table collected on ``port`` so far."""
-        return Table(self.__table_data[port])
+        return Table(self._get_table_data()[port])
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
