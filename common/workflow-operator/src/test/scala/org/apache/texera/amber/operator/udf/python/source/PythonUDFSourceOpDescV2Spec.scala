@@ -26,6 +26,7 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.udf.python.UiUDFParameter
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.python.PythonUdfTemplateTestUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -158,5 +159,28 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.columns shouldBe List(new Attribute("a", AttributeType.STRING))
     p.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
     p.uiParameters.map(_.value) shouldBe List("7")
+  }
+
+  private val defaultCode: String =
+    PythonUdfTemplateTestUtils.defaultCode(classOf[PythonUDFSourceOpDescV2])
+
+  "PythonUDFSourceOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
+    PythonUdfTemplateTestUtils.activeLines(defaultCode) shouldBe List("from pytexera import *")
+    defaultCode should include("Keep exactly ONE class")
+    defaultCode should include("never `return` a value")
+    defaultCode should include("super().__init__()")
+    defaultCode should include("UDFSourceOperator -> produce")
+    defaultCode should include("UiParameter")
+  }
+
+  it should "leave exactly one active class after uncommenting any one template class" in {
+    for (className <- List("GenerateOperator")) {
+      val active = PythonUdfTemplateTestUtils.activeLines(
+        PythonUdfTemplateTestUtils.uncommentClass(defaultCode, className)
+      )
+      active.head shouldBe "from pytexera import *"
+      active.count(_.startsWith("class ")) shouldBe 1
+      active.exists(_.startsWith(s"class $className(")) shouldBe true
+    }
   }
 }
