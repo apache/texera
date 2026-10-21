@@ -326,9 +326,21 @@ async function executeWorkflowHttp(
 
 function formatExecutionError(
   operatorErrors?: ReadonlyArray<{ operatorId: string; error: string }>,
-  generalErrors?: ReadonlyArray<WorkflowFatalError>
+  generalErrors: ReadonlyArray<WorkflowFatalError> = []
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
+
+  const isCompilationError = (error: WorkflowFatalError) =>
+    error.type.name === WorkflowFatalErrorType.COMPILATION_ERROR;
+  const compilationErrors = generalErrors.filter(isCompilationError);
+  const otherErrors = generalErrors.filter(error => !isCompilationError(error));
+
+  if (compilationErrors.length > 0) {
+    lines.push("Compilation error:");
+    for (const error of compilationErrors) {
+      lines.push(`  ${error.message}`);
+    }
+  }
 
   if (operatorErrors && operatorErrors.length > 0) {
     lines.push("Execution error:");
@@ -337,9 +349,9 @@ function formatExecutionError(
     }
   }
 
-  if (generalErrors && generalErrors.length > 0) {
+  if (otherErrors.length > 0) {
     lines.push("Error:");
-    for (const error of generalErrors) {
+    for (const error of otherErrors) {
       lines.push(`  ${error.message}`);
     }
   }
