@@ -538,37 +538,97 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       .collect { case request: ConsoleMessageTriggeredRequest => request.consoleMessage.title }
       .toList
 
-  "data processor" should "turn a tuple on the control-variable port into control variables, without handing it to the operator" in {
-    val (dp, exec, sent) = initializedWith(limitReferringToN)
-    val feederChannel =
+  private val feederSchema =
+    Schema().add("n", AttributeType.LONG).add("other", AttributeType.STRING)
+
+  private def feederRow(n: Long): Tuple =
+    Tuple
+      .builder(feederSchema)
+      .add(feederSchema.getAttribute("n"), n)
+      .add(feederSchema.getAttribute("other"), "x")
+      .build()
+
+  /** A channel from `feeder` into the control-variable port; each edge into the port has its own. */
+  private def portChannel(dp: DataProcessor, feeder: String): ChannelIdentity = {
+    val channel =
       ChannelIdentity(
-        ActorVirtualIdentity("Worker:WF1-feeder-main-0"),
+        ActorVirtualIdentity(s"Worker:WF1-$feeder-main-0"),
         testWorkerId,
         isControl = false
       )
-    dp.inputManager.addPort(ControlVariablePort.Id, Schema(), List.empty, List.empty)
-    dp.inputGateway.getChannel(feederChannel).setPortId(ControlVariablePort.Id)
+    if (!dp.inputManager.getAllPorts.contains(ControlVariablePort.Id)) {
+      dp.inputManager.addPort(ControlVariablePort.Id, Schema(), List.empty, List.empty)
+    }
+    dp.inputGateway.getChannel(channel).setPortId(ControlVariablePort.Id)
+    channel
+  }
+
+  "data processor" should "turn a tuple on the control-variable port into control variables, without handing it to the operator" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    val feederChannel = portChannel(dp, "feeder")
     openExecutor(dp)
 
-    val feederSchema = Schema().add("n", AttributeType.LONG).add("other", AttributeType.STRING)
-    def row(n: Long): Tuple =
-      Tuple
-        .builder(feederSchema)
-        .add(feederSchema.getAttribute("n"), n)
-        .add(feederSchema.getAttribute("other"), "x")
-        .build()
-    // The first row becomes the control variables; later rows are dropped.
-    dp.processDataPayload(feederChannel, DataFrame(Array(row(3L), row(7L))))
+    dp.processDataPayload(feederChannel, DataFrame(Array(feederRow(3L))))
     drain(dp)
 
     assert(exec.tuplesSeen == 0)
     assert(exec.setting.limit == 3)
     assert(statesSent(sent).contains(State(Map("n" -> 3L, "other" -> "x"))))
+    assert(!dp.pauseManager.isPaused)
 
     dp.processECM(senderChannel, startChannelPayload, logManager)
     dp.processDataPayload(senderChannel, DataFrame(tuples.take(5)))
     drain(dp)
     assert(tuplesSent(sent).size == 3)
+  }
+
+  "data processor" should "report an error and pause when an edge into the control-variable port carries a second tuple" in {
+    // Without a row chosen on the port, an edge into it must carry exactly one tuple: taking one row
+    // of several silently would bind a value the user never picked.
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    val feederChannel = portChannel(dp, "feeder")
+    openExecutor(dp)
+
+    dp.processDataPayload(feederChannel, DataFrame(Array(feederRow(3L), feederRow(7L))))
+    drain(dp)
+
+    assert(dp.pauseManager.isPaused)
+    assert(consoleTitles(sent).exists(_.contains("more than one tuple")))
+    // The first tuple's variables stay; the second one changes nothing.
+    assert(exec.setting.limit == 3)
+    assert(!statesSent(sent).contains(State(Map("n" -> 7L, "other" -> "x"))))
+  }
+
+  it should "report the second tuple on an edge even when it arrives in a later batch" in {
+    val (dp, _, sent) = initializedWith(limitReferringToN)
+    val feederChannel = portChannel(dp, "feeder")
+    openExecutor(dp)
+
+    dp.processDataPayload(feederChannel, DataFrame(Array(feederRow(3L))))
+    drain(dp)
+    assert(!dp.pauseManager.isPaused)
+
+    dp.processDataPayload(feederChannel, DataFrame(Array(feederRow(7L))))
+    drain(dp)
+    assert(dp.pauseManager.isPaused)
+    assert(consoleTitles(sent).exists(_.contains("more than one tuple")))
+  }
+
+  it should "take one tuple from each of several edges into the control-variable port, the later value winning" in {
+    val (dp, exec, sent) = initializedWith(limitReferringToN)
+    val first = portChannel(dp, "feederA")
+    val second = portChannel(dp, "feederB")
+    openExecutor(dp)
+
+    dp.processDataPayload(first, DataFrame(Array(feederRow(3L))))
+    drain(dp)
+    dp.processDataPayload(second, DataFrame(Array(feederRow(7L))))
+    drain(dp)
+
+    assert(!dp.pauseManager.isPaused)
+    assert(exec.setting.limit == 7)
+    assert(statesSent(sent).contains(State(Map("n" -> 3L, "other" -> "x"))))
+    assert(statesSent(sent).contains(State(Map("n" -> 7L, "other" -> "x"))))
   }
 
   "data processor" should "run an operator whose setting refers to a loop variable as any other, the variable written in as the state arrives" in {

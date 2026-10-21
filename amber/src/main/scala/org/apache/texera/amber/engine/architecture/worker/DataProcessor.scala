@@ -61,6 +61,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
 
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -77,8 +78,11 @@ class DataProcessor(
   /** The loop envelope of the last state that arrived on the control-variable port. */
   private var controlVariableEnvelope: (Long, String) = (0L, "")
 
-  /** Whether a tuple has been turned into control variables; the prototype takes the first row. */
-  private var controlVariableRowTaken = false
+  /**
+    * The channels that have delivered a tuple on the control-variable port. Every edge into the port
+    * is materialized, so each edge reaches this worker on a channel of its own.
+    */
+  private val controlVariableTupleChannels = mutable.HashSet[ChannelIdentity]()
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -149,11 +153,17 @@ class DataProcessor(
   /**
     * A tuple on the control-variable port becomes control variables, one per column, and is not
     * handed to the operator. They are registered like a state message and sent on with the loop
-    * envelope of the last state that arrived on the port, so they stay inside the loop block.
+    * envelope of the last state that arrived on the port, so they stay inside the loop block. No
+    * row can be chosen on the port yet, so an edge into it must carry exactly one tuple: a second
+    * one is an error rather than a value the user never picked.
     */
   private[this] def registerControlVariables(tuple: Tuple): Unit = {
-    if (controlVariableRowTaken) return
-    controlVariableRowTaken = true
+    if (!controlVariableTupleChannels.add(inputManager.currentChannelId)) {
+      throw new IllegalStateException(
+        "an edge into the control-variable port carried more than one tuple; " +
+          "without a row chosen on the port, each edge must carry exactly one"
+      )
+    }
     val state = State(tuple.getSchema.getAttributeNames.zip(tuple.getFields).toMap)
     val (loopCounter, loopStartId) = controlVariableEnvelope
     executor.registerState(state, loopCounter)
