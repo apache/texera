@@ -124,6 +124,50 @@ object StandaloneRunner extends LazyLogging {
     Result(outputPaths, stdout, stderr)
   }
 
+  /** Runs a whole translated script and writes the frames named in `leaves` out
+    * the way [[run]] writes an operator's, so the two compare alike.
+    *
+    * The script reads its sources from `workDir`, so the caller puts them there.
+    * Leaf `i` (0-based) is written as `output_port_i.jsonl`, typed by
+    * `leafSchemas(i)` as the engine's writer would type it.
+    */
+  def runTranslated(
+      script: String,
+      leaves: Seq[String],
+      leafSchemas: Seq[Schema],
+      workDir: Path,
+      pythonExe: String = resolvePython()
+  ): Result = {
+    Files.createDirectories(workDir)
+    val scriptPath = workDir.resolve("script.py")
+    val outputPaths: Map[Int, Path] =
+      leaves.indices.map(i => (i + 1) -> workDir.resolve(s"output_port_$i.jsonl")).toMap
+    // The epilogue writes `out{N}df`, so each leaf is bound to that name.
+    val body = script + "\n" +
+      leaves.zipWithIndex.map { case (v, i) => s"out${i + 1}df = $v" }.mkString("\n")
+    val schemas = leafSchemas.zipWithIndex.map { case (s, i) => PortIdentity(i) -> s }.toMap
+    val source =
+      renderScript(
+        body,
+        Map.empty,
+        outputPaths,
+        Seq.empty,
+        None,
+        Seq.empty,
+        exactIntegers = false,
+        declaredOutputColumns(schemas, outputPaths.keys.toSeq, IntegralTypes),
+        declaredOutputColumns(schemas, outputPaths.keys.toSeq, Set(AttributeType.DOUBLE)),
+        None
+      )
+    Files.write(scriptPath, source.getBytes(StandardCharsets.UTF_8))
+
+    val (exit, stdout, stderr) = execute(scriptPath, workDir, pythonExe)
+    if (exit != 0) {
+      throw new StandaloneExecutionException(exit, scriptPath, source, stdout, stderr)
+    }
+    Result(outputPaths, stdout, stderr)
+  }
+
   private val WorkerResourcePath = "/python/standalone_worker.py"
 
   // Run the rendered script and return (exitCode, stdout, stderr). Prefers a
