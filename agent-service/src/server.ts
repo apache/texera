@@ -482,7 +482,8 @@ export function buildApp() {
         switch (msg.type) {
           case "WsClientStopCommand":
             agent.stop();
-            broadcastToAgentClients(agentId, new WsServerStatusEvent(AgentState.STOPPING));
+            // Broadcast the resulting state: STOPPING mid-run, unchanged when idle.
+            broadcastToAgentClients(agentId, new WsServerStatusEvent(agent.getState()));
             return;
 
           case "WsClientPromptCommand": {

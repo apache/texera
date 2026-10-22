@@ -25,6 +25,7 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { Subject, of } from "rxjs";
 import { AgentInteractionComponent } from "./agent-interaction.component";
 import { AgentInfo, AgentService } from "../../../service/agent/agent.service";
+import { AgentState } from "../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -42,6 +43,7 @@ describe("AgentInteractionComponent", () => {
     getAllAgents: ReturnType<typeof vi.fn>;
     getActivelyConnectedAgentIds: ReturnType<typeof vi.fn>;
     isAgentActivelyConnected: ReturnType<typeof vi.fn>;
+    getAgentStateSnapshot: ReturnType<typeof vi.fn>;
     sendMessage: ReturnType<typeof vi.fn>;
   };
   let workflowActionService: { getTexeraGraph: ReturnType<typeof vi.fn> };
@@ -54,6 +56,7 @@ describe("AgentInteractionComponent", () => {
       getAllAgents: vi.fn().mockReturnValue(of([])),
       getActivelyConnectedAgentIds: vi.fn().mockReturnValue([]),
       isAgentActivelyConnected: vi.fn().mockReturnValue(false),
+      getAgentStateSnapshot: vi.fn().mockReturnValue(AgentState.AVAILABLE),
       sendMessage: vi.fn(),
     };
     workflowActionService = {
@@ -183,6 +186,18 @@ describe("AgentInteractionComponent", () => {
       component.feedbackMessage = "hi";
       expect(component.canSend()).toBe(true);
     });
+
+    it("is false while the selected agent is not AVAILABLE", () => {
+      createComponent();
+      component.selectedAgentId = "a1";
+      component.feedbackMessage = "hi";
+
+      for (const state of [AgentState.GENERATING, AgentState.STOPPING, AgentState.UNAVAILABLE]) {
+        agentService.getAgentStateSnapshot.mockReturnValue(state);
+        expect(component.canSend()).toBe(false);
+      }
+      expect(agentService.getAgentStateSnapshot).toHaveBeenCalledWith("a1");
+    });
   });
 
   describe("sendFeedbackToAgent", () => {
@@ -218,6 +233,15 @@ describe("AgentInteractionComponent", () => {
         "Agent is not connected. Please open the agent chat panel first."
       );
       expect(agentService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("warns, does not send, and keeps the input when the agent is mid-run", () => {
+      agentService.getAgentStateSnapshot.mockReturnValue(AgentState.GENERATING);
+      component.sendFeedbackToAgent();
+      expect(notification.warning).toHaveBeenCalledWith("Agent is busy. Please wait for the current run to finish.");
+      expect(notification.success).not.toHaveBeenCalled();
+      expect(agentService.sendMessage).not.toHaveBeenCalled();
+      expect(component.feedbackMessage).toBe("hello");
     });
 
     it("sends the feedback with operator context, notifies, and clears the input", () => {

@@ -961,6 +961,13 @@ export class AgentService {
   }
 
   /**
+   * Get the latest known state of an agent synchronously, without creating tracking.
+   */
+  public getAgentStateSnapshot(agentId: string): AgentState {
+    return this.agentStateTracking.get(agentId)?.stateSubject.getValue() ?? AgentState.UNAVAILABLE;
+  }
+
+  /**
    * Get the state observable stream for an agent.
    */
   public getAgentStateObservable(agentId: string): Observable<AgentState> {

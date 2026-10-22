@@ -169,8 +169,9 @@ describe(`WS ${API}/agents/:id/react`, () => {
     expect(err.error).toBe("Agent not found");
   });
 
-  test("a stop command broadcasts a STOPPING status frame", async () => {
+  test("a stop command mid-run broadcasts a STOPPING status frame", async () => {
     const id = await createAgent();
+    (_getAgentForTests(id)! as any).state = "GENERATING";
     const { ws, messages } = connect(id);
     await waitOpen(ws);
     await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
@@ -179,6 +180,19 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
     expect(status.state).toBe("STOPPING");
+  });
+
+  test("a stop command on an idle agent leaves it AVAILABLE for the next prompt", async () => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+
+    ws.send(JSON.stringify({ type: "WsClientStopCommand" }));
+
+    const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
+    expect(status.state).toBe("AVAILABLE");
+    expect(_getAgentForTests(id)!.getState()).toBe("AVAILABLE");
   });
 
   test("a prompt with empty content yields an error frame", async () => {
@@ -315,7 +329,12 @@ describe(`WS ${API}/agents/:id/react`, () => {
       this.state = "GENERATING";
       await gate;
       this.state = "AVAILABLE";
-      return { response: "done", messages: [], usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, stopped: false };
+      return {
+        response: "done",
+        messages: [],
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        stopped: false,
+      };
     };
     agent.getReActSteps = () => [];
 

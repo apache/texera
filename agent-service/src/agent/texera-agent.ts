@@ -513,9 +513,11 @@ export class TexeraAgent {
 
     this.currentMessageId = messageId;
 
-    await this.refreshWorkflowFromBackend();
-
     try {
+      // Inside the try so the finally below always resets state, even if the
+      // refresh ever starts throwing.
+      await this.refreshWorkflowFromBackend();
+
       let beforeStepContent = this.workflowState.getWorkflowContent();
 
       const estimatedInputTokens = Math.ceil(userMessage.length / 4);
@@ -753,6 +755,11 @@ export class TexeraAgent {
   }
 
   stop(): void {
+    // Only a run in flight can be stopped. An idle agent has no finally to
+    // reset STOPPING, so setting it here would wedge sendMessage's busy guard.
+    if (this.state !== AgentStateEnum.GENERATING) {
+      return;
+    }
     this.state = AgentStateEnum.STOPPING;
     if (this.abortController) {
       this.abortController.abort();
