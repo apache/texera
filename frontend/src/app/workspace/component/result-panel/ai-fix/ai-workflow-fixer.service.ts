@@ -573,6 +573,16 @@ export class AiWorkflowFixerService {
       }
     }
     const isProperty = fix_type === "property_change";
+    // Checked here, not only at Apply: `original` for a property change is the field's
+    // CURRENT value, so an unknown name renders an empty "before" and `code` renders the
+    // entire UDF source as one unwrapped diff line. A suggestion the write would refuse
+    // should never reach the screen in the first place.
+    if (
+      isProperty &&
+      (original_snippet === "code" || !Object.prototype.hasOwnProperty.call(properties, original_snippet))
+    ) {
+      throw new Error(`${original_snippet} is not a configuration field this fix may change`);
+    }
     return {
       type: isProperty ? "property_change" : "code_change",
       // For a property change the model returns the field name, so show its current value.

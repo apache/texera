@@ -865,25 +865,51 @@ describe("AiWorkflowFixerService", () => {
       // real setting stays wrong.
       operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
       stubModel(suggestion({ fix_type: "property_change", original_snippet: "modelName", suggested_snippet: "Qwen" }));
+
       await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
 
+      expect(state().status).toEqual("error");
+      await service.applyFix();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+    });
+
+    it("refuses a field that disappeared between the analysis and the write", async () => {
+      // The analysis rejects a field the operator does not have, so this is the only way the
+      // apply-side check is still reachable: a coeditor retypes the operator while the
+      // suggestion is on screen, and the field it names is gone by the time Apply re-reads
+      // the properties. Writing then would create a dead key and leave the real setting wrong.
+      //
+      // The field is empty rather than set, because the staleness guard would otherwise cover
+      // this on its own: an absent field reads as "" and would no longer match the captured
+      // original. With both reading "", only the presence check can refuse.
+      operatorProperties = { modelId: "", workers: 1 };
+      stubModel(
+        suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
+      );
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      expect(state().status).toEqual("ready");
+
+      operatorProperties = { workers: 1 };
       await service.applyFix();
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
       expect(state().status).toEqual("apply_failed");
     });
 
-    it("never rewrites the UDF source through a property change", async () => {
-      // Naming "code" would hand the whole operator source to the property branch, which
-      // shows a one-line diff and has no snippet guard.
+    it("never puts the UDF source in the diff through a property change", async () => {
+      // Naming "code" hands the whole operator source to the property branch, which reads
+      // the field's current value as the diff's "before". Refusing only at Apply still let
+      // the panel render the entire source first, as one unwrapped line.
       operatorProperties = { code: "print(1)", workers: 1 };
       stubModel(suggestion({ fix_type: "property_change", original_snippet: "code", suggested_snippet: "print(2)" }));
+
       await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
 
+      expect(state().status).toEqual("error");
+      expect(state().suggestedFix).toBeUndefined();
       await service.applyFix();
-
       expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(state().status).toEqual("apply_failed");
     });
 
     it("keeps a numeric setting numeric", async () => {
