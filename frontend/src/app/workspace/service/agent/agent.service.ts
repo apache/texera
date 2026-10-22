@@ -234,15 +234,10 @@ export class AgentService {
 
   /**
    * Build HTTP headers for agent-service requests.
-   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s,
-   * and Authorization Bearer token for access control.
+   * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
    */
   private agentHeaders(agentId?: string, workflowId?: number): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
-    const token = AuthService.getAccessToken();
-    if (token) {
-      headers = headers.set("Authorization", `Bearer ${token}`);
-    }
     const wid = (agentId ? this.agentStateTracking.get(agentId)?.workflowId : undefined) ?? workflowId;
     if (wid !== undefined) {
       headers = headers.set("X-Agent-Workflow-Id", String(wid));
@@ -1182,9 +1177,10 @@ export class AgentService {
    */
   public getAvailableOperatorTypes(agentId: string): Observable<Array<{ type: string; description: string }>> {
     return this.http
-      .get<
-        Array<{ type: string; description: string }>
-      >(`${this.AGENT_API_BASE}/agents/${agentId}/operator-types`, this.agentHeaders(agentId))
+      .get<Array<{ type: string; description: string }>>(
+        `${this.AGENT_API_BASE}/agents/${agentId}/operator-types`,
+        this.agentHeaders(agentId)
+      )
       .pipe(catchError(() => of([])));
   }
 

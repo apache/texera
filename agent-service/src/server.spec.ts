@@ -146,6 +146,23 @@ describe("auth guard on agent routes", () => {
     expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
   });
 
+  test("rejects an INACTIVE user role (403)", async () => {
+    const inactiveToken = mintTestToken({ role: "INACTIVE" });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${inactiveToken}` } })
+    );
+    expect(res.status).toBe(403);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Forbidden" });
+  });
+
+  test("accepts an ADMIN user role (200)", async () => {
+    const adminToken = mintTestToken({ role: "ADMIN" });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${adminToken}` } })
+    );
+    expect(res.status).toBe(200);
+  });
+
   test("accepts a valid token", async () => {
     const res = await app.handle(new Request(url(`${API}/agents`), { headers: authHeaders() }));
     expect(res.status).toBe(200);

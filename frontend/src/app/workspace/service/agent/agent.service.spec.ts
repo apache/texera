@@ -1050,8 +1050,7 @@ describe("AgentService", () => {
   describe("setHoveredMessage", () => {
     it("emits the deduplicated union of operator ids across tool calls", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       // Subscribing creates the tracking entry.
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
@@ -1072,8 +1071,7 @@ describe("AgentService", () => {
 
     it("emits empty arrays when the hovered step is cleared", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
       service.setHoveredMessage("agent-1", null);
@@ -1142,26 +1140,6 @@ describe("AgentService", () => {
       service.getAgentSettings("agent-2").subscribe();
       const req = httpMock.expectOne(r => r.url === "/api/agents/agent-2/settings");
       expect(req.request.headers.get("X-Agent-Workflow-Id")).toBeNull();
-      req.flush({});
-    });
-
-    it("attaches Authorization header when AuthService has an access token", () => {
-      AuthService.setAccessToken("test-jwt-token");
-      try {
-        service.getAgentSettings("agent-1").subscribe();
-        const req = httpMock.expectOne(r => r.url === "/api/agents/agent-1/settings");
-        expect(req.request.headers.get("Authorization")).toBe("Bearer test-jwt-token");
-        req.flush({});
-      } finally {
-        AuthService.removeAccessToken();
-      }
-    });
-
-    it("omits Authorization header when unauthenticated", () => {
-      AuthService.removeAccessToken();
-      service.getAgentSettings("agent-2").subscribe();
-      const req = httpMock.expectOne(r => r.url === "/api/agents/agent-2/settings");
-      expect(req.request.headers.get("Authorization")).toBeNull();
       req.flush({});
     });
 
@@ -1348,8 +1326,7 @@ describe("AgentService", () => {
   describe("setHoveredMessage guards", () => {
     it("emits empty arrays for a non-null step that carries no operator access", () => {
       let latest:
-        | { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] }
-        | undefined;
+        { viewedOperatorIds: string[]; addedOperatorIds: string[]; modifiedOperatorIds: string[] } | undefined;
       service.getHoveredMessageOperatorsObservable("agent-1").subscribe(v => (latest = v));
 
       // A real step with no operatorAccess map takes the else-branch, distinct from

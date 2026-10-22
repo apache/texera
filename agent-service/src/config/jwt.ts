@@ -31,10 +31,6 @@ const log = createLogger("Jwt");
 // agent service can validate the same tokens without a gateway.
 const CLOCK_SKEW_SECONDS = 30;
 
-// auth.conf default, used as the last-resort fallback when neither the env
-// override nor the file is available (matches AuthConfig's literal default).
-const AUTH_CONF_DEFAULT_SECRET = "8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d";
-
 /** Read the `256-bit-secret` default out of auth.conf, if the file is found. */
 function readSecretFromAuthConf(): string | undefined {
   const candidates = [
@@ -54,19 +50,22 @@ function readSecretFromAuthConf(): string | undefined {
       return match[1];
     }
   }
-  log.warn("auth.conf not found; falling back to the built-in default JWT secret");
   return undefined;
+}
+
+function resolveSecret(): string {
+  const secret = env.AUTH_JWT_SECRET || readSecretFromAuthConf();
+  if (!secret) {
+    throw new Error("JWT secret not found: neither AUTH_JWT_SECRET environment variable nor auth.conf was found.");
+  }
+  return secret.toLowerCase();
 }
 
 // Resolution order mirrors HOCON's `256-bit-secret = "<default>"; 256-bit-secret
 // = ${?AUTH_JWT_SECRET}`, and the `.toLowerCase()` normalization AuthConfig
 // applies. ("random" is intentionally unsupported here — it cannot match across
 // processes, so deployments share a fixed secret.)
-export const JWT_SECRET: string = (
-  env.AUTH_JWT_SECRET ||
-  readSecretFromAuthConf() ||
-  AUTH_CONF_DEFAULT_SECRET
-).toLowerCase();
+export const JWT_SECRET: string = resolveSecret();
 
 const SECRET_BYTES = new TextEncoder().encode(JWT_SECRET);
 

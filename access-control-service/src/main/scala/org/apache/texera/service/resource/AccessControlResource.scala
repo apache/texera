@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.client.{Client, ClientBuilder, Entity}
 import jakarta.ws.rs.core._
-import jakarta.ws.rs.{Consumes, DELETE, GET, POST, PUT, Path, Produces}
+import jakarta.ws.rs.{Consumes, DELETE, GET, PATCH, POST, PUT, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
@@ -48,7 +48,7 @@ object AccessControlResource extends LazyLogging {
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
   private val pveRoute: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve(?:/.*)?$""".r
   // Agent service: authenticate any /api/agents request (Phase 1 — see #5561).
-  private val apiAgents: Regex = """.*/api/agents.*""".r
+  private val apiAgents: Regex = """^/?(?:auth/)?api/agents(?:/.*)?$""".r
   // Path patterns whose cuid lives in the URL path rather than the query string.
   private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
   private val pvePackagesCuidPath: Regex =
@@ -150,8 +150,8 @@ object AccessControlResource extends LazyLogging {
 
   // Phase 1 agent authorization: authenticate the JWT and require a
   // REGULAR/ADMIN role. Any such user may reach any agent for now; per-agent
-  // ownership is deferred (see #5302 / #5561). On success, forward the user
-  // identity headers so the agent service can trust them.
+  // ownership is deferred (see #5302 / #5561). On success, return the user
+  // identity headers for future per-agent authorization in agent-service.
   private def checkAgentAccess(
       uriInfo: UriInfo,
       headers: HttpHeaders,
@@ -348,6 +348,16 @@ class AccessControlResource extends LazyLogging {
   @PUT
   @Path("/{path:.*}")
   def authorizePut(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders,
+      body: String
+  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers, Option(body).map(_.trim).filter(_.nonEmpty))
+  }
+
+  @PATCH
+  @Path("/{path:.*}")
+  def authorizePatch(
       @Context uriInfo: UriInfo,
       @Context headers: HttpHeaders,
       body: String

@@ -43,12 +43,11 @@ class AgentAccessAuthSpec extends AnyFlatSpec with Matchers {
     u.setUid(7)
     u.setName("agent-user")
     u.setEmail("agent-user@example.com")
-    u.setGoogleId(null)
     u.setRole(role)
-    JwtAuth.jwtToken(JwtAuth.jwtClaims(u, expireInDays = 1))
+    JwtAuth.jwtToken(JwtAuth.jwtClaims(u))
   }
 
-  private def authorize(path: String, authHeader: Option[String]): Response = {
+  private def buildMocks(path: String, authHeader: Option[String]): (UriInfo, HttpHeaders) = {
     val uriInfo = mock(classOf[UriInfo])
     when(uriInfo.getPath).thenReturn(path)
     when(uriInfo.getRequestUri).thenReturn(URI.create(s"http://localhost/$path"))
@@ -60,6 +59,11 @@ class AgentAccessAuthSpec extends AnyFlatSpec with Matchers {
       authHeader.map((h: String) => Collections.singletonList(h)).orNull
     )
 
+    (uriInfo, headers)
+  }
+
+  private def authorize(path: String, authHeader: Option[String]): Response = {
+    val (uriInfo, headers) = buildMocks(path, authHeader)
     AccessControlResource.authorize(uriInfo, headers)
   }
 
@@ -90,5 +94,15 @@ class AgentAccessAuthSpec extends AnyFlatSpec with Matchers {
 
   it should "return 403 for an INACTIVE-role user" in {
     authorize(agentPath, Some(s"Bearer ${token(UserRoleEnum.INACTIVE)}")).getStatus shouldBe 403
+  }
+
+  it should "authorize PATCH requests through authorizePatch handler" in {
+    val (uriInfo, headers) = buildMocks(s"$agentPath/settings", Some(s"Bearer ${token(UserRoleEnum.REGULAR)}"))
+    val resource = new AccessControlResource()
+    resource.authorizePatch(uriInfo, headers, """{"model": "test"}""").getStatus shouldBe 200
+  }
+
+  it should "not match dynamic wsapi routes containing api/agents and deny access" in {
+    authorize("auth/wsapi/x/api/agents", Some(s"Bearer ${token(UserRoleEnum.REGULAR)}")).getStatus shouldBe 403
   }
 }

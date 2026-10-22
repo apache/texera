@@ -166,6 +166,8 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const { ws, messages } = connect(id, null);
     const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Unauthorized");
+    const closeEvent = await new Promise<CloseEvent>(resolve => ws.addEventListener("close", resolve, { once: true }));
+    expect(closeEvent.code).toBe(1008);
   });
 
   test("rejects connection with invalid token", async () => {
@@ -173,6 +175,18 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const { ws, messages } = connect(id, "bad-token");
     const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Unauthorized");
+    const closeEvent = await new Promise<CloseEvent>(resolve => ws.addEventListener("close", resolve, { once: true }));
+    expect(closeEvent.code).toBe(1008);
+  });
+
+  test("rejects connection for INACTIVE user", async () => {
+    const id = await createAgent();
+    const inactiveToken = mintTestToken({ role: "INACTIVE" });
+    const { ws, messages } = connect(id, inactiveToken);
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Unauthorized");
+    const closeEvent = await new Promise<CloseEvent>(resolve => ws.addEventListener("close", resolve, { once: true }));
+    expect(closeEvent.code).toBe(1008);
   });
 
   test("sends a results-free snapshot frame on connect", async () => {
