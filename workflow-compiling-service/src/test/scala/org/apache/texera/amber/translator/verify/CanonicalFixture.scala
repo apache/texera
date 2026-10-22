@@ -132,8 +132,10 @@ object CanonicalFixture extends SharedFixture {
     // ordinary numbers: Java writes a double past 1e7 or under 1e-3 in E notation
     new Attribute("edge_ts", AttributeType.TIMESTAMP), // years 1600, 2500 and 9999,
     // and 1677 and 2262 at pandas' own edges: a Timestamp holds every one of them
-    new Attribute("digits", AttributeType.STRING) // text made only of digits, "001"
+    new Attribute("digits", AttributeType.STRING), // text made only of digits, "001"
     // among them, which a reader left to infer takes for a number
+    new Attribute("views", AttributeType.LONG) // the one LONG column: counts past
+    // 2^31, an int's limit, on both sides of 2147483648, and two that fit an int
   )
 
   // ── Data source ──
