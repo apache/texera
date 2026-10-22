@@ -45,6 +45,8 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.file.Paths
+
 /** Forces a Python UDF's execution-time binding against real dataset and model rows. */
 class PythonUdfUiParameterSupportSpec
     extends AnyFlatSpec
@@ -167,8 +169,18 @@ class PythonUdfUiParameterSupportSpec
     val bound = PythonUdfUiParameterInjector.inject(
       code,
       List(
-        parameter("DATA", AttributeType.STRING, "dataset", "/mnt/texera-mounts/dataset-1/d4t4"),
-        parameter("MODEL", AttributeType.STRING, "model", "/mnt/texera-mounts/model-1/m0d3l"),
+        parameter(
+          "DATA",
+          AttributeType.STRING,
+          "dataset",
+          Paths.get("/mnt/texera-mounts/dataset-1/d4t4").toString
+        ),
+        parameter(
+          "MODEL",
+          AttributeType.STRING,
+          "model",
+          Paths.get("/mnt/texera-mounts/model-1/m0d3l").toString
+        ),
         count
       )
     )
