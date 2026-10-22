@@ -130,14 +130,14 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       // The output column is named by AttributeUnit.getAlias, which returns
       // originalAttribute as written when alias is blank: the engine keeps the
       // setting's case, not the table's. A rename is only needed where they differ.
-      val renames = units
-        .filter(u => u.getAlias != stored(u))
-        .map(u => s"""${pyStringLiteral(stored(u))}: ${pyStringLiteral(u.getAlias)}""")
-      if (renames.isEmpty) {
+      // The names are set by position: two units can read one column, `Name` as
+      // `first` and `NAME` as `second`, and a rename map keyed by that column keeps
+      // only the last alias.
+      if (units.forall(u => u.getAlias == stored(u))) {
         s"out1df = in1df[$originals].copy()"
       } else {
-        val renameMap = renames.mkString("{", ", ", "}")
-        s"out1df = in1df[$originals].rename(columns=$renameMap)"
+        val aliases = units.map(u => pyStringLiteral(u.getAlias)).mkString("[", ", ", "]")
+        s"out1df = in1df[$originals].set_axis($aliases, axis=1)"
       }
     }
   }

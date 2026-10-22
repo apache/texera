@@ -239,7 +239,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     keep.attributes = List(new AttributeUnit("FIELD1", ""), new AttributeUnit("Field2", "f2"))
     assert(
       keep.generateStandaloneCode(inputSchemas) ==
-        """out1df = in1df[["field1", "field2"]].rename(columns={"field1": "FIELD1", "field2": "f2"})"""
+        """out1df = in1df[["field1", "field2"]].set_axis(["FIELD1", "f2"], axis=1)"""
     )
 
     val drop = new ProjectionOpDesc
@@ -247,6 +247,23 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     drop.isDrop = true
     assert(
       drop.generateStandaloneCode(inputSchemas) == """out1df = in1df.drop(columns=["field1"])"""
+    )
+  }
+
+  // `field1` as `first` and `FIELD1` as `second` read the same column. The engine
+  // keeps both, in order; a rename map keyed by `field1` would keep only `second`,
+  // twice. So the script names the output columns by position.
+  it should "keep both aliases of one column read twice" in {
+    val keep = new ProjectionOpDesc
+    keep.attributes =
+      List(new AttributeUnit("field1", "first"), new AttributeUnit("FIELD1", "second"))
+    assert(
+      keep.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head.getAttributeNames ==
+        List("first", "second")
+    )
+    assert(
+      keep.generateStandaloneCode(Map(PortIdentity() -> schema)) ==
+        """out1df = in1df[["field1", "field1"]].set_axis(["first", "second"], axis=1)"""
     )
   }
 
