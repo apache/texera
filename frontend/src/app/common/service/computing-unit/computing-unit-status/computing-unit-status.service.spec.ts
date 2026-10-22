@@ -19,6 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { of, throwError } from "rxjs";
 import { ComputingUnitStatusService } from "./computing-unit-status.service";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -37,6 +38,9 @@ describe("ComputingUnitStatusService", () => {
   let websocketService: WorkflowWebsocketService;
 
   const mockUnit = (cuid: number) => ({ computingUnit: { cuid } }) as unknown as DashboardWorkflowComputingUnit;
+  // What HttpClient delivers for a failed request; a dropped connection is the same type with status 0.
+  const httpFailure = () =>
+    throwError(() => new HttpErrorResponse({ status: 500, statusText: "Internal Server Error" }));
 
   beforeEach(() => {
     const managingStub = {
@@ -257,31 +261,13 @@ describe("ComputingUnitStatusService", () => {
     expect(latest).toEqual(newUnits);
   });
 
-  it("keeps refreshing the list after one failed list fetch", () => {
+  it("keeps refreshing the list through failed fetches: nothing on a failure, the good list on the next success", () => {
     const managing = TestBed.inject(WorkflowComputingUnitManagingService);
     const goodUnits = [mockUnit(42)];
     const listSpy = vi
       .spyOn(managing, "listComputingUnits")
-      .mockReturnValueOnce(throwError(() => new Error("boom")))
-      .mockReturnValue(of(goodUnits));
-
-    let latest: DashboardWorkflowComputingUnit[] = [];
-    service.getAllComputingUnits().subscribe(units => (latest = units));
-
-    service.refreshComputingUnitList();
-    service.refreshComputingUnitList();
-    service.refreshComputingUnitList();
-
-    // The failed first fetch must not end the refresh stream: both later signals still fetch.
-    expect(listSpy).toHaveBeenCalledTimes(3);
-    expect(latest).toEqual(goodUnits);
-  });
-
-  it("a failed list fetch emits nothing and the next successful fetch emits the good list", () => {
-    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-    const goodUnits = [mockUnit(42)];
-    vi.spyOn(managing, "listComputingUnits")
-      .mockReturnValueOnce(throwError(() => new Error("boom")))
+      .mockReturnValueOnce(httpFailure())
+      .mockReturnValueOnce(httpFailure())
       .mockReturnValue(of(goodUnits));
 
     const emissions: DashboardWorkflowComputingUnit[][] = [];
@@ -290,33 +276,47 @@ describe("ComputingUnitStatusService", () => {
     expect(emissions.length).toBe(1);
 
     service.refreshComputingUnitList();
+    service.refreshComputingUnitList();
     // A failed fetch produces no list emission at all, not an empty or null list.
     expect(emissions.length).toBe(1);
 
     service.refreshComputingUnitList();
+    // The failed fetches did not end the refresh stream: every signal still fetched.
+    expect(listSpy).toHaveBeenCalledTimes(3);
     expect(emissions.length).toBe(2);
     expect(emissions[1]).toEqual(goodUnits);
   });
 
-  it("keeps refreshing through several consecutive failures", () => {
-    const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-    const goodUnits = [mockUnit(42)];
-    const listSpy = vi
-      .spyOn(managing, "listComputingUnits")
-      .mockReturnValueOnce(throwError(() => new Error("boom 1")))
-      .mockReturnValueOnce(throwError(() => new Error("boom 2")))
-      .mockReturnValueOnce(throwError(() => new Error("boom 3")))
-      .mockReturnValue(of(goodUnits));
+  it("logs a non-HTTP list failure and keeps refreshing, but stays silent for an HTTP failure", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const goodUnits = [mockUnit(42)];
+      const bug = new TypeError("cannot read resource");
+      const listSpy = vi
+        .spyOn(managing, "listComputingUnits")
+        .mockReturnValueOnce(throwError(() => bug))
+        .mockReturnValueOnce(httpFailure())
+        .mockReturnValue(of(goodUnits));
 
-    let latest: DashboardWorkflowComputingUnit[] = [];
-    service.getAllComputingUnits().subscribe(units => (latest = units));
+      let latest: DashboardWorkflowComputingUnit[] = [];
+      service.getAllComputingUnits().subscribe(units => (latest = units));
 
-    for (let i = 0; i < 4; i++) {
       service.refreshComputingUnitList();
-    }
+      // A failure outside HTTP, such as in the response mapping, is a bug and must stay visible.
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("list refresh"), bug);
 
-    expect(listSpy).toHaveBeenCalledTimes(4);
-    expect(latest).toEqual(goodUnits);
+      service.refreshComputingUnitList();
+      // An HTTP failure is expected while the backend restarts and is not logged.
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+
+      service.refreshComputingUnitList();
+      expect(listSpy).toHaveBeenCalledTimes(3);
+      expect(latest).toEqual(goodUnits);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("updateUnitInList replaces the matching unit and leaves the others untouched", () => {
@@ -390,31 +390,7 @@ describe("ComputingUnitStatusService", () => {
     }
   });
 
-  it("keeps polling the selected unit after one failed fetch", () => {
-    vi.useFakeTimers();
-    try {
-      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
-      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
-      const getSpy = vi
-        .spyOn(managing, "getComputingUnit")
-        .mockReturnValueOnce(throwError(() => new Error("boom")))
-        .mockReturnValue(of(polled));
-      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
-      (service as any).selectedUnitSubject.next(mockUnit(3));
-
-      (service as any).startPollingSelectedUnit(3);
-      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS * 5);
-
-      // The failed first poll must not end the interval: every later tick still fetches.
-      expect(getSpy).toHaveBeenCalledTimes(5);
-      expect(service.getSelectedComputingUnitValue()).toBe(polled);
-    } finally {
-      (service as any).stopPollingSelectedUnit();
-      vi.useRealTimers();
-    }
-  });
-
-  it("a failed poll keeps the poll alive and leaves the selection intact", () => {
+  it("keeps polling the selected unit through a failed fetch and leaves the selection intact", () => {
     vi.useFakeTimers();
     try {
       const managing = TestBed.inject(WorkflowComputingUnitManagingService);
@@ -422,7 +398,7 @@ describe("ComputingUnitStatusService", () => {
       const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
       const getSpy = vi
         .spyOn(managing, "getComputingUnit")
-        .mockReturnValueOnce(throwError(() => new Error("boom")))
+        .mockReturnValueOnce(httpFailure())
         .mockReturnValue(of(polled));
       const stopSpy = vi.spyOn(service as any, "stopPollingSelectedUnit");
       (service as any).allComputingUnitsSubject.next([original]);
@@ -437,11 +413,47 @@ describe("ComputingUnitStatusService", () => {
       expect(stopSpy).not.toHaveBeenCalled();
       expect((service as any).selectedUnitPoll.closed).toBe(false);
 
-      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
-      expect(getSpy).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS * 4);
+      // Every later tick still fetches, and the next good result replaces the selection.
+      expect(getSpy).toHaveBeenCalledTimes(5);
       expect(service.getSelectedComputingUnitValue()).toBe(polled);
     } finally {
       (service as any).stopPollingSelectedUnit();
+      vi.useRealTimers();
+    }
+  });
+
+  it("logs a non-HTTP poll failure and keeps polling, but stays silent for an HTTP failure", () => {
+    vi.useFakeTimers();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const managing = TestBed.inject(WorkflowComputingUnitManagingService);
+      const polled = { computingUnit: { cuid: 3 }, status: "Running" } as unknown as DashboardWorkflowComputingUnit;
+      const bug = new TypeError("cannot read resource");
+      const getSpy = vi
+        .spyOn(managing, "getComputingUnit")
+        .mockReturnValueOnce(throwError(() => bug))
+        .mockReturnValueOnce(httpFailure())
+        .mockReturnValue(of(polled));
+      (service as any).allComputingUnitsSubject.next([mockUnit(3)]);
+      (service as any).selectedUnitSubject.next(mockUnit(3));
+
+      (service as any).startPollingSelectedUnit(3);
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+      // A failure outside HTTP is a bug and must stay visible.
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("status poll"), bug);
+
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+      // An HTTP failure is not logged.
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime((service as any).REFRESH_INTERVAL_MS);
+      expect(getSpy).toHaveBeenCalledTimes(3);
+      expect(service.getSelectedComputingUnitValue()).toBe(polled);
+    } finally {
+      (service as any).stopPollingSelectedUnit();
+      errorSpy.mockRestore();
       vi.useRealTimers();
     }
   });
