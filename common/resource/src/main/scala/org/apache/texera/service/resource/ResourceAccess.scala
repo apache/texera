@@ -21,6 +21,7 @@ package org.apache.texera.service.resource
 
 import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import jakarta.ws.rs.core.Response
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
@@ -76,19 +77,18 @@ object ResourceAccess {
       id: Integer,
       uid: Integer
   ): PrivilegeEnum =
-    if (userOwns(ctx, resource, id, uid)) PrivilegeEnum.WRITE
-    else
-      Option(
-        ctx
-          .select(resource.privilegeField)
-          .from(resource.accessTable)
-          .where(
-            resource.accessIdField
-              .eq(id)
-              .and(resource.accessUidField.eq(uid))
-          )
-          .fetchOneInto(classOf[PrivilegeEnum])
-      ).getOrElse(PrivilegeEnum.NONE)
+    OwnerAccess.privilege(
+      userOwns(ctx, resource, id, uid),
+      ctx
+        .select(resource.privilegeField)
+        .from(resource.accessTable)
+        .where(
+          resource.accessIdField
+            .eq(id)
+            .and(resource.accessUidField.eq(uid))
+        )
+        .fetchOneInto(classOf[PrivilegeEnum])
+    )
 
   def userHasWriteAccess[R <: Record, A <: Record](
       ctx: DSLContext,
@@ -104,9 +104,7 @@ object ResourceAccess {
       id: Integer,
       uid: Integer
   ): Boolean =
-    isPublic(ctx, resource, id) ||
-      userHasWriteAccess(ctx, resource, id, uid) ||
-      privilegeOf(ctx, resource, id, uid) == PrivilegeEnum.READ
+    isPublic(ctx, resource, id) || privilegeOf(ctx, resource, id, uid) != PrivilegeEnum.NONE
 
   /** The owning user, or null when the resource does not exist. */
   def owner[R <: Record, A <: Record](
@@ -213,8 +211,10 @@ object ResourceAccess {
         val entity = record.into(resource.table).into(pojoClass)
         val isOwner = record.into(resource.table).get(resource.ownerUidField) == uid
         val privilege =
-          if (isOwner) PrivilegeEnum.WRITE
-          else record.into(resource.accessTable).get(resource.privilegeField)
+          OwnerAccess.privilege(
+            isOwner,
+            record.into(resource.accessTable).get(resource.privilegeField)
+          )
         fromGrant(entity, record.into(USER).getEmail, privilege, isOwner)
           .map(entry => (idOf(entity), entry))
       }
@@ -261,7 +261,7 @@ object ResourceAccess {
       throw new BadRequestException(s"No registered user with email $email")
     }
     val granteeUid = grantee.getUid
-    requireNotOwner(ctx, resource, id, granteeUid)
+    OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
     val granted = PrivilegeEnum.valueOf(privilege)
 
     ctx
@@ -292,7 +292,7 @@ object ResourceAccess {
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
     val granteeUid = new UserDao(ctx.configuration()).fetchOneByEmail(email).getUid
-    requireNotOwner(ctx, resource, id, granteeUid)
+    OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
 
     ctx
       .delete(resource.accessTable)
@@ -316,16 +316,6 @@ object ResourceAccess {
       throw new ForbiddenException(
         s"You do not have permission to modify ${resource.label} $id"
       )
-    }
-
-  private def requireNotOwner[R <: Record, A <: Record](
-      ctx: DSLContext,
-      resource: ResourceTables[R, A],
-      id: Integer,
-      uid: Integer
-  ): Unit =
-    if (userOwns(ctx, resource, id, uid)) {
-      throw new ForbiddenException("You cannot modify the owner's permissions!")
     }
 
   private def requireReadAccess[R <: Record, A <: Record](

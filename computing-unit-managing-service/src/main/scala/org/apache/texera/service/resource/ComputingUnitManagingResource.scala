@@ -28,6 +28,7 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
@@ -884,15 +885,7 @@ class ComputingUnitManagingResource {
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,
-      accessPrivilege =
-        if (isOwner) PrivilegeEnum.WRITE
-        else
-          new ComputingUnitUserAccessDao(context.configuration())
-            .fetchByUid(user.getUid)
-            .asScala
-            .find(access => access.getCuid.equals(cuid))
-            .map(_.getPrivilege)
-            .getOrElse(PrivilegeEnum.NONE),
+      accessPrivilege = ComputingUnitAccess.getComputingUnitAccess(cuid, user.getUid),
       ownerAvatar,
       ownerUsername
     )

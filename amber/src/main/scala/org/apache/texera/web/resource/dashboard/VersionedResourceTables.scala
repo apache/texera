@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.dashboard
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL}
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model, User}
@@ -95,10 +96,7 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       idOf(resource) -> entry(
         resource,
         record.into(USER).into(classOf[User]).getEmail,
-        if (isOwner) PrivilegeEnum.WRITE
-        else
-          Option(record.get(access.privilegeColumn, classOf[PrivilegeEnum]))
-            .getOrElse(PrivilegeEnum.NONE),
+        OwnerAccess.privilege(isOwner, record.get(access.privilegeColumn, classOf[PrivilegeEnum])),
         isOwner,
         size
       )

@@ -162,6 +162,20 @@ class ResourceAccessSpec
     ResourceAccess.userHasWriteAccess(getDSLContext, resource, did, grantee.getUid) shouldBe false
   }
 
+  "userHasReadAccess" should "hold for the owner, a grantee and anyone on a public dataset, not a stranger" in {
+    grantRow(did, grantee.getUid, PrivilegeEnum.READ)
+
+    ResourceAccess.userHasReadAccess(getDSLContext, resource, did, owner.getUid) shouldBe true
+    ResourceAccess.userHasReadAccess(getDSLContext, resource, did, grantee.getUid) shouldBe true
+    ResourceAccess.userHasReadAccess(getDSLContext, resource, did, stranger.getUid) shouldBe false
+    ResourceAccess.userHasReadAccess(
+      getDSLContext,
+      resource,
+      publicDataset.getDid,
+      stranger.getUid
+    ) shouldBe true
+  }
+
   "listVisible" should "list the owner's private dataset as WRITE without an access row" in {
     visibleTo(owner.getUid, includePublic = false) should contain(
       ("private-dataset", PrivilegeEnum.WRITE, true)

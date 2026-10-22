@@ -273,6 +273,27 @@ class ComputingUnitAccessResourceSpec
     accessEmails(cuid) shouldBe List(granteeUser.getEmail)
   }
 
+  it should "be forbidden for a user who cannot see the unit" in {
+    val ex = intercept[ForbiddenException] {
+      accessResource.getComputingUnitAccessList(strangerSession, cuid)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+  }
+
+  it should "be forbidden for a unit that does not exist" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getComputingUnitAccessList(ownerSession, nonExistentCuid)
+    }
+  }
+
+  it should "be readable by a READ grantee" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+
+    accessResource
+      .getComputingUnitAccessList(new SessionUser(granteeUser), cuid)
+      .map(_.email) shouldBe List(granteeUser.getEmail)
+  }
+
   it should "list every grantee with their email, name, and privilege" in {
     grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
     grantDirectly(strangerUser.getUid, PrivilegeEnum.WRITE)

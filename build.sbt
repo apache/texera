@@ -124,7 +124,7 @@ lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
 lazy val Resource = (project in file("common/resource"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO)
+  .dependsOn(DAO, Auth)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
