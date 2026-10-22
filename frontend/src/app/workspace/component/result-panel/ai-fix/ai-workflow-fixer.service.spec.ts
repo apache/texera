@@ -33,6 +33,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
+import { ExecutionState } from "../../../types/execute-workflow.interface";
 
 const OP = "PythonUDFV2-op-1";
 const SCHEMA: OperatorPortSchemaMap = {
@@ -58,7 +59,9 @@ describe("AiWorkflowFixerService", () => {
   let operatorProperties: Record<string, unknown>;
   let modificationEnabled: boolean;
   let modificationEnabled$: Subject<boolean>;
+  let executionState: ExecutionState;
   let openWorkflowId: number | undefined;
+  let workflowReadonly: boolean;
   let operatorSchemaProperties: Record<string, unknown>;
   let consoleMessages: Array<{
     msgType: { name: string };
@@ -90,7 +93,12 @@ describe("AiWorkflowFixerService", () => {
     operatorProperties = { code: CODE, workers: 1 };
     modificationEnabled = true;
     modificationEnabled$ = new Subject<boolean>();
+    // A live run is what holds the modification lock in production, so every test that
+    // sets modificationEnabled = false needs one for the lock to be the kind ensureModifiable
+    // is willing to break.
+    executionState = ExecutionState.Running;
     openWorkflowId = 11;
+    workflowReadonly = false;
     operatorSchemaProperties = {};
     consoleMessages = [];
     consoleUpdates$ = new Subject<void>();
@@ -104,6 +112,7 @@ describe("AiWorkflowFixerService", () => {
             setOperatorProperty,
             getTexeraGraph: () => ({ getOperator: () => ({ operatorProperties, operatorType: "PythonUDFV2" }) }),
             getOpenWorkflowId: () => openWorkflowId,
+            getWorkflowMetadata: () => ({ readonly: workflowReadonly }),
             // Unlocked by default; the locked path has its own test.
             checkWorkflowModificationEnabled: () => modificationEnabled,
             getWorkflowModificationEnabledStream: () => modificationEnabled$.asObservable(),
@@ -114,6 +123,7 @@ describe("AiWorkflowFixerService", () => {
           useValue: {
             executeWorkflow,
             killWorkflow,
+            getExecutionState: () => ({ state: executionState }),
             getExecutionStateStream: () => executionState$.asObservable(),
           },
         },
@@ -180,6 +190,19 @@ describe("AiWorkflowFixerService", () => {
       });
     });
 
+    it("reports a snippet that is not in the code instead of offering an Apply that cannot work", async () => {
+      // The panel only shows the occurrence count when it is above one, so a snippet the
+      // model invented looked like any other suggestion. Apply then failed with "the code
+      // changed since the suggestion was generated", which blames an edit that never
+      // happened.
+      stubModel(suggestion({ original_snippet: "yield t['address']" }));
+
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      expect(state().status).toEqual("error");
+      expect(state().suggestedFix).toBeUndefined();
+    });
+
     it("tolerates a fenced JSON response even though the prompt forbids markdown", async () => {
       stubModel("```json\n" + suggestion() + "\n```");
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
@@ -204,8 +227,7 @@ describe("AiWorkflowFixerService", () => {
       await service.analyzeError(OP, "ZeroDivisionError: division by zero", SCHEMA, CODE, operatorProperties);
 
       expect(callModel).not.toHaveBeenCalled();
-      expect(state().errorType).toEqual("unsupported");
-      expect(state().status).toEqual("ready");
+      expect(state().status).toEqual("unsupported");
       expect(state().suggestedFix).toBeUndefined();
     });
 
@@ -331,13 +353,13 @@ describe("AiWorkflowFixerService", () => {
     const first = service.analyzeError("op-first", KEY_ERROR, SCHEMA, CODE, operatorProperties);
     await service.analyzeError("op-second", "ZeroDivisionError: division by zero", SCHEMA, CODE, operatorProperties);
     expect(state().operatorId).toEqual("op-second");
-    expect(state().errorType).toEqual("unsupported");
+    expect(state().status).toEqual("unsupported");
 
     resolveFirst({ text: suggestion() });
     await first;
 
     expect(state().operatorId).toEqual("op-second");
-    expect(state().errorType).toEqual("unsupported");
+    expect(state().status).toEqual("unsupported");
   });
 
   it("rejects a reply whose snippets are not strings", async () => {
@@ -467,6 +489,20 @@ describe("AiWorkflowFixerService", () => {
       expect(out).toEqual("  a()\n  b()\n      a()\n      b()\n");
     });
 
+    it("does not indent twice when the match itself spans lines", () => {
+      // A multi-line `original` is quoted from the code, so its continuation lines already
+      // carry the absolute indentation -- and the model writes the replacement the same
+      // way. Adding the match indentation on top put `yield` at 16 spaces in an 8-space
+      // body, an IndentationError the moment the fix was "applied".
+      const code = "def f():\n        a = read()\n        yield a\n";
+      const original = "a = read()\n        yield a";
+      const suggested = "a = read().strip()\n        yield a";
+
+      const out = replaceAllIndented(code, original, suggested).code;
+
+      expect(out).toEqual("def f():\n        a = read().strip()\n        yield a\n");
+    });
+
     it("counts the places it changed, and leaves a single-line fix alone", () => {
       const out = replaceAllIndented("p()\np()\n", "p()", "q()");
 
@@ -580,8 +616,13 @@ describe("AiWorkflowFixerService", () => {
     });
 
     it("reports an apply failure, without re-running, when the snippet is no longer in the code", async () => {
-      stubModel(suggestion({ original_snippet: "a line the user already deleted" }));
+      stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      // The user edits the UDF while reading the suggestion -- the snippet it quoted was in
+      // the code when it was generated and is gone by the time Apply runs. A snippet that
+      // was never there is a different fault, and the analysis refuses that one outright.
+      operatorProperties.code = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
 
       await service.applyFix();
 
@@ -785,6 +826,39 @@ describe("AiWorkflowFixerService", () => {
       expect(setOperatorProperty).not.toHaveBeenCalled();
     });
 
+    it("refuses on a read-only workflow instead of killing someone else's run", async () => {
+      // enableWorkflowModification() is a no-op while the workflow is read-only, so the
+      // unlock this waits for never arrives. Running only needs write access to the
+      // computing unit, so a read-only user can reach a paused run and used to have it
+      // killed, then wait fifteen seconds to be told the execution would not stop.
+      workflowReadonly = true;
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      await service.applyFix();
+
+      expect(killWorkflow).not.toHaveBeenCalled();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("read-only");
+    });
+
+    it("refuses a lock that no running execution explains", async () => {
+      // killWorkflow() only clears the lock a live run holds. Any other source -- the
+      // workflow being shared without write access, a version being viewed -- survives the
+      // kill, so the wait would run out while the user watched a spinner.
+      modificationEnabled = false;
+      executionState = ExecutionState.Uninitialized;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      await service.applyFix();
+
+      expect(killWorkflow).not.toHaveBeenCalled();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("other than a running execution");
+    });
+
     it("refuses a field the operator does not have", async () => {
       // The staleness guard does not catch this one: an absent field reads as "" and the
       // captured original is "" too, so without the check a dead key is written and the
@@ -847,6 +921,6 @@ describe("AiWorkflowFixerService", () => {
 
     service.discardFix();
     const after = await firstValueFrom(service.getState$());
-    expect(after).toEqual({ operatorId: "", errorType: "unsupported", status: "idle" });
+    expect(after).toEqual({ operatorId: "", status: "idle" });
   });
 });

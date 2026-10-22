@@ -119,7 +119,9 @@ export class AiFixFrameComponent {
   }
 
   public onApply(): void {
-    this.aiWorkflowFixerService.applyFix();
+    // Awaited by the service's own state stream, not here: the template renders `applying`
+    // and then whatever the apply settles on. `void` says the promise is deliberately dropped.
+    void this.aiWorkflowFixerService.applyFix();
   }
 
   public onDiscard(): void {

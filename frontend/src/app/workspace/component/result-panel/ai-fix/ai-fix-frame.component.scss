@@ -45,11 +45,15 @@
   user-select: text;
 }
 
-/* Same monospace treatment the other result-panel frames use for code. */
+/*
+ * Same monospace treatment the other result-panel frames use for code, except for the
+ * fallback: they name `serif`, which a diff cannot use -- the +/- columns stop lining up
+ * the moment monaco is missing.
+ */
 .ai-fix-diff {
   border: 1px solid #e8e8e8;
   border-radius: 2px;
-  font-family: monaco, serif;
+  font-family: monaco, monospace;
   font-size: 11px;
   line-height: 16px;
   margin: 4px 0 8px;

@@ -289,6 +289,17 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Keys the frame tabs by name.
+   *
+   * `keyvalue` rebuilds its pair objects on every change to the map, so without this every
+   * tab was torn down and recreated whenever one was added or removed -- a result table lost
+   * its scroll position and paging because a console error appeared elsewhere.
+   */
+  public trackFrameByName(_index: number, config: { key: string }): string {
+    return config.key;
+  }
+
   /** Adds or removes the AI Fix entry, leaving every other frame untouched. */
   private syncAiFixFrame(): void {
     if (this.shouldOfferAiFix()) {
@@ -419,9 +430,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Registered once from ngOnInit. It used to run on every rerender, which added a
-   * subscription each time without releasing the previous one, so the handler count grew
-   * for as long as the panel lived.
+   * Registered once from ngOnInit, not from the rerender subscriber: this takes out a
+   * subscription without releasing a previous one, so calling it per rerender grows the
+   * handler count for as long as the panel lives.
    */
   private registerOperatorDisplayNameChangeHandler(): void {
     this.workflowActionService

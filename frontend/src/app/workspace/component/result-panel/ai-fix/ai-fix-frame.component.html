@@ -33,7 +33,7 @@
       state.status === 'applied' ||
       state.status === 'applied_without_run' ||
       state.status === 'error' ||
-      (state.status === 'ready' && state.errorType === 'unsupported')
+      state.status === 'unsupported'
     ">
     <button
       nz-button
@@ -49,7 +49,7 @@
   </div>
 
   <nz-alert
-    *ngIf="state.status === 'ready' && state.errorType === 'unsupported'"
+    *ngIf="state.status === 'unsupported'"
     nzType="info"
     [nzMessage]="unsupportedMessage"></nz-alert>
 

@@ -26,10 +26,10 @@ const SECRET_NAME = /token|password|secret|credential|api[-_]?key/i;
  * Drops operator properties whose values are credentials, so they never reach the model.
  *
  * Operators keep secrets alongside ordinary settings -- `hfApiToken` on HuggingFaceInference,
- * `password` on the SQL sources -- and the whole configuration used to be serialized into the
- * prompt. The operator's own schema marks those fields with the password widget, which is the
- * reliable signal; the name pattern is a second barrier so a schema that cannot be read, or an
- * operator missing the annotation, does not leak anyway.
+ * `password` on the SQL sources -- and the configuration block is serialized whole, so without
+ * this the credential travels with it. The operator's own schema marks those fields with the
+ * password widget, which is the reliable signal; the name pattern is a second barrier so a
+ * schema that cannot be read, or an operator missing the annotation, does not leak anyway.
  *
  * Dropped rather than masked: none of the four supported fixes touches a credential, so the
  * model has no reason to know the field is there.
@@ -49,21 +49,27 @@ export function withoutSecrets(
 }
 
 /**
- * Builds the single user message sent to the LLM for one failed operator.
+ * Drops the UDF source from the configuration block.
  *
- * The model is asked for exactly one minimal fix and for raw JSON. The reply is
- * still parsed defensively (fenced blocks are unwrapped) because "no markdown"
- * is a request, not a guarantee.
+ * `code` is a property like any other, so the whole operator source went into the prompt
+ * twice -- once fenced under "Operator code" and once JSON-escaped inside the configuration.
+ * The escaped copy is the one the model should never quote from, and an apply refuses a
+ * property change named `code` anyway.
  */
+function withoutCode(properties: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const { code, ...rest } = properties;
+  return rest;
+}
+
 /**
  * Renders every input port, not just the first.
  *
  * A Python UDF can have several input ports and `process_tuple` is told which one a tuple
- * came from, so a column that only exists on port 1 is not a typo for one on port 0. Only
- * port 0 used to be sent, which made the model guess for anything downstream of a join.
+ * came from, so a column that only exists on port 1 is not a typo for one on port 0. Sending
+ * port 0 alone leaves the model guessing for anything downstream of a join.
  *
- * A single port renders exactly as it did before, since that is nearly every operator and
- * there is nothing to disambiguate.
+ * A single port renders with no label at all, since that is nearly every operator and there
+ * is nothing to disambiguate.
  */
 export function formatInputSchema(inputSchemas: OperatorPortSchemaMap | undefined): string {
   const ports = Object.entries(inputSchemas ?? {}).filter(([, schema]) => schema !== undefined);
@@ -73,6 +79,13 @@ export function formatInputSchema(inputSchemas: OperatorPortSchemaMap | undefine
   return ports.map(([key, schema]) => `Port ${key.split("_")[0]}:\n${JSON.stringify(schema, null, 2)}`).join("\n");
 }
 
+/**
+ * Builds the single user message sent to the LLM for one failed operator.
+ *
+ * The model is asked for exactly one minimal fix and for raw JSON. The reply is still parsed
+ * defensively (fenced blocks are unwrapped) because "no markdown" is a request, not a
+ * guarantee.
+ */
 export function buildFixPrompt(
   errorMessage: string,
   operatorCode: string | undefined,
@@ -93,7 +106,7 @@ Input schema (column names and types)
 ${formatInputSchema(inputSchemas)}
 
 Operator configuration
-${JSON.stringify(operatorProperties, null, 2)}
+${JSON.stringify(withoutCode(operatorProperties), null, 2)}
 
 Task
 Diagnose the root cause of the error. Then propose exactly ONE fix.

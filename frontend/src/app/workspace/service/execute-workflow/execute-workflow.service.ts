@@ -259,9 +259,11 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Returns whether the run actually started, so a caller that reports on it does not have
-   * to repeat the refusal conditions. The refusals show their own toast either way; callers
-   * that only fire and forget can keep ignoring the result.
+   * Returns whether the request was sent, so a caller that reports on it does not have to
+   * repeat the refusal conditions. False means this method turned the run down locally --
+   * no computing unit, no warehouse -- and showed its own toast. True only means the request
+   * left the browser: the deployment can still reject it, which arrives on the execution
+   * state stream. Callers that only fire and forget can keep ignoring the result.
    */
   public executeWorkflowWithEmailNotification(
     executionName: string,
@@ -285,7 +287,7 @@ export class ExecuteWorkflowService {
     return true;
   }
 
-  /** Returns whether the run started; see executeWorkflowWithEmailNotification. */
+  /** Returns whether the request was sent; see executeWorkflowWithEmailNotification. */
   public executeWorkflow(executionName: string, targetOperatorId?: string): boolean {
     return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }

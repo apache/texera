@@ -60,6 +60,20 @@ describe("withoutSecrets", () => {
   });
 });
 
+describe("buildFixPrompt", () => {
+  it("sends the UDF source once, not again inside the configuration", () => {
+    // `code` is a property like any other, so the whole operator source was rendered twice:
+    // fenced under "Operator code" and JSON-escaped under the configuration. The escaped copy
+    // is the one the model must not quote from, since no snippet taken from it matches.
+    const code = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
+
+    const prompt = buildFixPrompt("KeyError: 'email'", code, {}, { code, workers: 1 });
+
+    expect(prompt.split("class ProcessTupleOperator").length - 1).toEqual(1);
+    expect(prompt).toContain('"workers": 1');
+  });
+});
+
 describe("formatInputSchema", () => {
   const port0: PortSchema = [{ attributeName: "user_email", attributeType: "string" }];
   const port1: PortSchema = [{ attributeName: "order_total", attributeType: "double" }];

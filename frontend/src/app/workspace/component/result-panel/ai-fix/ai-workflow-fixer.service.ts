@@ -52,9 +52,9 @@ export interface FixState {
   operatorId: string;
   /**
    * Identifies the ERROR the suggestion was made for, so a newer one on the same operator
-   * can clear it. Resetting on a terminal execution state misses the case this panel exists
-   * for: a UDF that raises leaves the run `Running`, so a re-run that fails again never
-   * reaches a terminal state and the panel went on claiming the earlier fix was running.
+   * can clear it. A terminal execution state is not enough on its own: the case this panel
+   * exists for leaves the run `Running` -- the UDF raises and the worker pauses -- so a
+   * re-run that fails again never reaches one, and the error key is the only signal left.
    */
   errorKey?: string;
   /**
@@ -63,13 +63,28 @@ export interface FixState {
    * switched workflows could be applied to the wrong one.
    */
   workflowId?: number;
-  errorType: FixErrorType;
+  /**
+   * Which of the four supported shapes the error was classified as. Only the apply path
+   * reads it, to refuse a configuration change for anything but `model_not_found`; an error
+   * outside those shapes is the `unsupported` status, not a value here.
+   */
+  errorType?: FixErrorType;
   suggestedFix?: SuggestedFix;
-  // `applied_without_run`: the fix was written but the deployment refused to start a
-  // run (a warehouse is required and none is selected), so the panel must not claim one.
-  // `apply_failed` keeps the suggestion on screen: the analysis was fine, the write was
-  // refused, and re-analysing would spend another model call to produce the same fix.
-  status: "idle" | "analyzing" | "ready" | "applying" | "applied" | "applied_without_run" | "error" | "apply_failed";
+  // `unsupported`: the error is outside the four shapes this panel handles, reported without
+  // spending a model call. `applied_without_run`: the fix was written but the deployment
+  // refused to start a run (a warehouse is required and none is selected), so the panel must
+  // not claim one. `apply_failed` keeps the suggestion on screen: the analysis was fine, the
+  // write was refused, and re-analysing would spend another model call for the same fix.
+  status:
+    | "idle"
+    | "analyzing"
+    | "unsupported"
+    | "ready"
+    | "applying"
+    | "applied"
+    | "applied_without_run"
+    | "error"
+    | "apply_failed";
   /** Why the write was refused, shown as-is when the status is `apply_failed`. */
   applyError?: string;
 }
@@ -82,6 +97,17 @@ export const AI_FIXER_TIMEOUT_MS = 120_000;
 export const UNLOCK_TIMEOUT_MS = 15_000;
 
 // A run that reached one of these is over, so anything the panel still shows predates it.
+// A run in one of these is live enough to be worth stopping; the lock coming from anything
+// else is not something killing an execution can clear.
+const LIVE_STATES: ReadonlySet<ExecutionState> = new Set([
+  ExecutionState.Initializing,
+  ExecutionState.Running,
+  ExecutionState.Pausing,
+  ExecutionState.Paused,
+  ExecutionState.Resuming,
+  ExecutionState.Recovering,
+]);
+
 const TERMINAL_STATES: ReadonlySet<ExecutionState> = new Set([
   ExecutionState.Completed,
   ExecutionState.Failed,
@@ -90,7 +116,7 @@ const TERMINAL_STATES: ReadonlySet<ExecutionState> = new Set([
 ]);
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
-export const IDLE_STATE: FixState = { operatorId: "", errorType: "unsupported", status: "idle" };
+export const IDLE_STATE: FixState = { operatorId: "", status: "idle" };
 
 // Matched against the exception line only, never the frame lines above it.
 const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
@@ -103,16 +129,20 @@ const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
 /**
  * Replaces every occurrence, keeping each one at the indentation it was found at.
  *
- * The snippet the model matches on usually starts mid-line, after the existing indentation,
- * so a multi-line replacement put its first line in the right place and every line after it
- * at column 0 -- an IndentationError the moment the fix was "applied". Continuation lines now
- * take the indentation of the line the match was found on, and keep whatever relative
- * indentation the suggestion itself had.
+ * A single-line match starts mid-line, after the existing indentation, so a multi-line
+ * replacement would put its first line in the right place and every line after it at column
+ * 0 -- an IndentationError the moment the fix was applied. Those continuation lines take the
+ * indentation of the line the match was found on, and keep whatever relative indentation the
+ * suggestion itself had.
+ *
+ * A match that spans lines already carries the absolute indentation of the region it came
+ * from, and the model's reply mirrors it, so there is nothing to add: prefixing the context
+ * indentation on top would double it.
  */
 export function replaceAllIndented(code: string, original: string, suggested: string): { code: string; count: number } {
   const parts = code.split(original);
   const count = parts.length - 1;
-  if (count === 0 || !suggested.includes("\n")) {
+  if (count === 0 || !suggested.includes("\n") || original.includes("\n")) {
     return { code: parts.join(suggested), count };
   }
 
@@ -156,14 +186,14 @@ export function coerceToFieldType(currentValue: unknown, suggested: string): unk
 //   File "udf.py", line 7, in process_tuple
 // and the JVM writes
 //   org.apache.texera.Foo.run(Foo.scala:12)
-// which carries no colon-separated exception name, so the Python-only pattern used to let
-// a Java frame through and classify on it.
+// which carries no colon-separated exception name, so a Python-only pattern lets a Java
+// frame through and classifies on it.
 const FRAME_LINE = /^File\s+"|^Traceback \(|^at\s|^[\w$.]+\([\w.]+:\d+\)$/;
 
 /**
  * The exception a traceback ends on.
  *
- * Matching the whole message classified on whatever appeared first, which is wrong twice
+ * Matching the whole message would classify on whatever appears first, which is wrong twice
  * over: the frame lines carry paths and line numbers that read like patterns -- a path
  * containing "model" above a `line 404` entry looks like a model 404 -- and a chained
  * traceback reports the handled exception before the one that actually stopped the worker.
@@ -205,10 +235,10 @@ export class AiWorkflowFixerService {
     private operatorMetadataService: OperatorMetadataService,
     private workflowConsoleService: WorkflowConsoleService
   ) {
-    // Without this the panel kept whatever it last showed: after Apply the green
-    // "re-running..." message stayed up, so a run that failed again brought the tab back
-    // claiming a re-run that had already finished. Resetting when the run ends rather than
-    // when it starts keeps that message truthful for as long as it is running.
+    // The panel holds whatever it last showed until something clears it, and after Apply
+    // that is the green "re-running..." message. Resetting when the run ends -- rather than
+    // when the next one starts -- keeps that message truthful for exactly as long as the run
+    // it describes, so a run that fails again does not reopen the tab on a finished claim.
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(
@@ -262,13 +292,11 @@ export class AiWorkflowFixerService {
 
     // Numbered before the early return as well: this still supersedes whatever is in flight,
     // and without the bump a slower analysis for another operator would land on top of it.
-    // Numbered before the early return as well: this still supersedes whatever is in flight,
-    // and without the bump a slower analysis for another operator would land on top of it.
     const seq = ++this.analysisSeq;
 
     // Out of scope: report it without spending a model call.
     if (errorType === "unsupported") {
-      this.stateSubject.next({ ...base, status: "ready" });
+      this.stateSubject.next({ ...base, status: "unsupported" });
       return;
     }
 
@@ -286,7 +314,15 @@ export class AiWorkflowFixerService {
       // Counted here so the panel can say it before Apply: a short snippet matched as plain
       // text can appear in lines the user never saw in the diff.
       if (suggestedFix.type === "code_change") {
-        suggestedFix.occurrences = replaceAllIndented(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
+        const occurrences = replaceAllIndented(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
+        // Zero means the model quoted something the operator does not contain. The panel
+        // only surfaces this count when it is above one, so such a suggestion is
+        // indistinguishable from any other, and Apply turns it away as a stale snippet --
+        // blaming an edit that never happened.
+        if (occurrences === 0) {
+          throw new Error(`the code does not contain ${JSON.stringify(suggestedFix.original)}`);
+        }
+        suggestedFix.occurrences = occurrences;
       }
       this.stateSubject.next({ ...base, status: "ready", suggestedFix });
     } catch (err) {
@@ -357,10 +393,10 @@ export class AiWorkflowFixerService {
         properties[field] = coerceToFieldType(properties[field], fix.suggested);
       }
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
-      // Asked rather than predicted: this used to mirror one of ExecuteWorkflowService's
-      // refusal conditions, which left the other one -- an unavailable computing unit --
-      // reported as "re-running" over a toast saying the opposite. The empty execution name
-      // is the one the operator menu uses for an ad-hoc run.
+      // Asked rather than predicted: mirroring ExecuteWorkflowService's refusal conditions
+      // here means every one it gains has to be repeated, and missing one reports
+      // "re-running" over a toast saying the opposite. The empty execution name is the one
+      // the operator menu uses for an ad-hoc run.
       const started = this.executeWorkflowService.executeWorkflow("");
       if (seq !== this.analysisSeq) {
         return;
@@ -389,9 +425,9 @@ export class AiWorkflowFixerService {
   /**
    * Clears the panel and supersedes whatever analysis is in flight.
    *
-   * Publishing IDLE alone was not enough: the reply still matched the sequence it started
-   * with, so it repainted a suggestion the panel had already cleared -- reachable by
-   * analysing a failed operator and then stopping the run before the model answers.
+   * Publishing IDLE is not enough on its own: a reply still in flight matches the sequence
+   * it started with and repaints a suggestion over the cleared panel. Reachable by analysing
+   * a failed operator and then stopping the run before the model answers.
    */
   private reset(): void {
     this.analysisSeq++;
@@ -459,7 +495,23 @@ export class AiWorkflowFixerService {
     if (this.workflowActionService.checkWorkflowModificationEnabled()) {
       return;
     }
-    this.executeWorkflowService.killWorkflow();
+    // enableWorkflowModification() is a no-op while the workflow is read-only, so the unlock
+    // waited for below never arrives. Running only needs write access to the computing unit,
+    // so a read-only user can reach a paused run: refused here rather than below, or their
+    // run is killed on their behalf and they wait fifteen seconds to hear it would not stop.
+    if (this.workflowActionService.getWorkflowMetadata().readonly) {
+      throw new Error("this workflow is read-only, so the fix cannot be written");
+    }
+    // The lock has other causes -- loading, a version preview -- and killing then both fails
+    // and reports the wrong reason.
+    if (!LIVE_STATES.has(this.executeWorkflowService.getExecutionState().state)) {
+      throw new Error("the workflow is locked by something other than a running execution");
+    }
+    try {
+      this.executeWorkflowService.killWorkflow();
+    } catch (err) {
+      throw new Error(`the running execution could not be stopped: ${(err as Error).message}`);
+    }
     try {
       await firstValueFrom(
         this.workflowActionService.getWorkflowModificationEnabledStream().pipe(

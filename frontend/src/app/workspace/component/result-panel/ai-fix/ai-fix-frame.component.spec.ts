@@ -31,7 +31,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
 
-const IDLE: FixState = { operatorId: "", errorType: "unsupported", status: "idle" };
+const IDLE: FixState = { operatorId: "", status: "idle" };
 
 const OPEN_WORKFLOW = 11;
 
@@ -257,7 +257,7 @@ describe("AiFixFrameComponent", () => {
     // Without the button this state is a dead end: nothing resets it, so after the user
     // fixes the code and re-runs into a supported error the tab keeps showing the stale
     // message until some other operator is analyzed.
-    render({ ...READY_CODE_FIX, errorType: "unsupported", suggestedFix: undefined });
+    render({ ...READY_CODE_FIX, status: "unsupported", errorType: undefined, suggestedFix: undefined });
 
     expect(fixture.nativeElement.textContent).toContain(UNSUPPORTED_MESSAGE);
     expect(query(".ai-fix-analyze")).toBeTruthy();
@@ -322,7 +322,7 @@ describe("AiFixFrameComponent", () => {
   });
 
   it("shows the not-supported message for an out-of-scope error", () => {
-    render({ ...READY_CODE_FIX, errorType: "unsupported", suggestedFix: undefined });
+    render({ ...READY_CODE_FIX, status: "unsupported", errorType: undefined, suggestedFix: undefined });
 
     expect(query("nz-alert")).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain(UNSUPPORTED_MESSAGE);
