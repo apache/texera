@@ -26,6 +26,11 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import org.apache.texera.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -716,6 +721,100 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       storage.forall(!_.portId.internal),
       "compiler must filter out internal ports; storage should expose only user-visible outputs"
     )
+  }
+
+  // An Aggregate's local stage has internal outputs; its global stage exposes
+  // the result. Validation errors must survive that implementation detail.
+  private def sumOp(attribute: String): AggregateOpDesc = {
+    val aggregation = new AggregationOperation
+    aggregation.aggFunction = AggregationFunction.SUM
+    aggregation.attribute = attribute
+    aggregation.resultAttribute = "total"
+    val op = new AggregateOpDesc
+    op.aggregations = List(aggregation)
+    op
+  }
+
+  for (missing <- List("DoesNotExist", "missing_東京")) {
+    it should s"retain the internal Aggregate cause for missing column $missing" in {
+      val csv = csvOp(realCsvPath)
+      val aggregate = sumOp(missing)
+      val downstream = projectOp(List("total"))
+      val result = new WorkflowCompiler(newContext()).compile(
+        pojo(
+          List(csv, aggregate, downstream),
+          List(
+            LogicalLink(
+              csv.operatorIdentifier,
+              PortIdentity(),
+              aggregate.operatorIdentifier,
+              PortIdentity()
+            ),
+            LogicalLink(
+              aggregate.operatorIdentifier,
+              PortIdentity(),
+              downstream.operatorIdentifier,
+              PortIdentity()
+            )
+          )
+        )
+      )
+      assert(result.physicalPlan.isEmpty)
+      assert(result.operatorIdToError(aggregate.operatorIdentifier).message.contains(missing))
+      assert(result.operatorIdToOutputSchemas(csv.operatorIdentifier).values.forall(_.isDefined))
+      assert(
+        result.operatorIdToOutputSchemas(aggregate.operatorIdentifier) == Map(
+          PortIdentity() -> None
+        )
+      )
+      assert(result.operatorIdToOutputSchemas.values.forall(_.keys.forall(!_.internal)))
+    }
+  }
+
+  it should "throw the originating internal schema error in strict mode" in {
+    val csv = csvOp(realCsvPath)
+    val aggregate = sumOp("MissingStrictColumn")
+    val ex = intercept[RuntimeException] {
+      new WorkflowCompiler(newContext()).compile(
+        pojo(
+          List(csv, aggregate),
+          List(
+            LogicalLink(
+              csv.operatorIdentifier,
+              PortIdentity(),
+              aggregate.operatorIdentifier,
+              PortIdentity()
+            )
+          )
+        ),
+        CompilationErrorHandling.Strict
+      )
+    }
+    assert(ex.getMessage.contains("MissingStrictColumn"))
+  }
+
+  it should "keep valid multi-stage schemas external and error-free" in {
+    val csv = csvOp(realCsvPath)
+    val aggregate = sumOp("Total Profit")
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(csv, aggregate),
+        List(
+          LogicalLink(
+            csv.operatorIdentifier,
+            PortIdentity(),
+            aggregate.operatorIdentifier,
+            PortIdentity()
+          )
+        )
+      )
+    )
+    assert(result.physicalPlan.isDefined)
+    assert(result.operatorIdToError.isEmpty)
+    val schemas = result.operatorIdToOutputSchemas(aggregate.operatorIdentifier)
+    assert(schemas.keySet == Set(PortIdentity()))
+    assert(schemas(PortIdentity()).get.getAttributeNames == List("total"))
+    assert(result.outputPortsNeedingStorage.forall(!_.portId.internal))
   }
 
   // -------------------- strict-mode error semantics --------------------
