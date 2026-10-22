@@ -659,10 +659,12 @@ object ConfigGenerator {
       admits: Set[AttributeType]
   )
 
-  /** The knobs [[columnTypeVariants]] moves. Left out: a knob with no type rule,
-    * since nothing says what it may hold; one with `@SampleColumn`, which names its
-    * column on purpose; a list knob, which already takes every column it admits;
-    * and a join key, whose type is bound to its partner's.
+  /** The knobs [[columnTypeVariants]] moves. A knob with no type rule admits
+    * LONG only here: nothing says what it may hold, so it is not swept across
+    * every type, but the one column a picker never reaches still gets a run.
+    * Left out: one with `@SampleColumn`, which names its column on purpose; a list
+    * knob, which already takes every column it admits; and a join key, whose type
+    * is bound to its partner's.
     */
   private def columnSites(
       clazz: Class[_],
@@ -683,7 +685,7 @@ object ConfigGenerator {
             spec <- autofillSpec(f).toSeq
             if !spec.holdsList && f.getAnnotation(classOf[SampleColumn]) == null &&
               linkedTypes(f, schemas, siblings).isEmpty
-            admits <- allowedTypes(f, siblings).toSeq
+            admits = allowedTypes(f, siblings).getOrElse(Set(AttributeType.LONG))
             attr <- schemas.get(spec.port).toSeq.flatMap(_.getAttributes.find(_.getName == held))
           } yield ColumnSite(childPath, spec.port, held, attr.getType, admits)
       }
