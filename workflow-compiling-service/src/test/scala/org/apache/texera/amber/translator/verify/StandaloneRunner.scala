@@ -413,10 +413,15 @@ object StandaloneRunner extends LazyLogging {
     //
     // Such a column is read cell by cell instead, so one value out of range
     // does not cut the others: each Timestamp takes the unit its own text
-    // needs, and a value in range keeps its nanoseconds as Timestamp does. The
-    // column is then of object dtype, without the .dt accessor, which beats an
-    // operator handed values other than the input. Only a value past 2262 with
-    // nine digits fits no Timestamp; dateutil reads it to the microsecond.
+    // needs, and a value in range keeps its nanoseconds as Timestamp does. Only a
+    // value past 2262 with nine digits fits no Timestamp; dateutil reads it to
+    // the microsecond.
+    //
+    // A column with no digit past the microsecond is then made datetime64[us],
+    // which holds every year a Timestamp does and is what an exported upstream
+    // hands on, so an operator reading it with `.dt` reads it as in the export.
+    // One with nanoseconds stays of object dtype, which beats an operator handed
+    // values other than the input.
     sb.append("def _texera_read_ts_cell(_v):\n")
     sb.append("    if pd.isna(_v):\n")
     sb.append("        return None\n")
@@ -430,7 +435,12 @@ object StandaloneRunner extends LazyLogging {
     sb.append("    try:\n")
     sb.append("        return pd.to_datetime(_s)\n")
     sb.append("    except pd.errors.OutOfBoundsDatetime:\n")
-    sb.append("        return _s.map(_texera_read_ts_cell)\n")
+    sb.append("        _cells = _s.map(_texera_read_ts_cell)\n")
+    sb.append(
+      "        if all(getattr(_v, 'nanosecond', 0) == 0 for _v in _cells if _v is not None):\n"
+    )
+    sb.append("            return _cells.astype('datetime64[us]')\n")
+    sb.append("        return _cells\n")
     sb.append("\n")
 
     // The engine writes a tuple through the schema, so a column it declares
