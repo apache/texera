@@ -254,6 +254,10 @@ class DataProcessor(
             )
           }
         )
+        // Counted here, on arrival of the whole batch, rather than per tuple in
+        // processInputTuple: that is the consumption point, which input
+        // statistics already track. The gap between the two is the backlog.
+        statisticsManager.increaseReceivedStatistics(tuples.length)
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
       case StateFrame(state, loopCounter, loopStartId) =>
