@@ -161,9 +161,8 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   a NaN and a null are one value, and the translator feeds its fragment a `float64` copy the
   same way, so write such a fragment against `float64`.
 - The fragment answers the same inputs the operator answers. A guard, the page it writes, and
-  any number it computes have to match on both sides. One path refusing a table the other
-  draws is a divergence the verification will not catch, because it only compares runs that
-  both produced something. Where the operator wraps its work in a try and yields a page, the
+  any number it computes have to match on both sides. A run where one path raises and the
+  other answers fails. Where the operator wraps its work in a try and yields a page, the
   fragment writes that same page instead of raising: a raise ends the whole exported script,
   not just that one chart.
 - Where the two engines genuinely differ, note the difference in a comment.
@@ -187,6 +186,9 @@ reference, and as the generated script. The outputs are compared per port, by da
   `encoding="utf-8"`; Python's default is cp1252 on Windows.
 - Two assertions read the generated code instead of running it, for what no single run can
   ask: a write to an input frame, and every column knob hostile at once.
+- Whole workflows are checked too. amber's `WorkflowParitySpec` runs a few plans on the shared
+  table, once in the engine and once as the exported script, and compares every leaf. A new
+  operator owes it nothing.
 
 ### The input
 
@@ -223,10 +225,15 @@ script to what its author believed the engine does, and the harness asks the eng
 | String | its `defaultValue`, else `examples[0]`, else `"1"` |
 | Every free-text knob | also `a"b`, in one hostile run, where the field's pattern admits it |
 | Every column knob | also a hostile-named column, in a second hostile run, one knob per type per port |
+| A single-column knob | also one `columnType_<TYPE>` run per other type its rule admits; with no rule, LONG |
 | Sibling strings | numbered, so they cannot collide: `a"b`, `a"b2`, `a"b3`… and `1`, `2`, `3`… |
 
 A knob takes a hostile column only where one carries the type it already reads, so a chart's
 `color` and `pattern` keep ordinary names once its axes have taken them.
+
+A picker takes the first column that fits, so a type the table lists late is otherwise never
+chosen. The `columnType` runs point every knob that admits a type at a column of it, LONG
+among them. A `@SampleColumn` knob, a list knob and a join's keys keep their fill.
 
 ### Row order, models, and the tables an operator is handed
 
@@ -245,7 +252,8 @@ A knob takes a hostile column only where one carries the type it already reads, 
   passing the emptiness through. An upstream filter that matches nothing hands an operator
   exactly that. The third holds the values a `float64` frame cannot tell apart, and the
   comparison checks what kind each DOUBLE cell is exactly, beside the number.
-- Withhold any of them only through `variantsNotRun`, with a reason.
+- Withhold any of them only through `variantsNotRun`, with a reason. Where both paths should
+  raise, list the run in `variantsBothRefuse` instead.
 
 ### Running it
 
@@ -279,8 +287,10 @@ canonical table. What you owe depends on which of four cases it falls in.
   A scan source whose output is not the shared table needs one too, the way
   `FileScanSourceOpDesc`, which emits a single `line` column, has `FileScanSourceHandler`.
 - **A source that cannot be verified at all.** Add a `knownIssues` row with the reason, the
-  way `FileScanOpDesc` (its filenames arrive on an input port) and `URLFetcherOpDesc` (it
-  fetches over the network) do.
+  way `URLFetcherOpDesc` (it fetches over the network) does.
+
+An operator that reads the files its input names is not a source. `FileScanOpDesc` runs as a
+transform: `FileScanTransformHandler` hands it one row naming the shared table's own file.
 
 A scan source reads one shared table, written out in its own format, and also a copy with one
 cell emptied per column, since how an empty cell is read belongs to the reader.
@@ -288,10 +298,14 @@ cell emptied per column, since how an empty cell is read belongs to the reader.
 ### When a run cannot happen
 
 - Never skip silently.
-- Add a row to `TransformVerificationRunner.variantsNotRun` naming the operator, the run kind,
-  and a reason: a pending fix pointing at an issue, or by-design with the explanation.
-- An operator that cannot run at all goes in `knownIssues`. Either way the reason becomes the
-  test's name, so a full run lists every operator and says what it did not check.
+- A run that cannot be set up gets a row in `TransformVerificationRunner.variantsNotRun`,
+  naming the operator, the run kind, and why.
+- A run both paths should refuse gets a row in `variantsBothRefuse` instead. It still runs,
+  and passes only when the engine and the script both raise; what each says is not compared.
+  Two errors pass nowhere else, so a broken environment, which makes both paths raise on
+  everything, cannot turn the suite green.
+- An operator that cannot run at all goes in `knownIssues`. Its reason becomes the test's
+  name, so a full run lists every operator and says what it did not check.
 
 ## 5. Tests, format, lint
 
