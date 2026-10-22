@@ -51,5 +51,5 @@ Compile / scalacOptions ++= Seq(
 // every service that does. Callers pass their own logger in through the hooks
 // instead of the module pulling in a logging library.
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test // ScalaTest (for unit tests)
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test // ScalaTest (for unit tests)
 )
