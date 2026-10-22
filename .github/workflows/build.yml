@@ -1332,6 +1332,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Not ubuntu-slim: the bin/local-dev tests rely on the runner's
+        # preinstalled JDK 17, which ubuntu-slim does not ship.
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.12"]
     steps:
@@ -1391,7 +1393,7 @@ jobs:
     # stays a fast, docker-free job.
     if: ${{ inputs.run_pyright_language_service }}
     name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     defaults:
       run:
         working-directory: pyright-language-service

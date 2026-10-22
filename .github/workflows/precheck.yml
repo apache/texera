@@ -61,7 +61,7 @@ permissions:
 jobs:
   decide:
     name: Precheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
       run_amber: ${{ steps.decide.outputs.run_amber }}
