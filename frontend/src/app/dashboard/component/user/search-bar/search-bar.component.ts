@@ -79,6 +79,9 @@ export class SearchBarComponent {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.isLogin = this.userService.isLogin();
+        // Cached suggestions belong to the previous user and may name their private resources.
+        this.searchCache.clear();
+        this.listOfResult = [];
       });
     this.searchSubject
       .pipe(

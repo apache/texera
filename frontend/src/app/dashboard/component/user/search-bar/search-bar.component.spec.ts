@@ -145,6 +145,26 @@ describe("SearchBarComponent", () => {
     expect(component.listOfResult).toEqual(["hello"]);
   }));
 
+  it("drops the previous user's cached suggestions when the user changes", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeWorkflowItem("private-wf")], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+    expect(component.listOfResult).toEqual(["private-wf"]);
+
+    isLoginValue = false;
+    userChangeSubject.next(undefined);
+    expect(component.listOfResult).toEqual([]);
+
+    searchSpy.search.mockReturnValue(of({ results: [], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+
+    // Asked the server again, as a signed-out user, instead of reusing the cache.
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(searchSpy.search.mock.calls[1][6]).toBe(false);
+    expect(component.listOfResult).toEqual([]);
+  }));
+
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
 
