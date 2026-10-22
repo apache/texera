@@ -266,11 +266,10 @@ object WorkflowResource {
       uid: Integer
   ): List[DashboardWorkflow] = {
     workflowEntries
-      .map(workflowRecord =>
+      .map { workflowRecord =>
+        val ownerUid = workflowRecord.into(WORKFLOW_OF_USER).getUid
         DashboardWorkflow(
-          if (uid != null)
-            workflowRecord.into(WORKFLOW_OF_USER).getUid == uid
-          else false,
+          uid != null && ownerUid == uid,
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
             .into(classOf[WorkflowUserAccess])
@@ -278,10 +277,10 @@ object WorkflowResource {
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowRecord.into(WORKFLOW_OF_USER).getUid,
+          ownerUid,
           Option(workflowRecord.get("cover_image", classOf[String]))
         )
-      )
+      }
       .asScala
       .toList
   }
