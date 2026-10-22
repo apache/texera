@@ -153,6 +153,14 @@ export class AiFixFrameComponent {
     const consoleError = (this.workflowConsoleService.getConsoleMessages(operatorId) ?? [])
       .filter(msg => msg.msgType.name === "ERROR")
       .pop();
-    return consoleError ? consoleError.message || consoleError.title : undefined;
+    if (!consoleError) {
+      return undefined;
+    }
+    // Both parts, title first. ErrorUtils.mkConsoleMessage puts the exception in `title` and
+    // only the stack frames in `message`, so reading `message` alone sent the model a bare
+    // stack trace for every JVM operator -- and left NullPointerException unmatchable. The
+    // Python worker puts the final exception line in `title` too, so this order gives the
+    // classifier the exception first in both cases.
+    return [consoleError.title, consoleError.message].filter(part => part).join("\n");
   }
 }

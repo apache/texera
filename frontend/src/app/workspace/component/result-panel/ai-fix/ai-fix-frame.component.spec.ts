@@ -73,13 +73,13 @@ const fatalError = (over: Partial<WorkflowFatalError> = {}) =>
     ...over,
   }) as WorkflowFatalError;
 
-const consoleMessage = (name: string, message: string) =>
+const consoleMessage = (name: string, message: string, title = "KeyError: 'email'") =>
   ({
     workerId: "w1",
     timestamp: { nanos: 0, seconds: 0 },
     msgType: { name },
     source: "udf.py:process_tuple:7",
-    title: "KeyError: 'email'",
+    title,
     message,
   }) as ConsoleMessage;
 
@@ -173,7 +173,24 @@ describe("AiFixFrameComponent", () => {
 
       query(".ai-fix-analyze").nativeElement.click();
 
-      expect(analyzeError.mock.calls[0][1]).toEqual("Traceback (most recent call last):\nKeyError: 'email'");
+      // Title first, then the body: the exception is in `title` for both workers, and for a
+      // JVM operator it is the only place it appears.
+      expect(analyzeError.mock.calls[0][1]).toEqual(
+        "KeyError: 'email'\nTraceback (most recent call last):\nKeyError: 'email'"
+      );
+    });
+
+    it("sends the exception even when it only lives in the title", () => {
+      // ErrorUtils.mkConsoleMessage puts `err.toString()` in title and only the stack
+      // frames in message, so reading message alone left JVM operators sending the model
+      // a bare stack trace -- and the NullPointerException pattern could never match.
+      getConsoleMessages.mockReturnValue([
+        consoleMessage("ERROR", "org.apache.texera.Foo.run(Foo.scala:12)", "java.lang.NullPointerException: boom"),
+      ]);
+
+      query(".ai-fix-analyze").nativeElement.click();
+
+      expect(analyzeError.mock.calls[0][1]).toContain("java.lang.NullPointerException: boom");
     });
 
     it("does nothing when the operator has no error at all", () => {

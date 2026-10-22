@@ -31,6 +31,7 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 
 const OP = "PythonUDFV2-op-1";
@@ -59,6 +60,12 @@ describe("AiWorkflowFixerService", () => {
   let modificationEnabled$: Subject<boolean>;
   let openWorkflowId: number | undefined;
   let operatorSchemaProperties: Record<string, unknown>;
+  let consoleMessages: Array<{
+    msgType: { name: string };
+    timestamp: { seconds: number; nanos: number };
+    title: string;
+  }>;
+  let consoleUpdates$: Subject<void>;
 
   // Stub the transport at the class seam (callModel), as migration-llm.spec.ts does:
   // mocking the "ai" module leaks across specs sharing the import and hits the network.
@@ -85,6 +92,8 @@ describe("AiWorkflowFixerService", () => {
     modificationEnabled$ = new Subject<boolean>();
     openWorkflowId = 11;
     operatorSchemaProperties = {};
+    consoleMessages = [];
+    consoleUpdates$ = new Subject<void>();
 
     TestBed.configureTestingModule({
       providers: [
@@ -106,6 +115,13 @@ describe("AiWorkflowFixerService", () => {
             executeWorkflow,
             killWorkflow,
             getExecutionStateStream: () => executionState$.asObservable(),
+          },
+        },
+        {
+          provide: WorkflowConsoleService,
+          useValue: {
+            getConsoleMessages: () => consoleMessages,
+            getConsoleMessageUpdateStream: () => consoleUpdates$.asObservable(),
           },
         },
         {
@@ -269,6 +285,19 @@ describe("AiWorkflowFixerService", () => {
       ].join("\n");
 
       expect(classifyError(chained)).toEqual("unsupported");
+    });
+
+    it("classifies a JVM error whose frames are not Python-shaped", () => {
+      // mkConsoleMessage sends `err.toString()` then the stack frames, and Java frames look
+      // nothing like Python ones, so the frame filter must not mistake the last frame for
+      // the exception.
+      const jvm = [
+        "java.lang.NullPointerException: boom",
+        "org.apache.texera.Foo.run(Foo.scala:12)",
+        "org.apache.texera.Bar.go(Bar.scala:40)",
+      ].join("\n");
+
+      expect(classifyError(jvm)).toEqual("null_error");
     });
 
     it("still classifies the plain case the panel is built for", () => {
@@ -443,6 +472,41 @@ describe("AiWorkflowFixerService", () => {
 
       expect(out.code).toEqual("q()\nq()\n");
       expect(out.count).toEqual(2);
+    });
+  });
+
+  describe("a newer error clears a stale result", () => {
+    const errorAt = (seconds: number) => ({
+      msgType: { name: "ERROR" },
+      timestamp: { seconds, nanos: 0 },
+      title: "KeyError: 'lines'",
+    });
+
+    it("goes back to idle when the operator reports a newer error", async () => {
+      // The main case this panel exists for never reaches a terminal state: a UDF that
+      // raises leaves the execution Running, so resetting on Completed/Failed/Killed misses
+      // it entirely and the tab came back saying "re-running" over a run stuck on an error.
+      consoleMessages = [errorAt(100)];
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.applyFix();
+      expect(state().status).toEqual("applied");
+
+      consoleMessages = [errorAt(100), errorAt(250)];
+      consoleUpdates$.next();
+
+      expect(state().status).toEqual("idle");
+    });
+
+    it("leaves the result alone while the error is still the one it was made for", async () => {
+      consoleMessages = [errorAt(100)];
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.applyFix();
+
+      consoleUpdates$.next();
+
+      expect(state().status).toEqual("applied");
     });
   });
 
@@ -689,6 +753,36 @@ describe("AiWorkflowFixerService", () => {
 
       expect(state().operatorId).toEqual("other-op");
       expect(state().status).toEqual("ready");
+    });
+
+    it("refuses to touch a field the model was never shown", async () => {
+      // withoutSecrets keeps credentials out of the prompt, but the apply path checked the
+      // raw properties, so a guessed name like hfApiToken passed the check -- and toFix read
+      // the current value from the same raw set, putting the secret on screen in the diff.
+      operatorProperties = { hfApiToken: "hf_live_abc", modelId: "gpt-4-turb", workers: 1 };
+      stubModel(
+        suggestion({ fix_type: "property_change", original_snippet: "hfApiToken", suggested_snippet: "hf_new" })
+      );
+
+      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+
+      expect(JSON.stringify(state())).not.toContain("hf_live_abc");
+      await service.applyFix();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+    });
+
+    it("only accepts a property change for the error type that calls for one", async () => {
+      // The prompt asks for a configuration change in exactly one case; a property fix for
+      // any other error is the model going off script.
+      operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
+      stubModel(
+        suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
+      );
+
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
     });
 
     it("refuses a field the operator does not have", async () => {

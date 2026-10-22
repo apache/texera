@@ -30,6 +30,7 @@ import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interfa
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 
 export type FixErrorType = "missing_column" | "type_error" | "null_error" | "model_not_found" | "unsupported";
 export type FixConfidence = "high" | "medium" | "low";
@@ -49,6 +50,13 @@ export interface SuggestedFix {
 
 export interface FixState {
   operatorId: string;
+  /**
+   * Identifies the ERROR the suggestion was made for, so a newer one on the same operator
+   * can clear it. Resetting on a terminal execution state misses the case this panel exists
+   * for: a UDF that raises leaves the run `Running`, so a re-run that fails again never
+   * reaches a terminal state and the panel went on claiming the earlier fix was running.
+   */
+  errorKey?: string;
   /**
    * The workflow the analysis belongs to. The operator id alone does not identify it: two
    * imports of the same JSON carry the same ids, so a reply that arrived after the user
@@ -144,6 +152,14 @@ export function coerceToFieldType(currentValue: unknown, suggested: string): unk
   return suggested;
 }
 
+// What a stack frame looks like, so it is never mistaken for the exception. Python writes
+//   File "udf.py", line 7, in process_tuple
+// and the JVM writes
+//   org.apache.texera.Foo.run(Foo.scala:12)
+// which carries no colon-separated exception name, so the Python-only pattern used to let
+// a Java frame through and classify on it.
+const FRAME_LINE = /^File\s+"|^Traceback \(|^at\s|^[\w$.]+\([\w.]+:\d+\)$/;
+
 /**
  * The exception a traceback ends on.
  *
@@ -161,7 +177,7 @@ export function finalExceptionLine(errorMessage: string): string {
   // Frame lines are the `File "...", line N` entries and the source line under them; the
   // exception is the last line that is neither that nor the traceback header.
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (!/^File\s+"/.test(lines[i]) && !/^Traceback \(/.test(lines[i])) {
+    if (!FRAME_LINE.test(lines[i])) {
       return lines[i];
     }
   }
@@ -186,7 +202,8 @@ export class AiWorkflowFixerService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowConsoleService: WorkflowConsoleService
   ) {
     // Without this the panel kept whatever it last showed: after Apply the green
     // "re-running..." message stayed up, so a run that failed again brought the tab back
@@ -201,6 +218,20 @@ export class AiWorkflowFixerService {
         filter(() => this.stateSubject.getValue().status !== "applying")
       )
       .subscribe(() => this.reset());
+
+    // A re-run that fails again never reaches a terminal state, so the subscription above
+    // never fires for it. The operator reporting a different error is the signal that
+    // whatever the panel is showing belongs to a run that has already been superseded.
+    this.workflowConsoleService.getConsoleMessageUpdateStream().subscribe(() => {
+      const current = this.stateSubject.getValue();
+      if (current.status === "idle" || current.status === "analyzing" || current.status === "applying") {
+        return;
+      }
+      const latest = this.latestErrorKey(current.operatorId);
+      if (latest && latest !== current.errorKey) {
+        this.reset();
+      }
+    });
   }
 
   public getState$(): Observable<FixState> {
@@ -221,7 +252,13 @@ export class AiWorkflowFixerService {
   ): Promise<void> {
     const errorType = classifyError(errorMessage);
     const workflowId = this.workflowActionService.getOpenWorkflowId();
-    const base: FixState = { operatorId, workflowId, errorType, status: "analyzing" };
+    const base: FixState = {
+      operatorId,
+      workflowId,
+      errorType,
+      errorKey: this.latestErrorKey(operatorId),
+      status: "analyzing",
+    };
 
     // Numbered before the early return as well: this still supersedes whatever is in flight,
     // and without the bump a slower analysis for another operator would land on top of it.
@@ -237,13 +274,15 @@ export class AiWorkflowFixerService {
 
     this.stateSubject.next(base);
     try {
-      const { text } = await this.callModelWithTimeout(
-        buildFixPrompt(errorMessage, code, inputSchemas, withoutSecrets(properties, this.schemaProperties(operatorId)))
-      );
+      // One redacted view, used for both the prompt and the suggestion: toFix reads the
+      // field's current value to show in the diff, and reading it from the raw properties
+      // put a credential on screen whenever the model guessed one of those names.
+      const visible = withoutSecrets(properties, this.schemaProperties(operatorId));
+      const { text } = await this.callModelWithTimeout(buildFixPrompt(errorMessage, code, inputSchemas, visible));
       if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
-      const suggestedFix = this.toFix(text, properties);
+      const suggestedFix = this.toFix(text, visible);
       // Counted here so the panel can say it before Apply: a short snippet matched as plain
       // text can appear in lines the user never saw in the diff.
       if (suggestedFix.type === "code_change") {
@@ -294,12 +333,18 @@ export class AiWorkflowFixerService {
         }
         properties.code = replaceAllIndented(code, fix.original, fix.suggested).code;
       } else {
+        // Only the model-not-found case asks for a configuration change; a property fix for
+        // any other error is the model leaving the four shapes this panel supports.
+        if (current.errorType !== "model_not_found") {
+          throw new Error("a configuration change is not the fix for this error");
+        }
         const field = String(fix.fieldName);
-        // The field name comes from the model, so it is checked against the operator before
-        // anything is written. An invented name would add a dead key and leave the real
-        // setting wrong, and "code" would hand the whole UDF source to a property change.
-        if (field === "code" || !Object.prototype.hasOwnProperty.call(properties, field)) {
-          throw new Error(`${field} is not a configuration field of this operator`);
+        // Checked against the fields the model was actually shown, not the raw properties:
+        // those still hold the credentials withoutSecrets kept out of the prompt, so a
+        // guessed `hfApiToken` would otherwise pass here and be overwritten.
+        const visible = withoutSecrets(properties, this.schemaProperties(current.operatorId));
+        if (field === "code" || !Object.prototype.hasOwnProperty.call(visible, field)) {
+          throw new Error(`${field} is not a configuration field this fix may change`);
         }
         // Same staleness guard as the code branch: re-reading the properties keeps the
         // unrelated fields, but the field being replaced can itself have moved on since
@@ -379,6 +424,14 @@ export class AiWorkflowFixerService {
     return Promise.race([this.callModel([{ role: "user", content: prompt }], controller.signal), timeout]).finally(() =>
       clearTimeout(timer)
     );
+  }
+
+  /** The operator's most recent ERROR, as a value that changes when a new one arrives. */
+  private latestErrorKey(operatorId: string): string | undefined {
+    const last = (this.workflowConsoleService.getConsoleMessages(operatorId) ?? [])
+      .filter(message => message.msgType?.name === "ERROR")
+      .pop();
+    return last ? `${last.timestamp.seconds}.${last.timestamp.nanos}:${last.title}` : undefined;
   }
 
   /**
