@@ -19,26 +19,21 @@
 
 package org.apache.texera.web.resource.dashboard
 
-import org.apache.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
-import org.jooq.impl.DSL
+import org.apache.texera.dao.jooq.generated.Tables.DATASET
+import org.jooq.Field
 
-/** Query logic lives in [[VersionedResourceSearchQueryBuilder]]; only the projection is here. */
+/**
+  * Query logic and projection live in [[VersionedResourceSearchQueryBuilder]]; only the columns
+  * the [[VersionedResourceTables]] descriptor does not already name are here.
+  */
 object DatasetSearchQueryBuilder
     extends VersionedResourceSearchQueryBuilder(VersionedResourceTables.DatasetTables) {
 
-  override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.DATASET_RESOURCE_TYPE),
-    name = DATASET.NAME,
-    description = DATASET.DESCRIPTION,
-    creationTime = DATASET.CREATION_TIME,
-    ownerId = DATASET.OWNER_UID,
-    versionedResourceId = DATASET.DID,
-    repositoryName = DATASET.REPOSITORY_NAME,
-    isVersionedResourcePublic = DATASET.IS_PUBLIC,
-    isVersionedResourceDownloadable = DATASET.IS_DOWNLOADABLE,
-    versionedResourceUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
-    versionedResourceCoverImage = DATASET.COVER_IMAGE
-  )
+  override protected val repositoryNameColumn: Field[String] = DATASET.REPOSITORY_NAME
+
+  override protected val isDownloadableColumn: Field[java.lang.Boolean] = DATASET.IS_DOWNLOADABLE
+
+  override protected val coverImageColumn: Field[String] = DATASET.COVER_IMAGE
 }
 
 class DatasetSearchQueryBuilder {}

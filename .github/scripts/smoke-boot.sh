@@ -43,8 +43,8 @@
 #   * TEXERA_HOME must point at the checkout root -- services resolve their
 #     config yaml from <TEXERA_HOME>/<service>/src/main/resources/...
 #   * the service's backing infra must already be up (postgres for every service,
-#     plus MinIO + LakeFS for file-service); the JVM connects via storage.conf
-#     defaults (postgres/postgres @ localhost:5432, MinIO :9000, LakeFS :8000).
+#     plus RustFS + LakeFS for file-service); the JVM connects via storage.conf
+#     defaults (postgres/postgres @ localhost:5432, RustFS :9000, LakeFS :8000).
 
 set -euo pipefail
 

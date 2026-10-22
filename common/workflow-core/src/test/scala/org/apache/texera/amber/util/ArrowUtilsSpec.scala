@@ -20,7 +20,7 @@
 package org.apache.texera.amber.util
 
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{TimeStampVector, VarCharVector, VectorSchemaRoot}
 import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 import org.apache.texera.amber.core.state.State
@@ -433,6 +433,112 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     } finally {
       root.close()
       allocator.close()
+    }
+  }
+
+  // ----- Timestamp fields that are not the UTC millisecond ones we write -----
+
+  // fromTexeraSchema only ever writes Timestamp(MILLISECOND, "UTC"), so the
+  // roots built above never exercise another zone or unit. An .arrow file handed
+  // to ArrowSourceOpDesc can carry either: pandas writes a tz-aware column as
+  // Timestamp(NANOSECOND, <its zone>). These build the field directly.
+  private def withFieldRoot(field: Field)(body: VectorSchemaRoot => Unit): Unit = {
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(
+      new org.apache.arrow.vector.types.pojo.Schema(util.Arrays.asList(field)),
+      allocator
+    )
+    try {
+      root.allocateNew()
+      body(root)
+    } finally {
+      root.close()
+      allocator.close()
+    }
+  }
+
+  private val timestampSchema = Schema(List(new Attribute("t", AttributeType.TIMESTAMP)))
+
+  private def timestampTuple(wallClock: String): Tuple =
+    Tuple
+      .builder(timestampSchema)
+      .addSequentially(Array[Any](Timestamp.valueOf(wallClock)))
+      .build()
+
+  "getTexeraTuple" should "read a zoned timestamp as the wall clock its field's zone gives" in {
+    // 1704603600000 is 2024-01-07 00:00 in New York and 05:00 in UTC. The field
+    // says New York, so New York is the reading that comes back.
+    val field =
+      arrowField("t", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/New_York"))
+    withFieldRoot(field) { root =>
+      root.getVector(0).asInstanceOf[TimeStampVector].setSafe(0, 1704603600000L)
+      root.setRowCount(1)
+      ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe
+        Timestamp.valueOf("2024-01-07 00:00:00")
+    }
+  }
+
+  it should "count a zoned timestamp in the unit its field declares" in {
+    // Arrow hands a zoned vector its number unscaled, so the same reading is a
+    // million times the number in a nanosecond field that it is in a millisecond
+    // one. Taken for milliseconds, this one would land in 1970.
+    val field =
+      arrowField("t", new ArrowType.Timestamp(TimeUnit.NANOSECOND, "America/New_York"))
+    withFieldRoot(field) { root =>
+      root.getVector(0).asInstanceOf[TimeStampVector].setSafe(0, 1704603600000000000L)
+      root.setRowCount(1)
+      ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe
+        Timestamp.valueOf("2024-01-07 00:00:00")
+    }
+  }
+
+  it should "read an unlabelled timestamp as the wall clock it already is" in {
+    // No zone to reconcile, and Arrow scales the number itself: the vector hands
+    // back a LocalDateTime, which is the wall clock, whatever the server's zone.
+    val field = arrowField("t", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null))
+    withFieldRoot(field) { root =>
+      root.getVector(0).asInstanceOf[TimeStampVector].setSafe(0, 1704603600000L)
+      root.setRowCount(1)
+      ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe
+        Timestamp.valueOf("2024-01-07 05:00:00")
+    }
+  }
+
+  "setTexeraTuple" should "store a wall clock as the number its field's zone calls for" in {
+    val field =
+      arrowField("t", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/New_York"))
+    withFieldRoot(field) { root =>
+      ArrowUtils.setTexeraTuple(timestampTuple("2024-01-07 00:00:00"), 0, root)
+      // The New York instant of that reading. Stored as the UTC one it would be
+      // 1704585600000, five hours off what the field's own label promises.
+      root.getVector(0).asInstanceOf[TimeStampVector].get(0) shouldBe 1704603600000L
+    }
+  }
+
+  it should "store a wall clock in the unit its field declares" in {
+    val field = arrowField("t", new ArrowType.Timestamp(TimeUnit.NANOSECOND, "America/New_York"))
+    withFieldRoot(field) { root =>
+      ArrowUtils.setTexeraTuple(timestampTuple("2024-01-07 00:00:00"), 0, root)
+      root.getVector(0).asInstanceOf[TimeStampVector].get(0) shouldBe 1704603600000000000L
+    }
+  }
+
+  "a timestamp round-trip" should "preserve the wall clock through a field of any zone and unit" in {
+    val fields = List(
+      new ArrowType.Timestamp(TimeUnit.SECOND, "Asia/Tokyo"),
+      new ArrowType.Timestamp(TimeUnit.MILLISECOND, "America/New_York"),
+      new ArrowType.Timestamp(TimeUnit.MICROSECOND, "Europe/Berlin"),
+      new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC"),
+      new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)
+    )
+    fields.foreach { arrowType =>
+      withFieldRoot(arrowField("t", arrowType)) { root =>
+        ArrowUtils.setTexeraTuple(timestampTuple("2024-01-07 09:30:00"), 0, root)
+        withClue(s"$arrowType: ") {
+          ArrowUtils.getTexeraTuple(0, root).getField[Timestamp]("t") shouldBe
+            Timestamp.valueOf("2024-01-07 09:30:00")
+        }
+      }
     }
   }
 

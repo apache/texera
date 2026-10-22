@@ -23,13 +23,16 @@ import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserComputingUnitComponent } from "./dashboard/component/user/user-computing-unit/user-computing-unit.component";
+import { UserWarehouseComponent } from "./dashboard/component/user/user-warehouse/user-warehouse.component";
 import { UserVenvComponent } from "./dashboard/component/user/user-venv/user-venv.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
+import { WorkflowFormComponent } from "./workspace/component/workflow-form/workflow-form.component";
 import { AboutComponent } from "./hub/component/about/about.component";
 import { TexeraLoginComponent } from "./hub/component/login/texera-login.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
@@ -43,7 +46,10 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { EntityType } from "./hub/service/hub.service";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
+import { AdminCuImageComponent } from "./dashboard/component/admin/cu-image/admin-cu-image.component";
+import { OrcidCallbackComponent } from "./hub/component/login/orcid-callback.component";
 
 const routes: Routes = [];
 
@@ -53,6 +59,11 @@ const routes: Routes = [];
 routes.push({
   path: "login",
   component: TexeraLoginComponent,
+});
+
+routes.push({
+  path: "callback",
+  children: [{ path: "orcid", component: OrcidCallbackComponent }],
 });
 
 routes.push({
@@ -81,6 +92,7 @@ routes.push({
             {
               path: "result",
               component: HubSearchResultComponent,
+              data: { entityType: EntityType.Workflow },
             },
             {
               path: "result/detail/:id",
@@ -94,10 +106,25 @@ routes.push({
             {
               path: "result",
               component: HubSearchResultComponent,
+              data: { entityType: EntityType.Dataset },
             },
             {
               path: "result/detail/:did",
               component: DatasetDetailComponent,
+            },
+          ],
+        },
+        {
+          path: "model",
+          children: [
+            {
+              path: "result",
+              component: HubSearchResultComponent,
+              data: { entityType: EntityType.Model },
+            },
+            {
+              path: "result/detail/:mid",
+              component: ModelDetailComponent,
             },
           ],
         },
@@ -110,6 +137,13 @@ routes.push({
         {
           path: "workflow",
           component: UserWorkflowComponent,
+        },
+        {
+          // Must precede "workflow/:id" so the trailing "form" segment is not swallowed by
+          // the canvas route. The page guards itself (the feature flag off, or a workflow
+          // that does not open in the form, hands back to the canvas).
+          path: "workflow/:id/form",
+          component: WorkflowFormComponent,
         },
         {
           path: "workflow/:id",
@@ -138,6 +172,10 @@ routes.push({
         {
           path: "compute",
           component: UserComputingUnitComponent,
+        },
+        {
+          path: "warehouse",
+          component: UserWarehouseComponent,
         },
         {
           path: "python-venv",
@@ -174,8 +212,16 @@ routes.push({
           component: AdminExecutionComponent,
         },
         {
+          path: "compute",
+          component: AdminComputingUnitComponent,
+        },
+        {
           path: "settings",
           component: AdminSettingsComponent,
+        },
+        {
+          path: "cu-image",
+          component: AdminCuImageComponent,
         },
       ],
     },

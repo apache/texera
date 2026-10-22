@@ -25,6 +25,7 @@ from .storage.dataset_file_document import DatasetFileDocument
 from .storage.large_binary_input_stream import LargeBinaryInputStream
 from .storage.large_binary_output_stream import LargeBinaryOutputStream
 from .udf.udf_operator import (
+    Resource,
     UDFOperatorV2,
     UDFTableOperator,
     UDFBatchOperator,
@@ -60,4 +61,5 @@ __all__ = [
     "Dict",
     "Any",
     "AttributeType",
+    "Resource",
 ]

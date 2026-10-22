@@ -55,16 +55,10 @@ class FulltextSearchQueryUtilsSpec extends AnyFlatSpec with Matchers with Before
     sqlOf(cond) shouldBe sqlOf(JDSL.noCondition())
   }
 
-  it should "currently still build a pgroonga predicate for whitespace-only keywords (subtle quirk)" in {
-    // `keywords.filter(_.nonEmpty)` checks for empty BEFORE trimming, so
-    // a "   " input survives the filter and is trimmed to "" — but only
-    // after the emptiness check. The resulting predicate searches for the
-    // empty string. Pin the behavior so a future fix (move the trim into
-    // the filter step) deliberately breaks this test.
-    FulltextSearchQueryUtils.usePgroonga = true
+  it should "return noCondition when all keywords contain only whitespace" in {
     val field: Field[String] = JDSL.field("name", classOf[String])
-    val cond = FulltextSearchQueryUtils.getFullTextSearchFilter(Seq("   "), List(field))
-    sqlOf(cond) should include("pgroonga_condition('',")
+    val cond = FulltextSearchQueryUtils.getFullTextSearchFilter(Seq("   ", "\t"), List(field))
+    sqlOf(cond) shouldBe sqlOf(JDSL.noCondition())
   }
 
   it should "emit a pgroonga fuzzy-match expression when usePgroonga is true" in {

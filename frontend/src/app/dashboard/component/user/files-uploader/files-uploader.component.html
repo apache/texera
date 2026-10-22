@@ -32,20 +32,42 @@
     (onFileDrop)="fileDropped($event)">
     <ng-template
       class="ngx-drop-box"
-      ngx-file-drop-content-tmp
-      let-openFileSelector="openFileSelector">
+      ngx-file-drop-content-tmp>
       <div class="file-drop-description">
         <p>Drag & drop file/folder to upload</p>
         <!--                <p class="file-drop-hint">Consider zipping large directories for faster uploads</p>-->
         <p>or</p>
-        <button
-          nz-button
-          nzType="primary"
-          class="upload-file-button"
-          (click)="openFileSelector()">
-          Browser & Upload Files
-        </button>
+        <div class="upload-buttons">
+          <button
+            nz-button
+            nzType="primary"
+            class="upload-file-button"
+            (click)="filePicker.click()">
+            Upload Files
+          </button>
+          <button
+            nz-button
+            nzType="primary"
+            class="upload-file-button"
+            (click)="folderPicker.click()">
+            Upload Folder
+          </button>
+        </div>
       </div>
     </ng-template>
   </ngx-file-drop>
+  <!-- One input per mode: webkitdirectory makes an input folder-only, so it cannot also offer files. -->
+  <input
+    #filePicker
+    type="file"
+    multiple
+    hidden
+    (change)="filesPicked($event)" />
+  <input
+    #folderPicker
+    type="file"
+    multiple
+    webkitdirectory
+    hidden
+    (change)="filesPicked($event)" />
 </div>

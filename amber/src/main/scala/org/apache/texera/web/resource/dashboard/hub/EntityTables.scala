@@ -25,6 +25,8 @@ import org.apache.texera.dao.jooq.generated.tables.records._
 import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.jooq._
 
+import javax.ws.rs.BadRequestException
+
 object EntityTables {
 
   // ==================== THE REGISTRY ====================
@@ -67,10 +69,23 @@ object EntityTables {
     )
   }
 
+  case object ModelTableSet extends EntityTableSet {
+    override val base: BaseEntityTable = VersionedResourceTables.ModelTables
+    override val like: LikeTable = LikeTable.ModelLikeTable
+    override val viewCount: ViewCountTable = ViewCountTable.ModelViewCountTable
+    override val access: AccessTable = AccessTable.ModelAccessTable
+    override val cloneTable: Option[CloneTable] = None
+    override val versionedResource: Option[VersionedResourceTables[_ <: Record, _]] = Some(
+      VersionedResourceTables.ModelTables
+    )
+  }
+
   def apply(entityType: EntityType): EntityTableSet =
     entityType match {
+      case null                => throw new BadRequestException("Missing entityType")
       case EntityType.Workflow => WorkflowTableSet
       case EntityType.Dataset  => DatasetTableSet
+      case EntityType.Model    => ModelTableSet
     }
 
   // ==================== BASE TABLE ====================
@@ -80,6 +95,9 @@ object EntityTables {
     val table: Table[R]
     val isPublicColumn: TableField[R, java.lang.Boolean]
     val idColumn: TableField[R, Integer]
+
+    /** The entity joined to its owner's USER row. A def: a val here reads the subclass's fields too early. */
+    def joinWithOwner: Table[_ <: Record]
   }
 
   object BaseEntityTable {
@@ -89,6 +107,13 @@ object EntityTables {
       override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] =
         WORKFLOW.IS_PUBLIC
       override val idColumn: TableField[WorkflowRecord, Integer] = WORKFLOW.WID
+      // Inner: a workflow with no owner row contributes nobody.
+      override def joinWithOwner: Table[_ <: Record] =
+        WORKFLOW
+          .join(WORKFLOW_OF_USER)
+          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+          .join(USER)
+          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
     }
 
     def apply(entityType: EntityType): BaseEntityTable = EntityTables(entityType).base
@@ -120,6 +145,13 @@ object EntityTables {
       override val uidColumn: TableField[DatasetUserLikesRecord, Integer] =
         DATASET_USER_LIKES.UID
       override val idColumn: TableField[DatasetUserLikesRecord, Integer] = DATASET_USER_LIKES.DID
+    }
+
+    case object ModelLikeTable extends LikeTable {
+      override type R = ModelUserLikesRecord
+      override val table: Table[ModelUserLikesRecord] = MODEL_USER_LIKES
+      override val uidColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.UID
+      override val idColumn: TableField[ModelUserLikesRecord, Integer] = MODEL_USER_LIKES.MID
     }
 
     def apply(entityType: EntityType): LikeTable = EntityTables(entityType).like
@@ -170,6 +202,14 @@ object EntityTables {
         DATASET_VIEW_COUNT.VIEW_COUNT
     }
 
+    case object ModelViewCountTable extends ViewCountTable {
+      override type R = ModelViewCountRecord
+      override val table: Table[ModelViewCountRecord] = MODEL_VIEW_COUNT
+      override val idColumn: TableField[ModelViewCountRecord, Integer] = MODEL_VIEW_COUNT.MID
+      override val viewCountColumn: TableField[ModelViewCountRecord, Integer] =
+        MODEL_VIEW_COUNT.VIEW_COUNT
+    }
+
     def apply(entityType: EntityType): ViewCountTable = EntityTables(entityType).viewCount
   }
 
@@ -202,6 +242,15 @@ object EntityTables {
       override val uidColumn: TableField[DatasetUserAccessRecord, Integer] = DATASET_USER_ACCESS.UID
       override val privilegeColumn: TableField[DatasetUserAccessRecord, PrivilegeEnum] =
         DATASET_USER_ACCESS.PRIVILEGE
+    }
+
+    case object ModelAccessTable extends AccessTable {
+      override type R = ModelUserAccessRecord
+      override val table: Table[ModelUserAccessRecord] = MODEL_USER_ACCESS
+      override val idColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.MID
+      override val uidColumn: TableField[ModelUserAccessRecord, Integer] = MODEL_USER_ACCESS.UID
+      override val privilegeColumn: TableField[ModelUserAccessRecord, PrivilegeEnum] =
+        MODEL_USER_ACCESS.PRIVILEGE
     }
 
     def apply(entityType: EntityType): AccessTable = EntityTables(entityType).access

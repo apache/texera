@@ -125,11 +125,6 @@ export type ResultExportResponse = Readonly<{
 
 export type OperatorResultCacheStatus = "cache invalid" | "cache valid";
 
-export interface CacheStatusUpdateEvent
-  extends Readonly<{
-    cacheStatusMap: Record<string, OperatorResultCacheStatus>;
-  }> {}
-
 export type PythonExpressionEvaluateRequest = Readonly<{
   expression: string;
   operatorId: string;
@@ -195,7 +190,6 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
@@ -222,7 +216,6 @@ export type TexeraWebsocketEventTypeMap = {
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   ResultExportResponse: ResultExportResponse;
-  CacheStatusUpdateEvent: CacheStatusUpdateEvent;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
   WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;
   ModifyLogicResponse: ModifyLogicResponse;

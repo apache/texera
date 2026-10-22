@@ -110,9 +110,22 @@ class WorkflowExecutionManager(
     val unfinishedRegionManagers =
       regionExecutionManagers.values.filter(!_.isCompleted).toSeq
 
-    // Trigger sync for each unfinished region.
-    unfinishedRegionManagers.foreach(_.syncStatusAndTransitionRegionExecutionPhase())
+    // Trigger sync for each unfinished region. The returned futures must not be dropped: a sync
+    // may launch the next phase of a region, and a failure there (e.g., a worker failing to
+    // initialize its executor) would otherwise be lost, leaving the execution RUNNING forever
+    // with no error reported to the client.
+    val syncFutures =
+      unfinishedRegionManagers.map(_.syncStatusAndTransitionRegionExecutionPhase())
 
+    Future
+      .collect(syncFutures :+ advanceToNextRegions(actorService, unfinishedRegionManagers))
+      .unit
+  }
+
+  private def advanceToNextRegions(
+      actorService: PekkoActorService,
+      unfinishedRegionManagers: Seq[RegionExecutionManager]
+  ): Future[Unit] = {
     // Wait only for region termination futures (kill path), then re-run the advance loop.
     val terminationFutures = unfinishedRegionManagers.flatMap(_.getTerminationFutureOpt)
     if (terminationFutures.nonEmpty) {

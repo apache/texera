@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ResourceRegistryService } from "../../../../../service/user/resource-registry/resource-registry.service";
 import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
@@ -54,6 +55,7 @@ export const MIME_TYPES = {
   PDF: "application/pdf",
   MSWORD: "application/msword",
   MSEXCEL: "application/vnd.ms-excel",
+  XLSX: "application/vnd.ms-excel",
   MSPOWERPOINT: "application/vnd.ms-powerpoint",
   MP4: "video/mp4",
   MP3: "audio/mpeg",
@@ -138,6 +140,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   // control flags
   public isLoading: boolean = false;
+  private fileLoad?: Subscription;
+  private loadId = 0;
   public isFileSizeUnloadable = false;
   public isFileLoadingError: boolean = false;
   public isFileTypePreviewUnsupported: boolean = false;
@@ -164,9 +168,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   @Input()
   isLogin: boolean = false;
-
-  @Output()
-  loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
   constructor(
     private resourceRegistry: ResourceRegistryService,
@@ -197,6 +198,10 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   reloadFileContent() {
+    this.fileLoad?.unsubscribe();
+    // Parsing finishes after the download, so its callbacks check they still belong to the shown file.
+    const loadId = ++this.loadId;
+    const isCurrent = () => loadId === this.loadId;
     this.turnOffAllDisplay();
 
     // Pre-check - file size
@@ -215,7 +220,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.isLoading = true;
     const retrieveSingleFile = this.resourceRegistry.get(this.resourceType).retrieveSingleFile;
     if (retrieveSingleFile && this.resourceId && this.versionId && this.filePath != "") {
-      retrieveSingleFile(this.filePath, this.isLogin)
+      this.fileLoad = retrieveSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
@@ -254,6 +259,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
               case MIME_TYPES.MSEXCEL:
                 readXlsxFile(blob).then(rows => {
+                  if (!isCurrent()) return;
                   let parsedData: string[][] = [];
                   rows.forEach(row => {
                     // Convert each cell in the row to a string
@@ -272,11 +278,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 // Handle CSV display
                 Papa.parse(this.currentFile, {
                   complete: (results: ParseResult<any>) => {
+                    if (!isCurrent()) return;
                     if (results.data.length > 0) {
                       this.loadTabularFile(results.data);
                     }
                   },
                   error: error => {
+                    if (!isCurrent()) return;
                     console.error("Error parsing file:", error);
                     this.onFileLoadingError();
                   },
@@ -284,19 +292,20 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 break;
               case MIME_TYPES.MD:
                 this.displayMarkdown = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.JSON:
                 this.displayJson = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.TXT:
               default:
                 this.displayPlainText = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
             }
           },
+          error: () => this.onFileLoadingError(),
         });
     }
   }
@@ -342,10 +351,12 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
-  private readFileAsText(blob: Blob) {
+  private readFileAsText(blob: Blob, isCurrent: () => boolean = () => true) {
     const txtReader = new FileReader();
     txtReader.onload = (event: any) => {
-      this.textContent = event.target.result;
+      if (isCurrent()) {
+        this.textContent = event.target.result;
+      }
     };
     txtReader.readAsText(blob);
   }
@@ -361,26 +372,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.tableDataHeader = data[0];
 
       // Process the rest of the rows
-      this.tableContent = data
-        .slice(1)
-        .map(row => {
-          // Normalize the row length to match the header length
-          while (row.length < this.tableDataHeader.length) {
-            row.push("");
-          }
-          return row;
-        })
-        .filter(row => {
-          // filter out all empty row
-          let areCellAllEmpty = true;
-          for (const cell in row) {
-            if (cell != "") {
-              areCellAllEmpty = false;
-              break;
-            }
-          }
-          return !areCellAllEmpty;
-        });
+      this.tableContent = data.slice(1).map(row => {
+        // Normalize the row length to match the header length
+        while (row.length < this.tableDataHeader.length) {
+          row.push("");
+        }
+        return row;
+      });
     }
   }
 }

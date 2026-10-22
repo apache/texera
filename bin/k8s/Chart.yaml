@@ -46,10 +46,10 @@ dependencies:
     version: 16.5.6
     repository: https://charts.bitnami.com/bitnami
 
-  - name: minio
-    version: 15.0.7
-    repository: https://charts.bitnami.com/bitnami
-    condition: minio.enabled
+  - name: rustfs
+    version: 1.0.0-rc.6
+    repository: https://charts.rustfs.com
+    condition: rustfs.enabled
 
   - name: lakefs
     version: 1.8.1

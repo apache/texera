@@ -26,6 +26,7 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.SqlStates
 import org.jooq.JSONB
 import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
@@ -35,7 +36,12 @@ import org.apache.texera.dao.jooq.generated.tables.WorkflowVersion
 import java.net.{HttpURLConnection, URL}
 import java.nio.charset.StandardCharsets
 import scala.util.control.NonFatal
-import org.apache.texera.common.config.StorageConfig
+import org.apache.texera.service.util.{
+  JupyterEndpointResolver,
+  JupyterEndpoints,
+  JupyterProbe,
+  JupyterProvisioner
+}
 
 object NotebookMigrationResource extends LazyLogging {
 
@@ -58,6 +64,8 @@ object NotebookMigrationResource extends LazyLogging {
       mapper.createObjectNode().put("success", true).put("deleted", deleted)
     )
 
+  // Also the answer when the user has no Jupyter provisioned: either way there is no
+  // server for them to reach.
   private def jupyterUnavailableResponse: Response =
     Response
       .status(500)
@@ -106,50 +114,14 @@ object NotebookMigrationResource extends LazyLogging {
     }
   }
 
-  // The Jupyter server a request targets. internalUrl is what this service calls, publicUrl
-  // is what the browser loads; they differ once Jupyter is containerized, since the
-  // in-network name does not resolve from the browser. Passed per call so the two can be
-  // made distinct, and so per-user resolution (#7665) can build one of these per uid.
-  final case class JupyterEndpoints(internalUrl: String, publicUrl: String, token: String)
-
-  // Configured default. Process-wide, so this service still targets one Jupyter per process
-  // (the per-user-pod model) and must not be deployed as a shared global instance yet: every
-  // user would get the same Jupyter and token. Per-user resolution is #7665.
-  private val configuredEndpoints = JupyterEndpoints(
-    StorageConfig.jupyterInternalURL,
-    StorageConfig.jupyterPublicURL,
-    StorageConfig.jupyterToken
-  )
-
   // Default notebook name used when a request does not specify one, so a param-less
   // getJupyterIframeURL call reproduces the URL from before this service became stateless.
   private val defaultNotebookName = "notebook.ipynb"
 
-  private def isJupyterAvailable(jupyterUrl: String): Boolean = {
-    var conn: java.net.HttpURLConnection = null
-    try {
-      conn = new java.net.URL(s"$jupyterUrl/api")
-        .openConnection()
-        .asInstanceOf[java.net.HttpURLConnection]
-
-      conn.setRequestMethod("GET")
-      conn.setConnectTimeout(2000)
-      conn.setReadTimeout(2000)
-
-      val status = conn.getResponseCode
-
-      status == 200 || status == 403
-    } catch {
-      case _: Exception => false
-    } finally {
-      if (conn != null) conn.disconnect()
-    }
-  }
-
   // Returns the Jupyter iframe reference URL for the given notebook.
   def getJupyterIframeURL(
       notebookName: String,
-      jupyter: JupyterEndpoints = configuredEndpoints
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
   ): Response = {
     // notebookName flows into the returned URL, so validate it the same way setNotebook does:
     // block path traversal and keep it to a plain .ipynb filename.
@@ -160,7 +132,7 @@ object NotebookMigrationResource extends LazyLogging {
         .build()
     }
 
-    if (!isJupyterAvailable(jupyter.internalUrl)) {
+    if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
       return jupyterUnavailableResponse
     }
 
@@ -172,8 +144,8 @@ object NotebookMigrationResource extends LazyLogging {
   }
 
   // Returns the URL of Jupyter
-  def getJupyterURL(jupyter: JupyterEndpoints = configuredEndpoints): Response = {
-    if (!isJupyterAvailable(jupyter.internalUrl)) {
+  def getJupyterURL(jupyter: JupyterEndpoints = JupyterEndpoints.configured): Response = {
+    if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
       return jupyterUnavailableResponse
     }
 
@@ -181,7 +153,10 @@ object NotebookMigrationResource extends LazyLogging {
   }
 
   // Set the notebook in Jupyter
-  def setNotebook(body: String, jupyter: JupyterEndpoints = configuredEndpoints): Response = {
+  def setNotebook(
+      body: String,
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
+  ): Response = {
     var conn: HttpURLConnection = null
     try {
       val json = parseBody(body) match {
@@ -202,7 +177,7 @@ object NotebookMigrationResource extends LazyLogging {
           .build()
       }
 
-      if (!isJupyterAvailable(jupyter.internalUrl)) {
+      if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
         return jupyterUnavailableResponse
       }
 
@@ -271,7 +246,10 @@ object NotebookMigrationResource extends LazyLogging {
   }
 
   // Delete the notebook file from Jupyter's work/ directory:
-  def deleteNotebook(body: String, jupyter: JupyterEndpoints = configuredEndpoints): Response = {
+  def deleteNotebook(
+      body: String,
+      jupyter: JupyterEndpoints = JupyterEndpoints.configured
+  ): Response = {
     var conn: HttpURLConnection = null
     try {
       val json = parseBody(body) match {
@@ -290,7 +268,7 @@ object NotebookMigrationResource extends LazyLogging {
           .build()
       }
 
-      if (!isJupyterAvailable(jupyter.internalUrl)) {
+      if (!JupyterProbe.isAvailable(jupyter.internalUrl)) {
         return jupyterUnavailableResponse
       }
 
@@ -424,7 +402,7 @@ object NotebookMigrationResource extends LazyLogging {
       // Backstop for the pre-check TOCTOU race: two writers on a shared workflow can both
       // pass the existence check, then one INSERT trips the UNIQUE(wid) constraint. Translate
       // that (Postgres SQLState 23505) to a 409 rather than a generic 500.
-      case e: DataAccessException if e.sqlState == "23505" =>
+      case e: DataAccessException if e.sqlState == SqlStates.UNIQUE_VIOLATION =>
         Response
           .status(Response.Status.CONFLICT)
           .entity(errorJson("A notebook is already stored for this workflow"))
@@ -566,6 +544,27 @@ object NotebookMigrationResource extends LazyLogging {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class NotebookMigrationResource extends LazyLogging {
 
+  // Runs `call` against the caller's own Jupyter, starting one if they have none. The uid
+  // comes from the authenticated session, so a request cannot name another user's server.
+  private def withNewJupyter(user: SessionUser)(call: JupyterEndpoints => Response): Response =
+    respondWith(JupyterProvisioner.ensure(user.getUid), call)
+
+  // As above, but never starts a pod: reading a URL or deleting a file should not bring a
+  // Jupyter into existence for a user who has none.
+  private def withJupyter(user: SessionUser)(call: JupyterEndpoints => Response): Response =
+    respondWith(JupyterEndpointResolver.resolve(user.getUid), call)
+
+  // Visible to the spec so the no-Jupyter branch can be driven directly: the two callers
+  // above resolve against live configuration, which a test cannot flip.
+  private[resource] def respondWith(
+      jupyter: Option[JupyterEndpoints],
+      call: JupyterEndpoints => Response
+  ): Response =
+    jupyter match {
+      case Some(endpoints) => call(endpoints)
+      case None            => NotebookMigrationResource.jupyterUnavailableResponse
+    }
+
   @GET
   @Path("/get-jupyter-iframe-url")
   def getJupyterIframeURL(
@@ -576,28 +575,30 @@ class NotebookMigrationResource extends LazyLogging {
     val name = Option(notebookName)
       .filter(_.nonEmpty)
       .getOrElse(NotebookMigrationResource.defaultNotebookName)
-    NotebookMigrationResource.getJupyterIframeURL(name)
+    withNewJupyter(user) { jupyter =>
+      NotebookMigrationResource.getJupyterIframeURL(name, jupyter)
+    }
   }
 
   @GET
   @Path("/get-jupyter-url")
   def getJupyterURL(@Auth user: SessionUser): Response = {
     logger.info("Getting Jupyter API URL")
-    NotebookMigrationResource.getJupyterURL()
+    withJupyter(user)(NotebookMigrationResource.getJupyterURL)
   }
 
   @POST
   @Path("/set-notebook")
   def setNotebook(body: String, @Auth user: SessionUser): Response = {
     logger.info("Setting notebook")
-    NotebookMigrationResource.setNotebook(body)
+    withNewJupyter(user)(NotebookMigrationResource.setNotebook(body, _))
   }
 
   @POST
   @Path("/delete-notebook")
   def deleteNotebook(body: String, @Auth user: SessionUser): Response = {
     logger.info("Deleting notebook from Jupyter")
-    NotebookMigrationResource.deleteNotebook(body)
+    withJupyter(user)(NotebookMigrationResource.deleteNotebook(body, _))
   }
 
   @POST

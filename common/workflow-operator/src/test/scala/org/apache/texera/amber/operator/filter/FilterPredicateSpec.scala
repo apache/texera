@@ -247,6 +247,34 @@ class FilterPredicateSpec extends AnyFlatSpec with Matchers {
     evaluates(ComparisonType.LESS_THAN_OR_EQUAL_TO, 30) shouldBe false
   }
 
+  // --- the comparison switch's fail-loud arm ---------------------------------
+
+  "FilterPredicate's comparison switch" should "fail loudly on a comparison type it does not implement" in {
+    // Reachability, stated plainly: ComparisonType has 8 constants; evaluate()
+    // answers IS_NULL / IS_NOT_NULL itself and returns before it ever dispatches
+    // them, and the other 6 all have explicit cases. The default arm is therefore
+    // DEAD through the public API, and this test reaches it by reflecting into a
+    // private static. It documents the fail-loud contract a newly added
+    // ComparisonType would hit; it is not a regression guard on a shipped path.
+    val evaluateFilter = classOf[FilterPredicate].getDeclaredMethod(
+      "evaluateFilter",
+      classOf[Comparable[_]],
+      classOf[Comparable[_]],
+      classOf[ComparisonType]
+    )
+    evaluateFilter.setAccessible(true)
+    val thrown = intercept[java.lang.reflect.InvocationTargetException] {
+      evaluateFilter.invoke(null, "a", "b", ComparisonType.IS_NULL)
+    }
+    // Exact class, not `a[RuntimeException]`: every unchecked exception is a
+    // RuntimeException, so the loose form is satisfied by any substituted
+    // exception type and would leave the "fail loudly" claim resting on the
+    // message alone.
+    thrown.getCause.getClass shouldBe classOf[RuntimeException]
+    thrown.getCause.getMessage shouldBe
+      "Unable to do comparison: unknown comparison type: IS_NULL"
+  }
+
   "FilterPredicate.equals" should "distinguish predicates that differ only in attribute, or only in condition" in {
     val base = new FilterPredicate("age", ComparisonType.EQUAL_TO, "1")
     val otherAttribute = new FilterPredicate("name", ComparisonType.EQUAL_TO, "1")

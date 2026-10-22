@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { HttpErrorResponse } from "@angular/common/http";
 import { Component, NgZone, OnInit } from "@angular/core";
 import {
   AbstractControl,
@@ -29,10 +30,11 @@ import {
 } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, filter } from "rxjs/operators";
-import { throwError } from "rxjs";
+import { EMPTY, throwError } from "rxjs";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SocialAuthService, GoogleSigninButtonModule, SocialUser } from "@abacritt/angularx-social-login";
 import { UserService } from "../../../common/service/user/user.service";
+import { AppleAuthService } from "../../../common/service/user/apple-auth.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
@@ -42,11 +44,28 @@ import { NzInputDirective, NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefix
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { NzTypographyComponent } from "ng-zorro-antd/typography";
+import { ORCID_STATE_KEY, OrcidAuthService, OrcidConfig } from "../../../common/service/user/orcid-auth.service";
+
+/**
+ * The reason a failed call carries, preferring the server's own words.
+ *
+ * An `HttpErrorResponse` puts the backend's JSON body on `.error`, while its `.message` is
+ * Angular's generic "Http failure response for <url>: 503 ...". Operator-facing refusals — an
+ * enabled verification flow with no SMTP sender behind it, say — are only useful if the body's
+ * message is what reaches the screen.
+ */
+function reasonFor(e: unknown): string | undefined {
+  return (e as HttpErrorResponse)?.error?.message ?? (e as Error)?.message;
+}
+
+/** Reported by every path that ends with an account existing. */
+const ACCOUNT_CREATED =
+  "Your account has been created. Please contact the Texera administrator to activate your account.";
 
 type LoginMode = "signin" | "signup";
 
 /**
- * Full-page login card: tabbed local sign-in / sign-up plus Google sign-in.
+ * Full-page login card: tabbed local sign-in / sign-up plus Google and Apple sign-in.
  *
  * This is the single login surface. It replaces the `texera-local-login` form that used to be
  * embedded in the About page and the standalone Google button that sat on the dashboard shell,
@@ -75,9 +94,14 @@ type LoginMode = "signin" | "signup";
 export class TexeraLoginComponent implements OnInit {
   public mode: LoginMode = "signin";
   public passwordVisible = false;
+  // Guards against a second click while Apple's popup is already open.
+  public appleSignInPending = false;
   public errorMessage: string | undefined;
-
   public form: FormGroup;
+
+  // Undefined until the fetch in ngOnInit lands; the ORCID button stays disabled until then.
+  // Protected rather than private because the template reads it for that disabled binding.
+  protected orcidConfig: OrcidConfig | undefined;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -87,6 +111,8 @@ export class TexeraLoginComponent implements OnInit {
     private router: Router,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
+    private orcidAuthService: OrcidAuthService,
+    private appleAuthService: AppleAuthService,
     protected config: GuiConfigService
   ) {
     this.form = this.formBuilder.group({
@@ -96,6 +122,9 @@ export class TexeraLoginComponent implements OnInit {
       email: new FormControl("", [Validators.email]),
       password: new FormControl("", [Validators.required, Validators.minLength(6)]),
       confirm: new FormControl("", [this.confirmationValidator]),
+      // Carries the mailed code. Only collected, and only required, where
+      // `user-sys.email-verification` is on.
+      code: new FormControl(""),
     });
   }
 
@@ -112,6 +141,26 @@ export class TexeraLoginComponent implements OnInit {
         username: this.config.env.defaultLocalUser.username,
         password: this.config.env.defaultLocalUser.password,
       });
+    }
+
+    // Fetched up front rather than on click so the redirect is instant; until it arrives the
+    // button is disabled. EMPTY rather than a rethrow because this is background setup with no
+    // caller to propagate to — a failure leaves the button disabled, which fails safe.
+    if (this.config.env.orcidLogin) {
+      this.orcidAuthService
+        .getConfig()
+        .pipe(
+          catchError((err: unknown) => {
+            if ((err as HttpErrorResponse)?.status !== 503) {
+              this.notificationService.error("ORCID sign-in is unavailable");
+            }
+            return EMPTY;
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(orcidConfig => {
+          this.orcidConfig = orcidConfig;
+        });
     }
 
     // Google emits the signed-in user here after its own button completes the flow.
@@ -136,9 +185,43 @@ export class TexeraLoginComponent implements OnInit {
       });
   }
 
+  /**
+   * Apple has no Angular button component (`@abacritt/angularx-social-login` ships no Apple
+   * provider) and its SDK-rendered button cannot be sized to match the Google button beside it, so
+   * the button is ours and the flow is started by a click rather than pushed through
+   * `socialAuthService.authState`. A dismissed popup yields no token and is not an error.
+   *
+   * Apple's script is fetched inside `signIn()`, on this click, so a visitor who only uses the
+   * password form never calls Apple at all.
+   */
+  public async signInWithApple(): Promise<void> {
+    this.appleSignInPending = true;
+    try {
+      const idToken = await this.appleAuthService.signIn();
+      if (!idToken) return;
+
+      this.userService
+        .appleLogin(idToken)
+        .pipe(
+          catchError((e: unknown) => {
+            this.notificationService.error((e as Error)?.message || "Apple sign-in failed");
+            return throwError(() => e);
+          }),
+          untilDestroyed(this)
+        )
+        .subscribe(() => this.ngZone.run(() => this.navigateAfterLogin()));
+    } catch (e) {
+      this.notificationService.error((e as Error)?.message || "Apple sign-in failed");
+    } finally {
+      this.appleSignInPending = false;
+    }
+  }
+
   public setMode(mode: LoginMode): void {
     this.mode = mode;
     this.errorMessage = undefined;
+    // Switching tabs abandons a half-finished signup; the code that was mailed expires on its own.
+    this.form.controls.code.setValue("");
     // The confirm-password rule only applies in sign-up mode, so re-evaluate it on every switch.
     this.form.controls.confirm.updateValueAndValidity();
   }
@@ -182,46 +265,108 @@ export class TexeraLoginComponent implements OnInit {
       .subscribe(() => this.navigateAfterLogin());
   }
 
-  private register(): void {
+  /**
+   * Mail a verification code to the address in the form. Nothing is created: the account does not
+   * exist until [[register]] presents the code.
+   *
+   * Its own button rather than a step of signing up, because it puts mail in an inbox. The address
+   * belongs to whoever owns it and not necessarily to the person typing it, so sending has to be
+   * something the user visibly asks for instead of a side effect of pressing Sign up.
+   */
+  public sendCode(): void {
     this.errorMessage = undefined;
-    const username = this.form.get("username")?.value?.trim();
-    const email = (this.form.get("email")?.value ?? "").trim();
-    const password = this.form.get("password")?.value;
-    const confirm = this.form.get("confirm")?.value;
-
-    const usernameValidation = UserService.validateUsername(username);
-    if (!usernameValidation.result) {
-      this.errorMessage = usernameValidation.message;
-      return;
-    }
-    const emailValidation = UserService.validateEmail(email);
-    if (!emailValidation.result) {
-      this.errorMessage = emailValidation.message;
-      return;
-    }
-    if (!password || password.length < 6) {
-      this.errorMessage = "Password length should be greater than 5.";
-      return;
-    }
-    if (password !== confirm) {
-      this.errorMessage = "Two passwords are inconsistent.";
+    const fields = this.validatedFields();
+    if (!fields) {
       return;
     }
 
     this.userService
-      .register(username, email, password)
+      .register(fields.username, fields.email, fields.password)
       .pipe(
         catchError((e: unknown) => {
-          this.errorMessage = (e as Error)?.message || "Registration failed";
+          this.errorMessage = reasonFor(e) || "That code could not be sent.";
           return throwError(() => e);
         }),
         untilDestroyed(this)
       )
-      .subscribe(() =>
+      .subscribe(({ verificationRequired }) => {
+        // The button is only rendered where the config says verification is on. If the server
+        // disagrees, `register` has just created the account outright and there is no code coming.
         this.notificationService.success(
-          "Your account has been created. Please contact the Texera administrator to activate your account."
+          verificationRequired ? `A verification code has been sent to ${fields.email}.` : ACCOUNT_CREATED
+        );
+      });
+  }
+
+  private register(): void {
+    this.errorMessage = undefined;
+    const fields = this.validatedFields();
+    if (!fields) {
+      return;
+    }
+    if (fields.password !== this.form.get("confirm")?.value) {
+      this.errorMessage = "Two passwords are inconsistent.";
+      return;
+    }
+
+    // Where verification is on the account does not exist yet, so this submit is the second half of
+    // the signup: the same fields go back with the code that [[sendCode]] had mailed.
+    if (this.config.env.emailVerification) {
+      const code = (this.form.get("code")?.value ?? "").trim();
+      if (!code) {
+        this.errorMessage = "Enter the code that was emailed to you.";
+        return;
+      }
+      this.userService
+        .registerVerify(fields.username, fields.email, fields.password, code)
+        .pipe(
+          catchError((e: unknown) => {
+            this.errorMessage = reasonFor(e) || "That code is not valid or has expired.";
+            return throwError(() => e);
+          }),
+          untilDestroyed(this)
         )
-      );
+        .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+      return;
+    }
+
+    this.userService
+      .register(fields.username, fields.email, fields.password)
+      .pipe(
+        catchError((e: unknown) => {
+          this.errorMessage = reasonFor(e) || "Registration failed";
+          return throwError(() => e);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+  }
+
+  /**
+   * Trim and check the three fields a registration call needs, reporting the first problem.
+   * Returns null once something has been reported. The confirm-password match is not checked here:
+   * it guards a submit, and has nothing to say about whether a code can be sent.
+   */
+  private validatedFields(): { username: string; email: string; password: string } | null {
+    const username = this.form.get("username")?.value?.trim();
+    const email = (this.form.get("email")?.value ?? "").trim();
+    const password = this.form.get("password")?.value;
+
+    const usernameValidation = UserService.validateUsername(username);
+    if (!usernameValidation.result) {
+      this.errorMessage = usernameValidation.message;
+      return null;
+    }
+    const emailValidation = UserService.validateEmail(email);
+    if (!emailValidation.result) {
+      this.errorMessage = emailValidation.message;
+      return null;
+    }
+    if (!password || password.length < 6) {
+      this.errorMessage = "Password length should be greater than 5.";
+      return null;
+    }
+    return { username, email, password };
   }
 
   private navigateAfterLogin(): void {
@@ -235,4 +380,36 @@ export class TexeraLoginComponent implements OnInit {
     }
     return null;
   };
+
+  /**
+   * Hand the browser to ORCID's consent screen. Unlike Google — whose SDK runs the whole
+   * handshake in a popup and emits a token — ORCID is plain authorization-code OAuth, so this
+   * leaves the app entirely and comes back at `/callback/orcid` with a `code` to exchange.
+   *
+   * Every value in the authorize URL comes from `/auth/orcid/config`, `redirect_uri` included:
+   * the backend sends its own configured redirect URI on the token exchange, and ORCID rejects
+   * the exchange unless the two match byte-for-byte. See [[OrcidConfig]].
+   */
+  protected orcidLogin(): void {
+    // Unreachable while the template keeps the button disabled, but the narrowing is needed
+    // regardless, and the guard outlives whoever might drop that binding later.
+    const config = this.orcidConfig;
+    if (!config) {
+      this.notificationService.error("ORCID sign-in is unavailable");
+      return;
+    }
+
+    const state = crypto.randomUUID();
+    sessionStorage.setItem(ORCID_STATE_KEY, state);
+
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      response_type: "code",
+      scope: "/authenticate",
+      redirect_uri: config.redirectUri,
+      state,
+    });
+
+    window.location.href = `${config.authorizeUrl}?${params}`;
+  }
 }

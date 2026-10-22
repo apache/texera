@@ -112,13 +112,14 @@ export class UiUdfParametersSyncService {
 
   private buildParsedShapeWithPreservedValues(code: string, existingParameters: UiUdfParameter[]): UiUdfParameter[] {
     const parsedParameters = this.uiUdfParametersParserService.parse(code);
-    const existingValues = new Map(
-      existingParameters.map(parameter => [parameter.attribute.attributeName, parameter.value] as const)
-    );
+    // A value carries over only while the row names the same kind of resource: a model path
+    // left in a row that now names a dataset would resolve to the wrong thing.
+    const rowKey = (parameter: UiUdfParameter) => `${parameter.attribute.attributeName}:${parameter.inputType ?? ""}`;
+    const existingValues = new Map(existingParameters.map(parameter => [rowKey(parameter), parameter.value] as const));
 
     return parsedParameters.map(parameter => ({
       ...parameter,
-      value: existingValues.get(parameter.attribute.attributeName) ?? "",
+      value: existingValues.get(rowKey(parameter)) ?? "",
     }));
   }
 
