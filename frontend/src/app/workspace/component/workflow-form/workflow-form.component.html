@@ -541,11 +541,13 @@
               *ngSwitchCase="isTabularResult(id)"
               [operatorId]="id"></texera-result-table-frame>
             <ng-container *ngSwitchCase="vizHasContent(id)">
-              <!-- Keyed on the result's version so a new result builds a new frame: the component
-                   reads its content once, at creation. -->
-              <texera-visualization-panel-content
-                *ngFor="let key of [resultKey(id)]; trackBy: trackByKey"
-                [operatorId]="id"></texera-visualization-panel-content>
+              <!-- The frame draws its content at creation and redraws in place on its operator's
+                   updates. A new run replaces the snapshot inside the operator's result service,
+                   which lives until the page is left, so there is never a new frame to key on.
+                   This was keyed on a per-result version meant to rebuild it; that key could never
+                   fire, because the update carrying a picture is the one that mounts the frame
+                   (see the result-update subscription). -->
+              <texera-visualization-panel-content [operatorId]="id"></texera-visualization-panel-content>
             </ng-container>
             <p
               *ngSwitchDefault

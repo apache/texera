@@ -240,10 +240,6 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /** Chart height per result (0 compact / 1 default / 2 tall). Per operator so one does not resize
    *  the others, and in memory only -- a viewing preference, not part of the workflow. */
   private zoomByResult = new Map<string, number>();
-  /** Bumped when a result changes, used as the chart's *ngFor identity so the frame is rebuilt, not
-   *  reused: the chart reads its content once at creation, so a stale frame showed "undefined". */
-  private resultVersion = new Map<string, number>();
-
   /** The collapsible workflow preview: closed until the reader opens it. */
   public workflowOpen = false;
   /** The embedded canvas is built the first time the strip opens, never while collapsed. */
@@ -367,15 +363,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.syncSelectionFromHighlight());
 
-    // A result changing bumps that operator's version (so its chart frame is rebuilt, not reused),
-    // re-limits what the form shows to the currently-viewed set, and re-fits the visualisations.
+    // A result update re-limits what the form shows to the currently-viewed set and re-fits the
+    // visualisations. The chart frame itself is left alone: it redraws in place on its own
+    // operator's updates (see the visualization frame, at most once per two seconds), and an
+    // operator's result service lives until the page is left -- a re-run replaces the snapshot
+    // inside it, nothing clears it -- so there is never a new frame to build mid-session.
+    // This used to bump a per-operator version that keyed the frame, meaning to rebuild it rather
+    // than reuse it. It could not do that: every visualisation operator takes its whole input
+    // before it draws (`process_table`, single-snapshot output), so the one update that carries a
+    // picture is also the one that mounts the frame, and a second one never comes. Measured on a
+    // run: two updates for the chart's operator, one picture, one frame -- with the key and
+    // without it. Dead machinery, so it goes.
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(update => {
-        for (const operatorID of Object.keys(update ?? {})) {
-          this.resultVersion.set(operatorID, (this.resultVersion.get(operatorID) ?? 0) + 1);
-        }
+      .subscribe(() => {
         this.refreshShownResults();
         // markForCheck, not detectChanges: this fires often during a run, and a synchronous pass
         // can be thrown out of by an unrelated component's NG0100, killing the subscription.
@@ -1355,21 +1357,6 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   public resultLabel(operatorID: string): string {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     return operator ? this.formBindingService.operatorLabel(operator) : operatorID;
-  }
-
-  public trackByKey(_: number, key: string): string {
-    return key;
-  }
-
-  /**
-   * A per-result identity that changes on each result-update for that operator, used as the chart's
-   * *ngFor key so the frame is rebuilt (not reused) when the result changes: the chart reads its
-   * content once at creation, so a reused frame kept showing the old (or "undefined") picture. A
-   * visualisation's result arrives as a single snapshot, so in practice this bumps about once per
-   * result rather than per tuple.
-   */
-  public resultKey(operatorID: string): string {
-    return operatorID + "#" + (this.resultVersion.get(operatorID) ?? 0);
   }
 
   public resultZoom(operatorID: string): number {
