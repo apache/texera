@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.tuple
 
-import com.github.sisyphsu.dateparser.DateParserUtils
+import com.github.sisyphsu.dateparser.DateParser
 
 import java.sql.Timestamp
 import java.text.NumberFormat
@@ -28,6 +28,13 @@ import scala.util.Try
 import scala.util.control.Exception.allCatch
 
 object AttributeTypeUtils extends Serializable {
+
+  // One parser per thread. DateParserUtils.parseDate shares a single parser behind
+  // a JVM-wide lock, which serializes every worker that parses timestamps; a
+  // DateParser built from the default builder, as DateParserUtils builds its own,
+  // parses the same formats but is not thread-safe, hence one per thread.
+  @transient private lazy val dateParser: ThreadLocal[DateParser] =
+    ThreadLocal.withInitial(() => DateParser.newBuilder().build())
 
   /**
     * This function checks whether the current attribute in the schema matches the selected attribute for casting.
@@ -101,7 +108,13 @@ object AttributeTypeUtils extends Serializable {
       fields: Array[Any],
       attributeTypes: Array[AttributeType]
   ): Array[Any] = {
-    fields.indices.map(i => parseField(fields(i), attributeTypes(i))).toArray
+    val parsed = new Array[Any](fields.length)
+    var i = 0
+    while (i < fields.length) {
+      parsed(i) = parseField(fields(i), attributeTypes(i))
+      i += 1
+    }
+    parsed
   }
 
   /**
@@ -201,7 +214,11 @@ object AttributeTypeUtils extends Serializable {
   def parseTimestamp(fieldValue: Any): Timestamp = {
     val attempt: Try[Timestamp] = Try {
       fieldValue match {
-        case str: String                              => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
+        case str: String =>
+          val trimmed = str.trim
+          val isoMillis = parseIsoLocalMillis(trimmed)
+          if (isoMillis != Long.MinValue) new Timestamp(isoMillis)
+          else new Timestamp(dateParser.get().parseDate(trimmed).getTime)
         case long: java.lang.Long                     => new Timestamp(long)
         case timestamp: Timestamp                     => timestamp
         case date: java.util.Date                     => new Timestamp(date.getTime)
@@ -226,6 +243,69 @@ object AttributeTypeUtils extends Serializable {
         )
     }.get
 
+  }
+
+  /**
+    * Epoch millis of a zone-less ISO local date-time, `yyyy-MM-dd` optionally
+    * followed by `[ T]HH:mm[:ss[.f]]` with 1-9 fraction digits, or Long.MinValue
+    * when `s` is not exactly that shape or names no real date-time.
+    *
+    * This is the form a CSV timestamp column usually holds, and the general date
+    * parser spends most of a scan's time on it. For a zone-less string that parser
+    * sets these same fields on a fresh default Calendar, so doing that here gives
+    * the identical instant; anything else falls through to the parser unchanged.
+    */
+  private def parseIsoLocalMillis(s: String): Long = {
+    val len = s.length
+    if (len != 10 && len != 16 && len < 19) return Long.MinValue
+    def digit(i: Int): Int = {
+      val c = s.charAt(i)
+      if (c >= '0' && c <= '9') c - '0' else -1000
+    }
+    def twoDigits(i: Int): Int = digit(i) * 10 + digit(i + 1)
+
+    if (s.charAt(4) != '-' || s.charAt(7) != '-') return Long.MinValue
+    val year = digit(0) * 1000 + digit(1) * 100 + twoDigits(2)
+    val month = twoDigits(5)
+    val day = twoDigits(8)
+    if (year < 0 || month < 1 || month > 12 || day < 1) return Long.MinValue
+    if (day > java.time.YearMonth.of(year, month).lengthOfMonth()) return Long.MinValue
+
+    var hour, minute, second, millis = 0
+    if (len > 10) {
+      val sep = s.charAt(10)
+      if ((sep != ' ' && sep != 'T') || s.charAt(13) != ':') return Long.MinValue
+      hour = twoDigits(11)
+      minute = twoDigits(14)
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return Long.MinValue
+      if (len > 16) {
+        if (s.charAt(16) != ':') return Long.MinValue
+        second = twoDigits(17)
+        if (second < 0 || second > 59) return Long.MinValue
+        if (len > 19) {
+          val fractionDigits = len - 20
+          if (s.charAt(19) != '.' || fractionDigits < 1 || fractionDigits > 9) return Long.MinValue
+          var i = 20
+          while (i < len) {
+            val d = digit(i)
+            if (d < 0) return Long.MinValue
+            // keep the first three fraction digits as millis, truncating the rest
+            if (i < 23) millis += d * (if (i == 20) 100 else if (i == 21) 10 else 1)
+            i += 1
+          }
+        }
+      }
+    }
+
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(java.util.Calendar.YEAR, year)
+    calendar.set(java.util.Calendar.MONTH, month - 1)
+    calendar.set(java.util.Calendar.DAY_OF_MONTH, day)
+    calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+    calendar.set(java.util.Calendar.MINUTE, minute)
+    calendar.set(java.util.Calendar.SECOND, second)
+    calendar.set(java.util.Calendar.MILLISECOND, millis)
+    calendar.getTimeInMillis
   }
 
   @throws[AttributeTypeException]
