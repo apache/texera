@@ -170,6 +170,19 @@ object ResourceStorage {
   */
 object ResourceUploadService {
 
+  private val MultipartOperations = Seq("list", "init", "finish", "abort")
+
+  /** The multipart `type` query param, lower-cased; a 400 when it is missing or unknown. */
+  def multipartOperationOrThrow(operationType: String): String = {
+    val operation = Option(operationType).map(_.trim.toLowerCase).getOrElse("")
+    if (!MultipartOperations.contains(operation)) {
+      throw new BadRequestException(
+        s"Invalid type parameter. Use ${MultipartOperations.map(o => s"'$o'").mkString(", ")}."
+      )
+    }
+    operation
+  }
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
