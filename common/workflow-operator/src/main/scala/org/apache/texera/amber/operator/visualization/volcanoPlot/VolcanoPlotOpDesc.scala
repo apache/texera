@@ -65,6 +65,28 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("The figure title; leave empty for Volcano Plot")
+  var title: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription("The label for the x axis; leave empty for the effect size column name")
+  var xLabel: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("The label for the y axis; leave empty for -log10(<p-value column>)")
+  var yLabel: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Color Bar Label")
+  @JsonPropertyDescription(
+    "The label for the color bar; leave empty for the effect size column name"
+  )
+  var colorLabel: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
@@ -79,6 +101,18 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
+
+  /** The y column is named after the selected p-value column, so a figure drawn
+    * from an adjusted column says so instead of always reading "-log10(pvalue)".
+    */
+  private def yColumn: EncodableString = s"-log10($pvalueColumn)"
+
+  // An empty or blank label keeps the text the figure derives from the selected columns.
+  private def titleText: EncodableString = if (title.trim.nonEmpty) title else "Volcano Plot"
+  private def xAxisTitle: EncodableString = if (xLabel.trim.nonEmpty) xLabel else effectColumn
+  private def yAxisTitle: EncodableString = if (yLabel.trim.nonEmpty) yLabel else yColumn
+  private def colorBarTitle: EncodableString =
+    if (colorLabel.trim.nonEmpty) colorLabel else effectColumn
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -108,16 +142,21 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
        |            yield {"html-content": self.render_error("No rows with valid p-values.")}
        |            return
        |
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
+       |        table[$yColumn] = -np.log10(table[$pvalueColumn])
        |
        |        fig = px.scatter(
        |            table,
        |            x=$effectColumn,
-       |            y="-log10(pvalue)",
+       |            y=$yColumn,
        |            hover_name=table.columns[0],
        |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=$titleText
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=$xAxisTitle,
+       |            yaxis_title=$yAxisTitle,
+       |            coloraxis_colorbar_title_text=$colorBarTitle
        |        )
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
