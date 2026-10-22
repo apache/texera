@@ -245,6 +245,9 @@ object ConfigGenerator {
     * A row from the UI's `+` button is one of those optional knobs, not a variant of
     * its own: for a list the base leaves empty it IS the "now it is set" case, exactly
     * like a scalar going from unset to set.
+    *
+    * After them come the column-type runs, one per type a column knob admits; see
+    * [[columnTypeVariants]].
     */
   private def extraVariants(
       opClass: Class[_ <: LogicalOp],
@@ -276,7 +279,7 @@ object ConfigGenerator {
         "hostileColumns",
         hostileColumnFills(opClass, baseNode, "", schemas, mutable.Set.empty[(Int, String)])
       )
-    ).flatten
+    ).flatten ++ columnTypeVariants(opClass, baseNode, schemas)
 
   /** Apply each variant to its own clone of `baseNode` and read the result back as an
     * op. `base` is the instance to hand back for the unedited variant, when the caller
@@ -643,6 +646,81 @@ object ConfigGenerator {
         (childPath, value)
       }
     }
+
+  /** A single-column knob whose rule admits more than one type, with the column
+    * the base config gave it. `admits` is the rule's own answer, read against the
+    * knob's siblings in the base config.
+    */
+  private final case class ColumnSite(
+      pointer: String,
+      port: Int,
+      held: String,
+      heldType: AttributeType,
+      admits: Set[AttributeType]
+  )
+
+  /** The knobs [[columnTypeVariants]] moves. Left out: a knob with no type rule,
+    * since nothing says what it may hold; one with `@SampleColumn`, which names its
+    * column on purpose; a list knob, which already takes every column it admits;
+    * and a join key, whose type is bound to its partner's.
+    */
+  private def columnSites(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      path: String,
+      schemas: Map[Int, Schema]
+  ): Seq[ColumnSite] =
+    configFields(clazz).filterNot(hiddenBySibling(_, baseNode.at(path))).flatMap { f =>
+      val childPath = pointerOf(f, path)
+      rowType(f) match {
+        case Some(row) =>
+          rowPaths(f, baseNode.at(childPath), childPath)
+            .flatMap(columnSites(row, baseNode, _, schemas))
+        case None =>
+          val siblings = baseNode.at(path)
+          val held = siblings.path(jsonNameOf(f)).asText("")
+          for {
+            spec <- autofillSpec(f).toSeq
+            if !spec.holdsList && f.getAnnotation(classOf[SampleColumn]) == null &&
+              linkedTypes(f, schemas, siblings).isEmpty
+            admits <- allowedTypes(f, siblings).toSeq
+            attr <- schemas.get(spec.port).toSeq.flatMap(_.getAttributes.find(_.getName == held))
+          } yield ColumnSite(childPath, spec.port, held, attr.getType, admits)
+      }
+    }
+
+  /** One run per column type: every knob whose rule admits the type, and holds a
+    * column of another, is pointed at a column of that type. A picker takes the
+    * first column that fits, so a type the table lists late, LONG among them, is
+    * otherwise never chosen by any knob. Within a run no two knobs share a column,
+    * nor take one another knob already holds, which would draw a degenerate result.
+    */
+  private def columnTypeVariants(
+      clazz: Class[_],
+      baseNode: JsonNode,
+      schemas: Map[Int, Schema]
+  ): Seq[Variant] = {
+    val sites = columnSites(clazz, baseNode, "", schemas)
+    sites.flatMap(_.admits).distinct.sortBy(_.name).flatMap { t =>
+      val taken = mutable.Set.empty[(Int, String)] ++ sites.map(s => (s.port, s.held))
+      merged(
+        s"columnType_${t.name}",
+        sites.filter(s => s.admits.contains(t) && s.heldType != t).flatMap { site =>
+          schemas(site.port).getAttributes
+            .filter(_.getType == t)
+            .map(_.getName)
+            .find(c => !taken.contains((site.port, c)))
+            .map { col =>
+              taken += ((site.port, col))
+              Variant(
+                s"${site.pointer.stripPrefix("/")}=$col",
+                Seq((site.pointer, objectMapper.getNodeFactory.textNode(col)))
+              )
+            }
+        }
+      )
+    }
+  }
 
   private def hostileLeaf(f: Field, childPath: String): Option[(String, JsonNode)] =
     if (
