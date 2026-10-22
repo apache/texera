@@ -110,7 +110,6 @@ import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.texera.amber.operator.visualization.DotPlot.DotPlotOpDesc
 import org.apache.texera.amber.operator.visualization.barChart.BarChartOpDesc
-import org.apache.texera.amber.operator.visualization.bubbleChart.BubbleChartOpDesc
 import org.apache.texera.amber.operator.visualization.boxViolinPlot.BoxViolinPlotOpDesc
 import org.apache.texera.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import org.apache.texera.amber.operator.visualization.IcicleChart.IcicleChartOpDesc
@@ -580,12 +579,6 @@ object TransformVerificationRunner {
         "extract=true",
         "the file it is handed is the shared table's JSON, not an archive, so the " +
           "engine finds no archiver for it and Python's zipfile refuses it alike"
-      ),
-      RunRow(
-        classOf[BubbleChartOpDesc],
-        "columnType_LONG",
-        "the bubble size moves to the LONG column, which holds negative counts, and " +
-          "plotly refuses a negative marker size on both sides"
       )
     ) ++ fileScanTypedLines ++ noRowsToFit ++ refusesNonFinite
   }
