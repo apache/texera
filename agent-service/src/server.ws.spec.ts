@@ -26,6 +26,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { env } from "./config/env";
+import { AgentState } from "./types/agent";
 
 const API = env.API_PREFIX;
 
@@ -192,7 +193,7 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const status = await messages.waitFor(m => m.type === "WsServerStatusEvent");
     expect(status.state).toBe("AVAILABLE");
-    expect(_getAgentForTests(id)!.getState()).toBe("AVAILABLE");
+    expect(_getAgentForTests(id)!.getState()).toBe(AgentState.AVAILABLE);
   });
 
   test("a prompt with empty content yields an error frame", async () => {
