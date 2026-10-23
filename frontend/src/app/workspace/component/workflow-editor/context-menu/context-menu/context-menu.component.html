@@ -171,6 +171,19 @@
   </li>
 
   <li
+    nz-menu-item
+    *ngIf="highlightedOperatorIds.length === 1 &&
+  highlightedCommentBoxIds.length === 0 &&
+  !hasHighlightedLinks()"
+    (click)="onPinResult()">
+    <span
+      nz-icon
+      nzType="pushpin"
+      nzTheme="outline"></span>
+    pin result
+  </li>
+
+  <li
     *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
            this.config.env.exportExecutionResultEnabled &&
            !hasHighlightedLinks()"

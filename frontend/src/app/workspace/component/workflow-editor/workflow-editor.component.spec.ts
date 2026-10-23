@@ -407,6 +407,54 @@ describe("WorkflowEditorComponent", () => {
       expect(component.resultPreview).toBeNull();
     });
 
+    /** Right-click with the scan operator selected and pick "pin result" from the menu. */
+    function pinScanFromContextMenu(): void {
+      TestBed.inject(WorkflowActionService).getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+      const item = fixture.debugElement
+        .queryAll(By.css("texera-context-menu li[nz-menu-item]"))
+        .find(li => li.nativeElement.textContent.trim() === "pin result");
+      expect(item).toBeTruthy();
+      item!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      component.nzContextMenu.close();
+    }
+
+    // With the hover card off there is no Pin button, so the right-click menu is the way to a result window.
+    it("pins an operator's result from the right-click menu while Result preview is off", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setResultPreviewEnabled(false);
+      try {
+        addLinkedPair();
+
+        pinScanFromContextMenu();
+        pinScanFromContextMenu();
+
+        // pinning the same operator twice keeps one window
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+        const windows = fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+        expect(windows.length).toBe(1);
+        expect(windows[0].nativeElement.getAttribute("data-operator-id")).toBe(mockScanPredicate.operatorID);
+      } finally {
+        wrapper.setResultPreviewEnabled(true);
+      }
+    });
+
+    it("pins an operator's result from the right-click menu while the heat-map is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+
+      pinScanFromContextMenu();
+
+      expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.query(By.css("texera-pinned-result-window"))).toBeTruthy();
+    });
+
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
     function selectScanOperator(): joint.dia.Cell {
       addLinkedPair();
