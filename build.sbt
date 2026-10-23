@@ -256,6 +256,22 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowCompiler, Auth, Config)
   .settings(commonModuleSettings)
   .settings(
+    // The workflow-level parity spec runs the export's translator and verify's
+    // script runner and comparator. Only their classes come over: depending on
+    // the compiling service would bring its dropwizard 4, which evicts the
+    // dropwizard 1 the engine is built on.
+    Test / unmanagedClasspath ++= Seq(
+      (WorkflowCompilingService / Compile / classDirectory).value,
+      (WorkflowCompilingService / Test / classDirectory).value,
+      (WorkflowCompilingService / Test / resourceDirectory).value,
+      (WorkflowOperator / Test / classDirectory).value,
+      (WorkflowOperator / Test / resourceDirectory).value
+    ),
+    Test / compile := (Test / compile)
+      .dependsOn(WorkflowCompilingService / Test / compile, WorkflowOperator / Test / compile)
+      .value
+  )
+  .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,

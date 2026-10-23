@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.translator.verify
 
-import org.apache.texera.amber.core.tuple.{Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 
 import java.nio.file.Path
@@ -101,6 +101,18 @@ trait SharedFixture {
     */
   final def writeEmptyInputs(dir: Path, inputPortCount: Int): Map[PortIdentity, Path] =
     writeShaped(dir, inputPortCount, _ => Seq.empty)
+
+  /** The same table with [[SharedFixture.specialDoublesPerColumn]] applied. */
+  final def writeSpecialDoubles(dir: Path, inputPortCount: Int): Map[PortIdentity, Path] =
+    writeShaped(
+      dir,
+      inputPortCount,
+      rows => SharedFixture.specialDoublesPerColumn(rows, schema, keepFilled)
+    )
+
+  /** Whether [[writeSpecialDoubles]] has a column to put a value in. */
+  final def hasSpecialDoubleColumn: Boolean =
+    SharedFixture.specialDoubleColumns(schema, keepFilled).nonEmpty
 
   /** How many rows port 0 gets — what a row-count-sensitive knob (`limit`,
     * `offset`) is sized against so its value keeps some rows and drops some.
@@ -186,6 +198,52 @@ object HostileColumn {
 }
 
 object SharedFixture {
+
+  /** What a DOUBLE column can hold besides an ordinary number, plus a null beside
+    * them. The engine keeps all five apart; a float64 column holds NaN and null as
+    * one value and -0.0 compares equal to 0.0, so none of them reaches an operator
+    * through a table of ordinary numbers.
+    */
+  val SpecialDoubles: Seq[java.lang.Double] =
+    Seq(Double.NaN, Double.PositiveInfinity, Double.NegativeInfinity, -0.0, null)
+
+  /** The DOUBLE columns [[specialDoublesPerColumn]] writes into. */
+  def specialDoubleColumns(schema: Schema, keepFilled: Set[String]): Seq[String] =
+    schema.getAttributes
+      .filter(a => a.getType == AttributeType.DOUBLE && !keepFilled.contains(a.getName))
+      .map(_.getName)
+
+  /** Each of [[SpecialDoubles]] once in every DOUBLE column, each column starting
+    * on a different row, so a row holds a special value in one column beside an
+    * ordinary number in another. Placement is by column position, so it is the
+    * same on every run. The rest of the table is untouched.
+    */
+  def specialDoublesPerColumn(
+      rows: Seq[Tuple],
+      schema: Schema,
+      keepFilled: Set[String]
+  ): Seq[Tuple] = {
+    if (rows.isEmpty) return rows
+    val columns = specialDoubleColumns(schema, keepFilled)
+    val placed: Map[(Int, String), java.lang.Double] = columns.zipWithIndex.flatMap {
+      case (column, i) =>
+        SpecialDoubles.zipWithIndex.map {
+          case (value, k) => ((i + k) % rows.size, column) -> value
+        }
+    }.toMap
+    rows.zipWithIndex.map {
+      case (t, rowIdx) =>
+        val b = Tuple.builder(schema)
+        schema.getAttributes.foreach { attr =>
+          val v: AnyRef = placed.get((rowIdx, attr.getName)) match {
+            case Some(special) => special
+            case None          => t.getField[AnyRef](attr.getName)
+          }
+          b.add(attr, v)
+        }
+        b.build()
+    }
+  }
 
   /** One empty cell per column, spread across rows so no row is wholly empty — an
     * operator that reads two columns should still meet a row where one is filled

@@ -34,7 +34,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 3.0,
+    "edge_ts": "2024-02-07 12:00:00.0",
+    "digits": "99",
+    "views": 3000000000
   },
   {
     "id": 3,
@@ -71,7 +75,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 1.0E7,
+    "edge_ts": "2262-04-12 00:00:00.0",
+    "digits": "7",
+    "views": 2147483648
   },
   {
     "id": 11,
@@ -108,7 +116,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 0,
     "species_name": "setosa",
-    "species_name_pred": "setosa"
+    "species_name_pred": "setosa",
+    "edge_double": 0.001,
+    "edge_ts": "2024-02-11 12:00:00.0",
+    "digits": "8",
+    "views": 4294967296
   },
   {
     "id": 1,
@@ -145,7 +157,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 1,
     "species_name": "setosa",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 1.0E20,
+    "edge_ts": "2500-01-01 00:00:00.5",
+    "digits": "001",
+    "views": -2147483649
   },
   {
     "id": 14,
@@ -182,7 +198,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 7.0,
+    "edge_ts": "2024-02-14 12:00:00.0",
+    "digits": "11",
+    "views": 5000000001
   },
   {
     "id": 5,
@@ -219,7 +239,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 0,
     "species_name": "setosa",
-    "species_name_pred": "setosa"
+    "species_name_pred": "setosa",
+    "edge_double": 0.1,
+    "edge_ts": "1677-09-21 00:00:00.0",
+    "digits": "3",
+    "views": 1
   },
   {
     "id": 9,
@@ -256,7 +280,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 0,
     "species_name": "versicolor",
-    "species_name_pred": "setosa"
+    "species_name_pred": "setosa",
+    "edge_double": 0.002,
+    "edge_ts": "2024-02-09 12:00:00.0",
+    "digits": "12",
+    "views": 9000000000000
   },
   {
     "id": 2,
@@ -293,7 +321,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 1.0E-4,
+    "edge_ts": "1600-06-15 08:30:00.0",
+    "digits": "042",
+    "views": 2500000000
   },
   {
     "id": 13,
@@ -330,7 +362,11 @@
     "a\"b\\c_high_score": false,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 0.25,
+    "edge_ts": "2024-02-13 12:00:00.0",
+    "digits": "4",
+    "views": 7000000000
   },
   {
     "id": 6,
@@ -367,7 +403,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 0,
     "species_name": "setosa",
-    "species_name_pred": "setosa"
+    "species_name_pred": "setosa",
+    "edge_double": -2.5E-5,
+    "edge_ts": "2024-02-06 12:00:00.0",
+    "digits": "010",
+    "views": -3000000000
   },
   {
     "id": 10,
@@ -404,7 +444,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "setosa",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 999999.5,
+    "edge_ts": "2024-02-10 12:00:00.0",
+    "digits": "0005",
+    "views": 2147483647
   },
   {
     "id": 4,
@@ -441,7 +485,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 12345678.9,
+    "edge_ts": "9999-12-31 23:59:59.0",
+    "digits": "0100",
+    "views": 6000000000
   },
   {
     "id": 15,
@@ -478,7 +526,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 0,
     "species_name": "setosa",
-    "species_name_pred": "setosa"
+    "species_name_pred": "setosa",
+    "edge_double": 1.2E8,
+    "edge_ts": "2024-02-15 12:00:00.0",
+    "digits": "0",
+    "views": 8000000000
   },
   {
     "id": 8,
@@ -515,7 +567,11 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 1.5,
+    "edge_ts": "2024-02-08 12:00:00.0",
+    "digits": "0",
+    "views": 1000000000000
   },
   {
     "id": 12,
@@ -552,6 +608,10 @@
     "a\"b\\c_high_score": true,
     "a\"b\\c_species_pred": 1,
     "species_name": "versicolor",
-    "species_name_pred": "versicolor"
+    "species_name_pred": "versicolor",
+    "edge_double": 4.0E21,
+    "edge_ts": "2024-02-12 12:00:00.0",
+    "digits": "060",
+    "views": 3500000000
   }
 ]
