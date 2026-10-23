@@ -612,6 +612,10 @@ export class WorkflowGraph {
     this.sharedModel.debugState.set(operatorId, new Y.Map<BreakpointInfo>());
   }
 
+  public hasOperatorDebugState(operatorId: string): boolean {
+    return this.sharedModel.debugState.has(operatorId);
+  }
+
   public getOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
     if (!this.sharedModel.debugState.has(operatorId)) {
       throw new Error(`operator ${operatorId} does not have a debug state`);

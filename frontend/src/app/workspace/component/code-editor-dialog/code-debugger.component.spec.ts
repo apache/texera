@@ -53,7 +53,10 @@ describe("CodeDebuggerComponent", () => {
     // doc, but the spec used to construct a detached map.
     debugState = new Y.Doc().getMap<BreakpointInfo>("debug");
 
-    mockWorkflowStatusService = { getStateUpdateStream: vi.fn() } as unknown as Mocked<WorkflowStatusService>;
+    mockWorkflowStatusService = {
+      getStateUpdateStream: vi.fn(),
+      getCurrentState: vi.fn(() => ({})),
+    } as unknown as Mocked<WorkflowStatusService>;
     mockWorkflowStatusService.getStateUpdateStream.mockReturnValue(stateUpdateStream.asObservable());
 
     mockUdfDebugService = {
@@ -140,9 +143,12 @@ describe("CodeDebuggerComponent", () => {
   }));
 
   it("should remove monaco breakpoint methods when state changes to Uninitialized", () => {
+    vi.spyOn(component, "setupMonacoBreakpointMethods").mockImplementation(() => {});
+    vi.spyOn(component, "rerenderExistingBreakpoints").mockImplementation(() => {});
     const removeSpy = vi.spyOn(component, "removeMonacoBreakpointMethods");
 
-    // Emit an Uninitialized state event
+    // A run ends: the operator goes from Running back to Uninitialized
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
     stateUpdateStream.next({ [operatorId]: OperatorState.Uninitialized });
 
     fixture.detectChanges(); // Trigger change detection
@@ -170,6 +176,10 @@ describe("CodeDebuggerComponent", () => {
         [1, "breakpoint1"],
         [2, "breakpoint2"],
       ]),
+      // torn down with the component
+      removeHighlight: vi.fn(),
+      clearBreakpoints: vi.fn(),
+      dispose: vi.fn(),
     } as unknown as MonacoBreakpoint;
 
     // Simulate a right click on line 1, it should switch to 1
@@ -209,6 +219,7 @@ describe("CodeDebuggerComponent", () => {
       removeSpecifyDecoration: ReturnType<typeof vi.fn>;
       setLineHighlight: ReturnType<typeof vi.fn>;
       removeHighlight: ReturnType<typeof vi.fn>;
+      clearBreakpoints: ReturnType<typeof vi.fn>;
       lineNumberAndDecorationIdMap: Map<number, string>;
       mouseDownDisposable: { dispose: ReturnType<typeof vi.fn> };
       dispose: ReturnType<typeof vi.fn>;
@@ -220,6 +231,7 @@ describe("CodeDebuggerComponent", () => {
         removeSpecifyDecoration: vi.fn(),
         setLineHighlight: vi.fn(),
         removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
         lineNumberAndDecorationIdMap: new Map<number, string>(),
         mouseDownDisposable: { dispose: vi.fn() },
         dispose: vi.fn(),
@@ -305,7 +317,13 @@ describe("CodeDebuggerComponent", () => {
 
     beforeEach(() => {
       monacoBreakpointStub = { createSpecifyDecoration: vi.fn() };
-      component.monacoBreakpoint = monacoBreakpointStub as unknown as MonacoBreakpoint;
+      // the rest is only reached when the component is torn down
+      component.monacoBreakpoint = {
+        ...monacoBreakpointStub,
+        removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
+        dispose: vi.fn(),
+      } as unknown as MonacoBreakpoint;
     });
 
     it("re-creates a decoration for every existing entry that has a breakpointId", () => {
@@ -329,6 +347,8 @@ describe("CodeDebuggerComponent", () => {
       const disposeBreakpoint = vi.fn();
       component.monacoBreakpoint = {
         mouseDownDisposable: { dispose: disposeMouseDown },
+        removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
         dispose: disposeBreakpoint,
       } as unknown as MonacoBreakpoint;
 
@@ -343,6 +363,219 @@ describe("CodeDebuggerComponent", () => {
       // Should simply no-op.
       expect(() => component.removeMonacoBreakpointMethods()).not.toThrow();
     });
+
+    it("forgets the breakpoint instance once it is disposed", () => {
+      component.monacoBreakpoint = {
+        mouseDownDisposable: { dispose: vi.fn() },
+        removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
+        dispose: vi.fn(),
+      } as unknown as MonacoBreakpoint;
+
+      component.removeMonacoBreakpointMethods();
+
+      expect(component.monacoBreakpoint).toBeUndefined();
+    });
+  });
+});
+
+/**
+ * The editor is opened and closed many times over one workflow, often before a run starts or
+ * while one is already going, and the debug state it draws from is a shared Y.Map that outlives
+ * it. These cases mount the component against a given current state and check what it leaves
+ * behind.
+ */
+describe("CodeDebuggerComponent across editor openings", () => {
+  let fixture: ComponentFixture<CodeDebuggerComponent>;
+  let component: CodeDebuggerComponent;
+  let stateUpdateStream: Subject<Record<string, OperatorState>>;
+  let currentState: Record<string, OperatorState>;
+  let debugState: Y.Map<BreakpointInfo>;
+  let monacoBreakpointStub: {
+    createSpecifyDecoration: ReturnType<typeof vi.fn>;
+    removeSpecifyDecoration: ReturnType<typeof vi.fn>;
+    setLineHighlight: ReturnType<typeof vi.fn>;
+    removeHighlight: ReturnType<typeof vi.fn>;
+    clearBreakpoints: ReturnType<typeof vi.fn>;
+    lineNumberAndDecorationIdMap: Map<number, string>;
+    mouseDownDisposable: { dispose: ReturnType<typeof vi.fn> };
+    dispose: ReturnType<typeof vi.fn>;
+  };
+  let setupSpy: ReturnType<typeof vi.spyOn>;
+
+  const operatorId = "op-in-editor";
+
+  beforeEach(async () => {
+    stateUpdateStream = new Subject<Record<string, OperatorState>>();
+    currentState = {};
+    debugState = new Y.Doc().getMap<BreakpointInfo>("debug");
+    monacoBreakpointStub = {
+      createSpecifyDecoration: vi.fn(),
+      removeSpecifyDecoration: vi.fn(),
+      setLineHighlight: vi.fn(),
+      removeHighlight: vi.fn(),
+      clearBreakpoints: vi.fn(),
+      lineNumberAndDecorationIdMap: new Map<number, string>(),
+      mouseDownDisposable: { dispose: vi.fn() },
+      dispose: vi.fn(),
+    };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CodeDebuggerComponent],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      providers: [
+        {
+          provide: WorkflowStatusService,
+          useValue: {
+            getStateUpdateStream: vi.fn(() => stateUpdateStream.asObservable()),
+            getCurrentState: vi.fn(() => currentState),
+          },
+        },
+        {
+          provide: UdfDebugService,
+          useValue: { getDebugState: vi.fn(() => debugState), doModifyBreakpoint: vi.fn(), getCondition: vi.fn() },
+        },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    stateUpdateStream.complete();
+  });
+
+  /** Mounts the editor's debugger; a real MonacoBreakpoint needs a full editor, so a stub stands in. */
+  function mount() {
+    fixture = TestBed.createComponent(CodeDebuggerComponent);
+    component = fixture.componentInstance;
+    component.currentOperatorId = operatorId;
+    component.monacoEditor = { dispose: vi.fn() } as unknown as monaco.editor.IStandaloneCodeEditor;
+    setupSpy = vi.spyOn(component, "setupMonacoBreakpointMethods").mockImplementation(() => {
+      component.monacoBreakpoint = monacoBreakpointStub as unknown as MonacoBreakpoint;
+    });
+    fixture.detectChanges();
+  }
+
+  it("turns breakpoints on at once when the operator is already running", () => {
+    debugState.set("4", { breakpointId: 1, condition: "", hit: false });
+    currentState = { [operatorId]: OperatorState.Running };
+
+    mount();
+
+    expect(setupSpy).toHaveBeenCalledOnce();
+    expect(monacoBreakpointStub.createSpecifyDecoration).toHaveBeenCalledWith({
+      startLineNumber: 4,
+      startColumn: 1,
+      endLineNumber: 4,
+      endColumn: 1,
+    });
+  });
+
+  it("turns breakpoints on at once when the operator is already paused", () => {
+    currentState = { [operatorId]: OperatorState.Paused };
+
+    mount();
+
+    expect(setupSpy).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    OperatorState.Uninitialized,
+    OperatorState.Initializing,
+    OperatorState.Ready,
+    OperatorState.Pausing,
+    OperatorState.Resuming,
+    OperatorState.Completed,
+    OperatorState.Recovering,
+  ])("leaves breakpoints off when the operator is %s", state => {
+    currentState = { [operatorId]: state };
+
+    mount();
+
+    expect(setupSpy).not.toHaveBeenCalled();
+  });
+
+  it("leaves breakpoints off when the operator has no state yet", () => {
+    currentState = { "another-operator": OperatorState.Running };
+
+    mount();
+
+    expect(setupSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not react to the debug state once the editor is closed", () => {
+    mount();
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+    expect(setupSpy).toHaveBeenCalledOnce();
+
+    fixture.destroy();
+    debugState.set("5", { breakpointId: 2, condition: "", hit: false });
+
+    expect(monacoBreakpointStub.createSpecifyDecoration).not.toHaveBeenCalled();
+  });
+
+  it("closes the breakpoint condition input when breakpoints are turned off", () => {
+    mount();
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+    component.breakpointConditionLine = 10;
+
+    stateUpdateStream.next({ [operatorId]: OperatorState.Completed });
+
+    // an input left open would set a condition for a run that is over
+    expect(component.breakpointConditionLine).toBeUndefined();
+  });
+
+  it("closes the breakpoint condition input when the editor is closed", () => {
+    mount();
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+    component.breakpointConditionLine = 10;
+
+    fixture.destroy();
+
+    expect(component.breakpointConditionLine).toBeUndefined();
+  });
+
+  it("clears its gutter when the editor is closed during a run", () => {
+    mount();
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+
+    fixture.destroy();
+
+    // the dots and highlight would otherwise stay on the model the next editor opens on
+    expect(monacoBreakpointStub.clearBreakpoints).toHaveBeenCalledOnce();
+    expect(monacoBreakpointStub.removeHighlight).toHaveBeenCalledOnce();
+    expect(monacoBreakpointStub.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("lets a breakpoint be recorded after an editor opened before the run was closed", () => {
+    // the editor was opened to write the code, so breakpoints were never turned on in it
+    mount();
+    fixture.destroy();
+
+    expect(() => debugState.set("5", { breakpointId: 2, condition: "", hit: false })).not.toThrow();
+  });
+
+  it("lets the debug state change while breakpoints are off in an open editor", () => {
+    mount();
+
+    expect(() => debugState.set("5", { breakpointId: 2, condition: "", hit: false })).not.toThrow();
+    expect(() => debugState.delete("5")).not.toThrow();
+  });
+
+  it("redraws breakpoints and the paused line each time breakpoints are turned back on", () => {
+    debugState.set("4", { breakpointId: 1, condition: "", hit: false });
+    // a step position: execution is paused on line 9, which has no breakpoint of its own
+    debugState.set("9", { breakpointId: undefined, condition: "", hit: true });
+    mount();
+
+    stateUpdateStream.next({ [operatorId]: OperatorState.Running });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Completed });
+    stateUpdateStream.next({ [operatorId]: OperatorState.Paused });
+
+    const drawnLines = monacoBreakpointStub.createSpecifyDecoration.mock.calls.map(c => c[0].startLineNumber);
+    expect(drawnLines).toEqual([4, 4]);
+    expect(monacoBreakpointStub.setLineHighlight.mock.calls).toEqual([[9], [9]]);
   });
 });
 /**
@@ -451,7 +684,10 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
       providers: [
         {
           provide: WorkflowStatusService,
-          useValue: { getStateUpdateStream: vi.fn(() => new Subject().asObservable()) },
+          useValue: {
+            getStateUpdateStream: vi.fn(() => new Subject().asObservable()),
+            getCurrentState: vi.fn(() => ({})),
+          },
         },
         { provide: UdfDebugService, useValue: debugService },
         ...commonTestProviders,
@@ -474,6 +710,40 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
     component.removeMonacoBreakpointMethods();
     component.monacoEditor?.dispose();
   });
+
+  // The model outlives the editor, and MonacoBreakpoint.dispose() lets go of its editor before
+  // removing its decorations: whatever the component does not remove stays for the next editor.
+  for (const teardown of ["breakpoints are turned off", "the editor is closed"]) {
+    it(`leaves no breakpoint or highlight on the model when ${teardown}`, () => {
+      const model = monacoNs.editor.createModel("first\nsecond\nthird", "plaintext");
+      editor.getModel.mockReturnValue(model);
+      const [unrelated] = model.deltaDecorations(
+        [],
+        [{ range: new monacoNs.Range(2, 1, 2, 1), options: { className: "other-feature" } }]
+      );
+      const debuggerDecorations = () =>
+        model
+          .getAllDecorations()
+          .filter(d => [d.options.className, d.options.glyphMarginClassName].some(name => name?.startsWith("monaco-")));
+
+      try {
+        component["createBreakpointDecoration"](2);
+        component.monacoBreakpoint!.setLineHighlight(2);
+        expect(debuggerDecorations()).toHaveLength(2);
+
+        if (teardown === "the editor is closed") {
+          fixture.destroy();
+        } else {
+          component.removeMonacoBreakpointMethods();
+        }
+
+        expect(debuggerDecorations()).toHaveLength(0);
+        expect(model.getAllDecorations().map(d => d.id)).toContain(unrelated);
+      } finally {
+        model.dispose();
+      }
+    });
+  }
 
   describe("gutter glyph", () => {
     it("marks a plain breakpoint", () => {
