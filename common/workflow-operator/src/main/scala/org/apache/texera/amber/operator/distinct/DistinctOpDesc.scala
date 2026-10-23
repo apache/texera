@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.distinct
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class DistinctOpDesc extends LogicalOp with StandaloneCodeGenerator {
@@ -55,8 +55,11 @@ class DistinctOpDesc extends LogicalOp with StandaloneCodeGenerator {
     )
 
   override def generateStandaloneCode(): String = {
-    // JVM op uses LinkedHashSet to preserve first-occurrence order;
-    // pandas drop_duplicates does the same by default.
-    "out1df = in1df.drop_duplicates(ignore_index=True)"
+    // The engine's LinkedHashSet keeps the first row of each key in input
+    // order, by the rows' own equality: NaN equals nothing, and 0.0 and -0.0
+    // hash apart. drop_duplicates counts both pairs as equal.
+    "out1df = _texera_set_select(in1df, lambda key: True)"
   }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
 }
