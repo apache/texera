@@ -681,6 +681,31 @@ describe("ContextMenuComponent", () => {
       expect(operatorMenuService.executeUpToOperator).toHaveBeenCalledTimes(1);
     });
 
+    it("pin result emits pinResult with the highlighted operator", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      fixture.detectChanges();
+      const pinned: string[] = [];
+      component.pinResult.subscribe(operatorId => pinned.push(operatorId));
+
+      clickItem("pin result");
+
+      expect(pinned).toEqual(["op1"]);
+    });
+
+    it("offers pin result for exactly one operator only", () => {
+      const labels = () =>
+        fixture.debugElement.queryAll(By.css("li[nz-menu-item]")).map(li => norm(li.nativeElement.textContent));
+
+      highlightedOperatorsSubject.next(["op1", "op2"]);
+      fixture.detectChanges();
+      expect(labels()).not.toContain("pin result");
+
+      highlightedOperatorsSubject.next(["op1"]);
+      highlightedCommentBoxesSubject.next(["comment1"]);
+      fixture.detectChanges();
+      expect(labels()).not.toContain("pin result");
+    });
+
     it("Export result invokes onClickExportHighlightedExecutionResult", () => {
       (
         workflowResultExportService as unknown as { hasResultToExportOnHighlightedOperators: boolean }

@@ -21,7 +21,13 @@ import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChi
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
-import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
+import {
+  OperatorConsoleMessage,
+  WorkflowConsoleService,
+} from "../../../service/workflow-console/workflow-console.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
@@ -87,7 +93,8 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
   ],
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
-  @Input() operatorId!: string;
+  // The operator whose messages are shown. Left out, every operator's messages are shown together.
+  @Input() operatorId?: string;
   @Input() consoleInputEnabled?: boolean;
   @ViewChild(CdkVirtualScrollViewport) viewPort?: CdkVirtualScrollViewport;
   @ViewChild("consoleList", { read: ElementRef }) listElement?: ElementRef;
@@ -105,6 +112,11 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.rawConsoleMessages = messages;
     this.applyTypeFilter();
   }
+
+  // The operator each shown message came from, for its tag when every operator's messages are shown.
+  private messageOperator = new Map<ConsoleMessage, string>();
+  // the console message made for each error that stopped the run or the compilation
+  private fatalErrorRows = new WeakMap<WorkflowFatalError, OperatorConsoleMessage>();
 
   // Message types the user has switched off. Absent from the set means visible,
   // so a type the console has never seen before is shown rather than hidden.
@@ -182,11 +194,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     private workflowConsoleService: WorkflowConsoleService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private notificationService: NotificationService,
-    private udfDebugService: UdfDebugService
+    private udfDebugService: UdfDebugService,
+    private workflowActionService: WorkflowActionService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
+    if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
     this.renderConsole();
   }
 
@@ -213,6 +227,12 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       .getConsoleMessageUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(_ => this.renderConsole());
+
+    // a compilation error is shown here too, and it comes and goes without a run
+    this.workflowCompilingService
+      .getCompilationStateInfoChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => this.renderConsole());
   }
 
   clearConsole(): void {
@@ -220,17 +240,22 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   renderConsole(): void {
-    if (this.operatorId) {
-      this.workerIds = this.executeWorkflowService.getWorkerIds(this.operatorId);
-
-      // always display console messages
-      this.displayConsoleMessages(this.operatorId);
-    }
+    this.workerIds = this.operatorId ? this.executeWorkflowService.getWorkerIds(this.operatorId) : [];
+    this.displayConsoleMessages(this.operatorId);
   }
 
-  displayConsoleMessages(operatorId: string): void {
+  /**
+   * Show the operator's messages, or every operator's when none is given. The errors that stopped
+   * the run or the compilation come last, as ERROR messages.
+   */
+  displayConsoleMessages(operatorId?: string): void {
     const lastVisible = this.filteredMessages[this.filteredMessages.length - 1];
-    this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
+    const rows: OperatorConsoleMessage[] = isDefined(operatorId)
+      ? (this.workflowConsoleService.getConsoleMessages(operatorId) ?? []).map(message => ({ operatorId, message }))
+      : [...this.workflowConsoleService.getAllConsoleMessages()];
+    rows.push(...this.fatalErrorMessages().filter(row => !isDefined(operatorId) || row.operatorId === operatorId));
+    this.messageOperator = new Map(rows.map(row => [row.message, row.operatorId]));
+    this.consoleMessages = rows.map(row => row.message);
 
     // Preserve scroll position when no new visible message arrives.
     if (this.filteredMessages[this.filteredMessages.length - 1] === lastVisible) {
@@ -302,12 +327,14 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   onClickStep(): void {
+    if (!isDefined(this.operatorId)) return;
     for (let worker of this.workerIds) {
       this.udfDebugService.doStep(this.operatorId, worker);
     }
   }
 
   onClickContinue(): void {
+    if (!isDefined(this.operatorId)) return;
     for (let worker of this.workerIds) {
       this.udfDebugService.doContinue(this.operatorId, worker);
     }
@@ -316,4 +343,67 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   getMessageLabel(message: ConsoleMessage): string {
     return this.labelMapping.get(message.msgType.name) ?? "";
   }
+
+  /** The operator a shown message came from, when it came from one still on the canvas. */
+  messageOperatorId(message: ConsoleMessage): string | undefined {
+    const operatorId = this.messageOperator.get(message);
+    return isDefined(operatorId) && this.workflowActionService.getTexeraGraph().hasOperator(operatorId)
+      ? operatorId
+      : undefined;
+  }
+
+  operatorLabel(operatorId: string): string {
+    const graph = this.workflowActionService.getTexeraGraph();
+    if (!graph.hasOperator(operatorId)) return operatorId;
+    const operator = graph.getOperator(operatorId);
+    return operator.customDisplayName ?? operator.operatorType;
+  }
+
+  /** Show only this operator's messages. The panel follows the highlight, so this highlights it. */
+  showOperator(operatorId: string): void {
+    this.workflowActionService.highlightOperators(false, operatorId);
+  }
+
+  /** Back to every operator's messages, by clearing the highlight the panel follows. */
+  showAllOperators(): void {
+    const wrapper = this.workflowActionService.getJointGraphWrapper();
+    wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+  }
+
+  /** The errors that stopped the run or the compilation, as console messages. */
+  private fatalErrorMessages(): OperatorConsoleMessage[] {
+    const errors: WorkflowFatalError[] = [
+      ...this.executeWorkflowService.getErrorMessages(),
+      ...Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()),
+    ];
+    return errors.map(error => {
+      // The same error gives the same message on every render. A new one each time would read as
+      // a message just arrived, and the list would jump to its end while the user scrolls up.
+      let row = this.fatalErrorRows.get(error);
+      if (!row) {
+        const shouldFormat = error.type.name === "COMPILATION_ERROR" || error.type.name === "EXECUTION_FAILURE";
+        row = {
+          operatorId: error.operatorId,
+          message: {
+            workerId: error.workerId,
+            timestamp: error.timestamp,
+            msgType: { name: "ERROR" },
+            source: error.type.name,
+            title: shouldFormat ? readableError(error.message) : error.message,
+            message: shouldFormat ? readableError(error.details) : error.details,
+          },
+        };
+        this.fatalErrorRows.set(error, row);
+      }
+      return row;
+    });
+  }
+}
+
+/** Strip a Java exception's class name and a failed requirement's prefix, which mean nothing to a user. */
+function readableError(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/^\s*(?:(?:[a-zA-Z0-9_]+\.)*[a-zA-Z0-9_]+(?:Exception|Error)):\s*/, "")
+    .replace(/^\s*requirement failed:\s*/, "");
 }

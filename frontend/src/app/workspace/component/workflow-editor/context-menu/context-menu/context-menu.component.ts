@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Input } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -50,6 +50,12 @@ export class ContextMenuComponent {
    * do not change the graph and are left to their own rules.
    */
   @Input() structureLocked = false;
+
+  /**
+   * Asks the editor that owns this menu to pin an operator's result window. The hover card's Pin
+   * button is the other way, and it is gone while Result preview is off or the heat-map is on.
+   */
+  @Output() pinResult = new EventEmitter<string>();
 
   /** Whether the graph may be re-shaped from this menu: modification on, and no structure lock. */
   public get canModify(): boolean {
@@ -121,6 +127,10 @@ export class ContextMenuComponent {
 
   public onCopy(): void {
     this.operatorMenuService.saveHighlightedElements();
+  }
+
+  public onPinResult(): void {
+    this.pinResult.emit(this.highlightedOperatorIds[0]);
   }
 
   public onPaste(): void {

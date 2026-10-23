@@ -67,6 +67,15 @@
   text-overflow: ellipsis;
 }
 
+.operator-filter-notice {
+  flex: 0 0 auto;
+  font-family: monaco, serif;
+  font-size: 11px;
+  line-height: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
 // The overlay renders outside this component, so it is only reachable through
 // nzOverlayClassName. Items here are .ant-dropdown-menu-item, which the
 // .ant-menu-item rule in styles.scss does not cover.
@@ -152,6 +161,12 @@
       font-variant: normal;
       //border: solid #0e5df0;
       text-align: end;
+    }
+
+    .operator-tag {
+      font-family: monaco, serif;
+      font-size: 8px;
+      cursor: pointer;
     }
   }
 }
