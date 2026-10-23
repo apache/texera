@@ -23,11 +23,10 @@ import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 
-class SymmetricDifferenceOpDesc extends LogicalOp {
-
+class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -62,4 +61,17 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       outputPorts = List(OutputPort(blocking = true))
     )
 
+  // Distinct rows in exactly one input, by the engine's row equality.
+  override def generateStandaloneCode(): String =
+    """_texera_set_left = set(_texera_set_row_keys(in1df))
+      |_texera_set_right = set(_texera_set_row_keys(in2df))
+      |out1df = pd.concat(
+      |    [
+      |        _texera_set_select(in1df, lambda key: key not in _texera_set_right),
+      |        _texera_set_select(in2df, lambda key: key not in _texera_set_left),
+      |    ],
+      |    ignore_index=True,
+      |)""".stripMargin
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
 }

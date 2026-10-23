@@ -24,10 +24,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
-import org.apache.texera.amber.core.tuple.{Attribute, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -53,8 +53,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
   }
 }
 """)
-class IntervalJoinOpDesc extends LogicalOp {
-
+class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
   @JsonPropertyDescription("Choose one attribute in the left table")
@@ -150,6 +149,64 @@ class IntervalJoinOpDesc extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
+  // Inner interval join: left point in [rightKey, rightKey + constant], bounds
+  // toggled by include{Left,Right}Bound. Cross-join + mask computes the full
+  // result (no sorted-input assumption, unlike the exec). Runtime dtype check
+  // picks numeric vs pd.DateOffset (unit from timeIntervalType).
+  //
+  // Both keys are read off the merged frame rather than copied into columns of
+  // the operator's own naming, which would overwrite an input column that
+  // happens to carry that name and then drop it. Only the right key needs
+  // locating: the merge leaves every left name alone and suffixes a right one
+  // that collides.
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    val leftLit = objectMapper.writeValueAsString(leftAttributeName)
+    val rightLit = objectMapper.writeValueAsString(rightAttributeName)
+    val loOp = if (includeLeftBound) ">=" else ">"
+    val hiOp = if (includeRightBound) "<=" else "<"
+    val offsetUnit = Option(timeIntervalType).flatten match {
+      case Some(TimeIntervalType.YEAR)   => "years"
+      case Some(TimeIntervalType.MONTH)  => "months"
+      case Some(TimeIntervalType.HOUR)   => "hours"
+      case Some(TimeIntervalType.MINUTE) => "minutes"
+      case Some(TimeIntervalType.SECOND) => "seconds"
+      case _                             => "days" // DAY or unset
+    }
+    // The engine adds the constant in the right key's declared type. An INTEGER
+    // bound is an Int sum, so the constant is cut to 32 bits and the sum wraps
+    // past Int.MaxValue, where pandas holds the column as int64 and does
+    // neither. A LONG wraps in int64 as it does in Java. The key is widened to
+    // float64 first, which holds every such sum exactly, since NumPy refuses
+    // 2**31 against an int32 column.
+    val declared = inputSchemas
+      .get(operatorInfo.inputPorts.last.id)
+      .flatMap(schema => scala.util.Try(schema.getAttribute(rightAttributeName)).toOption)
+      .map(_.getType)
+    val numericBound =
+      if (declared.contains(AttributeType.INTEGER))
+        s"""(_iv_r.astype("float64") + ${constant.toInt} + 2**31) % 2**32 - 2**31"""
+      else s"_iv_r + $constant"
+    s"""_pairs = in1df.merge(in2df, how="cross", suffixes=("", "#@1"))
+       |_iv_l = _pairs[$leftLit]
+       |_iv_r = _pairs[$rightLit if $rightLit not in in1df.columns else $rightLit + "#@1"]
+       |if pd.api.types.is_datetime64_any_dtype(_iv_r):
+       |    # The keys arrive as wall clocks, and the engine adds the constant to
+       |    # the wall clock. It compares by getTime, so a moment counts only to
+       |    # the millisecond. The bound is added before it is cut, as there.
+       |    _iv_hi = _texera_wall_clock_instants(_iv_r + pd.DateOffset($offsetUnit=$constant)).dt.floor("ms")
+       |    _iv_l = _texera_wall_clock_instants(_iv_l).dt.floor("ms")
+       |    _iv_r = _texera_wall_clock_instants(_iv_r).dt.floor("ms")
+       |else:
+       |    _iv_hi = $numericBound
+       |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)
+       |out1df = _pairs[_iv_match].reset_index(drop=True)""".stripMargin
+  }
+
+  override def standaloneHelpers(): Seq[String] =
+    Seq(StandaloneHelpers.AttributeCasts, IntervalJoinOpDesc.WallClockInstants)
+
   def this(
       leftTableAttributeName: String,
       rightTableAttributeName: String,
@@ -167,4 +224,50 @@ class IntervalJoinOpDesc extends LogicalOp {
     this.timeIntervalType = Some(timeIntervalType)
   }
 
+}
+
+object IntervalJoinOpDesc {
+
+  /** The instant the executor holds for each wall clock in a column. A source
+    * hands the script a timestamp as the wall clock the machine's zone shows,
+    * and the executor's upper bound is
+    * `Timestamp.valueOf(t.toLocalDateTime.plusX(constant))`, so the constant
+    * is added to that wall clock as it stands. A day across a daylight-saving
+    * change is then 23 or 25 hours, and a month counts from the local date.
+    * The comparison is by getTime, so each wall clock is read back into an
+    * instant before it. One that falls in a gap or an overlap is read at the
+    * standard offset, as java.util.Date reads it, and one before 1900 at the
+    * standard offset today. Each distinct key is worked out once, since the
+    * column holds every pair of the cross join.
+    */
+  val WallClockInstants: String =
+    """def _texera_wall_clock_instants(s):
+      |    from dateutil.tz import tzlocal
+      |
+      |    zone = _texera_local_zone()
+      |    standard = _texera_standard_offset(zone)
+      |    seen = {}
+      |
+      |    def instant(wall):
+      |        if pd.isna(wall):
+      |            return pd.NaT
+      |        if wall not in seen:
+      |            moment = wall.to_pydatetime(warn=False)
+      |            if moment.year < 1900:
+      |                seen[wall] = pd.Timestamp(moment - standard)
+      |                return seen[wall]
+      |            tz = zone if zone is not None else tzlocal()
+      |            try:
+      |                early = moment.replace(tzinfo=tz, fold=0)
+      |                late = moment.replace(tzinfo=tz, fold=1)
+      |                if early.utcoffset() == late.utcoffset() or not early.dst():
+      |                    at = early.utcoffset()
+      |                else:
+      |                    at = late.utcoffset()
+      |            except (OSError, OverflowError):
+      |                at = standard
+      |            seen[wall] = pd.Timestamp(moment - at)
+      |        return seen[wall]
+      |
+      |    return pd.Series([instant(w) for w in s], index=s.index, dtype="datetime64[us]")""".stripMargin
 }

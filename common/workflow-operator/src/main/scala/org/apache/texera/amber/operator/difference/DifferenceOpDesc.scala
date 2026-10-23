@@ -23,11 +23,10 @@ import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 
-class DifferenceOpDesc extends LogicalOp {
-
+class DifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -61,4 +60,12 @@ class DifferenceOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // Distinct left (port 0) rows the right (port 1) does not hold, by the
+  // engine's row equality.
+  override def generateStandaloneCode(): String =
+    """_texera_set_right = set(_texera_set_row_keys(in2df))
+      |out1df = _texera_set_select(in1df, lambda key: key not in _texera_set_right)""".stripMargin
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
 }

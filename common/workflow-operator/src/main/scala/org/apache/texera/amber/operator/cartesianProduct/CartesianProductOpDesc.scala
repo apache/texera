@@ -23,10 +23,11 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class CartesianProductOpDesc extends LogicalOp {
+class CartesianProductOpDesc extends LogicalOp with StandaloneCodeGenerator {
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -103,4 +104,27 @@ class CartesianProductOpDesc extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
+
+  // Schema mirrors SchemaPropagationFunc: left columns kept as-is, each right
+  // column renamed by repeatedly appending "#@1" while the candidate name
+  // collides with any left column OR any other right column's ORIGINAL name.
+  // The renamed-name table is recomputed at runtime from the actual DataFrame
+  // columns. Known divergence: row order — pandas cross-merge varies right
+  // fastest (L1R1, L1R2, L2R1, L2R2); the JVM op buffers left and emits per
+  // arriving right tuple (L1R1, L2R1, L1R2, L2R2). Cartesian product is set-
+  // semantically order-agnostic, so this is acceptable.
+  override def generateStandaloneCode(): String = {
+    """_left_cols = list(in1df.columns)
+      |_right_cols = list(in2df.columns)
+      |_left_set = set(_left_cols)
+      |_right_set = set(_right_cols)
+      |_rename = {}
+      |for _col in _right_cols:
+      |    _new = _col
+      |    _others = _right_set - {_col}
+      |    while _new in _left_set or _new in _others:
+      |        _new = _new + "#@1"
+      |    _rename[_col] = _new
+      |out1df = in1df.merge(in2df.rename(columns=_rename), how="cross").reset_index(drop=True)""".stripMargin
+  }
 }

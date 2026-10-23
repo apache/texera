@@ -25,18 +25,12 @@ package org.apache.texera.amber.operator
 object SamplingHelpers {
 
   /**
-    * A Python transcription of `java.util.Random`, for operators whose executor
-    * draws from one.
-    *
-    * A sampler decides per row whether to keep it, so which rows survive is
-    * fixed by the exact sequence the generator produces. Seeding Python's
-    * `random` or numpy's with the engine's seed selects a different set, and
-    * the script would then report a different sample than the workflow it came
-    * from. Only the same generator gives the same rows.
+    * `_TexeraJavaRandom`: `java.util.Random` in Python, so a sampler keeps the rows the engine
+    * keeps. Python's or numpy's generator with the same seed picks other rows. `next_int`
+    * rejects a draw where Java's int sum overflows, which Python's integers never do.
     */
   val JavaRandom: String =
-    """# java.util.Random, transcribed so sampling matches the engine.
-      |class _TexeraJavaRandom:
+    """class _TexeraJavaRandom:
       |    _MASK = (1 << 48) - 1
       |    _MULTIPLIER = 0x5DEECE66D
       |    _ADDEND = 0xB
@@ -60,8 +54,6 @@ object SamplingHelpers {
       |        while True:
       |            bits = self._next(31)
       |            value = bits % bound
-      |            # Java rejects a draw by letting this sum overflow an int.
-      |            # Python would carry it and never reject.
       |            probe = bits - value + (bound - 1)
       |            if ((probe + (1 << 31)) % (1 << 32)) - (1 << 31) >= 0:
       |                return value""".stripMargin
