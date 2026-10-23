@@ -506,6 +506,38 @@ describe("ResultPanelComponent", () => {
       expect(component.frameComponentConfigs.get("Console")).toBe(consoleFrame);
     });
 
+    it("brings the tab back when the same operator fails again on a later run", () => {
+      // The map is written by two paths -- this stream and rerenderResultPanel -- but only
+      // this one fed the distinctUntilChanged key. Starting a run clears the console and the
+      // rerender drops the tab, while the pipe still remembers `true`, so the next error maps
+      // to `true` again, is read as "no change", and the tab never comes back. That is the
+      // fix-and-re-run loop this panel exists for.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+
+      // First run fails and the error reaches this stream, so the pipe now remembers `true`.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      component.rerenderResultPanel();
+      consoleService.clearConsoleMessages();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+
+      // A new run starts. The console is emptied without notifying this stream -- the engine
+      // clears it on its own -- and the rerender takes the tab down, so the pipe's memory is
+      // now stale.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([]);
+      component.rerenderResultPanel();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      // It fails again, with the operator still selected.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+    });
+
     it("registers the display-name handler once rather than on every rerender", () => {
       // It used to be called from the rerender subscriber, adding a subscription each time
       // without releasing the previous one, so handlers piled up for the panel's lifetime.

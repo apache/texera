@@ -35,7 +35,7 @@ import { ResultTableFrameComponent } from "./result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
-import { distinctUntilChanged, filter, map } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -267,16 +267,16 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     // position and debug input, and the Result table, whenever any operator prints.
     this.workflowConsoleService
       .getConsoleMessageUpdateStream()
-      .pipe(
-        // Keyed by operator as well as by the flag: comparing the flag alone would block a
-        // second operator's error after the first one's, since both map to `true`.
-        map(() => `${this.currentOperatorId ?? ""}:${this.shouldOfferAiFix()}`),
-        distinctUntilChanged(),
-        untilDestroyed(this)
-      )
+      .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.syncAiFixFrame();
-        this.changeDetectorRef.detectChanges();
+        // Nothing is remembered between emissions here. syncAiFixFrame compares against the
+        // map itself, which rerenderResultPanel writes to as well: a key remembered by the
+        // pipe went stale the moment the rerender dropped the tab, so the next error mapped
+        // to the same value, read as "no change", and the tab never came back -- in the
+        // fix-and-re-run loop this panel is for.
+        if (this.syncAiFixFrame()) {
+          this.changeDetectorRef.detectChanges();
+        }
       });
   }
 
@@ -307,12 +307,25 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     return config.value;
   }
 
-  /** Adds or removes the AI Fix entry, leaving every other frame untouched. */
-  private syncAiFixFrame(): void {
-    if (this.shouldOfferAiFix()) {
+  /**
+   * Adds or removes the AI Fix entry, leaving every other frame untouched.
+   *
+   * Returns whether it changed anything, so a caller can skip change detection. The decision
+   * is made against the entry that is actually there, including which operator it points at:
+   * this runs from the console stream and from rerenderResultPanel, and anything remembered
+   * outside the map goes stale as soon as the other path writes to it.
+   */
+  private syncAiFixFrame(): boolean {
+    const operatorId = this.shouldOfferAiFix() ? this.currentOperatorId : undefined;
+    const existing = this.frameComponentConfigs.get("AI Fix");
+    const shown = existing ? (existing.componentInputs as { operatorId?: string }).operatorId : undefined;
+    if (operatorId === shown) {
+      return false;
+    }
+    if (operatorId) {
       this.frameComponentConfigs.set("AI Fix", {
         component: AiFixFrameComponent,
-        componentInputs: { operatorId: this.currentOperatorId },
+        componentInputs: { operatorId },
       });
     } else {
       // Mirrors the Static Error frame's teardown: once the operator no longer reports an
@@ -320,6 +333,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       // -- a tab offering to fix it has nothing to act on.
       this.frameComponentConfigs.delete("AI Fix");
     }
+    return true;
   }
 
   rerenderResultPanel(): void {
