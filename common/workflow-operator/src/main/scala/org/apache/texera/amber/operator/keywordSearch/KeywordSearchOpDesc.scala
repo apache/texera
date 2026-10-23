@@ -102,7 +102,8 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
     val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
     val pyLiteral = pyStringLiteral(pattern)
-    val attrLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // Case follows the flag, which picks the analyzer the engine indexes with:
     // StandardAnalyzer lower-cases both the field and the query, CaseSensitiveAnalyzer
     // is the same tokenizer with that filter left out.

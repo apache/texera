@@ -86,8 +86,17 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     // `tupleCasting` takes a Map of column to target type and reads each column's
     // ORIGINAL value once, so two units naming one column collapse to the last.
     val lastPerColumn = units.zipWithIndex.groupBy(_._1.attribute).view.mapValues(_.last._2).toMap
+    // Unlike most operators, both `tupleCasting` and `SchemaCasting` match a column
+    // by its exact name, not through Schema, which ignores case. So a unit that
+    // names no column, or names one in a different case, casts nothing in the
+    // engine, where pandas would raise a KeyError. Without a schema there is
+    // nothing to check against, and every unit is kept.
+    val inputSchema = inputSchemas.values.headOption
     val effective = units.zipWithIndex.collect {
-      case (unit, i) if lastPerColumn(unit.attribute) == i => unit
+      case (unit, i)
+          if lastPerColumn(unit.attribute) == i &&
+            inputSchema.forall(_.getAttributeNames.contains(unit.attribute)) =>
+        unit
     }
 
     // What each column arrived as: no cast reads another's result.

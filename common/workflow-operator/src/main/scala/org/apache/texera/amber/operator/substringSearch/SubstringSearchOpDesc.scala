@@ -96,7 +96,8 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // equivalent — the substring is matched literally, not as a regex.
     val pyLiteral = pyStringLiteral(Option(substring).getOrElse(""))
     val caseArg = if (isCaseSensitive) "True" else "False"
-    val attrLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // The rows with nothing in the column are dropped before the match rather than
     // left to `na=False`, which by then has no null to see.
     //

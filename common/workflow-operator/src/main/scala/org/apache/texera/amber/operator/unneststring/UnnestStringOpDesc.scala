@@ -145,7 +145,8 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
     // and the two column names are rendered as escaped Python literals.
     val delim = pyStringLiteral(Option(delimiter).getOrElse(""))
     val resultLit = pyStringLiteral(resultAttribute)
-    val attributeLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attributeLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // What is split is the text the engine split, not whatever pandas made of the
     // column. See [[renderedAsText]].
     val declared = inputSchemas.values.headOption
