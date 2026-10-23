@@ -25,6 +25,7 @@ import {
   coerceToFieldType,
   FixState,
   replaceAllIndented,
+  OperatorError,
 } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
@@ -49,6 +50,13 @@ const CODE =
 // so the regexes must match a line inside it rather than the start of the message.
 const KEY_ERROR =
   "Traceback (most recent call last):\n  File \"udf.py\", line 3\n    yield t['email']\nKeyError: 'email'";
+
+const QUOTE = String.fromCharCode(39);
+
+// Both sources hand the exception over on its own, so a test supplies it the same way:
+// `header` is what classification reads, `full` is what the model is shown.
+const err = (header: string, full: string = header): OperatorError => ({ header, full });
+const KEY_ERROR_EVENT = err("KeyError: " + QUOTE + "email" + QUOTE, KEY_ERROR);
 
 describe("AiWorkflowFixerService", () => {
   let service: AiWorkflowFixerService;
@@ -149,7 +157,7 @@ describe("AiWorkflowFixerService", () => {
 
   describe("classifyError", () => {
     it("detects each supported pattern", () => {
-      expect(classifyError(KEY_ERROR)).toEqual("missing_column");
+      expect(classifyError(KEY_ERROR_EVENT.header)).toEqual("missing_column");
       expect(classifyError("TypeError: unsupported operand type(s) for *: 'str' and 'int'")).toEqual("type_error");
       expect(classifyError("ValueError: input contains NaN")).toEqual("null_error");
       expect(classifyError("java.lang.NullPointerException: boom")).toEqual("null_error");
@@ -174,7 +182,7 @@ describe("AiWorkflowFixerService", () => {
       const seen: string[] = [];
       service.getState$().subscribe(s => seen.push(s.status));
 
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       expect(seen).toEqual(["idle", "analyzing", "ready"]);
       expect(state().errorType).toEqual("missing_column");
@@ -197,7 +205,7 @@ describe("AiWorkflowFixerService", () => {
       // happened.
       stubModel(suggestion({ original_snippet: "yield t['address']" }));
 
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       expect(state().status).toEqual("error");
       expect(state().suggestedFix).toBeUndefined();
@@ -205,7 +213,7 @@ describe("AiWorkflowFixerService", () => {
 
     it("tolerates a fenced JSON response even though the prompt forbids markdown", async () => {
       stubModel("```json\n" + suggestion() + "\n```");
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("ready");
     });
 
@@ -215,7 +223,7 @@ describe("AiWorkflowFixerService", () => {
         suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
       );
 
-      await service.analyzeError(OP, "Error code: 404 - model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("Error code: 404 - model not found"), SCHEMA, undefined, operatorProperties);
 
       expect(state().suggestedFix?.fieldName).toEqual("model");
       expect(state().suggestedFix?.original).toEqual("gpt-4-turb");
@@ -224,7 +232,7 @@ describe("AiWorkflowFixerService", () => {
 
     it("never calls the model for an out-of-scope error", async () => {
       const callModel = vi.spyOn(service as any, "callModel");
-      await service.analyzeError(OP, "ZeroDivisionError: division by zero", SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, err("ZeroDivisionError: division by zero"), SCHEMA, CODE, operatorProperties);
 
       expect(callModel).not.toHaveBeenCalled();
       expect(state().status).toEqual("unsupported");
@@ -233,15 +241,15 @@ describe("AiWorkflowFixerService", () => {
 
     it("ends in error on transport failure, malformed JSON, or a missing field", async () => {
       vi.spyOn(service as any, "callModel").mockRejectedValue(new Error("502"));
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("error");
 
       stubModel("I cannot help with that.");
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("error");
 
       stubModel(JSON.stringify({ explanation: "e", fix_type: "code_change", confidence: "low" }));
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("error");
     });
   });
@@ -256,8 +264,8 @@ describe("AiWorkflowFixerService", () => {
       .mockReturnValueOnce(slowFirst)
       .mockResolvedValueOnce({ text: suggestion({ explanation: "for the second operator" }) });
 
-    const first = service.analyzeError("op-first", KEY_ERROR, SCHEMA, CODE, operatorProperties);
-    await service.analyzeError("op-second", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    const first = service.analyzeError("op-first", KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError("op-second", KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
     expect(state().operatorId).toEqual("op-second");
 
     resolveFirst({ text: suggestion({ explanation: "for the first operator" }) });
@@ -274,7 +282,7 @@ describe("AiWorkflowFixerService", () => {
     operatorProperties = { hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
     const callModel = vi.spyOn(service as any, "callModel").mockResolvedValue({ text: suggestion() });
 
-    await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+    await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
     const prompt = JSON.stringify(callModel.mock.calls[0][0]);
     expect(prompt).not.toContain("hf_live_abc");
@@ -283,47 +291,40 @@ describe("AiWorkflowFixerService", () => {
   });
 
   describe("classifying a real traceback", () => {
-    it("reads the exception at the end, not the frames above it", () => {
-      // The frame lines carry paths and line numbers that look like patterns on their own.
-      const traceback = [
-        "Traceback (most recent call last):",
-        '  File "/usr/lib/python3/sklearn/model_selection/_split.py", line 404, in split',
-        "    n = len(indices) // 0",
-        "ZeroDivisionError: integer division or modulo by zero",
-      ].join("\n");
-
-      expect(classifyError(traceback)).toEqual("unsupported");
+    it("classifies a JVM exception whose frames no pattern could recognise", () => {
+      // mkConsoleMessage puts `err.toString` in `title` and only `getStackTrace.mkString` in
+      // `message`, so the frames arrive with no `at ` prefix -- and on Java 9+ the JDK's own
+      // carry a module name. A real worker trace ends on exactly such a frame, which is why
+      // deducing the exception from the joined text classified the frame instead.
+      expect(classifyError("java.lang.NullPointerException: value is null")).toEqual("null_error");
     });
 
     it("classifies a chained traceback on the exception that stopped the worker", () => {
-      const chained = [
-        "Traceback (most recent call last):",
-        "KeyError: " + String.fromCharCode(39) + "email" + String.fromCharCode(39),
-        "",
-        "During handling of the above exception, another exception occurred:",
-        "",
-        "Traceback (most recent call last):",
-        "ZeroDivisionError: integer division or modulo by zero",
-      ].join("\n");
-
-      expect(classifyError(chained)).toEqual("unsupported");
+      // Nothing here has to unpick the chain: the Python worker sets `title` from
+      // `format_exception[-1]`, which is already the final exception.
+      expect(classifyError("ZeroDivisionError: integer division or modulo by zero")).toEqual("unsupported");
+      expect(classifyError("KeyError: " + QUOTE + "email" + QUOTE)).toEqual("missing_column");
     });
 
-    it("classifies a JVM error whose frames are not Python-shaped", () => {
-      // mkConsoleMessage sends `err.toString()` then the stack frames, and Java frames look
-      // nothing like Python ones, so the frame filter must not mistake the last frame for
-      // the exception.
-      const jvm = [
-        "java.lang.NullPointerException: boom",
-        "org.apache.texera.Foo.run(Foo.scala:12)",
-        "org.apache.texera.Bar.go(Bar.scala:40)",
-      ].join("\n");
+    it("never sees the frame lines that read like patterns on their own", () => {
+      // A path with "model" above a `line 404` entry used to look like a model 404. Those
+      // lines live in `full`, which only the prompt is given.
+      const event = err(
+        "ZeroDivisionError: integer division or modulo by zero",
+        [
+          "Traceback (most recent call last):",
+          '  File "/usr/lib/python3/sklearn/model_selection/_split.py", line 404, in split',
+          "    n = len(indices) // 0",
+          "ZeroDivisionError: integer division or modulo by zero",
+        ].join("\n")
+      );
 
-      expect(classifyError(jvm)).toEqual("null_error");
+      expect(classifyError(event.header)).toEqual("unsupported");
+      expect(event.full).toContain("line 404");
     });
 
     it("still classifies the plain case the panel is built for", () => {
-      expect(classifyError(KEY_ERROR)).toEqual("missing_column");
+      expect(classifyError(KEY_ERROR_EVENT.header)).toEqual("missing_column");
     });
   });
 
@@ -350,8 +351,14 @@ describe("AiWorkflowFixerService", () => {
     const slowFirst = new Promise<{ text: string }>(resolve => (resolveFirst = resolve));
     vi.spyOn(service as any, "callModel").mockReturnValueOnce(slowFirst);
 
-    const first = service.analyzeError("op-first", KEY_ERROR, SCHEMA, CODE, operatorProperties);
-    await service.analyzeError("op-second", "ZeroDivisionError: division by zero", SCHEMA, CODE, operatorProperties);
+    const first = service.analyzeError("op-first", KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError(
+      "op-second",
+      err("ZeroDivisionError: division by zero"),
+      SCHEMA,
+      CODE,
+      operatorProperties
+    );
     expect(state().operatorId).toEqual("op-second");
     expect(state().status).toEqual("unsupported");
 
@@ -375,7 +382,7 @@ describe("AiWorkflowFixerService", () => {
       })
     );
 
-    await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
     expect(state().status).toEqual("error");
     expect(state().suggestedFix).toBeUndefined();
@@ -386,7 +393,7 @@ describe("AiWorkflowFixerService", () => {
 
     it("drops the applied message once the re-run is over", async () => {
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       await service.applyFix();
       expect(state().status).toEqual("applied");
 
@@ -398,7 +405,7 @@ describe("AiWorkflowFixerService", () => {
 
     it("drops a suggestion the user never applied", async () => {
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("ready");
 
       ended("Failed");
@@ -414,7 +421,7 @@ describe("AiWorkflowFixerService", () => {
       const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
       vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
 
-      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      const analysing = service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       ended("Killed");
       expect(state().status).toEqual("idle");
 
@@ -430,7 +437,7 @@ describe("AiWorkflowFixerService", () => {
       const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
       vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
 
-      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      const analysing = service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       service.discardFix();
 
       resolveAnalysis({ text: suggestion() });
@@ -446,7 +453,7 @@ describe("AiWorkflowFixerService", () => {
       // the panel drops to idle and offers Analyze while the apply is still running.
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       const seen: string[] = [];
       const watching = service.getState$().subscribe(current => seen.push(current.status));
 
@@ -524,7 +531,7 @@ describe("AiWorkflowFixerService", () => {
       // it entirely and the tab came back saying "re-running" over a run stuck on an error.
       consoleMessages = [errorAt(100)];
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       await service.applyFix();
       expect(state().status).toEqual("applied");
 
@@ -537,7 +544,7 @@ describe("AiWorkflowFixerService", () => {
     it("leaves the result alone while the error is still the one it was made for", async () => {
       consoleMessages = [errorAt(100)];
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       await service.applyFix();
 
       consoleUpdates$.next();
@@ -549,7 +556,7 @@ describe("AiWorkflowFixerService", () => {
   describe("applyFix", () => {
     it("replaces only the snippet, keeps other properties, and re-runs", async () => {
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -567,7 +574,7 @@ describe("AiWorkflowFixerService", () => {
       const twice = CODE + "        yield t['email']\n";
       operatorProperties = { code: twice, workers: 1 };
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, twice, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, twice, operatorProperties);
 
       await service.applyFix();
 
@@ -581,7 +588,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(
         suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
       );
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       await service.applyFix();
 
@@ -595,7 +602,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(
         suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
       );
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       // A coeditor picks a different model after the suggestion was generated: applying the
       // stale suggestion would silently discard their choice and re-run on it.
@@ -621,7 +628,7 @@ describe("AiWorkflowFixerService", () => {
       // their run: the panel reported the refusal over a workflow it had just stopped.
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       operatorProperties.code = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
 
@@ -638,7 +645,7 @@ describe("AiWorkflowFixerService", () => {
       // from the one on screen, and the diff for it is one model call away.
       const twice = CODE + "        yield t['email']\n";
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, twice, { ...operatorProperties, code: twice });
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, twice, { ...operatorProperties, code: twice });
       expect(state().suggestedFix?.occurrences).toEqual(2);
 
       operatorProperties.code = CODE;
@@ -656,7 +663,7 @@ describe("AiWorkflowFixerService", () => {
       // warned about. Reachable because a kill lifts the modification lock without
       // resetting the panel: `Uninitialized` is deliberately not a terminal state.
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().suggestedFix?.occurrences).toEqual(1);
 
       operatorProperties.code = CODE + "        yield t['email']\n";
@@ -671,7 +678,7 @@ describe("AiWorkflowFixerService", () => {
 
     it("reports an apply failure, without re-running, when the snippet is no longer in the code", async () => {
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       // The user edits the UDF while reading the suggestion -- the snippet it quoted was in
       // the code when it was generated and is gone by the time Apply runs. A snippet that
@@ -691,7 +698,7 @@ describe("AiWorkflowFixerService", () => {
       // says the run was refused.
       executeWorkflow.mockReturnValue(false);
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -702,7 +709,7 @@ describe("AiWorkflowFixerService", () => {
     it("reports the re-run once the deployment accepts it", async () => {
       executeWorkflow.mockReturnValue(true);
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -717,7 +724,7 @@ describe("AiWorkflowFixerService", () => {
       // avoids by checking first.
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       const applying = service.applyFix();
       expect(killWorkflow).toHaveBeenCalled();
@@ -737,7 +744,7 @@ describe("AiWorkflowFixerService", () => {
       vi.useFakeTimers();
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       const applying = service.applyFix();
       await vi.advanceTimersByTimeAsync(20_000);
@@ -754,7 +761,7 @@ describe("AiWorkflowFixerService", () => {
       // button has to work: refusing silently because the status is no longer `ready`
       // leaves the user clicking something that does nothing.
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       operatorProperties.code = "something else entirely";
       await service.applyFix();
@@ -773,7 +780,7 @@ describe("AiWorkflowFixerService", () => {
       // Two imports of the same JSON carry the same operator ids, and this service outlives
       // the workspace, so the operator id alone would let the write land on the wrong graph.
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       openWorkflowId = 12;
       await service.applyFix();
@@ -788,7 +795,7 @@ describe("AiWorkflowFixerService", () => {
       // free to open another workflow while it does.
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       const applying = service.applyFix();
       openWorkflowId = 12;
@@ -805,7 +812,7 @@ describe("AiWorkflowFixerService", () => {
       const slow = new Promise<{ text: string }>(resolve => (resolveAnalysis = resolve));
       vi.spyOn(service as any, "callModel").mockReturnValueOnce(slow);
 
-      const analysing = service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      const analysing = service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       openWorkflowId = 12;
       resolveAnalysis({ text: suggestion() });
       await analysing;
@@ -820,7 +827,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(
         suggestion({ fix_type: "property_change", original_snippet: "outputColumns", suggested_snippet: "[]" })
       );
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       await service.applyFix();
 
@@ -836,10 +843,10 @@ describe("AiWorkflowFixerService", () => {
       // now looking at.
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       const applying = service.applyFix();
-      await service.analyzeError("other-op", KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError("other-op", KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().operatorId).toEqual("other-op");
 
       modificationEnabled = true;
@@ -859,7 +866,7 @@ describe("AiWorkflowFixerService", () => {
         suggestion({ fix_type: "property_change", original_snippet: "hfApiToken", suggested_snippet: "hf_new" })
       );
 
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       expect(JSON.stringify(state())).not.toContain("hf_live_abc");
       await service.applyFix();
@@ -874,7 +881,7 @@ describe("AiWorkflowFixerService", () => {
         suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
       );
 
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       // Refused by the analysis, not by Apply: a diff the write will never honour should
       // never be on screen, and refusing at the click costs the paused run as well.
@@ -892,7 +899,7 @@ describe("AiWorkflowFixerService", () => {
       workflowReadonly = true;
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -908,7 +915,7 @@ describe("AiWorkflowFixerService", () => {
       modificationEnabled = false;
       executionState = ExecutionState.Uninitialized;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -924,7 +931,7 @@ describe("AiWorkflowFixerService", () => {
       operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
       stubModel(suggestion({ fix_type: "property_change", original_snippet: "modelName", suggested_snippet: "Qwen" }));
 
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       expect(state().status).toEqual("error");
       await service.applyFix();
@@ -944,7 +951,7 @@ describe("AiWorkflowFixerService", () => {
       stubModel(
         suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
       );
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
       expect(state().status).toEqual("ready");
 
       operatorProperties = { workers: 1 };
@@ -962,7 +969,7 @@ describe("AiWorkflowFixerService", () => {
       operatorProperties = { code: "print(1)", workers: 1 };
       stubModel(suggestion({ fix_type: "property_change", original_snippet: "code", suggested_snippet: "print(2)" }));
 
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       expect(state().status).toEqual("error");
       expect(state().suggestedFix).toBeUndefined();
@@ -975,7 +982,7 @@ describe("AiWorkflowFixerService", () => {
       // current value from the operator itself.
       operatorProperties = { temperature: 0, workers: 1 };
       stubModel(suggestion({ fix_type: "property_change", original_snippet: "temperature", suggested_snippet: "1" }));
-      await service.analyzeError(OP, "404 model not found", SCHEMA, undefined, operatorProperties);
+      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
 
       await service.applyFix();
 
@@ -987,7 +994,7 @@ describe("AiWorkflowFixerService", () => {
         throw new Error("read-only workflow");
       });
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       await service.applyFix();
 
@@ -998,7 +1005,7 @@ describe("AiWorkflowFixerService", () => {
 
   it("discards to idle and keeps state across re-subscription", async () => {
     stubModel(suggestion());
-    await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+    await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
     // A frame rebuilt by clearResultPanel() re-subscribes and must still see the fix.
     expect((await firstValueFrom(service.getState$())).status).toEqual("ready");

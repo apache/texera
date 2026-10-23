@@ -157,7 +157,8 @@ describe("AiFixFrameComponent", () => {
 
       expect(analyzeError).toHaveBeenCalledWith(
         "op1",
-        "KeyError: 'email'\nTraceback ...",
+        // A fatal error already separates them: `message` is the exception, `details` the stack.
+        { header: "KeyError: 'email'", full: "KeyError: 'email'\nTraceback ..." },
         // Every input port, not just port 0: a UDF downstream of a join has more than one.
         { "0_false": [{ attributeName: "user_email", attributeType: "string" }] },
         "yield t['email']",
@@ -173,24 +174,33 @@ describe("AiFixFrameComponent", () => {
 
       query(".ai-fix-analyze").nativeElement.click();
 
-      // Title first, then the body: the exception is in `title` for both workers, and for a
-      // JVM operator it is the only place it appears.
-      expect(analyzeError.mock.calls[0][1]).toEqual(
-        "KeyError: 'email'\nTraceback (most recent call last):\nKeyError: 'email'"
-      );
+      // The exception is handed over on its own, for classification, and again inside the
+      // full text, which is what the model is shown.
+      expect(analyzeError.mock.calls[0][1]).toEqual({
+        header: "KeyError: 'email'",
+        full: "KeyError: 'email'\nTraceback (most recent call last):\nKeyError: 'email'",
+      });
     });
 
-    it("sends the exception even when it only lives in the title", () => {
-      // ErrorUtils.mkConsoleMessage puts `err.toString()` in title and only the stack
-      // frames in message, so reading message alone left JVM operators sending the model
-      // a bare stack trace -- and the NullPointerException pattern could never match.
+    it("classifies a JVM error on its title, never on the frames below it", () => {
+      // ErrorUtils.mkConsoleMessage puts `err.toString()` in title and only
+      // `getStackTrace.mkString` in message -- no `at ` prefix, and on Java 9+ the JDK's own
+      // frames carry a module name. A real worker trace ends on one of those, so anything
+      // that tried to find the exception inside the joined text picked the frame and left
+      // NullPointerException unclassifiable. The title is handed over directly instead.
+      const frames = [
+        "org.apache.texera.udf.Op.process(Op.scala:31)",
+        "java.base/java.lang.Thread.run(Thread.java:840)",
+      ].join("\n");
       getConsoleMessages.mockReturnValue([
-        consoleMessage("ERROR", "org.apache.texera.Foo.run(Foo.scala:12)", "java.lang.NullPointerException: boom"),
+        consoleMessage("ERROR", frames, "java.lang.NullPointerException: value is null"),
       ]);
 
       query(".ai-fix-analyze").nativeElement.click();
 
-      expect(analyzeError.mock.calls[0][1]).toContain("java.lang.NullPointerException: boom");
+      const passed = analyzeError.mock.calls[0][1];
+      expect(passed.header).toEqual("java.lang.NullPointerException: value is null");
+      expect(passed.full).toContain("java.base/java.lang.Thread.run");
     });
 
     it("does nothing when the operator has no error at all", () => {

@@ -36,6 +36,7 @@ import {
   FixConfidence,
   FixState,
   IDLE_STATE,
+  OperatorError,
   UNSUPPORTED_MESSAGE,
 } from "./ai-workflow-fixer.service";
 
@@ -104,14 +105,14 @@ export class AiFixFrameComponent {
     if (!operatorId) {
       return;
     }
-    const errorMessage = this.rawErrorMessage(operatorId);
-    if (!errorMessage) {
+    const error = this.operatorError(operatorId);
+    if (!error) {
       return;
     }
     const properties = this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorProperties ?? {};
     void this.aiWorkflowFixerService.analyzeError(
       operatorId,
-      errorMessage,
+      error,
       this.workflowCompilingService.getOperatorInputSchemaMap(operatorId),
       properties.code as string | undefined,
       properties
@@ -141,16 +142,17 @@ export class AiFixFrameComponent {
   }
 
   /**
-   * The untrimmed error text for this operator.
+   * This operator's error, split the way its source already splits it.
    *
-   * Engine failures arrive as fatal errors, but a Python UDF exception never
-   * becomes one: it is delivered as an ERROR console message whose `message`
-   * holds the whole traceback, which is what the classifier needs.
+   * Engine failures arrive as fatal errors, but a Python UDF exception never becomes one: it
+   * is delivered as an ERROR console message while the execution stays `Running`. Either way
+   * the exception is in a field of its own -- `message` on a fatal error, `title` on a console
+   * message -- so the classifier is handed it directly instead of searching the joined text.
    */
-  private rawErrorMessage(operatorId: string): string | undefined {
+  private operatorError(operatorId: string): OperatorError | undefined {
     const fatal = this.executeWorkflowService.getErrorMessages().find(err => err.operatorId === operatorId);
     if (fatal) {
-      return [fatal.message, fatal.details].filter(part => part).join("\n");
+      return { header: fatal.message, full: [fatal.message, fatal.details].filter(part => part).join("\n") };
     }
     const consoleError = (this.workflowConsoleService.getConsoleMessages(operatorId) ?? [])
       .filter(msg => msg.msgType.name === "ERROR")
@@ -158,11 +160,11 @@ export class AiFixFrameComponent {
     if (!consoleError) {
       return undefined;
     }
-    // Both parts, title first. ErrorUtils.mkConsoleMessage puts the exception in `title` and
-    // only the stack frames in `message`, so reading `message` alone sent the model a bare
-    // stack trace for every JVM operator -- and left NullPointerException unmatchable. The
-    // Python worker puts the final exception line in `title` too, so this order gives the
-    // classifier the exception first in both cases.
-    return [consoleError.title, consoleError.message].filter(part => part).join("\n");
+    // `message` holds only the frames for a JVM operator and the whole traceback for a Python
+    // one, so the model is sent both parts with the exception first in either case.
+    return {
+      header: consoleError.title,
+      full: [consoleError.title, consoleError.message].filter(part => part).join("\n"),
+    };
   }
 }

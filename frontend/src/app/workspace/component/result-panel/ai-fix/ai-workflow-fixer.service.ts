@@ -33,6 +33,19 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 
 export type FixErrorType = "missing_column" | "type_error" | "null_error" | "model_not_found" | "unsupported";
+/**
+ * One operator error, kept as the two parts its source already distinguishes.
+ *
+ * Classification reads `header` and the prompt gets `full`: collapsing them would put the
+ * burden of finding the exception inside the joined text back on this service.
+ */
+export interface OperatorError {
+  /** The exception line on its own -- a console message's `title`, a fatal error's `message`. */
+  header: string;
+  /** Exception and stack together, which is what the model is shown. */
+  full: string;
+}
+
 export type FixConfidence = "high" | "medium" | "low";
 
 export interface SuggestedFix {
@@ -186,40 +199,21 @@ export function coerceToFieldType(currentValue: unknown, suggested: string): unk
   return suggested;
 }
 
-// What a stack frame looks like, so it is never mistaken for the exception. Python writes
-//   File "udf.py", line 7, in process_tuple
-// and the JVM writes
-//   org.apache.texera.Foo.run(Foo.scala:12)
-// which carries no colon-separated exception name, so a Python-only pattern lets a Java
-// frame through and classifies on it.
-const FRAME_LINE = /^File\s+"|^Traceback \(|^at\s|^[\w$.]+\([\w.]+:\d+\)$/;
-
 /**
- * The exception a traceback ends on.
+ * Classifies on the exception alone, never on the stack around it.
  *
- * Matching the whole message would classify on whatever appears first, which is wrong twice
- * over: the frame lines carry paths and line numbers that read like patterns -- a path
- * containing "model" above a `line 404` entry looks like a model 404 -- and a chained
- * traceback reports the handled exception before the one that actually stopped the worker.
- * Python puts the real exception last.
+ * Both sources already separate the exception from its frames, so nothing here has to find
+ * it: a console message carries `err.toString` / the traceback's last line in `title`, and a
+ * fatal error carries it in `message`. Deducing it from the joined text instead meant
+ * guessing at frame shapes, and the JDK's own are unguessable -- on Java 9+ they carry a
+ * module prefix (`java.base/java.lang.Thread.run(Thread.java:840)`) and native ones read
+ * `(Native Method)`, so a real worker trace ended on a frame no pattern recognised and
+ * `NullPointerException` never classified. Python's `title` is the LAST line of the formatted
+ * traceback, so a chained one arrives already reduced to the exception that stopped the
+ * worker.
  */
-export function finalExceptionLine(errorMessage: string): string {
-  const lines = errorMessage
-    .split("\n")
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  // Frame lines are the `File "...", line N` entries and the source line under them; the
-  // exception is the last line that is neither that nor the traceback header.
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (!FRAME_LINE.test(lines[i])) {
-      return lines[i];
-    }
-  }
-  return errorMessage;
-}
-
-export function classifyError(errorMessage: string): FixErrorType {
-  return PATTERNS.find(([pattern]) => pattern.test(finalExceptionLine(errorMessage)))?.[1] ?? "unsupported";
+export function classifyError(exceptionHeader: string): FixErrorType {
+  return PATTERNS.find(([pattern]) => pattern.test(exceptionHeader))?.[1] ?? "unsupported";
 }
 
 /**
@@ -279,12 +273,12 @@ export class AiWorkflowFixerService {
 
   public async analyzeError(
     operatorId: string,
-    errorMessage: string,
+    error: OperatorError,
     inputSchemas: OperatorPortSchemaMap | undefined,
     code: string | undefined,
     properties: Readonly<Record<string, unknown>>
   ): Promise<void> {
-    const errorType = classifyError(errorMessage);
+    const errorType = classifyError(error.header);
     const workflowId = this.workflowActionService.getOpenWorkflowId();
     const base: FixState = {
       operatorId,
@@ -310,7 +304,7 @@ export class AiWorkflowFixerService {
       // field's current value to show in the diff, and reading it from the raw properties
       // put a credential on screen whenever the model guessed one of those names.
       const visible = withoutSecrets(properties, this.schemaProperties(operatorId));
-      const { text } = await this.callModelWithTimeout(buildFixPrompt(errorMessage, code, inputSchemas, visible));
+      const { text } = await this.callModelWithTimeout(buildFixPrompt(error.full, code, inputSchemas, visible));
       if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
