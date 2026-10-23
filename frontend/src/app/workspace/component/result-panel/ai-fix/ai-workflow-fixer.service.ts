@@ -144,34 +144,39 @@ const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
 ];
 
 /**
- * Replaces every occurrence, keeping each one at the indentation it was found at.
+ * Replaces every occurrence of a snippet, and reports how many there were.
  *
- * A single-line match starts mid-line, after the existing indentation, so a multi-line
- * replacement would put its first line in the right place and every line after it at column
- * 0 -- an IndentationError the moment the fix was applied. Those continuation lines take the
- * indentation of the line the match was found on, and keep whatever relative indentation the
- * suggestion itself had.
- *
- * A match that spans lines already carries the absolute indentation of the region it came
- * from, and the model's reply mirrors it, so there is nothing to add: prefixing the context
- * indentation on top would double it.
+ * No indentation work: the prompt requires whole lines carrying the indentation they should
+ * have, and `startsAtLineBoundary` turns away a reply that does not, so each line of the
+ * suggestion already sits at the right column. Re-indenting continuation lines here instead
+ * meant guessing which convention the model had used -- absolute or relative -- and the
+ * prompt never stated one, so either guess doubled the indentation for the other.
  */
-export function replaceAllIndented(code: string, original: string, suggested: string): { code: string; count: number } {
+export function replaceAll(code: string, original: string, suggested: string): { code: string; count: number } {
   const parts = code.split(original);
-  const count = parts.length - 1;
-  if (count === 0 || !suggested.includes("\n") || original.includes("\n")) {
-    return { code: parts.join(suggested), count };
-  }
+  return { code: parts.join(suggested), count: parts.length - 1 };
+}
 
-  const [head, ...rest] = suggested.split("\n");
-  let out = parts[0];
-  for (const tail of parts.slice(1)) {
-    // Whitespace since the last newline is what this occurrence sits at.
-    const lineStart = out.lastIndexOf("\n") + 1;
-    const indent = (out.slice(lineStart).match(/^[ \t]*/) ?? [""])[0];
-    out += [head, ...rest.map(line => (line.length > 0 ? indent + line : line))].join("\n") + tail;
+/**
+ * Whether every occurrence of the snippet begins a line.
+ *
+ * This is what makes the replacement unambiguous: a snippet that starts at column 0 of its
+ * line carries its own leading indentation, so the suggestion replacing it must carry the
+ * indentation it wants and nothing has to be inferred. A snippet starting mid-line leaves
+ * the indentation of its continuation lines undetermined.
+ */
+export function startsAtLineBoundary(code: string, original: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = code.indexOf(original, from);
+    if (at === -1) {
+      return true;
+    }
+    if (at !== 0 && code[at - 1] !== "\n") {
+      return false;
+    }
+    from = at + original.length;
   }
-  return { code: out, count };
 }
 
 /** Writes the model's string back in the type the field already held. */
@@ -318,7 +323,13 @@ export class AiWorkflowFixerService {
       // Counted here so the panel can say it before Apply: a short snippet matched as plain
       // text can appear in lines the user never saw in the diff.
       if (suggestedFix.type === "code_change") {
-        const occurrences = replaceAllIndented(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
+        // The prompt asks for whole lines with their indentation; a snippet starting mid-line
+        // means the model ignored that, and applying it would put the lines after the first
+        // at a column nothing here can work out.
+        if (!startsAtLineBoundary(code ?? "", suggestedFix.original)) {
+          throw new Error("the model did not quote whole lines, so the fix cannot be placed");
+        }
+        const occurrences = replaceAll(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
         // Zero means the model quoted something the operator does not contain. The panel
         // only surfaces this count when it is above one, so such a suggestion is
         // indistinguishable from any other, and Apply turns it away as a stale snippet --
@@ -409,7 +420,7 @@ export class AiWorkflowFixerService {
     };
     if (fix.type === "code_change") {
       const code = String(properties.code ?? "");
-      const patched = replaceAllIndented(code, fix.original, fix.suggested);
+      const patched = replaceAll(code, fix.original, fix.suggested);
       if (patched.count === 0) {
         throw new Error("the code changed since the suggestion was generated");
       }

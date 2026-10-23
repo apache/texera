@@ -117,13 +117,17 @@ Rules:
 - If it is a null/NaN error: add a .dropna() call or an explicit null guard.
 - If it is a model name error: correct the model field in the configuration.
 - Do NOT rewrite the whole function. Change the minimum number of lines.
+- original_snippet and suggested_snippet must be WHOLE LINES, copied starting at the
+  beginning of a line, with the leading indentation included exactly as it appears. Do not
+  start a snippet in the middle of a line, and do not re-indent: every line you return must
+  already carry the indentation it should have in the file.
 
 Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
 {
   "explanation": "one sentence describing the root cause",
   "fix_type": "code_change" | "property_change",
-  "original_snippet": "exact lines to replace (for code_change) or field name (for property_change)",
-  "suggested_snippet": "replacement lines or new field value",
+  "original_snippet": "whole lines to replace, indentation included (for code_change), or the field name (for property_change)",
+  "suggested_snippet": "replacement lines, each already indented as it should appear, or the new field value",
   "confidence": "high" | "medium" | "low"
 }`;
 }

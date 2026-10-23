@@ -24,7 +24,8 @@ import {
   classifyError,
   coerceToFieldType,
   FixState,
-  replaceAllIndented,
+  replaceAll,
+  startsAtLineBoundary,
   OperatorError,
 } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -87,8 +88,9 @@ describe("AiWorkflowFixerService", () => {
     JSON.stringify({
       explanation: "the column is user_email",
       fix_type: "code_change",
-      original_snippet: "yield t['email']",
-      suggested_snippet: "yield t['user_email']",
+      // Whole lines with their indentation, which is what the prompt requires.
+      original_snippet: "        yield t['email']",
+      suggested_snippet: "        yield t['user_email']",
       confidence: "high",
       ...over,
     });
@@ -188,8 +190,8 @@ describe("AiWorkflowFixerService", () => {
       expect(state().errorType).toEqual("missing_column");
       expect(state().suggestedFix).toEqual({
         type: "code_change",
-        original: "yield t['email']",
-        suggested: "yield t['user_email']",
+        original: "        yield t['email']",
+        suggested: "        yield t['user_email']",
         explanation: "the column is user_email",
         confidence: "high",
         fieldName: undefined,
@@ -198,12 +200,24 @@ describe("AiWorkflowFixerService", () => {
       });
     });
 
+    it("refuses a snippet quoted from the middle of a line", async () => {
+      // The prompt asks for whole lines carrying their indentation. A mid-line snippet says
+      // nothing about the column its continuation lines belong at, and inferring one is the
+      // guess that put `yield` at sixteen spaces in an eight-space body.
+      stubModel(suggestion({ original_snippet: "yield t['email']", suggested_snippet: "yield t['user_email']" }));
+
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
+
+      expect(state().status).toEqual("error");
+      expect(state().suggestedFix).toBeUndefined();
+    });
+
     it("reports a snippet that is not in the code instead of offering an Apply that cannot work", async () => {
       // The panel only shows the occurrence count when it is above one, so a snippet the
       // model invented looked like any other suggestion. Apply then failed with "the code
       // changed since the suggestion was generated", which blames an edit that never
       // happened.
-      stubModel(suggestion({ original_snippet: "yield t['address']" }));
+      stubModel(suggestion({ original_snippet: "        yield t['address']" }));
 
       await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
@@ -376,8 +390,8 @@ describe("AiWorkflowFixerService", () => {
       JSON.stringify({
         explanation: "the column is user_email",
         fix_type: "code_change",
-        original_snippet: ["yield t['email']"],
-        suggested_snippet: "yield t['user_email']",
+        original_snippet: ["        yield t['email']"],
+        suggested_snippet: "        yield t['user_email']",
         confidence: "high",
       })
     );
@@ -469,52 +483,54 @@ describe("AiWorkflowFixerService", () => {
     });
   });
 
-  describe("replaceAllIndented", () => {
-    it("indents the continuation lines to the line the match was found on", () => {
-      // Without this the first line lands correctly and the rest start at column 0, which
-      // is an IndentationError the moment the fix is applied.
-      const code = "def f():\n    x = read()\n";
-
-      const out = replaceAllIndented(code, "x = read()", "x = read()\nx = x.strip()").code;
-
-      expect(out).toEqual("def f():\n    x = read()\n    x = x.strip()\n");
-    });
-
-    it("keeps the relative indentation the suggestion itself has", () => {
-      const code = "    y = 0\n";
-
-      const out = replaceAllIndented(code, "y = 0", "if True:\n    y = 0").code;
-
-      expect(out).toEqual("    if True:\n        y = 0\n");
-    });
-
-    it("indents each occurrence at its own depth", () => {
-      const code = "  a()\n      a()\n";
-
-      const out = replaceAllIndented(code, "a()", "a()\nb()").code;
-
-      expect(out).toEqual("  a()\n  b()\n      a()\n      b()\n");
-    });
-
-    it("does not indent twice when the match itself spans lines", () => {
-      // A multi-line `original` is quoted from the code, so its continuation lines already
-      // carry the absolute indentation -- and the model writes the replacement the same
-      // way. Adding the match indentation on top put `yield` at 16 spaces in an 8-space
-      // body, an IndentationError the moment the fix was "applied".
+  describe("replaceAll", () => {
+    it("writes the suggestion verbatim, adding no indentation of its own", () => {
+      // The snippet is a whole line carrying its own eight spaces, and so is the
+      // replacement. Adding the context indentation on top is what put `yield` at sixteen.
       const code = "def f():\n        a = read()\n        yield a\n";
-      const original = "a = read()\n        yield a";
-      const suggested = "a = read().strip()\n        yield a";
 
-      const out = replaceAllIndented(code, original, suggested).code;
+      const out = replaceAll(code, "        a = read()", "        a = read().strip()").code;
 
       expect(out).toEqual("def f():\n        a = read().strip()\n        yield a\n");
     });
 
-    it("counts the places it changed, and leaves a single-line fix alone", () => {
-      const out = replaceAllIndented("p()\np()\n", "p()", "q()");
+    it("places a multi-line suggestion at the column each of its lines asks for", () => {
+      const code = "def f():\n    x = read()\n";
+
+      const out = replaceAll(code, "    x = read()", "    x = read()\n    x = x.strip()").code;
+
+      expect(out).toEqual("def f():\n    x = read()\n    x = x.strip()\n");
+    });
+
+    it("counts the places it changed", () => {
+      const out = replaceAll("p()\np()\n", "p()", "q()");
 
       expect(out.code).toEqual("q()\nq()\n");
       expect(out.count).toEqual(2);
+    });
+  });
+
+  describe("startsAtLineBoundary", () => {
+    it("accepts a snippet that begins a line, including the first one", () => {
+      expect(startsAtLineBoundary("    a()\n    b()\n", "    a()")).toBe(true);
+      expect(startsAtLineBoundary("a()\n", "a()")).toBe(true);
+    });
+
+    it("rejects a snippet quoted from the middle of a line", () => {
+      // Without its leading indentation the snippet says nothing about what column the
+      // lines after it belong at, which is exactly what used to be guessed.
+      expect(startsAtLineBoundary("    a()\n", "a()")).toBe(false);
+    });
+
+    it("rejects when any one occurrence is mid-line, not just the first", () => {
+      // Every match is replaced, so one mid-line occurrence is enough to make the result
+      // depend on a guess -- and the first match looking fine is what would hide it.
+      expect(startsAtLineBoundary("a()\nif x: a()\n", "a()")).toBe(false);
+    });
+
+    it("says nothing about a snippet the code does not contain", () => {
+      // Absence is a separate refusal, with its own message.
+      expect(startsAtLineBoundary("a()\n", "zzz()")).toBe(true);
     });
   });
 
