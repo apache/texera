@@ -172,7 +172,7 @@ class PekkoMessageTransferService(
         if (msgsNeedResend.nonEmpty) {
           logger.debug(s"output for $channel: ${cc.getStatusReport}")
         }
-        if (refService.hasActorRef(channel.fromWorkerId)) {
+        if (refService.hasActorRef(channel.toWorkerId)) {
           msgsNeedResend.foreach { msg =>
             refService.forwardToActor(msg)
           }

@@ -29,8 +29,7 @@ export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 export enum EntityType {
   Workflow = "workflow",
   Dataset = "dataset",
-  Project = "project",
-  File = "file",
+  Model = "model",
   ComputingUnit = "computing-unit",
 }
 
@@ -69,6 +68,13 @@ export class HubService {
 
   public getCount(entityType: EntityType): Observable<number> {
     return this.http.get<number>(`${this.BASE_URL}/count`, {
+      params: { entityType: entityType },
+    });
+  }
+
+  /** Owners of the published entries of one kind; `*-owners` answers who granted the caller. */
+  public getPublicOwners(entityType: EntityType): Observable<string[]> {
+    return this.http.get<string[]>(`${this.BASE_URL}/owners`, {
       params: { entityType: entityType },
     });
   }

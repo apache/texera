@@ -19,29 +19,99 @@
 import { Component } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
 import { FieldArrayType, FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { NzIconDirective } from "ng-zorro-antd/icon";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import {
+  UiUdfParametersEditError,
+  UiUdfParametersParseError,
+} from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
+import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
+
+const VALUE_COLUMN: UiUdfParameterColumn = { label: "Value", key: "value", disabled: false };
+const RESOURCE_VALUE_EDITOR = "resourcevalue";
+const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DATASET_INPUT_TYPE]);
+
+/** The resource a row's value names, or "" for free text. */
+const resourceOf = (inputType?: string): string => (inputType && RESOURCE_INPUT_TYPES.has(inputType) ? inputType : "");
 
 /** Renders inferred Python UDF UI parameters with editable values and locked name/type columns. */
 @Component({
   selector: "texera-ui-udf-parameters",
   templateUrl: "./ui-udf-parameters.component.html",
   styleUrls: ["./ui-udf-parameters.component.scss"],
-  imports: [NgIf, NgFor, FormlyModule],
+  imports: [
+    NgIf,
+    NgFor,
+    FormlyModule,
+    NzButtonComponent,
+    NzWaveDirective,
+    ɵNzTransitionPatchDirective,
+    NzIconDirective,
+  ],
 })
 export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> {
   private readonly disabledStateConfigured = new WeakMap<FormlyFieldConfig, boolean>();
+  // The resource each row's value editor was configured for.
+  private readonly rowResources = new WeakMap<FormlyFieldConfig, string>();
 
   readonly fieldColumns: UiUdfParameterColumn[] = [
-    { label: "Value", key: "value", disabled: false },
+    VALUE_COLUMN,
     { label: "Name", key: "attributeName", parentKey: "attribute", disabled: true },
     { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
   ];
 
+  readonly addParameterTypeOptions: AttributeType[] = ["string", "integer", "long", "double", "boolean", "timestamp"];
+  draftVisible = false;
+
+  constructor(
+    private workflowActionService: WorkflowActionService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService,
+    private notificationService: NotificationService
+  ) {
+    super();
+  }
+
+  get workflowModificationEnabled(): boolean {
+    return this.workflowActionService.checkWorkflowModificationEnabled();
+  }
+
+  /** Inserts the declaration into the operator's Python code; the row then appears through the normal code sync. */
+  addParameter(nameInput: HTMLInputElement, attributeType: string): void {
+    const operatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    try {
+      this.uiUdfParametersSyncService.addParameter(operatorId, nameInput.value, attributeType as AttributeType);
+      this.draftVisible = false;
+    } catch (error) {
+      if (!(error instanceof UiUdfParametersEditError) && !(error instanceof UiUdfParametersParseError)) throw error;
+      this.notificationService.error(`Could not add UDF parameter: ${error.message}`);
+    }
+  }
+
   override onPopulate(field: FormlyFieldConfig): void {
     this.configureRowTemplate(this.getFieldArrayTemplate(field));
+    this.dropRowsWhoseResourceChanged(field, this.parameterRows(field));
     super.onPopulate(field);
-    field.fieldGroup?.forEach(rowField => this.configureRowFields(rowField));
+    const rows = this.parameterRows(field);
+    field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType));
+  }
+
+  /**
+   * The parameter rows. Before Formly narrows `model` to this field's own array it still holds
+   * the whole operator's properties, so the array is taken from this field's key in that case.
+   */
+  private parameterRows(field: FormlyFieldConfig): ReadonlyArray<{ inputType?: string } | undefined> {
+    const model: unknown = Array.isArray(field.model)
+      ? field.model
+      : (field.model as Record<string, unknown> | undefined)?.[String(field.key)];
+    return Array.isArray(model) ? model : [];
   }
 
   /** Finds the Formly field config that backs one visible column in a parameter row. */
@@ -57,8 +127,37 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     this.configureRowColumns(rowField, this.setDisabledMetadata.bind(this));
   }
 
-  private configureRowFields(rowField: FormlyFieldConfig | undefined): void {
+  private configureRowFields(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
     this.configureRowColumns(rowField, this.configureDisabledState.bind(this));
+    this.configureValueEditor(rowField, inputType);
+  }
+
+  /** A row whose value names a resource is edited with that resource's browser, not a text box. */
+  private configureValueEditor(rowField: FormlyFieldConfig | undefined, inputType?: string): void {
+    if (!rowField) return;
+    const resource = resourceOf(inputType);
+    this.rowResources.set(rowField, resource);
+    const valueField = this.getColumnField(rowField, VALUE_COLUMN);
+    if (!valueField || !resource) return;
+    valueField.type = RESOURCE_VALUE_EDITOR;
+    valueField.props = { ...(valueField.props ?? {}), resource };
+  }
+
+  /**
+   * Formly keeps a row's config when the parameters are rebuilt from the code, and re-renders a
+   * cell only when handed a new config. A row whose resource changed is therefore dropped, with
+   * every row after it, so Formly rebuilds them from the template with the editor they now need.
+   */
+  private dropRowsWhoseResourceChanged(
+    field: FormlyFieldConfig,
+    rows: ReadonlyArray<{ inputType?: string } | undefined>
+  ): void {
+    const rowFields = field.fieldGroup ?? [];
+    const firstChanged = rowFields.findIndex(
+      (rowField, index) =>
+        this.rowResources.has(rowField) && this.rowResources.get(rowField) !== resourceOf(rows[index]?.inputType)
+    );
+    if (firstChanged >= 0) rowFields.splice(firstChanged);
   }
 
   private configureRowColumns(

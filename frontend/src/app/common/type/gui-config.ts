@@ -24,18 +24,23 @@ export interface GuiConfig {
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
+  orcidLogin: boolean;
+  appleLogin: boolean;
   inviteOnly: boolean;
+  emailVerification: boolean;
   userPresetEnabled: boolean;
   workflowExecutionsTrackingEnabled: boolean;
   linkBreakpointEnabled: boolean;
   asyncRenderingEnabled: boolean;
   timetravelEnabled: boolean;
+  formViewEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
   defaultDataTransferBatchSize: number;
   defaultExecutionMode: ExecutionMode;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;
+  warehouseEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
   activeTimeInMinutes: number;
@@ -43,6 +48,7 @@ export interface GuiConfig {
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
+  pythonNotebookMigrationTimeoutMinutes: number;
   deploymentVersionCheckEnabled: boolean;
 }
 
@@ -51,11 +57,12 @@ export interface SidebarTabs {
   home_enabled: boolean;
   workflow_enabled: boolean;
   dataset_enabled: boolean;
+  model_enabled: boolean;
   your_work_enabled: boolean;
-  projects_enabled: boolean;
   workflows_enabled: boolean;
   compute_enabled: boolean;
   datasets_enabled: boolean;
+  models_enabled: boolean;
   quota_enabled: boolean;
   forum_enabled: boolean;
   about_enabled: boolean;

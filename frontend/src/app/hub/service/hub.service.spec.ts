@@ -62,6 +62,18 @@ describe("HubService", () => {
     expect(result).toBe(5);
   });
 
+  it("getPublicOwners GETs /owners with the entityType param and emits the names", () => {
+    let result: string[] | undefined;
+    service.getPublicOwners(EntityType.Dataset).subscribe(names => (result = names));
+
+    const req = httpMock.expectOne(r => r.url === `${service.BASE_URL}/owners`);
+    expect(req.request.method).toBe("GET");
+    expect(req.request.params.get("entityType")).toBe("dataset");
+
+    req.flush(["a@test.com", "b@test.com"]);
+    expect(result).toEqual(["a@test.com", "b@test.com"]);
+  });
+
   it("cloneWorkflow POSTs to /workflow/clone/:wid with a null body and emits the new wid", () => {
     let result: number | undefined;
     service.cloneWorkflow(42).subscribe(n => (result = n));

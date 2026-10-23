@@ -23,8 +23,8 @@ Object-storage (S3) resolution helpers.
 When storage.s3.endpoint is set the services talk to that external
 S3-compatible store (credentials come from storage.s3.existingSecret, or a
 chart-generated "<release>-s3-credentials" Secret). When it is empty the
-services fall back to the in-cluster MinIO Service and its auto-generated
-"<release>-minio" Secret, so the default install is unchanged.
+services fall back to the in-cluster RustFS Service and its auto-generated
+"<release>-rustfs-secret" Secret, so the default install is unchanged.
 */}}
 
 {{/* S3 endpoint URL. */}}
@@ -32,7 +32,7 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- if .Values.storage.s3.endpoint -}}
 {{- .Values.storage.s3.endpoint -}}
 {{- else -}}
-{{- printf "http://%s-minio:9000" .Release.Name -}}
+{{- printf "http://%s-rustfs-svc:9000" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
@@ -41,16 +41,45 @@ services fall back to the in-cluster MinIO Service and its auto-generated
 {{- if .Values.storage.s3.endpoint -}}
 {{- .Values.storage.s3.existingSecret | default (printf "%s-s3-credentials" .Release.Name) -}}
 {{- else -}}
-{{- printf "%s-minio" .Release.Name -}}
+{{- printf "%s-rustfs-secret" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
 {{/* Secret data key for the S3 access key id. */}}
 {{- define "texera.s3.accessKeyIdKey" -}}
-{{- if .Values.storage.s3.endpoint -}}access-key-id{{- else -}}root-user{{- end -}}
+{{- if .Values.storage.s3.endpoint -}}access-key-id{{- else -}}RUSTFS_ACCESS_KEY{{- end -}}
 {{- end -}}
 
 {{/* Secret data key for the S3 secret access key. */}}
 {{- define "texera.s3.secretAccessKeyKey" -}}
-{{- if .Values.storage.s3.endpoint -}}secret-access-key{{- else -}}root-password{{- end -}}
+{{- if .Values.storage.s3.endpoint -}}secret-access-key{{- else -}}RUSTFS_SECRET_KEY{{- end -}}
 {{- end -}}
+
+{{/*
+The audience the mounter's service-account tokens are bound to. Fixed rather than
+configurable: it is one half of a credential contract between access-control-service and the
+mounter -- the projected token declares it and the mounter's TokenReview requires it -- so
+the two must always agree, and there is no deployment in which a different value is useful.
+*/}}
+{{- define "texera.mounter.audience" -}}
+texera-mounter
+{{- end -}}
+
+{{/*
+The service-account username allowed to request a mount from the per-node mounter, in the
+form MOUNTER_ALLOWED_CALLERS expects. This is access-control-service and nothing else: it
+is the deployment's authorization authority for computing units, so it is the one component
+that can decide whether a given user may mount into a given CU. Deliberately not
+configurable -- widening it is a security decision, not a deployment preference, and a
+values override would let an install quietly hand the privileged mounter to another caller.
+*/}}
+{{- define "texera.mounter.allowedCallers" -}}
+{{- printf "system:serviceaccount:%s:%s" .Release.Namespace .Values.accessControlService.serviceAccountName -}}
+{{- end -}}
+
+{{/* Jupyter base path, as exactly one leading slash and no trailing one. Several places
+append the uid to it, so a bare value would render "http://<origin>jupyter/7". */}}
+{{- define "texera.jupyter.basePath" -}}
+{{- printf "/%s" (trimAll "/" .Values.jupyterPool.basePath) -}}
+{{- end -}}
+

@@ -19,6 +19,9 @@
 
 package org.apache.texera.amber.operator.split
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.executor.ExecFactory
+import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -41,6 +44,13 @@ class SplitOpExecSpec extends AnyFlatSpec {
     d.random = random
     d.seed = seed
     objectMapper.writeValueAsString(d)
+  }
+
+  /** As the compiler hands `descJson` over inside a loop block, `pointer` referring to `name`. */
+  private def referencing(desc: String, pointer: String, name: String): String = {
+    val node = objectMapper.readTree(desc).asInstanceOf[ObjectNode]
+    node.putObject(StateReferencing.SIDECAR_PROPERTY).put(pointer, name)
+    objectMapper.writeValueAsString(node)
   }
 
   private def emittedPorts(
@@ -119,9 +129,48 @@ class SplitOpExecSpec extends AnyFlatSpec {
   "SplitOpExec.close" should "clear the random reference (null-out)" in {
     val exec = new SplitOpExec(descJson(k = 50, seed = 1))
     exec.open()
+    emittedPorts(exec, 1)
     assert(exec.random != null)
     exec.close()
     assert(exec.random == null)
+  }
+
+  "SplitOpExec.open" should "reseed, so a reopened executor repeats its sequence" in {
+    val exec = new SplitOpExec(descJson(k = 50, seed = 7))
+    exec.open()
+    val first = emittedPorts(exec, 100)
+    exec.open()
+    assert(emittedPorts(exec, 100) == first)
+    exec.close()
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inside a loop block: the setting is written after open()
+  // ---------------------------------------------------------------------------
+
+  "SplitOpExec inside a loop block" should
+    "seed its random from the seed written into its setting after construction and open()" in {
+    def plain(seed: Int): IndexedSeq[Option[PortIdentity]] = {
+      val exec = new SplitOpExec(descJson(k = 50, seed = seed))
+      exec.open()
+      try emittedPorts(exec, 200)
+      finally exec.close()
+    }
+    val exec = ExecFactory
+      .newExecFromJavaClassName(
+        classOf[SplitOpExec].getName,
+        referencing(descJson(k = 50, seed = 0), "/seed", "s")
+      )
+      .asInstanceOf[SplitOpExec]
+    exec.open()
+    exec.registerState(State(Map("s" -> 7L)))
+    exec.bindStateReferences()
+    try {
+      val ports = emittedPorts(exec, 200)
+      // The seed written in, not the placeholder 0 it held at open().
+      assert(ports == plain(7))
+      assert(ports != plain(0))
+    } finally exec.close()
   }
 
   // ---------------------------------------------------------------------------

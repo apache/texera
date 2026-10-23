@@ -20,30 +20,44 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.{Await, Duration, Future}
+import org.apache.pekko.actor.{ActorSystem, Props}
+import org.apache.pekko.testkit.{TestActorRef, TestKit}
+import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
+  EmptyRequest,
   PrepareCheckpointRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
+import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
-  MainThreadDelegateMessage
+  FIFOMessageElement,
+  MainThreadDelegateMessage,
+  TimerBasedControlElement,
+  WorkerReplayInitialization
 }
 import org.apache.texera.amber.engine.architecture.worker.{
   DataProcessor,
-  DataProcessorRPCHandlerInitializer
+  DataProcessorRPCHandlerInitializer,
+  WorkflowWorker
 }
+import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable.ArrayBuffer
@@ -65,20 +79,21 @@ import scala.collection.mutable.ArrayBuffer
   *     iterator the operator returns — the un-emitted tuples would be lost on restore.
   *
   * The registered callback's last step hands a closure to the worker's main thread and blocks on
-  * it, which needs a live worker actor. These tests therefore install an output handler that throws
-  * [[PrepareCheckpointHandlerSpec.MainThreadHandOffReached]] at that hand-off: everything the
-  * callback does before it (the part that runs on the DP thread) is observable, and the assertions
-  * below stop there.
+  * it. Most of the cases below stop there: they install an output handler that throws
+  * [[PrepareCheckpointHandlerSpec.MainThreadHandOffReached]] at the hand-off, so everything the
+  * callback does before it (the part that runs on the DP thread) is observable in isolation.
   *
-  * Not covered here, and not covered anywhere else either: this handler's own main-thread closure,
-  * which drains the input queue into `DP_QUEUED_MSG_KEY`, snapshots un-acked output into
-  * `OUTPUT_MSG_KEY`, and starts input recording by seeding `worker.recordedInputs(checkpointId)`.
-  * `FinalizeCheckpointHandlerSpec` exercises a *different* closure and hand-installs
-  * `recordedInputs` itself, so the prepare-to-finalize handshake is currently unverified. Closing
-  * that gap needs a live worker actor (the `TestActorRef` recipe in `FinalizeCheckpointHandlerSpec`
-  * would do it) and is left as follow-up.
+  * The last case instead lets the hand-off through to a real worker actor, which is what covers the
+  * other half of the checkpoint: the main-thread closure drains the input queue into
+  * `DP_QUEUED_MSG_KEY`, snapshots un-acked output into `OUTPUT_MSG_KEY`, and starts input recording
+  * by seeding `worker.recordedInputs(checkpointId)` -- the buffer `finalizeCheckpoint` later folds
+  * in. `FinalizeCheckpointHandlerSpec` hand-installs that buffer, so this is the only place the
+  * prepare-to-finalize handshake is verified end to end.
   */
-class PrepareCheckpointHandlerSpec extends AnyFlatSpec {
+class PrepareCheckpointHandlerSpec
+    extends TestKit(ActorSystem("PrepareCheckpointHandlerSpec", AmberRuntime.pekkoConfig))
+    with AnyFlatSpecLike
+    with BeforeAndAfterAll {
 
   import PrepareCheckpointHandlerSpec._
 
@@ -86,6 +101,15 @@ class PrepareCheckpointHandlerSpec extends AnyFlatSpec {
   private val rpcContext = AsyncRPCContext(COORDINATOR, workerId)
   private val awaitTimeout = Duration.fromSeconds(5)
   private val checkpointId = EmbeddedControlMessageIdentity("prepare-checkpoint-1")
+
+  override def beforeAll(): Unit = {
+    // WorkflowActor's actor service resolves node addresses through /user/cluster-info.
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
+  }
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
 
   /** Records main-thread hand-offs, then aborts so the blocking wait is never reached. */
   private class OutputRecorder {
@@ -114,6 +138,48 @@ class PrepareCheckpointHandlerSpec extends AnyFlatSpec {
   }
 
   private def await[T](future: Future[T]): T = Await.result(future, awaitTimeout)
+
+  /**
+    * A live worker, so the main-thread hand-off is delivered the way production delivers it
+    * (`self !` -> `handleTriggerClosure`). `TestActorRef` dispatches on the calling thread, so the
+    * closure runs inside `dp.outputHandler` exactly as the blocking wait after it assumes.
+    */
+  private def liveWorker(): TestActorRef[WorkflowWorker] = {
+    val worker = TestActorRef(
+      new WorkflowWorker(WorkerConfig(workerId), WorkerReplayInitialization())
+    )
+    // The DP thread would otherwise race the assertions on the worker's queue and recorded inputs.
+    worker.underlyingActor.dpThread.stop()
+    worker
+  }
+
+  /**
+    * A handler whose DP shares the worker's input queue and routes main-thread hand-offs to it,
+    * which is the wiring `WorkflowWorker` builds for its own DP
+    * (`WorkflowActor.sendMessageFromLogWriterToActor`).
+    */
+  private def newHandlerOn(
+      worker: TestActorRef[WorkflowWorker],
+      executor: OperatorExecutor
+  ): DataProcessorRPCHandlerInitializer = {
+    val dp = new DataProcessor(
+      workerId,
+      {
+        case Left(delegate) => worker ! delegate
+        case Right(_)       => ()
+      },
+      worker.underlyingActor.inputQueue
+    )
+    dp.executor = executor
+    new DataProcessorRPCHandlerInitializer(dp)
+  }
+
+  private def queryStatisticsMessage(sequenceNumber: Long): WorkflowFIFOMessage =
+    WorkflowFIFOMessage(
+      ChannelIdentity(COORDINATOR, workerId, isControl = true),
+      sequenceNumber,
+      ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, sequenceNumber)
+    )
 
   behavior of "PrepareCheckpointHandler"
 
@@ -193,6 +259,38 @@ class PrepareCheckpointHandlerSpec extends AnyFlatSpec {
         List((emptyTuple, Some(RestoredPortId)))
     )
     assert(handler.dp.ecmManager.checkpoints(checkpointId).has(OperatorStateKey))
+  }
+
+  it should "save the worker's queued input and start recording what arrives next" in {
+    val worker = liveWorker()
+    val handler = newHandlerOn(worker, new PlainExecutor)
+    val queued = queryStatisticsMessage(7L)
+    worker.underlyingActor.inputQueue.put(FIFOMessageElement(queued))
+    // Not a message from anywhere: the timer re-issues it after a restore, so checkpointing it
+    // would replay a statistics query the coordinator never sent.
+    worker.underlyingActor.inputQueue.put(
+      TimerBasedControlElement(
+        ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, 8L)
+      )
+    )
+
+    await(handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, false), rpcContext))
+    handler.dp.serializationManager.applySerialization()
+
+    val checkpoint = handler.dp.ecmManager.checkpoints(checkpointId)
+    // Messages that arrived but have not been processed are part of the worker's state: on restore
+    // they go back into the queue, so anything dropped here is a lost control message or batch.
+    assert(
+      checkpoint
+        .load[ArrayBuffer[WorkflowFIFOMessage]](SerializedState.DP_QUEUED_MSG_KEY)
+        .toList == List(queued)
+    )
+    // Nothing was sent, so nothing is awaiting an ack -- but the key still has to exist, because
+    // `WorkflowWorker.loadFromCheckpoint` reads it unconditionally.
+    assert(checkpoint.load[Array[WorkflowFIFOMessage]](SerializedState.OUTPUT_MSG_KEY).isEmpty)
+    // The hand-off ends by opening this buffer, and `finalizeCheckpoint` folds it in: without it,
+    // every message arriving between the two halves of the checkpoint would be lost on restore.
+    assert(worker.underlyingActor.recordedInputs.keySet == Set(checkpointId))
   }
 }
 

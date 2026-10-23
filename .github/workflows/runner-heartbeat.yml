@@ -105,7 +105,7 @@ jobs:
               total=$(docker ps -aq | wc -l | tr -d ' ')
               echo "docker: daemon ok, ${running} running / ${total} total container(s)"
               # Leftovers here mean jobs are dying before their cleanup step;
-              # the named ones (postgres, minio, lakekeeper, lakefs) would then
+              # the named ones (postgres, rustfs, lakekeeper, lakefs) would then
               # collide with the next job that wants the same name and port.
               if [ "$total" -gt 5 ]; then
                 warn "${total} containers left on this node; job cleanup is not keeping up"

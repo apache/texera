@@ -51,7 +51,6 @@ class ComputingUnitAccessSpec
     val u = new User
     u.setUid(uid)
     u.setName(name)
-    u.setPassword("password")
     u
   }
 

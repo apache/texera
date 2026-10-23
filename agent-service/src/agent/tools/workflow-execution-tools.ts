@@ -37,6 +37,9 @@ export interface ExecutionConfig {
   userToken: string;
   workflowId: number;
   computingUnitId?: number;
+  // The warehouse the user picked in the UI; forwarded alongside computingUnitId so
+  // the run writes into their own warehouse rather than shared storage (#7751).
+  warehouseId?: number;
   maxOperatorResultCharLimit?: number;
   maxOperatorResultCellCharLimit?: number;
   executionTimeoutMs?: number;
@@ -166,19 +169,6 @@ function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResul
   };
 }
 
-function formatWorkflowValidationErrors(validationResult: WorkflowValidationResult): string {
-  if (validationResult.isValid) return "";
-
-  const lines: string[] = ["Workflow validation failed:"];
-  for (const [operatorId, fieldErrors] of Object.entries(validationResult.errors)) {
-    lines.push(`  Operator ${operatorId}:`);
-    for (const [field, message] of Object.entries(fieldErrors)) {
-      lines.push(`    - ${field}: ${message}`);
-    }
-  }
-  return lines.join("\n");
-}
-
 function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string[]): LogicalPlan {
   const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
   const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;
@@ -285,6 +275,7 @@ async function executeWorkflowHttp(
     maxOperatorResultCharLimit: config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit,
     maxOperatorResultCellCharLimit:
       config.maxOperatorResultCellCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCellCharLimit,
+    ...(config.warehouseId !== undefined ? { warehouseId: config.warehouseId } : {}),
   };
 
   log.debug(

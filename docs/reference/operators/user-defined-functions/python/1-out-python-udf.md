@@ -36,12 +36,17 @@ tags: [user-defined-functions, python]
 | Columns |  | List<Attribute> | - | The columns of the source |
 | ↳ Attribute Name | ✓ | String | - |  |
 | ↳ Attribute Type | ✓ | string, integer, long, double, boolean,<br>timestamp, binary, large_binary | - |  |
+| Parameters |  | List<UiUDFParameter> | - | Values inferred from active `self.UiParameter(...)` calls.<br>See [UI parameters](../#ui-parameters). |
 
 #### Default Code Template
 
 **Python script**
 
 ```python
+# Define UiParameter inside GenerateOperator.open().
+# Example: self.count = self.UiParameter("count", AttributeType.INT).value
+# See the Python UDF operator documentation for supported types and behavior.
+#
 # from pytexera import *
 # class GenerateOperator(UDFSourceOperator):
 # 

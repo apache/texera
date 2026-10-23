@@ -208,6 +208,28 @@ class PythonUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     exception.getMessage should include("UiParameter name 'date' is declared more than once")
   }
 
+  Seq(
+    AttributeType.INTEGER,
+    AttributeType.LONG,
+    AttributeType.DOUBLE,
+    AttributeType.BOOLEAN,
+    AttributeType.TIMESTAMP
+  ).foreach { attributeType =>
+    it should s"throw when a ${attributeType.name()} UI parameter value is blank" in {
+      val exception = the[RuntimeException] thrownBy {
+        inject(uiParameter("required", attributeType, "   "))
+      }
+
+      exception.getMessage should include("UiParameter 'required' requires a value")
+    }
+  }
+
+  it should "allow an empty string UI parameter value" in {
+    inject(uiParameter("optional_text", AttributeType.STRING, "")) should include(
+      "def _texera_injected_ui_parameters"
+    )
+  }
+
   Seq(AttributeType.BINARY, AttributeType.LARGE_BINARY).foreach { unsupportedType =>
     it should s"throw when a UI parameter uses ${unsupportedType.name()} type" in {
       val exception = the[RuntimeException] thrownBy {

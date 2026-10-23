@@ -21,7 +21,12 @@ package org.apache.texera.amber.engine.architecture.common
 
 import org.apache.pekko.actor.{ActorSystem, Props, UnhandledMessage}
 import org.apache.pekko.testkit.{TestActorRef, TestKit, TestProbe}
-import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
   CreditRequest,
   CreditResponse,
@@ -31,26 +36,58 @@ import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{
   RegisterActorRef
 }
 import org.apache.texera.amber.engine.architecture.control.utils.TrivialControlTester
+import org.apache.texera.amber.engine.architecture.logreplay.{
+  MessageContent,
+  ProcessingStep,
+  ReplayLogRecord
+}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ControlInvocation,
+  EmptyRequest
+}
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
+  StateRestoreConfig,
   TriggerSend
 }
+import org.apache.texera.amber.engine.common.CheckpointState
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import java.net.URI
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.DurationInt
+import scala.jdk.CollectionConverters._
 
 class WorkflowActorSpec
     extends TestKit(ActorSystem("WorkflowActorSpec"))
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
+  override def beforeAll(): Unit = {
+    // WorkflowActor's getAvailableNodeAddressesFunc asks "/user/cluster-info";
+    // without a listener there that ask times out.
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
+  }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
   private val selfId: ActorVirtualIdentity = ActorVirtualIdentity("self-worker")
+
+  // Carries a marker only this spec writes, so a replayed data payload can be traced back to the
+  // log rather than merely type-checked.
+  private val replayedTuple: Tuple =
+    Tuple
+      .builder(Schema().add("marker", AttributeType.STRING))
+      .add("marker", AttributeType.STRING, "replayed-data")
+      .build()
   private val otherId: ActorVirtualIdentity = ActorVirtualIdentity("other-worker")
 
   // A control channel whose destination (toWorkerId) is the tester actor itself.
@@ -88,6 +125,79 @@ class WorkflowActorSpec
       probe.ref,
       name
     )
+
+  private val replayDestination: EmbeddedControlMessageIdentity =
+    EmbeddedControlMessageIdentity("workflow-actor-spec-replay-to")
+
+  /** Write `records` as the replay log named `logFileName` under `folder`.
+    *
+    * Each case uses its own `ram://` folder because the VFS manager is a
+    * JVM-wide singleton.
+    */
+  private def writeLog(folder: URI, logFileName: String, records: Seq[ReplayLogRecord]): Unit = {
+    val writer =
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(folder)).getWriter(logFileName)
+    try {
+      records.foreach(writer.writeRecord)
+      writer.flush()
+    } finally {
+      writer.close()
+    }
+  }
+
+  /** Counts `loadFromCheckpoint` calls so the checkpoint branch of `setupReplay`
+    * is observable without depending on what the (currently unreadable)
+    * checkpoint record deserializes to.
+    */
+  private class CheckpointCountingTester(workerId: ActorVirtualIdentity)
+      extends TrivialControlTester(workerId) {
+    val loadFromCheckpointCalls = new AtomicInteger()
+
+    override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {
+      loadFromCheckpointCalls.incrementAndGet()
+    }
+  }
+
+  /** Fails every input message, to exercise `receiveMessageAndAck`'s catch. */
+  private class FailingInputTester(workerId: ActorVirtualIdentity)
+      extends TrivialControlTester(workerId) {
+    override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit =
+      throw new IllegalStateException("handleInputMessage failed")
+  }
+
+  /** A *direct* `WorkflowActor` subclass, i.e. the smallest actor that actually
+    * runs the base class's own `preStart`. `TrivialControlTester` overrides
+    * `preStart` without calling `super`, so nothing derived from it ever enters
+    * `WorkflowActor.preStart`.
+    */
+  private class MinimalWorkflowActor(
+      workerId: ActorVirtualIdentity,
+      failInitState: Boolean
+  ) extends WorkflowActor(replayLogConfOpt = None, actorId = workerId) {
+
+    /** The preStart steps observed from inside `initState`, in the order they
+      * happened. `transferService.initialize()` is not called by this class, so it
+      * is recorded through its only observable effect: `initState` finding the two
+      * periodic handles already live. Permuting the two calls therefore drops the
+      * first element of this sequence.
+      */
+    private val events = new ConcurrentLinkedQueue[String]()
+    def preStartEvents: Seq[String] = events.asScala.toSeq
+
+    override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {}
+
+    override def getQueuedCredit(channelId: ChannelIdentity): Long = 0L
+
+    override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
+    override def initState(): Unit = {
+      if (!transferService.resendHandle.isCancelled) events.add("transferService.initialize")
+      events.add("initState")
+      if (failInitState) throw new IllegalStateException("initState failed")
+    }
+
+    override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {}
+  }
 
   // ---------------------------------------------------------------------------
   // receiveCreditMessages (WorkflowActor lines 151-155)
@@ -251,4 +361,256 @@ class WorkflowActorSpec
     val forwarded = parent.expectMsgType[GetActorRef]
     assert(forwarded.id == unknownDest)
   }
+
+  // ---------------------------------------------------------------------------
+  // getAvailableNodeAddressesFunc (WorkflowActor lines 89-97)
+  // ---------------------------------------------------------------------------
+
+  it should "resolve cluster node addresses by asking /user/cluster-info" in {
+    val parent = TestProbe()
+    val ref = newTester(parent, "cluster-addresses")
+
+    // PekkoActorService ships with `() => Array.empty`; the WorkflowActor
+    // constructor replaces it with an ask against "/user/cluster-info".
+    // ExecutorDeployment.createWorkers round-robins workers over whatever this
+    // returns and asserts it is non-empty ("no available computation nodes"),
+    // so losing the assignment breaks every deployment.
+    val addresses = ref.underlyingActor.actorService.getClusterNodeAddresses
+
+    // SingleNodeListener answers with its own path address, which for a local
+    // (non-remote) ActorSystem is the address shared by every local actor.
+    assert(addresses.toSeq == Seq(parent.ref.path.address))
+  }
+
+  // ---------------------------------------------------------------------------
+  // receiveMessageAndAck failure path (WorkflowActor lines 138-146)
+  // ---------------------------------------------------------------------------
+
+  it should "register the sender and then rethrow when handleInputMessage fails" in {
+    val parent = TestProbe()
+    val messageSender = TestProbe()
+    val ref = TestActorRef[FailingInputTester](
+      Props(new FailingInputTester(selfId)),
+      parent.ref,
+      "input-message-throws"
+    )
+    val upstreamId = ActorVirtualIdentity("upstream")
+    assert(!ref.underlyingActor.actorRefMappingService.hasActorRef(upstreamId))
+
+    // `TestActorRef.receive` runs the behavior directly instead of going through
+    // the mailbox, so supervision does not swallow the failure and `intercept`
+    // sees whatever escapes `receiveMessageAndAck`. The contract under test is
+    // that the handler's exception is re-thrown rather than logged-and-eaten:
+    // the coordinator's AllForOneStrategy can only report a FatalError if the
+    // failure actually reaches it.
+    val thrown = intercept[IllegalStateException] {
+      ref.receive(networkMessageTo(selfId), messageSender.ref)
+    }
+    assert(thrown.getMessage == "handleInputMessage failed")
+
+    // The mapping is updated before the handler runs, so a failed message still
+    // leaves a route back to its sender.
+    assert(ref.underlyingActor.actorRefMappingService.getActorRef(upstreamId) == messageSender.ref)
+  }
+
+  // ---------------------------------------------------------------------------
+  // setupReplay (WorkflowActor lines 190-227)
+  // ---------------------------------------------------------------------------
+
+  it should "replay from scratch by injecting logged messages behind the logged channel order" in {
+    val parent = TestProbe()
+    val ref = newTester(parent, "setup-replay-scratch")
+    val actor = ref.underlyingActor
+    val gateway = actor.ap.inputGateway
+
+    val dataCid = channelTo(selfId, isControl = false)
+    val controlCid = channelTo(selfId, isControl = true)
+    val readFrom = new URI("ram:///workflow-actor-spec-replay-from-scratch/")
+    writeLog(
+      readFrom,
+      actor.getLogName,
+      Seq(
+        // ProcessingStepCursor.INIT_STEP is -1 and the log manager has not
+        // stepped yet, so the first record has to carry step -1; with any
+        // larger value ReplayOrderEnforcer never latches a current channel and
+        // nothing is ever pickable.
+        ProcessingStep(dataCid, -1L),
+        ProcessingStep(controlCid, 0L),
+        MessageContent(WorkflowFIFOMessage(dataCid, 0L, DataFrame(Array(replayedTuple)))),
+        MessageContent(
+          WorkflowFIFOMessage(
+            controlCid,
+            0L,
+            ControlInvocation(
+              "replayed-control",
+              EmptyRequest(),
+              AsyncRPCContext(otherId, selfId),
+              0
+            )
+          )
+        )
+      )
+    )
+
+    val completions = new AtomicInteger()
+    actor.setupReplay(
+      actor.ap,
+      StateRestoreConfig(readFrom, replayDestination),
+      () => completions.incrementAndGet()
+    )
+
+    // NetworkInputGateway.tryPickChannel prefers CONTROL channels, and both
+    // channels hold a replayed message. The DATA channel can only come back
+    // first because setupReplay installed a ReplayOrderEnforcer seeded from
+    // logManager.getStep, which pins step -1 to the data channel. Dropping the
+    // addEnforcer call, or starting the enforcer at step 0 instead of the log
+    // manager's step, both hand back the control channel here.
+    val first = gateway.tryPickChannel
+    assert(first.map(_.channelId).contains(dataCid))
+    assert(completions.get() == 0, "replay must not be complete while a step is still pending")
+
+    val replayedData = first.get.take
+    // The marker string exists nowhere but the log this test wrote, so this establishes
+    // provenance -- a bare `isInstanceOf[DataFrame]` would not, since any DataFrame satisfies it.
+    assert(replayedData.payload match {
+      case DataFrame(frame) => frame.toSeq.map(_.getField[String]("marker")) == Seq("replayed-data")
+      case other            => fail(s"unexpected replayed payload: $other")
+    })
+
+    // Processing that message advances the cursor to step 0, which is what
+    // releases the next logged step (the control channel).
+    actor.logManager.withFaultTolerant(dataCid, None) {
+      // the replayed data message is the "work" for this step
+    }
+
+    val second = gateway.tryPickChannel
+    assert(second.map(_.channelId).contains(controlCid))
+    // The enforcer's queue is now drained, so replay is over -- exactly once.
+    assert(completions.get() == 1)
+    assert(second.get.take.payload match {
+      case invocation: ControlInvocation => invocation.methodName == "replayed-control"
+      case other                         => fail(s"unexpected replayed payload: $other")
+    })
+  }
+
+  it should "take the checkpoint branch of setupReplay when the destination subfolder exists" in {
+    val parent = TestProbe()
+    val ref = TestActorRef[CheckpointCountingTester](
+      Props(new CheckpointCountingTester(selfId)),
+      parent.ref,
+      "setup-replay-checkpoint"
+    )
+    val actor = ref.underlyingActor
+
+    val readFrom = new URI("ram:///workflow-actor-spec-replay-checkpoint/")
+    // Seed the top-level log as well, so the two branches are distinguishable:
+    // had setupReplay taken the from-scratch branch it would have injected this
+    // message into the input gateway.
+    writeLog(
+      readFrom,
+      actor.getLogName,
+      Seq(
+        ProcessingStep(channelTo(selfId, isControl = false), -1L),
+        MessageContent(
+          WorkflowFIFOMessage(channelTo(selfId, isControl = false), 0L, DataFrame(Array.empty))
+        )
+      )
+    )
+    // Creating a checkpoint storage at the per-destination subfolder creates
+    // that folder, which is what `containsFolder` keys on. The record file has
+    // to exist too (empty is fine): SequentialRecordReader opens it through a
+    // `lazy val`, and on a missing file the catch handler re-forces the failed
+    // lazy val and throws straight out of the iterator.
+    SequentialRecordStorage
+      .getStorage[CheckpointState](Some(readFrom.resolve(replayDestination.toString)))
+      .getWriter(actor.getLogName)
+      .close()
+
+    actor.setupReplay(actor.ap, StateRestoreConfig(readFrom, replayDestination), () => ())
+
+    // Only branch selection is asserted. The record read back from an empty
+    // checkpoint file is null, and CheckpointState is not java.io.Serializable
+    // while cluster.conf turns java serialization off, so no real
+    // CheckpointState can be written or read today; pinning the null would
+    // cement that.
+    assert(actor.loadFromCheckpointCalls.get() == 1)
+    assert(
+      actor.ap.inputGateway.getAllChannels.isEmpty,
+      "the checkpoint branch must not replay the top-level log"
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // preStart (WorkflowActor lines 229-238)
+  // ---------------------------------------------------------------------------
+
+  it should "start its transfer service and register itself with its parent in preStart" in {
+    val parent = TestProbe()
+    // The identity and the actor path name are deliberately different strings: with
+    // one literal for both, a registration reporting `context.self.path.name` instead
+    // of `actorId` would be indistinguishable from the real thing.
+    val actorId = ActorVirtualIdentity("prestart-succeeds-id")
+    val ref = TestActorRef[MinimalWorkflowActor](
+      Props(new MinimalWorkflowActor(actorId, failInitState = false)),
+      parent.ref,
+      "prestart-succeeds"
+    )
+    val transferService = ref.underlyingActor.transferService
+
+    // PekkoMessageTransferService starts out holding `Cancellable.alreadyCancelled`
+    // for both periodic handles, so live handles can only come from
+    // transferService.initialize() having run.
+    assert(!transferService.resendHandle.isCancelled)
+    assert(!transferService.creditPollingHandle.isCancelled)
+
+    // Order, not merely occurrence: initState found the transfer service already
+    // running, so initialize() ran first. Swapping the two calls yields Seq("initState").
+    assert(ref.underlyingActor.preStartEvents == Seq("transferService.initialize", "initState"))
+
+    // The parent is the only party that can answer GetActorRef for this actor, so
+    // the registration has to travel upwards rather than to self.
+    val registered = parent.expectMsgType[RegisterActorRef]
+    assert(registered.id == actorId)
+    assert(registered.ref == ref)
+
+    // Stopping the actor is also the cleanup this case owes the shared ActorSystem:
+    // left running, its 30s resend timer and its 200ms credit-polling timer keep
+    // firing until afterAll. postStop is what cancels them.
+    system.stop(ref)
+    awaitAssert(
+      {
+        assert(transferService.resendHandle.isCancelled)
+        assert(transferService.creditPollingHandle.isCancelled)
+      },
+      5.seconds,
+      100.millis
+    )
+  }
+
+  it should "rethrow an initialization failure so supervision tears the actor down" in {
+    val parent = TestProbe()
+    val actorId = ActorVirtualIdentity("prestart-fails-id")
+    // Swallowing this would leave a half-initialized actor in the running state and
+    // its supervisor none the wiser. Re-throwing turns it into an
+    // ActorInitializationException, which the default decider maps to Stop.
+    //
+    // Scope of this case: it pins `throw t` *given the catch exists*. It cannot see
+    // the catch block itself -- with no try/catch at all the exception takes exactly
+    // the same route to the same outcome -- and it does not observe the `logger.warn`,
+    // which is line-hit only.
+    val ref = TestActorRef[MinimalWorkflowActor](
+      Props(new MinimalWorkflowActor(actorId, failInitState = true)),
+      parent.ref,
+      "prestart-fails"
+    )
+
+    watch(ref)
+    expectTerminated(ref, 10.seconds)
+
+    // Ordering, the other half of the pin in the success case: a doomed actor must
+    // never have advertised itself upwards. Hoisting the registration above
+    // initState() would have put a RegisterActorRef here before the throw.
+    parent.expectNoMessage(500.millis)
+  }
+
 }

@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
@@ -34,7 +34,7 @@ import org.apache.texera.amber.operator.huggingFace.codegen.{
   TaskCodegen,
   TextGenCodegen
 }
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, UIWidget}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
@@ -65,6 +65,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Your Hugging Face API token (from https://huggingface.co/settings/tokens)"
   )
+  @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
   var hfApiToken: EncodableString = ""
 
   @JsonProperty(value = "task", required = true, defaultValue = "text-generation")
@@ -145,6 +146,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "temperature", required = false)
   @JsonSchemaTitle("Temperature")
   @JsonPropertyDescription("Sampling temperature (0.0 = deterministic, up to 2.0)")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 2.0, "default": 0.7 }""")
   var temperature: java.lang.Double = 0.7
 
   @JsonProperty(
@@ -260,9 +262,18 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] =
+  ): Map[PortIdentity, Schema] = {
+    val inputSchema = inputSchemas.values.head
+    val resultCol = resolvedResultColumn
+    if (inputSchema.containsAttribute(resultCol)) {
+      throw new RuntimeException(
+        s"Result column '$resultCol' already exists in the input table. " +
+          "Choose a different Result Column Name."
+      )
+    }
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
-        .add(resolvedResultColumn, AttributeType.STRING)
+      operatorInfo.outputPorts.head.id -> inputSchema
+        .add(resultCol, AttributeType.STRING)
     )
+  }
 }

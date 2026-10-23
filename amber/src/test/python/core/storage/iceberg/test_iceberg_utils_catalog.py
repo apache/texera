@@ -15,10 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 
 from core.storage.iceberg import iceberg_utils
-from core.storage.iceberg.iceberg_utils import create_postgres_catalog
+from core.storage.iceberg.iceberg_utils import (
+    create_postgres_catalog,
+    create_rest_catalog,
+    create_table,
+)
 
 
 class TestCreatePostgresCatalog:
@@ -255,3 +261,106 @@ class TestCreatePostgresCatalogWindowsLocal:
 
         assert kwargs["warehouse"] == ""
         assert "py-io-impl" not in kwargs
+
+
+class TestCreateRestCatalog:
+    """
+    `create_rest_catalog` is the REST counterpart of `create_postgres_catalog`.
+
+    Unlike the postgres path it deliberately performs *no* Windows-local
+    normalization: `warehouse_name` is a logical warehouse identifier the REST
+    server resolves, and its I/O goes through S3FileIO rather than the local
+    filesystem. `load_catalog` is patched so these run without a REST server.
+    """
+
+    def _make(self, catalog_name, warehouse_name, rest_uri):
+        with patch.object(iceberg_utils, "load_catalog") as mock_load_catalog:
+            catalog = create_rest_catalog(
+                catalog_name=catalog_name,
+                warehouse_name=warehouse_name,
+                rest_uri=rest_uri,
+            )
+        assert mock_load_catalog.call_count == 1
+        assert catalog is mock_load_catalog.return_value
+        return mock_load_catalog.call_args
+
+    def test_catalog_name_uri_and_warehouse_are_forwarded_by_value(self):
+        args, kwargs = self._make(
+            "texera_iceberg", "texera-warehouse", "http://lakekeeper:8181/catalog"
+        )
+        # Assert every value, not just `type`: swapping `uri` and `warehouse`
+        # would otherwise go unnoticed.
+        assert args == ("texera_iceberg",)
+        assert kwargs == {
+            "type": "rest",
+            "uri": "http://lakekeeper:8181/catalog",
+            "warehouse": "texera-warehouse",
+        }
+
+    def test_a_windows_style_warehouse_name_is_not_normalized(self):
+        """
+        The postgres path rewrites `C:\\...` into a `file:///` URI; the REST
+        path must not, because the identifier is resolved server-side.
+        """
+        _, kwargs = self._make(
+            "texera_iceberg", "C:\\Users\\texera\\warehouse", "http://localhost:8181"
+        )
+        assert kwargs["warehouse"] == "C:\\Users\\texera\\warehouse"
+        assert "py-io-impl" not in kwargs
+
+
+class TestCreateTable:
+    """
+    `create_table` against a mocked `Catalog`: no postgres, no REST server,
+    no object store.
+    """
+
+    NAMESPACE = "ns"
+    NAME = "tbl"
+    IDENTIFIER = "ns.tbl"
+
+    def _catalog(self, table_exists):
+        catalog = MagicMock()
+        catalog.table_exists.return_value = table_exists
+        return catalog
+
+    def _create(self, catalog, override_if_exists):
+        schema = MagicMock(name="schema")
+        table = create_table(
+            catalog=catalog,
+            table_namespace=self.NAMESPACE,
+            table_name=self.NAME,
+            table_schema=schema,
+            override_if_exists=override_if_exists,
+        )
+        return table, schema
+
+    def test_an_existing_table_is_dropped_when_override_is_requested(self):
+        catalog = self._catalog(table_exists=True)
+        table, schema = self._create(catalog, override_if_exists=True)
+
+        catalog.create_namespace_if_not_exists.assert_called_once_with(self.NAMESPACE)
+        catalog.table_exists.assert_called_once_with(self.IDENTIFIER)
+        catalog.drop_table.assert_called_once_with(self.IDENTIFIER)
+        catalog.create_table.assert_called_once_with(
+            identifier=self.IDENTIFIER,
+            schema=schema,
+            partition_spec=UNPARTITIONED_PARTITION_SPEC,
+        )
+        assert table is catalog.create_table.return_value
+
+    def test_an_existing_table_is_kept_when_override_is_not_requested(self):
+        # Companion to the case above: without it, relaxing the guard from
+        # `and` to `or` would survive.
+        catalog = self._catalog(table_exists=True)
+        self._create(catalog, override_if_exists=False)
+
+        catalog.drop_table.assert_not_called()
+        catalog.create_table.assert_called_once()
+
+    def test_a_missing_table_is_never_dropped_even_when_override_is_requested(self):
+        catalog = self._catalog(table_exists=False)
+        self._create(catalog, override_if_exists=True)
+
+        catalog.drop_table.assert_not_called()
+        catalog.create_table.assert_called_once()

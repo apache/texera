@@ -119,7 +119,7 @@ class WorkflowWorkerSpec
           "org.apache.texera.amber.engine.architecture.worker.DummyOperatorExecutor"
         ),
         isSource = false,
-        loopStartStateUris = Map.empty
+        loopStartPortUris = Map.empty
       )
     )
 

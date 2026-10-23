@@ -17,6 +17,9 @@
  under the License.
 -->
 
+<!-- Commands that re-shape the graph (cut, paste, delete, disable/enable) are gated on canModify:
+     modification enabled AND no structure lock from an embedded preview. Copy, the result toggles,
+     execute-to and export do not re-shape it and follow their own rules. -->
 <ul nz-menu>
   <li
     nz-menu-item
@@ -35,7 +38,7 @@
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
   !hasHighlightedLinks() &&
-  isWorkflowModifiable"
+  canModify"
     (click)="onCut()">
     <span
       nz-icon
@@ -48,7 +51,7 @@
     *ngIf="(highlightedOperatorIds.length === 0 &&
   highlightedCommentBoxIds.length === 0 &&
   !hasHighlightedLinks()) &&
-  isWorkflowModifiable"
+  canModify"
     (click)="onPaste()">
     <span
       nz-icon
@@ -59,7 +62,8 @@
   <li
     nz-menu-item
     *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
-  !hasHighlightedLinks()"
+  !hasHighlightedLinks() &&
+  !structureLocked"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -70,7 +74,8 @@
   <li
     nz-menu-item
     *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
-  !hasHighlightedLinks()"
+  !hasHighlightedLinks() &&
+  !structureLocked"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -127,7 +132,7 @@
     nz-menu-item
     *ngIf="(highlightedOperatorIds.length > 0 ||
   highlightedCommentBoxIds.length > 0) &&
-  isWorkflowModifiable"
+  canModify"
     (click)="onDelete()">
     <span
       nz-icon
@@ -142,7 +147,7 @@
     *ngIf="hasHighlightedLinks() && 
   highlightedOperatorIds.length === 0 &&
   highlightedCommentBoxIds.length === 0 &&
-  isWorkflowModifiable"
+  canModify"
     (click)="onDelete()">
     <span
       nz-icon

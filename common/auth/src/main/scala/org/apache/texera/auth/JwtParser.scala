@@ -62,8 +62,9 @@ object JwtParser extends LazyLogging {
     // call writes Integer; widen via Number to handle both cases.
     val userId = claims.getClaimValue("userId", classOf[Number]).intValue()
     val role = UserRoleEnum.valueOf(claims.getClaimValue("role").asInstanceOf[String])
-    val googleId = claims.getClaimValue("googleId", classOf[String])
-    val googleAvatar = claims.getClaimValue("googleAvatar", classOf[String])
+
+    val avatar = Option(claims.getClaimValue("avatar", classOf[String]))
+      .getOrElse(claims.getClaimValue("googleAvatar", classOf[String]))
 
     new SessionUser(
       new User().tap { user =>
@@ -71,8 +72,7 @@ object JwtParser extends LazyLogging {
         user.setName(userName)
         user.setEmail(email)
         user.setRole(role)
-        user.setGoogleId(googleId)
-        user.setGoogleAvatar(googleAvatar)
+        user.setAvatar(avatar)
       }
     )
   }
