@@ -217,6 +217,64 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""fig.write_html("stub_2.html")""")
   }
 
+  /** A stub that declares `helper` and runs `block`. */
+  private def withHelper(id: String, helper: String, block: String): LogicalOp = {
+    val op = new StubOp(block) {
+      override def standaloneHelpers(): Seq[String] = Seq(helper)
+    }
+    op.setOperatorId(id)
+    op
+  }
+
+  private val sharedHelper =
+    """import math
+      |
+      |
+      |def _texera_called(x):
+      |    return _texera_reached(x)
+      |
+      |
+      |# Only ever named, never called.
+      |def _texera_named(x):
+      |    return x
+      |
+      |
+      |def _texera_reached(x):
+      |    return math.floor(x)
+      |
+      |
+      |def _texera_unused(x):
+      |    return x""".stripMargin
+
+  /** A helper block serves several operators, so one plan rarely calls all of
+    * it. What it does not call has no place in the script.
+    */
+  it should "emit only the helper definitions the script calls" in {
+    val op = withHelper("op", sharedHelper, "out1df = in1df.apply(_texera_called)")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should include("def _texera_called(x):")
+    script should include("def _texera_reached(x):")
+    script should not include "def _texera_unused(x):"
+    script should include("import math")
+  }
+
+  it should "not keep a helper alive for a comment or a string naming it" in {
+    val op = withHelper(
+      "op",
+      sharedHelper,
+      "# _texera_named\nout1df = in1df.assign(note=\"_texera_named\")"
+    )
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "def _texera_named(x):"
+    script should not include "# Only ever named, never called."
+  }
+
+  it should "emit nothing of a helper block whose definitions the script never calls" in {
+    val op = withHelper("op", "def _texera_unused(x):\n    return x", "out1df = in1df.copy()")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "_texera_unused"
+  }
+
   /** The translator's own contract when it meets an operator it cannot render:
     * a comment rather than a silently wrong line.
     */
