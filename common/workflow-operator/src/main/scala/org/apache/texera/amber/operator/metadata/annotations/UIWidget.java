@@ -26,7 +26,11 @@ public class UIWidget {
     // A delimiter picker: common delimiters by name (so a tab is chosen, not typed), plus a
     // free-form entry for anything else. "char" is one literal character; "regex" is a pattern
     // the picker checks as it is typed.
-    public static final String UIWidgetCharDelimiter = "{ \"maxLength\": 1, \"widget\": {\n          \"formlyConfig\": {\n            \"type\": \"delimiter\",\n            \"props\": {\n              \"delimiterMode\": \"char\"\n            }\n          }\n        }\n      }";
+    //
+    // `examples` lists the char picker's presets (CHAR_PRESETS in delimiter-presets.ts). The
+    // picker does not read it; it states the values a reader of the schema can expect, and the
+    // verification config generator runs each one.
+    public static final String UIWidgetCharDelimiter = "{ \"maxLength\": 1, \"examples\": [\",\", \"\\t\", \";\", \"|\", \" \"], \"widget\": {\n          \"formlyConfig\": {\n            \"type\": \"delimiter\",\n            \"props\": {\n              \"delimiterMode\": \"char\"\n            }\n          }\n        }\n      }";
 
     public static final String UIWidgetRegexDelimiter = "{ \"widget\": {\n          \"formlyConfig\": {\n            \"type\": \"delimiter\",\n            \"props\": {\n              \"delimiterMode\": \"regex\"\n            }\n          }\n        }\n      }";
 
