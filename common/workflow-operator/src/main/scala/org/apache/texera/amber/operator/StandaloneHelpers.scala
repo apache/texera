@@ -25,26 +25,26 @@ package org.apache.texera.amber.operator
 object StandaloneHelpers {
 
   /**
-    * A Python transcription of `AttributeTypeUtils`, for operators that cast a
-    * column to a declared type.
+    * `AttributeTypeUtils` in Python, so a cast gives the engine's answer.
     *
-    * Python's own conversions answer differently on the values a spreadsheet
-    * column actually holds. `bool("false")` is true, because every non-empty
-    * string is, and `int("6.7")` raises where the engine reads 6: a cast goes
-    * through `parseField(force = true)`, whose numeric branch is
-    * `java.text.NumberFormat`, which truncates a decimal, drops a grouping
-    * comma and stops at trailing letters. The engine reads "false" as false and
-    * "0" as false too, so the script has to do the same rather than hand back a
-    * column the workflow never produced.
-    *
-    * Refusing is still part of the contract where the engine refuses: text with
-    * no leading digits raises, and a script that quietly wrote NaN instead
-    * would report an answer the run it was exported from never reached.
+    *  - `_texera_cast_boolean`: "true"/"false" in any case, else a number where only 1 is true.
+    *  - `_texera_parse_number`: Java's NumberFormat, stopping at a non-digit and dropping commas.
+    *  - `_texera_saturate`: a double narrowed as Java does, NaN to 0 and the rest to the bounds.
+    *  - `_texera_long_value`: a double clamped to long's range.
+    *  - `_texera_cast_integral`: the LONG cast.
+    *  - `_texera_cast_int32`: the INTEGER cast, where a long wraps and a double clamps.
+    *  - `_texera_text_to_timestamp`: each cell parsed alone, any year; unreadable text raises.
+    *  - `_texera_epoch_millis_to_timestamp`: epoch milliseconds shown in the machine's zone.
+    *  - `_texera_local_zone`: the machine's zone by its IANA name.
+    *  - `_texera_standard_offset`: the zone's standard offset, which Java uses before 1900.
+    *  - `_texera_local_wall_clock(s)`: the machine's wall clock at an instant, per value or column.
+    *  - `_texera_cast_double(s)`: the DOUBLE cast, keeping NaN apart from null.
+    *  - `_texera_java_text`: a value as Java's toString writes it.
+    *  - `_texera_cast_string`: a column as text, decided by the column's type.
+    *  - `_texera_cast_cells`: a cast applied cell by cell, reading nulls from the column's mask.
     */
   val AttributeCasts: String =
-    """# AttributeTypeUtils, transcribed so a cast answers as the engine does.
-      |def _texera_cast_boolean(x):
-      |    # toBoolean first, then `toInt == 1`: "0" and "2" are both false.
+    """def _texera_cast_boolean(x):
       |    if isinstance(x, str):
       |        text = x.strip()
       |        lowered = text.lower()
@@ -57,14 +57,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_parse_number(text):
-      |    # java.text.NumberFormat for Locale.US, which a cast reaches through
-      |    # `parseField(force = true)`. Lenient where Python's int is not: it stops
-      |    # at the first character that cannot continue a number ("12abc" is 12),
-      |    # drops "," without checking group sizes ("1,23" is 123), and reads "."
-      |    # as a decimal point. It refuses a leading "+" and text with no digits.
-      |    #
-      |    # Also returns whether it came back as a Double, which decides between
-      |    # the two narrowings below.
       |    import re
       |
       |    match = re.match(r"\s*(-?)([0-9,]*)(?:\.([0-9]*))?", text)
@@ -76,16 +68,12 @@ object StandaloneHelpers {
       |    if fraction:
       |        return sign * float((digits or "0") + "." + fraction), True
       |    value = sign * int(digits)
-      |    # A whole number past long's range comes back as a Double.
       |    if -(2 ** 63) <= value <= 2 ** 63 - 1:
       |        return value, False
       |    return float(value), True
       |
       |
       |def _texera_saturate(value, low, high):
-      |    # A Double's toInt and toLong: NaN is 0, anything past the bounds is
-      |    # the nearest bound, the infinities included, and the rest truncates
-      |    # toward zero. Python's int() raises on the first two.
       |    if value != value:
       |        return 0
       |    if value <= low:
@@ -96,16 +84,12 @@ object StandaloneHelpers {
       |
       |
       |def _texera_long_value(value, is_double):
-      |    # Number.longValue(): a Double saturates at long's bounds, where a Long
-      |    # is already itself.
       |    if is_double:
       |        return _texera_saturate(value, -(2 ** 63), 2 ** 63 - 1)
       |    return value
       |
       |
       |def _texera_cast_integral(x):
-      |    # The LONG target. Scala's toLong takes no decimal point of its own, so
-      |    # a fraction only ever arrives already parsed.
       |    if isinstance(x, str):
       |        return _texera_long_value(*_texera_parse_number(x))
       |    if isinstance(x, bool):
@@ -116,12 +100,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_cast_int32(x, wrap):
-      |    # The two 32-bit narrowings differ: Long.toInt keeps the low bits, so
-      |    # 2147483648 comes back as -2147483648, while Double.toInt saturates.
-      |    #
-      |    # Text decides by what the parse returned; everything else is told by the
-      |    # SOURCE column's declared type, because `Series.apply` hands the cells of
-      |    # a nullable integer column over as floats.
       |    if isinstance(x, str):
       |        value, is_double = _texera_parse_number(x)
       |        wrap = not is_double
@@ -135,29 +113,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_text_to_timestamp(s):
-      |    # Read cell by cell, the way the engine reads a column: DateParserUtils
-      |    # is handed one field at a time, so a row states its own format and the
-      |    # rest of the column has no say in it.
-      |    #
-      |    # What is read here is held at microsecond resolution and not the
-      |    # nanoseconds pandas parses into by default, which reach 1677 to 2262:
-      |    # the engine holds a java.sql.Timestamp, where the year 2500 is an
-      |    # ordinary moment and emptying it would answer for a row the run itself
-      |    # had no trouble with. Text is cut to the millisecond, because
-      |    # DateParserUtils reads it into a java.util.Date, which counts no finer.
-      |    # A column that is already a moment is handed back
-      |    # at the resolution it arrived in instead, because parseField returns a
-      |    # java.sql.Timestamp untouched and that class counts nanoseconds.
-      |    #
-      |    # Text no format reads ends the run, as the engine's parseField ends its
-      |    # own. dateutil is handed each cell alone, as DateParserUtils is, and
-      |    # reads every format the verify runs hand the engine.
-      |    #
-      |    # A reading that states an offset is moved to the zone the machine is
-      |    # set to and then holds that wall clock, which is what the engine does
-      |    # with one: DateParserUtils reads the offset and java.sql.Timestamp
-      |    # keeps no zone of its own. Left alone, the offset travels as far as
-      |    # the conversion below and stops the cast on a value the run reads.
       |    from dateutil.parser import parse as _parse_date
       |
       |    if pd.api.types.is_datetime64_any_dtype(s):
@@ -182,18 +137,10 @@ object StandaloneHelpers {
       |
       |
       |def _texera_epoch_millis_to_timestamp(s):
-      |    # `new Timestamp(long)` reads MILLISECONDS where pd.to_datetime defaults
-      |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
-      |    # result in UTC would put it a whole offset away. Text needs neither: a
-      |    # parsed wall clock is already the wall clock.
       |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
       |
       |
       |def _texera_local_zone():
-      |    # The machine's zone by IANA name, as the JVM holds it, so each instant
-      |    # gets the offset in force when it happened. dateutil's tzlocal() knows
-      |    # only today's two offsets. tzlocal maps a Windows zone with the JVM's
-      |    # table.
       |    import os
       |    import zoneinfo
       |
@@ -216,8 +163,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_standard_offset(zone):
-      |    # java.util.Date's zone history starts in 1900, and an instant before
-      |    # that takes the zone's standard offset today.
       |    import datetime
       |    import time
       |
@@ -228,12 +173,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_local_wall_clock(moment, zone):
-      |    # The wall clock the machine's zone shows at an instant that states its
-      |    # offset.
-      |    #
-      |    # With no zone named, tzlocal() is the closest there is. Windows'
-      |    # localtime refuses an instant before 1970, and tzlocal() asks it, so
-      |    # such an instant takes the standard offset too.
       |    import datetime
       |
       |    from dateutil.tz import tzlocal
@@ -250,11 +189,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_local_wall_clocks(s):
-      |    # The same for a column that states its zone, kept at its own resolution.
-      |    # Without a named zone, a cell Windows refuses is asked through
-      |    # datetime, one at a time, because a single pandas Timestamp swallows
-      |    # the refusal and answers UTC. Only the offset comes from there, so no
-      |    # digit past the microsecond is lost.
       |    import datetime
       |
       |    from dateutil.tz import tzlocal
@@ -288,23 +222,12 @@ object StandaloneHelpers {
       |
       |
       |def _texera_cast_doubles(s):
-      |    # Into a nullable Float64 built from the column's own mask, which holds
-      |    # a NaN apart from an empty cell. float64 holds both as NaN, so text
-      |    # "NaN" cast here came out empty at the next cast.
       |    holes = s.isna().to_numpy()
       |    values = _texera_cast_cells(s, _texera_cast_double, 0.0).to_numpy(dtype="float64")
       |    return pd.Series(pd.arrays.FloatingArray(values, holes), index=s.index, name=s.name)
       |
       |
       |def _texera_java_text(x):
-      |    # The text Java's toString gives the value Texera holds. A double past
-      |    # 1e7 or under 1e-3 is written in E notation, where Python's str()
-      |    # waits until 1e16 and 1e-4. Its digits are the shortest that read back
-      |    # as the same value, as from JDK 19; an earlier JDK sometimes writes
-      |    # more, 9.999999999999999E22 for 1e23. A java.sql.Timestamp writes every
-      |    # digit of its nanoseconds, trailing zeros dropped but never all of them,
-      |    # where Python writes no fraction on a whole second and six digits
-      |    # otherwise. A boolean is written in lower case.
       |    import datetime
       |    import decimal
       |
@@ -331,10 +254,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_cast_string(s):
-      |    # `toString` on the field, so the COLUMN's type decides the text and
-      |    # not the shape of the value: a double keeps its point, whether or not
-      |    # it lands on a whole number, and an integer never grows one. A column
-      |    # of no single type is read value by value.
       |    if pd.api.types.is_bool_dtype(s):
       |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
       |    if pd.api.types.is_integer_dtype(s):
@@ -343,11 +262,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_cast_cells(s, cast, hole):
-      |    # Each cell through `cast`, and `hole` where the cell is empty. The
-      |    # column's own mask says which cells are empty, not each value: a
-      |    # nullable float column holds NaN as a value, and `Series.map` and
-      |    # `Series.apply` hand its holes over as NaN too, so asking the value
-      |    # empties a stored NaN the engine casts like any other double.
       |    holes = s.isna().to_numpy()
       |    return pd.Series(
       |        [hole if empty else cast(x) for x, empty in zip(s, holes)],
