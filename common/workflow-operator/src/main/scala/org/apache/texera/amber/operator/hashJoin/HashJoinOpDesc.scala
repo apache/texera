@@ -271,7 +271,7 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     // The merge joins on codes and not on the keys. The probe looks each key up
     // in a HashMap under Scala's ==, where a NaN finds nothing, not even another
     // NaN, while 0.0 meets -0.0 and a null meets a null; merge pairs NaN with
-    // NaN.
+    // NaN. `_texera_join_codes` gives each NaN a code of its own.
     val merge =
       s"""_left_cols = set(in1df.columns)
          |_right_cols = list(in2df.columns)
@@ -295,8 +295,6 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
          |    _join_key = _join_key + "_"
          |
          |def _texera_join_codes(left, right):
-         |    # Each NaN takes a code of its own. A null is read off the column's
-         |    # mask, since a stored NaN is not one.
          |    import math
          |
          |    codes = {}
