@@ -51,10 +51,14 @@ import org.apache.texera.amber.operator.sklearn.SklearnPredictionOpDesc
 import org.apache.texera.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path, Paths}
 import java.util
+import java.util.zip.{ZipEntry, ZipOutputStream}
+import scala.util.Using
 
 /**
   * A curated handler ships a configured OpDesc and the input fixtures it
@@ -209,7 +213,8 @@ object FileScanTransformHandler extends TransformHandler {
   override val opDescClass: Class[_ <: LogicalOp] = classOf[FileScanOpDesc]
 
   override def fixture(testRoot: Path): (LogicalOp, Map[PortIdentity, Path]) = {
-    val shared = Paths.get(getClass.getResource(CanonicalFixture.fixtureResource).toURI)
+    // The resource CanonicalFixture reads its rows from.
+    val shared = Paths.get(getClass.getResource("/verify/canonical_fixture.json").toURI)
     val input = CuratedHandlers.writeFixture(
       testRoot.resolve("input_port_0.jsonl"),
       Seq("filename" -> AttributeType.STRING),
@@ -218,14 +223,83 @@ object FileScanTransformHandler extends TransformHandler {
     (new FileScanOpDesc(), Map(PortIdentity(0) -> input))
   }
 
-  /** File Scan Source's files, each read the way that scenario reads it, from the
-    * path this input names: the two operators share the engine's reader and differ
-    * only in where the path comes from. The shared table's JSON lines are text, so
-    * these are what exercise a typed line, an encoding the bytes are in, and an
-    * archive.
+  /** Timestamp lines the engine reads its own way: digits past the millisecond,
+    * which it cuts, an offset, which it moves to the local zone, and a year
+    * past pandas' nanosecond range.
+    */
+  val TimestampLines: String =
+    "2024-01-01 00:00:00.123456789\n2024-01-01T00:00:00+05:30\n2500-01-01 00:00:00"
+
+  private def text(dir: Path, content: String, charset: Charset = StandardCharsets.UTF_8): Path =
+    Files.write(dir.resolve("sample.txt"), content.getBytes(charset))
+
+  /** Two entries and the one macOS adds beside them, which the engine skips. */
+  private def archive(dir: Path): Path = {
+    val path = dir.resolve("sample.zip")
+    Using(new ZipOutputStream(Files.newOutputStream(path))) { out =>
+      Seq("a.txt" -> "line1\nline2\n", "b.txt" -> "line3\n", "__MACOSX/a.txt" -> "junk\n").foreach {
+        case (name, content) =>
+          out.putNextEntry(new ZipEntry(name))
+          out.write(content.getBytes(StandardCharsets.UTF_8))
+          out.closeEntry()
+      }
+    }.get
+    path
+  }
+
+  /** Each scenario's file, written into the directory it is given, with the
+    * attribute type and the settings that read it, in File Scan Source's field
+    * names. File Scan Source reads the same files from its own path field.
+    *
+    * A line the window skips is never parsed, so it may be one the type refuses.
+    * A boolean line is read as the engine reads one, where 1 is true. The charset
+    * the Encoding field names is the one the bytes are in. With Extract on, the
+    * engine reads the entries inside the archive and names each one by its own
+    * name, line by line or whole.
+    */
+  private[verify] val files: Seq[(String, Path => (Path, FileAttributeType, Seq[String]))] =
+    Seq(
+      "integers past a line skipped" -> (dir =>
+        (
+          text(dir, "not a number\n1\n2\n3\n"),
+          FileAttributeType.INTEGER,
+          Seq(""""fileScanOffset":1""")
+        )
+      ),
+      "booleans" -> (dir => (text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN, Seq())),
+      "timestamps" -> (dir =>
+        (text(dir, TimestampLines + "\n"), FileAttributeType.TIMESTAMP, Seq())
+      ),
+      "UTF-16" -> (dir =>
+        (
+          text(dir, "première\ndeuxième\n", StandardCharsets.UTF_16),
+          FileAttributeType.STRING,
+          Seq(""""encoding":"UTF_16"""")
+        )
+      ),
+      "archive" -> (dir => (archive(dir), FileAttributeType.STRING, Seq(""""extract":true"""))),
+      "archive, lines named" -> (dir =>
+        (
+          archive(dir),
+          FileAttributeType.STRING,
+          Seq(""""extract":true""", """"outputFileName":true""")
+        )
+      ),
+      "archive, entries named" -> (dir =>
+        (
+          archive(dir),
+          FileAttributeType.SINGLE_STRING,
+          Seq(""""extract":true""", """"outputFileName":true""")
+        )
+      )
+    )
+
+  /** Each of [[files]], read from the path this input names. The shared table's
+    * JSON lines are text, so these are what exercise a typed line, an encoding the
+    * bytes are in, and an archive.
     */
   override def extraScenarios(testRoot: Path): Seq[(String, LogicalOp, Map[PortIdentity, Path])] =
-    FileScanSourceHandler.files.map {
+    files.map {
       case (label, write) =>
         val dir = testRoot.resolve(label.replaceAll("[^A-Za-z0-9]+", "_"))
         Files.createDirectories(dir)
