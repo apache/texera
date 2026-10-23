@@ -48,7 +48,7 @@ import org.apache.iceberg.exceptions.AlreadyExistsException
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
-import java.time.{LocalDateTime, ZoneId}
+import java.time.LocalDateTime
 import scala.jdk.CollectionConverters._
 
 /**
@@ -302,9 +302,13 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val fieldName = encodeLargeBinaryFieldName(attribute.getName, attribute.getType)
+        // A Timestamp is stored as the wall clock it holds, which `Timestamp.valueOf`
+        // in fromRecord hands back. Going through an instant moved a date before
+        // 1883: a Timestamp gives it the zone's standard offset and java.time the
+        // zone's local mean time.
         val value = tuple.getField[AnyRef](index) match {
           case null                        => null
-          case ts: Timestamp               => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case ts: Timestamp               => ts.toLocalDateTime
           case bytes: Array[Byte]          => ByteBuffer.wrap(bytes)
           case largeBinaryPtr: LargeBinary => largeBinaryPtr.getUri
           case other                       => other
