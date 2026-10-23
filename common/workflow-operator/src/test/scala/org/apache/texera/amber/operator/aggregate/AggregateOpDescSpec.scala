@@ -230,6 +230,12 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |        raise OSError(22, "Invalid argument")
          |    return _localtime() if seconds is None else _localtime(seconds)
          |time.localtime = _refusing
+         |# The fallback reads the standard offset from time, and a C runtime
+         |# that cannot read the zone name leaves it at UTC. Set it to the
+         |# zone's own offset, which has had no daylight saving since 2022.
+         |time.timezone = 6 * 3600
+         |time.altzone = 6 * 3600
+         |time.daylight = 0
          |_texera_local_zone = lambda: None
          |in1df = pd.DataFrame({
          |    "t": np.array(["1600-01-01T12:00", "2024-01-01T00:00"], dtype="datetime64[ms]"),
