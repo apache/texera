@@ -692,6 +692,13 @@ describe("ResultPanelComponent", () => {
       el.triggerEventHandler(event, payload);
     };
 
+    // The return position is computed against the default height. Docked a different distance
+    // above the workspace's edge, a panel opened at that height runs off the bottom of the window.
+    it("docks the panel one default height above the workspace's bottom edge", () => {
+      const container: HTMLElement = fixture.debugElement.query(By.css("#result-container")).nativeElement;
+      expect(container.style.top).toBe(`-${DEFAULT_HEIGHT}px`);
+    });
+
     it("renders the docked panel chrome and wires the close / reset actions", () => {
       component.width = DEFAULT_WIDTH;
       fixture.detectChanges();
