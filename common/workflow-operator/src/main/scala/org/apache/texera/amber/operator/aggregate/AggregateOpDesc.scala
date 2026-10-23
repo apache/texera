@@ -167,16 +167,18 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
     // Identical helper definition each call — keeps the standalone module
     // self-contained without relying on a shared prelude.
+    //
+    // What each function reproduces of the engine:
+    //  - `_texera_agg_concat`: concatAgg, a comma only after the first non-empty value.
+    //  - `_texera_agg_int_sum`: an INTEGER sum, wrapping as a Java int.
+    //  - `_texera_agg_ts_epoch_ms`: getTime, the local wall clock as epoch milliseconds.
+    //  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
+    //  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
+    //  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
+    //  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null.
+    //  - `_texera_agg_group_ids`: groups under Scala's ==, where each NaN is its own group.
     val concatHelper =
       """def _texera_agg_concat(series):
-        |    # The accumulator starts empty and only earns a separator once it
-        |    # holds something, so a leading empty value adds neither text nor
-        |    # comma: "", "a", "" concatenates to "a," and not ",a,". A null is
-        |    # read as the empty string, which is what makes the two the same
-        |    # here. This is concatAgg's fold, written out.
-        |    # Each value is written as Java's toString writes it. The column's
-        |    # own mask says which are null: pd.isna on the value would take a
-        |    # stored NaN for one too.
         |    partial = ""
         |    for v, missing in zip(series, series.isna()):
         |        text = "" if missing else _texera_java_text(v)
@@ -184,32 +186,16 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return partial
         |
         |def _texera_agg_int_sum(series):
-        |    # The engine adds an INTEGER column as Java ints, which wrap.
         |    total = int(series.sum())
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
         |def _texera_agg_ts_epoch_ms(series):
-        |    # A timestamp reaches the engine as its epoch milliseconds whatever
-        |    # resolution the column carries, and reading the integers out of a
-        |    # microsecond column asks for a different number than a nanosecond
-        |    # one, so cast to milliseconds before reading them.
-        |    #
-        |    # A column holds a wall clock, and `Timestamp.getTime` answers for
-        |    # the instant that wall clock names locally, so localize before
-        |    # reading the integers out: left as UTC every one of them is a whole
-        |    # offset away. The two flags are java.time's own reading of an hour
-        |    # daylight saving repeats (the later one) or skips (shifted past the
-        |    # gap).
-        |    #
-        |    # The engine's zone is the machine's, with its whole history; before
-        |    # 1900 java.util.Date reads every wall clock at the standard offset.
         |    from dateutil.tz import tzlocal
         |
         |    kept = series.dropna().astype("datetime64[ms]")
         |    zone = _texera_local_zone()
         |    offset_ms = int(_texera_standard_offset(zone).total_seconds()) * 1000
         |    standard = kept.astype("int64") - offset_ms
-        |    # 1900-01-01T00:00Z in epoch milliseconds.
         |    before = standard < -2208988800000
         |
         |    def localized(s):
@@ -222,8 +208,6 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    except (OSError, OverflowError):
         |        pass
         |
-        |    # With no zone named, tzlocal() asks localtime, and Windows refuses an
-        |    # instant before 1970. Read those at the standard offset too.
         |    def one(i):
         |        if before.iloc[i]:
         |            return int(standard.iloc[i])
@@ -235,14 +219,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return pd.Series([one(i) for i in range(len(kept))], index=kept.index, dtype="int64")
         |
         |def _texera_agg_ts_sum(series):
-        |    # SUM keeps the column's own type, so the engine adds the epoch
-        |    # milliseconds as Java longs, which wrap, and builds a timestamp
-        |    # from the total. Python integers carry the sum exactly, so the
-        |    # wrap is the only place a total loses anything.
         |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
         |    total = ((total + (1 << 63)) % (1 << 64)) - (1 << 63)
-        |    # Through datetime and not Timestamp.tz_convert, which swallows a
-        |    # refusal from localtime and answers in UTC.
         |    import datetime
         |
         |    utc = pd.Timestamp(total, unit="ms")
@@ -255,18 +233,12 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return utc + shift
         |
         |def _texera_agg_ts_mean(series):
-        |    # AVERAGE is declared DOUBLE whatever column it reads, so this is
-        |    # the mean of the epoch milliseconds and not a timestamp.
         |    kept = _texera_agg_ts_epoch_ms(series)
         |    if len(kept) == 0:
         |        return None
         |    return float(kept.astype(object).sum()) / len(kept)
         |
         |def _texera_agg_ts_pick(series, better):
-        |    # AttributeTypeUtils.compare reads a timestamp by getTime, so two in
-        |    # the same millisecond tie, and the fold keeps the one it holds,
-        |    # digits past the millisecond and all. floor and not round, as
-        |    # getTime does.
         |    kept = series.dropna()
         |    if len(kept) == 0:
         |        return pd.NaT
@@ -283,15 +255,10 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |def _texera_agg_ts_max(series):
         |    return _texera_agg_ts_pick(series, lambda a, b: a > b)
         |
-        |# A DOUBLE column can hold a stored NaN apart from null, and pandas'
-        |# reductions answer null for it. The engine skips only the nulls and folds
-        |# the rest as Java doubles, so these folds are written out. Each answers
-        |# pd.NA for a null result, which pandas keeps apart from NaN.
         |def _texera_agg_double_values(series):
         |    return [float(v) for v in series.dropna()]
         |
         |def _texera_agg_double_key(v):
-        |    # Java's Double.compare: NaN sorts above everything, -0.0 below 0.0.
         |    import math
         |
         |    return (math.isnan(v), v, math.copysign(1.0, v))
@@ -312,7 +279,6 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return partial / len(kept)
         |
         |def _texera_agg_double_min(series):
-        |    # The engine starts from Double.MAX_VALUE and reads it back as null.
         |    start = 1.7976931348623157e308
         |    partial = start
         |    for v in _texera_agg_double_values(series):
@@ -321,7 +287,6 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return pd.NA if partial == start else partial
         |
         |def _texera_agg_double_max(series):
-        |    # The engine starts from negative infinity and reads it back as null.
         |    start = float("-inf")
         |    partial = start
         |    for v in _texera_agg_double_values(series):
@@ -330,20 +295,12 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return pd.NA if partial == start else partial
         |
         |def _texera_agg_double_by_group(column, fold):
-        |    # A plain float column cannot hold NaN and null apart, so the folded
-        |    # groups go into a nullable one.
         |    results = column.apply(fold)
         |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
         |    values = results.where(~mask, 0.0).to_numpy(float)
         |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)
         |
         |def _texera_agg_group_ids(keys):
-        |    # The engine keys each group on the List of the row's key fields in a
-        |    # HashMap, under Scala's ==: NaN equals nothing, so every NaN row opens
-        |    # a group of its own, while 0.0 meets -0.0 and a null meets a null.
-        |    # groupby puts every NaN in one group, so each row gets its group's
-        |    # id here. A null is read off the column's mask, since a stored NaN is
-        |    # not one.
         |    import math
         |
         |    ids = {}
