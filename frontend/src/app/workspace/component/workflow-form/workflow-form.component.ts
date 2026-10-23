@@ -19,7 +19,7 @@
 
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
-import { AbstractControl, FormArray, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormArray, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -565,6 +565,32 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    */
   @HostListener("focusout")
   public onFocusOut(): void {
+    this.flushHeldRebuild();
+  }
+
+  /**
+   * A click or a key also ends a hold, because a focus change is not the only thing that does:
+   * closing an nz-select leaves the focus in its search box (ng-zorro re-focuses it), so no focusout
+   * fires, and a rebuild held while the list was open would have waited for an unrelated event
+   * (Copilot on #8839). The same later() re-check as below decides it after the current tick, by
+   * when the dropdown has lost its open class.
+   *
+   * The click is listened for on the document, not on this host. A dropdown's options are drawn in
+   * the CDK's overlay container, a sibling of the whole app rather than a descendant of this page,
+   * so the click that picks one -- or that picks the option already chosen, which changes no value
+   * and moves no focus -- never bubbles through here (Copilot). A click anywhere else ends the hold
+   * for the same reason a focusout does: the reader is no longer typing into the card. The handler
+   * returns at once unless a rebuild is actually held. Keys stay on the host: what is typed goes
+   * into controls this page owns (nz-select keeps its search box in the trigger, not the overlay),
+   * and a document-wide key listener would run on every keystroke in the workspace.
+   */
+  @HostListener("document:click")
+  @HostListener("keyup")
+  public onInteraction(): void {
+    this.flushHeldRebuild();
+  }
+
+  private flushHeldRebuild(): void {
     if (this.rebuildDeferred) {
       this.later(() => {
         if (this.rebuildDeferred) {
@@ -746,6 +772,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (!active || !this.host.nativeElement.contains(active)) {
       return false;
     }
+    // A dropdown (nz-select) keeps the focus on its search box after a pick. That is typing only
+    // while the list is open and a filter can be typed; a closed dropdown that merely holds the
+    // focus held every rebuild, so a change made elsewhere (the canvas, a co-editor) never showed.
+    const dropdown = active.closest(".ant-select");
+    if (dropdown) {
+      return dropdown.classList.contains("ant-select-open");
+    }
     if (active.tagName === "INPUT") {
       return !NON_TEXT_INPUT_TYPES.has((active as HTMLInputElement).type);
     }
@@ -920,8 +953,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       if (card.pendingWrite) {
         return false;
       }
+      // Keyed by the property, not the binding id: a card's model is the operator's properties and
+      // the field keeps the property's own key, so that a widget reaching a sibling finds the same
+      // keys it does on the panel (see renderField).
       return !sameValue(
-        card.model[binding.id],
+        card.model[binding.propertyKey],
         this.formBindingService.readValue(binding.operatorID, binding.propertyKey)
       );
     });
@@ -1008,22 +1044,44 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // The schema's own title ("Attributes", "Limit", "File") -- the reader's title when unnamed.
     // Falls back to this, not the lower-camel key ("fileName"), which would read inconsistently.
     const schemaLabel = (source.props?.label as string) || binding.propertyKey;
-    field.key = binding.id;
+    // The field keeps the property's own key, as on the operator property panel: a widget that
+    // reaches a sibling or itself by key (the HuggingFace picker resets `modelId` and its
+    // task-scoped siblings on a task change) must find the same controls and model keys here.
     field.props = {
       ...(field.props ?? {}),
       label: binding.displayName || schemaLabel,
     };
 
     const form = new FormGroup({});
-    // Seed the model with the operator's other properties as read-only context, not just this
-    // input's own value: some custom widgets read a sibling to decide what to show -- the
-    // HuggingFace model picker reads `task` to load the right models and label the field. Only
-    // this binding's value is ever written back (see below); the context is never persisted, and
-    // it is cloned so a widget that mutates it cannot reach through to the real operator.
+    // The card's model is the operator's properties, as the panel's is: the exposed value, and
+    // every other property as context a widget may read or change -- the HuggingFace model picker
+    // reads `task` to load the right models and, when the task is changed, resets the task-scoped
+    // siblings as it does on the panel. The copy is cloned so nothing reaches through to the real
+    // operator; what changes is written back below, as one edit, the way the panel writes.
     const model: Record<string, unknown> = {
       ...cloneDeep(operator?.operatorProperties ?? {}),
-      [binding.id]: cloneDeep(resolved.value),
+      [binding.propertyKey]: cloneDeep(resolved.value),
     };
+    // The other properties ride along as plain controls (formly builds only the exposed field), so
+    // a widget finds its siblings on the card's form exactly as on the panel's -- the HuggingFace
+    // picker writes `task` through its control, which is also what announces the change -- and a
+    // control-level write lands in the model, which is what is written back.
+    // What the card was built from, kept apart from the live model: the patch is what this card
+    // changed since then, not every difference from the operator as it is now. Diffing against the
+    // operator would have sent a sibling this card never touched but someone else had changed in
+    // the meantime -- the canvas, a co-editor, or another card on the same operator -- putting the
+    // stale value back over the newer one (Copilot on #8839). Advanced by every write below.
+    let baseline: Record<string, unknown> = cloneDeep(model);
+    const schemaKeys = Object.keys((schema as { properties?: Record<string, unknown> }).properties ?? {});
+    const siblingKeys = [...new Set([...schemaKeys, ...Object.keys(model)])].filter(key => key !== binding.propertyKey);
+    for (const key of siblingKeys) {
+      const control = new FormControl(model[key] ?? null);
+      control.valueChanges.pipe(takeUntil(this.formsRebuilt), untilDestroyed(this)).subscribe(value => {
+        model[key] = value;
+      });
+      form.addControl(key, control);
+    }
+
     const card: RenderedField = {
       resolved,
       fields: [field],
@@ -1036,20 +1094,33 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.canEdit) {
       card.flushWrite = () => {
         card.pendingWrite = false;
-        // Formly emits the schema's empty default while building the control, before any edit;
-        // writing that back silently wiped the operator's real value (both views edit one
-        // workflow). So only accept a dirtied form, or a value that differs from the operator's
-        // without being emptier (some controls set values without marking dirty).
-        const next = model[binding.id];
-        const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
+        // What this card changed since it was built is written back: the bound property, and the
+        // siblings a widget changed with it. Formly emits the schema's empty default for the bound
+        // control while building it, before any edit; writing that back silently wiped the
+        // operator's real value (both views edit one workflow). So the bound property is taken
+        // only from a dirtied form, or when it differs without being emptier (some controls set
+        // values without marking dirty).
         const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
-        const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
-        if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
+        // An empty string and an absent property mean the same to an operator, and formly fills a
+        // blank for a string the operator never had: neither is a change of the other.
+        const asJson = (value: unknown) => JSON.stringify(value === "" ? null : value ?? null);
+        const differs = (key: string) => asJson(model[key]) !== asJson(baseline[key]);
+        const bound = binding.propertyKey;
+        const blankBeforeEdit = !form.dirty && isEmpty(model[bound]) && !isEmpty(baseline[bound]);
+        const patch = Object.fromEntries(
+          Object.keys(model)
+            .filter(key => differs(key) && !(key === bound && blankBeforeEdit))
+            .map(key => [key, model[key]])
+        );
+        if (Object.keys(patch).length === 0) {
           return;
         }
         // Write straight onto the operator (the same edit the canvas makes) and refresh this
         // card's snapshot, which the template reads.
-        this.formBindingService.writeValue(binding, next);
+        this.formBindingService.writeProperties(binding.operatorID, patch);
+        // The card has caught up with what it just sent; anything else on the operator stays
+        // someone else's, and only a rebuild re-seeds this card with it.
+        baseline = { ...baseline, ...cloneDeep(patch) };
         this.parameters = this.formBindingService.resolveFields();
         const refreshed = this.parameters.find(p => p.binding.id === binding.id);
         if (refreshed) {
