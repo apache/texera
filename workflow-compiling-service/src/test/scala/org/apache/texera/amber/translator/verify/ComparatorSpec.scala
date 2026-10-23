@@ -269,6 +269,61 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     noException should be thrownBy Comparator.assertEqual(a, b)
   }
 
+  // Both files are UTF-8. Read with the platform's encoding, a text value
+  // outside ASCII failed to decode, and a LONG column whose name is outside
+  // ASCII lost its declared type and went back under the float tolerance.
+  it should "read a name and a value outside ASCII as the UTF-8 they are" in {
+    val dir = Files.createTempDirectory("comparator-spec-utf8-")
+    val utf8Schema = Schema()
+      .add(new Attribute("é", AttributeType.LONG))
+      .add(new Attribute("v", AttributeType.STRING))
+    def write(name: String, n: Long): Path = {
+      val p = dir.resolve(name)
+      val row = Tuple
+        .builder(utf8Schema)
+        .add(utf8Schema.getAttribute("é"), Long.box(n))
+        .add(utf8Schema.getAttribute("v"), "ひ")
+        .build()
+      TupleIO.writeTuples(p, Iterator(row), utf8Schema)
+      p
+    }
+    val a = write("a.jsonl", 100000L)
+
+    noException should be thrownBy Comparator.assertEqual(a, write("same.jsonl", 100000L))
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, write("b.jsonl", 100001L))
+    }.getMessage should include("100001")
+  }
+
+  // What kind of value each DOUBLE cell holds used to be added to the frame as
+  // a column with a made-up name. An output column of that name was overwritten
+  // on both sides alike, so a difference in it went unseen.
+  it should "not let a DOUBLE column's kinds hide an output column" in {
+    val dir = Files.createTempDirectory("comparator-spec-double-kind-name-")
+    val collidingSchema = Schema()
+      .add(new Attribute("v", AttributeType.DOUBLE))
+      .add(new Attribute("v (null/NaN/±Infinity/-0.0)", AttributeType.STRING))
+    def write(name: String, text: String): Path = {
+      val p = dir.resolve(name)
+      val row = Tuple
+        .builder(collidingSchema)
+        .add(collidingSchema.getAttribute("v"), Double.box(1.0))
+        .add(collidingSchema.getAttribute("v (null/NaN/±Infinity/-0.0)"), text)
+        .build()
+      TupleIO.writeTuples(p, Iterator(row), collidingSchema)
+      p
+    }
+    val a = write("a.jsonl", "before")
+    val b = write("b.jsonl", "after")
+
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b)
+    }.getMessage should include("after")
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(a, b, orderSensitive = false)
+    }.getMessage should include("after")
+  }
+
   it should "report a model column only one side produced" in {
     // Model columns are compared by behavior and then dropped from both frames,
     // so a side that never wrote one has to fail here: once the column is gone,

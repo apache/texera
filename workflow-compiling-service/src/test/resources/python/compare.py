@@ -236,7 +236,9 @@ def _declared_types(actual_path: str) -> dict:
     sidecar = actual_path + ".schema.json"
     if not os.path.exists(sidecar):
         return {}
-    with open(sidecar) as fh:
+    # The engine writes UTF-8. Left to the platform default, a column name
+    # outside ASCII reads back as another name on Windows and loses its type.
+    with open(sidecar, "r", encoding="utf-8") as fh:
         schema = json.load(fh)
     return {a["attributeName"]: a.get("attributeType") for a in schema.get("attributes", [])}
 
@@ -263,7 +265,7 @@ def _declared_strings(path: str, columns: list) -> dict:
     import pandas as pd
 
     values = {column: [] for column in columns}
-    with open(path) as fh:
+    with open(path, "r", encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -288,7 +290,7 @@ def _raw_column(path: str, columns: list) -> dict:
     import json
 
     values = {column: [] for column in columns}
-    with open(path) as fh:
+    with open(path, "r", encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -581,13 +583,12 @@ def _run_comparison(
             + detail
         )
 
-    # Added after the column check, which is about the operator's columns. Each
-    # rides with its row through the sort below and is compared as text.
-    for column in double_cols:
-        if column in actual.columns:
-            kind_column = f"{column} (null/NaN/±Infinity/-0.0)"
-            actual[kind_column] = double_kinds_a[column]
-            expected[kind_column] = double_kinds_e[column]
+    # Kept beside the frame, not in it. A column added under a made-up name
+    # overwrote an output column that had the same name, and both sides then
+    # agreed on it. Each rides with its row through the sort below.
+    kind_cols = [column for column in double_cols if column in actual.columns]
+    kinds_a = {column: double_kinds_a[column] for column in kind_cols}
+    kinds_e = {column: double_kinds_e[column] for column in kind_cols}
 
     if unordered:
         # Sort both sides by the same column key so set-equal frames collapse
@@ -596,14 +597,9 @@ def _run_comparison(
         # rows that are tied on all columns keep their relative order — not
         # strictly necessary for set equality (no ties → no duplicates after
         # the op's dedup step) but cheap insurance.
-        cols = list(actual.columns)
-        if cols:
-            actual = actual.sort_values(
-                by=cols, kind="mergesort", na_position="last"
-            ).reset_index(drop=True)
-            expected = expected.sort_values(
-                by=cols, kind="mergesort", na_position="last"
-            ).reset_index(drop=True)
+        if len(actual.columns):
+            actual, kinds_a = _sorted_rows(actual, kinds_a)
+            expected, kinds_e = _sorted_rows(expected, kinds_e)
 
     # The tolerance was letting integers through with it: at rtol=1e-5, LONG
     # 100000 and 100001 compare equal. Integer columns are compared exactly.
@@ -628,7 +624,35 @@ def _run_comparison(
         )
     except AssertionError as exc:
         return str(exc)
+
+    # Compared exactly: the numbers above cannot tell these values apart.
+    for column in kind_cols:
+        for row, (one, other) in enumerate(zip(kinds_a[column], kinds_e[column])):
+            if one != other:
+                return (
+                    f"column '{column}' is declared double and the two sides "
+                    f"differ at row {row}\n"
+                    f"  actual:   {one}\n"
+                    f"  expected: {other}"
+                )
     return None
+
+
+def _sorted_rows(frame, kinds: dict) -> tuple:
+    """The frame's rows sorted by every column and then every kind, with the
+    kinds put in the same order. The sort key labels its columns by position,
+    so no kind can take the place of an output column."""
+    key = frame.reset_index(drop=True)
+    key.columns = range(len(key.columns))
+    for offset, cells in enumerate(kinds.values()):
+        key[len(frame.columns) + offset] = cells
+    order = list(
+        key.sort_values(by=list(key.columns), kind="mergesort", na_position="last").index
+    )
+    return (
+        frame.iloc[order].reset_index(drop=True),
+        {column: [cells[i] for i in order] for column, cells in kinds.items()},
+    )
 
 
 def _load_actual_plots(path) -> list:
