@@ -16,6 +16,10 @@
 # under the License.
 
 import datetime
+import functools
+import os
+import time
+import zoneinfo
 import pyarrow as pa
 from bidict import bidict
 from enum import Enum
@@ -98,19 +102,55 @@ def _parse_bool(v):
 
 
 def _parse_timestamp(v):
+    # A TIMESTAMP reaches a worker as a wall clock with no zone, so a value
+    # parsed here holds none either and compares with a row's. An offset is
+    # moved to the machine's zone first, as the engine's DateParserUtils does.
     if _is_empty_value(v):
-        return datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+        return datetime.datetime(1970, 1, 1)
 
     normalized_value = str(v)
     if normalized_value.endswith("Z"):
         normalized_value = normalized_value[:-1] + "+00:00"
     parsed_value = datetime.datetime.fromisoformat(normalized_value)
-    if (
-        parsed_value.tzinfo is None
-        or parsed_value.tzinfo.utcoffset(parsed_value) is None
-    ):
-        return parsed_value.replace(tzinfo=datetime.timezone.utc)
+    if parsed_value.utcoffset() is not None:
+        return _local_wall_clock(parsed_value)
     return parsed_value
+
+
+def _local_wall_clock(moment):
+    # The wall clock the machine's zone shows at an instant that states its
+    # offset. Windows' localtime refuses an instant before 1970, so the zone is
+    # asked by name where it has one, and otherwise such an instant takes the
+    # machine's standard offset.
+    zone = _named_local_zone()
+    if zone is not None:
+        return moment.astimezone(zone).replace(tzinfo=None)
+    try:
+        return moment.astimezone().replace(tzinfo=None)
+    except (OSError, OverflowError):
+        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return utc - datetime.timedelta(seconds=time.timezone)
+
+
+def _named_local_zone():
+    return _zone_by_name(os.environ.get("TZ"))
+
+
+@functools.lru_cache(maxsize=None)
+def _zone_by_name(tz):
+    # TZ names the zone when it is set, and /etc/localtime links to it when
+    # not. A zone neither of them names is left to localtime.
+    if tz is not None:
+        name = tz.lstrip(":")
+    else:
+        link = os.path.realpath("/etc/localtime")
+        if "zoneinfo/" not in link:
+            return None
+        name = link.split("zoneinfo/", 1)[1]
+    try:
+        return zoneinfo.ZoneInfo(name)
+    except (ValueError, KeyError):
+        return None
 
 
 FROM_STRING_PARSER_MAPPING = {

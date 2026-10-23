@@ -16,9 +16,12 @@
 # under the License.
 
 import datetime
+import time
+import types
 
 import pytest
 
+from core.models.schema import attribute_type
 from core.models.schema.attribute_type import (
     AttributeType,
     FROM_STRING_PARSER_MAPPING,
@@ -31,7 +34,42 @@ from core.models.schema.attribute_type import (
 parse_bool = FROM_STRING_PARSER_MAPPING[AttributeType.BOOL]
 parse_timestamp = FROM_STRING_PARSER_MAPPING[AttributeType.TIMESTAMP]
 
-EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+EPOCH = datetime.datetime(1970, 1, 1)
+
+
+@pytest.fixture
+def machine_zone(monkeypatch):
+    # An offset is moved to the machine's zone, so the tests set one.
+    # Windows has no tzset, so there the zone cannot be changed for a test.
+    if not hasattr(time, "tzset"):
+        pytest.skip("time.tzset is not available on this platform")
+
+    def set_zone(name):
+        monkeypatch.setenv("TZ", name)
+        time.tzset()
+
+    yield set_zone
+    monkeypatch.undo()
+    time.tzset()
+
+
+@pytest.fixture
+def windows_localtime(monkeypatch):
+    # Windows has no zone file to read and its localtime refuses an instant
+    # before 1970. Both are imitated here so any platform runs the case.
+    class RefusingDatetime(datetime.datetime):
+        def astimezone(self, tz=None):
+            if tz is None and self.timestamp() < 0:
+                raise OSError(22, "Invalid argument")
+            return super().astimezone(tz)
+
+    patched = types.SimpleNamespace(**vars(datetime))
+    patched.datetime = RefusingDatetime
+    monkeypatch.setattr(attribute_type, "datetime", patched)
+    monkeypatch.setattr(
+        attribute_type, "_named_local_zone", lambda: None, raising=False
+    )
+    monkeypatch.setattr(time, "timezone", -7200)
 
 
 class TestParseBool:
@@ -60,35 +98,62 @@ class TestParseBool:
 
 class TestParseTimestamp:
     @pytest.mark.parametrize("empty", [None, "", "   ", "\t\n"])
-    def test_an_absent_value_parses_as_the_utc_epoch(self, empty):
+    def test_an_absent_value_parses_as_the_epoch_with_no_zone(self, empty):
         parsed = parse_timestamp(empty)
-        # Assert the exact instant *and* the tzinfo: a naive 1970-01-01 would
-        # compare unequal here, so dropping the timezone is caught too.
         assert parsed == EPOCH
-        assert parsed.tzinfo == datetime.timezone.utc
-        assert (parsed.year, parsed.month, parsed.day) == (1970, 1, 1)
+        assert parsed.tzinfo is None
 
-    def test_a_zulu_suffix_yields_a_utc_aware_instant(self):
-        # Named for the observable outcome, not for the code that produces it.
-        # `_parse_timestamp` rewrites a trailing "Z" into "+00:00" before
-        # calling `fromisoformat`, but `fromisoformat` has accepted "Z" itself
-        # since Python 3.11 and the pyamber CI matrix is 3.11/3.12/3.13 -- so
-        # deleting that rewrite leaves the entire suite green, and this test
-        # must not be credited with pinning it. What it does pin is the
-        # resulting instant and its offset (and, uniquely in this file, the
-        # "+00:00" constant, should the rewrite ever run on an older runtime).
+    def test_a_value_with_no_offset_keeps_its_wall_clock(self, machine_zone):
+        machine_zone("Asia/Kolkata")
+        parsed = parse_timestamp("2024-05-06T07:08:09")
+        assert parsed == datetime.datetime(2024, 5, 6, 7, 8, 9)
+        assert parsed.tzinfo is None
+
+    def test_a_zulu_suffix_is_moved_to_the_machine_zone(self, machine_zone):
+        machine_zone("Asia/Kolkata")
         assert parse_timestamp("2024-05-06T07:08:09Z") == datetime.datetime(
-            2024, 5, 6, 7, 8, 9, tzinfo=datetime.timezone.utc
+            2024, 5, 6, 12, 38, 9
         )
 
-    def test_a_naive_value_is_assumed_to_be_utc(self):
-        assert parse_timestamp("2024-05-06T07:08:09") == datetime.datetime(
-            2024, 5, 6, 7, 8, 9, tzinfo=datetime.timezone.utc
-        )
-
-    def test_an_explicit_offset_is_preserved(self):
+    def test_an_explicit_offset_is_moved_to_the_machine_zone(self, machine_zone):
+        machine_zone("UTC")
         parsed = parse_timestamp("2024-05-06T07:08:09+02:00")
-        assert parsed.utcoffset() == datetime.timedelta(hours=2)
-        assert parsed == datetime.datetime(
-            2024, 5, 6, 5, 8, 9, tzinfo=datetime.timezone.utc
-        )
+        assert parsed == datetime.datetime(2024, 5, 6, 5, 8, 9)
+        assert parsed.tzinfo is None
+
+    @pytest.mark.parametrize(
+        "text, expected",
+        [
+            ("1960-01-01T12:00:00Z", datetime.datetime(1960, 1, 1, 17, 30)),
+            ("1960-01-01T12:00:00+02:00", datetime.datetime(1960, 1, 1, 15, 30)),
+            ("2024-05-06T07:08:09Z", datetime.datetime(2024, 5, 6, 12, 38, 9)),
+            ("3000-01-01T12:00:00Z", datetime.datetime(3000, 1, 1, 17, 30)),
+        ],
+    )
+    def test_an_offset_follows_the_named_zone_in_any_year(
+        self, machine_zone, text, expected
+    ):
+        machine_zone("Asia/Kolkata")
+        assert parse_timestamp(text) == expected
+
+    @pytest.mark.parametrize(
+        "text, expected",
+        [
+            ("1960-01-01T12:00:00Z", datetime.datetime(1960, 1, 1, 14, 0)),
+            ("1960-01-01T12:00:00+02:00", datetime.datetime(1960, 1, 1, 12, 0)),
+            ("1600-01-01T12:00:00Z", datetime.datetime(1600, 1, 1, 14, 0)),
+        ],
+    )
+    def test_an_instant_before_1970_parses_where_localtime_refuses_it(
+        self, windows_localtime, text, expected
+    ):
+        # With no zone to name, an instant localtime refuses takes the
+        # machine's standard offset.
+        parsed = parse_timestamp(text)
+        assert parsed == expected
+        assert parsed.tzinfo is None
+
+    def test_an_instant_localtime_accepts_still_asks_it(self, windows_localtime):
+        assert parse_timestamp("2024-05-06T07:08:09+02:00") == datetime.datetime(
+            2024, 5, 6, 5, 8, 9
+        ).replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
