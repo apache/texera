@@ -103,7 +103,7 @@
           </div>
         </nz-tab>
       </div>
-      <div *ngFor="let config of frameComponentConfigs | keyvalue">
+      <div *ngFor="let config of frameComponentConfigs | keyvalue; trackBy: trackFrameByConfig">
         <nz-tab nzTitle="{{config.key}}">
           <div
             #dynamicComponent
