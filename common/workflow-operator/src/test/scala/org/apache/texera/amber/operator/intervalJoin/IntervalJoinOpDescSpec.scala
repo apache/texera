@@ -244,13 +244,14 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     check(includeBounds = false)
   }
 
-  // The executor adds the constant on the machine's wall clock and reads the
-  // result back in its zone, so in Chicago a day across the spring change is
-  // 23 hours, one across the autumn change is 25 (the overlap read at the
-  // standard offset), a day into the spring gap is 24, and a month from
-  // 2024-01-31T00:00Z counts from the local 01-30 and ends on 03-01. Each
-  // case puts one left row on the engine's bound and one just past the bound
-  // a plain UTC offset gives. The script runs with TZ set to the same zone.
+  // A source hands the script each timestamp as the wall clock the machine's
+  // zone shows, with no zone attached, and the executor adds the constant to
+  // that wall clock. So in Chicago a day from 03-09 12:00 ends at 03-10 12:00
+  // across the spring change, and the same holds across the autumn one. A day
+  // into the spring gap ends where Timestamp.valueOf reads 02:30, an hour
+  // later, and a month from 01-31 ends on 02-29. Each case puts one left row
+  // on or before the engine's bound and one past it. Both sides are fed the
+  // same wall clocks, and the script runs with TZ set to the same zone.
   it should "add a time interval on the machine's wall clock as the engine does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
@@ -259,35 +260,19 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
     val zone = "America/Chicago"
     val cases = Seq(
-      (
-        TimeIntervalType.DAY,
-        "2024-03-09T18:00:00Z",
-        Seq("2024-03-10T17:00:00Z", "2024-03-10T17:30:00Z")
-      ),
-      (
-        TimeIntervalType.DAY,
-        "2024-11-02T06:30:00Z",
-        Seq("2024-11-03T07:15:00Z", "2024-11-03T07:45:00Z")
-      ),
-      (
-        TimeIntervalType.DAY,
-        "2024-03-09T08:30:00Z",
-        Seq("2024-03-10T08:30:00Z", "2024-03-10T08:31:00Z")
-      ),
-      (
-        TimeIntervalType.MONTH,
-        "2024-01-31T00:00:00Z",
-        Seq("2024-02-29T12:00:00Z", "2024-03-01T00:01:00Z")
-      ),
-      (
-        TimeIntervalType.DAY,
-        "1850-06-01T12:00:00Z",
-        Seq("1850-06-02T12:00:00Z", "1850-06-02T12:01:00Z")
-      )
+      (TimeIntervalType.DAY, "2024-06-01T12:00", Seq("2024-06-02T12:00", "2024-06-02T12:01")),
+      (TimeIntervalType.DAY, "2024-03-09T12:00", Seq("2024-03-10T11:30", "2024-03-10T12:30")),
+      (TimeIntervalType.DAY, "2024-11-02T12:00", Seq("2024-11-03T11:30", "2024-11-03T12:30")),
+      (TimeIntervalType.DAY, "2024-03-09T02:30", Seq("2024-03-10T03:15", "2024-03-10T03:45")),
+      (TimeIntervalType.DAY, "2024-11-02T01:30", Seq("2024-11-03T01:15", "2024-11-03T01:45")),
+      (TimeIntervalType.MONTH, "2024-01-31T00:00", Seq("2024-02-29T00:00", "2024-02-29T00:01")),
+      (TimeIntervalType.DAY, "1850-06-01T12:00", Seq("1850-06-02T12:00", "1850-06-02T12:01"))
     )
     val left = Schema().add(new Attribute("l", AttributeType.TIMESTAMP))
     val right = Schema().add(new Attribute("r", AttributeType.TIMESTAMP))
-    def at(instant: String) = Timestamp.from(java.time.Instant.parse(instant))
+    def at(wall: String) = Timestamp.valueOf(java.time.LocalDateTime.parse(wall))
+    def wall(t: Timestamp) =
+      t.toLocalDateTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
 
     val saved = java.util.TimeZone.getDefault
     java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
@@ -303,11 +288,11 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
               lefts.flatMap { l =>
                 exec
                   .processTuple(Tuple(left, Array[Any](at(l))), 0)
-                  .map(_.getFields.map(_.asInstanceOf[Timestamp].getTime).mkString(" "))
+                  .map(_.getFields.map(v => wall(v.asInstanceOf[Timestamp])).mkString(" "))
               }
             } finally exec.close()
 
-          def literal(t: String) = "\"" + t.stripSuffix("Z") + "\""
+          def literal(t: String) = "\"" + t + "\""
           val driver =
             s"""import numpy as np
                |import pandas as pd
@@ -319,7 +304,7 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
                |${d.standaloneHelpers().mkString("\n\n")}
                |${d.generateStandaloneCode()}
                |for row in out1df.itertuples(index=False):
-               |    print(" ".join(str((pd.Timestamp(v) - pd.Timestamp(0)) // pd.Timedelta(milliseconds=1)) for v in row))
+               |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
                |""".stripMargin
 
           val script = Files.createTempFile("intervaljoin-zone-", ".py")
