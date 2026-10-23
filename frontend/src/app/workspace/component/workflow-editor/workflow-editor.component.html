@@ -31,6 +31,33 @@
     <div class="heatmap-tooltip__row">{{ heatmapTooltip.metricLabel }}</div>
     <div class="heatmap-tooltip__row">Heat: {{ heatmapTooltip.heatLabel }}</div>
   </div>
+  <svg
+    *ngIf="pinnedResults.length > 0"
+    class="pinned-result-connectors">
+    <path
+      *ngFor="let pinned of pinnedResults; trackBy: trackPinnedResult"
+      class="pinned-result-connector"
+      [attr.d]="pinnedConnectorPath(pinned)"></path>
+  </svg>
+  <texera-pinned-result-window
+    *ngFor="let pinned of pinnedResults; trackBy: trackPinnedResult"
+    class="pinned-result-anchor"
+    [attr.data-operator-id]="pinned.operatorId"
+    [operatorId]="pinned.operatorId"
+    [style.left.px]="pinnedResultPosition(pinned).x"
+    [style.top.px]="pinnedResultPosition(pinned).y"
+    (moved)="movePinnedResult(pinned.operatorId, $event)"
+    (closed)="unpinResult(pinned.operatorId)"></texera-pinned-result-window>
+  <texera-operator-result-preview
+    class="result-preview-anchor"
+    *ngIf="resultPreview"
+    [operatorId]="resultPreview.operatorId"
+    [pinnable]="true"
+    (pin)="pinResultPreview()"
+    (mouseenter)="keepResultPreview()"
+    (mouseleave)="hideResultPreviewSoon()"
+    [style.left.px]="resultPreview.x"
+    [style.top.px]="resultPreview.y"></texera-operator-result-preview>
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
