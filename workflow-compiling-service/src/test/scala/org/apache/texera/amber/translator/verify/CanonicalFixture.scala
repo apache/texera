@@ -138,7 +138,7 @@ object CanonicalFixture extends SharedFixture {
   // etc.), so a hand-edit that breaks one fails the build. `schema` above stays
   // authoritative for column types: JSON has no TIMESTAMP, so the timestamps
   // are stored as JDBC strings ("2024-01-01 00:00:00.0") and coerced back here.
-  private[verify] val fixtureResource = "/verify/canonical_fixture.json"
+  private val fixtureResource = "/verify/canonical_fixture.json"
 
   override val allRows: Vector[Tuple] = {
     val stream = Option(getClass.getResourceAsStream(fixtureResource))

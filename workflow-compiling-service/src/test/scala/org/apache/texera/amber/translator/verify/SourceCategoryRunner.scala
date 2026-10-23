@@ -58,7 +58,6 @@ import java.nio.channels.FileChannel
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import java.time.ZoneOffset
-import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Try, Using}
@@ -840,15 +839,9 @@ object TextInputHandler extends SourceHandler {
     desc
   }
 
-  /** Timestamp lines the engine reads its own way: digits past the millisecond,
-    * which it cuts, an offset, which it moves to the local zone, and a year
-    * past pandas' nanosecond range.
-    */
-  val TimestampLines: String =
-    "2024-01-01 00:00:00.123456789\n2024-01-01T00:00:00+05:30\n2500-01-01 00:00:00"
-
   /** A line the window skips is never parsed, so it may be one the type refuses.
-    * A boolean line is read as the engine reads one, where 1 is true.
+    * A boolean line is read as the engine reads one, where 1 is true. The
+    * timestamp lines are the ones File Scan's files carry.
     */
   override def scenarios: Seq[(String, Path => LogicalOp)] =
     Seq(
@@ -856,7 +849,9 @@ object TextInputHandler extends SourceHandler {
         typed("not a number\n1\n2\n3", FileAttributeType.INTEGER, Some(1))
       ),
       "booleans" -> (_ => typed("true\nFALSE\n1\n0", FileAttributeType.BOOLEAN, None)),
-      "timestamps" -> (_ => typed(TimestampLines, FileAttributeType.TIMESTAMP, None))
+      "timestamps" -> (_ =>
+        typed(FileScanTransformHandler.TimestampLines, FileAttributeType.TIMESTAMP, None)
+      )
     )
 }
 
@@ -893,72 +888,12 @@ object FileScanSourceHandler extends SourceHandler {
     desc
   }
 
-  private def text(dir: Path, content: String, charset: Charset = StandardCharsets.UTF_8): Path =
-    Files.write(dir.resolve("sample.txt"), content.getBytes(charset))
-
-  /** Two entries and the one macOS adds beside them, which the engine skips. */
-  private def archive(dir: Path): Path = {
-    val path = dir.resolve("sample.zip")
-    Using(new ZipOutputStream(Files.newOutputStream(path))) { out =>
-      Seq("a.txt" -> "line1\nline2\n", "b.txt" -> "line3\n", "__MACOSX/a.txt" -> "junk\n").foreach {
-        case (name, content) =>
-          out.putNextEntry(new ZipEntry(name))
-          out.write(content.getBytes(StandardCharsets.UTF_8))
-          out.closeEntry()
-      }
-    }.get
-    path
-  }
-
-  /** Each scenario's file, written into the directory it is given, with the
-    * attribute type and the settings that read it. Shared with File Scan, which
-    * reads the same files from the paths its input names.
-    *
-    * A line the window skips is never parsed, so it may be one the type refuses.
-    * A boolean line is read as the engine reads one, where 1 is true. The charset
-    * the Encoding field names is the one the bytes are in. With Extract on, the
-    * engine reads the entries inside the archive and names each one by its own
-    * name, line by line or whole.
+  /** File Scan's files, read from this operator's own path field. The two
+    * operators share the engine's reader and differ only in where the path
+    * comes from.
     */
-  private[verify] val files: Seq[(String, Path => (Path, FileAttributeType, Seq[String]))] =
-    Seq(
-      "integers past a line skipped" -> (dir =>
-        (
-          text(dir, "not a number\n1\n2\n3\n"),
-          FileAttributeType.INTEGER,
-          Seq(""""fileScanOffset":1""")
-        )
-      ),
-      "booleans" -> (dir => (text(dir, "true\nFALSE\n1\n0\n"), FileAttributeType.BOOLEAN, Seq())),
-      "timestamps" -> (dir =>
-        (text(dir, TextInputHandler.TimestampLines + "\n"), FileAttributeType.TIMESTAMP, Seq())
-      ),
-      "UTF-16" -> (dir =>
-        (
-          text(dir, "première\ndeuxième\n", StandardCharsets.UTF_16),
-          FileAttributeType.STRING,
-          Seq(""""encoding":"UTF_16"""")
-        )
-      ),
-      "archive" -> (dir => (archive(dir), FileAttributeType.STRING, Seq(""""extract":true"""))),
-      "archive, lines named" -> (dir =>
-        (
-          archive(dir),
-          FileAttributeType.STRING,
-          Seq(""""extract":true""", """"outputFileName":true""")
-        )
-      ),
-      "archive, entries named" -> (dir =>
-        (
-          archive(dir),
-          FileAttributeType.SINGLE_STRING,
-          Seq(""""extract":true""", """"outputFileName":true""")
-        )
-      )
-    )
-
   override def scenarios: Seq[(String, Path => LogicalOp)] =
-    files.map {
+    FileScanTransformHandler.files.map {
       case (label, write) =>
         label -> { (dir: Path) =>
           val (file, attributeType, fields) = write(dir)
