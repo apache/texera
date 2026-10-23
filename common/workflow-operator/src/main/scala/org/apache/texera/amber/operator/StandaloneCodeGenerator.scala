@@ -133,11 +133,12 @@ object StandaloneCodeGenerator {
   /** A helper's name and the definition that binds it. */
   final case class InputAdapter(name: String, definition: String)
 
+  /** `_texera_python_operator_input`: a copy with Float64 columns as float64, the way pyamber
+    * hands them over, so the upstream frame another operator reads stays as it was.
+    */
   val PythonOperatorInput: InputAdapter = InputAdapter(
     "_texera_python_operator_input",
     """def _texera_python_operator_input(df):
-      |    # pyamber hands a Python operator float64, where a NaN and a null are one
-      |    # value. A copy, so the upstream frame another operator reads stays as it was.
       |    df = df.copy()
       |    for _c in df.columns:
       |        if isinstance(df[_c].dtype, (pd.Float64Dtype, pd.Float32Dtype)):
