@@ -96,8 +96,7 @@ export const AI_FIXER_MODEL = "claude-haiku-4.5";
 export const AI_FIXER_TIMEOUT_MS = 120_000;
 export const UNLOCK_TIMEOUT_MS = 15_000;
 
-// A run that reached one of these is over, so anything the panel still shows predates it.
-// A run in one of these is live enough to be worth stopping; the lock coming from anything
+// A run in one of these is live enough to be worth stopping; a lock coming from anything
 // else is not something killing an execution can clear.
 const LIVE_STATES: ReadonlySet<ExecutionState> = new Set([
   ExecutionState.Initializing,
@@ -108,12 +107,17 @@ const LIVE_STATES: ReadonlySet<ExecutionState> = new Set([
   ExecutionState.Recovering,
 ]);
 
+// A run that reached one of these is over, so anything the panel still shows predates it.
+// `Uninitialized` is deliberately absent even though updateWorkflowActionLock treats it as
+// over: a kill lands there, and a kill is how Apply itself clears the lock, so resetting on
+// it would throw away a suggestion that is still the right one for the error on screen.
 const TERMINAL_STATES: ReadonlySet<ExecutionState> = new Set([
   ExecutionState.Completed,
   ExecutionState.Failed,
   ExecutionState.Killed,
   ExecutionState.Terminated,
 ]);
+
 export const UNSUPPORTED_MESSAGE = "This error type is not yet supported for automatic fixing.";
 
 export const IDLE_STATE: FixState = { operatorId: "", status: "idle" };
