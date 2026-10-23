@@ -23,13 +23,21 @@ import org.jooq.impl.DSL.{condition, noCondition}
 import org.jooq.{Condition, Field}
 
 import java.sql.Timestamp
-import java.text.{ParseException, SimpleDateFormat}
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import java.util.concurrent.TimeUnit
+import javax.ws.rs.BadRequestException
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
   var usePgroonga: Boolean = true // only override by tests
+
+  private def parseDate(value: String): Timestamp =
+    try Timestamp.valueOf(LocalDate.parse(value).atStartOfDay)
+    catch {
+      case _: DateTimeParseException => throw new BadRequestException(s"Invalid date: $value")
+    }
 
   def getFullTextSearchFilter(
       keywords: Seq[String],
@@ -101,7 +109,6 @@ object FulltextSearchQueryUtils {
     * @param fieldToFilterOn the field for applying the start and end dates.
     * @return A Condition object that can be used to filter workflows based on the date range and type.
     */
-  @throws[ParseException]
   def getDateFilter(
       startDate: String,
       endDate: String,
@@ -110,15 +117,14 @@ object FulltextSearchQueryUtils {
     if (startDate.nonEmpty || endDate.nonEmpty) {
       val start = if (startDate.nonEmpty) startDate else "1970-01-01"
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
-      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val startTimestamp = parseDate(start)
       val endTimestamp =
         if (end == "9999-12-31") {
-          new Timestamp(dateFormat.parse(end).getTime)
+          parseDate(end)
         } else {
           new Timestamp(
-            dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+            parseDate(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
           )
         }
       fieldToFilterOn.between(startTimestamp, endTimestamp)
