@@ -124,6 +124,12 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
       """out1df = pd.DataFrame({"kind": [str(_v.predict([[1.0]])[0]) for _v in in1df["blob"]]})"""
   }
 
+  /** Spells out each cell of its `x` column as Python prints it. */
+  private class DoubleTextOp extends BlobTypeOp {
+    override def generateStandaloneCode(): String =
+      """out1df = pd.DataFrame({"text": [str(_v) for _v in in1df["x"]]})"""
+  }
+
   // A fitted DecisionTreeClassifier behind the marker the cast writes, pickled
   // by the interpreter the script runs so the two share a sklearn. The script
   // goes through a file because Windows drops the quotes from a `-c` argument.
@@ -347,6 +353,36 @@ class HarnessSpec extends AnyFlatSpec with Matchers {
     values.zipWithIndex.foreach {
       case (v, i) => lines.get(i) should include("\"ts\":\"" + v + "\"")
     }
+  }
+
+  // read_json reads a column of only -0.0 and 0.0 as integers, and the cast
+  // back to float cannot bring the sign back. The engine keeps it, so an
+  // operator that prints the value answered "-0.0" there and "0.0" here.
+  it should "keep the sign of a negative zero in a DOUBLE column without a NaN" taggedAs NeedsPython in {
+    val zeros = new Schema(new Attribute("x", AttributeType.DOUBLE))
+    val dir = Files.createTempDirectory("harness-spec-signed-zero-")
+    val input = dir.resolve("input_port_0.jsonl")
+    TupleIO.writeTuples(
+      input,
+      Iterator(-0.0, 0.0).map { v =>
+        Tuple.builder(zeros).add(zeros.getAttribute("x"), Double.box(v)).build()
+      },
+      zeros
+    )
+    val work = dir.resolve("standalone")
+    Files.createDirectories(work)
+
+    val result = StandaloneRunner.run(
+      opDesc = new DoubleTextOp,
+      inputs = Map(1 -> input),
+      outputPortCount = 1,
+      workDir = work
+    )
+
+    val lines = Files.readAllLines(result.outputs(1))
+    lines should have size 2
+    lines.get(0) should include("\"text\":\"-0.0\"")
+    lines.get(1) should include("\"text\":\"0.0\"")
   }
 
   // JSON carries bytes as base64 text, and the engine decodes it before the

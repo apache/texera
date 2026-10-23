@@ -345,8 +345,9 @@ object StandaloneRunner extends LazyLogging {
     // `read_json` reads the engine's "NaN" and a null as one float64 NaN, while
     // the engine still holds them apart. A source hands a column holding a real
     // NaN over as Float64, which keeps them apart too, and an ordinary column as
-    // float64. Only the columns that hold one are changed, so every other run
-    // keeps the float64 it had.
+    // float64. Any other column is rebuilt as float64 from the raw values too:
+    // read_json reads a column of whole numbers as int64, and the cast back to
+    // float64 cannot restore the sign of a -0.0.
     sb.append("def _texera_verify_doubles(_path, _columns):\n")
     sb.append(
       "    _special = {'NaN': float('nan'), 'Infinity': float('inf'), " +
@@ -371,6 +372,11 @@ object StandaloneRunner extends LazyLogging {
     )
     sb.append("                pd.array([_x is None for _x in _v], dtype=bool).to_numpy(),\n")
     sb.append("            )\n")
+    sb.append("        elif any(_x is not None for _x in _v):\n")
+    sb.append(
+      "            _out[_c] = pd.array([float('nan') if _x is None else _special.get(_x, _x) " +
+        "for _x in _v], dtype='float64').to_numpy()\n"
+    )
     sb.append("    return _out\n")
     sb.append("\n")
 
