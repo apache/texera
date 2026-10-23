@@ -101,25 +101,20 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
 
 object SpecializedFilterOpDesc {
 
-  /** `FilterPredicate.evaluate`, transcribed. pandas' operators answer
-    * differently on every type it handles apart: a STRING field and the value
-    * are compared as numbers when both parse as one, a BOOLEAN as its
-    * lower-case text, an INTEGER as a double, and a DOUBLE with
-    * `Double.compareTo`, under which NaN equals itself and sits above every
-    * number, and -0.0 sits below 0.0. A null field passes no comparison.
+  /** `_texera_filter_keep`: `FilterPredicate.evaluate`, comparing each type as the engine does.
+    * STRING compares as numbers when both sides parse, else by UTF-16 code units. BOOLEAN
+    * compares as lower-case text. INTEGER and DOUBLE use `Double.compareTo`, so NaN sits above
+    * every number and -0.0 below 0.0. LONG reads the value with `Long.valueOf`. TIMESTAMP
+    * compares whole milliseconds in the machine's zone. A null passes nothing.
     */
   val FilterPredicates: String =
     """def _texera_filter_keep(column, condition, value, kind):
       |    import math
       |    import re
       |
-      |    # String.trim drops every character up to U+0020, not only whitespace.
       |    def java_trim(text):
       |        return text.strip("".join(chr(i) for i in range(33)))
       |
-      |    # Double.parseDouble: a trailing d or f is a type suffix and 0x...p...
-      |    # is hex, where float() refuses both, and "nan", "inf" and "1_0",
-      |    # which float() reads, are refused.
       |    java_double_text = re.compile(
       |        r"[+-]?(NaN|Infinity|"
       |        r"((\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"
@@ -139,23 +134,17 @@ object SpecializedFilterOpDesc {
       |        if text[-1] in "dDfF":
       |            text = text[:-1]
       |        if body[:2] in ("0x", "0X"):
-      |            # Java rounds a hex value past the largest double to infinity
-      |            # where float.fromhex raises.
       |            try:
       |                return float.fromhex(text)
       |            except OverflowError:
       |                return float("-inf") if text.startswith("-") else float("inf")
       |        return float(text)
       |
-      |    # Double.compareTo: NaN equals itself and sits above every number, and
-      |    # -0.0 sits below 0.0.
       |    def double_key(x):
       |        if math.isnan(x):
       |            return (1, 0.0, 0.0)
       |        return (0, x, math.copysign(1.0, x))
       |
-      |    # String.compareTo reads UTF-16 code units, which the big-endian bytes
-      |    # order the same way.
       |    def text_key(s):
       |        return s.encode("utf-16-be", "surrogatepass")
       |
@@ -182,7 +171,6 @@ object SpecializedFilterOpDesc {
       |            return compared(double_key(float(v)), target)
       |
       |    elif kind == "LONG":
-      |        # Long.valueOf takes a sign and digits, and nothing else.
       |        text = java_trim(value)
       |        if not re.fullmatch(r"[+-]?\d+", text) or not -(2**63) <= int(text) < 2**63:
       |            raise ValueError("For input string: " + repr(text))
@@ -198,12 +186,6 @@ object SpecializedFilterOpDesc {
       |            return compared(text_key("true" if v else "false"), target)
       |
       |    elif kind == "TIMESTAMP":
-      |        # Both sides by getTime, so only whole milliseconds count. The
-      |        # engine reads the value with DateParserUtils, which takes more
-      |        # formats than pandas; a value pandas cannot read raises here.
-      |        # A reading with an offset is an instant, which the engine holds as
-      |        # the wall clock it shows in the machine's zone, with the offset
-      |        # that zone had at that instant.
       |        zone = _texera_local_zone()
       |
       |        def wall_clock(ts):
