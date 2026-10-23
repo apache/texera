@@ -99,10 +99,18 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   "ImageTaskCodegen.parsePython" should "extract chat-style content for image-text-to-text" in {
-    val out = ImageTaskCodegen.parsePython(makeCtx())
-    out should include("choices")
-    out should include("message")
-    out should include("content")
+    // Scoped to the branch it names and anchored on executable text. Asserting on
+    // "choices"/"message" would now match only the comment in the sibling
+    // visual/document-question-answering branch, so it would pass with this
+    // branch's extraction deleted and fail if that comment were reworded.
+    val branch = ImageTaskCodegen
+      .parsePython(makeCtx())
+      .split("""elif task """)
+      .find(_.startsWith("""== "image-text-to-text""""))
+      .getOrElse(fail("image-text-to-text branch is missing"))
+    branch should include("""content = self._chat_message_content(body)""")
+    branch should include("if content is not None:")
+    branch should include("return content")
   }
 
   it should "normalize image-to-image URL responses through _url_to_data_url" in {
@@ -138,7 +146,11 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
       """content = self._chat_message_content(body)"""
     )
     branch should include("""body.get("answer"""")
-    branch.indexOf("choices") should be < branch.indexOf("""body.get("answer"""")
+    // The chat extraction must precede the native {"answer": ...} fallback.
+    // Anchored on the helper call, not on "choices", which now survives only in
+    // this branch's comment and so could not fail.
+    branch.indexOf("self._chat_message_content(body)") should be <
+      branch.indexOf("""body.get("answer"""")
   }
 
   it should "read chat-provider responses for zero-shot-image-classification" in {
