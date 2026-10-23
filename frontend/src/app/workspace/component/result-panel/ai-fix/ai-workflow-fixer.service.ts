@@ -368,10 +368,23 @@ export class AiWorkflowFixerService {
       };
       if (fix.type === "code_change") {
         const code = String(properties.code ?? "");
-        if (!code.includes(fix.original)) {
+        const patched = replaceAllIndented(code, fix.original, fix.suggested);
+        if (patched.count === 0) {
           throw new Error("the code changed since the suggestion was generated");
         }
-        properties.code = replaceAllIndented(code, fix.original, fix.suggested).code;
+        // Counted, not just found. The count behind the "changes N places" badge was taken at
+        // the analysis, and this replaces every match -- so a copy added or removed in between
+        // means the write touches a different number of lines than the panel promised. A kill
+        // lifts the modification lock without resetting the panel, so the user can edit the
+        // UDF with the suggestion still on screen.
+        if (fix.occurrences !== undefined && patched.count !== fix.occurrences) {
+          const places = (n: number) => `${n} place${n === 1 ? "" : "s"}`;
+          throw new Error(
+            `the snippet is now in ${places(patched.count)} instead of ${places(fix.occurrences)}, ` +
+              "so the fix was not applied"
+          );
+        }
+        properties.code = patched.code;
       } else {
         // Only the model-not-found case asks for a configuration change; a property fix for
         // any other error is the model leaving the four shapes this panel supports.

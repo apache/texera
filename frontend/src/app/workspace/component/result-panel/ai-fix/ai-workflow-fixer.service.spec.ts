@@ -615,6 +615,43 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("idle");
     });
 
+    it("refuses when the snippet now appears fewer times than the panel promised", async () => {
+      // Deliberate, not an oversight in the comparison: the badge said two places, so the
+      // user approved an edit to two. Patching the one that is left is a different change
+      // from the one on screen, and the diff for it is one model call away.
+      const twice = CODE + "        yield t['email']\n";
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, twice, { ...operatorProperties, code: twice });
+      expect(state().suggestedFix?.occurrences).toEqual(2);
+
+      operatorProperties.code = CODE;
+
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().applyError).toContain("1 place instead of 2 places");
+    });
+
+    it("refuses when the snippet now appears more times than the panel promised", async () => {
+      // The occurrence count is captured at the analysis and drives the "changes N places"
+      // badge, which stays hidden at one. Apply only checked that the snippet was still
+      // THERE, so a copy added in between was patched too -- an edit the user was never
+      // warned about. Reachable because a kill lifts the modification lock without
+      // resetting the panel: `Uninitialized` is deliberately not a terminal state.
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+      expect(state().suggestedFix?.occurrences).toEqual(1);
+
+      operatorProperties.code = CODE + "        yield t['email']\n";
+
+      await service.applyFix();
+
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(executeWorkflow).not.toHaveBeenCalled();
+      expect(state().status).toEqual("apply_failed");
+      expect(state().applyError).toContain("2 places");
+    });
+
     it("reports an apply failure, without re-running, when the snippet is no longer in the code", async () => {
       stubModel(suggestion());
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
