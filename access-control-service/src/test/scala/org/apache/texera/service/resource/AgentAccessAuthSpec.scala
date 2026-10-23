@@ -97,12 +97,16 @@ class AgentAccessAuthSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "authorize PATCH requests through authorizePatch handler" in {
-    val (uriInfo, headers) = buildMocks(s"$agentPath/settings", Some(s"Bearer ${token(UserRoleEnum.REGULAR)}"))
+    val (uriInfo, headers) =
+      buildMocks(s"$agentPath/settings", Some(s"Bearer ${token(UserRoleEnum.REGULAR)}"))
     val resource = new AccessControlResource()
     resource.authorizePatch(uriInfo, headers, """{"model": "test"}""").getStatus shouldBe 200
   }
 
   it should "not match dynamic wsapi routes containing api/agents and deny access" in {
-    authorize("auth/wsapi/x/api/agents", Some(s"Bearer ${token(UserRoleEnum.REGULAR)}")).getStatus shouldBe 403
+    authorize(
+      "auth/wsapi/x/api/agents",
+      Some(s"Bearer ${token(UserRoleEnum.REGULAR)}")
+    ).getStatus shouldBe 403
   }
 }
