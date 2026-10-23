@@ -290,14 +290,21 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Keys the frame tabs by name.
+   * Keys the frame tabs by their config object.
    *
-   * `keyvalue` rebuilds its pair objects on every change to the map, so without this every
-   * tab was torn down and recreated whenever one was added or removed -- a result table lost
-   * its scroll position and paging because a console error appeared elsewhere.
+   * `keyvalue` rebuilds its pair objects on every change to the map, so without a trackBy
+   * every tab is torn down and recreated whenever one is added or removed -- a result table
+   * losing its scroll position and paging because a console error appeared elsewhere.
+   *
+   * By the config object rather than by the tab name: `NgComponentOutlet` only recreates a
+   * component when its type changes, so keying by name would also keep every other frame
+   * alive across re-renders and operator switches, which is more than this needs to change.
+   * A re-render re-`set`s each entry with a fresh object, so those frames are recreated as
+   * before, while syncAiFixFrame touching only its own entry leaves the others' identity --
+   * and so their components -- untouched.
    */
-  public trackFrameByName(_index: number, config: { key: string }): string {
-    return config.key;
+  public trackFrameByConfig(_index: number, config: { value: unknown }): unknown {
+    return config.value;
   }
 
   /** Adds or removes the AI Fix entry, leaving every other frame untouched. */
