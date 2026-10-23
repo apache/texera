@@ -101,6 +101,10 @@ object TextSourceOpDesc {
     * "nan", "inf" and an INTEGER past 32 bits, which end the engine's run, and
     * `float()` refuses "2d" and "0x1p3", which the engine reads. `trim` drops
     * only the characters up to U+0020, so a no-break space stays and fails.
+    *
+    *  - `_texera_java_trim`: `String.trim`, dropping the characters up to U+0020.
+    *  - `_texera_parse_int`: `Integer.parseInt` or `Long.parseLong`, a sign and digits in range.
+    *  - `_texera_parse_double`: `Double.parseDouble`'s grammar, read by `_texera_java_double`.
     */
   val NumberParsers: String =
     """def _texera_java_trim(line):
@@ -110,7 +114,6 @@ object TextSourceOpDesc {
       |def _texera_parse_int(line, bits):
       |    import re
       |
-      |    # Integer.parseInt and Long.parseLong take a sign and Unicode digits.
       |    text = _texera_java_trim(line)
       |    if not re.fullmatch(r"[+-]?\d+", text):
       |        raise ValueError("For input string: " + repr(text))
@@ -123,8 +126,6 @@ object TextSourceOpDesc {
       |def _texera_parse_double(line):
       |    import re
       |
-      |    # Double.parseDouble's grammar, ASCII digits only. A text it takes
-      |    # is read by _texera_java_double.
       |    text = _texera_java_trim(line)
       |    if not re.fullmatch(
       |        r"[+-]?(NaN|Infinity|"
