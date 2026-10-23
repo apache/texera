@@ -102,14 +102,28 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
       "out1df = in1df.iloc[0:0].copy()"
   }
 
+  // FilterPredicate reads `KEY` from a column `Key`, since Schema ignores case,
+  // and compares it by that column's declared type. Read from the dtype, a LONG
+  // column would compare as a double and lose the digits past 2^53.
+  it should "take the declared type of a column named in a different case" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(new FilterPredicate("KEY", ComparisonType.EQUAL_TO, "9007199254740993"))
+    val code =
+      d.generateStandaloneCode(Map(PortIdentity() -> Schema().add("Key", AttributeType.LONG)))
+    code should include(""""=", "9007199254740993", "LONG")""")
+  }
+
   /** One column of a given type, the rows the engine reads and the frame the
-    * script reads, and the predicates run over it.
+    * script reads, and the predicates run over it. The table spells the column
+    * `name`, and the predicates name it `predicateName`.
     */
   private case class Column(
       attrType: AttributeType,
       values: Seq[Any],
       pandas: String,
-      predicates: Seq[(ComparisonType, String)]
+      predicates: Seq[(ComparisonType, String)],
+      name: String = "v",
+      predicateName: String = "v"
   )
 
   // A column holds a wall clock, which the engine reads in the JVM's zone and
@@ -225,6 +239,25 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     expectTheRowsTheEngineKeeps(columns)
   }
 
+  // FilterPredicate reads `KEY` from a column `Key`, since Schema ignores case,
+  // and compares it as the LONG declared there. 2^53 + 1 then keeps only its own
+  // row, where a double holds both values as 2^53 and keeps both.
+  it should "compare a column named in a different case by its declared type" taggedAs
+    NeedsPythonPackages in {
+    expectTheRowsTheEngineKeeps(
+      Seq(
+        Column(
+          AttributeType.LONG,
+          Seq(9007199254740992L, 9007199254740993L),
+          """pd.array([9007199254740992, 9007199254740993], dtype="Int64")""",
+          Seq(ComparisonType.EQUAL_TO -> "9007199254740993"),
+          name = "Key",
+          predicateName = "KEY"
+        )
+      )
+    )
+  }
+
   // The engine holds a value with an offset as the wall clock it shows in the
   // JVM's zone. A zone away from UTC, and a half hour off any whole hour, so a
   // reading in UTC or a dropped offset keeps a different row.
@@ -302,9 +335,9 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
       column <- columns
       (condition, value) <- column.predicates
     } yield {
-      val schema = Schema().add("v", column.attrType).add("i", AttributeType.INTEGER)
+      val schema = Schema().add(column.name, column.attrType).add("i", AttributeType.INTEGER)
       val desc = new SpecializedFilterOpDesc
-      desc.predicates = List(new FilterPredicate("v", condition, value))
+      desc.predicates = List(new FilterPredicate(column.predicateName, condition, value))
       val exec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(desc))
       exec.open()
       val kept = column.values.zipWithIndex.flatMap {
@@ -315,7 +348,9 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
       val engine = s"$label: ${kept.map(_.getFields(1)).mkString(" ")}"
       val code = desc.generateStandaloneCode(Map(PortIdentity() -> schema))
       val script =
-        s"""in1df = pd.DataFrame({"v": ${column.pandas.linesIterator.mkString("\n    ")}})
+        s"""in1df = pd.DataFrame({${objectMapper.writeValueAsString(
+          column.name
+        )}: ${column.pandas.linesIterator.mkString("\n    ")}})
            |in1df["i"] = range(len(in1df))
            |ns = {"pd": pd, "in1df": in1df}
            |exec(${objectMapper.writeValueAsString(

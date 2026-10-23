@@ -21,13 +21,15 @@ package org.apache.texera.amber.operator.filter
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+
+import scala.util.Try
 
 class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
@@ -71,17 +73,20 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
     // which answers false on an empty list. Passing the frame through would be
     // the opposite answer.
     if (predicates.isEmpty) return "out1df = in1df.iloc[0:0].copy()"
-    val declared: Map[String, AttributeType] = inputSchemas.values.headOption
-      .map(_.getAttributes.map(a => a.getName -> a.getType).toMap)
-      .getOrElse(Map.empty)
+    val schema = inputSchemas.values.headOption
     val conditions = predicates.map { p =>
       val colLit = pyStringLiteral(p.attribute)
       p.condition match {
         case ComparisonType.IS_NULL     => s"""(in1df[$colLit].isna())"""
         case ComparisonType.IS_NOT_NULL => s"""(in1df[$colLit].notna())"""
         case other                      =>
-          // Without a schema the column's dtype stands in for its type.
-          val kind = declared.get(p.attribute).map(t => pyStringLiteral(t.name)).getOrElse("None")
+          // FilterPredicate finds the field through Schema, which ignores case,
+          // and compares by the type declared there. Without a schema the
+          // column's dtype stands in for its type.
+          val kind = schema
+            .flatMap(s => Try(s.getAttribute(p.attribute)).toOption)
+            .map(a => pyStringLiteral(a.getType.name))
+            .getOrElse("None")
           val opLit = pyStringLiteral(other.getName)
           val valueLit = pyStringLiteral(Option(p.value).getOrElse(""))
           s"_texera_filter_keep(in1df[$colLit], $opLit, $valueLit, $kind)"
