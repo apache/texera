@@ -615,6 +615,23 @@ describe("AiWorkflowFixerService", () => {
       expect(state().status).toEqual("idle");
     });
 
+    it("does not stop the user's run for a fix it was going to refuse anyway", async () => {
+      // Every refusal used to run after ensureModifiable(), which kills the paused execution
+      // to clear the modification lock. So a fix that could never be written cost the user
+      // their run: the panel reported the refusal over a workflow it had just stopped.
+      modificationEnabled = false;
+      stubModel(suggestion());
+      await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
+
+      operatorProperties.code = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
+
+      await service.applyFix();
+
+      expect(killWorkflow).not.toHaveBeenCalled();
+      expect(setOperatorProperty).not.toHaveBeenCalled();
+      expect(state().status).toEqual("apply_failed");
+    });
+
     it("refuses when the snippet now appears fewer times than the panel promised", async () => {
       // Deliberate, not an oversight in the comparison: the badge said two places, so the
       // user approved an edit to two. Patching the one that is left is a different change
@@ -858,8 +875,12 @@ describe("AiWorkflowFixerService", () => {
       );
 
       await service.analyzeError(OP, KEY_ERROR, SCHEMA, CODE, operatorProperties);
-      await service.applyFix();
 
+      // Refused by the analysis, not by Apply: a diff the write will never honour should
+      // never be on screen, and refusing at the click costs the paused run as well.
+      expect(state().status).toEqual("error");
+      expect(state().suggestedFix).toBeUndefined();
+      await service.applyFix();
       expect(setOperatorProperty).not.toHaveBeenCalled();
     });
 

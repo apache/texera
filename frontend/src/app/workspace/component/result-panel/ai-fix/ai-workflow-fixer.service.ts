@@ -315,6 +315,12 @@ export class AiWorkflowFixerService {
         return;
       }
       const suggestedFix = this.toFix(text, visible);
+      // The prompt asks for a configuration change in exactly one case, so a property fix
+      // for any other error is the model going off script. Refused here rather than only at
+      // Apply: the panel must not show a diff the write will never honour.
+      if (suggestedFix.type === "property_change" && errorType !== "model_not_found") {
+        throw new Error("a configuration change is not the fix for this error");
+      }
       // Counted here so the panel can say it before Apply: a short snippet matched as plain
       // text can appear in lines the user never saw in the diff.
       if (suggestedFix.type === "code_change") {
@@ -359,56 +365,17 @@ export class AiWorkflowFixerService {
     this.stateSubject.next({ ...current, status: "applying" });
     try {
       this.assertSameWorkflow(current);
+      // Run before the kill as well as after it. ensureModifiable stops the paused execution
+      // to clear the modification lock, so a fix that was going to be refused anyway cost the
+      // user their run -- and then the unlock wait before the refusal even reached the panel.
+      this.patchedProperties(current, fix);
       await this.ensureModifiable();
       // Checked again: ensureModifiable can wait seconds for a kill to clear the lock, and
       // the user is free to open another workflow while it does.
       this.assertSameWorkflow(current);
-      const properties: Record<string, unknown> = {
-        ...this.workflowActionService.getTexeraGraph().getOperator(current.operatorId).operatorProperties,
-      };
-      if (fix.type === "code_change") {
-        const code = String(properties.code ?? "");
-        const patched = replaceAllIndented(code, fix.original, fix.suggested);
-        if (patched.count === 0) {
-          throw new Error("the code changed since the suggestion was generated");
-        }
-        // Counted, not just found. The count behind the "changes N places" badge was taken at
-        // the analysis, and this replaces every match -- so a copy added or removed in between
-        // means the write touches a different number of lines than the panel promised. A kill
-        // lifts the modification lock without resetting the panel, so the user can edit the
-        // UDF with the suggestion still on screen.
-        if (fix.occurrences !== undefined && patched.count !== fix.occurrences) {
-          const places = (n: number) => `${n} place${n === 1 ? "" : "s"}`;
-          throw new Error(
-            `the snippet is now in ${places(patched.count)} instead of ${places(fix.occurrences)}, ` +
-              "so the fix was not applied"
-          );
-        }
-        properties.code = patched.code;
-      } else {
-        // Only the model-not-found case asks for a configuration change; a property fix for
-        // any other error is the model leaving the four shapes this panel supports.
-        if (current.errorType !== "model_not_found") {
-          throw new Error("a configuration change is not the fix for this error");
-        }
-        const field = String(fix.fieldName);
-        // Checked against the fields the model was actually shown, not the raw properties:
-        // those still hold the credentials withoutSecrets kept out of the prompt, so a
-        // guessed `hfApiToken` would otherwise pass here and be overwritten.
-        const visible = withoutSecrets(properties, this.schemaProperties(current.operatorId));
-        if (field === "code" || !Object.prototype.hasOwnProperty.call(visible, field)) {
-          throw new Error(`${field} is not a configuration field this fix may change`);
-        }
-        // Same staleness guard as the code branch: re-reading the properties keeps the
-        // unrelated fields, but the field being replaced can itself have moved on since
-        // the suggestion was generated, and overwriting it would discard that newer value.
-        if (String(properties[field] ?? "") !== fix.original) {
-          throw new Error(`${field} changed since the suggestion was generated`);
-        }
-        // The model always replies with a string; writing it raw would turn a numeric or
-        // boolean setting into one, which the operator then rejects at validation.
-        properties[field] = coerceToFieldType(properties[field], fix.suggested);
-      }
+      // Re-read and re-validated rather than reusing the pre-flight result, which describes
+      // the operator as it was before that wait.
+      const properties = this.patchedProperties(current, fix);
       this.workflowActionService.setOperatorProperty(current.operatorId, properties);
       // Asked rather than predicted: mirroring ExecuteWorkflowService's refusal conditions
       // here means every one it gains has to be repeated, and missing one reports
@@ -433,6 +400,63 @@ export class AiWorkflowFixerService {
         applyError: (err as Error).message,
       });
     }
+  }
+
+  /**
+   * The operator's properties with the fix written into them, or a refusal.
+   *
+   * Reads only the graph and returns a fresh object, so it is safe to run twice: once as a
+   * pre-flight before ensureModifiable, so a refusal does not cost the user the execution
+   * that call kills, and once after it, because the operator can move during the wait.
+   */
+  private patchedProperties(current: FixState, fix: SuggestedFix): Record<string, unknown> {
+    const properties: Record<string, unknown> = {
+      ...this.workflowActionService.getTexeraGraph().getOperator(current.operatorId).operatorProperties,
+    };
+    if (fix.type === "code_change") {
+      const code = String(properties.code ?? "");
+      const patched = replaceAllIndented(code, fix.original, fix.suggested);
+      if (patched.count === 0) {
+        throw new Error("the code changed since the suggestion was generated");
+      }
+      // Counted, not just found. The count behind the "changes N places" badge was taken at
+      // the analysis, and this replaces every match -- so a copy added or removed in between
+      // means the write touches a different number of lines than the panel promised. A kill
+      // lifts the modification lock without resetting the panel, so the user can edit the
+      // UDF with the suggestion still on screen.
+      if (fix.occurrences !== undefined && patched.count !== fix.occurrences) {
+        const places = (n: number) => `${n} place${n === 1 ? "" : "s"}`;
+        throw new Error(
+          `the snippet is now in ${places(patched.count)} instead of ${places(fix.occurrences)}, ` +
+            "so the fix was not applied"
+        );
+      }
+      properties.code = patched.code;
+    } else {
+      // Only the model-not-found case asks for a configuration change; a property fix for
+      // any other error is the model leaving the four shapes this panel supports.
+      if (current.errorType !== "model_not_found") {
+        throw new Error("a configuration change is not the fix for this error");
+      }
+      const field = String(fix.fieldName);
+      // Checked against the fields the model was actually shown, not the raw properties:
+      // those still hold the credentials withoutSecrets kept out of the prompt, so a
+      // guessed `hfApiToken` would otherwise pass here and be overwritten.
+      const visible = withoutSecrets(properties, this.schemaProperties(current.operatorId));
+      if (field === "code" || !Object.prototype.hasOwnProperty.call(visible, field)) {
+        throw new Error(`${field} is not a configuration field this fix may change`);
+      }
+      // Same staleness guard as the code branch: re-reading the properties keeps the
+      // unrelated fields, but the field being replaced can itself have moved on since
+      // the suggestion was generated, and overwriting it would discard that newer value.
+      if (String(properties[field] ?? "") !== fix.original) {
+        throw new Error(`${field} changed since the suggestion was generated`);
+      }
+      // The model always replies with a string; writing it raw would turn a numeric or
+      // boolean setting into one, which the operator then rejects at validation.
+      properties[field] = coerceToFieldType(properties[field], fix.suggested);
+    }
+    return properties;
   }
 
   public discardFix(): void {
