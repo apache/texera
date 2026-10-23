@@ -136,7 +136,10 @@ jobs:
   # Build the backported tree for targets that applied cleanly, so a clean
   # cherry-pick that nonetheless fails to compile on the release branch is
   # caught before merge (Direct Backport Push reads these legs to decide
-  # push-straight vs. open-a-draft-PR). Same stack selection as the main build.
+  # push-straight vs. open-a-draft-PR). Same stack selection and the same
+  # Linux runner tiers as the main build: a labeled PR's backport legs are the
+  # same sbt compiles as its main legs, so they belong on the same self-hosted
+  # sets rather than falling back to build.yml's ubuntu-latest defaults.
   backport:
     needs: [precheck, apply-check]
     if: ${{ needs.apply-check.outputs.buildable != '' && needs.apply-check.outputs.buildable != '[]' }}
@@ -150,6 +153,9 @@ jobs:
       backport_target_branch: ${{ matrix.target }}
       backport_commit_range: ${{ format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
       job_name_suffix: ""
+      heavy_runner: ${{ needs.precheck.outputs.heavy_runner }}
+      medium_runner: ${{ needs.precheck.outputs.medium_runner }}
+      light_runner: ${{ needs.precheck.outputs.light_runner }}
       run_frontend: ${{ needs.precheck.outputs.run_frontend == 'true' }}
       run_amber: ${{ needs.precheck.outputs.run_amber == 'true' }}
       run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
