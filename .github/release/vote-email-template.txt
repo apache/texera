@@ -1,0 +1,61 @@
+Subject: [VOTE] Release Apache Texera (incubating) ${VERSION} RC${RC_NUM}
+
+Hi Texera Community,
+
+This is a call for a vote on releasing Apache Texera (incubating) ${VERSION} RC${RC_NUM}.
+
+== Release Candidate Artifacts ==
+
+https://dist.apache.org/repos/dist/dev/incubator/texera/${RC_DIR}/
+
+The staging directory contains the source tarball and the Docker Compose convenience bundle, each with its GPG signature (.asc) and SHA-512 checksum (.sha512).
+
+== Container Images ==
+
+The convenience container images pulled by the bundled Docker Compose file:
+
+${IMAGE_LIST}
+
+== Git Tag and Commit ==
+
+https://github.com/apache/texera/releases/tag/${TAG_NAME}
+
+Commit: ${COMMIT_HASH}
+
+== KEYS ==
+
+https://downloads.apache.org/incubator/texera/KEYS
+
+The release was signed with GPG key [${GPG_KEY_ID}] (${GPG_EMAIL}).
+
+== Major Changes Since <PREVIOUS_RELEASE, e.g. Apache Texera 1.1.0-incubating> ==
+
+Full diff: https://github.com/apache/texera/compare/<PREVIOUS_TAG>...${TAG_NAME}
+
+<FILL IN: grouped highlights, verified against the previous release branch, not its tag>
+
+== Vote ==
+
+The vote will remain open for at least 72 hours.
+
+[ ] +1 Approve the release
+[ ]  0 No opinion
+[ ] -1 Do not approve the release because...
+
+== Checklist ==
+
+Please include the checklist below in your reply and mark the checks you performed with an x.
+
+[ ] Checksums and PGP signatures are valid
+[ ] LICENSE and NOTICE files are correct
+[ ] All files have ASF license headers where appropriate
+[ ] No unexpected binary files
+[ ] Source tarball matches the Git tag
+[ ] Can compile from source successfully
+[ ] Docker Compose deploys successfully
+
+Thank you for reviewing and voting on this release candidate.
+
+Best,
+<YOUR NAME>
+Release Manager for Apache Texera ${VERSION}
