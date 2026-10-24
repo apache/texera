@@ -113,7 +113,7 @@ object ExecutionUtils {
         } else if (unCompletedStates.forall(_ == pausedState)) {
           WorkflowAggregatedState.PAUSED
         } else if (unCompletedStates.forall(_ == readyState)) {
-          WorkflowAggregatedState.RUNNING
+          WorkflowAggregatedState.READY
         } else {
           WorkflowAggregatedState.UNKNOWN
         }
