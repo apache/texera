@@ -175,7 +175,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     //  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
     //  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
     //  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
-    //  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null.
+    //  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null,
+    //    ordered by `_texera_double_key` from StandaloneHelpers.AttributeCasts.
     //  - `_texera_agg_group_ids`: groups under Scala's ==, where each NaN is its own group.
     val concatHelper =
       """def _texera_agg_concat(series):
@@ -258,11 +259,6 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |def _texera_agg_double_values(series):
         |    return [float(v) for v in series.dropna()]
         |
-        |def _texera_agg_double_key(v):
-        |    import math
-        |
-        |    return (math.isnan(v), v, math.copysign(1.0, v))
-        |
         |def _texera_agg_double_sum(series):
         |    partial = 0.0
         |    for v in _texera_agg_double_values(series):
@@ -282,7 +278,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    start = 1.7976931348623157e308
         |    partial = start
         |    for v in _texera_agg_double_values(series):
-        |        if _texera_agg_double_key(v) < _texera_agg_double_key(partial):
+        |        if _texera_double_key(v) < _texera_double_key(partial):
         |            partial = v
         |    return pd.NA if partial == start else partial
         |
@@ -290,7 +286,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    start = float("-inf")
         |    partial = start
         |    for v in _texera_agg_double_values(series):
-        |        if _texera_agg_double_key(v) > _texera_agg_double_key(partial):
+        |        if _texera_double_key(v) > _texera_double_key(partial):
         |            partial = v
         |    return pd.NA if partial == start else partial
         |
