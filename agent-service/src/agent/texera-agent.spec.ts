@@ -870,6 +870,22 @@ describe("delegate mode", () => {
     },
   };
 
+  test("compiles with the delegating user's token (compile service is JWT-protected)", async () => {
+    dispatch(okExec);
+    const compileHeaders: unknown[] = [];
+    const routed = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((async (u: any, init?: RequestInit) => {
+      if (String(u).includes("/api/compile")) compileHeaders.push(init?.headers);
+      return routed(u, init);
+    }) as any);
+    const agent = makeAgentWith(textModel("ok", 1, 1));
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+    await agent.sendMessage("go");
+    expect(compileHeaders.length).toBeGreaterThan(0);
+    for (const h of compileHeaders)
+      expect(h).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
+  });
+
   test("refreshes the workflow once, on the first turn only", async () => {
     dispatch(okExec);
     const model = textModel("ok", 1, 1);
