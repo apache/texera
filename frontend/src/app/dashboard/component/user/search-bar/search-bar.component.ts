@@ -142,8 +142,6 @@ export class SearchBarComponent {
   convertToName(resultItem: SearchResultItem): string {
     if (resultItem.workflow) {
       return new DashboardEntry(resultItem.workflow).name;
-    } else if (resultItem.file) {
-      return new DashboardEntry(resultItem.file).name;
     } else if (resultItem.dataset) {
       return new DashboardEntry(resultItem.dataset).name;
     } else {

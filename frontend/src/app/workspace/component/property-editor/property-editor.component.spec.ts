@@ -108,6 +108,31 @@ describe("PropertyEditorComponent", () => {
     expect(container.style.width).toBe("321px");
   });
 
+  // Both views of a workflow mount this panel, and they overlap for a tick when the switch routes
+  // between them; a document-wide lookup then finds the departing view's container first and
+  // restores the saved placement onto it, leaving this panel's own unstyled.
+  it("restores the saved placement onto its own container, not the first one in the document", () => {
+    // `left`, not width: the template binds the width (nz-resizable) on the same change-detection
+    // pass that runs ngOnInit, which would overwrite the restored value and hide the outcome.
+    localStorage.setItem("right-panel-style", "left: 33px;");
+    // In the document before the panel is created, as the departing view's container is when the
+    // arriving one initialises.
+    const decoy = document.createElement("div");
+    decoy.id = "right-container";
+    document.body.insertBefore(decoy, document.body.firstChild);
+    try {
+      const arriving = TestBed.createComponent(PropertyEditorComponent);
+      arriving.detectChanges();
+      const own = arriving.nativeElement.querySelector("#right-container") as HTMLElement;
+
+      expect(own.style.left).toBe("33px");
+      expect(decoy.style.left).toBe("");
+      arriving.destroy();
+    } finally {
+      decoy.remove();
+    }
+  });
+
   // The crash this flag fixes: ngOnInit reads #right-container to restore the docked panel's
   // placement, and that element only exists in the canvas layout. The Form View mounts the panel
   // with persistPlacement=false, where the element is absent -- reading it there would throw. With
@@ -427,7 +452,8 @@ describe("PropertyEditorComponent", () => {
     localStorage.removeItem("right-panel-style");
     component.width = 137;
     component.height = 246;
-    vi.spyOn(document, "getElementById").mockReturnValue(null);
+    // The panel looks for the container inside its own host, so "missing" means gone from there.
+    (fixture.nativeElement.querySelector("#right-container") as HTMLElement).remove();
 
     component.ngOnDestroy();
 

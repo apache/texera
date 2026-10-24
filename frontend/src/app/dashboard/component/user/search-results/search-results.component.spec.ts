@@ -129,7 +129,7 @@ describe("SearchResultsComponent", () => {
     it("clears entries and stores the provided loadMoreFunction", async () => {
       component.entries = [makeEntry("workflow", 1), makeEntry("dataset", 2)];
 
-      const loadMoreFunction: LoadMoreFunction = vi.fn(async () => ({ entries: [makeEntry("file", 3)], more: false }));
+      const loadMoreFunction: LoadMoreFunction = vi.fn(async () => ({ entries: [makeEntry("model", 3)], more: false }));
       component.reset(loadMoreFunction);
 
       expect(component.entries).toEqual([]);
@@ -138,7 +138,7 @@ describe("SearchResultsComponent", () => {
       // The stored function is the one loadMore invokes.
       await component.loadMore();
       expect(loadMoreFunction).toHaveBeenCalledTimes(1);
-      expect(component.entries).toEqual([makeEntry("file", 3)]);
+      expect(component.entries).toEqual([makeEntry("model", 3)]);
     });
   });
 

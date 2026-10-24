@@ -136,10 +136,16 @@ describe("WorkflowFormComponent (rendered template)", () => {
           useValue: { coeditors: [{ clientId: "c1", userName: "co", color: "#888" }] },
         },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { id: "7" } } } },
-        { provide: Router, useValue: { navigate } },
+        {
+          provide: Router,
+          useValue: { navigate, navigateByUrl: vi.fn(), getCurrentNavigation: () => null, serializeUrl: String },
+        },
         {
           provide: WorkflowActionService,
           useValue: {
+            hasWorkflowOpen: () => false,
+            // The room the shared document is in: what the page keys the hand-over on, on its way out.
+            getOpenWorkflowId: () => 7,
             resetAsNewWorkflow: vi.fn(),
             setNewSharedModel: vi.fn(),
             reloadWorkflow: vi.fn(),
@@ -171,6 +177,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
               updateSharedModelAwareness: vi.fn(),
             }),
             getJointGraphWrapper: () => ({
+              // Reset by the page on leaving the workspace; the rendered tests leave, so it must exist.
+              setHeatmapView: () => {},
               getJointOperatorHighlightStream: () => EMPTY,
               getJointOperatorUnhighlightStream: () => EMPTY,
               getCurrentHighlightedOperatorIDs: () => [],
@@ -214,6 +222,10 @@ describe("WorkflowFormComponent (rendered template)", () => {
           provide: ExecuteWorkflowService,
           useValue: {
             getExecutionStateStream: () => EMPTY,
+            // The stream carries no current value, so the page reads the state it arrived on top
+            // of from here. Nothing is in flight in these tests.
+            getExecutionState: () => ({ state: ExecutionState.Uninitialized }),
+            getExecutionDurationStream: () => EMPTY,
             executeWorkflow: vi.fn(),
             killWorkflow: vi.fn(),
             resetExecutionAndWorkers: vi.fn(),
@@ -394,6 +406,32 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".param .param-help-text")?.textContent?.trim()).toBe("Pick a small model.");
     // A read-only viewer's card blocks pointer interaction (covers the extra widget buttons too).
     expect(el(".param.read-only")).not.toBeNull();
+  });
+
+  // Pointer blocking is hit testing only; the keyboard half is the directive on the same card. Here
+  // it is wired through the real template, with a control of the kind a widget draws of its own.
+  it("keeps a read-only viewer's card out of the tab order, without hiding what it shows", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = false;
+    (c as any).parameters = [{ binding: { id: "b1" } }];
+    c.rendered = [
+      { resolved: { binding: { id: "b1" } }, fields: [{ key: "b1" }], form: new FormGroup({}), model: {} },
+    ] as any;
+    fixture.detectChanges();
+
+    const card = el(".param.read-only") as HTMLElement;
+    const widgetButton = document.createElement("button");
+    widgetButton.className = "browse";
+    card.querySelector(".param-form")!.appendChild(widgetButton);
+    // The directive watches the card for what a widget adds; MutationObserver delivers on a microtask.
+    return Promise.resolve().then(() => {
+      expect(card.querySelector(".browse")!.getAttribute("tabindex")).toBe("-1");
+      expect(card.querySelector(".browse")!.getAttribute("aria-disabled")).toBe("true");
+      // Not inert: a reader still has the card's content in the accessibility tree.
+      expect(card.hasAttribute("inert")).toBe(false);
+    });
   });
 
   it("renders the author's instruction card and toggles it", async () => {

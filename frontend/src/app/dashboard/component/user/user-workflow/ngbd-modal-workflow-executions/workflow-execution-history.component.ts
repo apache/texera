@@ -148,7 +148,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "": "0%",
     "Name (ID)": "7%",
     "Computing Unit ID": "7%",
-    "Workflow Version Sample": "10%",
     Avatar: "5.5%",
     "Execution Start Time": "9%",
     "Execution Completion Time": "10.5%",

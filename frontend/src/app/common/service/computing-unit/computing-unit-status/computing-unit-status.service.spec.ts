@@ -199,10 +199,43 @@ describe("ComputingUnitStatusService", () => {
     expect(status).toBe(ComputingUnitState.Pending);
   });
 
-  it("getStatus() maps an unrecognized status to Pending (default branch)", () => {
+  it("getStatus() maps a Failed unit to ComputingUnitState.Failed", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Failed",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Failed);
+  });
+
+  it("getStatus() maps an Unknown unit to ComputingUnitState.Unknown", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "Unknown",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Unknown);
+  });
+
+  it("getStatus() maps a Terminating unit to ComputingUnitState.Terminating", () => {
     (service as any).selectedUnitSubject.next({
       computingUnit: { cuid: 1 },
       status: "Terminating",
+    } as unknown as DashboardWorkflowComputingUnit);
+
+    let status: ComputingUnitState | undefined;
+    service.getStatus().subscribe(s => (status = s));
+    expect(status).toBe(ComputingUnitState.Terminating);
+  });
+
+  it("getStatus() keeps an unrecognized future status on the Pending fallback", () => {
+    (service as any).selectedUnitSubject.next({
+      computingUnit: { cuid: 1 },
+      status: "FutureStatus",
     } as unknown as DashboardWorkflowComputingUnit);
 
     let status: ComputingUnitState | undefined;

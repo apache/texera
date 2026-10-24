@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
@@ -56,7 +57,9 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   var attribute: String = _
 
   @JsonProperty(value = "result attribute", required = true, defaultValue = "matched")
-  @JsonPropertyDescription("column name of the matching result") var resultAttribute: String = _
+  @JsonPropertyDescription("column name of the matching result")
+  @NoLoopVariable
+  var resultAttribute: String = _
 
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 

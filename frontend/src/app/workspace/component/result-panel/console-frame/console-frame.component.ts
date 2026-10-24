@@ -29,10 +29,11 @@ import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
-import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NzMenuDirective, NzMenuDividerDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
+import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { FormsModule } from "@angular/forms";
 import { NzListComponent, NzListItemComponent } from "ng-zorro-antd/list";
@@ -54,13 +55,14 @@ import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
   templateUrl: "./console-frame.component.html",
   styleUrls: ["./console-frame.component.scss"],
   imports: [
-    NzDropdownADirective,
     NzDropdownDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
+    NzMenuDividerDirective,
+    NzCheckboxComponent,
     NzSwitchComponent,
     FormsModule,
     NzListComponent,
@@ -90,8 +92,28 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   @ViewChild(CdkVirtualScrollViewport) viewPort?: CdkVirtualScrollViewport;
   @ViewChild("consoleList", { read: ElementRef }) listElement?: ElementRef;
 
-  // display print
-  consoleMessages: ReadonlyArray<ConsoleMessage> = [];
+  // The template renders `filteredMessages`, recomputed whenever the messages
+  // or the filter change, so change detection never re-filters the list.
+  private rawConsoleMessages: ReadonlyArray<ConsoleMessage> = [];
+  filteredMessages: ReadonlyArray<ConsoleMessage> = [];
+
+  get consoleMessages(): ReadonlyArray<ConsoleMessage> {
+    return this.rawConsoleMessages;
+  }
+
+  set consoleMessages(messages: ReadonlyArray<ConsoleMessage>) {
+    this.rawConsoleMessages = messages;
+    this.applyTypeFilter();
+  }
+
+  // Message types the user has switched off. Absent from the set means visible,
+  // so a type the console has never seen before is shown rather than hidden.
+  private hiddenTypes = new Set<string>();
+
+  // Mirrors each dropdown's open state so the trigger can expose aria-expanded,
+  // which nz-dropdown does not set itself.
+  settingsMenuOpen = false;
+  typeFilterMenuOpen = false;
 
   // Configuration Menu items
   // TODO: move Configuration Menu to a separate component
@@ -110,6 +132,50 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     ["DEBUGGER", "warning"],
     ["ERROR", "error"],
   ]);
+
+  // The order here drives the order of the checkboxes in the filter menu.
+  readonly messageTypes: ReadonlyArray<string> = Array.from(this.labelMapping.keys());
+
+  isTypeVisible(type: string): boolean {
+    return !this.hiddenTypes.has(type);
+  }
+
+  setTypeVisibility(type: string, visible: boolean): void {
+    if (visible) {
+      this.hiddenTypes.delete(type);
+    } else {
+      this.hiddenTypes.add(type);
+    }
+    this.applyTypeFilter();
+  }
+
+  typeLabel(type: string): string {
+    return type.charAt(0) + type.slice(1).toLowerCase();
+  }
+
+  get allTypesVisible(): boolean {
+    return this.messageTypes.every(type => this.isTypeVisible(type));
+  }
+
+  get typeFilterIndeterminate(): boolean {
+    return !this.allTypesVisible && this.messageTypes.some(type => this.isTypeVisible(type));
+  }
+
+  setAllTypesVisible(visible: boolean): void {
+    this.hiddenTypes = visible ? new Set<string>() : new Set<string>(this.messageTypes);
+    this.applyTypeFilter();
+  }
+
+  get hiddenMessageCount(): number {
+    return this.rawConsoleMessages.length - this.filteredMessages.length;
+  }
+
+  private applyTypeFilter(): void {
+    this.filteredMessages =
+      this.hiddenTypes.size === 0
+        ? this.rawConsoleMessages
+        : this.rawConsoleMessages.filter(message => this.isTypeVisible(message.msgType.name));
+  }
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -163,7 +229,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayConsoleMessages(operatorId: string): void {
+    const lastVisible = this.filteredMessages[this.filteredMessages.length - 1];
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
+
+    // Preserve scroll position when no new visible message arrives.
+    if (this.filteredMessages[this.filteredMessages.length - 1] === lastVisible) {
+      return;
+    }
     setTimeout(() => {
       if (this.listElement) {
         this.listElement.nativeElement.scrollTop = this.listElement.nativeElement.scrollHeight;

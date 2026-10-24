@@ -112,6 +112,23 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "leave a resource parameter to the execution" in {
+    val d = new DualInputPortsPythonUDFOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_, port):
+        |        yield tuple_
+        |""".stripMargin
+    val resource = new UiUDFParameter
+    resource.attribute = new Attribute("DS", AttributeType.STRING)
+    resource.inputType = "dataset"
+    resource.value = "/dataset/owner@x.com/ds/v1"
+    d.uiParameters = List(resource)
+
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+  }
+
   it should "reject a blank virtual-environment name when the default env is disabled" in {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.defaultEnv = false

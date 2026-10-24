@@ -814,5 +814,40 @@ describe("JointUIService", () => {
       const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
       expect(valuesWritten).toContain("#workers: 1");
     });
+
+    it("zeroes the port labels for an empty metrics map", () => {
+      const { paper, portPropSpy } = makeStatsPaper(() => [
+        { id: "in-0", group: "in", attrs: { ".port-label": { text: "data" } } },
+        { id: "out-1", group: "out", attrs: { ".port-label": { text: "result" } } },
+      ]);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 0,
+        aggregatedOutputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      });
+      expect(portPropSpy).toHaveBeenCalledWith("in-0", "attrs/.port-label/text", (0).toLocaleString());
+      expect(portPropSpy).toHaveBeenCalledWith("out-1", "attrs/.port-label/text", (0).toLocaleString());
+    });
+
+    it("leaves the port labels untouched when the metrics maps are absent", () => {
+      // Statistics restored from a finished run carry no per-port information; writing 0 would
+      // overwrite the port display names and stick, because the editor reapplies this snapshot
+      // on operator-add.
+      const { paper, portPropSpy, attrSpy } = makeStatsPaper(() => [
+        { id: "in-0", group: "in", attrs: { ".port-label": { text: "data" } } },
+        { id: "out-1", group: "out", attrs: { ".port-label": { text: "result" } } },
+      ]);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.changeOperatorStatistics(paper, "op-1", {
+        aggregatedInputRowCount: 1_000,
+        aggregatedOutputRowCount: 250,
+        numWorkers: 2,
+      });
+      expect(portPropSpy).not.toHaveBeenCalled();
+      // The rest of the snapshot still renders.
+      expect(attrSpy.mock.calls.map(c => c[1])).toContain("#workers: 2");
+    });
   });
 });

@@ -58,14 +58,22 @@ permissions:
 
 concurrency:
   group: backport-approvals-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Never cancel the run in progress: this is a required status check, and GitHub
+  # takes the LATEST check run with this name -- a cancelled in-progress run's
+  # terminal state can land after a newer run's success (the job is seconds long)
+  # and block the merge as a failed required check. GitHub still keeps at most one
+  # pending run per group and replaces it on a newer event, but a replaced pending
+  # run is cancelled before its successor even starts, so the last word on the
+  # commit is always a real verdict. A skipped intermediate event loses nothing:
+  # the job reads the live labels and reviews at run time, not the event payload.
+  cancel-in-progress: false
 
 jobs:
   backport-approvals:
     # Do not rename — this display name is the required status check context
     # referenced in .asf.yaml.
     name: Backport Approvals
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       # The default branch, not the PR's head or base. Both can predate #6941,
       # which added release-branches.yml — and `base.sha` is main's tip at the

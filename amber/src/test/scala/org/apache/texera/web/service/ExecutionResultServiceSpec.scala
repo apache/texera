@@ -844,7 +844,7 @@ class ExecutionResultServiceSpec
     event.table.map(_.get("id").asInt()) shouldBe List(6)
   }
 
-  it should "return an empty page with no schema past the end of the result" in {
+  it should "return an empty page with the stored schema past the end of the result" in {
     val executionId = newExecution()
     val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
     storeResult(
@@ -859,9 +859,21 @@ class ExecutionResultServiceSpec
     )
 
     event.table shouldBe empty
-    // The reported schema comes from the first row of the page, so a page with no
-    // rows reports no schema at all -- there is no fallback to the stored schema.
-    event.schema shouldBe empty
+    event.schema.map(_.getName) shouldBe List("id")
+  }
+
+  it should "report the stored columns of a result with no rows" in {
+    val executionId = newExecution()
+    val schema = new Schema(
+      List(new Attribute("id", AttributeType.INTEGER), new Attribute("label", AttributeType.STRING))
+    )
+    storeResult(executionId, "erss-no-rows", schema, List.empty)
+
+    val event = paginate(paginationRequest.copy(operatorID = "erss-no-rows"))
+
+    event.table shouldBe empty
+    event.schema.map(a => (a.getName, a.getType)) shouldBe
+      List(("id", AttributeType.INTEGER), ("label", AttributeType.STRING))
   }
 
   it should "match a column search case-insensitively" in {
@@ -950,13 +962,16 @@ class ExecutionResultServiceSpec
     thrown.getMessage shouldBe "No execution is recorded"
   }
 
-  it should "refuse to read a result stored in a per-user warehouse while the feature is off" in {
+  it should "refuse to read a result whose warehouse the URI cannot resolve" in {
     val executionId = newExecution()
     // Only the URI row is needed: the guard has to reject before the document is
-    // opened, and no table was ever created for this warehouse. The guard reads
-    // StorageConfig.warehouseEnabled, which ships (and runs in CI) as false;
-    // WarehouseReadGuardSpec pins both settings of the flag directly.
-    insertResultUri(executionId, resultUriOf(executionId, "erss-warehouse", Some("byo")))
+    // opened, and no table was ever created for this warehouse. An unresolvable
+    // /wh/ prefix is what the guard refuses in *either* flag state, so this pins
+    // the wiring — that paginate consults the guard at all — without depending on
+    // the shipping default. WarehouseReadGuardSpec pins the enabled and disabled
+    // behaviour of the guard itself.
+    val resolvable = resultUriOf(executionId, "erss-warehouse", Some("byo"))
+    insertResultUri(executionId, new URI(resolvable.toString.replace("/wh/byo/", "/wh/a%2Fb/")))
 
     a[WarehouseUnavailableException] should be thrownBy paginate(
       paginationRequest.copy(operatorID = "erss-warehouse")

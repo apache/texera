@@ -32,14 +32,15 @@ import { UserIconComponent } from "../../../dashboard/component/user/user-icon/u
 import { cloneDeep } from "lodash-es";
 import { MarkdownService } from "ngx-markdown";
 import { asapScheduler, EMPTY, forkJoin, merge, Observable, Subject, timer } from "rxjs";
-import { catchError, concatMap, debounceTime, finalize, observeOn, switchMap, takeUntil, tap } from "rxjs/operators";
+import { catchError, concatMap, debounceTime, finalize, observeOn, takeUntil, tap } from "rxjs/operators";
 
 import { CdkDragDrop, DragDropModule } from "@angular/cdk/drag-drop";
-import { USER_WORKFLOW, USER_WORKSPACE } from "../../../app-routing.constant";
+import { isLeavingWorkspace, USER_WORKFLOW, workspaceCanvasUrl } from "../../../app-routing.constant";
 import { EditableLabelWrapperComponent } from "../../../common/formly/editable-label-wrapper/editable-label-wrapper.component";
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -58,7 +59,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { PropertyEditorComponent } from "../property-editor/property-editor.component";
@@ -67,6 +68,7 @@ import { VisualizationFrameContentComponent } from "../visualization-panel-conte
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
+import { ReadOnlyCardDirective } from "./read-only-card.directive";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
 
@@ -96,7 +98,26 @@ interface RenderedField {
   fields: FormlyFieldConfig[];
   form: FormGroup;
   model: Record<string, unknown>;
+  /** The operator schema the card was built from, serialized: a compilation that leaves it as it
+   *  is has nothing to rebuild for this card. Empty for a broken card. */
+  schemaKey: string;
+  /** The operator's other properties the card was seeded with, serialized: the context a custom
+   *  widget reads to decide what to show (the HuggingFace picker reads `task`). Only a rebuild
+   *  re-seeds it, so a change there has to count as a change the card shows. The card's own
+   *  property is left out -- that one is compared on its own, and the card's pending edit must not
+   *  read as a change. Empty for a broken card. */
+  contextKey: string;
+  /** An edit the card holds that its debounced write-back has not written to the operator yet. */
+  pendingWrite: boolean;
+  /** Write the card's value to the operator now, if it differs (what the debounced write-back does);
+   *  absent on a read-only card. */
+  flushWrite?: () => void;
 }
+
+/** Whether two property values are the same, taking an empty string and an absent value as one (formly's
+ *  blank default for a property the operator never had). */
+const sameValue = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a === "" ? null : a ?? null) === JSON.stringify(b === "" ? null : b ?? null);
 
 /** One row of the "which results to show" picker: a candidate step and whether it is currently shown. */
 interface ResultChoice {
@@ -147,6 +168,7 @@ interface ResultChoice {
     WorkflowEditorComponent,
     MiniMapComponent,
     CoeditorUserIconComponent,
+    ReadOnlyCardDirective,
   ],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
@@ -241,7 +263,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   private afterDrain: Array<() => void> = [];
   /** An edit has happened since the last snapshot was enqueued. The autosave behind workflowChanged
    *  is debounced, so at the moment the queue drains such an edit may not be queued yet -- and the
-   *  hand-over waiting on the drain would lose it to the full-page load. Set the moment an edit is
+   *  hand-over waiting on the drain would leave it to an autosave firing under the other view. Set the moment an edit is
    *  reported (before the debounce), cleared when a snapshot is enqueued (it carries everything up
    *  to then), and checked by the drain, which flushes one more save instead of handing over. */
   private dirtySinceLastEnqueue = false;
@@ -401,15 +423,15 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // The run clock, reusing the operator canvas's source outright rather than timing anything
     // here: the engine is the only thing that knows when the run really began, so a stopwatch
     // started at the click would drift and would be wrong after a reload.
-    this.workflowWebsocketService
-      .subscribeToEvent("ExecutionDurationUpdateEvent")
-      .pipe(
-        tap(event => (this.executionDuration = event.duration)),
-        switchMap(event => (event.isRunning ? timer(1000, 1000) : EMPTY)),
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        this.executionDuration += 1000;
+    // From the service, not from the engine's event directly: that event arrives twice in a whole
+    // run, so a timer hung off it never started for a view that mounted in between -- which is what
+    // a routed switch between this page and the canvas makes. The service anchors the clock and
+    // ticks it, and replays the current value to whoever subscribes.
+    this.executeWorkflowService
+      .getExecutionDurationStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(duration => {
+        this.executionDuration = duration;
         this.cdr.markForCheck();
       });
 
@@ -463,17 +485,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         if (!wasRunning && this.isRunning) {
           this.runError = "";
         }
-        // Surface a failed run. Without this the spinner just stops and the form gives zero
-        // feedback -- the opposite of what a reader needs.
-        if (current.state === ExecutionState.Failed) {
-          // A required input left empty is by far the commonest reason a run fails here, and the
-          // engine reports it as an opaque "... is not contained in the schema". Answer with the
-          // same word the field itself already shows ("required"), so the two messages are
-          // consistent -- and it covers every operator, not just this one.
-          this.runError = this.hasEmptyRequiredInputs()
-            ? "Run failed: please fill in the required fields."
-            : this.friendlyRunError(current.errorMessages?.[0]?.message?.trim() ?? "");
-        }
+        this.showFailureIfAny(current);
         // Fit the charts to their cards once a run has results. Deliberately not on run START: the
         // run repaints operators and a re-fit then zoomed the whole preview down. Deliberately does
         // not open the workflow either -- someone using the form came for the inputs and results.
@@ -488,15 +500,16 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
 
     // Attribute boxes become dropdowns only after compilation writes the column enums into each
-    // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
-    // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page reloads fresh
-    // on every Canvas<->Form switch) gets the current state at once. Held, not dropped, while
+    // operator's dynamic schema -- which lands after these cards were built. Follow the
+    // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page is created anew
+    // on every Canvas<->Form switch, mid-session) gets the current state at once, and rebuild when
+    // it changed something the cards show (see onCompilationChanged). Held, not dropped, while
     // someone is typing (see rebuildFormOrDefer), so it neither throws away a half-entered value
     // under the cursor nor goes missing.
     this.workflowCompilingService
       .getCompilationStateInfoChangedStream()
       .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
-      .subscribe(() => this.rebuildFormOrDefer(false));
+      .subscribe(() => this.onCompilationChanged());
 
     // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
     // to follow at once, which is the whole point of editing them side by side. Today this fires for
@@ -566,7 +579,24 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // without loading anything, so a request that then fails cannot strand the visitor on
     // an error instead of the page they would have gotten.
     if (!this.config.env.formViewEnabled) {
-      void this.router.navigate([USER_WORKSPACE, String(wid)], { replaceUrl: true });
+      void this.router.navigateByUrl(workspaceCanvasUrl(wid), { replaceUrl: true });
+      return;
+    }
+    // Arriving from the operator canvas of this same workflow, which kept its session for us.
+    // The graph is already here and already in its co-editing room, so there is nothing to fetch
+    // and nothing to rebuild: take the name and access from what is open and settle in.
+    if (this.workflowActionService.hasWorkflowOpen(wid)) {
+      const metadata = this.workflowActionService.getWorkflowMetadata();
+      this.workflowName = metadata.name;
+      this.storedPositions = { ...(this.workflowActionService.getWorkflow().content?.operatorPositions ?? {}) };
+      this.canEdit = !metadata.readonly;
+      this.settleIntoForm();
+      // This page and everything on it is new, and the metadata it needs was set by the view that
+      // was here before: the stream that carries it does not replay, so say it again now that this
+      // page's own subscribers are listening -- after settling in, which is what mounts them.
+      // The fields read above are this component's own; the computing unit picker below the form
+      // has no such shortcut and would not restore the unit this workflow last ran on.
+      this.workflowActionService.republishWorkflowMetadata();
       return;
     }
     this.workflowActionService.resetAsNewWorkflow();
@@ -587,18 +617,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           this.canEdit = !workflow.readonly;
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           this.workflowActionService.reloadWorkflow(workflow);
-          // The workflow is shown, not edited, from here: dragging operators around or
-          // deleting them belongs to the operator canvas. Lock now, and keep it locked against
-          // anything else that unlocks the graph (clampEditability).
-          this.applyEditability();
-          this.clampEditability();
-          this.refreshSavedState();
-          this.later(() => this.adjustWorkflowNameWidth(), 0);
-          this.readConfig();
-          this.registerMetadataRefresh();
-          this.registerAutoPersist();
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.settleIntoForm();
         },
         // The load can fail for many reasons (no access, a network or server error, the
         // metadata call): a neutral message covers them without claiming it was permissions.
@@ -607,6 +626,51 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           void this.router.navigate([USER_WORKFLOW]);
         },
       });
+  }
+
+  /**
+   * Surface a failed run. Without this the spinner just stops and the form gives zero feedback --
+   * the opposite of what a reader needs. Reads the fields, so it runs after they are built.
+   */
+  private showFailureIfAny(state: ExecutionStateInfo): void {
+    if (state.state !== ExecutionState.Failed) {
+      return;
+    }
+    // A required input left empty is by far the commonest reason a run fails here, and the engine
+    // reports it as an opaque "... is not contained in the schema". Answer with the same word the
+    // field itself already shows ("required"), so the two messages are consistent -- and it covers
+    // every operator, not just this one.
+    this.runError = this.hasEmptyRequiredInputs()
+      ? "Run failed: please fill in the required fields."
+      : this.friendlyRunError(state.errorMessages?.[0]?.message?.trim() ?? "");
+  }
+
+  /** What the page does once the workflow is in front of it, whichever way it got there. */
+  private settleIntoForm(): void {
+    // The run this page arrived on top of. The state stream is a plain Subject and carries no
+    // current value, so a page handed a session mid-run hears nothing about it until the run
+    // changes state: it showed Run for a workflow that was running, and the lock rule below --
+    // which reads `isRunning` -- would have let edit mode unlock a graph mid-run. On the loading
+    // path there is nothing in flight and this reads the same Uninitialized it started at.
+    const retained = this.executeWorkflowService.getExecutionState();
+    this.executionState = retained.state;
+    // The workflow is shown, not edited, from here: dragging operators around or deleting them
+    // belongs to the operator canvas. Lock now, and keep it locked against anything else that
+    // unlocks the graph (clampEditability). The clamp is dropped when this page is destroyed;
+    // the lock itself is the canvas's to lift when it takes the session back.
+    this.applyEditability();
+    this.clampEditability();
+    this.refreshSavedState();
+    this.later(() => this.adjustWorkflowNameWidth(), 0);
+    this.readConfig();
+    // After the fields exist: a failure banner asks them whether a required one was left empty.
+    // A page handed a session after a failed run would otherwise show no failure at all, while
+    // the canvas it came from still showed one.
+    this.showFailureIfAny(retained);
+    this.registerMetadataRefresh();
+    this.registerAutoPersist();
+    this.loading = false;
+    this.cdr.detectChanges();
   }
 
   /**
@@ -796,10 +860,100 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * exposed property. Each input gets its own form keyed by binding id.
    */
   private buildForm(): void {
+    // A rebuild ends every card's write-back subscription, so an edit whose debounced write has not
+    // fired yet is written now, and the rebuilt card is seeded with it rather than without it.
+    this.rendered.forEach(card => card.pendingWrite && card.flushWrite?.());
     this.formsRebuilt.next();
     this.rendered = this.visibleFields
       .map(field => this.renderField(field))
       .filter((r): r is RenderedField => r !== undefined);
+  }
+
+  /**
+   * A compilation result rebuilds the cards only when it changed something they show: a card's
+   * operator schema (the column enums compilation writes into it, which turn an attribute box into a
+   * dropdown), the set of inputs (an operator deleted on the canvas makes its card broken), or an
+   * operator value a card does not hold (a co-editor's edit; the card's own edit, written back or
+   * still on its way, is not that). Most compilations change none of these -- the one a card's own
+   * write triggers, for one -- and used to rebuild every card regardless: the controls were redrawn
+   * under the reader's eyes, the focus went with them, and a click made in the last moments before
+   * the rebuild was lost, since the rebuild cancelled that card's pending write. The canvas's
+   * property panel redraws only for a schema change; the form does the same. The result picker and
+   * the shown results still follow the graph either way.
+   */
+  private onCompilationChanged(): void {
+    if (this.cardsNeedRebuild()) {
+      this.rebuildFormOrDefer(false);
+      return;
+    }
+    this.refreshShownResults();
+    this.rebuildResultChoices();
+    this.cdr.markForCheck();
+  }
+
+  private cardsNeedRebuild(): boolean {
+    const fields = this.visibleOf(this.formBindingService.resolveFields());
+    const sameInputs =
+      fields.length === this.rendered.length &&
+      fields.every((field, i) => {
+        const shown = this.rendered[i].resolved;
+        return field.binding.id === shown.binding.id && (field.brokenReason ?? "") === (shown.brokenReason ?? "");
+      });
+    if (!sameInputs) {
+      return true;
+    }
+    return this.rendered.some(card => {
+      const { binding, brokenReason } = card.resolved;
+      if (brokenReason) {
+        return false;
+      }
+      if (this.schemaKeyFor(binding.operatorID) !== card.schemaKey) {
+        return true;
+      }
+      // The widget context the card was seeded with: checked before the pending-write skip below,
+      // which is only about the card's own property, and safe to rebuild through because buildForm
+      // flushes a pending write first.
+      if (this.contextKeyFor(binding.operatorID) !== card.contextKey) {
+        return true;
+      }
+      // The card's own edit is on its way to the operator; the two agree once it is written.
+      if (card.pendingWrite) {
+        return false;
+      }
+      return !sameValue(
+        card.model[binding.id],
+        this.formBindingService.readValue(binding.operatorID, binding.propertyKey)
+      );
+    });
+  }
+
+  private schemaKeyFor(operatorID: string): string {
+    return JSON.stringify(this.operatorSchemaFor(operatorID) ?? null);
+  }
+
+  /**
+   * The operator's properties other than the one a card is bound to, serialized with the keys
+   * sorted so a rewrite that only reorders them is not a change. This is the context the card is
+   * seeded with (see renderField): a widget reads a sibling to decide what to show, and nothing
+   * but a rebuild re-seeds it, so the card goes stale when the canvas or a co-editor changes one.
+   */
+  private contextKeyFor(operatorID: string): string {
+    const graph = this.workflowActionService.getTexeraGraph();
+    // getOperator throws for an operator that is gone, so it is only safe behind hasOperator.
+    const properties = graph.hasOperator(operatorID) ? graph.getOperator(operatorID)?.operatorProperties ?? {} : {};
+    // Every property an input is bound to is left out, this card's own and any other card's on the
+    // same operator: each is compared against the card that shows it, one by one. Counting them as
+    // context too would make one card's edit a change to every other card of that operator, and a
+    // form with two inputs from one step would rebuild wholesale on every keystroke's compilation --
+    // the churn this PR exists to stop (Copilot).
+    const bound = new Set(
+      this.parameters.filter(field => field.binding.operatorID === operatorID).map(field => field.binding.propertyKey)
+    );
+    return JSON.stringify(
+      Object.entries(properties)
+        .filter(([key]) => !bound.has(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+    );
   }
 
   private renderField(resolved: ResolvedField): RenderedField | undefined {
@@ -808,12 +962,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // sees it (visibleFields drops it for readers), rendered as an empty card so the author can
     // remove it; a reader never reaches here for one.
     if (resolved.brokenReason) {
-      return { resolved, fields: [], form: new FormGroup({}), model: {} };
+      return {
+        resolved,
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+        schemaKey: "",
+        contextKey: "",
+        pendingWrite: false,
+      };
     }
     const schema = this.operatorSchemaFor(binding.operatorID);
     if (!schema) {
       return undefined;
     }
+    const schemaKey = JSON.stringify(schema);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(binding.operatorID);
     const operatorType = operator?.operatorType;
     const full = this.formlyJsonschema.toFieldConfig(cloneDeep(schema) as never, {
@@ -827,9 +990,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           description: (source as { description?: string })?.description,
           currentType: mapped.type,
         });
-        // Canvas-only widgets (code editor, drag-reorder) do not work here; an older workflow may
-        // already carry one, so leave it to formly's default editable control rather than a widget
-        // that cannot function on a form.
+        // A canvas-only widget (the code editor) does not work here; an older workflow may already
+        // carry one, so leave it to formly's default editable control rather than a widget that
+        // cannot function on a form.
         if (customType && !CANVAS_ONLY_FORMLY_TYPES.has(customType)) {
           mapped.type = customType;
         }
@@ -861,30 +1024,47 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       ...cloneDeep(operator?.operatorProperties ?? {}),
       [binding.id]: cloneDeep(resolved.value),
     };
+    const card: RenderedField = {
+      resolved,
+      fields: [field],
+      form,
+      model,
+      schemaKey,
+      contextKey: this.contextKeyFor(binding.operatorID),
+      pendingWrite: false,
+    };
     if (this.canEdit) {
+      card.flushWrite = () => {
+        card.pendingWrite = false;
+        // Formly emits the schema's empty default while building the control, before any edit;
+        // writing that back silently wiped the operator's real value (both views edit one
+        // workflow). So only accept a dirtied form, or a value that differs from the operator's
+        // without being emptier (some controls set values without marking dirty).
+        const next = model[binding.id];
+        const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
+        const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
+        const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
+        if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
+          return;
+        }
+        // Write straight onto the operator (the same edit the canvas makes) and refresh this
+        // card's snapshot, which the template reads.
+        this.formBindingService.writeValue(binding, next);
+        this.parameters = this.formBindingService.resolveFields();
+        const refreshed = this.parameters.find(p => p.binding.id === binding.id);
+        if (refreshed) {
+          card.resolved = refreshed;
+        }
+      };
+      // The card holds an unwritten edit from the first change until the debounced write below has
+      // run (or a rebuild has flushed it, see buildForm).
+      form.valueChanges.pipe(takeUntil(this.formsRebuilt), untilDestroyed(this)).subscribe(() => {
+        card.pendingWrite = true;
+      });
       form.valueChanges
         .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), takeUntil(this.formsRebuilt), untilDestroyed(this))
         .subscribe(() => {
-          // Formly emits the schema's empty default while building the control, before any edit;
-          // writing that back silently wiped the operator's real value (both views edit one
-          // workflow). So only accept a dirtied form, or a value that differs from the operator's
-          // without being emptier (some controls set values without marking dirty).
-          const next = model[binding.id];
-          const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
-          const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
-          const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
-          if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
-            return;
-          }
-          // Write straight onto the operator (the same edit the canvas makes) and refresh this
-          // card's snapshot, which the template reads.
-          this.formBindingService.writeValue(binding, next);
-          this.parameters = this.formBindingService.resolveFields();
-          const refreshed = this.parameters.find(p => p.binding.id === binding.id);
-          const card = this.rendered.find(r => r.resolved.binding.id === binding.id);
-          if (refreshed && card) {
-            card.resolved = refreshed;
-          }
+          card.flushWrite?.();
           this.cdr.detectChanges();
         });
     } else {
@@ -897,7 +1077,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
 
     this.applyFieldOverrides(field, binding, schemaLabel);
-    return { resolved, fields: [field], form, model };
+    return card;
   }
 
   /**
@@ -1117,9 +1297,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * (below), to repair or remove them.
    */
   public get visibleFields(): ResolvedField[] {
-    // A reader never sees a broken input (its operator is gone, so filling it could not affect the
-    // run); an author sees it, to repair or remove it.
-    return this.authoring ? this.parameters : this.parameters.filter(field => !field.brokenReason);
+    return this.visibleOf(this.parameters);
+  }
+
+  /** A reader never sees a broken input (its operator is gone, so filling it could not affect the run);
+   *  an author sees it, to repair or remove it. */
+  private visibleOf(fields: ResolvedField[]): ResolvedField[] {
+    return this.authoring ? fields : fields.filter(field => !field.brokenReason);
   }
 
   public trackByRendered(_: number, rendered: RenderedField): string {
@@ -1521,10 +1705,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * A unit is picked but its socket is still coming up -- the same window the operator canvas shows
    * "Connecting" and disables its run button. Read from the exact condition the canvas uses
    * (menu.component's getRunButtonBehavior), so the two stay in step.
+   *
+   * Terminal units are excluded: they are not coming back, so runButtonState names them instead.
    */
   public get isConnecting(): boolean {
     return (
-      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected
+      this.computingUnitStatus !== ComputingUnitState.NoComputingUnit &&
+      unavailableComputingUnitReason(this.computingUnitStatus) === undefined &&
+      !this.workflowWebsocketService.isConnected
     );
   }
 
@@ -1555,6 +1743,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * to Run and Stop, with no pause/resume: while a run is in flight the button stops (kills) it,
    * otherwise it runs. (The canvas offers Pause/Resume/Submitting and a clickable Connect; a form
    * reader does not, and picks the unit in the embedded selector instead.)
+   *
+   * A unit that cannot accept work also disables it, named as on the canvas via
+   * unavailableComputingUnitReason but with shorter labels. One difference: mid-run the canvas shows
+   * "Shutting Down", but here Stop wins while the socket can still deliver it, because Stop is this
+   * button's only run control.
    */
   public get runButtonState(): { label: string; icon: string; disabled: boolean } {
     // Connecting is checked before Stop on purpose: if the socket drops mid-run, a "Stop" would
@@ -1563,7 +1756,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.isConnecting) {
       return { label: "Connecting", icon: "loading", disabled: true };
     }
-    if (this.isRunning) {
+    // Stop is shown only while the socket can deliver the kill. A run on a unit that died or
+    // vanished mid-run falls through, so a later branch names the problem.
+    if (this.isRunning && this.workflowWebsocketService.isConnected) {
       return { label: "Stop", icon: "stop", disabled: false };
     }
     if (!this.isWorkflowValid) {
@@ -1571,6 +1766,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
     if (this.isWorkflowEmpty) {
       return { label: "Empty", icon: "info-circle", disabled: true };
+    }
+    // Before the access and warehouse checks: neither can fix a dead unit.
+    const unavailableReason = unavailableComputingUnitReason(this.computingUnitStatus);
+    if (unavailableReason === "terminating") {
+      return { label: "Shutting Down", icon: "loading", disabled: true };
+    }
+    if (unavailableReason === "unavailable") {
+      return { label: "Unavailable", icon: "warning", disabled: true };
     }
     if (this.hasNoComputingUnit) {
       return { label: "Computing Unit", icon: "plus-circle", disabled: true };
@@ -1787,31 +1990,32 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Switch to the operator canvas with a full page load, not a route. The two views share
-   * root-level singletons (the graph, the Yjs shared model, the CU connection); handing
-   * over in-process left the old state attached -- undraggable operators, a ghost coeditor
-   * of yourself, broken runs. A fresh document is the reliable handover.
-   */
+  /** Switch to the operator canvas. */
   public openRegularCanvas(): void {
-    // Save first and hand over only once the save has completed: the full-page load unloads this
-    // document, and a request still in flight at that moment is aborted, so navigating right after
-    // firing the save could lose the very edit the switch is meant to carry across. A save that
-    // fails keeps the author here with the error shown, rather than leaving with changes that were
-    // never stored. A reader, who has nothing to save, goes straight over.
+    // Save first and hand over only once the save has completed, so an edit made here cannot be
+    // left behind by the view that replaces this one. A save that fails keeps the author here
+    // with the error shown, rather than leaving with changes that were never stored. A reader,
+    // who has nothing to save, goes straight over.
     this.save(() => this.openCanvasPage());
   }
 
   /**
-   * The full-page handover to the operator canvas, apart from the save so the order is testable.
-   * Excluded from coverage as a whole: jsdom cannot navigate, so the specs stub this method and
-   * assert when it is called rather than what it does.
+   * The hand-over to the operator canvas, apart from the save so the order is testable.
+   *
+   * A route, not a page load: the two views are views of one open workflow, and reloading threw
+   * away everything that made the workflow live -- the shared document, the computing unit
+   * connection, the execution state -- only to rebuild it on the other side. This page keeps the
+   * session on its way out (see ngOnDestroy) and the canvas attaches to it.
    */
-  /* v8 ignore start */
   private openCanvasPage(): void {
-    window.location.href = `${USER_WORKSPACE}/${this.wid}`;
+    // Reachable without an id: save() runs its callback even for a workflow it declined to save,
+    // and this page keeps none when the route carried no usable one (ngOnInit redirects instead).
+    // There is no canvas to go to then, and "/user/workflow/undefined" is not a place.
+    if (this.wid === undefined) {
+      return;
+    }
+    void this.router.navigateByUrl(workspaceCanvasUrl(this.wid));
   }
-  /* v8 ignore stop */
 
   /**
    * Save the same way the operator canvas does. Both views edit one workflow, so the
@@ -1843,7 +2047,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
               this.queuedSaves--;
               if (this.queuedSaves === 0) {
                 // Hand-over is waiting, but an edit arrived after the last snapshot and its debounced
-                // autosave has not fired yet: the full-page load would kill that edit. Flush it into
+                // autosave has not fired yet: store it here rather than leave it to fire under the
+                // other view. Flush it into
                 // the queue first; this drain check runs again once the flush has gone out. (When the
                 // flush cannot be enqueued -- save()'s own guards -- fall through as save() itself
                 // would: there is nothing left this page can store.)
@@ -1929,13 +2134,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
           if (this.destroyed) {
             return;
           }
-          // The response reflects the snapshot that was sent. A rename made since must not be undone
-          // by it (its own save is already queued behind this one); what this feedback is for is the
-          // server-owned part, the timestamp above all, and the normalised name when nothing changed.
-          const current = this.workflowActionService.getWorkflowMetadata();
-          this.workflowActionService.setWorkflowMetadata(
-            current.name !== preserved.name ? { ...updatedWorkflow, name: current.name } : updatedWorkflow
-          );
+          // Fed back as it arrives: WorkflowPersistService already relays every response with the
+          // page's current name and description, so an edit made while this save was out is not
+          // undone here. What is left to apply is the server-owned part, the timestamp above all.
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
         },
         // A save that fails silently is the worst thing this page can do: the author walks
         // away believing the form they just built is stored.
@@ -1980,7 +2182,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /**
    * The browser is leaving this document: save, and change nothing else.
    *
-   * The canvas switch is a full-page navigation, and the browser may keep this document in its
+   * Leaving the document -- a refresh, a closed tab, a URL typed over this one; the canvas switch
+   * used to be one, and routes now -- fires this, and the browser may keep this document in its
    * back/forward cache rather than discarding it. Coming back restores the JavaScript state as it
    * was left, and nothing re-runs, so anything torn down here would stay torn down on a page that
    * looks live. A document that really is discarded takes its websockets and its graph with it, so
@@ -2004,10 +2207,17 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // drain (not tied to this component) sends what is left in order and ends by itself.
     this.save();
     this.persistQueue.complete();
-    this.workflowActionService.clearWorkflow();
-    this.computingUnitStatusService.disconnect();
-    this.executeWorkflowService.resetExecutionAndWorkers();
-    this.workflowConsoleService.clearConsoleMessages();
-    this.workflowResultService.clearResults();
+    // Kept when this workflow's own operator canvas is taking over: that is a hand-over, not a
+    // departure, and rebuilding all of it on the other side is the cost this avoids.
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
+      this.workflowActionService.clearWorkflow();
+      this.computingUnitStatusService.disconnect();
+      this.executeWorkflowService.resetExecutionAndWorkers();
+      this.workflowConsoleService.clearConsoleMessages();
+      this.workflowResultService.clearResults();
+      // As the canvas does: the heat-map view goes with the metrics behind it, and only on a
+      // real departure -- on a hand-over the arriving view has already restored the overlay.
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
+    }
   }
 }

@@ -211,16 +211,12 @@ export class AgentService {
   private modelTypes$: Observable<ModelType[]> | null = null;
 
   // ============================================================================
-  // Canvas annotation state (port shapes, step badges, scroll-to-step)
+  // Canvas annotation state (port shapes, step badges)
   // ============================================================================
 
   /** Whether to show output port shapes (rows, columns) on operators */
   private showPortShapesSubject = new BehaviorSubject<boolean>(true);
   public showPortShapes$ = this.showPortShapesSubject.asObservable();
-
-  /** Subject emitting scroll-to-step requests */
-  private scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
-  public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -1222,13 +1218,6 @@ export class AgentService {
 
   public getShowPortShapes(): boolean {
     return this.showPortShapesSubject.getValue();
-  }
-
-  /**
-   * Request scrolling to a specific step in the agent chat.
-   */
-  public requestScrollToStep(agentId: string, messageId: string, stepId: number): void {
-    this.scrollToStepSubject.next({ agentId, messageId, stepId });
   }
 
   // ============================================================================
