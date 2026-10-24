@@ -295,8 +295,8 @@ Scala/Java jars:
   - org.jooq.jooq-3.19.36.jar
   - org.json4s.json4s-ast_2.13-4.0.1.jar
   - org.json4s.json4s-jackson-core_2.13-4.0.1.jar
-  - org.playframework.play-functional_2.13-3.1.0-M1.jar
-  - org.playframework.play-json_2.13-3.1.0-M1.jar
+  - org.playframework.play-functional_2.13-3.0.6.jar
+  - org.playframework.play-json_2.13-3.0.6.jar
   - org.scala-lang.modules.scala-collection-compat_2.13-2.13.0.jar
   - org.scala-lang.scala-library-2.13.18.jar
   - org.scala-lang.scala-reflect-2.13.18.jar
