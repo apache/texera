@@ -122,42 +122,13 @@ object SpecializedFilterOpDesc {
     *  - `_texera_filter_keep_timestamp`: TIMESTAMP by whole milliseconds in the machine's zone.
     *  - `_texera_filter_keep_string`: STRING as numbers when both parse, else by UTF-16 units.
     *  - `_texera_filter_keep`: the type read off the column's dtype, when no schema says it.
-    *  - `_texera_filter_java_double`: `Double.parseDouble`, refusing what Java refuses.
     *  - `_texera_filter_double_key`: `Double.compareTo`'s order, -0.0 below 0.0.
+    *
+    * The value is read with `_texera_java_trim`, `_texera_java_double` and `_texera_parse_int`
+    * from [[StandaloneHelpers.AttributeCasts]].
     */
   val FilterPredicates: String =
-    """def _texera_filter_java_trim(text):
-      |    return text.strip("".join(chr(i) for i in range(33)))
-      |
-      |
-      |def _texera_filter_java_double(text):
-      |    import re
-      |
-      |    text = _texera_filter_java_trim(text)
-      |    if not re.fullmatch(
-      |        r"[+-]?(NaN|Infinity|"
-      |        r"((\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"
-      |        r"|0[xX]([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?\d+)[fFdD]?)",
-      |        text,
-      |        re.ASCII,
-      |    ):
-      |        raise ValueError("For input string: " + repr(text))
-      |    body = text.lstrip("+-")
-      |    if body == "NaN":
-      |        return float("nan")
-      |    if body == "Infinity":
-      |        return float("-inf") if text.startswith("-") else float("inf")
-      |    if text[-1] in "dDfF":
-      |        text = text[:-1]
-      |    if body[:2] in ("0x", "0X"):
-      |        try:
-      |            return float.fromhex(text)
-      |        except OverflowError:
-      |            return float("-inf") if text.startswith("-") else float("inf")
-      |    return float(text)
-      |
-      |
-      |def _texera_filter_double_key(x):
+    """def _texera_filter_double_key(x):
       |    import math
       |
       |    if math.isnan(x):
@@ -193,7 +164,7 @@ object SpecializedFilterOpDesc {
       |
       |
       |def _texera_filter_keep_double(column, condition, value):
-      |    target = _texera_filter_double_key(_texera_filter_java_double(value))
+      |    target = _texera_filter_double_key(_texera_java_double(value))
       |
       |    def order(v):
       |        return _texera_filter_compared(_texera_filter_double_key(float(v)), target)
@@ -202,12 +173,7 @@ object SpecializedFilterOpDesc {
       |
       |
       |def _texera_filter_keep_long(column, condition, value):
-      |    import re
-      |
-      |    text = _texera_filter_java_trim(value)
-      |    if not re.fullmatch(r"[+-]?\d+", text) or not -(2**63) <= int(text) < 2**63:
-      |        raise ValueError("For input string: " + repr(text))
-      |    target = int(text)
+      |    target = _texera_parse_int(value, 64)
       |
       |    def order(v):
       |        return _texera_filter_compared(int(v), target)
@@ -216,7 +182,7 @@ object SpecializedFilterOpDesc {
       |
       |
       |def _texera_filter_keep_boolean(column, condition, value):
-      |    target = _texera_filter_text_key(_texera_filter_java_trim(value).lower())
+      |    target = _texera_filter_text_key(_texera_java_trim(value).lower())
       |
       |    def order(v):
       |        return _texera_filter_compared(_texera_filter_text_key("true" if v else "false"), target)
@@ -233,7 +199,7 @@ object SpecializedFilterOpDesc {
       |            return ts
       |        return pd.Timestamp(_texera_local_wall_clock(ts.to_pydatetime(), zone))
       |
-      |    target = wall_clock(_texera_filter_java_trim(value))
+      |    target = wall_clock(_texera_java_trim(value))
       |
       |    def order(v):
       |        return _texera_filter_compared(wall_clock(v), target)
@@ -243,7 +209,7 @@ object SpecializedFilterOpDesc {
       |
       |def _texera_filter_keep_string(column, condition, value):
       |    try:
-      |        value_number = _texera_filter_double_key(_texera_filter_java_double(value))
+      |        value_number = _texera_filter_double_key(_texera_java_double(value))
       |    except ValueError:
       |        value_number = None
       |
@@ -251,7 +217,7 @@ object SpecializedFilterOpDesc {
       |        text = str(v)
       |        if value_number is not None:
       |            try:
-      |                number = _texera_filter_double_key(_texera_filter_java_double(text))
+      |                number = _texera_filter_double_key(_texera_java_double(text))
       |                return _texera_filter_compared(number, value_number)
       |            except ValueError:
       |                pass
