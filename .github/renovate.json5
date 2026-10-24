@@ -150,6 +150,15 @@
       groupName: 'pyamber minor updates',
     },
 
+    // The Python interpreter selects the wheels used by the frozen
+    // pandas/numpy/pyarrow data path below. Upgrade it manually with those
+    // packages so setup-python cannot move CI beyond their published wheels.
+    {
+      matchManagers: ['github-actions'],
+      matchDepNames: ['python'],
+      enabled: false,
+    },
+
     // GitHub Actions bumps in one group, scoped as chore(deps, ci).
     {
       matchManagers: ['github-actions'],
