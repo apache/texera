@@ -27,4 +27,7 @@ object UserPause extends PauseType
 
 object OperatorLogicPause extends PauseType
 
+// Holds the data input of an operator until its control-variable port's input has ended.
+object ControlVariablePortPause extends PauseType
+
 case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType
