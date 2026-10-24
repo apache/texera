@@ -170,9 +170,12 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
 
   override def producesDataFrame(): Boolean = false
 
+  // The exported script draws the same figure as the engine, so it labels it the same
+  // way; the only difference is that the text is a Python literal rather than decoded.
   override def generateStandaloneCode(): String = {
     val pvalueLit = pyStringLiteral(pvalueColumn)
     val effectLit = pyStringLiteral(effectColumn)
+    val yLit = pyStringLiteral(yColumn)
     s"""import numpy as np
        |
        |def render_error(msg):
@@ -190,15 +193,20 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        table[$yLit] = -np.log10(table[$pvalueLit])
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
-       |            y="-log10(pvalue)",
+       |            y=$yLit,
        |            hover_name=table.columns[0],
        |            color=$effectLit,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=${pyStringLiteral(titleText)}
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=${pyStringLiteral(xAxisTitle)},
+       |            yaxis_title=${pyStringLiteral(yAxisTitle)},
+       |            coloraxis_colorbar_title_text=${pyStringLiteral(colorBarTitle)}
        |        )
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)
