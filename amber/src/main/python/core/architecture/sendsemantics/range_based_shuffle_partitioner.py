@@ -28,6 +28,8 @@ from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
 
 
 class RangeBasedShufflePartitioner(IndexedShufflePartitioner):
+    _clear_batch_on_flush = True
+
     def __init__(self, partitioning: RangeBasedShufflePartitioning):
         super().__init__(partitioning)
         logger.info(f"got {partitioning}")
