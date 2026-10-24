@@ -330,7 +330,8 @@ jobs:
         run: |
           # Backport builds filter by the checked-out build.sbt.
           want=(DAO Auth Config Resource Util PyBuilder WorkflowCore
-                WorkflowOperator WorkflowCompiler WorkflowExecutionService)
+                WorkflowOperator WorkflowCompiler WorkflowExecutionService
+                OperatorReferenceGenerator)
           tasks=()
           if [ -n "${BACKPORT_TARGET_BRANCH}" ]; then
             for m in "${want[@]}"; do
