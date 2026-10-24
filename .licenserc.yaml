@@ -27,7 +27,6 @@ header:
     - '.github/PULL_REQUEST_TEMPLATE'
     - 'yarn.lock'
     - '.nvmrc'
-    - '.htaccess'
     - '.gitkeep'
     - 'site.webmanifest'
     - '.gitignore'

@@ -169,6 +169,11 @@
         <sqlFile path="sql/updates/51.sql"/>
     </changeSet>
 
+    <!-- Drop the orphaned forum_enabled site setting left by the removed Flarum forum -->
+    <changeSet id="52" author="mengw15">
+        <sqlFile path="sql/updates/52.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

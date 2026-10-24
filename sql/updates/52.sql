@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,16 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+\c texera_db
 
-@Component({ templateUrl: "./flarum.component.html" })
-export class FlarumComponent {
-  flarumUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl("forum");
-  constructor(private sanitizer: DomSanitizer) {}
-}
+SET search_path TO texera_db;
+
+BEGIN;
+
+-- The gui.tabs.forum_enabled key is gone from default.conf along with the Flarum
+-- forum integration (#9005), so this seeded row would be orphaned: it is no
+-- longer served by /config/settings/public and the admin update endpoint rejects
+-- keys with no default.conf entry.
+DELETE FROM site_settings WHERE key = 'forum_enabled';
+
+COMMIT;

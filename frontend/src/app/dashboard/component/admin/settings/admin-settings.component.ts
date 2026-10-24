@@ -112,7 +112,6 @@ export class AdminSettingsComponent implements OnInit {
     datasets_enabled: false,
     models_enabled: false,
     quota_enabled: false,
-    forum_enabled: false,
     about_enabled: false,
   };
 

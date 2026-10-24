@@ -303,11 +303,11 @@ class ConfigServiceRunSpec
     )
 
     val payload =
-      SpecPayload("forum_enabled", Map("default" -> Some(Seq(1, 2)), "override" -> None))
+      SpecPayload("quota_enabled", Map("default" -> Some(Seq(1, 2)), "override" -> None))
     // Option unwrapped, Map and Seq emitted as JSON, and the camelCase property names left alone
     // (Dropwizard's own naming strategy is annotation-sensitive; a global one would rename them).
     val json = mapper.writeValueAsString(payload)
-    json shouldBe """{"settingKey":"forum_enabled","storedValues":{"default":[1,2],"override":null}}"""
+    json shouldBe """{"settingKey":"quota_enabled","storedValues":{"default":[1,2],"override":null}}"""
     // Reading, too: this is also the mapper Dropwizard parses the YAML configuration with.
     mapper.readValue(json, classOf[SpecPayload]) shouldBe payload
   }
