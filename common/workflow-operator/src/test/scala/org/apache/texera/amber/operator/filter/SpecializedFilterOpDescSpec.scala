@@ -110,7 +110,8 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     d.predicates = List(new FilterPredicate("KEY", ComparisonType.EQUAL_TO, "9007199254740993"))
     val code =
       d.generateStandaloneCode(Map(PortIdentity() -> Schema().add("Key", AttributeType.LONG)))
-    code should include(""""=", "9007199254740993", "LONG")""")
+    code should include("_texera_filter_keep_long(")
+    code should include(""""=", "9007199254740993")""")
   }
 
   /** One column of a given type, the rows the engine reads and the frame the

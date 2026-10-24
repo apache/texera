@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.filter
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
@@ -83,13 +83,13 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
           // FilterPredicate finds the field through Schema, which ignores case,
           // and compares by the type declared there. Without a schema the
           // column's dtype stands in for its type.
-          val kind = schema
+          val keep = schema
             .flatMap(s => Try(s.getAttribute(p.attribute)).toOption)
-            .map(a => pyStringLiteral(a.getType.name))
-            .getOrElse("None")
+            .map(a => SpecializedFilterOpDesc.keepFor(a.getType))
+            .getOrElse("_texera_filter_keep")
           val opLit = pyStringLiteral(other.getName)
           val valueLit = pyStringLiteral(Option(p.value).getOrElse(""))
-          s"_texera_filter_keep(in1df[$colLit], $opLit, $valueLit, $kind)"
+          s"$keep(in1df[$colLit], $opLit, $valueLit)"
       }
     }
     s"out1df = in1df[${conditions.mkString(" | ")}].reset_index(drop=True)"
@@ -101,119 +101,79 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
 
 object SpecializedFilterOpDesc {
 
-  /** `_texera_filter_keep`: `FilterPredicate.evaluate`, comparing each type as the engine does.
-    * STRING compares as numbers when both sides parse, else by UTF-16 code units. BOOLEAN
-    * compares as lower-case text. INTEGER and DOUBLE use `Double.compareTo`, so NaN sits above
-    * every number and -0.0 below 0.0. LONG reads the value with `Long.valueOf`. TIMESTAMP
-    * compares whole milliseconds in the machine's zone. A null passes nothing.
+  /** The function that compares a column of `attributeType`, so a script calls only the one
+    * its column needs.
+    */
+  def keepFor(attributeType: AttributeType): String =
+    attributeType match {
+      case AttributeType.INTEGER | AttributeType.DOUBLE => "_texera_filter_keep_double"
+      case AttributeType.LONG                           => "_texera_filter_keep_long"
+      case AttributeType.BOOLEAN                        => "_texera_filter_keep_boolean"
+      case AttributeType.TIMESTAMP                      => "_texera_filter_keep_timestamp"
+      case _                                            => "_texera_filter_keep_string"
+    }
+
+  /** `FilterPredicate.evaluate`, one function per type the engine compares apart. A null passes
+    * nothing.
+    *
+    *  - `_texera_filter_keep_double`: INTEGER and DOUBLE by `Double.compareTo`, NaN above all.
+    *  - `_texera_filter_keep_long`: LONG, the value read by `Long.valueOf`.
+    *  - `_texera_filter_keep_boolean`: BOOLEAN as lower-case text.
+    *  - `_texera_filter_keep_timestamp`: TIMESTAMP by whole milliseconds in the machine's zone.
+    *  - `_texera_filter_keep_string`: STRING as numbers when both parse, else by UTF-16 units.
+    *  - `_texera_filter_keep`: the type read off the column's dtype, when no schema says it.
+    *  - `_texera_filter_java_double`: `Double.parseDouble`, refusing what Java refuses.
+    *  - `_texera_filter_double_key`: `Double.compareTo`'s order, -0.0 below 0.0.
     */
   val FilterPredicates: String =
-    """def _texera_filter_keep(column, condition, value, kind):
-      |    import math
+    """def _texera_filter_java_trim(text):
+      |    return text.strip("".join(chr(i) for i in range(33)))
+      |
+      |
+      |def _texera_filter_java_double(text):
       |    import re
       |
-      |    def java_trim(text):
-      |        return text.strip("".join(chr(i) for i in range(33)))
-      |
-      |    java_double_text = re.compile(
+      |    text = _texera_filter_java_trim(text)
+      |    if not re.fullmatch(
       |        r"[+-]?(NaN|Infinity|"
       |        r"((\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"
       |        r"|0[xX]([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?\d+)[fFdD]?)",
+      |        text,
       |        re.ASCII,
-      |    )
-      |
-      |    def java_double(text):
-      |        text = java_trim(text)
-      |        if not java_double_text.fullmatch(text):
-      |            raise ValueError("For input string: " + repr(text))
-      |        body = text.lstrip("+-")
-      |        if body == "NaN":
-      |            return float("nan")
-      |        if body == "Infinity":
-      |            return float("-inf") if text.startswith("-") else float("inf")
-      |        if text[-1] in "dDfF":
-      |            text = text[:-1]
-      |        if body[:2] in ("0x", "0X"):
-      |            try:
-      |                return float.fromhex(text)
-      |            except OverflowError:
-      |                return float("-inf") if text.startswith("-") else float("inf")
-      |        return float(text)
-      |
-      |    def double_key(x):
-      |        if math.isnan(x):
-      |            return (1, 0.0, 0.0)
-      |        return (0, x, math.copysign(1.0, x))
-      |
-      |    def text_key(s):
-      |        return s.encode("utf-16-be", "surrogatepass")
-      |
-      |    def compared(left, right):
-      |        return (left > right) - (left < right)
-      |
-      |    if kind is None:
-      |        dtype = column.dtype
-      |        if pd.api.types.is_bool_dtype(dtype):
-      |            kind = "BOOLEAN"
-      |        elif pd.api.types.is_integer_dtype(dtype):
-      |            kind = "INTEGER"
-      |        elif pd.api.types.is_float_dtype(dtype):
-      |            kind = "DOUBLE"
-      |        elif pd.api.types.is_datetime64_any_dtype(dtype):
-      |            kind = "TIMESTAMP"
-      |        else:
-      |            kind = "STRING"
-      |
-      |    if kind in ("DOUBLE", "INTEGER"):
-      |        target = double_key(java_double(value))
-      |
-      |        def order(v):
-      |            return compared(double_key(float(v)), target)
-      |
-      |    elif kind == "LONG":
-      |        text = java_trim(value)
-      |        if not re.fullmatch(r"[+-]?\d+", text) or not -(2**63) <= int(text) < 2**63:
-      |            raise ValueError("For input string: " + repr(text))
-      |        target = int(text)
-      |
-      |        def order(v):
-      |            return compared(int(v), target)
-      |
-      |    elif kind == "BOOLEAN":
-      |        target = text_key(java_trim(value).lower())
-      |
-      |        def order(v):
-      |            return compared(text_key("true" if v else "false"), target)
-      |
-      |    elif kind == "TIMESTAMP":
-      |        zone = _texera_local_zone()
-      |
-      |        def wall_clock(ts):
-      |            ts = pd.Timestamp(ts).floor("ms")
-      |            if ts.tzinfo is None:
-      |                return ts
-      |            return pd.Timestamp(_texera_local_wall_clock(ts.to_pydatetime(), zone))
-      |
-      |        target = wall_clock(java_trim(value))
-      |
-      |        def order(v):
-      |            return compared(wall_clock(v), target)
-      |
-      |    else:
+      |    ):
+      |        raise ValueError("For input string: " + repr(text))
+      |    body = text.lstrip("+-")
+      |    if body == "NaN":
+      |        return float("nan")
+      |    if body == "Infinity":
+      |        return float("-inf") if text.startswith("-") else float("inf")
+      |    if text[-1] in "dDfF":
+      |        text = text[:-1]
+      |    if body[:2] in ("0x", "0X"):
       |        try:
-      |            value_number = double_key(java_double(value))
-      |        except ValueError:
-      |            value_number = None
+      |            return float.fromhex(text)
+      |        except OverflowError:
+      |            return float("-inf") if text.startswith("-") else float("inf")
+      |    return float(text)
       |
-      |        def order(v):
-      |            text = str(v)
-      |            if value_number is not None:
-      |                try:
-      |                    return compared(double_key(java_double(text)), value_number)
-      |                except ValueError:
-      |                    pass
-      |            return compared(text_key(text), text_key(value))
       |
+      |def _texera_filter_double_key(x):
+      |    import math
+      |
+      |    if math.isnan(x):
+      |        return (1, 0.0, 0.0)
+      |    return (0, x, math.copysign(1.0, x))
+      |
+      |
+      |def _texera_filter_text_key(s):
+      |    return s.encode("utf-16-be", "surrogatepass")
+      |
+      |
+      |def _texera_filter_compared(left, right):
+      |    return (left > right) - (left < right)
+      |
+      |
+      |def _texera_filter_rows(column, condition, order):
       |    passes = {
       |        "=": lambda c: c == 0,
       |        ">": lambda c: c > 0,
@@ -229,5 +189,86 @@ object SpecializedFilterOpDesc {
       |        ],
       |        index=column.index,
       |        dtype=bool,
-      |    )""".stripMargin
+      |    )
+      |
+      |
+      |def _texera_filter_keep_double(column, condition, value):
+      |    target = _texera_filter_double_key(_texera_filter_java_double(value))
+      |
+      |    def order(v):
+      |        return _texera_filter_compared(_texera_filter_double_key(float(v)), target)
+      |
+      |    return _texera_filter_rows(column, condition, order)
+      |
+      |
+      |def _texera_filter_keep_long(column, condition, value):
+      |    import re
+      |
+      |    text = _texera_filter_java_trim(value)
+      |    if not re.fullmatch(r"[+-]?\d+", text) or not -(2**63) <= int(text) < 2**63:
+      |        raise ValueError("For input string: " + repr(text))
+      |    target = int(text)
+      |
+      |    def order(v):
+      |        return _texera_filter_compared(int(v), target)
+      |
+      |    return _texera_filter_rows(column, condition, order)
+      |
+      |
+      |def _texera_filter_keep_boolean(column, condition, value):
+      |    target = _texera_filter_text_key(_texera_filter_java_trim(value).lower())
+      |
+      |    def order(v):
+      |        return _texera_filter_compared(_texera_filter_text_key("true" if v else "false"), target)
+      |
+      |    return _texera_filter_rows(column, condition, order)
+      |
+      |
+      |def _texera_filter_keep_timestamp(column, condition, value):
+      |    zone = _texera_local_zone()
+      |
+      |    def wall_clock(ts):
+      |        ts = pd.Timestamp(ts).floor("ms")
+      |        if ts.tzinfo is None:
+      |            return ts
+      |        return pd.Timestamp(_texera_local_wall_clock(ts.to_pydatetime(), zone))
+      |
+      |    target = wall_clock(_texera_filter_java_trim(value))
+      |
+      |    def order(v):
+      |        return _texera_filter_compared(wall_clock(v), target)
+      |
+      |    return _texera_filter_rows(column, condition, order)
+      |
+      |
+      |def _texera_filter_keep_string(column, condition, value):
+      |    try:
+      |        value_number = _texera_filter_double_key(_texera_filter_java_double(value))
+      |    except ValueError:
+      |        value_number = None
+      |
+      |    def order(v):
+      |        text = str(v)
+      |        if value_number is not None:
+      |            try:
+      |                number = _texera_filter_double_key(_texera_filter_java_double(text))
+      |                return _texera_filter_compared(number, value_number)
+      |            except ValueError:
+      |                pass
+      |        return _texera_filter_compared(
+      |            _texera_filter_text_key(text), _texera_filter_text_key(value)
+      |        )
+      |
+      |    return _texera_filter_rows(column, condition, order)
+      |
+      |
+      |def _texera_filter_keep(column, condition, value):
+      |    dtype = column.dtype
+      |    if pd.api.types.is_bool_dtype(dtype):
+      |        return _texera_filter_keep_boolean(column, condition, value)
+      |    if pd.api.types.is_integer_dtype(dtype) or pd.api.types.is_float_dtype(dtype):
+      |        return _texera_filter_keep_double(column, condition, value)
+      |    if pd.api.types.is_datetime64_any_dtype(dtype):
+      |        return _texera_filter_keep_timestamp(column, condition, value)
+      |    return _texera_filter_keep_string(column, condition, value)""".stripMargin
 }
