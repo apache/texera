@@ -24,7 +24,7 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
@@ -135,6 +135,66 @@ describe("RowModalComponent", () => {
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-1");
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-2");
     revokeSpy.mockRestore();
+  });
+
+  // #8727: the modal is reused across rows — the footer's < / > buttons mutate
+  // rowIndex and call ngOnChanges() directly — but its teardown was scoped to the
+  // modal's lifetime, so blobs and subscriptions accumulated per row visited.
+  it("should revoke the previous row's blob URLs when navigating to another row", () => {
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
+    (component as any).allocatedBlobUrls.push("blob:row-3-a", "blob:row-3-b");
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-a");
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-b");
+    expect((component as any).allocatedBlobUrls).toEqual([]);
+    revokeSpy.mockRestore();
+  });
+
+  it("should ignore a previous row's response that arrives after navigating away", () => {
+    const rowThree = new Subject<{ tuple: Record<string, unknown> }>();
+    const rowFour = new Subject<{ tuple: Record<string, unknown> }>();
+    const selectTuple = vi.fn().mockReturnValueOnce(rowThree).mockReturnValueOnce(rowFour);
+    const service = TestBed.inject(WorkflowResultService) as any;
+    // Restore afterwards: the spy object is shared across every test in this file.
+    const original = service.getPaginatedResultService;
+    service.getPaginatedResultService = vi.fn().mockReturnValue({ selectTuple });
+
+    try {
+      component.rowIndex = 3;
+      component.ngOnChanges();
+      component.rowIndex = 4;
+      component.ngOnChanges();
+
+      // Row 4 answers first, then row 3's slower response lands.
+      rowFour.next({ tuple: { id: "row-4" } });
+      rowThree.next({ tuple: { id: "row-3" } });
+
+      expect(component.currentDisplayRowData).toEqual({ id: "row-4" });
+    } finally {
+      service.getPaginatedResultService = original;
+    }
+  });
+
+  it("should cancel an in-flight media request when navigating to another row", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:stale");
+    const remoteUrl = "https://example.com/stale.png";
+    (component as any).buildRowEntries({ img: remoteUrl });
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    // The previous row's fetch is dropped, so it can neither allocate a blob nor
+    // write its media into the row now on screen.
+    expect(req.cancelled).toBe(true);
+    expect(createObjectURLSpy).not.toHaveBeenCalled();
+    createObjectURLSpy.mockRestore();
   });
 
   it("prettyRowJson should return pretty-printed JSON of currentDisplayRowData", () => {
