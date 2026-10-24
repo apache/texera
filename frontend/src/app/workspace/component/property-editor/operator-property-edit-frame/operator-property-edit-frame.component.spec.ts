@@ -2178,6 +2178,27 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("fileName")?.type).toBe("inputautocomplete");
     });
 
+    it("rebuilds once the operator feeding its control-variable port is disabled, and again once enabled", () => {
+      // a feeder other than a Loop Start adds no name before the workflow compiles, so inside the block the names
+      // stay the same; a disabled operator feeds no port, so the file-name field gives up its variable
+      addBlockAroundBody();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addLink({
+        linkID: "scan-to-body-control",
+        source: { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+
+      workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      workflowActionService.enableOperators([mockScanPredicate.operatorID]);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+    });
+
     it("offers the name a feeding Loop Start's Output assigns, after its Initialization's", () => {
       // the files example: each iteration's Output picks the name of the file the body reads
       workflowActionService.addOperator(

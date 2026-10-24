@@ -406,14 +406,25 @@ describe("loopVariablesInScope", () => {
       expect(scope("D.iloc[[i]]")).toEqual(["i"]);
     });
 
-    it("offers the output names of both an enclosing LoopStart and one that feeds the port", () => {
+    it("counts a link into the port as a block edge, as the backend's LogicalPlan.enclosingLoopStarts does", () => {
+      // `after` has no link into its port; only the path through the reader's port puts it in the block
       graph = graphOf(
-        ["outer:LoopStart", "reader:FileScan", "outer-end:LoopEnd", "start:LoopStart"],
-        ["outer>reader", "reader>outer-end", `start>reader:${CONTROL_VARIABLE_PORT_ID}`]
+        ["start:LoopStart=i = 0", "reader:FileScan", "after:Filter", "end:LoopEnd"],
+        [`start>reader:${CONTROL_VARIABLE_PORT_ID}`, "reader>after", "after>end"]
+      );
+      expect(loopVariablesInScope(graph, "after")).toEqual(["i"]);
+    });
+
+    it("counts a LoopStart that feeds the port of an operator inside a block among those enclosing it", () => {
+      // the link closes the feeding LoopStart's block at the same Loop End, so its names come in block order
+      // (blocks of the same depth follow their ids), not after the enclosing LoopStart's as a port's would
+      graph = graphOf(
+        ["outer:LoopStart", "reader:FileScan", "outer-end:LoopEnd", "a-start:LoopStart"],
+        ["outer>reader", "reader>outer-end", `a-start>reader:${CONTROL_VARIABLE_PORT_ID}`]
       );
       graph.setOperatorProperty("outer", { initialization: "i = 0", output: "file = D.line[i]; D.iloc[[i]]" });
-      graph.setOperatorProperty("start", { initialization: "j = 0", output: "row = D.iloc[[j]]" });
-      expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file", "j", "row"]);
+      graph.setOperatorProperty("a-start", { initialization: "j = 0", output: "row = D.iloc[[j]]" });
+      expect(loopVariablesInScope(graph, "reader")).toEqual(["j", "row", "i", "file"]);
     });
 
     it("offers the columns of any other operator that feeds the port", () => {
