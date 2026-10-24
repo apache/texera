@@ -22,7 +22,7 @@ import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { HttpErrorResponse } from "@angular/common/http";
-import { of, Subject, throwError } from "rxjs";
+import { config, of, Subject, throwError } from "rxjs";
 
 import { SearchBarComponent } from "./search-bar.component";
 import { SearchService } from "../../../service/user/search.service";
@@ -168,23 +168,23 @@ describe("SearchBarComponent", () => {
     expect(component.listOfResult).toEqual(["my-model"]);
   }));
 
-  it("keeps autocomplete working after a response carries a row it cannot name", fakeAsync(() => {
-    component.listOfResult = ["stale"];
-    searchSpy.search.mockReturnValueOnce(
-      of({ results: [{ resourceType: "computing-unit" } as any, makeWorkflowItem("bad-wf")], more: false })
-    );
+  it("reports a row it cannot name instead of hiding it behind an empty dropdown", fakeAsync(() => {
+    // SearchService only keeps rows convertToName can name, so this row means the two disagree: a bug that has
+    // to reach the console.
+    const unhandled = vi.fn();
+    const previousHandler = config.onUnhandledError;
+    config.onUnhandledError = unhandled;
+    try {
+      searchSpy.search.mockReturnValueOnce(of({ results: [{ resourceType: "computing-unit" } as any], more: false }));
 
-    component.onSearchInputChange("bad");
-    tick(200);
+      component.onSearchInputChange("bad");
+      tick(200);
 
-    expect(component.listOfResult).toEqual([]);
-
-    searchSpy.search.mockReturnValueOnce(of({ results: [makeWorkflowItem("good")], more: false } as SearchResult));
-    component.onSearchInputChange("good");
-    tick(200);
-
-    expect(searchSpy.search).toHaveBeenCalledTimes(2);
-    expect(component.listOfResult).toEqual(["good"]);
+      expect(unhandled).toHaveBeenCalledTimes(1);
+      expect((unhandled.mock.calls[0][0] as Error).message).toBe("Unexpected type in SearchResult.");
+    } finally {
+      config.onUnhandledError = previousHandler;
+    }
   }));
 
   it("keeps autocomplete working after a failed request, and retries rather than caching the failure", fakeAsync(() => {
