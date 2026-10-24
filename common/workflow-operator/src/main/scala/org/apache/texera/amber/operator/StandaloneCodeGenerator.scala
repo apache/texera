@@ -162,13 +162,7 @@ object StandaloneCodeGenerator {
     * millisecond.
     */
   def parseTimestamps(frame: String, schema: Schema): String =
-    schema.getAttributes
-      .filter(_.getType == AttributeType.TIMESTAMP)
-      .map { a =>
-        val name = pyStringLiteral(a.getName)
-        s"$frame[$name] = _texera_text_to_timestamp($frame[$name])"
-      }
-      .mkString("\n")
+    readEach(frame, schema, AttributeType.TIMESTAMP, "_texera_text_to_timestamp")
 
   /** Python that reads each DOUBLE column of `schema` that pandas left as text
     * the way the engine reads it, with `_texera_read_doubles` from
@@ -179,13 +173,26 @@ object StandaloneCodeGenerator {
     * takes none of them and kept the whole column as strings.
     */
   def parseDoubles(frame: String, schema: Schema): String =
+    readEach(frame, schema, AttributeType.DOUBLE, "_texera_read_doubles")
+
+  // Python that passes each column of `attributeType` through `reader`: one line
+  // for a single column, and a loop over the names for several, so a wide table
+  // does not spend a line per column.
+  private def readEach(
+      frame: String,
+      schema: Schema,
+      attributeType: AttributeType,
+      reader: String
+  ): String =
     schema.getAttributes
-      .filter(_.getType == AttributeType.DOUBLE)
-      .map { a =>
-        val name = pyStringLiteral(a.getName)
-        s"$frame[$name] = _texera_read_doubles($frame[$name])"
-      }
-      .mkString("\n")
+      .filter(_.getType == attributeType)
+      .map(a => pyStringLiteral(a.getName)) match {
+      case Seq()     => ""
+      case Seq(name) => s"$frame[$name] = $reader($frame[$name])"
+      case names =>
+        s"""for _c in [${names.mkString(", ")}]:
+           |    $frame[_c] = $reader($frame[_c])""".stripMargin
+    }
 
   private val emptyDtypes: Map[AttributeType, String] = Map(
     AttributeType.INTEGER -> "Int32",
