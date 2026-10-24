@@ -39,17 +39,16 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
 import {
   applyLoopVariableField,
   inheritNoLoopVariable,
   primitiveSchemaType,
 } from "../../../util/loop-variable-field.util";
-import { loopVariablesInScope } from "../../../util/loop-variable.util";
-import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
+import { loopScopeChangeStream, loopVariablesInScope } from "../../../util/loop-variable.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
-import { LoopBlockService } from "../../../service/compile-workflow/loop-block.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -252,6 +251,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // The loop variables the form was last built with, undefined for an operator outside every block;
   // see registerLoopScopeChangeHandler.
   private loopVariableScope: string[] | undefined;
+  /** Whether the operator's control-variable port was fed when its form was built. */
+  private controlVariablePortFed = false;
 
   readonly huggingFaceTaskPreviewSamples: Record<
     string,
@@ -534,8 +535,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private config: GuiConfigService,
     private workflowPveService: WorkflowPveService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private uiUdfParametersSyncService: UiUdfParametersSyncService,
-    private loopBlockService: LoopBlockService
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   private patchPythonUdfEnvironmentSchema(schema: CustomJSONSchema7, environments: string[]): CustomJSONSchema7 {
@@ -872,13 +872,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
-  /** Whether a link enters the control-variable port of the operator being edited. */
+  /**
+   * Whether an enabled link enters the control-variable port of the operator being edited; a link from or
+   * to a disabled operator feeds nothing, as in loopVariablesInScope.
+   */
   private fedThroughControlVariablePort(): boolean {
-    const graph = this.workflowActionService.getTexeraGraph();
+    const operatorID = this.currentOperatorId;
     return (
-      this.currentOperatorId !== undefined &&
-      graph.hasOperator(this.currentOperatorId) &&
-      graph.getInputLinksByOperatorId(this.currentOperatorId).some(isControlVariableLink)
+      operatorID !== undefined &&
+      this.workflowActionService
+        .getTexeraGraph()
+        .getAllEnabledLinks()
+        .some(link => isControlVariableLink(link) && link.target.operatorID === operatorID)
     );
   }
 
@@ -891,42 +896,31 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.currentOperatorId === undefined) {
       return undefined;
     }
-    const graph = this.workflowActionService.getTexeraGraph();
-    return graph.hasOperator(this.currentOperatorId)
-      ? loopVariablesInScope(graph, this.loopBlockService.getEnclosingLoopStarts(this.currentOperatorId), {
-          operatorID: this.currentOperatorId,
-          outputColumns: (opID, portID) => this.workflowCompilingService.outputColumnNames(opID, portID),
-        })
-      : undefined;
+    return loopVariablesInScope(this.workflowActionService.getTexeraGraph(), this.currentOperatorId, (opID, portID) =>
+      this.workflowCompilingService.outputColumnNames(opID, portID)
+    );
   }
 
   /**
    * Which fields take a $reference, and which variables they offer, depend on the blocks around the
-   * operator, which the compile result tells, and on their Loop Starts' variables, which other operators'
-   * links and properties decide; every such edit is followed by a compile. So after every compile result,
-   * the same one on which ValidationWorkflowService re-validates the operators holding a reference,
-   * rebuild the form when the operator's scope is no longer the one it was built with, rather than only
-   * when the operator is next opened.
+   * operator and on their Loop Starts' variables, which other operators' links and properties decide, and
+   * on what feeds its control-variable port: whether anything does decides which fields take a variable
+   * (a reader's file name) even with the names unchanged, and an operator other than a Loop Start offers
+   * its output columns, which the compile result tells. So on every edit that can change them
+   * (loopScopeChangeStream, on which ValidationWorkflowService re-validates the operators holding a
+   * reference) and after every compile result, rebuild the form when the operator's scope is no longer
+   * the one it was built with, rather than only when the operator is next opened.
    */
   private registerLoopScopeChangeHandler(): void {
     const graph = this.workflowActionService.getTexeraGraph();
-    // A link drawn into the operator's control-variable port, or deleted from it, rebuilds the form at
-    // once and whatever its names: they come from the graph, not the compile result, and whether the port
-    // is fed also decides which fields take a variable (a reader's file name), with the names unchanged.
-    const portLinkChanges = merge(
-      graph.getLinkAddStream(),
-      graph.getLinkDeleteStream().pipe(map(({ deletedLink }) => deletedLink))
-    ).pipe(
-      filter(link => isControlVariableLink(link) && link.target.operatorID === this.currentOperatorId),
-      map(() => true)
-    );
-    merge(this.loopBlockService.getCompileResultStream().pipe(map(() => false)), portLinkChanges)
+    merge(loopScopeChangeStream(graph), this.workflowCompilingService.getCompilationStateInfoChangedStream())
       .pipe(untilDestroyed(this))
-      .subscribe(portLinkChanged => {
+      .subscribe(() => {
         if (
           this.currentOperatorId !== undefined &&
           graph.hasOperator(this.currentOperatorId) &&
-          (portLinkChanged || !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope))
+          (!isEqual(this.loopVariableNamesInScope(), this.loopVariableScope) ||
+            this.fedThroughControlVariablePort() !== this.controlVariablePortFed)
         ) {
           this.rerenderEditorForm();
         }
@@ -950,6 +944,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // undefined outside every block, where the form keeps today's controls untouched.
     const loopVariableNames = this.loopVariableNamesInScope();
     this.loopVariableScope = loopVariableNames;
+    this.controlVariablePortFed = this.fedThroughControlVariablePort();
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.

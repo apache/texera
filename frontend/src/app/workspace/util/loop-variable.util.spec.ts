@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { extractLoopVariables, loopVariablesInScope } from "./loop-variable.util";
+import { Subscription } from "rxjs";
+import { extractLoopVariables, loopScopeChangeStream, loopVariablesInScope } from "./loop-variable.util";
 import { CONTROL_VARIABLE_PORT_ID } from "../service/workflow-graph/model/control-variable-port";
 import { unknownReferenceWarning } from "./loop-variable-field.util";
-import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
+import { WorkflowGraph } from "../service/workflow-graph/model/workflow-graph";
 
 describe("extractLoopVariables", () => {
   it("reads a single assignment, the LoopStart default", () => {
@@ -210,53 +211,111 @@ describe("extractLoopVariables", () => {
 });
 
 describe("loopVariablesInScope", () => {
-  /** A graph holding a LoopStart for each initialization given, with the output given for it, if any. */
-  const graphOf = (
-    initializations: Record<string, unknown>,
-    outputs: Record<string, unknown> = {}
-  ): WorkflowGraphReadonly =>
-    ({
-      hasOperator: (operatorID: string) => operatorID in initializations,
-      getOperator: (operatorID: string) => {
-        if (!(operatorID in initializations)) {
-          throw new Error(`operator ${operatorID} does not exist`);
-        }
-        return { operatorProperties: { initialization: initializations[operatorID], output: outputs[operatorID] } };
-      },
-    }) as unknown as WorkflowGraphReadonly;
+  let graph: WorkflowGraph;
 
-  it("collects the variables of every enclosing LoopStart, in the order given, without duplicates", () => {
-    const graph = graphOf({ outer: "K = 2; i = 0", inner: "j = 0; K = 5" });
-    expect(loopVariablesInScope(graph, ["outer", "inner"])).toEqual(["K", "i", "j"]);
+  afterEach(() => graph.destroyYModel());
+
+  /**
+   * Loop Starts, Loop Ends and plain operators as "id:LoopStart=initialization", "id:LoopEnd" and "id", and
+   * links as "from>to" into the first input port or "from>to:portID" into the port named.
+   */
+  function graphOf(operators: string[], links: string[]): WorkflowGraph {
+    return new WorkflowGraph(
+      operators.map(spec => {
+        const equals = spec.indexOf("=");
+        const head = equals === -1 ? spec : spec.slice(0, equals);
+        const [operatorID, operatorType = "Limit"] = head.split(":");
+        return operator(operatorID, operatorType, equals === -1 ? {} : { initialization: spec.slice(equals + 1) });
+      }),
+      links.map(spec => link(...(spec.split(/[>:]/) as [string, string, string?])))
+    );
+  }
+
+  it("collects the variables of every Loop Start around the operator, outermost first, without duplicates", () => {
+    // the ids sort against the nesting: the order follows the blocks
+    graph = graphOf(
+      [
+        "z-outer:LoopStart=K = 2; i = 0",
+        "a-inner:LoopStart=j = 0; K = 5",
+        "body",
+        "inner-end:LoopEnd",
+        "outer-end:LoopEnd",
+      ],
+      ["z-outer>a-inner", "a-inner>body", "body>inner-end", "inner-end>outer-end"]
+    );
+    expect(loopVariablesInScope(graph, "body")).toEqual(["K", "i", "j"]);
+    // an inner block's Loop Start is inside the outer block, not its own
+    expect(loopVariablesInScope(graph, "a-inner")).toEqual(["K", "i"]);
   });
 
   it("returns undefined for an operator outside every block, telling it from a block that declares nothing", () => {
-    expect(loopVariablesInScope(graphOf({}), [])).toBeUndefined();
-    expect(loopVariablesInScope(graphOf({ s: "print(1)" }), ["s"])).toEqual([]);
+    graph = graphOf(["s:LoopStart=print(1)", "body", "e:LoopEnd", "after"], ["s>body", "body>e", "e>after"]);
+    expect(loopVariablesInScope(graph, "body")).toEqual([]);
+    expect(loopVariablesInScope(graph, "after")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "s")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "e")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "not-in-the-graph")).toBeUndefined();
+  });
+
+  it("counts no block that a Loop End does not close yet", () => {
+    graph = graphOf(["s:LoopStart=k = 1", "body"], ["s>body"]);
+    expect(loopVariablesInScope(graph, "body")).toBeUndefined();
   });
 
   it("makes a name a LoopStart imports a valid reference", () => {
-    const names = loopVariablesInScope(graphOf({ s: "from math import pi" }), ["s"]);
+    graph = graphOf(["s:LoopStart=from math import pi", "body", "e:LoopEnd"], ["s>body", "body>e"]);
+    const names = loopVariablesInScope(graph, "body");
     expect(names).toEqual(["pi"]);
     expect(unknownReferenceWarning(names ?? [])("$pi")).toBeUndefined();
   });
 
   it("tolerates a LoopStart whose initialization is missing or not a string", () => {
-    const graph = graphOf({ s1: undefined, s2: 42, s3: "k = 1" });
-    expect(loopVariablesInScope(graph, ["s1", "s2", "s3"])).toEqual(["k"]);
+    graph = new WorkflowGraph(
+      [
+        operator("s1", "LoopStart", {}),
+        operator("s2", "LoopStart", { initialization: 42 }),
+        operator("s3", "LoopStart", { initialization: "k = 1" }),
+        operator("body", "Limit", {}),
+        operator("e3", "LoopEnd", {}),
+        operator("e2", "LoopEnd", {}),
+        operator("e1", "LoopEnd", {}),
+      ],
+      [link("s1", "s2"), link("s2", "s3"), link("s3", "body"), link("body", "e3"), link("e3", "e2"), link("e2", "e1")]
+    );
+    expect(loopVariablesInScope(graph, "body")).toEqual(["k"]);
   });
 
-  it("skips a LoopStart deleted since the compile result that named it, and counts none left as no block", () => {
-    // the compile result is up to a debounce behind the graph
-    expect(loopVariablesInScope(graphOf({ kept: "k = 1" }), ["deleted", "kept"])).toEqual(["k"]);
-    expect(loopVariablesInScope(graphOf({}), ["deleted"])).toBeUndefined();
+  // The backend compiles and runs the enabled operators and the links between them, valid or not
+  // (WorkflowGraph.getSubDAG): a disabled operator, and every link touching one, is in no plan it sees.
+  it("leaves out a disabled operator and every link touching one, as the plan the backend runs does", () => {
+    graph = graphOf(["s:LoopStart=k = 1", "first", "second", "e:LoopEnd"], ["s>first", "first>second", "second>e"]);
+    graph.disableOperator("first");
+    expect(loopVariablesInScope(graph, "first")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "second")).toBeUndefined();
+
+    // a disabled Loop End closes no block either
+    graph.enableOperator("first");
+    expect(loopVariablesInScope(graph, "second")).toEqual(["k"]);
+    graph.disableOperator("e");
+    expect(loopVariablesInScope(graph, "first")).toBeUndefined();
+    expect(loopVariablesInScope(graph, "second")).toBeUndefined();
+  });
+
+  it("keeps a branch of the block that no disabled operator sits on inside it", () => {
+    graph = graphOf(["s:LoopStart=k = 1", "a", "b", "e:LoopEnd"], ["s>a", "a>e", "s>b", "b>e"]);
+    graph.disableOperator("b");
+    expect(loopVariablesInScope(graph, "a")).toEqual(["k"]);
+    expect(loopVariablesInScope(graph, "b")).toBeUndefined();
   });
 
   // Output is a Python cell that runs each iteration before the Loop Start emits its variables, and
   // what it assigns joins them, so the block sees those names as it sees the Initialization's.
   it("adds the names a LoopStart's output assigns after those of its initialization, without duplicates", () => {
-    const scope = (initialization: string, output: string) =>
-      loopVariablesInScope(graphOf({ s: initialization }, { s: output }), ["s"]);
+    graph = graphOf(["s:LoopStart", "body", "e:LoopEnd"], ["s>body", "body>e"]);
+    const scope = (initialization: string, output: string) => {
+      graph.setOperatorProperty("s", { initialization, output });
+      return loopVariablesInScope(graph, "body");
+    };
     expect(scope("i = 0", "file = D.line[i]")).toEqual(["i", "file"]);
     // statements, then the data the body gets
     expect(scope("i = 0", "file = D.line[i]; D.iloc[[i]]")).toEqual(["i", "file"]);
@@ -265,11 +324,15 @@ describe("loopVariablesInScope", () => {
   });
 
   it("never offers D or table, which the runtime reserves for the input table", () => {
-    expect(loopVariablesInScope(graphOf({ s: "i = 0" }, { s: "D = D.head(1)" }), ["s"])).toEqual(["i"]);
-    expect(loopVariablesInScope(graphOf({ s: "i = 0; table = 1" }, { s: "None" }), ["s"])).toEqual(["i"]);
+    graph = graphOf(["s:LoopStart", "body", "e:LoopEnd"], ["s>body", "body>e"]);
+    graph.setOperatorProperty("s", { initialization: "i = 0", output: "D = D.head(1)" });
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i"]);
+    graph.setOperatorProperty("s", { initialization: "i = 0; table = 1", output: "None" });
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i"]);
   });
 
   it("takes no names from an output that is a single expression, as every output was before", () => {
+    graph = graphOf(["s:LoopStart", "body", "e:LoopEnd"], ["s>body", "body>e"]);
     for (const output of [
       "table.iloc[i]",
       "table.iloc[[i]]",
@@ -278,11 +341,13 @@ describe("loopVariablesInScope", () => {
       "D[D.line == D.line[i]]",
       "table if i >= 0 else None",
     ]) {
-      expect(loopVariablesInScope(graphOf({ s: "i = 0" }, { s: output }), ["s"]), output).toEqual(["i"]);
+      graph.setOperatorProperty("s", { initialization: "i = 0", output });
+      expect(loopVariablesInScope(graph, "body"), output).toEqual(["i"]);
     }
   });
 
   it("does not count what a def, lambda or comprehension in the output assigns", () => {
+    graph = graphOf(["s:LoopStart", "body", "e:LoopEnd"], ["s>body", "body>e"]);
     const output = [
       "def pick(row):",
       "    chosen = row.line",
@@ -292,115 +357,161 @@ describe("loopVariablesInScope", () => {
       "first = [x for x in D.line][0]",
       "D.iloc[[j for j in range(i + 1)]]",
     ].join("\n");
-    expect(loopVariablesInScope(graphOf({ s: "i = 0" }, { s: output }), ["s"])).toEqual([
-      "i",
-      "file",
-      "longest",
-      "first",
-    ]);
+    graph.setOperatorProperty("s", { initialization: "i = 0", output });
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i", "file", "longest", "first"]);
   });
 
-  it("keeps each LoopStart's initialization and output names together, in the order given", () => {
-    const graph = graphOf(
-      { outer: "i = 0", inner: "j = 0" },
-      { outer: "file = D.line[i]", inner: "row = D.iloc[[j]]; D.iloc[[j]]" }
+  it("keeps each LoopStart's initialization and output names together, outermost block first", () => {
+    graph = graphOf(
+      ["outer:LoopStart", "inner:LoopStart", "body", "inner-end:LoopEnd", "outer-end:LoopEnd"],
+      ["outer>inner", "inner>body", "body>inner-end", "inner-end>outer-end"]
     );
-    expect(loopVariablesInScope(graph, ["outer", "inner"])).toEqual(["i", "file", "j", "row"]);
+    graph.setOperatorProperty("outer", { initialization: "i = 0", output: "file = D.line[i]" });
+    graph.setOperatorProperty("inner", { initialization: "j = 0", output: "row = D.iloc[[j]]; D.iloc[[j]]" });
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i", "file", "j", "row"]);
   });
 
   it("tolerates a LoopStart whose output is missing or not a string", () => {
-    const graph = graphOf({ s1: "i = 0", s2: "j = 0" }, { s1: undefined, s2: 42 });
-    expect(loopVariablesInScope(graph, ["s1", "s2"])).toEqual(["i", "j"]);
-  });
-});
-
-describe("loopVariablesInScope with a control-variable port", () => {
-  const link = (source: string, target: string, targetPort: string) => ({
-    linkID: `${source}-${target}`,
-    source: { operatorID: source, portID: "output-0" },
-    target: { operatorID: target, portID: targetPort },
-  });
-  /** A graph holding the operators and links given; which Loop Starts enclose an operator is passed apart. */
-  const graphOf = (
-    operators: Record<string, { operatorType: string; initialization?: string; output?: string }>,
-    links: ReturnType<typeof link>[]
-  ): WorkflowGraphReadonly =>
-    ({
-      hasOperator: (operatorID: string) => operatorID in operators,
-      getOperator: (operatorID: string) => {
-        if (!(operatorID in operators)) {
-          throw new Error(`operator ${operatorID} does not exist`);
-        }
-        const { operatorType, initialization, output } = operators[operatorID];
-        return { operatorType, operatorProperties: { initialization, output } };
-      },
-      getInputLinksByOperatorId: (operatorID: string) => links.filter(l => l.target.operatorID === operatorID),
-    }) as unknown as WorkflowGraphReadonly;
-
-  it("offers the variables of a LoopStart that feeds the port, even outside every block", () => {
-    const graph = graphOf(
-      {
-        start: { operatorType: "LoopStart", initialization: "i = 0; file = D.path[0]" },
-        reader: { operatorType: "FileScan" },
-      },
-      [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
+    graph = new WorkflowGraph(
+      [
+        operator("s1", "LoopStart", { initialization: "i = 0" }),
+        operator("s2", "LoopStart", { initialization: "j = 0", output: 42 }),
+        operator("body", "Limit", {}),
+        operator("e2", "LoopEnd", {}),
+        operator("e1", "LoopEnd", {}),
+      ],
+      [link("s1", "s2"), link("s2", "body"), link("body", "e2"), link("e2", "e1")]
     );
-    expect(loopVariablesInScope(graph, [], { operatorID: "reader" })).toEqual(["i", "file"]);
+    expect(loopVariablesInScope(graph, "body")).toEqual(["i", "j"]);
   });
 
-  it("offers the names the output of a LoopStart that feeds the port assigns", () => {
-    // the files example: each iteration's output picks the name of the file the reader reads
-    const scope = (output: string) =>
-      loopVariablesInScope(
-        graphOf(
-          {
-            start: { operatorType: "LoopStart", initialization: "i = 0", output },
-            reader: { operatorType: "FileScan" },
-          },
-          [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
-        ),
-        [],
-        { operatorID: "reader" }
+  describe("with a control-variable port", () => {
+    it("offers the variables of a LoopStart that feeds the port, even outside every block", () => {
+      graph = graphOf(
+        ["start:LoopStart=i = 0; file = D.path[0]", "reader:FileScan"],
+        [`start>reader:${CONTROL_VARIABLE_PORT_ID}`]
       );
-    expect(scope("file = D.line[i]")).toEqual(["i", "file"]);
-    expect(scope("file = D.line[i]; D.iloc[[i]]")).toEqual(["i", "file"]);
-    expect(scope("D.iloc[[i]]")).toEqual(["i"]);
-  });
+      expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file"]);
+    });
 
-  it("offers the output names of both an enclosing LoopStart and one that feeds the port", () => {
-    const graph = graphOf(
-      {
-        outer: { operatorType: "LoopStart", initialization: "i = 0", output: "file = D.line[i]; D.iloc[[i]]" },
-        start: { operatorType: "LoopStart", initialization: "j = 0", output: "row = D.iloc[[j]]" },
-        reader: { operatorType: "FileScan" },
-      },
-      [link("start", "reader", CONTROL_VARIABLE_PORT_ID)]
-    );
-    expect(loopVariablesInScope(graph, ["outer"], { operatorID: "reader" })).toEqual(["i", "file", "j", "row"]);
-  });
+    it("offers the names the output of a LoopStart that feeds the port assigns", () => {
+      graph = graphOf(["start:LoopStart", "reader:FileScan"], [`start>reader:${CONTROL_VARIABLE_PORT_ID}`]);
+      // the files example: each iteration's output picks the name of the file the reader reads
+      const scope = (output: string) => {
+        graph.setOperatorProperty("start", { initialization: "i = 0", output });
+        return loopVariablesInScope(graph, "reader");
+      };
+      expect(scope("file = D.line[i]")).toEqual(["i", "file"]);
+      expect(scope("file = D.line[i]; D.iloc[[i]]")).toEqual(["i", "file"]);
+      expect(scope("D.iloc[[i]]")).toEqual(["i"]);
+    });
 
-  it("offers the columns of any other operator that feeds the port", () => {
-    const graph = graphOf(
-      {
-        start: { operatorType: "LoopStart", initialization: "i = 0" },
-        stats: { operatorType: "Aggregate" },
-        filter: { operatorType: "Filter" },
-      },
-      [link("stats", "filter", CONTROL_VARIABLE_PORT_ID)]
-    );
-    // looked up by the sender and the output port the link leaves from
-    const outputColumns = (operatorID: string, portID: string) =>
-      operatorID === "stats" && portID === "output-0" ? ["mean", "not a name"] : undefined;
-    expect(loopVariablesInScope(graph, ["start"], { operatorID: "filter", outputColumns })).toEqual(["i", "mean"]);
-    // without a way to look the columns up, such a sender offers nothing, yet still puts the operator in scope
-    expect(loopVariablesInScope(graph, [], { operatorID: "filter" })).toEqual([]);
-  });
+    it("offers the output names of both an enclosing LoopStart and one that feeds the port", () => {
+      graph = graphOf(
+        ["outer:LoopStart", "reader:FileScan", "outer-end:LoopEnd", "start:LoopStart"],
+        ["outer>reader", "reader>outer-end", `start>reader:${CONTROL_VARIABLE_PORT_ID}`]
+      );
+      graph.setOperatorProperty("outer", { initialization: "i = 0", output: "file = D.line[i]; D.iloc[[i]]" });
+      graph.setOperatorProperty("start", { initialization: "j = 0", output: "row = D.iloc[[j]]" });
+      expect(loopVariablesInScope(graph, "reader")).toEqual(["i", "file", "j", "row"]);
+    });
 
-  it("ignores a link into a data port", () => {
-    const graph = graphOf(
-      { start: { operatorType: "LoopStart", initialization: "i = 0" }, reader: { operatorType: "FileScan" } },
-      [link("start", "reader", "input-0")]
-    );
-    expect(loopVariablesInScope(graph, [], { operatorID: "reader" })).toBeUndefined();
+    it("offers the columns of any other operator that feeds the port", () => {
+      graph = graphOf(
+        ["start:LoopStart=i = 0", "filter:Filter", "e:LoopEnd", "stats:Aggregate", "outside:Filter"],
+        [
+          "start>filter",
+          "filter>e",
+          `stats>filter:${CONTROL_VARIABLE_PORT_ID}`,
+          `stats>outside:${CONTROL_VARIABLE_PORT_ID}`,
+        ]
+      );
+      // looked up by the sender and the output port the link leaves from
+      const outputColumns = (operatorID: string, portID: string) =>
+        operatorID === "stats" && portID === "output-0" ? ["mean", "not a name"] : undefined;
+      expect(loopVariablesInScope(graph, "filter", outputColumns)).toEqual(["i", "mean"]);
+      // without a way to look the columns up, such a sender offers nothing, yet still puts an operator outside
+      // every block in scope
+      expect(loopVariablesInScope(graph, "outside")).toEqual([]);
+    });
+
+    it("ignores a link into a data port", () => {
+      graph = graphOf(["start:LoopStart=i = 0", "reader:FileScan"], ["start>reader"]);
+      expect(loopVariablesInScope(graph, "reader")).toBeUndefined();
+    });
+
+    it("ignores a link into the port from a disabled operator, as the plan the backend runs does", () => {
+      graph = graphOf(["start:LoopStart=i = 0", "reader:FileScan"], [`start>reader:${CONTROL_VARIABLE_PORT_ID}`]);
+      graph.disableOperator("start");
+      // with nothing else feeding its port, the operator outside every block is out of scope again
+      expect(loopVariablesInScope(graph, "reader")).toBeUndefined();
+
+      graph.enableOperator("start");
+      expect(loopVariablesInScope(graph, "reader")).toEqual(["i"]);
+    });
   });
 });
+
+describe("loopScopeChangeStream", () => {
+  let graph: WorkflowGraph;
+  let emissions: number;
+  let subscription: Subscription;
+
+  beforeEach(() => {
+    graph = new WorkflowGraph();
+    emissions = 0;
+    subscription = loopScopeChangeStream(graph).subscribe(() => emissions++);
+  });
+
+  afterEach(() => {
+    subscription.unsubscribe();
+    graph.destroyYModel();
+  });
+
+  it("emits on an operator or a link added or deleted, which can move operators into or out of a block", () => {
+    graph.operatorAddSubject.next(operator("a", "Limit", {}));
+    graph.operatorDeleteSubject.next({ deletedOperatorID: "a" });
+    graph.linkAddSubject.next(link("a", "b"));
+    graph.linkDeleteSubject.next({ deletedLink: link("a", "b") });
+    expect(emissions).toBe(4);
+  });
+
+  it("emits on an operator disabled or enabled, which takes it and its links out of the plan or puts them back", () => {
+    graph.disabledOperatorChangedSubject.next({ newDisabled: ["a"], newEnabled: [] });
+    graph.disabledOperatorChangedSubject.next({ newDisabled: [], newEnabled: ["a"] });
+    expect(emissions).toBe(2);
+  });
+
+  it("emits on a change to a Loop Start's properties, which can change the variables it declares", () => {
+    graph.operatorPropertyChangeSubject.next({ operator: operator("s", "LoopStart", { initialization: "k = 1" }) });
+    expect(emissions).toBe(1);
+  });
+
+  it("does not emit on a change to any other operator's properties, such as a value being typed", () => {
+    graph.operatorPropertyChangeSubject.next({ operator: operator("a", "Limit", { limit: "$" }) });
+    graph.operatorPropertyChangeSubject.next({ operator: operator("e", "LoopEnd", { condition: "k < 3" }) });
+    expect(emissions).toBe(0);
+  });
+});
+
+/** An operator with one output port and two input ports. */
+function operator(operatorID: string, operatorType: string, operatorProperties: Record<string, unknown>) {
+  return {
+    operatorID,
+    operatorType,
+    operatorVersion: "v1",
+    operatorProperties,
+    inputPorts: [{ portID: "input-0" }, { portID: "input-1" }],
+    outputPorts: [{ portID: "output-0" }],
+    showAdvanced: false,
+    isDisabled: false,
+  };
+}
+
+function link(from: string, to: string, targetPortID = "input-0") {
+  return {
+    linkID: `${from}->${to}`,
+    source: { operatorID: from, portID: "output-0" },
+    target: { operatorID: to, portID: targetPortID },
+  };
+}

@@ -17,7 +17,10 @@
  * under the License.
  */
 
+import { merge, Observable } from "rxjs";
+import { filter } from "rxjs/operators";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
+import { enclosingLoopStarts, LOOP_START_OP_TYPE } from "./loop-block.util";
 import { isControlVariableLink } from "../service/workflow-graph/model/control-variable-port";
 
 /**
@@ -145,41 +148,35 @@ export function extractLoopVariables(initialization: string): string[] {
   return names;
 }
 
-const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-/** The operator type of a Loop Start, whose variables a link into a control-variable port offers. */
-const LOOP_START_OP_TYPE = "LoopStart";
-
 /** Names the loop runtime keeps for the loop's input table; never a loop variable. */
 const RESERVED_LOOP_NAMES: ReadonlySet<string> = new Set(["table", "D"]);
 
 /**
- * The loop variables in scope of an operator: those of every Loop Start enclosing it, in the order given
- * (outermost first, as LoopBlockService gives them), then, when `port` names the operator, the names that
- * arrive on its control-variable port, without duplicates. A Loop Start that feeds the port offers its
- * variables; any other operator offers its output columns, which `port.outputColumns` looks up when given.
- * Undefined when the operator is outside every block and has no link into its port, so that one call tells
- * both whether it may refer to variables and to which; empty when nothing declares a name. A Loop Start's
- * variables are what its Initialization assigns, then what its Output assigns; either one that is missing
- * or not a string contributes nothing, and a Loop Start no longer in the graph (deleted since the compile
- * result that named it) does not count.
+ * The loop variables in scope of an operator: those of every Loop Start whose block encloses it, outermost
+ * block first, then the names that arrive on its control-variable port, without duplicates. Which blocks
+ * enclose it, and which links feed its port, is worked out (enclosingLoopStarts) from the operators and
+ * links of the plan the backend compiles and runs: every enabled operator, valid or not, and the links
+ * between them (WorkflowGraph.getSubDAG). So a disabled operator is in no block, closes or opens none, and
+ * feeds no port. A Loop Start that feeds the port offers its variables; any other operator offers its
+ * output columns, which `outputColumns` looks up when given. Undefined when the operator is outside every
+ * block and nothing feeds its port, so that one call tells both whether it may refer to variables and to
+ * which; empty when nothing declares a name. A Loop Start's variables are what its Initialization assigns,
+ * then what its Output assigns; either one that is missing or not a string contributes nothing.
  */
 export function loopVariablesInScope(
   graph: WorkflowGraphReadonly,
-  enclosingLoopStarts: ReadonlyArray<string>,
-  port?: { operatorID: string; outputColumns?: (operatorID: string, portID: string) => string[] | undefined }
+  operatorID: string,
+  outputColumns?: (operatorID: string, portID: string) => string[] | undefined
 ): string[] | undefined {
-  const loopStartIDs = enclosingLoopStarts.filter(loopStartID => graph.hasOperator(loopStartID));
-  const portLinks =
-    port !== undefined && graph.hasOperator(port.operatorID)
-      ? graph.getInputLinksByOperatorId(port.operatorID).filter(isControlVariableLink)
-      : [];
+  const links = graph.getAllEnabledLinks();
+  const loopStartIDs = enclosingLoopStarts(graph.getAllEnabledOperators(), links).get(operatorID) ?? [];
+  const portLinks = links.filter(link => isControlVariableLink(link) && link.target.operatorID === operatorID);
   if (loopStartIDs.length === 0 && portLinks.length === 0) {
     return undefined;
   }
   const names: string[] = [];
   const add = (name: string) => {
-    if (VARIABLE_NAME.test(name) && !names.includes(name)) {
+    if (IDENTIFIER.test(name) && !names.includes(name)) {
       names.push(name);
     }
   };
@@ -198,10 +195,28 @@ export function loopVariablesInScope(
     if (graph.getOperator(source).operatorType === LOOP_START_OP_TYPE) {
       loopStartVariables(source).forEach(add);
     } else {
-      (port?.outputColumns?.(source, link.source.portID) ?? []).forEach(add);
+      (outputColumns?.(source, link.source.portID) ?? []).forEach(add);
     }
   }
   return names;
+}
+
+/**
+ * Emits after every edit that can change what loopVariablesInScope answers for an operator: an operator or
+ * a link added or deleted, or an operator disabled or enabled, which can move operators into or out of a
+ * block, and a change to a Loop Start's properties, which can change the variables it declares. The
+ * property panel and ValidationWorkflowService both look again on it, so that neither keeps a list of these
+ * edits of its own.
+ */
+export function loopScopeChangeStream(graph: WorkflowGraphReadonly): Observable<unknown> {
+  return merge(
+    graph.getOperatorAddStream(),
+    graph.getOperatorDeleteStream(),
+    graph.getLinkAddStream(),
+    graph.getLinkDeleteStream(),
+    graph.getDisabledOperatorsChangedStream(),
+    graph.getOperatorPropertyChangeStream().pipe(filter(({ operator }) => operator.operatorType === LOOP_START_OP_TYPE))
+  );
 }
 
 /**
