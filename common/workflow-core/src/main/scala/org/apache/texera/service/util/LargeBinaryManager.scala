@@ -36,9 +36,10 @@ object LargeBinaryManager extends LazyLogging {
     * Base URI (trailing slash) under which `executionId`'s large binaries live; create()
     * appends a unique suffix. Empty when the bucket is unconfigured, so create() fails loudly.
     *
-    * `executionId` must be a persisted EID. The sentinel id (DEFAULT_EXECUTION_ID = 1) shares
-    * this space, so binaries must only be created under a real execution — else execution 1
-    * and a default-context run would collide under objects/1/.
+    * In production `executionId` is a persisted EID. The sentinel id (DEFAULT_EXECUTION_ID = 1)
+    * shares this space, so binaries must only be created under a real execution — else
+    * execution 1 and a default-context run would collide under objects/1/. Tests may use a
+    * negative id, which no real execution has.
     */
   def baseUriForExecution(executionId: Long): String =
     if (DEFAULT_BUCKET.isEmpty) ""
