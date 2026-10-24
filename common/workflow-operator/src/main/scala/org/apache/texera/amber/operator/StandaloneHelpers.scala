@@ -44,6 +44,7 @@ object StandaloneHelpers {
     *  - `_texera_java_trim`: `String.trim`, dropping only the characters up to U+0020.
     *  - `_texera_parse_int`: `Integer.parseInt` or `Long.parseLong`, a sign and digits in range.
     *  - `_texera_java_double`: `Double.parseDouble`, with a d/f suffix and hex, refusing the rest.
+    *  - `_texera_double_key`: `Double.compareTo`'s order, -0.0 below 0.0 and NaN above all.
     *  - `_texera_read_doubles`: a DOUBLE column pandas left as text, read the engine's way.
     */
   val AttributeCasts: String =
@@ -182,6 +183,14 @@ object StandaloneHelpers {
       |        return float.fromhex(text)
       |    except OverflowError:
       |        return float("-inf") if text.startswith("-") else float("inf")
+      |
+      |
+      |def _texera_double_key(x):
+      |    import math
+      |
+      |    if math.isnan(x):
+      |        return (1, 0.0, 0.0)
+      |    return (0, x, math.copysign(1.0, x))
       |
       |
       |def _texera_read_doubles(s):
