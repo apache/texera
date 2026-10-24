@@ -30,6 +30,7 @@ import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.enums.OutputModeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.OperatorPortExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions
 import org.apache.texera.amber.core.virtualidentity.{
@@ -92,10 +93,23 @@ object ExecutionResultService {
     pojo.setWorkflowExecutionId(executionId.id.toInt)
     pojo.setGlobalPortId(evt.globalPortId.serializeAsString)
     pojo.setResultUri(evt.uri.toString)
+    pojo.setOutputMode(toOutputModeEnum(evt.mode).orNull)
     new OperatorPortExecutionsDao(
       SqlServer.getInstance().createDSLContext().configuration()
     ).insert(pojo)
   }
+
+  /**
+    * The stored form of a port's output mode. Recorded with the URI so that a finished
+    * execution's results can be listed without the engine's physical plan (#8994).
+    */
+  private[service] def toOutputModeEnum(mode: OutputMode): Option[OutputModeEnum] =
+    mode match {
+      case OutputMode.SET_SNAPSHOT    => Some(OutputModeEnum.SET_SNAPSHOT)
+      case OutputMode.SET_DELTA       => Some(OutputModeEnum.SET_DELTA)
+      case OutputMode.SINGLE_SNAPSHOT => Some(OutputModeEnum.SINGLE_SNAPSHOT)
+      case OutputMode.Unrecognized(_) => None
+    }
 
   private val defaultPageSize: Int = 5
   private val binaryPreviewLeadingBits: Int = 10
@@ -446,6 +460,11 @@ class ExecutionResultService(
                     executionId,
                     globalPortIdOption.get,
                     opStorage.getTotalFileSize
+                  )
+                  WorkflowExecutionsResource.updateResultCount(
+                    executionId,
+                    globalPortIdOption.get,
+                    info.tupleCount
                   )
                   WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
                   WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
