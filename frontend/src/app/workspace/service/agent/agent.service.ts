@@ -41,6 +41,8 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import type { WebOutputMode } from "../../types/execute-workflow.interface";
+import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -97,21 +99,47 @@ export interface ModelType {
 /**
  * API response types
  */
-/**
- * Summary of operator execution results for annotation display.
- */
+// Schema, Tuple, IndexedTuple, tupleColumns and tupleToRecord mirror agent-service's
+// src/types/execution.ts and src/agent/tools/tools-utility.ts; keep both copies in sync.
+export interface Schema {
+  readonly attributes: ReadonlyArray<SchemaAttribute>;
+}
+
+// A normalized result tuple from agent-service (schema + positional fields).
+// Sampled tuples are truncated, so each Tuple carries a synthetic all-STRING schema.
+export interface Tuple {
+  readonly schema: Schema;
+  readonly fields: ReadonlyArray<unknown>;
+}
+
+export type IndexedTuple = readonly [rowIndex: number, tuple: Tuple];
+
+// The column names of a tuple, in schema order.
+export function tupleColumns(tuple: Tuple): string[] {
+  return tuple.schema.attributes.map(a => a.attributeName);
+}
+
+// Project a tuple's positional fields back onto their column names.
+export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  tuple.schema.attributes.forEach((a, i) => {
+    record[a.attributeName] = tuple.fields[i];
+  });
+  return record;
+}
+
 export interface OperatorResultSummary {
-  state: string;
-  inputTuples: number;
-  outputTuples: number;
-  inputPortShapes?: { portIndex: number; rows: number; columns: number }[];
-  outputColumns?: number;
-  error?: string;
-  warnings?: string[];
-  consoleLogCount?: number;
-  totalRowCount?: number;
-  sampleRecords?: Record<string, any>[];
-  resultStatistics?: Record<string, string>;
+  readonly resultMode: WebOutputMode;
+  // Sampled output tuples paired with their original row indices.
+  readonly sampleTuples: ReadonlyArray<IndexedTuple>;
+  readonly totalTuplesCount: number;
+}
+
+// One operator's entry in agent-service's `/operator-results` payload: the
+// `resultSummary` of its canonical per-operator summary, the only field the frontend
+// reads (state/errorMessages/consoleMessages stay in agent-service).
+export interface OperatorExecutionSummary {
+  readonly resultSummary?: OperatorResultSummary;
 }
 
 interface ApiAgentInfo {
@@ -1224,36 +1252,32 @@ export class AgentService {
   // Operator Result Annotation Methods
   // ============================================================================
 
-  /** Current operator result summaries (operatorId → summary) */
-  private operatorResultSummariesSubject = new BehaviorSubject<Map<string, OperatorResultSummary>>(new Map());
-  public operatorResultSummaries$ = this.operatorResultSummariesSubject.asObservable();
+  /** Current operator execution summaries (operatorId -> summary) */
+  private operatorExecutionSummariesSubject = new BehaviorSubject<Map<string, OperatorExecutionSummary>>(new Map());
+  public operatorExecutionSummaries$ = this.operatorExecutionSummariesSubject.asObservable();
 
   /**
-   * Update operator result summaries from an API response.
+   * Update operator execution summaries from an API response.
    */
-  private updateOperatorResultSummaries(results: Record<string, OperatorResultSummary>): void {
-    const summaries = new Map<string, OperatorResultSummary>();
-    for (const [opId, data] of Object.entries(results)) {
-      summaries.set(opId, data);
-    }
-    this.operatorResultSummariesSubject.next(summaries);
+  private updateOperatorExecutionSummaries(results: Record<string, OperatorExecutionSummary>): void {
+    this.operatorExecutionSummariesSubject.next(new Map(Object.entries(results)));
   }
 
   /**
    * Pull the agent's latest operator result summaries from the backend and push
-   * them to `operatorResultSummaries$`. Called on demand when the UI needs to
+   * them to `operatorExecutionSummaries$`. Called on demand when the UI needs to
    * show results (e.g. opening an operator's popover); results are no longer
    * pushed over the WebSocket.
    */
   public fetchOperatorResults(agentId: string): void {
     this.http
-      .get<{ results: Record<string, OperatorResultSummary> }>(
+      .get<{ results: Record<string, OperatorExecutionSummary> }>(
         `${this.AGENT_API_BASE}/agents/${agentId}/operator-results`,
         this.agentHeaders(agentId)
       )
-      .pipe(catchError(() => of({ results: {} as Record<string, OperatorResultSummary> })))
+      .pipe(catchError(() => of({ results: {} as Record<string, OperatorExecutionSummary> })))
       .subscribe(response => {
-        this.updateOperatorResultSummaries(response.results);
+        this.updateOperatorExecutionSummaries(response.results);
       });
   }
 }
