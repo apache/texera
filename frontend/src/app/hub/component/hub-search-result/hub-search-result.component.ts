@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { NgIf } from "@angular/common";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -102,7 +102,6 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
 
-  @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
 
