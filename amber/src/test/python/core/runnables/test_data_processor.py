@@ -201,6 +201,38 @@ class TestProcessInternalMarker:
         # does not switch.
         assert data_processor.switch_calls == 2
 
+    @pytest.mark.timeout(2)
+    def test_end_channel_declares_the_port_schema_before_producing_the_state(
+        self, context, data_processor
+    ):
+        # A Loop Start runs its cells on the port's table when it produces the
+        # state, so a port that carried no rows must have declared its columns
+        # by then.
+        schema = Schema(raw_schema={"path": "STRING"})
+        port = PortIdentity(0, False)
+        channel = ChannelIdentity(
+            ActorVirtualIdentity("upstream-0"),
+            ActorVirtualIdentity(context.worker_id),
+            False,
+        )
+        context.input_manager.add_input_port(port, schema, [], [])
+        context.input_manager.register_input(channel, port)
+        context.current_input_channel_id = channel
+        executor = _StubExecutor()
+        declared_when_producing = []
+        produce_state_on_finish = executor.produce_state_on_finish
+
+        def spy(port_id):
+            declared_when_producing.append(dict(executor.input_schemas))
+            return produce_state_on_finish(port_id)
+
+        executor.produce_state_on_finish = spy
+        context.executor_manager.executor = executor
+
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert declared_when_producing == [{0: schema}]
+
 
 class _StateSpy(TupleOperatorV2):
     """

@@ -57,7 +57,7 @@ from typing import Iterator, Optional
 
 import pytest
 
-from core.models import State, Table, TableLike, Tuple
+from core.models import Schema, State, Table, TableLike, Tuple
 from core.models.operator import (
     _RESERVED_STATE_KEYS,
     LoopEndOperator,
@@ -613,6 +613,22 @@ class TestLoopStartInitializationSeesInputData:
         assert produced["i"] == 0
         assert produced["file"] == "a.txt"
         assert "D" not in produced and "table" not in produced
+
+    def test_the_cells_see_the_declared_columns_when_the_input_carried_no_rows(self):
+        # A port that carried no rows has no tuples to read column names off,
+        # so the cells get the columns it was declared to carry, as any
+        # operator's process_table does: D.path is an empty column, not a
+        # KeyError.
+        op = _StubLoopStart(
+            initialization="paths = list(D.path)", output_expr="n = len(D)"
+        )
+        op.input_schemas[0] = Schema(raw_schema={"path": "STRING"})
+        op.open()
+
+        produced = op.produce_state_on_finish(port=0)
+
+        assert produced["paths"] == []
+        assert produced["n"] == 0
 
     def test_a_back_edge_value_replaces_the_initial_one(self):
         op = _StubLoopStart(
