@@ -93,7 +93,7 @@ class TextInputSourceOpDesc
       val castExpr = attributeType match {
         case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
         case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
-        case FileAttributeType.DOUBLE    => "_texera_parse_double(l)"
+        case FileAttributeType.DOUBLE    => "_texera_java_double(l)"
         case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
         case FileAttributeType.TIMESTAMP => "l"
         case _                           => "l"

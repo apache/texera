@@ -243,7 +243,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val castByType = Seq(
       FileAttributeType.INTEGER -> "_texera_parse_int(l, 32)",
       FileAttributeType.LONG -> "_texera_parse_int(l, 64)",
-      FileAttributeType.DOUBLE -> "_texera_parse_double(l)",
+      FileAttributeType.DOUBLE -> "_texera_java_double(l)",
       FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
       FileAttributeType.TIMESTAMP -> "l.rstrip()",
       FileAttributeType.STRING -> """l.rstrip("\n")"""
@@ -260,17 +260,14 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     // The number and boolean casts call out of the body, so the script has to
     // carry the definitions, beside the decoder every text read calls.
     val decode = FileScanOpDesc.DecodeHelper
+    val casts = StandaloneHelpers.AttributeCasts
     fileScanOpDesc.attributeType = FileAttributeType.INTEGER
-    assert(fileScanOpDesc.standaloneHelpers() == Seq(TextSourceOpDesc.NumberParsers, decode))
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(casts, decode))
     fileScanOpDesc.attributeType = FileAttributeType.DOUBLE
-    assert(
-      fileScanOpDesc.standaloneHelpers() ==
-        Seq(StandaloneHelpers.AttributeCasts, TextSourceOpDesc.NumberParsers, decode)
-    )
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(casts, decode))
     fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
     assert(
-      fileScanOpDesc.standaloneHelpers() ==
-        Seq(TextSourceOpDesc.NumberParsers, TextSourceOpDesc.BooleanParser, decode)
+      fileScanOpDesc.standaloneHelpers() == Seq(casts, TextSourceOpDesc.BooleanParser, decode)
     )
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     assert(fileScanOpDesc.standaloneHelpers() == Seq(decode))
