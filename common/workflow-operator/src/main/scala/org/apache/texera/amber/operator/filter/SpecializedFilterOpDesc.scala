@@ -122,21 +122,13 @@ object SpecializedFilterOpDesc {
     *  - `_texera_filter_keep_timestamp`: TIMESTAMP by whole milliseconds in the machine's zone.
     *  - `_texera_filter_keep_string`: STRING as numbers when both parse, else by UTF-16 units.
     *  - `_texera_filter_keep`: the type read off the column's dtype, when no schema says it.
-    *  - `_texera_filter_double_key`: `Double.compareTo`'s order, -0.0 below 0.0.
     *
-    * The value is read with `_texera_java_trim`, `_texera_java_double` and `_texera_parse_int`
-    * from [[StandaloneHelpers.AttributeCasts]].
+    * The value is read with `_texera_java_trim`, `_texera_java_double` and `_texera_parse_int`,
+    * and a double is ordered by `_texera_double_key`, all from
+    * [[StandaloneHelpers.AttributeCasts]].
     */
   val FilterPredicates: String =
-    """def _texera_filter_double_key(x):
-      |    import math
-      |
-      |    if math.isnan(x):
-      |        return (1, 0.0, 0.0)
-      |    return (0, x, math.copysign(1.0, x))
-      |
-      |
-      |def _texera_filter_text_key(s):
+    """def _texera_filter_text_key(s):
       |    return s.encode("utf-16-be", "surrogatepass")
       |
       |
@@ -164,10 +156,10 @@ object SpecializedFilterOpDesc {
       |
       |
       |def _texera_filter_keep_double(column, condition, value):
-      |    target = _texera_filter_double_key(_texera_java_double(value))
+      |    target = _texera_double_key(_texera_java_double(value))
       |
       |    def order(v):
-      |        return _texera_filter_compared(_texera_filter_double_key(float(v)), target)
+      |        return _texera_filter_compared(_texera_double_key(float(v)), target)
       |
       |    return _texera_filter_rows(column, condition, order)
       |
@@ -209,7 +201,7 @@ object SpecializedFilterOpDesc {
       |
       |def _texera_filter_keep_string(column, condition, value):
       |    try:
-      |        value_number = _texera_filter_double_key(_texera_java_double(value))
+      |        value_number = _texera_double_key(_texera_java_double(value))
       |    except ValueError:
       |        value_number = None
       |
@@ -217,7 +209,7 @@ object SpecializedFilterOpDesc {
       |        text = str(v)
       |        if value_number is not None:
       |            try:
-      |                number = _texera_filter_double_key(_texera_java_double(text))
+      |                number = _texera_double_key(_texera_java_double(text))
       |                return _texera_filter_compared(number, value_number)
       |            except ValueError:
       |                pass
