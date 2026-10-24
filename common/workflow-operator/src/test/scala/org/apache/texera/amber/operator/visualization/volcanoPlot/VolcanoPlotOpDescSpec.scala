@@ -144,6 +144,61 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "Missing hover column"
   }
 
+  "VolcanoPlotOpDesc.generateStandaloneCode" should "keep the first column as the hover label when no hover column is set" in {
+    val code = configured.generateStandaloneCode()
+    code should include("hover_name=table.columns[0],")
+    code should not include "Missing hover column"
+  }
+
+  it should "use the configured hover column as a literal and check that the table has it" in {
+    val op = configured
+    op.hoverName = "gene"
+    val code = op.generateStandaloneCode()
+    code should include("""hover_name="gene",""")
+    code should not include "hover_name=table.columns[0]"
+    // One more branch of the script's column checks, before the row filter and
+    // right before the drawing branch, so a missing hover column gets the error
+    // page and not plotly's ValueError.
+    code should include(
+      """        output.write(render_error("Missing required columns in table."))
+        |elif "gene" not in in1df.columns:
+        |    with open(outputHtml, "w", encoding="utf-8") as output:
+        |        output.write(render_error("Missing hover column in table."))
+        |else:""".stripMargin
+    )
+  }
+
+  it should "escape a hover column with quotes or a backslash rather than decode it" in {
+    // The export has no decoder, so the name itself is in the script: a quote or a
+    // backslash must come out escaped, or the literal would end early.
+    val op = configured
+    op.hoverName = "HOVER_SENT \"gene\" 基因"
+    val code = op.generateStandaloneCode()
+    code should include("hover_name=\"HOVER_SENT \\\"gene\\\" 基因\",")
+    code should include("elif \"HOVER_SENT \\\"gene\\\" 基因\" not in in1df.columns:")
+    code should not include "decode_python_template"
+    op.hoverName = "gene\\id"
+    op.generateStandaloneCode() should include("hover_name=\"gene\\\\id\",")
+  }
+
+  it should "treat a whitespace-only hover column as empty" in {
+    Seq(" ", "\t", " \n ").foreach { blank =>
+      val op = configured
+      op.hoverName = blank
+      op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+    }
+  }
+
+  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
+    val saved = objectMapper
+      .readValue(
+        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[VolcanoPlotOpDesc]
+    saved.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+  }
+
   it should "currently render code even when required fields are empty (no assert guard)" in {
     // Documents the present behavior: VolcanoPlotOpDesc does not assert on
     // its required fields inside `generatePythonCode`. An empty
