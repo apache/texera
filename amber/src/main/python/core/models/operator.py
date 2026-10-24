@@ -335,16 +335,16 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        rows = self._get_table_data()[port]
-        schema = self.input_schemas.get(port)
-        # A port that carried no rows has no tuples to read column names off,
-        # and a table of no columns fails every operator that names one.
-        table = Table(rows) if rows or schema is None else Table.empty_of(schema)
+        table = self._collected_table(port)
         yield from require_yielded(self.process_table(table, port), "process_table")
 
     def _collected_table(self, port: int) -> Table:
         """The table collected on ``port`` so far."""
-        return Table(self._get_table_data()[port])
+        rows = self._get_table_data()[port]
+        schema = self.input_schemas.get(port)
+        # A port that carried no rows has no tuples to read column names off,
+        # and a table of no columns fails every operator that names one.
+        return Table(rows) if rows or schema is None else Table.empty_of(schema)
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

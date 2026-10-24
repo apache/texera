@@ -75,11 +75,13 @@ class DataProcessor(Runnable, Stoppable):
             if isinstance(internal_marker, StartChannel):
                 self._set_output_state(executor.produce_state_on_start(port_id))
             elif isinstance(internal_marker, EndChannel):
+                # Declared first: a Loop Start runs its cells on the port's
+                # table when it produces the state.
+                self._declare_input_schema(executor, port_id)
                 self._set_output_state(executor.produce_state_on_finish(port_id))
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
-                self._declare_input_schema(executor, port_id)
                 self._set_output_tuple(
                     require_yielded(executor.on_finish(port_id), "on_finish")
                 )
