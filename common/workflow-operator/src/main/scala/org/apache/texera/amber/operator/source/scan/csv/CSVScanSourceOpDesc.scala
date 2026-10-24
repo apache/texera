@@ -237,23 +237,14 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator 
     // spell `Unnamed: 1` is kept. Matching the placeholder against the index
     // cannot tell those two apart when they coincide; taking the names by
     // position can.
-    val schemaNames: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq
-        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
-
-    if (schemaNames.nonEmpty)
-      Seq(
-        readCall,
-        s"out1df.columns = [${schemaNames.mkString(", ")}]",
-        StandaloneCodeGenerator.parseTimestamps("out1df", sourceSchema()),
-        StandaloneCodeGenerator.parseDoubles("out1df", sourceSchema()),
-        StandaloneCodeGenerator.typeAnEmptyRead("out1df", sourceSchema(), columnsNamed = true)
-      ).filter(_.nonEmpty).mkString("\n")
-    else if (hasHeader) readCall
-    else {
-      // Unresolved file: fall back to Texera's headerless naming.
-      s"""$readCall
-         |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+    Try(sourceSchema()).toOption.filter(_.getAttributes.nonEmpty) match {
+      case Some(schema) =>
+        s"$readCall\n${StandaloneCodeGenerator.readAsDeclared("out1df", schema)}"
+      case None if hasHeader => readCall
+      case None              =>
+        // Unresolved file: fall back to Texera's headerless naming.
+        s"""$readCall
+           |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
     }
   }
 }

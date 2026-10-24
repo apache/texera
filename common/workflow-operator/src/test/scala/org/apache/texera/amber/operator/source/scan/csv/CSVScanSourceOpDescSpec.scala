@@ -579,6 +579,24 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     }
   }
 
+  // The translator keeps only the helpers a script calls, so the column loop
+  // names only the readers this table's types need.
+  it should "name only the column readers the table needs" in {
+    def code(body: String): String = {
+      val path = writeCsv(",", body)
+      val csv = new CSVScanSourceOpDesc()
+      csv.fileName = Some(path)
+      csv.setResolvedFileName(FileResolver.resolve(path))
+      csv.generateStandaloneCode()
+    }
+    val plain = code("id,name\n1,Alice\n")
+    assert(plain.contains("""_schema = {"id": "Int32", "name": "object"}"""))
+    assert(!plain.contains("for _c"))
+    val doubles = code("id,score\n1,1.5\n")
+    assert(doubles.contains("_texera_read_doubles"))
+    assert(!doubles.contains("_texera_text_to_timestamp"))
+  }
+
   it should "fall back to a comma when the delimiter is cleared" in {
     val path = writeCsv(",", "id,name,age\n1,Alice,30\n")
     allReaders("").foreach { reader =>

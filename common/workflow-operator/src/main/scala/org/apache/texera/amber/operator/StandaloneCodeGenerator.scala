@@ -141,18 +141,44 @@ object StandaloneCodeGenerator {
     * column an object, and a JSONL read of no lines has no columns at all. The
     * executor still declares the schema it inferred from the file, so the next
     * step looks for those columns in those types. A read with rows is left alone.
-    *
-    * `columnsNamed` says the frame already holds the schema's columns, as a CSV
-    * read does once it is renamed, so only the types are set.
     */
-  def typeAnEmptyRead(frame: String, schema: Schema, columnsNamed: Boolean = false): String = {
+  def typeAnEmptyRead(frame: String, schema: Schema): String = {
     val names = schema.getAttributes.map(a => pyStringLiteral(a.getName))
     val dtypes = schema.getAttributes.flatMap { a =>
       emptyDtypes.get(a.getType).map(d => s"""${pyStringLiteral(a.getName)}: "$d"""")
     }
-    val columns = if (columnsNamed) "" else s".reindex(columns=[${names.mkString(", ")}])"
     s"""if $frame.empty:
-       |    $frame = $frame$columns.astype({${dtypes.mkString(", ")}})""".stripMargin
+       |    $frame = $frame.reindex(columns=[${names.mkString(", ")}]).astype({${dtypes
+      .mkString(", ")}})""".stripMargin
+  }
+
+  /** Python that gives a read the schema's column names and reads each column the way the
+    * engine does, with every name and its type stated once, in a `_schema` dict.
+    *
+    * A TIMESTAMP column goes through `_texera_text_to_timestamp` and a DOUBLE one through
+    * `_texera_read_doubles`, both from [[StandaloneHelpers.AttributeCasts]], which the caller
+    * declares. The loop names only the readers the schema needs, so a table with no such
+    * column leaves the helper out of the script. An empty read takes the declared types.
+    */
+  def readAsDeclared(frame: String, schema: Schema): String = {
+    val attributes = schema.getAttributes
+    val entries = attributes.map { a =>
+      s"""${pyStringLiteral(a.getName)}: "${emptyDtypes.getOrElse(a.getType, "object")}""""
+    }
+    val readers = Seq(
+      AttributeType.TIMESTAMP -> "_texera_text_to_timestamp",
+      AttributeType.DOUBLE -> "_texera_read_doubles"
+    ).filter { case (t, _) => attributes.exists(_.getType == t) }
+    val branches = readers.zipWithIndex.map {
+      case ((t, reader), i) =>
+        s"""    ${if (i == 0) "if" else "elif"} _t == "${emptyDtypes(t)}":
+           |        $frame[_c] = $reader($frame[_c])""".stripMargin
+    }
+    val loop =
+      if (branches.isEmpty) Seq.empty
+      else Seq("for _c, _t in _schema.items():") ++ branches
+    (Seq(s"_schema = {${entries.mkString(", ")}}", s"$frame.columns = list(_schema)") ++ loop ++
+      Seq(s"if $frame.empty:", s"    $frame = $frame.astype(_schema)")).mkString("\n")
   }
 
   /** Python that reads each TIMESTAMP column of `schema`, held as text, the way
