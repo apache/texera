@@ -34,7 +34,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 @Component({
   selector: "texera-gmail",
   templateUrl: "./admin-gmail.component.html",
-  styleUrls: ["./admin-gmail.component.scss"],
   imports: [
     NzCardComponent,
     FormsModule,
