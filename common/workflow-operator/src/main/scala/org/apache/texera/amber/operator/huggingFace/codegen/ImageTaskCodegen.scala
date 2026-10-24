@@ -143,8 +143,12 @@ object ImageTaskCodegen extends TaskCodegen {
       |                            if outputs and isinstance(outputs[0], str) and outputs[0].startswith("http"):
       |                                return self._url_to_data_url(outputs[0])
       |                        if isinstance(data, list) and data and isinstance(data[0], dict):
-      |                            if "b64_json" in data[0]:
-      |                                return f"data:image/png;base64,{data[0]['b64_json']}"
+      |                            # b64_json comes straight from the provider: an unchecked
+      |                            # value reaches the cell as a data URL nothing can render,
+      |                            # e.g. "data:image/png;base64,None".
+      |                            b64 = data[0].get("b64_json")
+      |                            if isinstance(b64, str) and b64:
+      |                                return f"data:image/png;base64,{b64}"
       |                            if "url" in data[0]:
       |                                return self._url_to_data_url(data[0]["url"])
       |                return json.dumps(body)

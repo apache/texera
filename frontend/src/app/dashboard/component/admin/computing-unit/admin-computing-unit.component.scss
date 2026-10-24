@@ -17,16 +17,48 @@
  * under the License.
  */
 
-/**
- * Do not use `const enum` here. Const enums are inlined at compile time and removed
- * from the emitted JavaScript, which causes runtime errors if the enum is accessed dynamically.
- */
-export enum GenericWebResponseCode {
-  SUCCESS = 0,
+.loading-container {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  height: 300px;
 }
 
-export interface GenericWebResponse
-  extends Readonly<{
-    code: GenericWebResponseCode;
-    message: string;
-  }> {}
+.refresh-warning {
+  margin-bottom: 8px;
+}
+
+.computing-unit-table {
+  display: block;
+}
+
+.owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// Expanded spec detail; wraps on narrow viewports.
+.spec-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+  padding: 4px 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  dt {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.45);
+    font-weight: 400;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
