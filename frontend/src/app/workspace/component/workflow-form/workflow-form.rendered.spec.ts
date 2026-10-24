@@ -408,6 +408,32 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".param.read-only")).not.toBeNull();
   });
 
+  // Pointer blocking is hit testing only; the keyboard half is the directive on the same card. Here
+  // it is wired through the real template, with a control of the kind a widget draws of its own.
+  it("keeps a read-only viewer's card out of the tab order, without hiding what it shows", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = false;
+    (c as any).parameters = [{ binding: { id: "b1" } }];
+    c.rendered = [
+      { resolved: { binding: { id: "b1" } }, fields: [{ key: "b1" }], form: new FormGroup({}), model: {} },
+    ] as any;
+    fixture.detectChanges();
+
+    const card = el(".param.read-only") as HTMLElement;
+    const widgetButton = document.createElement("button");
+    widgetButton.className = "browse";
+    card.querySelector(".param-form")!.appendChild(widgetButton);
+    // The directive watches the card for what a widget adds; MutationObserver delivers on a microtask.
+    return Promise.resolve().then(() => {
+      expect(card.querySelector(".browse")!.getAttribute("tabindex")).toBe("-1");
+      expect(card.querySelector(".browse")!.getAttribute("aria-disabled")).toBe("true");
+      // Not inert: a reader still has the card's content in the accessibility tree.
+      expect(card.hasAttribute("inert")).toBe(false);
+    });
+  });
+
   it("renders the author's instruction card and toggles it", async () => {
     fixture.detectChanges();
     finishLoad();

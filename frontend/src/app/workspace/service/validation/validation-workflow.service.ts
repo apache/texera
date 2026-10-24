@@ -22,11 +22,18 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import Ajv from "ajv";
+import Ajv, { ErrorObject } from "ajv";
 import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
+import {
+  collectReferences,
+  isReference,
+  primitiveSchemaType,
+  valueAtPointer,
+} from "../../util/loop-variable-field.util";
+import { loopScopeChangeStream, loopVariablesInScope } from "../../util/loop-variable.util";
 
 export type ValidationError = {
   isValid: false;
@@ -157,6 +164,21 @@ export class ValidationWorkflowService {
     }
   }
 
+  /**
+   * Re-validates every operator whose properties hold a loop-variable reference; see initializeValidation.
+   * An operator whose dynamic schema is not set yet is left for the schema-change event that sets it.
+   */
+  private revalidateOperatorsWithReferences(): void {
+    const dynamicSchemas = this.dynamicSchemaService.getDynamicSchemaMap();
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .filter(
+        operator => dynamicSchemas.has(operator.operatorID) && collectReferences(operator.operatorProperties).length > 0
+      )
+      .forEach(operator => this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID)));
+  }
+
   private updateValidationStateOnDelete(operatorID: string) {
     this.checkIfWorkflowEmpty();
     delete this.workflowErrors[operatorID];
@@ -227,6 +249,15 @@ export class ValidationWorkflowService {
         this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
+    // An operator holding a loop-variable reference is judged by whether a block surrounds it, which other
+    // operators' edits change: a link two hops away, or an operator two hops away disabled or enabled, can
+    // close or open its block. So on every edit that can (loopScopeChangeStream, on which the property panel
+    // rebuilds its form), re-validate each operator holding a reference. Those are the only ones affected:
+    // without a reference, an operator validates the same inside a block and outside every block.
+    loopScopeChangeStream(this.workflowActionService.getTexeraGraph()).subscribe(() =>
+      this.revalidateOperatorsWithReferences()
+    );
+
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
       .getTexeraGraph()
@@ -280,15 +311,33 @@ export class ValidationWorkflowService {
       throw new Error("operatorSchema doesn't exist");
     }
 
-    const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
-    if (isValid) {
-      return { isValid: true };
+    const properties = operator.operatorProperties;
+    const isValid = this.ajv.validate(operatorSchema.jsonSchema, properties);
+    let errors = isValid ? [] : this.ajv.errors ?? [];
+    const validationError: Record<string, string> = {};
+
+    // Inside a control block a primitive property may hold a loop-variable reference ("$K") that the
+    // backend binds at run time (issue #8635), so the schema type check is waived exactly where a
+    // reference sits in a property whose schema type is a primitive (the fields the property panel lets
+    // take one). Outside every block nothing is waived: a "$K" in an integer property stays a type error,
+    // and so does one in an array or object property anywhere. A reference to a name no enclosing Loop
+    // Start declares is no error, so it does not keep the workflow from running; the property panel warns
+    // about it (unknownReferenceWarning). Which blocks enclose the operator is worked out only when a
+    // reference sits where the schema finds a type error.
+    const atReference = (error: ErrorObject) =>
+      error.keyword === "type" &&
+      primitiveSchemaType(error.params["type"]) !== undefined &&
+      isReference(valueAtPointer(properties, error.instancePath));
+    if (
+      errors.some(atReference) &&
+      loopVariablesInScope(this.workflowActionService.getTexeraGraph(), operatorID) !== undefined
+    ) {
+      errors = errors.filter(error => !atReference(error));
     }
 
-    const errors = this.ajv.errors;
-    const validationError: Record<string, string> = {};
-    if (errors) {
-      errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
+    errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
+    if (Object.keys(validationError).length === 0) {
+      return { isValid: true };
     }
     return { isValid: false, messages: validationError };
   }
