@@ -35,7 +35,10 @@ case class Region(
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
     ports: Set[GlobalPortIdentity] = Set.empty,
-    resourceConfig: Option[ResourceConfig] = None
+    resourceConfig: Option[ResourceConfig] = None,
+    // True for a skip region: its operators do not run in this execution. `resourceConfig`
+    // lists their output ports that are read from saved results, with the saved locations.
+    skipped: Boolean = false
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
@@ -71,16 +74,13 @@ case class Region(
   /**
     * Effective source operators in a region.
     * The effective source contains operators that have 0 input links in this region.
+    * Only the region's own links count. An operator's own link list can also name a link
+    * from another operator of the region that carries no data in this execution, when the
+    * operator reads that port's saved result instead.
     */
   def getSourceOperators: Set[PhysicalOp] = {
-    getOperators
-      .filter(physicalOp =>
-        physicalOp
-          .getInputLinks()
-          .map(link => link.fromOpId)
-          .forall(upstreamOpId => !getOperators.map(_.id).contains(upstreamOpId))
-      )
-
+    val operatorsWithInputLink = getLinks.map(_.toOpId)
+    getOperators.filterNot(physicalOp => operatorsWithInputLink.contains(physicalOp.id))
   }
 
   /**
