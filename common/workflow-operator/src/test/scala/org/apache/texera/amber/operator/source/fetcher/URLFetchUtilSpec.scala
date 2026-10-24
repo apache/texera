@@ -26,6 +26,7 @@ import java.net.{URL, URLConnection, URLStreamHandler}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.mutable.ListBuffer
 
 class URLFetchUtilSpec extends AnyFlatSpec {
 
@@ -138,6 +139,22 @@ class URLFetchUtilSpec extends AnyFlatSpec {
     val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 2)
     assert(result.isEmpty)
     assert(handler.openConnectionCount.get() == 2)
+  }
+
+  it should "wait with exponential backoff between failed attempts" in {
+    val handler = new CountingStreamHandler(None)
+    val delays = ListBuffer.empty[Long]
+
+    val result = URLFetchUtil.getInputStreamFromURL(
+      countingUrl(handler),
+      retries = 4,
+      initialDelayMillis = 50L,
+      sleep = delays += _
+    )
+
+    assert(result.isEmpty)
+    assert(handler.openConnectionCount.get() == 4)
+    assert(delays.toList == List(50L, 100L, 200L))
   }
 
   // ---------------------------------------------------------------------------
