@@ -346,7 +346,7 @@ agentService:
 litellm:
   enabled: true
   name: litellm
-  image: litellm/litellm:main-stable
+  image: ghcr.io/berriai/litellm:v1.83.10-stable
   numOfPods: 1
   service:
     type: ClusterIP
