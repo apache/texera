@@ -146,14 +146,40 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
 
   // ColorBrewer RdBu end points plus a neutral grey, so the figure reads like other
   // volcano-plot tooling; the continuous RdBu scale stays when not coloring by category.
+  // Shared by both code paths so the exported figure cannot drift from the engine's.
+  private def categoryColorArgs: PythonLiteral =
+    """color="Significance",
+      |            color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"},
+      |            category_orders={"Significance": ["Up", "Down", "Not significant"]},""".stripMargin
+
   private def colorArgs: PythonTemplateBuilder =
-    if (colorByCategory)
-      pyb"""color="Significance",
-         |            color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"},
-         |            category_orders={"Significance": ["Up", "Down", "Not significant"]},"""
+    if (colorByCategory) pyb"$categoryColorArgs"
     else
       pyb"""color=$effectColumn,
          |            color_continuous_scale="RdBu","""
+
+  // The exported script's twins of the two helpers above: the same Python with the
+  // column names as literals rather than decoded, and the very same threshold literals.
+  private def standaloneSignificanceColumn: String =
+    if (colorByCategory) {
+      val sig = significanceCutoff.get
+      val eff = effectCutoff.get
+      val pvalueLit = pyStringLiteral(pvalueColumn)
+      val effectLit = pyStringLiteral(effectColumn)
+      s"""significant = table[$pvalueLit] < $sig
+         |        table["Significance"] = np.select(
+         |            [significant & (table[$effectLit] > $eff), significant & (table[$effectLit] < -$eff)],
+         |            ["Up", "Down"],
+         |            default="Not significant",
+         |        )
+         |""".stripMargin
+    } else ""
+
+  private def standaloneColorArgs: String =
+    if (colorByCategory) categoryColorArgs
+    else
+      s"""color=${pyStringLiteral(effectColumn)},
+         |            color_continuous_scale="RdBu",""".stripMargin
 
   /** One dashed line per cut-off that is set: horizontal at -log10 of the p-value
     * cut-off, vertical at plus and minus the effect-size cut-off.
@@ -238,15 +264,16 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
        |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        $standaloneSignificanceColumn
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
        |            y="-log10(pvalue)",
        |            hover_name=table.columns[0],
-       |            color=$effectLit,
-       |            color_continuous_scale="RdBu",
+       |            $standaloneColorArgs
        |            title="Volcano Plot"
        |        )
+       |        $thresholdLines
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)
        |        print("Volcano plot saved to " + outputHtml)""".stripMargin

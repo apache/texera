@@ -261,6 +261,86 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     assertContinuousColoring(code)
   }
 
+  "VolcanoPlotOpDesc.generateStandaloneCode" should "draw no cut-off line and keep the continuous effect-size coloring by default" in {
+    val code = configured.generateStandaloneCode()
+    code should not include "add_hline"
+    code should not include "add_vline"
+    assertContinuousColoring(code)
+    code should include("""color="log2fc",""")
+  }
+
+  it should "draw the dashed cut-off lines while keeping the continuous coloring when the toggle is off" in {
+    val op = configured
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    val code = op.generateStandaloneCode()
+    code should include(hline)
+    code should include(vlines)
+    assertContinuousColoring(code)
+  }
+
+  it should "color Up, Down and Not significant with the column names as literals" in {
+    val op = configured
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    val code = op.generateStandaloneCode()
+    code should include("""significant = table["pvalue"] < 0.05""")
+    code should include(
+      """[significant & (table["log2fc"] > 1.0), significant & (table["log2fc"] < -1.0)]"""
+    )
+    code should include("""color="Significance",""")
+    code should include(discreteMap)
+    code should include("""category_orders={"Significance": ["Up", "Down", "Not significant"]},""")
+    code should not include """color_continuous_scale="RdBu""""
+    code should include(hline)
+    code should include(vlines)
+    code should not include "decode_python_template"
+  }
+
+  it should "make the same cut-off and coloring decisions as the engine" in {
+    // The export is drawn from the same figure, so for every shape a stored
+    // threshold can take the two paths must agree on which lines to draw and on
+    // whether to color by category; a rule applied on one side only would make
+    // the exported figure differ from the one shown in the workflow.
+    val cutOffLine = """fig\.add_[hv]line\([^\n]*""".r
+    Seq(
+      (None, None, false),
+      (Some(0.05), Some(1.0), false),
+      (Some(0.05), Some(1.0), true),
+      (Some(0.05), None, true),
+      (Some(0.0), Some(1.0), true),
+      (Some(1.5), Some(-1.0), true),
+      (Some(Double.NaN), Some(Double.PositiveInfinity), true),
+      (Some(1e-300), Some(1e21), true)
+    ).foreach {
+      case (sig, eff, toggle) =>
+        val op = configured
+        op.significanceThreshold = sig
+        op.effectSizeThreshold = eff
+        op.colorBySignificance = toggle
+        val engine = op.generatePythonCode()
+        val export = op.generateStandaloneCode()
+        cutOffLine.findAllIn(export).toSeq shouldBe cutOffLine.findAllIn(engine).toSeq
+        export.contains("Significance") shouldBe engine.contains("Significance")
+        export.contains(discreteMap) shouldBe engine.contains(discreteMap)
+    }
+  }
+
+  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
+    val saved = objectMapper
+      .readValue(
+        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[VolcanoPlotOpDesc]
+    val code = saved.generateStandaloneCode()
+    code shouldBe configured.generateStandaloneCode()
+    code should not include "add_hline"
+    code should not include "add_vline"
+    assertContinuousColoring(code)
+  }
+
   /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
     * stays unconverted inside the Option and the first use throws.
     */
