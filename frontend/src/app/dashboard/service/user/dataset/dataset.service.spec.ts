@@ -30,6 +30,7 @@ import { Contributor, Dataset, DatasetVersion } from "../../../../common/type/da
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
+import { TruncatedDownloadError } from "../../../../common/util/download-integrity.util";
 
 const API = "api";
 
@@ -254,6 +255,19 @@ describe("DatasetService", () => {
     expect(await pending).toBe(blob);
   });
 
+  it("retrieveDatasetVersionSingleFile rejects a body shorter than the declared Content-Length", async () => {
+    const pending = firstValueFrom(service.retrieveDatasetVersionSingleFile("big.czi"));
+
+    http
+      .expectOne(`${API}/${DATASET_BASE_URL}/presign-download?filePath=${encodeURIComponent("big.czi")}`)
+      .flush({ presignedUrl: "https://s3.example/big.czi" });
+    http.expectOne("https://s3.example/big.czi").flush(new Blob(["partial"]), {
+      headers: { "Content-Length": "1416092224" },
+    });
+
+    await expect(pending).rejects.toBeInstanceOf(TruncatedDownloadError);
+  });
+
   it("retrieveDatasetVersionSingleFile uses the public presign endpoint when anonymous", () => {
     const filePath = "f.txt";
     service.retrieveDatasetVersionSingleFile(filePath, false).subscribe();
@@ -273,6 +287,16 @@ describe("DatasetService", () => {
     expect(req.request.params.get("latest")).toBeNull();
     expect(req.request.responseType).toBe("blob");
     req.flush(new Blob());
+  });
+
+  it("retrieveDatasetVersionZip rejects a zip shorter than the declared Content-Length", async () => {
+    const pending = firstValueFrom(service.retrieveDatasetVersionZip(3, 99));
+
+    http
+      .expectOne(r => r.url === `${API}/dataset/3/versionZip`)
+      .flush(new Blob(["PK-truncated"]), { headers: { "Content-Length": "9999999" } });
+
+    await expect(pending).rejects.toBeInstanceOf(TruncatedDownloadError);
   });
 
   it("retrieveDatasetVersionZip sets latest=true when dvid is omitted", () => {
