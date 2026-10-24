@@ -41,7 +41,9 @@ object StandaloneHelpers {
     * no leading digits raises, and a script that quietly wrote NaN instead
     * would report an answer the run it was exported from never reached.
     *
-    *  - `_texera_java_double`: Double.parseDouble, which also takes a d/f suffix and hex.
+    *  - `_texera_java_trim`: `String.trim`, dropping only the characters up to U+0020.
+    *  - `_texera_parse_int`: `Integer.parseInt` or `Long.parseLong`, a sign and digits in range.
+    *  - `_texera_java_double`: `Double.parseDouble`, with a d/f suffix and hex, refusing the rest.
     *  - `_texera_read_doubles`: a DOUBLE column pandas left as text, read the engine's way.
     */
   val AttributeCasts: String =
@@ -147,16 +149,39 @@ object StandaloneHelpers {
       |    return float(x)
       |
       |
+      |def _texera_java_trim(text):
+      |    return text.strip("".join(map(chr, range(33))))
+      |
+      |
+      |def _texera_parse_int(text, bits):
+      |    import re
+      |
+      |    text = _texera_java_trim(text)
+      |    bound = 2 ** (bits - 1)
+      |    if not re.fullmatch(r"[+-]?\d+", text) or not -bound <= int(text) < bound:
+      |        raise ValueError("For input string: " + repr(text))
+      |    return int(text)
+      |
+      |
       |def _texera_java_double(text):
-      |    text = text.strip()
-      |    if text[-1:] in ("d", "D", "f", "F"):
+      |    import re
+      |
+      |    text = _texera_java_trim(text)
+      |    if not re.fullmatch(
+      |        r"[+-]?(NaN|Infinity|((\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"
+      |        r"|0[xX]([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?\d+)[fFdD]?)",
+      |        text,
+      |        re.ASCII,
+      |    ):
+      |        raise ValueError("For input string: " + repr(text))
+      |    if text[-1] in "dDfF":
       |        text = text[:-1]
-      |    if text.lstrip("+-")[:2].lower() == "0x":
-      |        try:
-      |            return float.fromhex(text)
-      |        except OverflowError:
-      |            return float("-inf") if text.startswith("-") else float("inf")
-      |    return float(text)
+      |    if "x" not in text.lower():
+      |        return float(text)
+      |    try:
+      |        return float.fromhex(text)
+      |    except OverflowError:
+      |        return float("-inf") if text.startswith("-") else float("inf")
       |
       |
       |def _texera_read_doubles(s):
