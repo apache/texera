@@ -844,7 +844,7 @@ class ExecutionResultServiceSpec
     event.table.map(_.get("id").asInt()) shouldBe List(6)
   }
 
-  it should "return an empty page with no schema past the end of the result" in {
+  it should "return an empty page with the stored schema past the end of the result" in {
     val executionId = newExecution()
     val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
     storeResult(
@@ -859,9 +859,21 @@ class ExecutionResultServiceSpec
     )
 
     event.table shouldBe empty
-    // The reported schema comes from the first row of the page, so a page with no
-    // rows reports no schema at all -- there is no fallback to the stored schema.
-    event.schema shouldBe empty
+    event.schema.map(_.getName) shouldBe List("id")
+  }
+
+  it should "report the stored columns of a result with no rows" in {
+    val executionId = newExecution()
+    val schema = new Schema(
+      List(new Attribute("id", AttributeType.INTEGER), new Attribute("label", AttributeType.STRING))
+    )
+    storeResult(executionId, "erss-no-rows", schema, List.empty)
+
+    val event = paginate(paginationRequest.copy(operatorID = "erss-no-rows"))
+
+    event.table shouldBe empty
+    event.schema.map(a => (a.getName, a.getType)) shouldBe
+      List(("id", AttributeType.INTEGER), ("label", AttributeType.STRING))
   }
 
   it should "match a column search case-insensitively" in {
