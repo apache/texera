@@ -34,6 +34,7 @@ import org.apache.texera.amber.operator.udf.python.DualInputPortsPythonUDFOpDesc
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -282,7 +283,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // operatorsInsideLoopBlocks: the cases mirror the frontend's `getEnclosingLoopStarts` spec
+  // operatorsInsideLoopBlocks; loop-blocks.json holds cases the frontend's port runs too
   // ---------------------------------------------------------------------------
 
   private def loopStart(id: String): LogicalOp = named(new LoopStartOpDesc, id)
@@ -291,7 +292,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   /**
     * The ids of the operators inside a loop block, `edges` as "from" -> "to" ids, checked against
-    * the property panel's walk, as are the LoopStarts around each (`enclosingLoopStarts`).
+    * a walk from each operator, as are the LoopStarts around each (`enclosingLoopStarts`).
     */
   private def inside(operators: List[LogicalOp], edges: (String, String)*): Set[String] = {
     val plan = LogicalPlan(
@@ -299,23 +300,20 @@ class LogicalPlanSpec extends AnyFlatSpec {
       edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
     )
     val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
-    val byPanel = enclosingByPanel(operators, edges)
+    val byWalk = enclosingByWalk(operators, edges)
     assert(
-      around == byPanel,
-      s"the panel's walk finds $byPanel, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
+      around == byWalk,
+      s"the walk finds $byWalk, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
         s"with $edges"
     )
     plan.operatorsInsideLoopBlocks.map(_.id)
   }
 
   /**
-    * A port of the property panel's `getEnclosingLoopStarts` (frontend loop-block.util.ts), which
-    * decides where the panel offers `$K`: each operator with an enclosing LoopStart, and those
-    * LoopStarts. It walks from each operator where `enclosingLoopStarts` folds over the plan. It
-    * leaves out the panel's hop counts, which only order the LoopStarts, and its cap on open
-    * blocks, which binds only on a cycle.
+    * Each operator with an enclosing LoopStart, and those LoopStarts, found another way: it walks
+    * from each operator where `enclosingLoopStarts` folds over the plan.
     */
-  private def enclosingByPanel(
+  private def enclosingByWalk(
       operators: List[LogicalOp],
       edges: Seq[(String, String)]
   ): Map[String, Set[String]] = {
@@ -425,7 +423,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     )
   }
 
-  it should "agree with the property panel's walk on random graphs of loop and plain operators" in {
+  it should "agree with a walk from each operator on random graphs of loop and plain operators" in {
     val random = new Random(8640)
     (1 to 400).foreach { _ =>
       val size = 2 + random.nextInt(11)
@@ -438,6 +436,68 @@ class LogicalPlanSpec extends AnyFlatSpec {
       // In shuffled order, so the plan's topological order differs from the ids'.
       inside(random.shuffle(operators).toList, random.shuffle(edges): _*)
     }
+  }
+
+  /**
+    * The LoopStarts around each operator inside a block, outermost first, as the property panel
+    * lists them: fewer LoopStarts around a LoopStart first, then by id.
+    */
+  private def outermostFirst(plan: LogicalPlan): Map[String, List[String]] = {
+    val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
+    around.map {
+      case (id, starts) =>
+        id -> starts.toList.sortBy(start => (around.get(start).map(_.size).getOrElse(0), start))
+    }
+  }
+
+  "LogicalPlan.enclosingLoopStarts" should "give the answer of every case the frontend's port shares" in {
+    // loop-blocks.json, which loop-block.util.spec.ts runs against the frontend's port too.
+    val fixture = objectMapper.readTree(getClass.getResourceAsStream("/loop-blocks.json"))
+    val cases = (fixture.get("cases").elements().asScala ++
+      fixture.get("randomGraphs").elements().asScala).toList
+    assert(cases.size > 100, "the fixture lost its cases")
+    val mismatches = cases.flatMap { testCase =>
+      val operators = testCase.get("operators").elements().asScala.toList.map { operator =>
+        val id = operator.get("id").asText()
+        operator.get("type").asText() match {
+          case "Operator" => op(id)
+          // Read by the backend's own JSON type name, which the frontend's operators carry and its
+          // port matches, so the fixture cannot name a LoopStart or a LoopEnd any other way.
+          case controlType =>
+            val json = s"""{"operatorType": "$controlType"}"""
+            val control = objectMapper.readValue(json, classOf[LogicalOp])
+            assert(
+              control.isInstanceOf[LoopStartOpDesc] || control.isInstanceOf[LoopEndOpDesc],
+              s"$controlType reads as ${control.getClass.getSimpleName} in ${testCase.get("name")}"
+            )
+            named(control, id)
+        }
+      }
+      val ends = testCase.get("links").elements().asScala.toList.map { link =>
+        link.get("from").asText() -> link.get("to").asText()
+      }
+      // A second link into an operator arrives on a port of its own.
+      val links = ends.zipWithIndex.map {
+        case ((from, to), index) =>
+          link(
+            OperatorIdentity(from),
+            OperatorIdentity(to),
+            toPort = ends.take(index).count(_._2 == to)
+          )
+      }
+      val expected = testCase
+        .get("enclosingLoopStarts")
+        .fields()
+        .asScala
+        .map(entry => entry.getKey -> entry.getValue.elements().asScala.map(_.asText()).toList)
+        .toMap
+      val answer = outermostFirst(LogicalPlan(operators, links))
+      Option.when(answer != expected) {
+        s"${testCase.get("name").asText()}: the fixture says ${objectMapper.writeValueAsString(expected)}, " +
+          s"the plan ${objectMapper.writeValueAsString(answer)}"
+      }
+    }
+    if (mismatches.nonEmpty) fail(mismatches.mkString("\n"))
   }
 
   // ---------------------------------------------------------------------------
