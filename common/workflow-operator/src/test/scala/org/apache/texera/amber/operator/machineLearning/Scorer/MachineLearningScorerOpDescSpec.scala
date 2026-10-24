@@ -394,7 +394,7 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       |sys.modules["pytexera"] = stub
       |
       |ns = {"__name__": "generated_scorer"}
-      |with open(sys.argv[1]) as f:
+      |with open(sys.argv[1], encoding="utf-8") as f:
       |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
       |op = ns["ProcessTableOperator"]()
       |
