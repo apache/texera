@@ -268,7 +268,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       kind: "image",
       inputLabel: "Text prompt",
       outputLabel: "Generated image",
-      title: "Comic-style city action scene",
+      title: "Illustrated rooftop leap at sunset",
       body: "Prompt becomes a generated image preview.",
       assetSrc: "assets/sample-image.png",
     },
@@ -326,7 +326,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Generated text",
       title: "Image-text-to-text preview",
       body: "The model reads an image and a text prompt to produce a response.",
-      outputBody: "The image shows a superhero leaping across rooftops at sunset.",
+      outputBody: "The image shows a person leaping across rooftops at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "image-classification": {
@@ -334,9 +334,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Image input",
       outputLabel: "Predicted labels",
       title: "Image classification preview",
-      body: "The model assigns labels such as superhero, city, or action scene.",
+      body: "The model assigns labels such as parkour, city, or action scene.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "cityscape", "action"],
+      pills: ["parkour", "cityscape", "action"],
     },
     "object-detection": {
       kind: "image",
@@ -362,7 +362,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Caption text",
       title: "Captioning preview",
       body: "The model turns an uploaded image into a textual description.",
-      outputBody: "A superhero leaps above a dense downtown skyline at sunset.",
+      outputBody: "A person leaps between rooftops above a downtown skyline at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "visual-question-answering": {
@@ -371,7 +371,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Answer text",
       title: "Visual question answering preview",
       body: "The model reads the image and answers the user question.",
-      outputBody: "Spider-Man is jumping over a city skyline.",
+      outputBody: "A person is jumping between two rooftops.",
       assetSrc: "assets/sample-image.png",
     },
     "document-question-answering": {
@@ -390,7 +390,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       title: "Zero-shot image labeling preview",
       body: "Candidate labels are scored against the uploaded image.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "sports", "travel"],
+      pills: ["parkour", "sports", "travel"],
     },
     "text-generation": {
       kind: "text",
@@ -413,8 +413,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Text input",
       outputLabel: "Tagged spans",
       title: "Token classification preview",
-      body: "Peter Parker visited New York yesterday.",
-      pills: ["Peter Parker: PERSON", "New York: LOCATION"],
+      body: "Maya Chen visited New York yesterday.",
+      pills: ["Maya Chen: PERSON", "New York: LOCATION"],
     },
     "question-answering": {
       kind: "text",
