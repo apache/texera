@@ -27,7 +27,7 @@ import java.net.{HttpURLConnection, URI}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.io.Source
-import scala.util.Using
+import scala.util.{Try, Using}
 
 /**
   * Makes a versioned LakeFS repository readable inside this computing unit's pod.
@@ -141,7 +141,7 @@ object RepositoryMountManager
       35000
     )
 
-private object InPodMount {
+private[amber] object InPodMount {
 
   def postJson(url: String, body: String, jwt: String): Unit = {
     val connection = URI.create(url).toURL.openConnection().asInstanceOf[HttpURLConnection]
@@ -165,9 +165,20 @@ private object InPodMount {
     }
   }
 
+  /**
+    * True if a live FUSE mount is at `mountPoint`.
+    *
+    * Being listed is not enough. A mount whose GeeseFS process has died keeps its entry, and
+    * the kernel can still answer stat() from attributes it cached, but every read fails with
+    * "Transport endpoint is not connected". Counted as mounted, it would never be requested
+    * again -- and the mounter, which replaces a dead mount when asked, would never be asked.
+    */
+  def isFuseMounted(mountPoint: Path): Boolean =
+    isListedAsFuse(mountPoint) && responds(mountPoint)
+
   // /proc/mounts is the kernel's read-only view of this pod's mount table: the kernel adds the
   // entry when a propagated GeeseFS mount arrives and removes it on unmount, so nothing writes it.
-  def isFuseMounted(mountPoint: Path): Boolean = {
+  private def isListedAsFuse(mountPoint: Path): Boolean = {
     if (!Files.exists(mountPoint)) {
       return false
     }
@@ -179,4 +190,8 @@ private object InPodMount {
       }
     }.getOrElse(false)
   }
+
+  /** True if `directory` can be listed, which a dead FUSE mount cannot. */
+  def responds(directory: Path): Boolean =
+    Try(Using.resource(Files.newDirectoryStream(directory))(_.iterator().hasNext)).isSuccess
 }
