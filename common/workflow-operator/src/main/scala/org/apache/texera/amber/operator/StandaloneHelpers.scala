@@ -38,6 +38,8 @@ object StandaloneHelpers {
     *  - `_texera_local_zone`: the machine's zone by its IANA name.
     *  - `_texera_standard_offset`: the zone's standard offset, which Java uses before 1900.
     *  - `_texera_local_wall_clock(s)`: the machine's wall clock at an instant, per value or column.
+    *  - `_texera_wall_clock_instants`: getTime of each wall clock, a gap or an overlap read at
+    *    the standard offset as java.util.Date reads it.
     *  - `_texera_cast_double(s)`: the DOUBLE cast, keeping NaN apart from null.
     *  - `_texera_java_text`: a value as Java's toString writes it.
     *  - `_texera_cast_string`: a column as text, decided by the column's type.
@@ -213,6 +215,37 @@ object StandaloneHelpers {
       |
       |    seconds = pd.Series([_offset(t) for t in s], index=s.index)
       |    return utc + pd.to_timedelta(seconds, unit="s").astype("timedelta64[s]")
+      |
+      |
+      |def _texera_wall_clock_instants(s):
+      |    from dateutil.tz import tzlocal
+      |
+      |    walls = s.dt.floor("ms").astype("datetime64[ms]")
+      |    zone = _texera_local_zone()
+      |    standard = walls - _texera_standard_offset(zone)
+      |    before = standard < pd.Timestamp(1900, 1, 1)
+      |
+      |    def localized(t):
+      |        return (
+      |            t.dt.tz_localize(zone or tzlocal(), ambiguous=False, nonexistent=pd.Timedelta("1h"))
+      |            .dt.tz_convert("UTC")
+      |            .dt.tz_localize(None)
+      |        )
+      |
+      |    try:
+      |        return localized(walls).where(~before, standard)
+      |    except (OSError, OverflowError):
+      |        pass
+      |
+      |    def one(i):
+      |        if before.iloc[i]:
+      |            return standard.iloc[i]
+      |        try:
+      |            return localized(walls.iloc[i : i + 1]).iloc[0]
+      |        except (OSError, OverflowError):
+      |            return standard.iloc[i]
+      |
+      |    return pd.Series([one(i) for i in range(len(walls))], index=s.index, dtype="datetime64[ms]")
       |
       |
       |def _texera_cast_double(x):
