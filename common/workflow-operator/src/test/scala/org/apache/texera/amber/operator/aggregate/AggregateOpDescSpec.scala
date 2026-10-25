@@ -331,6 +331,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |    "k": pd.arrays.FloatingArray(np.array([0.0, np.nan]), np.array([True, False])),
          |    "v": [1, 2],
          |})
+         |${desc.standaloneHelpers().mkString("\n")}
          |${desc.generateStandaloneCode()}
          |print(len(out1df), sorted(int(x) for x in out1df["total"]))
          |""".stripMargin
@@ -395,6 +396,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |    ),
          |    "v": [1] * len(keys),
          |})
+         |${desc.standaloneHelpers().mkString("\n")}
          |${desc.generateStandaloneCode()}
          |rows = [
          |    ("None" if k is pd.NA else repr(float(k))) + " " + str(int(n))

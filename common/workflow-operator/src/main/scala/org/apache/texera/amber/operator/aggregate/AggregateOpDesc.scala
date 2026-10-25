@@ -178,7 +178,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     //  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
     //  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null,
     //    ordered by `_texera_double_key` from StandaloneHelpers.AttributeCasts.
-    //  - `_texera_agg_group_ids`: groups under Scala's ==, where each NaN is its own group.
+    //
+    // Groups are told apart by `_texera_key_codes` from StandaloneHelpers.AttributeCasts.
     val concatHelper =
       """def _texera_agg_concat(series):
         |    partial = ""
@@ -269,22 +270,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    results = column.apply(fold)
         |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
         |    values = results.where(~mask, 0.0).to_numpy(float)
-        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)
-        |
-        |def _texera_agg_group_ids(keys):
-        |    import math
-        |
-        |    ids = {}
-        |    out = []
-        |    for values, missing in zip(
-        |        keys.itertuples(index=False, name=None), keys.isna().to_numpy()
-        |    ):
-        |        key = tuple(
-        |            None if m else object() if isinstance(v, float) and math.isnan(v) else v
-        |            for v, m in zip(values, missing)
-        |        )
-        |        out.append(ids.setdefault(key, len(ids)))
-        |    return pd.Series(out, index=keys.index, dtype="int64")""".stripMargin
+        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs
@@ -317,7 +303,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         .map(i => s"out1df = out1df.join(_texera_agg_s$i)")
         .mkString("\n")
       s"""$concatHelper
-         |_texera_agg_ids = _texera_agg_group_ids(in1df[$keysLit])
+         |[_texera_agg_ids] = _texera_key_codes(in1df[$keysLit])
          |_texera_agg_groups = in1df.groupby(_texera_agg_ids, sort=False)
          |_texera_agg_first = ~_texera_agg_ids.duplicated()
          |out1df = in1df.loc[_texera_agg_first, $keysLit].set_axis(_texera_agg_ids[_texera_agg_first])
