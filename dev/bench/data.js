@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792846452880,
+  "lastUpdate": 1792931960599,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -19418,6 +19418,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 664.5116677810015,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kunwoo (Chris)",
+            "username": "kunwp1",
+            "email": "143021053+kunwp1@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fdd860d2709582be4973c3391052ad90eb7abb1a",
+          "message": "feat(computing-unit): add admin cluster capacity endpoint (#8986)\n\n### What changes were proposed in this PR?\n\nProblem. When a computing unit fails to start because the cluster is\nfull, an admin cannot see from the app how much of the cluster is left\n(#6476), and the cluster capacity panel (#6482) has nothing to show. The\nbackend only lists pods in the computing-unit pool namespace and never\nreads node capacity.\n\nFix. Adds `GET /api/computing-unit/admin/cluster-capacity` (ADMIN only),\nwhich returns `total`, `allocated` and `available` for CPU (millicores),\nmemory (bytes) and GPU (devices). `total` is the allocatable of every\nReady, uncordoned node, and `allocated` is the requests of the pods\nrunning on them in every namespace, with init containers and\nruntime-class overhead counted the way kube-scheduler counts them. That\nis the figure `kubectl describe node` reports as \"Allocated resources\",\nso `available` bounds what a new unit can claim. Live usage from\nmetrics-server is not used because it reads below what is committed and\nhas no GPU metric. The pod list is narrowed on the API server to pods\nthat have not finished, so a cluster that keeps many finished pods does\nnot ship them all. On a deployment without Kubernetes computing units it\nanswers 404, and a Kubernetes API failure comes back with the cluster's\nown message.\n\nNodes are cluster-scoped, so the chart adds a ClusterRole that can only\n`list` `nodes` and `pods`, bound to the computing unit manager's service\naccount. This is the one new permission: the manager can now list pods\nin every namespace, where it could previously see only its own pool.\n\n```\nBefore:  admin sees a unit stuck Pending -> kubectl describe nodes -> adds up the requests by hand\nAfter:   admin sees a unit stuck Pending -> GET /computing-unit/admin/cluster-capacity -> available CPU, memory, GPU\n```\n\nNot included. The panel that shows it (#6482) and telling the owner on\nterminate (#6483). `available` is an upper bound, not a go or no-go: it\nsums across nodes, so capacity spread thinly over many nodes can still\nrefuse a unit that needs one node's worth, and it ignores the pool's\nResourceQuota, node placement (taints, node selectors, runtime-class\nscheduling), pod-level resources and native sidecars. The ClusterRole is\nunconditional, with no chart value to turn it off.\n\n### Any related issues, documentation, discussions?\n\nCloses #6481. Part of #6476.\n\nFeeds the panel in #6482 and follows #8888, which added the page.\n\n### How was this PR tested?\n\nTests were added for the aggregation, the client wrapper, the guard and\nthe endpoint. They cover node and pod filtering (cordoned, not Ready, no\nReady condition, no status, unbound pods, finished pods), the\neffective-request rule (container sum, init containers, overhead,\ncontainers with no resources), decimal and fractional quantities, a\ncustom GPU resource key, `available` floored at zero, the wrapper\nreading nodes and the unfinished pods of every namespace, the 404 on a\nnon-Kubernetes deployment, a Kubernetes failure keeping its message, and\nthe JSON field names the panel will read. The tests were written first\nand watched fail on a stub, apart from the JSON field-name test, which\npins the response shape. Breaking the aggregation on purpose (finished\npods counted, init containers summed instead of maxed, no floor at zero,\na not-Ready node counted, a cordoned node counted, overhead dropped)\nturns at least one test red each time.\n\n```\nsbt \"ComputingUnitManagingService/testOnly org.apache.texera.service.util.ClusterCapacitySpec org.apache.texera.service.util.KubernetesClientSpec org.apache.texera.service.util.ComputingUnitHelpersSpec org.apache.texera.service.resource.AdminComputingUnitResourceSpec\"\nsbt \"ComputingUnitManagingService/test\"\n```\n\nThe first command passes 107 tests and the second passes 289.\n`scalafmtCheckAll` and `scalafixAll --check` ran clean. The ClusterRole\nwas checked by rendering its template alone with `helm template` against\nthe chart's `values.yaml` (rendering the whole chart needs its subcharts\ndownloaded) and asserting it grants exactly `list` on `nodes` and `pods`\nand is bound to the manager's service account, and\n`bin/k8s/tests/test_helm_values.sh` passes. Not exercised: a live\nKubernetes cluster, since the local stack has none, so the Kubernetes\ncalls are only checked against a stubbed client, and the endpoint over\nHTTP.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code, Claude Sonnet 5.5",
+          "timestamp": "2026-10-25T07:23:57Z",
+          "url": "https://github.com/apache/texera/commit/fdd860d2709582be4973c3391052ad90eb7abb1a"
+        },
+        "date": 1792931959622,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 944.6405274147221,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2252.134292407169,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2709.885659881986,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1423.0095348184677,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2463.9001818844954,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2691.827802409646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1578.5581503998792,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2504.6584235945124,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2654.497042931691,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1278.8225657610383,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1948.5773221409684,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2066.8734455723397,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1396.1999044983907,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 2011.4506947931668,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2078.9318115174497,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1431.8455038873128,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1896.4640863581062,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1983.3532755153378,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 820.6656090899418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1021.4589187202355,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1047.1627289154592,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 797.8534050937419,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1018.7833707446922,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1036.0889437013943,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 792.7754669777889,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 984.1837702354659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 993.1533407544866,
             "unit": "tuples/sec"
           }
         ]
