@@ -188,13 +188,13 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
       if (declared.contains(AttributeType.INTEGER))
         s"""(_iv_r.astype("float64") + ${constant.toInt} + 2**31) % 2**32 - 2**31"""
       else s"_iv_r + $constant"
+    // Timestamp keys arrive as wall clocks, and the engine adds the constant to
+    // the wall clock. It compares by getTime, so a moment counts only to the
+    // millisecond. The bound is added before it is cut, as there.
     s"""_pairs = in1df.merge(in2df, how="cross", suffixes=("", "#@1"))
        |_iv_l = _pairs[$leftLit]
        |_iv_r = _pairs[$rightLit if $rightLit not in in1df.columns else $rightLit + "#@1"]
        |if pd.api.types.is_datetime64_any_dtype(_iv_r):
-       |    # The keys arrive as wall clocks, and the engine adds the constant to
-       |    # the wall clock. It compares by getTime, so a moment counts only to
-       |    # the millisecond. The bound is added before it is cut, as there.
        |    _iv_hi = _texera_wall_clock_instants(_iv_r + pd.DateOffset($offsetUnit=$constant))
        |    _iv_l = _texera_wall_clock_instants(_iv_l)
        |    _iv_r = _texera_wall_clock_instants(_iv_r)
