@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792931960599,
+  "lastUpdate": 1792931962993,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -71246,6 +71246,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1626483.372,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kunwoo (Chris)",
+            "username": "kunwp1",
+            "email": "143021053+kunwp1@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fdd860d2709582be4973c3391052ad90eb7abb1a",
+          "message": "feat(computing-unit): add admin cluster capacity endpoint (#8986)\n\n### What changes were proposed in this PR?\n\nProblem. When a computing unit fails to start because the cluster is\nfull, an admin cannot see from the app how much of the cluster is left\n(#6476), and the cluster capacity panel (#6482) has nothing to show. The\nbackend only lists pods in the computing-unit pool namespace and never\nreads node capacity.\n\nFix. Adds `GET /api/computing-unit/admin/cluster-capacity` (ADMIN only),\nwhich returns `total`, `allocated` and `available` for CPU (millicores),\nmemory (bytes) and GPU (devices). `total` is the allocatable of every\nReady, uncordoned node, and `allocated` is the requests of the pods\nrunning on them in every namespace, with init containers and\nruntime-class overhead counted the way kube-scheduler counts them. That\nis the figure `kubectl describe node` reports as \"Allocated resources\",\nso `available` bounds what a new unit can claim. Live usage from\nmetrics-server is not used because it reads below what is committed and\nhas no GPU metric. The pod list is narrowed on the API server to pods\nthat have not finished, so a cluster that keeps many finished pods does\nnot ship them all. On a deployment without Kubernetes computing units it\nanswers 404, and a Kubernetes API failure comes back with the cluster's\nown message.\n\nNodes are cluster-scoped, so the chart adds a ClusterRole that can only\n`list` `nodes` and `pods`, bound to the computing unit manager's service\naccount. This is the one new permission: the manager can now list pods\nin every namespace, where it could previously see only its own pool.\n\n```\nBefore:  admin sees a unit stuck Pending -> kubectl describe nodes -> adds up the requests by hand\nAfter:   admin sees a unit stuck Pending -> GET /computing-unit/admin/cluster-capacity -> available CPU, memory, GPU\n```\n\nNot included. The panel that shows it (#6482) and telling the owner on\nterminate (#6483). `available` is an upper bound, not a go or no-go: it\nsums across nodes, so capacity spread thinly over many nodes can still\nrefuse a unit that needs one node's worth, and it ignores the pool's\nResourceQuota, node placement (taints, node selectors, runtime-class\nscheduling), pod-level resources and native sidecars. The ClusterRole is\nunconditional, with no chart value to turn it off.\n\n### Any related issues, documentation, discussions?\n\nCloses #6481. Part of #6476.\n\nFeeds the panel in #6482 and follows #8888, which added the page.\n\n### How was this PR tested?\n\nTests were added for the aggregation, the client wrapper, the guard and\nthe endpoint. They cover node and pod filtering (cordoned, not Ready, no\nReady condition, no status, unbound pods, finished pods), the\neffective-request rule (container sum, init containers, overhead,\ncontainers with no resources), decimal and fractional quantities, a\ncustom GPU resource key, `available` floored at zero, the wrapper\nreading nodes and the unfinished pods of every namespace, the 404 on a\nnon-Kubernetes deployment, a Kubernetes failure keeping its message, and\nthe JSON field names the panel will read. The tests were written first\nand watched fail on a stub, apart from the JSON field-name test, which\npins the response shape. Breaking the aggregation on purpose (finished\npods counted, init containers summed instead of maxed, no floor at zero,\na not-Ready node counted, a cordoned node counted, overhead dropped)\nturns at least one test red each time.\n\n```\nsbt \"ComputingUnitManagingService/testOnly org.apache.texera.service.util.ClusterCapacitySpec org.apache.texera.service.util.KubernetesClientSpec org.apache.texera.service.util.ComputingUnitHelpersSpec org.apache.texera.service.resource.AdminComputingUnitResourceSpec\"\nsbt \"ComputingUnitManagingService/test\"\n```\n\nThe first command passes 107 tests and the second passes 289.\n`scalafmtCheckAll` and `scalafixAll --check` ran clean. The ClusterRole\nwas checked by rendering its template alone with `helm template` against\nthe chart's `values.yaml` (rendering the whole chart needs its subcharts\ndownloaded) and asserting it grants exactly `list` on `nodes` and `pods`\nand is bound to the manager's service account, and\n`bin/k8s/tests/test_helm_values.sh` passes. Not exercised: a live\nKubernetes cluster, since the local stack has none, so the Kubernetes\ncalls are only checked against a stubbed client, and the endpoint over\nHTTP.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code, Claude Sonnet 5.5",
+          "timestamp": "2026-10-25T07:23:57Z",
+          "url": "https://github.com/apache/texera/commit/fdd860d2709582be4973c3391052ad90eb7abb1a"
+        },
+        "date": 1792931962627,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 10372.786,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 13011.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 14620.019,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 43773.653,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 49321.455,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 62563.216,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 366442.744,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 393953.985,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 483220.759,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 6147.103,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 11580.98,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 23094.73,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 40395.263,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 45379.597,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 49365.371,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 370466.898,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 389412.133,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 439854.651,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 6070.479,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 8392.739,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 11101.787,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 39957.126,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 42085.113,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 47622.358,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 374029.346,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 411196.352,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 462999.437,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 7403.872,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 10380.32,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 11371.083,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 50929.581,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 54374.666,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 66639.157,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 482707.924,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 523581.989,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 558111.19,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 6882.289,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 9236.535,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 10368.402,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 48964.849,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 52857.691,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 88382.468,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 477688.996,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 516804.647,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 550317.016,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 6847.906,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 8190.049,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 10028.458,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 52105.35,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 56731.943,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 63806.922,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 500574.941,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 545592.858,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 565196.318,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 12118.504,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 13037.206,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 14846.247,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 96508.806,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 107454.528,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 135323.283,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 949070.532,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1016472.145,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1059559.949,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 12397.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 13123.492,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 15444.198,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 97195.842,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 105189.11,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 141123.845,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 963660.574,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1019480.28,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1051514.107,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 12577.346,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 13810.326,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 17725.804,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 100748.173,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 107035.13,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 113873.887,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1002456.428,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1068642.6,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1145223.897,
             "unit": "us"
           }
         ]
