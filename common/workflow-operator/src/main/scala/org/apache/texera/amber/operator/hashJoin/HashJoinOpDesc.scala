@@ -30,7 +30,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -228,6 +228,8 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String =
     generateStandaloneCode(List(), List())
 
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+
   private def generateStandaloneCode(
       leftIntegerColumns: List[String],
       rightIntegerColumns: List[String]
@@ -271,7 +273,8 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
     // The merge joins on codes and not on the keys. The probe looks each key up
     // in a HashMap under Scala's ==, where a NaN finds nothing, not even another
     // NaN, while 0.0 meets -0.0 and a null meets a null; merge pairs NaN with
-    // NaN. `_texera_join_codes` gives each NaN a code of its own.
+    // NaN. `_texera_key_codes` from StandaloneHelpers.AttributeCasts gives each
+    // NaN a code of its own.
     val merge =
       s"""_left_cols = set(in1df.columns)
          |_right_cols = list(in2df.columns)
@@ -293,22 +296,7 @@ class HashJoinOpDesc[K] extends LogicalOp with StandaloneCodeGenerator {
          |_join_key = "_texera_join_key"
          |while _join_key in _taken or _join_key == _probe_key:
          |    _join_key = _join_key + "_"
-         |
-         |def _texera_join_codes(left, right):
-         |    import math
-         |
-         |    codes = {}
-         |
-         |    def code(s):
-         |        out = []
-         |        for v, missing in zip(s, s.isna().to_numpy()):
-         |            key = None if missing else object() if isinstance(v, float) and math.isnan(v) else v
-         |            out.append(codes.setdefault(key, len(codes)))
-         |        return out
-         |
-         |    return code(left), code(right)
-         |
-         |_left_codes, _right_codes = _texera_join_codes(in1df[$buildKeyLit], in2df[$probeKeyLit])
+         |_left_codes, _right_codes = _texera_key_codes(in1df[[$buildKeyLit]], in2df[[$probeKeyLit]])
          |""".stripMargin + widening +
         s"""out1df = $leftFrame.assign(**{_join_key: _left_codes}).merge(
            |    $rightFrame.assign(**{_join_key: _right_codes}),

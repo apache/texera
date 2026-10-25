@@ -112,6 +112,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
          |
          |in1df = pd.DataFrame({"k": col([0.0, np.nan], [True, False]), "lv": [1, 2]})
          |in2df = pd.DataFrame({"k": col([0.0], [True]), "rv": [9]})
+         |${d.standaloneHelpers().mkString("\n")}
          |${d.generateStandaloneCode()}
          |print(len(out1df), int(out1df["rv"].notna().sum()))
          |""".stripMargin
@@ -198,6 +199,7 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
            |
            |in1df = ${frame(leftRows, "k", "lv")}
            |in2df = ${frame(rightRows, "k2", "rv")}
+           |${d.standaloneHelpers().mkString("\n")}
            |${d.generateStandaloneCode(Map(PortIdentity() -> left, PortIdentity(1) -> right))}
            |def show(v):
            |    if isinstance(v, float):
