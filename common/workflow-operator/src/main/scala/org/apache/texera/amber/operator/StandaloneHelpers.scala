@@ -45,6 +45,8 @@ object StandaloneHelpers {
     *  - `_texera_parse_int`: `Integer.parseInt` or `Long.parseLong`, a sign and digits in range.
     *  - `_texera_java_double`: `Double.parseDouble`, with a d/f suffix and hex, refusing the rest.
     *  - `_texera_double_key`: `Double.compareTo`'s order, -0.0 below 0.0 and NaN above all.
+    *  - `_texera_key_codes`: one code per row's key under Scala's ==, shared across the frames
+    *    given, where a null meets a null, 0.0 meets -0.0 and each NaN stands alone.
     *  - `_texera_read_doubles`: a DOUBLE column pandas left as text, read the engine's way.
     */
   val AttributeCasts: String =
@@ -191,6 +193,24 @@ object StandaloneHelpers {
       |    if math.isnan(x):
       |        return (1, 0.0, 0.0)
       |    return (0, x, math.copysign(1.0, x))
+      |
+      |
+      |def _texera_key_codes(*frames):
+      |    import math
+      |
+      |    codes = {}
+      |
+      |    def code(df):
+      |        out = []
+      |        for values, missing in zip(df.itertuples(index=False, name=None), df.isna().to_numpy()):
+      |            key = tuple(
+      |                None if m else object() if isinstance(v, float) and math.isnan(v) else v
+      |                for v, m in zip(values, missing)
+      |            )
+      |            out.append(codes.setdefault(key, len(codes)))
+      |        return pd.Series(out, index=df.index, dtype="int64")
+      |
+      |    return [code(df) for df in frames]
       |
       |
       |def _texera_read_doubles(s):
