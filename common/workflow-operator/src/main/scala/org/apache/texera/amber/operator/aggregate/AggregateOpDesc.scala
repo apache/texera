@@ -171,7 +171,8 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
     // What each function reproduces of the engine:
     //  - `_texera_agg_concat`: concatAgg, a comma only after the first non-empty value.
     //  - `_texera_agg_int_sum`: an INTEGER sum, wrapping as a Java int.
-    //  - `_texera_agg_ts_epoch_ms`: getTime, the local wall clock as epoch milliseconds.
+    //  - `_texera_agg_ts_epoch_ms`: getTime as epoch milliseconds, by `_texera_wall_clock_instants`
+    //    from StandaloneHelpers.AttributeCasts.
     //  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
     //  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
     //  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
@@ -191,33 +192,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
         |
         |def _texera_agg_ts_epoch_ms(series):
-        |    from dateutil.tz import tzlocal
-        |
-        |    kept = series.dropna().astype("datetime64[ms]")
-        |    zone = _texera_local_zone()
-        |    offset_ms = int(_texera_standard_offset(zone).total_seconds()) * 1000
-        |    standard = kept.astype("int64") - offset_ms
-        |    before = standard < -2208988800000
-        |
-        |    def localized(s):
-        |        return s.dt.tz_localize(
-        |            zone or tzlocal(), ambiguous=False, nonexistent=pd.Timedelta("1h")
-        |        ).astype("int64")
-        |
-        |    try:
-        |        return localized(kept).where(~before, standard)
-        |    except (OSError, OverflowError):
-        |        pass
-        |
-        |    def one(i):
-        |        if before.iloc[i]:
-        |            return int(standard.iloc[i])
-        |        try:
-        |            return int(localized(kept.iloc[i : i + 1]).iloc[0])
-        |        except (OSError, OverflowError):
-        |            return int(standard.iloc[i])
-        |
-        |    return pd.Series([one(i) for i in range(len(kept))], index=kept.index, dtype="int64")
+        |    return _texera_wall_clock_instants(series.dropna()).astype("int64")
         |
         |def _texera_agg_ts_sum(series):
         |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
