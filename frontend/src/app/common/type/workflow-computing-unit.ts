@@ -55,3 +55,16 @@ export interface DashboardWorkflowComputingUnit {
   ownerAvatar: string;
   ownerName: string;
 }
+
+// CPU is in millicores, memory in bytes and GPU in devices. `available` is never below zero.
+export interface ResourceCapacity {
+  total: number;
+  allocated: number;
+  available: number;
+}
+
+export interface ClusterCapacity {
+  cpu: ResourceCapacity;
+  memory: ResourceCapacity;
+  gpu: ResourceCapacity;
+}

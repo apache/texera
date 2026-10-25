@@ -19,7 +19,7 @@
 
 import { HttpErrorResponse } from "@angular/common/http";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { of, Subject, throwError } from "rxjs";
+import { NEVER, of, Subject, throwError } from "rxjs";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminComputingUnitComponent } from "./admin-computing-unit.component";
@@ -103,6 +103,8 @@ describe("AdminComputingUnitComponent", () => {
     service = TestBed.inject(WorkflowComputingUnitManagingService);
     // No `detectChanges()` here, so the poll starts only in the tests that ask for it.
     vi.spyOn(service, "listAllComputingUnits").mockReturnValue(of([]));
+    // The capacity panel has its own spec. Never answering keeps it hidden, so it adds no alert or rows here.
+    vi.spyOn(service, "getClusterCapacity").mockReturnValue(NEVER);
   });
 
   afterEach(() => {
@@ -141,6 +143,16 @@ describe("AdminComputingUnitComponent", () => {
     const rows = dataRows();
     expect(rows.length).toBe(1);
     expect(rows[0].textContent).toContain("alice");
+  });
+
+  // Only the placement; what the panel shows, and when, is its own spec's business.
+  it("places the cluster capacity panel above the units table", () => {
+    fixture.detectChanges();
+
+    const panel = fixture.nativeElement.querySelector("texera-admin-cluster-capacity");
+    const table = fixture.nativeElement.querySelector("nz-table");
+    expect(panel).not.toBeNull();
+    expect(panel.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   describe("loading and polling", () => {
