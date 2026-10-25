@@ -19,15 +19,27 @@
 
 package org.apache.texera.amber.operator.substringSearch
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.util.Try
+
 class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -80,4 +92,92 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     ss.substring shouldBe "lo"
     ss.isCaseSensitive shouldBe true
   }
+
+  // Without Case Sensitive the engine lowers both sides with toLowerCase, where
+  // pandas' case=False compared upper(), which folds "ß" to "SS" and "ς" to
+  // "Σ". Each search runs through SubstringSearchOpExec and through the
+  // export, and the rows each keeps are named by their input position.
+  "SubstringSearchOpDesc.generateStandaloneCode" should
+    "keep the rows the engine keeps on non-ASCII text" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val cases = Seq(
+      ("ss", false, Seq("ß", "SS", "Strasse")),
+      ("ς", false, Seq("σ", "Σ", "ς")),
+      ("σ", false, Seq("Σ", "ΟΔΟΣ", "σ")),
+      ("i̇", false, Seq("İ", "i", "I")),
+      ("ﬀ", false, Seq("FF", "ﬀ", "ff")),
+      ("é", false, Seq("É", "é", "e")),
+      ("K", false, Seq("K", "k")),
+      ("é", true, Seq("É", "é"))
+    )
+    val schema = Schema().add("v", AttributeType.STRING).add("i", AttributeType.INTEGER)
+    val runs = cases.map {
+      case (substring, caseSensitive, values) =>
+        val desc = newDesc("v", substring, caseSensitive)
+        val exec = new SubstringSearchOpExec(objectMapper.writeValueAsString(desc))
+        exec.open()
+        val kept = values.zipWithIndex.flatMap {
+          case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
+        }
+        exec.close()
+        val label = s"'$substring' caseSensitive=$caseSensitive"
+        val engine = s"$label: ${kept.map(_.getFields(1)).mkString(" ")}"
+        val code = (desc.standaloneHelpers() :+
+          desc.generateStandaloneCode(Map(PortIdentity() -> schema))).mkString("\n")
+        val script =
+          s"""in1df = pd.DataFrame({"v": pd.Series(${objectMapper.writeValueAsString(
+            values
+          )}, dtype=object)})
+             |in1df["i"] = range(len(in1df))
+             |ns = {"pd": pd, "in1df": in1df}
+             |exec(${objectMapper.writeValueAsString(code)}, ns)
+             |print(${objectMapper.writeValueAsString(
+            label + ":"
+          )}, " ".join(str(i) for i in ns["out1df"]["i"]))""".stripMargin
+        (engine, script)
+    }
+
+    val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
+    val file = Files.createTempFile("substring-engine-parity-", ".py")
+    file.toFile.deleteOnExit()
+    Files.write(file, driver.getBytes(StandardCharsets.UTF_8))
+    val builder = new ProcessBuilder(python, file.toString).redirectErrorStream(true)
+    builder.environment().put("PYTHONIOENCODING", "utf-8")
+    val process = builder.start()
+    val out = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\n") {
+      process.exitValue() shouldBe 0
+      out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
+    }
+  }
+
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }

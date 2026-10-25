@@ -101,7 +101,7 @@ jobs:
     # run). Lifted from required-checks.yml's precheck so the trigger
     # surface matches amber-integration exactly.
     name: Precheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       run_bench: ${{ steps.decide.outputs.run_bench }}
     steps:
