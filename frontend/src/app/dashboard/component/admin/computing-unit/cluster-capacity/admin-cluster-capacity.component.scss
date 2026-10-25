@@ -20,12 +20,10 @@
 $ink-muted: rgba(0, 0, 0, 0.45);
 $hairline: #f0f0f0;
 
-// A container, so the ledger stacks by the width the card gets, which the dashboard's sidebar decides, rather than
-// by the window's.
+// A container, so the ledger stacks by the card's width, which the sidebar decides, not the window's.
 .cluster-capacity {
   container: cluster-capacity / inline-size;
-  // Ant's ramps. The fill carries the state and the track is a lighter step of the same hue, so a flagged row reads
-  // as one band of color.
+  // The track is a lighter step of the fill's hue, so a flagged row reads as one band.
   --meter-fill: #1890ff;
   --meter-track: #bae7ff;
 
@@ -74,7 +72,7 @@ $hairline: #f0f0f0;
     font-weight: 500;
   }
 
-  // The meter column takes the slack, so every bar starts and ends at the same x and the rows compare at a glance.
+  // Takes the slack, so the bars line up across rows.
   .usage {
     width: 100%;
     text-align: left;
@@ -115,7 +113,7 @@ $hairline: #f0f0f0;
   background: var(--meter-fill);
 }
 
-// Fixed widths, so a flagged row's icon does not push its bar shorter than the others.
+// Fixed widths, so a status icon does not shorten its row's bar.
 .percent-used {
   min-width: 4ch;
   text-align: right;
@@ -148,7 +146,7 @@ $hairline: #f0f0f0;
   }
 }
 
-// Below the ledger's natural width each resource stacks: its name, its bar, then one labelled line per figure.
+// Too narrow for the ledger, so each resource stacks into labelled lines.
 @container cluster-capacity (max-width: 545px) {
   .capacity-ledger {
     thead {
@@ -188,7 +186,7 @@ $hairline: #f0f0f0;
   }
 }
 
-// The card shrinks its title to fit the header's extra, so on a very narrow card the timestamp goes instead.
+// The card squeezes its title before its extra, so the timestamp goes instead.
 @container cluster-capacity (max-width: 320px) {
   .capacity-updated {
     display: none;

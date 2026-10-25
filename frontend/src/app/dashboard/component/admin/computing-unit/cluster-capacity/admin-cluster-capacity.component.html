@@ -70,7 +70,7 @@
               </div>
               <span class="percent-used">{{ row.percentUsed }}%</span>
               <span class="status-slot">
-                <!-- `nz-icon` labels its own host with the icon's name, so the label sits on a wrapper. -->
+                <!-- `nz-icon` sets its own aria-label, so the label goes on a wrapper. -->
                 <span
                   *ngIf="row.status"
                   role="img"

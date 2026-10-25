@@ -103,7 +103,7 @@ describe("AdminComputingUnitComponent", () => {
     service = TestBed.inject(WorkflowComputingUnitManagingService);
     // No `detectChanges()` here, so the poll starts only in the tests that ask for it.
     vi.spyOn(service, "listAllComputingUnits").mockReturnValue(of([]));
-    // The capacity panel has its own spec. Never answering keeps it hidden, so it adds no alert or rows here.
+    // Never answers, so the capacity panel stays hidden and adds no alert here.
     vi.spyOn(service, "getClusterCapacity").mockReturnValue(NEVER);
   });
 
@@ -145,7 +145,6 @@ describe("AdminComputingUnitComponent", () => {
     expect(rows[0].textContent).toContain("alice");
   });
 
-  // Only the placement; what the panel shows, and when, is its own spec's business.
   it("places the cluster capacity panel above the units table", () => {
     fixture.detectChanges();
 

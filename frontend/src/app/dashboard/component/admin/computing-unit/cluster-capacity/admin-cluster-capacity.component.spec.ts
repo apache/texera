@@ -39,7 +39,6 @@ function capacity(over: Partial<ClusterCapacity> = {}): ClusterCapacity {
   };
 }
 
-// `available` mirrors the backend, which floors it at zero.
 const used = (total: number, allocated: number): ResourceCapacity => ({
   total,
   allocated,
@@ -159,8 +158,7 @@ describe("AdminClusterCapacityComponent", () => {
       expect(text("Memory", "percent-used")).toBe("0%");
     });
 
-    // Rounding would show 100% for 15.99 of 16 cores, which reads as full while a small unit still fits. The GPU
-    // row guards the floor against float error: 29 / 100 * 100 is 28.999…, which would floor to 28%.
+    // 15.99 of 16 cores must not read full, and 29 / 100 * 100 is 28.999… in floating point.
     it("rounds the share down, so 100% shows only when nothing is left", () => {
       vi.mocked(service.getClusterCapacity).mockReturnValue(
         of(capacity({ cpu: used(16000, 15990), memory: used(64 * GiB, 64 * GiB), gpu: used(100, 29) }))
@@ -226,7 +224,7 @@ describe("AdminClusterCapacityComponent", () => {
       expect(text("Memory", "percent-used")).toBe("25%");
     });
 
-    // A browser drops a negative width, so the bar would fall back to full under a negative share.
+    // A browser drops a negative width, so the bar would show full.
     it("shows a resource with a negative figure as not reported", () => {
       vi.mocked(service.getClusterCapacity).mockReturnValue(
         of(
@@ -278,8 +276,7 @@ describe("AdminClusterCapacityComponent", () => {
       expect(fixture.nativeElement.querySelector("table")).toBeNull();
     });
 
-    // An empty message is falsy, so a truthiness check would show the bare header, or hide a failing refresh. It
-    // also must not leave the sentence ending on a bare colon.
+    // An empty message is falsy, and would leave the alert ending on a bare colon.
     it("still reports a failure whose message is empty, and says no details were given", () => {
       vi.mocked(service.getClusterCapacity)
         .mockReturnValueOnce(failWith(500, ""))

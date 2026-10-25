@@ -184,7 +184,7 @@ describe("WorkflowComputingUnitManagingService", () => {
     expect(status).toBe(403);
   });
 
-  // The path is spelled out rather than read from the constant, so a typo in it cannot pass by matching itself.
+  // Spelled out, so a typo in the constant cannot pass by matching itself.
   it("getClusterCapacity() GETs the admin cluster capacity endpoint and returns the body as is", () => {
     const capacity: ClusterCapacity = {
       cpu: { total: 16000, allocated: 12500, available: 3500 },

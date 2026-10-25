@@ -32,15 +32,14 @@ import { WorkflowComputingUnitManagingService } from "../../../../../common/serv
 import { ResourceCapacity } from "../../../../../common/type/workflow-computing-unit";
 import { extractErrorMessage } from "../../../../../common/util/error";
 
-// Capacity only moves when units start or stop, and the backend lists every pod in the cluster to answer, so this
-// polls far less often than the units table.
+// Capacity moves only when units start or stop, and each fetch lists every pod, so this polls slower than the table.
 const CLUSTER_CAPACITY_REFRESH_INTERVAL_MS = 30_000;
 
 const MILLICORES_PER_CORE = 1000;
 const BYTES_PER_UNIT = 1024;
 const BYTE_UNITS = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
 
-// A millicore is a thousandth of a core, so three decimals show cores exactly, and GPUs are whole devices.
+// Three decimals show millicores exactly.
 const exactFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
 const bytesFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 
@@ -51,13 +50,13 @@ interface CapacityStatus {
   className: string;
 }
 
-// Checked against the share as shown, so a row reading 94% is never flagged as nearly full.
+// Compared with the share as shown, so 94% is never flagged as nearly full.
 const CAPACITY_STATUSES: CapacityStatus[] = [
   { minPercent: 95, label: "Nearly full", icon: "warning", className: "capacity-critical" },
   { minPercent: 80, label: "Running low", icon: "exclamation-circle", className: "capacity-warning" },
 ];
 
-/** One ledger row. `percentUsed` is unset when there is no total to divide by, and `note` then says why. */
+/** `percentUsed` is unset when there is no total to divide by, and `note` then says why. */
 interface CapacityRow {
   resource: string;
   allocated: string;
@@ -74,11 +73,11 @@ const formatCores = (millicores: number): string => {
   return `${cores} ${cores === "1" ? "core" : "cores"}`;
 };
 
-/** Binary units, as Kubernetes quotes memory, so a unit's `4Gi` limit shows here as `4 GiB`. */
+/** Binary units, as Kubernetes quotes memory. */
 const formatBytes = (bytes: number): string => {
   let value = bytes;
   let unit = 0;
-  // Compared as shown, to one decimal, so 1023.99 MiB moves up to 1 GiB rather than showing as 1,024 MiB.
+  // Compared as shown, so 1023.99 MiB reads 1 GiB, not 1,024 MiB.
   while (Math.round(value * 10) / 10 >= BYTES_PER_UNIT && unit < BYTE_UNITS.length - 1) {
     value /= BYTES_PER_UNIT;
     unit++;
@@ -91,7 +90,7 @@ const formatGpus = (count: number): string => exactFormat.format(count);
 const isAmount = (n: number): boolean => Number.isFinite(n) && n >= 0;
 
 function toRow(resource: string, capacity: ResourceCapacity | undefined, format: (n: number) => string): CapacityRow {
-  // Typed as numbers, but it is a server response, so a missing, garbled or negative resource gets a row of its own.
+  // A server response, so a missing, garbled or negative figure gets a row of its own.
   if (!capacity || ![capacity.total, capacity.allocated, capacity.available].every(isAmount)) {
     return { resource, allocated: "—", available: "—", total: "—", note: "Not reported" };
   }
@@ -105,7 +104,7 @@ function toRow(resource: string, capacity: ResourceCapacity | undefined, format:
   return {
     ...values,
     percentUsed,
-    // `allocated` can exceed `total`, say after a node shrank, so the share can pass 100% but the bar cannot.
+    // `allocated` can exceed `total`, so the share can pass 100% but the bar cannot.
     fillPercent: Math.min(allocated / total, 1) * 100,
     status: CAPACITY_STATUSES.find(s => percentUsed >= s.minPercent),
   };
@@ -129,9 +128,8 @@ function toRow(resource: string, capacity: ResourceCapacity | undefined, format:
 })
 export class AdminClusterCapacityComponent implements OnInit {
   rows?: CapacityRow[];
-  // Set by a 404, which means computing units do not run on Kubernetes, so there is no cluster to show.
+  // Set by a 404: units do not run on Kubernetes, so there is no cluster to show.
   notOnKubernetes = false;
-  // The latest failed fetch's message, cleared by the next success.
   loadError?: string;
   lastUpdated?: Date;
   isFetching = false;
@@ -139,20 +137,18 @@ export class AdminClusterCapacityComponent implements OnInit {
 
   constructor(private computingUnitService: WorkflowComputingUnitManagingService) {}
 
-  // Nothing shows until the first answer, so a deployment without Kubernetes never flashes the panel.
+  // Hidden until the first answer, so a deployment without Kubernetes never flashes the panel.
   get isVisible(): boolean {
     return !this.notOnKubernetes && (this.rows !== undefined || this.loadError !== undefined);
   }
 
   ngOnInit(): void {
-    // A click restarts the clock, since each fetch lists every pod in the cluster and a tick seconds later would be
-    // wasted. `exhaustMap` lets a slow answer finish, so repeated clicks cannot pile up requests, and the inner
-    // `catchError` keeps a failed fetch from ending the poll. A 404 cannot change while the service runs, so it alone
-    // gets past the inner `catchError`, and the outer one ends the poll.
+    // A click restarts the clock. A 404 cannot change while the service runs, so it alone passes the inner
+    // `catchError`, and the outer one ends the poll.
     this.refreshClicks
       .pipe(
         startWith(undefined),
-        // `startWith` rather than `timer(0, …)`, so the fetch starts at once instead of on the next macrotask.
+        // Not `timer(0, …)`, which would delay the fetch to the next macrotask.
         switchMap(() => interval(CLUSTER_CAPACITY_REFRESH_INTERVAL_MS).pipe(startWith(0))),
         exhaustMap(() => {
           this.isFetching = true;
@@ -161,7 +157,7 @@ export class AdminClusterCapacityComponent implements OnInit {
               if (err instanceof HttpErrorResponse && err.status === 404) {
                 return throwError(() => err);
               }
-              // The alerts end on this message, so an empty one would leave them on a bare colon.
+              // The alerts end on this message, so it cannot be empty.
               this.loadError = extractErrorMessage(err) || "the server gave no details";
               return EMPTY;
             }),
