@@ -195,17 +195,16 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
        |    # The keys arrive as wall clocks, and the engine adds the constant to
        |    # the wall clock. It compares by getTime, so a moment counts only to
        |    # the millisecond. The bound is added before it is cut, as there.
-       |    _iv_hi = _texera_wall_clock_instants(_iv_r + pd.DateOffset($offsetUnit=$constant)).dt.floor("ms")
-       |    _iv_l = _texera_wall_clock_instants(_iv_l).dt.floor("ms")
-       |    _iv_r = _texera_wall_clock_instants(_iv_r).dt.floor("ms")
+       |    _iv_hi = _texera_wall_clock_instants(_iv_r + pd.DateOffset($offsetUnit=$constant))
+       |    _iv_l = _texera_wall_clock_instants(_iv_l)
+       |    _iv_r = _texera_wall_clock_instants(_iv_r)
        |else:
        |    _iv_hi = $numericBound
        |_iv_match = (_iv_l $loOp _iv_r) & (_iv_l $hiOp _iv_hi)
        |out1df = _pairs[_iv_match].reset_index(drop=True)""".stripMargin
   }
 
-  override def standaloneHelpers(): Seq[String] =
-    Seq(StandaloneHelpers.AttributeCasts, IntervalJoinOpDesc.WallClockInstants)
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 
   def this(
       leftTableAttributeName: String,
@@ -224,50 +223,4 @@ class IntervalJoinOpDesc extends LogicalOp with StandaloneCodeGenerator {
     this.timeIntervalType = Some(timeIntervalType)
   }
 
-}
-
-object IntervalJoinOpDesc {
-
-  /** The instant the executor holds for each wall clock in a column. A source
-    * hands the script a timestamp as the wall clock the machine's zone shows,
-    * and the executor's upper bound is
-    * `Timestamp.valueOf(t.toLocalDateTime.plusX(constant))`, so the constant
-    * is added to that wall clock as it stands. A day across a daylight-saving
-    * change is then 23 or 25 hours, and a month counts from the local date.
-    * The comparison is by getTime, so each wall clock is read back into an
-    * instant before it. One that falls in a gap or an overlap is read at the
-    * standard offset, as java.util.Date reads it, and one before 1900 at the
-    * standard offset today. Each distinct key is worked out once, since the
-    * column holds every pair of the cross join.
-    */
-  val WallClockInstants: String =
-    """def _texera_wall_clock_instants(s):
-      |    from dateutil.tz import tzlocal
-      |
-      |    zone = _texera_local_zone()
-      |    standard = _texera_standard_offset(zone)
-      |    seen = {}
-      |
-      |    def instant(wall):
-      |        if pd.isna(wall):
-      |            return pd.NaT
-      |        if wall not in seen:
-      |            moment = wall.to_pydatetime(warn=False)
-      |            if moment.year < 1900:
-      |                seen[wall] = pd.Timestamp(moment - standard)
-      |                return seen[wall]
-      |            tz = zone if zone is not None else tzlocal()
-      |            try:
-      |                early = moment.replace(tzinfo=tz, fold=0)
-      |                late = moment.replace(tzinfo=tz, fold=1)
-      |                if early.utcoffset() == late.utcoffset() or not early.dst():
-      |                    at = early.utcoffset()
-      |                else:
-      |                    at = late.utcoffset()
-      |            except (OSError, OverflowError):
-      |                at = standard
-      |            seen[wall] = pd.Timestamp(moment - at)
-      |        return seen[wall]
-      |
-      |    return pd.Series([instant(w) for w in s], index=s.index, dtype="datetime64[us]")""".stripMargin
 }
