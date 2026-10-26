@@ -24,7 +24,7 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowEditorComponent } from "./workflow-editor.component";
+import { RESULT_PREVIEW_DELAY_MS, RESULT_PREVIEW_HIDE_MS, WorkflowEditorComponent } from "./workflow-editor.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -372,6 +372,87 @@ describe("WorkflowEditorComponent", () => {
       expect(linkView.hasTools()).toBe(false);
       component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
       expect(linkView.hasTools()).toBe(false);
+    });
+
+    it("previews a hovered operator's result once the pointer rests, and hides it when the pointer leaves", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      // passing over an operator opens nothing; only a pointer that rests on it does
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      expect(component.resultPreview).toBeNull();
+      tick(1);
+      fixture.detectChanges();
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeTruthy();
+
+      component.paper.trigger("element:mouseleave", view, new MouseEvent("mouseleave"));
+      // the card lingers a moment, so the pointer can cross into it
+      tick(RESULT_PREVIEW_HIDE_MS);
+      fixture.detectChanges();
+      expect(component.resultPreview).toBeNull();
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeNull();
+    }));
+
+    it("leaves the hover to the heat-map tooltip while that overlay is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+
+      expect(component.resultPreview).toBeNull();
+    });
+
+    /** Right-click with the scan operator selected and pick "pin result" from the menu. */
+    function pinScanFromContextMenu(): void {
+      TestBed.inject(WorkflowActionService).getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+      const item = fixture.debugElement
+        .queryAll(By.css("texera-context-menu li[nz-menu-item]"))
+        .find(li => li.nativeElement.textContent.trim() === "pin result");
+      expect(item).toBeTruthy();
+      item!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      component.nzContextMenu.close();
+    }
+
+    // With the hover card off there is no Pin button, so the right-click menu is the way to a result window.
+    it("pins an operator's result from the right-click menu while Result preview is off", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setResultPreviewEnabled(false);
+      try {
+        addLinkedPair();
+
+        pinScanFromContextMenu();
+        pinScanFromContextMenu();
+
+        // pinning the same operator twice keeps one window
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+        const windows = fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+        expect(windows.length).toBe(1);
+        expect(windows[0].nativeElement.getAttribute("data-operator-id")).toBe(mockScanPredicate.operatorID);
+      } finally {
+        wrapper.setResultPreviewEnabled(true);
+      }
+    });
+
+    it("pins an operator's result from the right-click menu while the heat-map is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+
+      pinScanFromContextMenu();
+
+      expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.query(By.css("texera-pinned-result-window"))).toBeTruthy();
     });
 
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */

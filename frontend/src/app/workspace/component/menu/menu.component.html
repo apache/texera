@@ -230,6 +230,14 @@
               <li nz-menu-item>
                 <label
                   nz-checkbox
+                  [(ngModel)]="showResultPreview"
+                  (ngModelChange)="toggleResultPreview()"
+                  >Result preview</label
+                >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
                   [(ngModel)]="showHeatmap"
                   (ngModelChange)="toggleHeatmap()"
                   >Performance</label

@@ -96,6 +96,8 @@ export type PaginationRequest = Readonly<{
   columnOffset?: number;
   columnLimit?: number;
   columnSearch?: string;
+  // which of the operator's output ports to read; left out, the first
+  portIndex?: number;
 }>;
 
 export type PaginatedResultEvent = Readonly<{
@@ -104,6 +106,9 @@ export type PaginatedResultEvent = Readonly<{
   pageIndex: number;
   table: ReadonlyArray<IndexableObject>;
   schema: ReadonlyArray<SchemaAttribute>;
+  portIndex: number;
+  // the port's whole row count, for a port the running execution does not report on
+  totalTuples: number;
 }>;
 
 export type ResultExportRequest = Readonly<{
