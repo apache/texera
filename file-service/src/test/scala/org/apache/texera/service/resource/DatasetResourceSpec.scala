@@ -2492,6 +2492,22 @@ class DatasetResourceSpec
     assertStatus(ex, 400)
   }
 
+  it should "reject a missing type parameter with a 400" in {
+    val ex = intercept[BadRequestException] {
+      datasetResource.multipartUpload(
+        null,
+        ownerUser.getEmail,
+        multipartDataset.getName,
+        urlEnc(uniqueFilePath("init-no-type")),
+        Optional.empty(),
+        Optional.empty(),
+        Optional.empty(),
+        multipartOwnerSessionUser
+      )
+    }
+    assertStatus(ex, 400)
+  }
+
   it should "reject init when caller lacks WRITE access" in {
     val filePath = uniqueFilePath("init-forbidden")
     val ex = intercept[ForbiddenException] {
@@ -3854,7 +3870,37 @@ class DatasetResourceSpec
       .map(_.getName) shouldEqual List("logo.png")
   }
 
-  "retrieveDatasetVersionRootFileNodes" should "return the same tree to the dataset's owner" in {
+  it should "return 404 for a version of another dataset" in {
+    val (publicDataset, _) = seedDatasetWithVersion("public-host", Seq("a.txt" -> "a"))
+    val (_, otherVersion) =
+      seedDatasetWithVersion("private-other", Seq("b.txt" -> "b"), isPublic = false)
+
+    assertThrows[NotFoundException] {
+      datasetResource.retrievePublicDatasetVersionRootFileNodes(
+        publicDataset.getDid,
+        otherVersion.getDvid
+      )
+    }
+  }
+
+  "retrieveDatasetVersionRootFileNodes" should "return 404 for a version of another dataset" in {
+    val (dataset, _) = seedDatasetWithVersion("owner-host", Seq("a.txt" -> "a"), isPublic = false)
+    val (_, otherVersion) =
+      seedDatasetWithVersion("owner-other", Seq("b.txt" -> "b"), isPublic = false)
+
+    assertThrows[NotFoundException] {
+      datasetResource.retrieveDatasetVersionRootFileNodes(
+        dataset.getDid,
+        otherVersion.getDvid,
+        sessionUser
+      )
+    }
+    assertThrows[NotFoundException] {
+      datasetResource.getDatasetVersionZip(dataset.getDid, otherVersion.getDvid, null, sessionUser)
+    }
+  }
+
+  it should "return the same tree to the dataset's owner" in {
     val (dataset, version) =
       seedDatasetWithVersion("owner-nodes", Seq("a.txt" -> "1", "sub/b.txt" -> "2"))
 
