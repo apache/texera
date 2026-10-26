@@ -1497,4 +1497,33 @@ class WorkflowResourceSpec
     )
   }
 
+  // The listing's isOwner compares two boxed Integers. testUser and testUser2 have uids 1
+  // and 2, inside the default Integer autoboxing cache where reference equality happens to
+  // agree with value equality, so this case needs an owner whose uid is outside it.
+  "WorkflowResource.retrieveWorkflowsBySessionUser" should "set isOwner for an owner whose uid is outside the Integer cache" in {
+    val owner = new User
+    owner.setUid(Integer.valueOf(1001))
+    owner.setName("large_uid_owner")
+    owner.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(owner)
+    val ownerSession = new SessionUser(owner)
+
+    val wid = seedWorkflow(ownerSession, "wf_of_large_uid_user").workflow.getWid
+    try {
+      val own = workflowResource.retrieveWorkflowsBySessionUser(ownerSession)
+      assert(own.map(_.workflow.getWid) == List(wid))
+      assert(own.head.ownerId == owner.getUid)
+      assert(own.head.isOwner, "the owner's own listing must report isOwner")
+
+      // A reader with the same workflow in their listing is not its owner.
+      grantAccess(wid, testUser, PrivilegeEnum.READ)
+      val shared = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+      assert(shared.exists(_.workflow.getWid == wid))
+      assert(!shared.find(_.workflow.getWid == wid).get.isOwner)
+    } finally {
+      // afterEach only clears testUser's and testUser2's own workflows.
+      workflowResource.deleteWorkflow(WorkflowIDs(List(wid)), ownerSession)
+    }
+  }
+
 }

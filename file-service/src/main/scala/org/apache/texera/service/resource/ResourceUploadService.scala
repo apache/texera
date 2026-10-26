@@ -61,7 +61,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartResponse
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.sql.SQLException
 import java.time.OffsetDateTime
@@ -386,9 +386,14 @@ object ResourceUploadService {
               val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
                 LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
               }
-              zipOut.putNextEntry(new ZipEntry(filePath))
-              Files.copy(Paths.get(file.toURI), zipOut)
-              zipOut.closeEntry()
+              // The SDK saves each object to a temp file; drop it once it is in the zip.
+              try {
+                zipOut.putNextEntry(new ZipEntry(filePath))
+                Files.copy(file.toPath, zipOut)
+                zipOut.closeEntry()
+              } finally {
+                Files.deleteIfExists(file.toPath)
+              }
             }
           } finally {
             zipOut.close()
