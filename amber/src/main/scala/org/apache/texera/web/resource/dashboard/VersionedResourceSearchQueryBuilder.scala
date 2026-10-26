@@ -91,9 +91,7 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
-    val baseJoin = tables.joinWithAccessAndOwner(
-      Some(if (uid == null) DSL.falseCondition() else tables.access.uidColumn.eq(uid))
-    )
+    val baseJoin = tables.joinWithViewerAccessAndOwner(uid)
 
     val condition: Condition =
       if (uid == null) {

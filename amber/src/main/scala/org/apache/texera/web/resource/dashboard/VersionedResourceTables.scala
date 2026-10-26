@@ -35,6 +35,7 @@ import org.apache.texera.web.resource.dashboard.hub.EntityTables.{AccessTable, B
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.jooq._
+import org.jooq.impl.DSL
 
 import java.sql.Timestamp
 
@@ -84,6 +85,12 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       .leftJoin(USER)
       .on(USER.UID.eq(ownerUidColumn))
   }
+
+  /** The access join narrowed to `uid`'s own grant, or to none for an anonymous viewer. */
+  final def joinWithViewerAccessAndOwner(uid: Integer): Table[Record] =
+    joinWithAccessAndOwner(
+      Some(if (uid == null) DSL.falseCondition() else access.uidColumn.eq(uid))
+    )
 
   /** `None` when LakeFS cannot size the resource; callers drop it and report a mismatch. */
   final def hydrate(
