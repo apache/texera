@@ -545,6 +545,21 @@ texeraEnvVars:
     # If using VMs for CUs change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-nvidia-gpu-runtime-rs"
     # Note: kata containers must be installed to use kata-qemu-nvidia-gpu-runtime-r
     value: ""
+  # OpenTelemetry (observability). Disabled by default; set OTEL_SDK_DISABLED to
+  # "false" and point the endpoint at a reachable OTLP collector (http/https only) to enable.
+  - name: OTEL_SDK_DISABLED
+    value: "true"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://127.0.0.1:4317"
+  # Comma-separated resource attributes (k1=v1,k2=v2); service.name is set per service.
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: ""
+  # Comma-separated extra hosts allowed for the OTLP endpoint (loopback allowed by default).
+  - name: TEXERA_OTEL_ALLOWED_HOSTS
+    value: ""
+  # Metric export interval in ms.
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
 
 yWebsocketServer:
   name: y-websocket-server

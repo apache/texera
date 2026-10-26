@@ -73,7 +73,7 @@ jobs:
     # Do not rename — this display name is the required status check context
     # referenced in .asf.yaml.
     name: Backport Approvals
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       # The default branch, not the PR's head or base. Both can predate #6941,
       # which added release-branches.yml — and `base.sha` is main's tip at the
