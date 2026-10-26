@@ -58,25 +58,25 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // slicing the frame would end the export on a line the workflow skipped.
     val windowed = offset.exists(_ > 0) || limit.isDefined
 
+    // Inferred once: each inference reads the file again.
+    val schema = Try(sourceSchema()).toOption
+    val attributes = schema.toSeq.flatMap(_.getAttributes)
+    def named(attributeType: AttributeType): Seq[String] =
+      attributes.filter(_.getType == attributeType).map(_.getName)
+
     // read_json parses a JSON number into a float before any dtype it is handed
     // can apply, so a LONG past 2^53 is already rounded by the time the column
     // exists: 9007199254740993 arrives as ...992, a value the file never held.
     // Reading the lines a second time with Python's own parser, which keeps an
     // integer exact, is the only way to put the column back.
-    val longColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.filter(_.getType == AttributeType.LONG).map(_.getName)
-      )
+    val longColumns = named(AttributeType.LONG)
 
     // The executor reads every value as the text Jackson gives it, so a column
     // this operator types STRING holds that text whatever the JSON held: 35.0 is
     // "35.0", true is "true", and a null is "null", which is also why one null
     // makes its column STRING. read_json keeps the values typed and the null a
     // null. These columns are rebuilt from the lines the way LONG ones are.
-    val stringColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes.filter(_.getType == AttributeType.STRING).map(_.getName)
-      )
+    val stringColumns = named(AttributeType.STRING)
 
     // The lines are read into the script whenever something below needs them,
     // and read_json is then fed from those rather than from the file, so the
@@ -123,9 +123,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       lines += "    _lines = _f.readlines()"
     }
     lines += s"out1df = $baseExpr"
-    Try(sourceSchema()).toOption.foreach { schema =>
-      lines += StandaloneCodeGenerator.typeAnEmptyRead("out1df", schema)
-    }
+    schema.foreach(s => lines += StandaloneCodeGenerator.typeAnEmptyRead("out1df", s))
 
     if (longColumns.nonEmpty || stringColumns.nonEmpty) {
       // Flattened or not, a column's name is a key of the record the lookup
@@ -143,7 +141,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
       }
     }
 
-    Try(sourceSchema()).toOption
+    schema
       .map(StandaloneCodeGenerator.parseTimestamps("out1df", _))
       .filter(_.nonEmpty)
       .foreach(lines += _)
@@ -153,13 +151,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // where the executor has true and false. The nullable boolean carries both
     // values and the hole. A column with no hole arrives as bool already and is
     // left alone.
-    val booleanColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
-        _.getAttributes
-          .filter(_.getType == AttributeType.BOOLEAN)
-          .map(a => pyStringLiteral(a.getName))
-      )
-    booleanColumns.foreach { nameLit =>
+    named(AttributeType.BOOLEAN).map(pyStringLiteral).foreach { nameLit =>
       lines += s"""if out1df[$nameLit].dtype == "float64":"""
       lines += s"""    out1df[$nameLit] = out1df[$nameLit].astype("boolean")"""
     }
@@ -170,7 +162,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // the next operator as the other type, where 3 and 3.0 print differently. The
     // schema's type is asked for, the INTEGER in the nullable width that keeps a
     // hole.
-    Try(sourceSchema()).toOption.toSeq.flatMap(_.getAttributes).foreach { attribute =>
+    attributes.foreach { attribute =>
       val nameLit = pyStringLiteral(attribute.getName)
       attribute.getType match {
         case AttributeType.DOUBLE =>
@@ -190,8 +182,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     // Unflattened, the executor also passes over a nested object or array, so
     // the key is no column of its own, where read_json keeps it as one holding
     // the dict or the list. The schema names the columns the executor has.
-    val columns =
-      Try(sourceSchema()).toOption.map(_.getAttributes.map(a => pyStringLiteral(a.getName)))
+    val columns = schema.map(_.getAttributes.map(a => pyStringLiteral(a.getName)))
     lines += columns.fold("out1df = out1df[sorted(out1df.columns)]")(names =>
       s"out1df = out1df[[${names.mkString(", ")}]]"
     )
