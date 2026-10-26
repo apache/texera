@@ -327,10 +327,13 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
     val generated = op.generateStandaloneCode(
-      Map(op.operatorInfo.inputPorts.head.id -> Schema().add(new Attribute("v", AttributeType.LONG)))
+      Map(
+        op.operatorInfo.inputPorts.head.id -> Schema().add(new Attribute("v", AttributeType.LONG))
+      )
     )
 
-    val values = longTextCases.map(v => if (v == null) "None" else v.toString).mkString("[", ", ", "]")
+    val values =
+      longTextCases.map(v => if (v == null) "None" else v.toString).mkString("[", ", ", "]")
     val driver =
       s"""import pandas as pd
          |
