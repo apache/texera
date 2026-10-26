@@ -191,6 +191,13 @@ class LakeFSFileDocumentSpec
   private def nestedRelativePath: String =
     Paths.get(nestedSegments.head, nestedSegments.tail: _*).toString
 
+  /** Temp files the lakeFS SDK writes for a direct download, by name. */
+  private def sdkTempFiles(): Set[String] =
+    Option(new java.io.File(System.getProperty("java.io.tmpdir")).list())
+      .map(_.toSet)
+      .getOrElse(Set.empty[String])
+      .filter(_.startsWith("download-"))
+
   private def readFully(doc: LakeFSFileDocument): String = {
     val stream = doc.asInputStream()
     try new String(stream.readAllBytes(), StandardCharsets.UTF_8)
@@ -386,6 +393,15 @@ class LakeFSFileDocumentSpec
     readFully(servedDoc()) shouldBe fallbackContent
 
     hits.map(_.path) shouldEqual List(statPath, presignedPath, objectPath)
+  }
+
+  it should "delete the temp file a direct lakeFS download writes once the stream is closed" in {
+    failing = Set(statPath)
+    val before = sdkTempFiles()
+
+    readFully(servedDoc()) shouldBe fallbackContent
+
+    (sdkTempFiles() -- before) shouldBe empty
   }
 
   it should "name the whole nested relative path on both hops, not the file's last segment" in {
