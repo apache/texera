@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792931962993,
+  "lastUpdate": 1793030449550,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -19575,6 +19575,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 993.1533407544866,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "carloea2",
+            "username": "carloea2",
+            "email": "carloea2@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7fb65b51c62880574e0413451e63aa04a41f4915",
+          "message": "feat(frontend): add searchable property dropdowns (#8081)\n\n### What changes were proposed in this PR?\n\nMake schema-backed enum dropdowns searchable without changing their\noptions or selection modes. Preserve grouped and disabled options,\nplaceholders, and change callbacks.\n\n### Any related issues, documentation, discussions?\n\nCloses #8069\n\n### How was this PR tested?\n\nFresh detached worktree from upstream main at `98c63374b7`, Node 24 on\nWindows. All 6,832 frontend tests pass, with one existing skip. The\nfocused Formly and CSV preview suites also pass all 78 tests.\n\nThe macOS CI failure used vi.waitFor's one-second default for\nFileReader. A controlled 1.2-second read reproduces the same failure\nlocally. The same 59-test suite passes after allowing 10 seconds for\nthat asynchronous check. Assertions and parser behavior are unchanged;\nthe delay probe was not committed.\n\nFrom frontend:\n\n```text\nnode node_modules/@angular/cli/bin/ng.js test --watch=false --progress=false\nnode .yarn/releases/yarn-4.14.1.cjs format:fix\nnode .yarn/releases/yarn-4.14.1.cjs format:ci\n```\nManual verification used Chromium at 1100 by 800 in an isolated\nlocalhost fixture with the actual Formly and NG-ZORRO components. The\nold dropdown input is read-only. The new one filters TOTAL to\norder_total, handles a missing match, and updates the form model through\nmouse and keyboard selection. This is a component-level browser check,\nnot a full-stack run.\n\n| Before | After |\n| --- | --- |\n|\n![Before](https://github.com/user-attachments/assets/3f62854c-c9a2-4519-9173-ad1d47844d8a)\n| ![After filtering\nTOTAL](https://github.com/user-attachments/assets/74455154-e590-4427-a7cf-cc07c58ddc3c)\n|\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Codex",
+          "timestamp": "2026-10-26T06:52:03Z",
+          "url": "https://github.com/apache/texera/commit/7fb65b51c62880574e0413451e63aa04a41f4915"
+        },
+        "date": 1793030449014,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 682.5177056158155,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1150.5478256903066,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1233.1711341390135,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 842.6406720737854,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1182.192101974038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1246.8693391806842,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 891.9790551811313,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1202.0549338251299,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1224.7162584541595,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 750.8480453247921,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 942.9020875459405,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 990.2811920348388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 767.1932429574808,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 955.1925556644833,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 974.3705887514601,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 758.0616179310855,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 934.9194937189459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 957.7646831980328,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 458.4695398292379,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 535.1537023059985,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 536.713817581831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 465.8909485623084,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 535.2066667339371,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 538.3118980068708,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 443.2877939948123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 510.0701128755736,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 510.39870778193483,
             "unit": "tuples/sec"
           }
         ]
