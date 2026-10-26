@@ -34,6 +34,16 @@ class OwnerAccessSpec extends AnyFlatSpec with Matchers {
     OwnerAccess.privilege(isOwner = false, null) shouldBe PrivilegeEnum.NONE
   }
 
+  it should "not look up the grant for the owner" in {
+    var lookups = 0
+    def lookup(): PrivilegeEnum = { lookups += 1; PrivilegeEnum.READ }
+
+    OwnerAccess.privilege(isOwner = true, lookup())
+    lookups shouldBe 0
+    OwnerAccess.privilege(isOwner = false, lookup())
+    lookups shouldBe 1
+  }
+
   "requireNotOwner" should "refuse a change to the owner's access with a 403" in {
     val ex = intercept[ForbiddenException](OwnerAccess.requireNotOwner(isOwner = true))
     ex.getResponse.getStatus shouldBe 403

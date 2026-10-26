@@ -23,8 +23,10 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 /** The rule every shared resource applies to its owner. */
 object OwnerAccess {
 
-  /** The owner always has WRITE; anyone else has what they were granted, or NONE. */
-  def privilege(isOwner: Boolean, granted: PrivilegeEnum): PrivilegeEnum =
+  /** The owner always has WRITE; anyone else has what they were granted, or NONE.
+    * `granted` is by-name, so a lookup passed in is skipped for the owner.
+    */
+  def privilege(isOwner: Boolean, granted: => PrivilegeEnum): PrivilegeEnum =
     if (isOwner) PrivilegeEnum.WRITE else Option(granted).getOrElse(PrivilegeEnum.NONE)
 
   val ownerChangeRefused = "You cannot modify the owner's permissions!"
