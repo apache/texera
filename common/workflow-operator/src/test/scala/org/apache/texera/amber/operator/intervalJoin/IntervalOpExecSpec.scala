@@ -557,6 +557,47 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     } finally exec.close()
   }
 
+  // A null key used to unbox to 0 for a number, so it joined as if it were 0,
+  // and to throw for a timestamp, which failed the run.
+  it should "let a null key match nothing on either side" in {
+    val zero = Map[AttributeType, Any](
+      AttributeType.INTEGER -> 0,
+      AttributeType.LONG -> 0L,
+      AttributeType.DOUBLE -> 0.0,
+      AttributeType.TIMESTAMP -> Timestamp.valueOf("2020-03-05 00:00:00")
+    )
+    zero.foreach {
+      case (attributeType, value) =>
+        val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, TimeIntervalType.DAY)
+
+        val nullLeft = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullLeft.open()
+        try {
+          assert(
+            nullLeft.processTuple(newTuple("range", 1, value, attributeType), right).isEmpty
+          )
+          assert(
+            nullLeft.processTuple(newTuple[Any]("point", 1, null, attributeType), left).isEmpty,
+            s"a null $attributeType point joined"
+          )
+          // The null point stayed out of the cache, so a real one still joins.
+          assert(nullLeft.processTuple(newTuple("point", 1, value, attributeType), left).size == 1)
+        } finally nullLeft.close()
+
+        val nullRight = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullRight.open()
+        try {
+          assert(
+            nullRight.processTuple(newTuple[Any]("range", 1, null, attributeType), right).isEmpty
+          )
+          assert(
+            nullRight.processTuple(newTuple("point", 1, value, attributeType), left).isEmpty,
+            s"a null $attributeType range joined"
+          )
+        } finally nullRight.close()
+    }
+  }
+
   it should "reject a join key whose type does not support interval comparison" in {
     val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, TimeIntervalType.DAY)
     val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
