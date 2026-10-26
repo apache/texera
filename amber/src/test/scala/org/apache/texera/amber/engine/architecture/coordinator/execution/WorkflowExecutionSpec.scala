@@ -177,6 +177,19 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
     assert(!we.isCompleted)
   }
 
+  it should "return READY when the only running region's operators are all ready" in {
+    val we = WorkflowExecution()
+    val regionExecution = we.initRegionExecution(regionWithPort(0, "a"))
+
+    val operatorExecution = regionExecution.initOperatorExecution(physicalOpId("a"))
+    operatorExecution
+      .initWorkerExecution(ActorVirtualIdentity("w0"))
+      .updateState(1L, WorkerState.READY)
+
+    assert(we.getState == WorkflowAggregatedState.READY)
+    assert(!we.isCompleted)
+  }
+
   it should "return UNKNOWN when a running operator has mixed worker states" in {
     val we = WorkflowExecution()
     val regionExecution = we.initRegionExecution(regionWithPort(0, "a"))

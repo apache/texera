@@ -79,9 +79,8 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
     assert(aggregate(Completed, Paused, Paused) == WorkflowAggregatedState.PAUSED)
   }
 
-  it should "return RUNNING when remaining non-completed states are all ready" in {
-    // Note: an all-ready aggregate maps to RUNNING by current contract.
-    assert(aggregate(Completed, Ready, Ready) == WorkflowAggregatedState.RUNNING)
+  it should "return READY when remaining non-completed states are all ready" in {
+    assert(aggregate(Completed, Ready, Ready) == WorkflowAggregatedState.READY)
   }
 
   it should "return UNKNOWN when remaining non-completed states are mixed" in {
@@ -105,11 +104,10 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
     assert(aggregate(Running) == WorkflowAggregatedState.RUNNING)
   }
 
-  it should "report PAUSED / UNINITIALIZED / RUNNING even when no completed sentinel is present" in {
+  it should "report PAUSED / UNINITIALIZED / READY even when no completed sentinel is present" in {
     assert(aggregate(Paused, Paused) == WorkflowAggregatedState.PAUSED)
     assert(aggregate(Uninitialized, Uninitialized) == WorkflowAggregatedState.UNINITIALIZED)
-    // All-ready (no completed) maps to RUNNING, same as the with-completed case above.
-    assert(aggregate(Ready, Ready) == WorkflowAggregatedState.RUNNING)
+    assert(aggregate(Ready, Ready) == WorkflowAggregatedState.READY)
   }
 
   it should "fall back to UNKNOWN when input contains values matching none of the sentinels" in {
