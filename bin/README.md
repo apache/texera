@@ -85,5 +85,5 @@ binary `NOTICE`/`LICENSE` files (`audit_jar_licenses.py`,
 | `pylsp/` | Dockerized Python language server used by the UDF editor. |
 | `y-websocket-server/` | Dockerized Yjs websocket server backing collaborative editing. |
 | `forum/` | Flarum-based community forum setup (install scripts and seed SQL). |
-| `config.php`, `.htaccess` | Flarum runtime config and Apache rewrite rules for the forum. |
+| `config.php`, `extend.php`, `.htaccess` | Flarum runtime config, extenders, and Apache rewrite rules for the forum. |
 | `litellm-config.yaml` | LiteLLM proxy configuration for AI features. |

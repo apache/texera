@@ -315,11 +315,10 @@ object WorkflowResource {
       uid: Integer
   ): List[DashboardWorkflow] = {
     workflowEntries
-      .map(workflowRecord =>
+      .map { workflowRecord =>
+        val ownerUid = workflowRecord.into(WORKFLOW_OF_USER).getUid
         DashboardWorkflow(
-          if (uid != null)
-            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
-          else false,
+          uid != null && ownerUid == uid,
           workflowRecord
             .into(WORKFLOW_USER_ACCESS)
             .into(classOf[WorkflowUserAccess])
@@ -327,10 +326,10 @@ object WorkflowResource {
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowRecord.into(WORKFLOW_OF_USER).getUid,
+          ownerUid,
           Option(workflowRecord.get("cover_image", classOf[String]))
         )
-      )
+      }
       .asScala
       .toList
   }
@@ -933,6 +932,8 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.TEXT_PLAIN))
   @Path("/owner_name")
   def getOwnerName(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     context
       .select(USER.NAME)
       .from(USER)
@@ -945,6 +946,8 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_name")
   def getWorkflowName(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     publicField(wid, WORKFLOW.PUBLISHED_NAME, WORKFLOW.NAME)
   }
 
@@ -979,6 +982,8 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_description")
   def getWorkflowDescription(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     publicField(wid, WORKFLOW.PUBLISHED_DESCRIPTION, WORKFLOW.DESCRIPTION)
   }
 
