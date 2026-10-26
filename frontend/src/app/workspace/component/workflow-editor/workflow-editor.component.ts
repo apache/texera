@@ -55,6 +55,7 @@ import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.c
 import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
+import { OperatorResultPreviewComponent } from "./operator-result-preview/operator-result-preview.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 
 // jointjs interactive options for enabling and disabling interactivity
@@ -77,6 +78,17 @@ export const MAIN_CANVAS = {
   yMin: -540,
   yMax: 1512, // yMin * 2.8
 };
+
+/** How long the pointer rests on an operator before its result card opens. */
+export const RESULT_PREVIEW_DELAY_MS = 500;
+/** How long the card stays after the pointer leaves, so the pointer can move into it. */
+export const RESULT_PREVIEW_HIDE_MS = 200;
+
+/** Whether a mouse button is down. JointJS hands over a jQuery event, which keeps the DOM one inside. */
+function isButtonHeld(evt: unknown): boolean {
+  const event = evt as { buttons?: number; originalEvent?: { buttons?: number } };
+  return (event.originalEvent?.buttons ?? event.buttons ?? 0) !== 0;
+}
 
 /**
  * WorkflowEditorComponent is the component for the main workflow editor part of the UI.
@@ -103,6 +115,7 @@ export const MAIN_CANVAS = {
     NgIf,
     AgentInteractionComponent,
     HeatmapLegendComponent,
+    OperatorResultPreviewComponent,
   ],
 })
 export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -119,6 +132,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     metricLabel: string;
     heatLabel: string;
   } | null = null;
+  // The hovered operator's result preview, and where to show it. Null when hidden.
+  public resultPreview: { operatorId: string; x: number; y: number } | null = null;
+  private previewShowTimer?: ReturnType<typeof setTimeout>;
+  private previewHideTimer?: ReturnType<typeof setTimeout>;
   private paperInteractive: boolean = true;
   // Keeps the paper sized to its OWN container (not just the window) and rebuilds cell geometry
   // when the container goes 0 -> real size. Needed by embedded previews like the Form View strip,
@@ -249,6 +266,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleOperatorStatusUpdate();
     this.handleHeatmapOverlay();
     this.handleHeatmapHover();
+    this.handleResultPreviewHover();
     this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleAgentHoverHighlight();
@@ -588,6 +606,77 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.heatmapTooltip = null;
         this.changeDetectorRef.detectChanges();
       });
+  }
+
+  /**
+   * Shows the hovered operator's result preview beside it. Off when Layers > Result preview is
+   * unchecked, and while the heat-map overlay is on, whose own tooltip answers the hover then.
+   */
+  private handleResultPreviewHover(): void {
+    fromJointPaperEvent(this.paper, "element:mouseenter")
+      .pipe(untilDestroyed(this))
+      .subscribe(([elementView, evt]) => {
+        clearTimeout(this.previewHideTimer);
+        clearTimeout(this.previewShowTimer);
+        if (this.wrapper.getHeatmapView() !== null || !this.wrapper.isResultPreviewEnabled()) {
+          return;
+        }
+        const operatorId = elementView.model.id.toString();
+        // no preview while a button is held: the pointer is dragging an operator or a link
+        if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorId) || isButtonHeld(evt)) {
+          return;
+        }
+        // Only a pointer that rests on the operator opens the card, so passing over one does not.
+        this.previewShowTimer = setTimeout(() => {
+          this.resultPreview = { operatorId, ...this.operatorAnchor(operatorId) };
+          // JointJS paper events fire outside Angular's zone (see handleHeatmapHover).
+          this.changeDetectorRef.detectChanges();
+        }, RESULT_PREVIEW_DELAY_MS);
+      });
+
+    fromJointPaperEvent(this.paper, "element:mouseleave")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        clearTimeout(this.previewShowTimer);
+        this.hideResultPreviewSoon();
+      });
+
+    // A click or a drag on the canvas closes the card at once.
+    merge(fromJointPaperEvent(this.paper, "element:pointerdown"), fromJointPaperEvent(this.paper, "blank:pointerdown"))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        clearTimeout(this.previewShowTimer);
+        if (this.resultPreview === null) return;
+        this.resultPreview = null;
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /** Close the card after a moment, so the pointer can cross from the operator into it. */
+  public hideResultPreviewSoon(): void {
+    clearTimeout(this.previewHideTimer);
+    this.previewHideTimer = setTimeout(() => {
+      this.resultPreview = null;
+      this.changeDetectorRef.detectChanges();
+    }, RESULT_PREVIEW_HIDE_MS);
+  }
+
+  /** The pointer reached the card, so it stays open. */
+  public keepResultPreview(): void {
+    clearTimeout(this.previewHideTimer);
+  }
+
+  /** Just right of the operator's box, level with its top, in the editor's coordinates. */
+  private operatorAnchor(operatorId: string): { x: number; y: number } {
+    const cell = this.paper.getModelById(operatorId);
+    if (!cell) return { x: 0, y: 0 };
+    const bbox = cell.getBBox();
+    const scale = this.paper.scale();
+    const translate = this.paper.translate();
+    return {
+      x: (bbox.x + bbox.width) * scale.sx + translate.tx + 12,
+      y: bbox.y * scale.sy + translate.ty,
+    };
   }
 
   /**

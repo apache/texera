@@ -26,5 +26,7 @@ case class ResultPaginationRequest(
     pageSize: Int,
     columnOffset: Int = 0,
     columnLimit: Int = Int.MaxValue,
-    columnSearch: Option[String] = None
+    columnSearch: Option[String] = None,
+    // which of the operator's output ports to read; an operator with one output has only port 0
+    portIndex: Int = 0
 ) extends TexeraWebSocketRequest

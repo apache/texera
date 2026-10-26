@@ -31,6 +31,14 @@
     <div class="heatmap-tooltip__row">{{ heatmapTooltip.metricLabel }}</div>
     <div class="heatmap-tooltip__row">Heat: {{ heatmapTooltip.heatLabel }}</div>
   </div>
+  <texera-operator-result-preview
+    class="result-preview-anchor"
+    *ngIf="resultPreview"
+    [operatorId]="resultPreview.operatorId"
+    (mouseenter)="keepResultPreview()"
+    (mouseleave)="hideResultPreviewSoon()"
+    [style.left.px]="resultPreview.x"
+    [style.top.px]="resultPreview.y"></texera-operator-result-preview>
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
