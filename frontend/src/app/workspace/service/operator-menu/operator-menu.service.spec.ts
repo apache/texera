@@ -360,6 +360,13 @@ describe("OperatorMenuService", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("Copy failed. You don't have the permission to write to the clipboard.");
     });
+
+    it("copies the persisted comment preset into clipboard JSON", () => {
+      workflowActionService.addCommentBox({ ...mockCommentBox, color: "blue" });
+      workflowActionService.getJointGraphWrapper().highlightCommentBoxes(mockCommentBox.commentBoxID);
+      service.saveHighlightedElements();
+      expect(JSON.parse(writeText.mock.calls[0][0]).commentBoxes[0].color).toBe("blue");
+    });
   });
 
   describe("performPasteOperation", () => {
@@ -582,6 +589,24 @@ describe("OperatorMenuService", () => {
         .filter(box => box.commentBoxID !== existingBox.commentBoxID);
       expect(pasted.length).toBe(1);
       expect(pasted[0].commentBoxPosition).toEqual({ x: 340, y: 440 });
+    });
+
+    it.each([undefined, "purple"] as const)("preserves comment color %s when pasting with a fresh id", async color => {
+      readText.mockResolvedValue(
+        JSON.stringify({
+          operators: [],
+          operatorPositions: {},
+          links: [],
+          commentBoxes: [{ ...mockCommentBox, color }],
+        })
+      );
+      service.performPasteOperation();
+      await flushAsync();
+      const [pasted] = workflowActionService.getTexeraGraph().getAllCommentBoxes();
+      expect(pasted.commentBoxID).not.toBe(mockCommentBox.commentBoxID);
+      expect(pasted.color).toBe(color);
+      expect(pasted.comments).toEqual(mockCommentBox.comments);
+      if (color === undefined) expect(pasted).not.toHaveProperty("color");
     });
 
     it("leaves both ends of a pasted link blank when neither of its operators was copied", async () => {
