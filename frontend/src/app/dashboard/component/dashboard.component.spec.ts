@@ -44,6 +44,7 @@ import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import {
   ABOUT,
+  ADMIN_COMPUTING_UNIT,
   ADMIN_EXECUTION,
   ADMIN_GMAIL,
   ADMIN_SETTINGS,
@@ -269,6 +270,7 @@ describe("DashboardComponent", () => {
     expect(USER_DISCUSSION).toBe("/user/discussion");
     expect(ADMIN_USER).toBe("/admin/user");
     expect(ADMIN_EXECUTION).toBe("/admin/execution");
+    expect(ADMIN_COMPUTING_UNIT).toBe("/admin/compute");
     expect(ADMIN_GMAIL).toBe("/admin/gmail");
     expect(ADMIN_SETTINGS).toBe("/admin/settings");
     expect(ADMIN_CU_IMAGE).toBe("/admin/cu-image");
@@ -296,17 +298,30 @@ describe("DashboardComponent", () => {
     };
     fixture.detectChanges();
 
-    // 7 "Your Work" links (incl. Python Venvs and Models) + 5 admin links (incl. CU Images)
-    // + 1 about link + 1 feedback link = 14
-    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(14);
+    // 7 "Your Work" links (incl. Python Venvs and Models) + 6 admin links (incl. Computing Units
+    // and CU Images) + 1 about link + 1 feedback link = 15
+    expect(fixture.debugElement.queryAll(By.directive(RouterLink)).length).toBe(15);
+  });
+
+  const menuItemByLabel = (label: string) =>
+    fixture.debugElement
+      .queryAll(By.css("li[nz-menu-item]"))
+      .find(de => (de.nativeElement.textContent || "").trim() === label);
+
+  it("shows the Computing Units item to admins only", () => {
+    (userServiceMock.isLogin as Mock).mockReturnValue(true);
+    component.isLogin = true;
+
+    component.isAdmin = false;
+    fixture.detectChanges();
+    expect(menuItemByLabel("Computing Units")).toBeUndefined();
+
+    component.isAdmin = true;
+    fixture.detectChanges();
+    expect(menuItemByLabel("Computing Units")).toBeTruthy();
   });
 
   describe("warehouse tab gating (#6933)", () => {
-    const warehouseMenuItem = () =>
-      fixture.debugElement
-        .queryAll(By.css("li[nz-menu-item]"))
-        .find(de => (de.nativeElement.textContent || "").trim() === "Warehouses");
-
     beforeEach(() => {
       (userServiceMock.isLogin as Mock).mockReturnValue(true);
       component.isLogin = true;
@@ -316,14 +331,16 @@ describe("DashboardComponent", () => {
     it("shows the Warehouses item only while the deployment's config enables the feature", () => {
       TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
       fixture.detectChanges();
-      expect(warehouseMenuItem()).toBeUndefined();
+      expect(menuItemByLabel("Warehouses")).toBeUndefined();
 
       TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
       fixture.detectChanges();
-      expect(warehouseMenuItem()).toBeTruthy();
+      expect(menuItemByLabel("Warehouses")).toBeTruthy();
     });
   });
 
+  // `componentInstance` is the `NzMenuItemComponent`; its `nzMatchRouter` input decides whether the item is
+  // highlighted on its active route.
   describe("sidebar active-route highlighting (#3490)", () => {
     const fullSidebarTabs = {
       hub_enabled: false,
@@ -340,14 +357,6 @@ describe("DashboardComponent", () => {
       forum_enabled: true,
       about_enabled: true,
     };
-
-    // Find a rendered nz-menu-item <li> by its visible label; componentInstance is the
-    // NzMenuItemComponent, whose nzMatchRouter input decides whether it gets the
-    // .ant-menu-item-selected highlight on its active route.
-    const menuItemByLabel = (label: string) =>
-      fixture.debugElement
-        .queryAll(By.css("li[nz-menu-item]"))
-        .find(de => (de.nativeElement.textContent || "").trim() === label);
 
     beforeEach(() => {
       (userServiceMock.isLogin as Mock).mockReturnValue(true);
