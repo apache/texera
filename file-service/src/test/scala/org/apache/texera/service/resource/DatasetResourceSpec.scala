@@ -993,6 +993,13 @@ class DatasetResourceSpec
     assertStatus(ex, 403)
   }
 
+  /** Temp files the lakeFS SDK writes for a direct download, by name. */
+  private def sdkTempFiles(): Set[String] =
+    Option(new java.io.File(System.getProperty("java.io.tmpdir")).list())
+      .map(_.toSet)
+      .getOrElse(Set.empty[String])
+      .filter(_.startsWith("download-"))
+
   "getDatasetVersionZip" should "zip all files of a dataset version" in {
     val version = testDatasetVersion
     val resp =
@@ -1001,6 +1008,17 @@ class DatasetResourceSpec
     val out = new ByteArrayOutputStream()
     resp.getEntity.asInstanceOf[StreamingOutput].write(out)
     out.size() should be > 0
+  }
+
+  it should "leave none of the downloaded files behind in the temp directory" in {
+    val version = testDatasetVersion
+    val before = sdkTempFiles()
+
+    val resp =
+      datasetResource.getDatasetVersionZip(baseDataset.getDid, version.getDvid, null, sessionUser)
+    resp.getEntity.asInstanceOf[StreamingOutput].write(new ByteArrayOutputStream())
+
+    (sdkTempFiles() -- before) shouldBe empty
   }
 
   "getPresignedUrl" should "generate a presigned URL for an existing file" in {
