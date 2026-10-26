@@ -191,10 +191,19 @@ describe("SearchService", () => {
       // the session. It has to be dropped here rather than reach a consumer.
       const wf = makeWorkflowItem(11, 7);
       const unmodelled = { resourceType: "project", project: { pid: 3, name: "p" } } as unknown as SearchResultItem;
+      // The server writes an absent payload as null, so a kind it gains first arrives with null payload fields.
+      const gained = {
+        resourceType: "computing-unit",
+        workflow: null,
+        dataset: null,
+        model: null,
+      } as unknown as SearchResultItem;
       const pending = firstValueFrom(
         service.search(["k"], makeEmptyFilter(), 0, 10, null, SortMethod.NameAsc, true, false)
       );
-      http.expectOne(r => r.url.startsWith(`${API}/dashboard/search`)).flush({ results: [unmodelled, wf], more: true });
+      http
+        .expectOne(r => r.url.startsWith(`${API}/dashboard/search`))
+        .flush({ results: [unmodelled, gained, wf], more: true });
 
       const got = await pending;
       expect(got.results).toEqual([wf]);

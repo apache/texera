@@ -57,6 +57,7 @@ import { formatRelativeTime } from "../../../../common/util/format.util";
 import { extractErrorMessage } from "../../../../common/util/error";
 import { UserAvatarComponent } from "../../user/user-avatar/user-avatar.component";
 import { ComputingUnitState } from "../../../../common/type/computing-unit-connection.interface";
+import { AdminClusterCapacityComponent } from "./cluster-capacity/admin-cluster-capacity.component";
 
 // Same cadence as the admin executions page.
 const COMPUTING_UNIT_REFRESH_INTERVAL_MS = 5000;
@@ -90,6 +91,7 @@ type SpecKey = Exclude<keyof WorkflowComputingUnitResourceLimit, "nodeAddresses"
     NzTooltipDirective,
     NzSpinComponent,
     UserAvatarComponent,
+    AdminClusterCapacityComponent,
     NgFor,
     NgIf,
     DatePipe,
