@@ -29,6 +29,9 @@ import io.fabric8.kubernetes.api.model.metrics.v1beta1.{
 import io.fabric8.kubernetes.api.model.{
   Container,
   ContainerBuilder,
+  Node,
+  NodeList,
+  NodeListBuilder,
   Pod,
   PodBuilder,
   PodList,
@@ -37,6 +40,8 @@ import io.fabric8.kubernetes.api.model.{
   ResourceRequirementsBuilder
 }
 import io.fabric8.kubernetes.client.dsl.{
+  AnyNamespaceOperation,
+  FilterWatchListDeletable,
   MetricAPIGroupDSL,
   MixedOperation,
   NamespaceableResource,
@@ -291,6 +296,43 @@ class KubernetesClientSpec extends AnyFlatSpec with Matchers {
     k8s.getPodMetrics(1) shouldBe Map("cpu" -> "250m", "memory" -> "128Mi")
     k8s.getPodMetrics(999) shouldBe empty
   }
+
+  // ── cluster-wide capacity ──
+  // The stub answers only the all-namespace, unfinished-pod chain, so a wrapper that lists one
+  // namespace or skips the selectors fails; the arithmetic is pinned by ClusterCapacitySpec.
+
+  private def clusterClient(nodes: Seq[Node], pods: Seq[Pod]): Fabric8Client = {
+    val client = stubbedClient(Seq.empty, Seq.empty)
+
+    val nodeOp = mock(classOf[NonNamespaceOperation[_, _, _]])
+      .asInstanceOf[NonNamespaceOperation[Node, NodeList, Resource[Node]]]
+    when(client.nodes()).thenReturn(nodeOp)
+    when(nodeOp.list()).thenReturn(new NodeListBuilder().addAllToItems(nodes.asJava).build())
+
+    def filterable() =
+      mock(classOf[FilterWatchListDeletable[_, _, _]])
+        .asInstanceOf[FilterWatchListDeletable[Pod, PodList, PodResource]]
+    val podsAnywhere = mock(classOf[AnyNamespaceOperation[_, _, _]])
+      .asInstanceOf[AnyNamespaceOperation[Pod, PodList, PodResource]]
+    val notSucceeded = filterable()
+    val notFinished = filterable()
+    when(client.pods().inAnyNamespace()).thenReturn(podsAnywhere)
+    when(podsAnywhere.withoutField("status.phase", "Succeeded")).thenReturn(notSucceeded)
+    when(notSucceeded.withoutField("status.phase", "Failed")).thenReturn(notFinished)
+    when(notFinished.list()).thenReturn(new PodListBuilder().addAllToItems(pods.asJava).build())
+
+    client
+  }
+
+  "getClusterCapacity" should "aggregate every node against the unfinished pods of every namespace" in {
+    val node = ClusterCapacitySpec.node("node-1", cpu = "4", memory = "16Gi")
+    val systemPod = ClusterCapacitySpec.pod("coredns", Some("node-1"), Seq(Map("cpu" -> "100m")))
+
+    val capacity = new KubernetesClient(clusterClient(Seq(node), Seq(systemPod))).getClusterCapacity
+
+    capacity.cpu shouldBe ResourceCapacity(total = 4000, allocated = 100, available = 3900)
+  }
+
   // ── single-pod lookups, creation and deletion ──
   // These reach the rest of the fluent chain: withName(...).get() for the lookups,
   // resource(pod).inNamespace(...).create() for creation, and .delete() for removal. Everything
