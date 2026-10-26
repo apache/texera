@@ -159,6 +159,8 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 VFSURIFactory.state_uri(self.uri)
             )
             for state_row in state_document.get():
+                if self._stopped:
+                    break
                 self.emit_payload(
                     StateFrame(
                         State.from_tuple(state_row),
