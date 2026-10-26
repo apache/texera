@@ -129,6 +129,12 @@ class HubResourceSpec
   // ---------------------------------------------------------------------------
 
   private val thirdUid = 9003
+  // Owners inside the default java.lang.Integer autoboxing cache (-128..127), where
+  // reference equality on boxed values happens to agree with value equality. The
+  // 9001-9003 uids above sit outside it.
+  private val cachedUid = 42
+  private val lastCachedUid = 127
+  private val firstUncachedUid = 128
   private val Ds: EntityType = EntityType.Dataset
   private val Md: EntityType = EntityType.Model
 
@@ -377,6 +383,9 @@ class HubResourceSpec
     // A third liker, needed by the ranking cases below to make "most liked" a
     // strict order (3 > 2 > 1) rather than a tie between two users' likes.
     userDao.insert(makeUser(thirdUid, "hub_third"))
+    userDao.insert(makeUser(cachedUid, "hub_cached_uid"))
+    userDao.insert(makeUser(lastCachedUid, "hub_uid_127"))
+    userDao.insert(makeUser(firstUncachedUid, "hub_uid_128"))
 
     val wf = new Workflow
     wf.setWid(Integer.valueOf(wid))
@@ -1137,17 +1146,57 @@ class HubResourceSpec
     entry.coverImage shouldBe empty
   }
 
-  // NOTE: `isOwner == true` is deliberately not asserted anywhere. WorkflowResource's
-  // mapWorkflowEntries compares the two uids with `AnyRef.eq` (reference equality on
-  // boxed Integers), so it is true only for uids that land in the java.lang.Integer
-  // cache (-128..127); this suite's uids (9001-9003) are outside it, so the owner's own
-  // request reports false today. Asserting it either way would either cement that bug or
-  // force this suite onto unrealistically small uids. The two negatives below hold for
-  // the current implementation and for a value-equality fix alike.
+  // mapWorkflowEntries compares two boxed Integers, so the owner's own request must be
+  // recognised on both sides of the default Integer cache (-128..127).
+  it should "set isOwner for the owner's own request when the uid is outside the Integer cache" in {
+    val id = seedWorkflow(811003, "wf_mine_uncached", owner = ownerUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the owner's own request when the uid is inside the Integer cache" in {
+    val id = seedWorkflow(811004, "wf_mine_cached", owner = cachedUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(cachedUid)).head.isOwner shouldBe true
+  }
+
+  // The boundary itself: 127 is the last cached value and 128 the first uncached one.
+  it should "set isOwner for the highest uid inside the Integer cache (127)" in {
+    val id = seedWorkflow(811006, "wf_mine_uid_127", owner = lastCachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(lastCachedUid)
+    ).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the lowest uid outside the Integer cache (128)" in {
+    val id = seedWorkflow(811007, "wf_mine_uid_128", owner = firstUncachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(firstUncachedUid)
+    ).head.isOwner shouldBe true
+  }
+
   it should "clear isOwner for a different uid and for an anonymous (null) uid" in {
     val id = seedWorkflow(811002, "wf_not_mine", owner = ownerUid)
 
     fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(likerUid)).head.isOwner shouldBe false
+    fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  // workflow_of_user is LEFT JOINed, so a workflow with no ownership row has a null owner
+  // uid; the access row keeps the privilege non-null. For the anonymous caller both uids
+  // are null, and Scala's `==` treats two nulls as equal, so the `uid != null` guard in
+  // mapWorkflowEntries is what keeps that one false.
+  it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
+    val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
+    grantWorkflowAccess(id, ownerUid, PrivilegeEnum.READ)
+
+    val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
+    entry.ownerId shouldBe null
+    entry.isOwner shouldBe false
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
   }
 
