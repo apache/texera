@@ -184,22 +184,17 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
          |    out1df = pd.DataFrame(columns=$resultsLit)""".stripMargin
     } else {
       val keysLit = keys.map(pyStringLiteral).mkString("[", ", ", "]")
-      val aggLines = aggs.zipWithIndex
-        .map {
-          case (agg, i) =>
-            s"_texera_agg_s$i = ${aggExprGroupby(agg, "_texera_agg_groups", declaredType)}"
-        }
-        .mkString("\n")
       // Grouped and joined back by the id of each row's group, never by the
       // key values, which would pair NaN keys again.
-      val joinLines = aggs.indices
-        .map(i => s"out1df = out1df.join(_texera_agg_s$i)")
+      val joinLines = aggs
+        .map(agg =>
+          s"out1df = out1df.join(${aggExprGroupby(agg, "_texera_agg_groups", declaredType)})"
+        )
         .mkString("\n")
       s"""[_texera_agg_ids] = _texera_key_codes(in1df[$keysLit])
          |_texera_agg_groups = in1df.groupby(_texera_agg_ids, sort=False)
          |_texera_agg_first = ~_texera_agg_ids.duplicated()
          |out1df = in1df.loc[_texera_agg_first, $keysLit].set_axis(_texera_agg_ids[_texera_agg_first])
-         |$aggLines
          |$joinLines
          |out1df = out1df.reset_index(drop=True)""".stripMargin
     }
