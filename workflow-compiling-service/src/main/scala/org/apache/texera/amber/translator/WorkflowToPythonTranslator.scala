@@ -214,10 +214,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
-    script.insertAll(
-      helpersAt,
-      calledHelpers(helpers, script.drop(helpersAt).mkString("\n")).flatMap(Seq(_, ""))
-    )
+    // Two blank lines around every top-level definition, as PEP 8 sets them,
+    // including where one helper block meets the next.
+    val called = calledHelpers(helpers, script.drop(helpersAt).mkString("\n"))
+    if (called.nonEmpty) script.insertAll(helpersAt, Seq("", called.mkString("\n\n\n"), "", ""))
     script.mkString("\n")
   }
 
