@@ -54,13 +54,13 @@ object StandaloneHelpers {
       |def _texera_cast_boolean(x):
       |    # toBoolean first, then `toInt == 1`: "0" and "2" are both false.
       |    if isinstance(x, str):
-      |        text = x.strip()
+      |        text = _texera_java_trim(x)
       |        lowered = text.lower()
       |        if lowered == "true":
       |            return True
       |        if lowered == "false":
       |            return False
-      |        return int(text) == 1
+      |        return _texera_parse_int(text, 32) == 1
       |    return x != 0
       |
       |
