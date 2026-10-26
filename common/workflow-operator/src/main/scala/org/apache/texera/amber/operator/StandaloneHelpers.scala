@@ -33,7 +33,8 @@ object StandaloneHelpers {
     *  - `_texera_long_value`: a double clamped to long's range.
     *  - `_texera_cast_integral`: the LONG cast.
     *  - `_texera_cast_int32`: the INTEGER cast, where a long wraps and a double clamps.
-    *  - `_texera_text_to_timestamp`: each cell parsed alone, any year; unreadable text raises.
+    *  - `_texera_text_to_timestamp`: any year; unreadable text raises. A zoneless ISO cell
+    *    pandas can hold is read in bulk, and every other cell is parsed alone.
     *  - `_texera_epoch_millis_to_timestamp`: epoch milliseconds shown in the machine's zone.
     *  - `_texera_local_zone`: the machine's zone by its IANA name.
     *  - `_texera_standard_offset`: the zone's standard offset, which Java uses before 1900.
@@ -125,8 +126,6 @@ object StandaloneHelpers {
       |    zone = _texera_local_zone()
       |
       |    def _one(x):
-      |        if pd.isna(x):
-      |            return None
       |        try:
       |            parsed = _parse_date(str(x).strip())
       |        except (ValueError, OverflowError) as e:
@@ -135,7 +134,15 @@ object StandaloneHelpers {
       |            parsed = _texera_local_wall_clock(parsed, zone)
       |        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
       |
-      |    return s.map(_one).astype("datetime64[us]")
+      |    text = s.astype(str).str.strip()
+      |    plain = s.notna() & text.str.fullmatch(
+      |        r"[0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?)?"
+      |    )
+      |    out = pd.Series(pd.NaT, index=s.index, dtype="datetime64[us]")
+      |    out[plain] = pd.to_datetime(text[plain], format="ISO8601", errors="coerce").dt.floor("ms")
+      |    rest = s.notna() & out.isna()
+      |    out[rest] = s[rest].map(_one).astype("datetime64[us]")
+      |    return out
       |
       |
       |def _texera_epoch_millis_to_timestamp(s):
