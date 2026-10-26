@@ -93,26 +93,10 @@ trait TextSourceOpDesc {
 
 object TextSourceOpDesc {
 
-  /**
-    * The line-to-boolean rule the engine uses, as Python.
-    *
-    * `parseField` reads "true" and "false" in any case, then falls back to an
-    * integer and calls only 1 true. Anything else ends the run. Comparing the
-    * lowercased line to "true" read 1 as false and let text the engine refuses
-    * through as a row of false.
+  /** The call the per-line cast makes, over the loop variable the readers share.
+    * A line is read as the BOOLEAN cast reads text, so the cast's helper serves both.
     */
-  val BooleanParser: String =
-    """def _texera_parse_bool(line):
-      |    text = _texera_java_trim(line)
-      |    lowered = text.lower()
-      |    if lowered == "true":
-      |        return True
-      |    if lowered == "false":
-      |        return False
-      |    return _texera_parse_int(text, 32) == 1""".stripMargin
-
-  /** The call the per-line cast makes, over the loop variable the readers share. */
-  val BooleanParserCall: String = "_texera_parse_bool(l)"
+  val BooleanParserCall: String = "_texera_cast_boolean(l)"
 
   /** A TIMESTAMP line is kept as text and parsed once the column is built, as
     * CSV and JSONL parse theirs. `pd.Timestamp` kept the nanoseconds and the
@@ -127,9 +111,8 @@ object TextSourceOpDesc {
   def lineHelpers(attributeType: FileAttributeType): Seq[String] =
     attributeType match {
       case FileAttributeType.INTEGER | FileAttributeType.LONG | FileAttributeType.DOUBLE |
-          FileAttributeType.TIMESTAMP =>
+          FileAttributeType.BOOLEAN | FileAttributeType.TIMESTAMP =>
         Seq(StandaloneHelpers.AttributeCasts)
-      case FileAttributeType.BOOLEAN => Seq(StandaloneHelpers.AttributeCasts, BooleanParser)
-      case _                         => Seq.empty
+      case _ => Seq.empty
     }
 }

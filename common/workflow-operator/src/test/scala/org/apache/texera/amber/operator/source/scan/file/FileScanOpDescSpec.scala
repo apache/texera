@@ -30,7 +30,6 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.{StandaloneHelpers, TestOperators}
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
-import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -244,7 +243,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       FileAttributeType.INTEGER -> "_texera_parse_int(l, 32)",
       FileAttributeType.LONG -> "_texera_parse_int(l, 64)",
       FileAttributeType.DOUBLE -> "_texera_java_double(l)",
-      FileAttributeType.BOOLEAN -> "_texera_parse_bool(l)",
+      FileAttributeType.BOOLEAN -> "_texera_cast_boolean(l)",
       FileAttributeType.TIMESTAMP -> "l.rstrip()",
       FileAttributeType.STRING -> """l.rstrip("\n")"""
     )
@@ -266,9 +265,7 @@ class FileScanOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanOpDesc.attributeType = FileAttributeType.DOUBLE
     assert(fileScanOpDesc.standaloneHelpers() == Seq(casts, decode))
     fileScanOpDesc.attributeType = FileAttributeType.BOOLEAN
-    assert(
-      fileScanOpDesc.standaloneHelpers() == Seq(casts, TextSourceOpDesc.BooleanParser, decode)
-    )
+    assert(fileScanOpDesc.standaloneHelpers() == Seq(casts, decode))
     fileScanOpDesc.attributeType = FileAttributeType.STRING
     assert(fileScanOpDesc.standaloneHelpers() == Seq(decode))
     // A timestamp line is read as text and parsed as a column, as CSV parses one.
