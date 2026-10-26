@@ -30,7 +30,6 @@ object StandaloneHelpers {
     *  - `_texera_cast_boolean`: "true"/"false" in any case, else a number where only 1 is true.
     *  - `_texera_parse_number`: Java's NumberFormat, stopping at a non-digit and dropping commas.
     *  - `_texera_saturate`: a double narrowed as Java does, NaN to 0 and the rest to the bounds.
-    *  - `_texera_long_value`: a double clamped to long's range.
     *  - `_texera_cast_integral`: the LONG cast.
     *  - `_texera_cast_int32`: the INTEGER cast, where a long wraps and a double clamps.
     *  - `_texera_text_to_timestamp`: any year; unreadable text raises. A zoneless ISO cell
@@ -86,19 +85,15 @@ object StandaloneHelpers {
       |    return int(value)
       |
       |
-      |def _texera_long_value(value, is_double):
-      |    if is_double:
-      |        return _texera_saturate(value, -(2 ** 63), 2 ** 63 - 1)
-      |    return value
-      |
-      |
       |def _texera_cast_integral(x):
       |    if isinstance(x, str):
-      |        return _texera_long_value(*_texera_parse_number(x))
+      |        x, is_double = _texera_parse_number(x)
+      |        if not is_double:
+      |            return x
       |    if isinstance(x, bool):
       |        return 1 if x else 0
       |    if isinstance(x, float):
-      |        return _texera_long_value(x, True)
+      |        return _texera_saturate(x, -(2 ** 63), 2 ** 63 - 1)
       |    return int(x)
       |
       |
