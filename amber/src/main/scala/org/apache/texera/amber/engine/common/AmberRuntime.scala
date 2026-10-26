@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.common
 
-import org.apache.pekko.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
+import org.apache.pekko.actor.{ActorSystem, Cancellable, DeadLetter, Props}
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.texera.amber.clustering.ClusterListener
@@ -85,13 +85,10 @@ object AmberRuntime {
         """)
       .withFallback(pekkoConfig)
       .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
 
   def pekkoConfig: Config = PekkoConfig.pekkoConfig
-
-  private def createMasterAddress(addr: String): Address = Address("pekko", "Amber", addr, 2552)
 
   def startActorWorker(mainNodeAddress: Option[String]): Unit = {
     val addr = mainNodeAddress.getOrElse("localhost")
@@ -107,7 +104,6 @@ object AmberRuntime {
         """)
       .withFallback(pekkoConfig)
       .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)
   }
 

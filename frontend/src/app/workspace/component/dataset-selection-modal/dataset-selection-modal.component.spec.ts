@@ -295,6 +295,51 @@ describe("DatasetSelectionModalComponent", () => {
       expect(confirmButton().disabled).toBe(false);
     });
 
+    it("disables Select again when another dataset is picked", () => {
+      datasetService.retrieveAccessibleDatasets.mockReturnValue(of([dataset, sharedDataset]));
+      build();
+      selects()[0].triggerEventHandler("ngModelChange", dataset);
+      selects()[1].triggerEventHandler("ngModelChange", version);
+      fixture.detectChanges();
+      expect(confirmButton().disabled).toBe(false);
+
+      datasetService.retrieveDatasetVersionList.mockReturnValue(of([sharedVersion]));
+      selects()[0].triggerEventHandler("ngModelChange", sharedDataset);
+      fixture.detectChanges();
+
+      expect(component.selectedVersion).toBeUndefined();
+      expect(confirmButton().disabled).toBe(true);
+    });
+
+    it("drops the previous file when switching to a dataset with no versions in file mode", () => {
+      datasetService.retrieveAccessibleDatasets.mockReturnValue(of([dataset, sharedDataset]));
+      modalData.fileMode = true;
+      modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
+      build();
+      fixture.debugElement
+        .query(By.directive(UserDatasetVersionFiletreeComponent))
+        .triggerEventHandler("selectedTreeNode", fileNode);
+      fixture.detectChanges();
+      expect(confirmButton().disabled).toBe(false);
+
+      datasetService.retrieveDatasetVersionList.mockReturnValue(of([]));
+      selects()[0].triggerEventHandler("ngModelChange", sharedDataset);
+      fixture.detectChanges();
+
+      expect(component.selectedPath).toBeUndefined();
+      expect(confirmButton().disabled).toBe(true);
+    });
+
+    it("reselects the saved version when reopened in non-file mode", () => {
+      modalData.selectedPath = `/dataset/${OWNER}/myds/v1`;
+      build();
+
+      expect(component.selectedVersion).toBe(version);
+      expect(confirmButton().disabled).toBe(false);
+      confirmButton().click();
+      expect(modalRef.close).toHaveBeenCalledWith(`/dataset/${OWNER}/myds/v1`);
+    });
+
     it("closes the modal with the composed path when Select is clicked", () => {
       build();
       selects()[0].triggerEventHandler("ngModelChange", dataset);
