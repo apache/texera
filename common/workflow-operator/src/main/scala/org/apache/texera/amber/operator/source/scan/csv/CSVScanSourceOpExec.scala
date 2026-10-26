@@ -23,14 +23,13 @@ import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
-import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
+import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema, TupleLike}
 import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
 import java.io.InputStreamReader
 import java.net.URI
-import scala.collection.immutable.ArraySeq
 import scala.util.Try
 
 class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperatorExecutor {
@@ -41,6 +40,8 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var numRowGenerated = 0
   private var maxColumns: Int = CSVScanSourceOpExec.DEFAULT_MAX_COLUMNS
   private val schema: Schema = desc.sourceSchema()
+  private lazy val attributeTypes: Array[AttributeType] =
+    schema.getAttributes.map(_.getType).toArray
   private val skippedRows = new SkippedRowReporter()
 
   override def getWarnings: Seq[String] = skippedRows.warnings
@@ -68,11 +69,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
       .drop(desc.windowOffset)
       .map(row => {
         try {
-          TupleLike(
-            ArraySeq.unsafeWrapArray(
-              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
-            ): _*
-          )
+          TupleLike(AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], attributeTypes))
         } catch {
           case e: Throwable =>
             // Skip the unparsable row but surface it as a warning instead of
