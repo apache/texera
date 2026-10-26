@@ -100,6 +100,25 @@ class KubernetesClient(
   def getAllPodMetrics: Map[String, Map[String, String]] =
     metricsByPodName(fetchPodMetricsItems())
 
+  /**
+    * Needs the chart's cluster-capacity ClusterRole, since nodes and every namespace's pods are
+    * cluster-scoped. The API server drops finished pods so they are not shipped, and
+    * `ClusterCapacity` skips them too.
+    */
+  def getClusterCapacity: ClusterCapacity =
+    ClusterCapacity.fromNodesAndPods(
+      client.nodes().list().getItems.asScala,
+      client
+        .pods()
+        .inAnyNamespace()
+        .withoutField("status.phase", "Succeeded")
+        .withoutField("status.phase", "Failed")
+        .list()
+        .getItems
+        .asScala,
+      KubernetesConfig.gpuResourceKey
+    )
+
   def getPodMetrics(cuid: Int): Map[String, String] = {
     val targetPodName = generatePodName(cuid)
     fetchPodMetricsItems()
