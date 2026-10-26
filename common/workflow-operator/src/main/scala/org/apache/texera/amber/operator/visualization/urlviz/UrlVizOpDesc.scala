@@ -86,19 +86,14 @@ class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
     )
 
   // Mirrors UrlVizOpExec: wrap each urlContentAttrName value in the exact same
-  // iframe HTML document and emit it as the "html-content" column.
+  // iframe HTML document and emit it as the "html-content" column. A null renders as the
+  // JVM's "null", and the cell is escaped the way the executor's escapeAttribute does.
   override def generateStandaloneCode(): String = {
     val urlLit = pyStringLiteral(urlContentAttrName)
     s"""import html
        |
        |def _texera_urlviz_iframe(u):
-       |    # "null", not Python's "None": the operator interpolates the field into a
-       |    # Scala string, and the JVM renders a null that way.
        |    u = "null" if pd.isna(u) else str(u)
-       |    # The cell lands where an attribute is expected, so a quote in it would
-       |    # close src= and leave the rest of the cell standing as attributes of the
-       |    # iframe. escapeAttribute on the executor writes the same five characters
-       |    # in the same order, so the two paths write the page the same way.
        |    u = html.escape(u, quote=True)
        |    return (
        |        '<!DOCTYPE html>\\n'

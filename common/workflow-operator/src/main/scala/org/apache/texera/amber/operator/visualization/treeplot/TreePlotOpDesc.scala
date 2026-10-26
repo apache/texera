@@ -249,11 +249,11 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
 
   override def producesDataFrame(): Boolean = false
 
+  // Only a layout failure renders an error page, as in the operator. A label keeps its cell
+  // value, so None is not "None"; layout is a tidy top-down tree, each node placed once.
   override def generateStandaloneCode(): String = {
     s"""import ast
        |
-       |# Only a layout failure renders an error page; everything else propagates,
-       |# matching the operator's own error handling.
        |class TreeLayoutError(Exception):
        |    pass
        |
@@ -269,9 +269,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    for node_name, coords in pos.items():
        |        annotations.append(
        |            dict(
-       |                # The label goes in as it came out of the cell, the way the
-       |                # operator passes it: plotly stringifies it, and a str() here
-       |                # would turn a None node into the text "None".
        |                text=node_name,
        |                x=coords[0],
        |                y=coords[1],
@@ -289,8 +286,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    return annotations
        |
        |def build_tree_layout(edges):
-       |    # Tidy top-down tree: depth picks the row, a leaf takes the next
-       |    # free column and a parent sits centred over its own children.
        |    labels = []
        |    known = set()
        |    for parent, child in edges:
@@ -329,8 +324,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |                    next_column += 1
        |                continue
        |            depth[node] = level
-       |            # A node belongs to whichever parent reaches it first, so a
-       |            # cycle or a shared child is never laid out twice.
        |            kids = [kid for kid in children[node] if kid not in placed]
        |            placed.update(kids)
        |            claimed[node] = kids
@@ -341,11 +334,9 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    for label in labels:
        |        if label not in placed and label not in has_parent:
        |            grow(label)
-       |    # Whatever is left sits in a cycle that no root can reach.
        |    for label in labels:
        |        if label not in placed:
        |            grow(label)
-       |    # The y-axis is inverted here so the tree grows top-down.
        |    return labels, [(column[label], -depth[label]) for label in labels]
        |
        |def compute_tree_layout(edges):

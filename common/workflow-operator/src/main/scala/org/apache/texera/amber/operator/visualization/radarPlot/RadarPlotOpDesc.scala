@@ -310,7 +310,6 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
        |        fig = go.Figure()
        |
        |        for idx, row in enumerate(selected_table):
-       |            # To connect ensure all points in the radar trace are connected
        |            closed_row = row.tolist() + [row[0]]
        |            closed_categories = categories + [categories[0]]
        |            closed_hover_texts = hover_texts[idx] + [hover_texts[idx][0]]
