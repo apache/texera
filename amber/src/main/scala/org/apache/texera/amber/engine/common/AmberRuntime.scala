@@ -27,11 +27,13 @@ import org.apache.texera.common.config.PekkoConfig
 import org.apache.texera.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}
+import com.typesafe.scalalogging.LazyLogging
+
 import java.net.URL
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
-object AmberRuntime {
+object AmberRuntime extends LazyLogging {
 
   private var _serde: Serialization = _
   private var _actorSystem: ActorSystem = _
@@ -52,13 +54,26 @@ object AmberRuntime {
   }
 
   def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
-    _actorSystem.scheduler.scheduleOnce(delay)(call)
+    if (_actorSystem == null) {
+      // No started runtime to schedule on; skip rather than NPE on a null scheduler.
+      logger.warn("scheduleCallThroughActorSystem called with no started AmberRuntime; skipping")
+      Cancellable.alreadyCancelled
+    } else {
+      _actorSystem.scheduler.scheduleOnce(delay)(call)
+    }
   }
 
   def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
       call: => Unit
   ): Cancellable = {
-    _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
+    if (_actorSystem == null) {
+      logger.warn(
+        "scheduleRecurringCallThroughActorSystem called with no started AmberRuntime; skipping"
+      )
+      Cancellable.alreadyCancelled
+    } else {
+      _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
+    }
   }
 
   private def getNodeIpAddress: String = {
