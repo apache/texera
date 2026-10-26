@@ -90,6 +90,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // and escaped, so every value the field accepts survives being spliced into Python.
     // See CSVScanSourceOpDesc for what handing pandas the raw value did.
     val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    // Inferred once: each inference reads the file again.
+    val schema = Try(sourceSchema()).toOption
     val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
     val headerArg = if (hasHeader) "0" else "None"
 
@@ -115,7 +117,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // CSVScanSourceOpDesc.
     val readAs = Map(AttributeType.LONG -> "Int64", AttributeType.TIMESTAMP -> "object")
     val typedColumns: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
+      schema.toSeq.flatMap(
         _.getAttributes.zipWithIndex.flatMap {
           case (attribute, i) => readAs.get(attribute.getType).map(d => s"""$i: "$d"""")
         }
@@ -136,7 +138,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // count the columns from, and it raised where the executor emits no rows.
     // Named by position, as in the newer CSV scan.
     if (!hasHeader)
-      Try(sourceSchema()).toOption.map(_.getAttributes.size).filter(_ > 0).foreach { n =>
+      schema.map(_.getAttributes.size).filter(_ > 0).foreach { n =>
         args += s"names=[${(0 until n).mkString(", ")}]"
       }
 
@@ -146,9 +148,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     // against: sourceSchema below rewrites a blank header to `column-N`, where
     // pandas writes `Unnamed: 1`. Taken by position, so a header the user really
     // did spell `Unnamed: 1` survives too. See CSVScanSourceOpDesc.
-    Try(sourceSchema()).toOption.filter(_.getAttributes.nonEmpty) match {
-      case Some(schema) =>
-        s"$readCall\n${StandaloneCodeGenerator.readAsDeclared("out1df", schema)}"
+    schema.filter(_.getAttributes.nonEmpty) match {
+      case Some(declared) =>
+        s"$readCall\n${StandaloneCodeGenerator.readAsDeclared("out1df", declared)}"
       case None if hasHeader => readCall
       case None              =>
         // Unresolved file: fall back to Texera's headerless naming.

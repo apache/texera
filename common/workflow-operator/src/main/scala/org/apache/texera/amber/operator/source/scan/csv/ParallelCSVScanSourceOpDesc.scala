@@ -94,6 +94,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     // and escaped, so every value the field accepts survives being spliced into Python.
     // See CSVScanSourceOpDesc for what handing pandas the raw value did.
     val sep = customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
+    // Inferred once: each inference reads the file again.
+    val schema = Try(sourceSchema()).toOption
     val encoding = fileEncoding.toString.replace("_", "-").toLowerCase
     val headerArg = if (hasHeader) "0" else "None"
 
@@ -121,7 +123,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     // schema's `column-2` is pandas' `Unnamed: 1`, and pandas passes over a
     // name it has no column for, so the type was never applied.
     val dtypes: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq.flatMap(
+      schema.toSeq.flatMap(
         _.getAttributes.zipWithIndex
           .flatMap {
             case (a, i) =>
@@ -152,22 +154,20 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     // against: sourceSchema below rewrites a blank header to `column-N`, where
     // pandas writes `Unnamed: 1`. Taken by position, so a header the user really
     // did spell `Unnamed: 1` survives too. See CSVScanSourceOpDesc.
-    val schemaNames: Seq[String] =
-      Try(sourceSchema()).toOption.toSeq
-        .flatMap(_.getAttributes.map(a => pyStringLiteral(a.getName)))
-
-    val body =
-      if (schemaNames.nonEmpty)
+    val body = schema.filter(_.getAttributes.nonEmpty) match {
+      case Some(declared) =>
+        val names = declared.getAttributes.map(a => pyStringLiteral(a.getName))
         Seq(
           readCall,
-          s"out1df.columns = [${schemaNames.mkString(", ")}]",
-          StandaloneCodeGenerator.parseDoubles("out1df", sourceSchema())
+          s"out1df.columns = [${names.mkString(", ")}]",
+          StandaloneCodeGenerator.parseDoubles("out1df", declared)
         ).filter(_.nonEmpty).mkString("\n")
-      else if (hasHeader) readCall
-      else
+      case None if hasHeader => readCall
+      case None              =>
         // Unresolved file: fall back to Texera's headerless naming.
         s"""$readCall
            |out1df.columns = [f"column-{i + 1}" for i in range(len(out1df.columns))]""".stripMargin
+    }
 
     (ignoredWindow :+ body).mkString("\n")
   }
