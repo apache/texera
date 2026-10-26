@@ -190,27 +190,26 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerato
     lines.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] =
+  override def standaloneHelpers(): Seq[String] = {
+    val types = columnTypes
     (if (flatten) Seq(JSONLScanSourceOpDesc.JsonFlatten) else Seq.empty) ++
-      (if (columnCount(AttributeType.STRING) > 0) Seq(JSONLScanSourceOpDesc.JsonText)
-       else Seq.empty) ++
-      (if (columnCount(AttributeType.TIMESTAMP) > 0 || columnCount(AttributeType.STRING) > 0)
+      (if (types(AttributeType.STRING)) Seq(JSONLScanSourceOpDesc.JsonText) else Seq.empty) ++
+      (if (types(AttributeType.TIMESTAMP) || types(AttributeType.STRING))
          Seq(StandaloneHelpers.AttributeCasts)
        else Seq.empty)
+  }
 
   override def standaloneImports(): Seq[String] = {
     val windowed = offset.exists(_ > 0) || limit.isDefined
-    val longs = columnCount(AttributeType.LONG)
-    val strings = columnCount(AttributeType.STRING)
-    (if (windowed || longs > 0 || strings > 0) Seq("import io") else Seq.empty) ++
-      (if (longs > 0 || strings > 0) Seq("import json") else Seq.empty)
+    val types = columnTypes
+    val reparsed = types(AttributeType.LONG) || types(AttributeType.STRING)
+    (if (windowed || reparsed) Seq("import io") else Seq.empty) ++
+      (if (reparsed) Seq("import json") else Seq.empty)
   }
 
-  /** How many columns the schema gives this type, or none when it cannot be read. */
-  private def columnCount(attributeType: AttributeType): Int =
-    Try(sourceSchema()).toOption
-      .map(_.getAttributes.count(_.getType == attributeType))
-      .getOrElse(0)
+  /** The types the schema gives its columns, or none when it cannot be read. */
+  private def columnTypes: Set[AttributeType] =
+    Try(sourceSchema()).toOption.toSeq.flatMap(_.getAttributes.map(_.getType)).toSet
 
   @throws[IOException]
   override def getPhysicalOp(
