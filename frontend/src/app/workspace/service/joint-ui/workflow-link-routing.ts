@@ -48,6 +48,37 @@ export function pathIntersectsRect(path: joint.g.Path, rect: joint.g.Rect): bool
   });
 }
 
+/** Interpolate the corridor with shared handles so adjoining cubics have the same derivative. */
+function spline(points: joint.g.Point[], tension: number): joint.g.Path {
+  const handles = points.map((point, i) => {
+    const previous = points[i - 1];
+    const next = points[i + 1];
+    if (!previous || !next) {
+      return new joint.g.Point(point.distance(previous ?? next) * tension, 0);
+    }
+    const incoming = point.distance(previous);
+    const outgoing = point.distance(next);
+    const dx = (point.x - previous.x) / incoming + (next.x - point.x) / outgoing;
+    const dy = (point.y - previous.y) / incoming + (next.y - point.y) / outgoing;
+    const length = Math.hypot(dx, dy);
+    const reach = Math.min(incoming, outgoing) * tension;
+    return length ? new joint.g.Point((dx / length) * reach, (dy / length) * reach) : new joint.g.Point(0, 0);
+  });
+  const path = new joint.g.Path();
+  path.appendSegment(joint.g.Path.createSegment("M", points[0]));
+  for (let i = 1; i < points.length; i++) {
+    path.appendSegment(
+      joint.g.Path.createSegment(
+        "C",
+        points[i - 1].clone().offset(handles[i - 1].x, handles[i - 1].y),
+        points[i].clone().offset(-handles[i].x, -handles[i].y),
+        points[i]
+      )
+    );
+  }
+  return path;
+}
+
 /** Prefer one cubic; keep a routed detour when that curve would cut through an operator. */
 export function createWorkflowLinkPath(
   source: joint.dia.Point,
@@ -66,11 +97,33 @@ export function createWorkflowLinkPath(
     if (clear(direct)) return direct;
   }
 
-  // Manhattan supplies a clear corridor. Check the rendered curve as well: rounding a
-  // corner can cut inside that corridor. Reduce the radius if its safety margin is tight.
-  for (const radius of [36, 18, 9, 4]) {
-    const path = joint.connectors.rounded(source, target, route, { radius, raw: true }) as joint.g.Path;
-    if (clear(path)) return path;
+  // Use corridor midpoints rather than retaining its right-angle corners. Every
+  // span is a cubic, including long detours. If this cuts a tight corner, try the
+  // original corridor vertices with shorter handles; validate the rendered curve.
+  const corridor = [source, ...route, target]
+    .map(point => new joint.g.Point(point))
+    .filter((point, i, points) => i === 0 || !point.equals(points[i - 1]));
+  if (corridor.length > 1) {
+    const midpoints = corridor
+      .slice(1, -2)
+      .map((point, i) => new joint.g.Point((point.x + corridor[i + 2].x) / 2, (point.y + corridor[i + 2].y) / 2));
+    const candidates =
+      route.length > 1 && allowDirect
+        ? [
+            // Try a broad arch first, avoiding small waves inherited from router corners.
+            ...(midpoints.length > 1
+              ? [[corridor[0], midpoints[Math.floor(midpoints.length / 2)], corridor[corridor.length - 1]]]
+              : []),
+            [corridor[0], ...midpoints, corridor[corridor.length - 1]],
+            corridor,
+          ]
+        : [corridor];
+    for (const points of candidates) {
+      for (const tension of [0.6, 0.4, 0.2, 0.1, 0.05]) {
+        const path = spline(points, tension);
+        if (clear(path)) return path;
+      }
+    }
   }
   // Overlapping operators can make a safe route impossible. Keep the router's finite
   // fallback rather than moving nodes, inventing a disconnected path, or retrying forever.

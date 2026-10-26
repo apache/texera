@@ -107,12 +107,20 @@ describe("workflow link geometry", () => {
     await new Promise(requestAnimationFrame);
     const view = paper.findViewByModel(link) as joint.dia.LinkView;
     const original = view.getConnection().serialize();
+    const movedBounds = new joint.g.Rect(380, 95, 100, 100);
+    expect(pathIntersectsRect(view.getConnection(), movedBounds)).toBe(true);
     obstacle.position(380, 95);
     await new Promise(requestAnimationFrame);
     expect(view.getConnection().serialize()).not.toBe(original);
     expect(pathIntersectsRect(view.getConnection(), obstacle.getBBox().inflate(12))).toBe(false);
     expect(source.position()).toEqual({ x: 50, y: 100 });
     expect(target.position()).toEqual({ x: 650, y: 100 });
+    expect(
+      view
+        .getConnection()
+        .segments.filter(segment => segment.isVisible)
+        .every(segment => segment.type === "C")
+    ).toBe(true);
     const detour = view.getConnection().serialize();
     obstacle.position(381, 95);
     await new Promise(requestAnimationFrame);

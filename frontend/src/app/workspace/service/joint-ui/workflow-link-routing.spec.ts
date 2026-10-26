@@ -43,11 +43,28 @@ describe("workflow curve routing", () => {
       [obstacle]
     );
     expect(pathIntersectsRect(path, obstacle)).toBe(false);
-    expect(path.serialize()).toContain("C");
+    expect(path.segments.filter(segment => segment.isVisible).every(segment => segment.type === "C")).toBe(true);
+    const curves = path.segments.filter(segment => segment.type === "C") as Array<
+      joint.g.Segment & { controlPoint1: joint.g.Point; controlPoint2: joint.g.Point }
+    >;
+    for (let i = 1; i < curves.length; i++) {
+      const previous = curves[i - 1];
+      const current = curves[i];
+      expect(current.controlPoint1.x - current.start!.x).toBeCloseTo(previous.end!.x - previous.controlPoint2.x);
+      expect(current.controlPoint1.y - current.start!.y).toBeCloseTo(previous.end!.y - previous.controlPoint2.y);
+    }
+    expect(
+      curves.every(
+        curve =>
+          curve.start!.y !== curve.end!.y ||
+          curve.controlPoint1.y !== curve.start!.y ||
+          curve.controlPoint2.y !== curve.end!.y
+      )
+    ).toBe(true);
     expect(path.bbox()!.y).toBeLessThan(-30);
   });
 
-  it("reduces bend radius when a smooth corner would cut into an obstacle", () => {
+  it("reduces spline handles when smoothing would cut into an obstacle", () => {
     const obstacle = new joint.g.Rect(75, 5, 20, 20);
     const path = createWorkflowLinkPath(point(0, 0), point(100, 100), [point(100, 0)], [obstacle], false);
     expect(pathIntersectsRect(path, obstacle)).toBe(false);
