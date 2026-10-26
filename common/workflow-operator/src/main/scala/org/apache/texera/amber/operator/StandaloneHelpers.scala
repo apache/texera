@@ -46,7 +46,9 @@ object StandaloneHelpers {
     *  - `_texera_java_double`: `Double.parseDouble`, with a d/f suffix and hex, refusing the rest.
     *  - `_texera_double_key`: `Double.compareTo`'s order, -0.0 below 0.0 and NaN above all.
     *  - `_texera_key_codes`: one code per row's key under Scala's ==, shared across the frames
-    *    given, where a null meets a null, 0.0 meets -0.0 and each NaN stands alone.
+    *    given, where a null meets a null, 0.0 meets -0.0 and each NaN stands alone. With
+    *    `signed`, a double is keyed with its sign, as the set operators' `HashSet[Tuple]`
+    *    tells 0.0 from -0.0 and a double from an integer.
     *  - `_texera_read_doubles`: a DOUBLE column pandas left as text, read the engine's way.
     */
   val AttributeCasts: String =
@@ -193,19 +195,26 @@ object StandaloneHelpers {
       |    return (0, x, math.copysign(1.0, x))
       |
       |
-      |def _texera_key_codes(*frames):
+      |def _texera_key_codes(*frames, signed=False):
       |    import math
       |
       |    codes = {}
       |
+      |    def key(v, missing):
+      |        if missing:
+      |            return None
+      |        if isinstance(v, float):
+      |            if math.isnan(v):
+      |                return object()
+      |            if signed:
+      |                return (v, math.copysign(1.0, v))
+      |        return v
+      |
       |    def code(df):
       |        out = []
       |        for values, missing in zip(df.itertuples(index=False, name=None), df.isna().to_numpy()):
-      |            key = tuple(
-      |                None if m else object() if isinstance(v, float) and math.isnan(v) else v
-      |                for v, m in zip(values, missing)
-      |            )
-      |            out.append(codes.setdefault(key, len(codes)))
+      |            row = tuple(key(v, m) for v, m in zip(values, missing))
+      |            out.append(codes.setdefault(row, len(codes)))
       |        return pd.Series(out, index=df.index, dtype="int64")
       |
       |    return [code(df) for df in frames]
