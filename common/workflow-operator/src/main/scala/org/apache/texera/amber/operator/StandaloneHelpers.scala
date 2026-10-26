@@ -65,7 +65,6 @@ object StandaloneHelpers {
       |        return _texera_parse_int(text, 32) == 1
       |    return x != 0
       |
-      |
       |def _texera_parse_number(text):
       |    # java.text.NumberFormat for Locale.US, which a cast reaches through
       |    # `parseField(force = true)`. Lenient where Python's int is not: it stops
@@ -91,14 +90,12 @@ object StandaloneHelpers {
       |        return value, False
       |    return float(value), True
       |
-      |
       |def _texera_long_value(value, is_double):
       |    # Number.longValue(): a Double truncates toward zero and saturates at
       |    # long's bounds, where a Long is already itself.
       |    if is_double:
       |        return max(-(2 ** 63), min(2 ** 63 - 1, int(value)))
       |    return value
-      |
       |
       |def _texera_cast_integral(x):
       |    # The LONG target. Scala's toLong takes no decimal point of its own, so
@@ -110,7 +107,6 @@ object StandaloneHelpers {
       |    if isinstance(x, float):
       |        return _texera_long_value(x, True)
       |    return int(x)
-      |
       |
       |def _texera_cast_int32(x, wrap):
       |    # The two 32-bit narrowings differ: Long.toInt keeps the low bits, so
@@ -131,7 +127,6 @@ object StandaloneHelpers {
       |    # int() first: Double.intValue truncates toward zero before it clamps.
       |    return max(-2147483648, min(2147483647, int(value)))
       |
-      |
       |def _texera_epoch_millis_to_timestamp(s):
       |    # `new Timestamp(long)` reads MILLISECONDS where pd.to_datetime defaults
       |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
@@ -147,14 +142,11 @@ object StandaloneHelpers {
       |        .dt.tz_localize(None)
       |    )
       |
-      |
       |def _texera_cast_double(x):
       |    return _texera_java_double(x) if isinstance(x, str) else float(x)
       |
-      |
       |def _texera_java_trim(text):
       |    return text.strip("".join(map(chr, range(33))))
-      |
       |
       |def _texera_parse_int(text, bits):
       |    import re
@@ -164,7 +156,6 @@ object StandaloneHelpers {
       |    if not re.fullmatch(r"[+-]?\d+", text) or not -bound <= int(text) < bound:
       |        raise ValueError("For input string: " + repr(text))
       |    return int(text)
-      |
       |
       |def _texera_java_double(text):
       |    import re
@@ -186,14 +177,12 @@ object StandaloneHelpers {
       |    except OverflowError:
       |        return float("-inf") if text.startswith("-") else float("inf")
       |
-      |
       |def _texera_double_key(x):
       |    import math
       |
       |    if math.isnan(x):
       |        return (1, 0.0, 0.0)
       |    return (0, x, math.copysign(1.0, x))
-      |
       |
       |def _texera_key_codes(*frames, signed=False):
       |    import math
@@ -219,7 +208,6 @@ object StandaloneHelpers {
       |
       |    return [code(df) for df in frames]
       |
-      |
       |def _texera_read_doubles(s):
       |    import numpy as np
       |
@@ -233,7 +221,6 @@ object StandaloneHelpers {
       |    if np.isnan(values[~holes]).any():
       |        values = pd.arrays.FloatingArray(values, holes)
       |    return pd.Series(values, index=s.index, name=s.name)
-      |
       |
       |def _texera_cast_string(s):
       |    # `toString` on the field, so the COLUMN's type decides the text and
