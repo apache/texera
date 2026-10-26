@@ -76,6 +76,7 @@ function makeComputingUnit(
     status: string;
     statusReason: string;
     isOwner: boolean;
+    accessPrivilege: "READ" | "WRITE" | "NONE";
   }> = {}
 ): DashboardWorkflowComputingUnit {
   const {
@@ -86,6 +87,7 @@ function makeComputingUnit(
     status = "Running",
     statusReason = undefined,
     isOwner = true,
+    accessPrivilege = "WRITE",
   } = overrides;
   return {
     computingUnit: {
@@ -109,7 +111,7 @@ function makeComputingUnit(
     statusReason,
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner,
-    accessPrivilege: "WRITE",
+    accessPrivilege,
     ownerAvatar: "",
     ownerName: "owner",
   };
@@ -1417,6 +1419,57 @@ describe("PowerButtonComponent", () => {
 
       expect(selectSpy).toHaveBeenCalledWith(100, 2);
       expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    // Run is disabled on a unit shared with READ access, so falling back to one would select a unit
+    // the user cannot run on.
+    it("skips a Running unit the user cannot run on when falling back", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Running", accessPrivilege: "READ", isOwner: false }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 1);
+    });
+
+    it("selects nothing when the only Running unit is shared with READ access", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Running", accessPrivilege: "READ", isOwner: false }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    // Only the fallback is access-filtered; the last execution's unit is selected as is.
+    it("still selects the last execution's unit when it is listed with READ access", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 55, status: "Running", accessPrivilege: "READ", isOwner: false }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
     });
 
     it("selects nothing when the last execution's unit is gone and no unit is Running", () => {
