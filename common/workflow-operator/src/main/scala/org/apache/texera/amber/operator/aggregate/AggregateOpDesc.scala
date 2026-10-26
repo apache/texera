@@ -159,118 +159,12 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def generateStandaloneCode(): String = build(_ => None)
 
-  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
+  override def standaloneHelpers(): Seq[String] =
+    Seq(StandaloneHelpers.AttributeCasts, AggregateOpDesc.Helpers)
 
   private def build(declaredType: String => Option[AttributeType]): String = {
     val keys = Option(groupByKeys).getOrElse(List())
     val aggs = Option(aggregations).getOrElse(List())
-
-    // Identical helper definition each call — keeps the standalone module
-    // self-contained without relying on a shared prelude.
-    //
-    // What each function reproduces of the engine:
-    //  - `_texera_agg_concat`: concatAgg, a comma only after the first non-empty value.
-    //  - `_texera_agg_int_sum`: an INTEGER sum, wrapping as a Java int.
-    //  - `_texera_agg_ts_epoch_ms`: getTime as epoch milliseconds, by `_texera_wall_clock_instants`
-    //    from StandaloneHelpers.AttributeCasts.
-    //  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
-    //  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
-    //  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
-    //  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null,
-    //    ordered by `_texera_double_key` from StandaloneHelpers.AttributeCasts.
-    //
-    // Groups are told apart by `_texera_key_codes` from StandaloneHelpers.AttributeCasts.
-    val concatHelper =
-      """def _texera_agg_concat(series):
-        |    partial = ""
-        |    for v, missing in zip(series, series.isna()):
-        |        text = "" if missing else _texera_java_text(v)
-        |        partial = text if partial == "" else partial + "," + text
-        |    return partial
-        |
-        |def _texera_agg_int_sum(series):
-        |    total = int(series.sum())
-        |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
-        |
-        |def _texera_agg_ts_epoch_ms(series):
-        |    return _texera_wall_clock_instants(series.dropna()).astype("int64")
-        |
-        |def _texera_agg_ts_sum(series):
-        |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
-        |    total = ((total + (1 << 63)) % (1 << 64)) - (1 << 63)
-        |    import datetime
-        |
-        |    utc = pd.Timestamp(total, unit="ms")
-        |    zone = _texera_local_zone()
-        |    try:
-        |        moment = utc.to_pydatetime().replace(tzinfo=datetime.timezone.utc)
-        |        shift = _texera_local_wall_clock(moment, zone) - moment.replace(tzinfo=None)
-        |    except (OSError, OverflowError):
-        |        shift = _texera_standard_offset(zone)
-        |    return utc + shift
-        |
-        |def _texera_agg_ts_mean(series):
-        |    kept = _texera_agg_ts_epoch_ms(series)
-        |    if len(kept) == 0:
-        |        return None
-        |    return float(kept.astype(object).sum()) / len(kept)
-        |
-        |def _texera_agg_ts_pick(series, better):
-        |    kept = series.dropna()
-        |    if len(kept) == 0:
-        |        return pd.NaT
-        |    millis = kept.dt.floor("ms")
-        |    pick = 0
-        |    for i in range(1, len(kept)):
-        |        if better(millis.iloc[i], millis.iloc[pick]):
-        |            pick = i
-        |    return kept.iloc[pick]
-        |
-        |def _texera_agg_ts_min(series):
-        |    return _texera_agg_ts_pick(series, lambda a, b: a < b)
-        |
-        |def _texera_agg_ts_max(series):
-        |    return _texera_agg_ts_pick(series, lambda a, b: a > b)
-        |
-        |def _texera_agg_double_values(series):
-        |    return [float(v) for v in series.dropna()]
-        |
-        |def _texera_agg_double_sum(series):
-        |    partial = 0.0
-        |    for v in _texera_agg_double_values(series):
-        |        partial += v
-        |    return partial
-        |
-        |def _texera_agg_double_mean(series):
-        |    kept = _texera_agg_double_values(series)
-        |    if not kept:
-        |        return pd.NA
-        |    partial = 0.0
-        |    for v in kept:
-        |        partial += v
-        |    return partial / len(kept)
-        |
-        |def _texera_agg_double_min(series):
-        |    start = 1.7976931348623157e308
-        |    partial = start
-        |    for v in _texera_agg_double_values(series):
-        |        if _texera_double_key(v) < _texera_double_key(partial):
-        |            partial = v
-        |    return pd.NA if partial == start else partial
-        |
-        |def _texera_agg_double_max(series):
-        |    start = float("-inf")
-        |    partial = start
-        |    for v in _texera_agg_double_values(series):
-        |        if _texera_double_key(v) > _texera_double_key(partial):
-        |            partial = v
-        |    return pd.NA if partial == start else partial
-        |
-        |def _texera_agg_double_by_group(column, fold):
-        |    results = column.apply(fold)
-        |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
-        |    values = results.where(~mask, 0.0).to_numpy(float)
-        |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)""".stripMargin
 
     if (keys.isEmpty) {
       val rowEntries = aggs
@@ -282,8 +176,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         aggs.map(agg => pyStringLiteral(agg.resultAttribute)).mkString("[", ", ", "]")
       // The engine opens a group when a row arrives, so with no rows there is no
       // group to finish and it emits nothing, not one row of COUNT 0.
-      s"""$concatHelper
-         |if len(in1df):
+      s"""if len(in1df):
          |    out1df = pd.DataFrame([{
          |${rowEntries.linesIterator.map("    " + _).mkString("\n")}
          |    }])
@@ -302,8 +195,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
       val joinLines = aggs.indices
         .map(i => s"out1df = out1df.join(_texera_agg_s$i)")
         .mkString("\n")
-      s"""$concatHelper
-         |[_texera_agg_ids] = _texera_key_codes(in1df[$keysLit])
+      s"""[_texera_agg_ids] = _texera_key_codes(in1df[$keysLit])
          |_texera_agg_groups = in1df.groupby(_texera_agg_ids, sort=False)
          |_texera_agg_first = ~_texera_agg_ids.duplicated()
          |out1df = in1df.loc[_texera_agg_first, $keysLit].set_axis(_texera_agg_ids[_texera_agg_first])
@@ -405,4 +297,115 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
         s"$groups[$attrLit].apply(_texera_agg_concat).rename($resultLit)"
     }
   }
+}
+
+object AggregateOpDesc {
+
+  /**
+    * The Python folds Aggregate's standalone code calls, where pandas' own would
+    * answer differently from the engine.
+    *
+    *  - `_texera_agg_concat`: concatAgg, a comma only after the first non-empty value.
+    *  - `_texera_agg_int_sum`: an INTEGER sum, wrapping as a Java int.
+    *  - `_texera_agg_ts_epoch_ms`: getTime as epoch milliseconds, by `_texera_wall_clock_instants`
+    *    from StandaloneHelpers.AttributeCasts.
+    *  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
+    *  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
+    *  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
+    *  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null,
+    *    ordered by `_texera_double_key` from StandaloneHelpers.AttributeCasts.
+    *
+    * Groups are told apart by `_texera_key_codes` from StandaloneHelpers.AttributeCasts.
+    */
+  val Helpers: String =
+    """def _texera_agg_concat(series):
+      |    partial = ""
+      |    for v, missing in zip(series, series.isna()):
+      |        text = "" if missing else _texera_java_text(v)
+      |        partial = text if partial == "" else partial + "," + text
+      |    return partial
+      |
+      |def _texera_agg_int_sum(series):
+      |    total = int(series.sum())
+      |    return ((total + (1 << 31)) % (1 << 32)) - (1 << 31)
+      |
+      |def _texera_agg_ts_epoch_ms(series):
+      |    return _texera_wall_clock_instants(series.dropna()).astype("int64")
+      |
+      |def _texera_agg_ts_sum(series):
+      |    total = int(_texera_agg_ts_epoch_ms(series).astype(object).sum())
+      |    total = ((total + (1 << 63)) % (1 << 64)) - (1 << 63)
+      |    import datetime
+      |
+      |    utc = pd.Timestamp(total, unit="ms")
+      |    zone = _texera_local_zone()
+      |    try:
+      |        moment = utc.to_pydatetime().replace(tzinfo=datetime.timezone.utc)
+      |        shift = _texera_local_wall_clock(moment, zone) - moment.replace(tzinfo=None)
+      |    except (OSError, OverflowError):
+      |        shift = _texera_standard_offset(zone)
+      |    return utc + shift
+      |
+      |def _texera_agg_ts_mean(series):
+      |    kept = _texera_agg_ts_epoch_ms(series)
+      |    if len(kept) == 0:
+      |        return None
+      |    return float(kept.astype(object).sum()) / len(kept)
+      |
+      |def _texera_agg_ts_pick(series, better):
+      |    kept = series.dropna()
+      |    if len(kept) == 0:
+      |        return pd.NaT
+      |    millis = kept.dt.floor("ms")
+      |    pick = 0
+      |    for i in range(1, len(kept)):
+      |        if better(millis.iloc[i], millis.iloc[pick]):
+      |            pick = i
+      |    return kept.iloc[pick]
+      |
+      |def _texera_agg_ts_min(series):
+      |    return _texera_agg_ts_pick(series, lambda a, b: a < b)
+      |
+      |def _texera_agg_ts_max(series):
+      |    return _texera_agg_ts_pick(series, lambda a, b: a > b)
+      |
+      |def _texera_agg_double_values(series):
+      |    return [float(v) for v in series.dropna()]
+      |
+      |def _texera_agg_double_sum(series):
+      |    partial = 0.0
+      |    for v in _texera_agg_double_values(series):
+      |        partial += v
+      |    return partial
+      |
+      |def _texera_agg_double_mean(series):
+      |    kept = _texera_agg_double_values(series)
+      |    if not kept:
+      |        return pd.NA
+      |    partial = 0.0
+      |    for v in kept:
+      |        partial += v
+      |    return partial / len(kept)
+      |
+      |def _texera_agg_double_min(series):
+      |    start = 1.7976931348623157e308
+      |    partial = start
+      |    for v in _texera_agg_double_values(series):
+      |        if _texera_double_key(v) < _texera_double_key(partial):
+      |            partial = v
+      |    return pd.NA if partial == start else partial
+      |
+      |def _texera_agg_double_max(series):
+      |    start = float("-inf")
+      |    partial = start
+      |    for v in _texera_agg_double_values(series):
+      |        if _texera_double_key(v) > _texera_double_key(partial):
+      |            partial = v
+      |    return pd.NA if partial == start else partial
+      |
+      |def _texera_agg_double_by_group(column, fold):
+      |    results = column.apply(fold)
+      |    mask = results.map(lambda v: v is pd.NA).to_numpy(bool)
+      |    values = results.where(~mask, 0.0).to_numpy(float)
+      |    return pd.Series(pd.arrays.FloatingArray(values, mask), index=results.index)""".stripMargin
 }
