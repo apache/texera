@@ -166,7 +166,7 @@ class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
     // Both operators of the chain, and the import every script carries: enough
     // to show the payload is the translated plan rather than an empty string.
     assert(code.contains("import pandas as pd"))
-    assert(code.contains("_texera_set_select"))
+    assert(code.contains("_texera_key_codes"))
     assert(code.contains("head(5)"))
   }
 

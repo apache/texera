@@ -57,9 +57,11 @@ class DistinctOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String = {
     // The engine's LinkedHashSet keeps the first row of each key in input
     // order, by the rows' own equality: NaN equals nothing, and 0.0 and -0.0
-    // hash apart. drop_duplicates counts both pairs as equal.
-    "out1df = _texera_set_select(in1df, lambda key: True)"
+    // hash apart. drop_duplicates counts both pairs as equal; `_texera_key_codes`
+    // with `signed` does not.
+    """[_texera_distinct_codes] = _texera_key_codes(in1df, signed=True)
+      |out1df = in1df[(~_texera_distinct_codes.duplicated()).to_numpy()].reset_index(drop=True)""".stripMargin
   }
 
-  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }
