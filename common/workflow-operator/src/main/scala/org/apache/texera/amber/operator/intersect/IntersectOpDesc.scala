@@ -52,10 +52,12 @@ class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // Distinct left rows the right also holds, by the engine's row equality.
+  // Distinct left rows the right also holds, by the engine's row equality, which
+  // `_texera_key_codes` with `signed` numbers.
   override def generateStandaloneCode(): String =
-    """_texera_set_right = set(_texera_set_row_keys(in2df))
-      |out1df = _texera_set_select(in1df, lambda key: key in _texera_set_right)""".stripMargin
+    """_texera_set_left, _texera_set_right = _texera_key_codes(in1df, in2df, signed=True)
+      |_texera_set_kept = ~_texera_set_left.duplicated() & _texera_set_left.isin(_texera_set_right)
+      |out1df = in1df[_texera_set_kept.to_numpy()].reset_index(drop=True)""".stripMargin
 
-  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }

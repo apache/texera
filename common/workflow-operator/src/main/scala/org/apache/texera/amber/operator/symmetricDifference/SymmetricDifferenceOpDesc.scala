@@ -61,17 +61,16 @@ class SymmetricDifferenceOpDesc extends LogicalOp with StandaloneCodeGenerator {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  // Distinct rows in exactly one input, by the engine's row equality.
+  // Distinct rows in exactly one input, by the engine's row equality, which
+  // `_texera_key_codes` with `signed` numbers.
   override def generateStandaloneCode(): String =
-    """_texera_set_left = set(_texera_set_row_keys(in1df))
-      |_texera_set_right = set(_texera_set_row_keys(in2df))
+    """_texera_set_left, _texera_set_right = _texera_key_codes(in1df, in2df, signed=True)
+      |_texera_set_left_kept = ~_texera_set_left.duplicated() & ~_texera_set_left.isin(_texera_set_right)
+      |_texera_set_right_kept = ~_texera_set_right.duplicated() & ~_texera_set_right.isin(_texera_set_left)
       |out1df = pd.concat(
-      |    [
-      |        _texera_set_select(in1df, lambda key: key not in _texera_set_right),
-      |        _texera_set_select(in2df, lambda key: key not in _texera_set_left),
-      |    ],
+      |    [in1df[_texera_set_left_kept.to_numpy()], in2df[_texera_set_right_kept.to_numpy()]],
       |    ignore_index=True,
       |)""".stripMargin
 
-  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.SetRowKeys)
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }

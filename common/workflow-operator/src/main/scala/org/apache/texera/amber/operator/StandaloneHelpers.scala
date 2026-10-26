@@ -25,44 +25,6 @@ package org.apache.texera.amber.operator
 object StandaloneHelpers {
 
   /**
-    * Row equality as the set operators' `HashSet[Tuple]` decides it, for Intersect, Difference
-    * and Symmetric Difference: NaN equals nothing and 0.0 differs from -0.0, where pandas counts
-    * both pairs as equal.
-    *
-    *  - `_texera_set_row_keys`: one key per row, equal exactly where the engine's rows are.
-    *  - `_texera_set_select`: the first row of each key, among those `keep` accepts.
-    */
-  val SetRowKeys: String =
-    """def _texera_set_row_keys(df):
-      |    import math
-      |
-      |    def key(v, missing):
-      |        if missing:
-      |            return None
-      |        if isinstance(v, float):
-      |            if math.isnan(v):
-      |                return object()
-      |            return (v, math.copysign(1.0, v))
-      |        return v
-      |
-      |    return [
-      |        tuple(key(v, m) for v, m in zip(values, missing))
-      |        for values, missing in zip(
-      |            df.itertuples(index=False, name=None), df.isna().to_numpy()
-      |        )
-      |    ]
-      |
-      |
-      |def _texera_set_select(df, keep):
-      |    seen = set()
-      |    picked = []
-      |    for i, key in enumerate(_texera_set_row_keys(df)):
-      |        if key not in seen and keep(key):
-      |            picked.append(i)
-      |        seen.add(key)
-      |    return df.iloc[picked].reset_index(drop=True)""".stripMargin
-
-  /**
     * A Python transcription of `AttributeTypeUtils`, for operators that cast a
     * column to a declared type.
     *
