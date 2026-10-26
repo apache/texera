@@ -29,6 +29,7 @@ composer create-project flarum/flarum /opt/homebrew/var/www/flarum
 composer require --working-dir=/opt/homebrew/var/www/flarum michaelbelgium/flarum-discussion-views
 composer require --working-dir=/opt/homebrew/var/www/flarum fof/byobu:"*"
 cp config.php /opt/homebrew/var/www/flarum/config.php
+cp extend.php /opt/homebrew/var/www/flarum/extend.php
 cp .htaccess /opt/homebrew/var/www/flarum/public/.htaccess
 
 # Database Configuration
