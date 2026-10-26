@@ -46,6 +46,7 @@ import { getEnhancedMonacoEnvironment } from "monaco-languageclient/vscodeApiWra
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { Workflow } from "../../../common/type/workflow";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // Operator types that the constructor's language-detection branch must map
 // to a specific language. `RUDFSource` / `RUDF` -> `r`; the three V2 Python
@@ -1274,6 +1275,108 @@ describe("CodeEditorComponent", () => {
       } finally {
         rxjsConfig.onUnhandledError = previousHandler;
       }
+    });
+
+    // The language client speaks JSON-RPC over the page's `WebSocket`, so a
+    // stand-in socket installed for one test can play the python language
+    // server: it records every url dialled, opens, answers each request (an
+    // `initialize` that advertises full document sync, `null` for anything
+    // else) and keeps every message the client sends.
+    function stageLanguageServer() {
+      const dialed: string[] = [];
+      const received: Array<{ id?: number; method?: string; params?: any }> = [];
+      const previous = Object.getOwnPropertyDescriptor(globalThis, "WebSocket");
+      class LanguageServerSocket {
+        static readonly CONNECTING = 0;
+        static readonly OPEN = 1;
+        static readonly CLOSING = 2;
+        static readonly CLOSED = 3;
+        readyState = LanguageServerSocket.CONNECTING;
+        onopen: ((event: Event) => void) | null = null;
+        onmessage: ((event: { data: string }) => void) | null = null;
+        onerror: ((event: Event) => void) | null = null;
+        onclose: ((event: { code: number; reason: string }) => void) | null = null;
+
+        constructor(url: string | URL) {
+          dialed.push(String(url));
+          setTimeout(() => {
+            this.readyState = LanguageServerSocket.OPEN;
+            this.onopen?.(new Event("open"));
+          });
+        }
+
+        send(content: string): void {
+          const message = JSON.parse(content);
+          received.push(message);
+          if (message.id === undefined || message.method === undefined) return;
+          const result = message.method === "initialize" ? { capabilities: { textDocumentSync: 1 } } : null;
+          setTimeout(() => this.onmessage?.({ data: JSON.stringify({ jsonrpc: "2.0", id: message.id, result }) }));
+        }
+
+        close(): void {
+          this.readyState = LanguageServerSocket.CLOSED;
+        }
+      }
+      Object.defineProperty(globalThis, "WebSocket", {
+        configurable: true,
+        writable: true,
+        value: LanguageServerSocket,
+      });
+      const restore = () => {
+        if (previous) {
+          Object.defineProperty(globalThis, "WebSocket", previous);
+        } else {
+          delete (globalThis as unknown as Record<string, unknown>).WebSocket;
+        }
+      };
+      return { dialed, received, restore };
+    }
+
+    it("hands the shared code to the python language server it dials", async () => {
+      const server = stageLanguageServer();
+      // The client announces every open python document, and models mounted by
+      // earlier tests share the process-wide workspace, so look for this one.
+      const openedDocument = () =>
+        server.received.find(
+          message =>
+            message.method === "textDocument/didOpen" &&
+            message.params.textDocument.uri.endsWith("/in-memory-bring-up-lsp.py")
+        )?.params.textDocument;
+      try {
+        mount(buildPredicateWithCode("bring-up-lsp", "PythonUDFV2", "x = 1\n"), new FormControl(""));
+        await waitFor(() => Boolean(openedDocument()), "the language server to be told about the document");
+
+        // One socket, to the page's host on the configured port, under the
+        // python language server's endpoint.
+        const port = TestBed.inject(GuiConfigService).env.pythonLanguageServerPort;
+        expect(server.dialed).toEqual([`ws://${new URL(document.baseURI).hostname}:${port}/python-language-server`]);
+        // The conversation opens with the LSP handshake...
+        expect(server.received[0].method).toBe("initialize");
+        // ...and the server is then handed the shared code as a python document.
+        expect(openedDocument().languageId).toBe("python");
+        expect(openedDocument().text).toBe("x = 1\n");
+      } finally {
+        server.restore();
+      }
+    });
+
+    ["JavaUDF", "RUDF"].forEach(operatorType => {
+      it(`dials no language server for a ${operatorType} editor`, async () => {
+        const server = stageLanguageServer();
+        try {
+          const component = mount(
+            buildPredicateWithCode(`bring-up-no-lsp-${operatorType}`, operatorType, "code"),
+            new FormControl("")
+          );
+          // A language client is only ever started before the binding is made,
+          // so once the binding is up no socket can still be on its way.
+          await waitFor(() => Boolean(bindingOf(component)), "the yjs binding");
+
+          expect(server.dialed).toEqual([]);
+        } finally {
+          server.restore();
+        }
+      });
     });
   });
 
