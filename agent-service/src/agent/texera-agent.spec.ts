@@ -535,6 +535,58 @@ describe("sendMessage", () => {
     ]);
   });
 
+  test("leaves disabled tools out of the model call but still lists them", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["deleteOperator", true],
+      ["addOperator", true],
+      ["modifyOperator", false],
+    ]);
+  });
+
+  test("a disabled tool does not run when the model calls it anyway", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n === 1)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "deleteOperator",
+                input: JSON.stringify({ operatorId: "op1" }),
+              },
+            ],
+            finishReason: finish("tool-calls"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation((async (u: any) => {
+      urls.push(String(u));
+      return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
+    }) as any);
+    await agent.sendMessage("del");
+    expect(agent.getWorkflowState().getOperator("op1")).toBeDefined();
+  });
+
   test("caps the loop at maxSteps", async () => {
     // The cap is the only thing standing between a looping model and an unbounded run.
     let n = 0;
