@@ -17,27 +17,48 @@
  * under the License.
  */
 
-export interface Source
-  extends Readonly<{
-    type: string;
-    id: string;
-  }> {}
+.loading-container {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  height: 300px;
+}
 
-export interface Metadata
-  extends Readonly<{
-    primary: boolean;
-    source: Source;
-  }> {}
+.refresh-warning {
+  margin-bottom: 8px;
+}
 
-export interface Photo
-  extends Readonly<{
-    metadata: Metadata;
-    url: string;
-  }> {}
+.computing-unit-table {
+  display: block;
+}
 
-export interface GooglePeopleApiResponse
-  extends Readonly<{
-    resourceName: string;
-    etag: string;
-    photos: Photo[];
-  }> {}
+.owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// Expanded spec detail; wraps on narrow viewports.
+.spec-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+  padding: 4px 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  dt {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.45);
+    font-weight: 400;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
