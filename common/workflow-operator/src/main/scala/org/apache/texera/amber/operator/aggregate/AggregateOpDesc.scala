@@ -382,10 +382,7 @@ object AggregateOpDesc {
       |    kept = _texera_agg_double_values(series)
       |    if not kept:
       |        return pd.NA
-      |    partial = 0.0
-      |    for v in kept:
-      |        partial += v
-      |    return partial / len(kept)
+      |    return _texera_agg_double_sum(series) / len(kept)
       |
       |def _texera_agg_double_min(series):
       |    start = 1.7976931348623157e308
