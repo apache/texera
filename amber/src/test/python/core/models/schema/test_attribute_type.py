@@ -130,11 +130,26 @@ class TestParseTimestamp:
             ("3000-01-01T12:00:00Z", datetime.datetime(3000, 1, 1, 17, 30)),
         ],
     )
-    def test_an_offset_follows_the_named_zone_in_any_year(
+    def test_an_offset_follows_the_named_zone_from_1900_on(
         self, machine_zone, text, expected
     ):
         machine_zone("Asia/Kolkata")
         assert parse_timestamp(text) == expected
+
+    @pytest.mark.parametrize(
+        "zone, expected",
+        [
+            ("America/Mexico_City", datetime.datetime(1600, 1, 1, 6, 0)),
+            ("Asia/Kolkata", datetime.datetime(1600, 1, 1, 17, 30)),
+        ],
+    )
+    def test_an_offset_before_1900_takes_the_standard_offset(
+        self, machine_zone, zone, expected
+    ):
+        # The engine's DateParserUtils and Timestamp on JDK 17 give these,
+        # where the zone's own rules would give its local mean time.
+        machine_zone(zone)
+        assert parse_timestamp("1600-01-01T12:00:00Z") == expected
 
     @pytest.mark.parametrize(
         "text, expected",

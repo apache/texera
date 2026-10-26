@@ -121,15 +121,25 @@ def _local_wall_clock(moment):
     # The wall clock the machine's zone shows at an instant that states its
     # offset. Windows' localtime refuses an instant before 1970, so the zone is
     # asked by name where it has one, and otherwise such an instant takes the
-    # machine's standard offset.
+    # machine's standard offset. Before 1900 the engine reads every zone at
+    # its standard offset, where a named zone would give its local mean time.
     zone = _named_local_zone()
+    utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    if utc < datetime.datetime(1900, 1, 1):
+        return utc + _standard_offset(zone)
     if zone is not None:
         return moment.astimezone(zone).replace(tzinfo=None)
     try:
         return moment.astimezone().replace(tzinfo=None)
     except (OSError, OverflowError):
-        utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        return utc - datetime.timedelta(seconds=time.timezone)
+        return utc + _standard_offset(None)
+
+
+def _standard_offset(zone):
+    if zone is None:
+        return datetime.timedelta(seconds=-time.timezone)
+    now = datetime.datetime.now(zone)
+    return now.utcoffset() - now.dst()
 
 
 def _named_local_zone():
