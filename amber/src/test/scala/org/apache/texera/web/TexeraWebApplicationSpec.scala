@@ -254,8 +254,6 @@ class TexeraWebApplicationSpec extends AnyFlatSpec with Matchers {
       databaseReachable,
       "run() requires a reachable Postgres at the configured JDBC URL (provided in CI)"
     )
-    // Not the test-cases database: pointing the running server at it would have every dashboard
-    // read and write a schema that the CI e2e specs truncate underneath it.
     ranEnvironment
     pooledJdbcUrl shouldBe Some(StorageConfig.jdbcUrl)
   }
