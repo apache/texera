@@ -57,7 +57,6 @@ object StandaloneHelpers {
       |        return int(text) == 1
       |    return x != 0
       |
-      |
       |def _texera_parse_number(text):
       |    import re
       |
@@ -74,7 +73,6 @@ object StandaloneHelpers {
       |        return value, False
       |    return float(value), True
       |
-      |
       |def _texera_saturate(value, low, high):
       |    if value != value:
       |        return 0
@@ -83,7 +81,6 @@ object StandaloneHelpers {
       |    if value >= high:
       |        return high
       |    return int(value)
-      |
       |
       |def _texera_cast_integral(x):
       |    if isinstance(x, str):
@@ -96,7 +93,6 @@ object StandaloneHelpers {
       |        return _texera_saturate(x, -(2 ** 63), 2 ** 63 - 1)
       |    return int(x)
       |
-      |
       |def _texera_cast_int32(x, wrap):
       |    if isinstance(x, str):
       |        value, is_double = _texera_parse_number(x)
@@ -108,7 +104,6 @@ object StandaloneHelpers {
       |    if wrap:
       |        return ((int(value) + 2147483648) % 4294967296) - 2147483648
       |    return _texera_saturate(value, -2147483648, 2147483647)
-      |
       |
       |def _texera_text_to_timestamp(s):
       |    from dateutil.parser import parse as _parse_date
@@ -139,10 +134,8 @@ object StandaloneHelpers {
       |    out[rest] = s[rest].map(_one).astype("datetime64[us]")
       |    return out
       |
-      |
       |def _texera_epoch_millis_to_timestamp(s):
       |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
-      |
       |
       |def _texera_local_zone():
       |    import os
@@ -165,7 +158,6 @@ object StandaloneHelpers {
       |            continue
       |    return None
       |
-      |
       |def _texera_standard_offset(zone):
       |    import datetime
       |    import time
@@ -174,7 +166,6 @@ object StandaloneHelpers {
       |        return datetime.timedelta(seconds=-time.timezone)
       |    now = datetime.datetime.now(zone)
       |    return now.utcoffset() - now.dst()
-      |
       |
       |def _texera_local_wall_clock(moment, zone):
       |    import datetime
@@ -190,7 +181,6 @@ object StandaloneHelpers {
       |        return moment.astimezone(tzlocal()).replace(tzinfo=None)
       |    except (OSError, OverflowError):
       |        return utc + _texera_standard_offset(zone)
-      |
       |
       |def _texera_local_wall_clocks(s):
       |    import datetime
@@ -217,7 +207,6 @@ object StandaloneHelpers {
       |
       |    seconds = pd.Series([_offset(t) for t in s], index=s.index)
       |    return utc + pd.to_timedelta(seconds, unit="s").astype("timedelta64[s]")
-      |
       |
       |def _texera_wall_clock_instants(s):
       |    from dateutil.tz import tzlocal
@@ -249,18 +238,15 @@ object StandaloneHelpers {
       |
       |    return pd.Series([one(i) for i in range(len(walls))], index=s.index, dtype="datetime64[ms]")
       |
-      |
       |def _texera_cast_double(x):
       |    if isinstance(x, str):
       |        return float(x.strip())
       |    return float(x)
       |
-      |
       |def _texera_cast_doubles(s):
       |    holes = s.isna().to_numpy()
       |    values = _texera_cast_cells(s, _texera_cast_double, 0.0).to_numpy(dtype="float64")
       |    return pd.Series(pd.arrays.FloatingArray(values, holes), index=s.index, name=s.name)
-      |
       |
       |def _texera_java_text(x):
       |    import datetime
@@ -287,10 +273,8 @@ object StandaloneHelpers {
       |        return ("-" if sign else "") + kept[0] + "." + (kept[1:] or "0") + "E" + str(power)
       |    return str(x)
       |
-      |
       |def _texera_cast_string(s):
       |    return _texera_cast_cells(s, _texera_java_text, None)
-      |
       |
       |def _texera_cast_cells(s, cast, hole):
       |    holes = s.isna().to_numpy()

@@ -229,19 +229,15 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
   private val sharedHelper =
     """import math
       |
-      |
       |def _texera_called(x):
       |    return _texera_reached(x)
-      |
       |
       |# Only ever named, never called.
       |def _texera_named(x):
       |    return x
       |
-      |
       |def _texera_reached(x):
       |    return math.floor(x)
-      |
       |
       |def _texera_unused(x):
       |    return x""".stripMargin

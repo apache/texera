@@ -214,10 +214,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
-    // Two blank lines around every top-level definition, as PEP 8 sets them,
-    // including where one helper block meets the next.
+    // One blank line between helpers, as each block spaces its own, and two
+    // around the helpers as a whole.
     val called = calledHelpers(helpers, script.drop(helpersAt).mkString("\n"))
-    if (called.nonEmpty) script.insertAll(helpersAt, Seq("", called.mkString("\n\n\n"), "", ""))
+    if (called.nonEmpty) script.insertAll(helpersAt, Seq("", called.mkString("\n\n"), "", ""))
     script.mkString("\n")
   }
 
