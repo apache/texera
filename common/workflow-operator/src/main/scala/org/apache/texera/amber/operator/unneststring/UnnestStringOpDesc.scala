@@ -152,10 +152,8 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
       .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
       .map(_.getType)
     val column = renderedAsText(s"out1df[$attributeLit]", declared)
-    s"""# Nothing in the column unnests to nothing, the way the operator answers a null
-       |# field with no rows at all. Dropped before the split rather than after: the
-       |# rendering would turn the empty cell into text and unnest that.
-       |out1df = in1df[in1df[$attributeLit].notna()].copy()
+    // A null unnests to no rows, so it is dropped before the rendering turns it into text.
+    s"""out1df = in1df[in1df[$attributeLit].notna()].copy()
        |out1df[$resultLit] = $column.str.split($delim, regex=True)
        |out1df = out1df.explode($resultLit, ignore_index=True)
        |out1df = out1df[(out1df[$resultLit].notna()) & (out1df[$resultLit] != "")].reset_index(drop=True)""".stripMargin
