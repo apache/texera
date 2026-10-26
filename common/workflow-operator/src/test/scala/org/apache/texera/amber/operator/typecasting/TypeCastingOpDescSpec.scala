@@ -313,6 +313,52 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     fromEngine shouldBe Seq("NaN", "null", "1.25", "Infinity")
   }
 
+  // A LONG column with a hole is a nullable Int64, whose values `Series.map`
+  // hands over as floats, so a value past 2^53 came back rounded.
+  private val longTextCases: Seq[java.lang.Long] =
+    Seq(Long.MaxValue, 9007199254740993L, null, -5L)
+
+  it should "write a large LONG beside a null exactly" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
+    val generated = op.generateStandaloneCode(
+      Map(op.operatorInfo.inputPorts.head.id -> Schema().add(new Attribute("v", AttributeType.LONG)))
+    )
+
+    val values = longTextCases.map(v => if (v == null) "None" else v.toString).mkString("[", ", ", "]")
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": pd.array($values, dtype="Int64")})
+         |$generated
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if answer is None else answer)
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-long-text-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val process =
+      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val fromEngine = longTextCases.map(v => engineAnswer(v, AttributeType.STRING))
+    withClue(s"script said ${cellsOf(out)}\n") { cellsOf(out) shouldBe fromEngine }
+    fromEngine shouldBe Seq("9223372036854775807", "9007199254740993", "null", "-5")
+  }
+
   // Moments either side of 1970, read three ways: as epoch milliseconds, as
   // text that states an offset, and from a column that states its zone. Each
   // asks the machine's zone for the wall clock. Windows' localtime refuses an

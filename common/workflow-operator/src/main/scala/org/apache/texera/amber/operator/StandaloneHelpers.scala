@@ -43,7 +43,7 @@ object StandaloneHelpers {
     *    the standard offset as java.util.Date reads it.
     *  - `_texera_cast_double(s)`: the DOUBLE cast, keeping NaN apart from null.
     *  - `_texera_java_text`: a value as Java's toString writes it.
-    *  - `_texera_cast_string`: a column as text, decided by the column's type.
+    *  - `_texera_cast_string`: a column as text, each value by `_texera_java_text`, nulls kept.
     *  - `_texera_cast_cells`: a cast applied cell by cell, reading nulls from the column's mask.
     */
   val AttributeCasts: String =
@@ -294,10 +294,6 @@ object StandaloneHelpers {
       |
       |
       |def _texera_cast_string(s):
-      |    if pd.api.types.is_bool_dtype(s):
-      |        return s.map(lambda x: None if pd.isna(x) else ("true" if x else "false"))
-      |    if pd.api.types.is_integer_dtype(s):
-      |        return s.map(lambda x: None if pd.isna(x) else str(int(x)))
       |    return _texera_cast_cells(s, _texera_java_text, None)
       |
       |
