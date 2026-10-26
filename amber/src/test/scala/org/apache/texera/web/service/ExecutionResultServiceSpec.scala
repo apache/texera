@@ -937,6 +937,32 @@ class ExecutionResultServiceSpec
     event.schema.map(_.getName) shouldBe List("c1", "c2")
   }
 
+  it should "read the output port the request names, and count that port's rows" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val rows = (n: Int, offset: Int) =>
+      (0 until n).map(i =>
+        Tuple.builder(schema).add("id", AttributeType.INTEGER, offset + i).build()
+      )
+    // Two output ports of one operator, as a Split keeps them, with different row counts.
+    storeResult(executionId, "erss-two-ports", schema, rows(2, 0))
+    storeResult(executionId, "erss-two-ports", schema, rows(5, 100), port = PortIdentity(1))
+
+    val first = paginate(paginationRequest.copy(operatorID = "erss-two-ports", pageSize = 10))
+    val second = paginate(
+      paginationRequest.copy(operatorID = "erss-two-ports", pageSize = 3, portIndex = 1)
+    )
+
+    // Without a port, the first one is read, as before.
+    first.table.map(_.get("id").asInt()) shouldBe List(0, 1)
+    first.portIndex shouldBe 0
+    first.totalTuples shouldBe 2
+    // The second port's rows, and its own count, which pages the port past this first page.
+    second.table.map(_.get("id").asInt()) shouldBe List(100, 101, 102)
+    second.portIndex shouldBe 1
+    second.totalTuples shouldBe 5
+  }
+
   it should "return an empty page when the operator has no stored result" in {
     newExecution()
 
@@ -1249,6 +1275,34 @@ class ExecutionResultServiceSpec
     }
   }
 
+  it should "report an operator with two output ports by its first port's count" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val rows = (n: Int) =>
+      (0 until n).map(i => Tuple.builder(schema).add("id", AttributeType.INTEGER, i).build())
+    storeResult(executionId, "erss-final-two-ports", schema, rows(3))
+    storeResult(executionId, "erss-final-two-ports", schema, rows(8), port = PortIdentity(1))
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-final-two-ports",
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
+
+      // The update for an operator reads its first port, so its count has to come from there
+      // too; the second port's 8 rows must not stand in for the first port's 3.
+      val resultInfo = fixture.workflowStateStore.resultStore.getState.resultInfo
+      resultInfo(OperatorIdentity("erss-final-two-ports")).tupleCount shouldBe 3
+    }
+  }
+
   it should "leave polling running while the execution has not terminated" in {
     val executionId = newExecution()
     withAttached(planOf(), executionId) { fixture =>
@@ -1462,10 +1516,13 @@ class ExecutionResultServiceSpec
     ExecutionIdentity(execution.getEid.longValue())
   }
 
-  private def globalPortIdOf(operatorId: String): GlobalPortIdentity =
+  private def globalPortIdOf(
+      operatorId: String,
+      port: PortIdentity = PortIdentity()
+  ): GlobalPortIdentity =
     GlobalPortIdentity(
       PhysicalOpIdentity(OperatorIdentity(operatorId), "main"),
-      PortIdentity(),
+      port,
       input = false
     )
 
@@ -1473,13 +1530,14 @@ class ExecutionResultServiceSpec
   private def resultUriOf(
       executionId: ExecutionIdentity,
       operatorId: String,
-      warehouse: Option[String] = None
+      warehouse: Option[String] = None,
+      port: PortIdentity = PortIdentity()
   ): URI =
     VFSURIFactory.resultURI(
       VFSURIFactory.createPortBaseURI(
         WorkflowIdentity(testWid.longValue()),
         executionId,
-        globalPortIdOf(operatorId),
+        globalPortIdOf(operatorId, port),
         warehouse
       )
     )
@@ -1504,9 +1562,10 @@ class ExecutionResultServiceSpec
       executionId: ExecutionIdentity,
       operatorId: String,
       schema: Schema,
-      tuples: Seq[Tuple]
+      tuples: Seq[Tuple],
+      port: PortIdentity = PortIdentity()
   ): URI = {
-    val uri = resultUriOf(executionId, operatorId)
+    val uri = resultUriOf(executionId, operatorId, port = port)
     val document = DocumentFactory.createDocument(uri, schema)
     val writer = document.writer("erss").asInstanceOf[BufferedItemWriter[Tuple]]
     writer.open()
