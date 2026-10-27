@@ -238,6 +238,13 @@ This product bundles code derived from inner-class:
   Source: https://github.com/sebkeim/inner-class
   License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
 
+This product bundles a patch to Vitest's @vitest/spy package, applied by Yarn to the
+copy the frontend unit tests install:
+  - frontend/.yarn/patches/@vitest-spy-npm-4.1.11-ce87517a53.patch
+  Copyright (c) 2021-Present VoidZero Inc. and Vitest contributors
+  Source: https://github.com/vitest-dev/vitest
+  License: MIT License (licenses-3rd-party-code/vitest.txt)
+
 This product bundles the ScalaPB options definition:
   - common/workflow-core/src/main/protobuf/scalapb/scalapb.proto
   Source: https://github.com/scalapb/ScalaPB

@@ -31,10 +31,11 @@ For repo-wide testing philosophy (TDD, characterization tests, "every test must 
 4. [Recipes](#recipes)
 5. [Standalone components](#standalone-components)
 6. [jsdom vs browser mode](#jsdom-vs-browser-mode)
-7. [Mocking](#mocking)
-8. [Anti-patterns](#anti-patterns)
-9. [Coverage troubleshooting](#coverage-troubleshooting)
-10. [References](#references)
+7. [Memory in shared test workers](#memory-in-shared-test-workers)
+8. [Mocking](#mocking)
+9. [Anti-patterns](#anti-patterns)
+10. [Coverage troubleshooting](#coverage-troubleshooting)
+11. [References](#references)
 
 ## The stack
 
@@ -301,6 +302,19 @@ Browser path (`gui:test-browser`, `vitest.browser.config.ts`) runs in real Chrom
 Routing rules: per-spec inclusion / exclusion is set in `angular.json`, not in `vitest.config.ts`. The comment in `vitest.config.ts` explains why — duplicating the list there triggers a Vite warning and the builder-side filter wins anyway.
 
 Working reference (browser mode): `src/app/workspace/component/workflow-editor/workflow-editor.component.spec.ts`. See [#5017](https://github.com/apache/texera/pull/5017) for the rationale behind the two-target split.
+
+## Memory in shared test workers
+
+The `unit-test` builder runs Vitest with `isolate: false`. Each worker process runs its share of the spec files one after another (about 120 each on the 2-worker macOS leg, about 80 on the 3-worker Linux and Windows legs), against one jsdom document and one copy of every `node_modules` module. A test's TestBed graph (the component tree, the root injector, the NgZone and every service) is freed once the test ends, but only if nothing worker-wide still points into it. A single stray reference keeps the whole graph, a few MB, alive until the worker exits. On the macOS leg that used to add up to about 2.4 GB per worker. On the 7 GB macOS runners the machine then swapped hard enough to stall for tens of seconds at a time, and whichever test was running when it stalled timed out.
+
+What you need to do: a `providedIn: "root"` service that registers anything on a worker-wide object, such as a `window` or `document` listener, a `setInterval` / `interval()`, a WebSocket or y-websocket provider, or a `BroadcastChannel` subscription, must release it in `ngOnDestroy`. TestBed destroys the root injector after every test, which calls that hook. Without it, the listener or timer keeps the service alive, and through the service the test's whole graph. `WorkflowWebsocketService`, `JupyterPanelService` and `WorkflowActionService` show the pattern.
+
+Two worker-wide holders outside our code are handled in test setup:
+
+- **jsdom's selector cache.** It memoizes every selector with the nodes it last matched, including each fixture's `#root<N>`. `src/jsdom-selector-cache-setup.ts` empties it between tests.
+- **Vitest 4's mock registry.** It is a strong `Set` that is never pruned, so every `vi.fn()` / `vi.spyOn()` of the run stays alive with everything it recorded or spied on. `.yarn/patches/@vitest-spy-npm-*.patch` backports Vitest 5's weak registry. The `resolutions` key names the exact version, so every Vitest bump drops the patch, even when the patched lines are unchanged, and `worker-memory.spec.ts` then fails (Renovate keeps those bumps in their own PR). To carry it over: run `yarn patch @vitest/spy`, redo the change in the printed folder's `dist/index.js`, and run `yarn patch-commit -s <folder>`. Then delete the old patch file and its `resolutions` entry, and update the patch path in the root `LICENSE`. Delete the patch for good once Angular's unit-test builder supports Vitest 5.
+
+`src/app/common/testing/worker-memory.spec.ts` fails if either of those stops releasing memory.
 
 ## Mocking
 

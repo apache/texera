@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { discardPeriodicTasks, fakeAsync, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
+import { fakeAsync, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
 import { Subscription } from "rxjs";
 import {
   WorkflowWebsocketService,
@@ -317,10 +317,24 @@ describe("WorkflowWebsocketService", () => {
         tick(WS_HEARTBEAT_INTERVAL_MS);
         expect(heartbeats()).toBe(2);
       } finally {
-        heartbeatService.closeWebsocket();
-        // the constructor's interval is never unsubscribed, so drain it or fakeAsync fails the test
-        discardPeriodicTasks();
+        heartbeatService.ngOnDestroy();
       }
+    }));
+
+    it("stops the heartbeat and closes the socket when destroyed", fakeAsync(() => {
+      // built inside the fake zone for the same reason as above
+      const heartbeatService = new WorkflowWebsocketService(TestBed.inject(GuiConfigService));
+      heartbeatService.openWebsocket(1, 1, 1);
+      flushMicrotasks();
+      const send = vi.spyOn(heartbeatService, "send");
+
+      heartbeatService.ngOnDestroy();
+      tick(WS_HEARTBEAT_INTERVAL_MS * 2);
+
+      // A heartbeat to a closed socket is dropped without a trace, so watch the attempt: a timer
+      // still firing after destroy keeps the service, and everything it reaches, alive.
+      expect(send).not.toHaveBeenCalled();
+      expect(openedSockets[0].readyState).toBe(FakeWebSocket.CLOSED);
     }));
 
     it("adopts the worker count carried by a ClusterStatusUpdateEvent", async () => {
