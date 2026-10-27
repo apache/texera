@@ -283,7 +283,7 @@ export class AiWorkflowFixerService {
       if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
-      const suggestedFix = this.toFix(text, visible);
+      const suggestedFix = this.toFix(text);
       // The prompt asks for whole lines with their indentation; a snippet starting mid-line
       // means the model ignored that, and applying it would put the lines after the first
       // at a column nothing here can work out.
@@ -527,7 +527,7 @@ export class AiWorkflowFixerService {
   }
 
   /** Maps the model's JSON contract onto SuggestedFix, rejecting incomplete replies. */
-  private toFix(raw: string, properties: Readonly<Record<string, unknown>>): SuggestedFix {
+  private toFix(raw: string): SuggestedFix {
     let text = raw.trim();
     const fenced = text.match(/```(?:[a-zA-Z]+)?\s*([\s\S]*?)```/);
     if (fenced) {
