@@ -30,6 +30,7 @@ import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interfa
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { buildFixPrompt } from "./ai-fix-prompt";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export type FixErrorType = "missing_column" | "type_error" | "null_error" | "unsupported";
 /**
@@ -93,10 +94,6 @@ export interface FixState {
   applyError?: string;
 }
 
-// Model id as LiteLLM exposes it (bin/single-node/litellm-config.yaml), not the provider's
-// id. A deployment whose proxy publishes a different alias has to change this: there is no
-// GuiConfig field for it today, and adding one is a backend change.
-export const AI_FIXER_MODEL = "claude-haiku-4.5";
 export const AI_FIXER_TIMEOUT_MS = 120_000;
 export const UNLOCK_TIMEOUT_MS = 15_000;
 
@@ -203,6 +200,7 @@ export class AiWorkflowFixerService {
   private readonly stateSubject = new BehaviorSubject<FixState>(IDLE_STATE);
 
   constructor(
+    private config: GuiConfigService,
     private workflowActionService: WorkflowActionService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowConsoleService: WorkflowConsoleService
@@ -420,7 +418,10 @@ export class AiWorkflowFixerService {
     const model = createOpenAI({
       baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
       apiKey: AuthService.getAccessToken() ?? "",
-    }).chat(AI_FIXER_MODEL);
+      // Named as the LiteLLM proxy exposes it, not as the provider does, and read from the
+      // deployment's own config: a proxy publishing a different alias would otherwise need a
+      // rebuild to be reachable.
+    }).chat(this.config.env.aiFixModel);
     return generateText({ model, messages, abortSignal });
   }
 
