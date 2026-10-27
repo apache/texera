@@ -18,6 +18,7 @@
  */
 
 const path = require("path");
+const webpack = require("webpack");
 const { LicenseWebpackPlugin } = require("license-webpack-plugin");
 
 const nodeModule = (...segments) => path.resolve(__dirname, "node_modules", ...segments);
@@ -87,6 +88,15 @@ module.exports = {
     },
   },
   plugins: [
+    // @vscode/diff (pulled in by @codingame/monaco-vscode-api) reads its wasm
+    // through `import("node:fs/promises")` when it runs under Node. That branch
+    // never runs in a browser, and a `node:` module has no web build, so
+    // webpack cannot load it (and on Windows license-webpack-plugin mistakes
+    // it for this package and fails the build). Leave it out of the bundle.
+    new webpack.IgnorePlugin({
+      resourceRegExp: /^node:fs\/promises$/,
+      contextRegExp: /[\\/]@vscode[\\/]diff[\\/]/,
+    }),
     new LicenseWebpackPlugin({
       perChunkOutput: false,
       outputFilename: "3rdpartylicenses.json",

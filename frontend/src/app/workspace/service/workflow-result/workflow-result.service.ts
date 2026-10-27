@@ -43,6 +43,8 @@ import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 })
 export class WorkflowResultService {
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
+  // the services for an operator's output ports past the first, keyed "operatorID:portIndex"
+  private otherPortResultServices = new Map<string, OperatorPaginationResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
   // event stream of operator result update, undefined indicates the operator result is cleared
@@ -112,6 +114,26 @@ export class WorkflowResultService {
     return this.paginatedResultServices.get(operatorID);
   }
 
+  /**
+   * The service that pages one of the operator's output ports. The first port's is the one the
+   * running execution keeps up to date. Any other port is read only when asked, so its service is
+   * made on the first ask, for an operator whose result is a table.
+   */
+  public getPortPaginatedResultService(
+    operatorID: string,
+    portIndex: number
+  ): OperatorPaginationResultService | undefined {
+    const firstPort = this.getPaginatedResultService(operatorID);
+    if (portIndex === 0 || !firstPort) return firstPort;
+    const key = `${operatorID}:${portIndex}`;
+    let service = this.otherPortResultServices.get(key);
+    if (!service) {
+      service = new OperatorPaginationResultService(operatorID, this.wsService, portIndex);
+      this.otherPortResultServices.set(key, service);
+    }
+    return service;
+  }
+
   public getResultService(operatorID: string): OperatorResultService | undefined {
     return this.operatorResultServices.get(operatorID);
   }
@@ -124,6 +146,7 @@ export class WorkflowResultService {
   public clearResults(): void {
     this.operatorResultServices.clear();
     this.paginatedResultServices.clear();
+    this.otherPortResultServices.clear();
     this.resultTableStats.next({});
     this.resultClearedStream.next();
   }
@@ -249,10 +272,12 @@ export class OperatorPaginationResultService {
 
   constructor(
     public operatorID: string,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    // which output port it pages. The running execution reports only on the first, so any other
+    // port keeps no page cache and takes its row count from each reply.
+    public readonly portIndex: number = 0
   ) {
     this.workflowWebsocketService.subscribeToEvent("PaginatedResultEvent").subscribe(event => {
-      this.schema = event.schema;
       this.handlePaginationResult(event);
     });
   }
@@ -298,7 +323,8 @@ export class OperatorPaginationResultService {
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
-    const useCache = columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    const useCache =
+      this.portIndex === 0 && columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
     const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
@@ -307,6 +333,8 @@ export class OperatorPaginationResultService {
         pageIndex: pageIndex,
         table: pageCache,
         schema: this.schema,
+        portIndex: this.portIndex,
+        totalTuples: this.currentTotalNumTuples,
       });
     } else {
       // fetch result data from server
@@ -320,6 +348,7 @@ export class OperatorPaginationResultService {
         columnOffset,
         columnLimit,
         columnSearch,
+        ...this.portField(),
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
@@ -345,10 +374,21 @@ export class OperatorPaginationResultService {
     this.statsCache = statsUpdate;
   }
 
+  // the first port is the server's default, so a request for it leaves the field out
+  private portField(): { portIndex?: number } {
+    return this.portIndex === 0 ? {} : { portIndex: this.portIndex };
+  }
+
   private handlePaginationResult(res: PaginatedResultEvent): void {
     const pendingRequestSubject = this.pendingRequests.get(res.requestID);
     if (!pendingRequestSubject) {
       return;
+    }
+    // Every operator's and every port's replies arrive on one stream, so only a reply to this
+    // service's own request may set its schema.
+    this.schema = res.schema;
+    if (this.portIndex !== 0) {
+      this.currentTotalNumTuples = res.totalTuples;
     }
     pendingRequestSubject.next(res);
     pendingRequestSubject.complete();

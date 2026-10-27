@@ -949,6 +949,31 @@ class HubResourceSpec
     byEntity shouldBe Map((Wf, 810805) -> 1, (Ds, 820802) -> 2)
   }
 
+  "versionedResourcesByIdsQuery" should "carry only the viewer's own grant, never another user's" in {
+    val did = seedDataset(820860, "ds_two_grants")
+    for ((uid, privilege) <- Seq(ownerUid -> PrivilegeEnum.WRITE, likerUid -> PrivilegeEnum.READ)) {
+      getDSLContext
+        .insertInto(DATASET_USER_ACCESS)
+        .set(DATASET_USER_ACCESS.DID, did)
+        .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
+        .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
+        .execute()
+    }
+    val tables = VersionedResourceTables.DatasetTables
+    def grantsSeenBy(uid: Integer): Seq[PrivilegeEnum] =
+      HubResource
+        .versionedResourcesByIdsQuery(tables, Seq(did), uid)
+        .fetch()
+        .asScala
+        .map(_.get(DATASET_USER_ACCESS.PRIVILEGE))
+        .toSeq
+
+    grantsSeenBy(Integer.valueOf(likerUid)) shouldBe Seq(PrivilegeEnum.READ)
+    // A user with no grant, and an anonymous viewer, see one row with no grant at all.
+    grantsSeenBy(Integer.valueOf(thirdUid)) shouldBe Seq(null)
+    grantsSeenBy(null) shouldBe Seq(null)
+  }
+
   "getTops" should "list the liked public entity under the 'like' key" in {
     recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
 
