@@ -37,7 +37,8 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessReso
   getPrivilege,
   hasWriteAccess
 }
-import org.jooq.DSLContext
+import org.jooq.impl.DSL
+import org.jooq.{DSLContext, Record1, Select}
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -80,18 +81,34 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
-    val access = context
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetchOneInto(classOf[WorkflowUserAccess])
-    if (access == null) {
-      PrivilegeEnum.NONE
-    } else {
-      access.getPrivilege
-    }
-  }
+  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum =
+    OwnerAccess.privilege(
+      isOwner(wid, uid),
+      context
+        .select(WORKFLOW_USER_ACCESS.PRIVILEGE)
+        .from(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+        .fetchOneInto(classOf[PrivilegeEnum])
+    )
+
+  def isOwner(wid: Integer, uid: Integer): Boolean =
+    context.fetchExists(
+      WORKFLOW_OF_USER,
+      WORKFLOW_OF_USER.WID.eq(wid).and(WORKFLOW_OF_USER.UID.eq(uid))
+    )
+
+  /** Ids of the workflows `uid` owns or was granted. */
+  def accessibleWids(uid: Integer): Select[Record1[Integer]] =
+    DSL
+      .select(WORKFLOW_OF_USER.WID)
+      .from(WORKFLOW_OF_USER)
+      .where(WORKFLOW_OF_USER.UID.eq(uid))
+      .union(
+        DSL
+          .select(WORKFLOW_USER_ACCESS.WID)
+          .from(WORKFLOW_USER_ACCESS)
+          .where(WORKFLOW_USER_ACCESS.UID.eq(uid))
+      )
 
   /**
     * Whether the user was granted access to the workflow itself, rather than merely being able to

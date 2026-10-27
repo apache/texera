@@ -26,6 +26,7 @@ import io.dropwizard.auth.Auth
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
@@ -41,6 +42,7 @@ import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.max
 import org.jooq.{DSLContext, Record10, Result, SelectOnConditionStep, TableField}
 
@@ -263,7 +265,8 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
+  /** The access join is narrowed to `uid`, so each workflow yields one row carrying only the viewer's grant. */
+  def baseWorkflowSelect(uid: Integer): SelectOnConditionStep[Record10[
     Integer,
     String,
     String,
@@ -291,6 +294,7 @@ object WorkflowResource {
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .and(if (uid == null) DSL.falseCondition() else WORKFLOW_USER_ACCESS.UID.eq(uid))
       .leftJoin(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
@@ -317,12 +321,11 @@ object WorkflowResource {
     workflowEntries
       .map { workflowRecord =>
         val ownerUid = workflowRecord.into(WORKFLOW_OF_USER).getUid
+        val isOwner = uid != null && ownerUid == uid
         DashboardWorkflow(
-          uid != null && ownerUid == uid,
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
+          isOwner,
+          OwnerAccess
+            .privilege(isOwner, workflowRecord.get(WORKFLOW_USER_ACCESS.PRIVILEGE))
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
@@ -349,10 +352,8 @@ class WorkflowResource extends LazyLogging {
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
-      .select(WORKFLOW_USER_ACCESS.WID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .fetchInto(classOf[String])
+      .fetch(WorkflowAccessResource.accessibleWids(user.getUid))
+      .getValues(0, classOf[String])
   }
 
   /**
@@ -366,12 +367,10 @@ class WorkflowResource extends LazyLogging {
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
       .selectDistinct(USER.EMAIL)
-      .from(WORKFLOW_USER_ACCESS)
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .from(WORKFLOW_OF_USER)
       .join(USER)
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .where(WORKFLOW_OF_USER.WID.in(WorkflowAccessResource.accessibleWids(user.getUid)))
       .fetchInto(classOf[String])
   }
 
@@ -387,8 +386,8 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
-    val workflowEntries = baseWorkflowSelect()
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+    val workflowEntries = baseWorkflowSelect(user.getUid)
+      .where(WORKFLOW_USER_ACCESS.UID.isNotNull.or(WORKFLOW_OF_USER.UID.eq(user.getUid)))
       .groupBy(
         WORKFLOW.WID,
         WORKFLOW.NAME,

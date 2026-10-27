@@ -258,7 +258,7 @@ object HubResource {
       return List.empty[DashboardWorkflow]
     }
 
-    val records = baseWorkflowSelect()
+    val records = baseWorkflowSelect(uid)
       .where(WORKFLOW.WID.in(wids: _*))
       .groupBy(
         WORKFLOW.WID,

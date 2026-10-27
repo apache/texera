@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
 import org.apache.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
@@ -77,7 +78,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     if (uid == null) {
       condition = WORKFLOW.IS_PUBLIC.eq(true)
     } else {
-      val privateAccessCondition = WORKFLOW_USER_ACCESS.UID.eq(uid)
+      val privateAccessCondition =
+        WORKFLOW_USER_ACCESS.UID.isNotNull.or(WORKFLOW_OF_USER.UID.eq(uid))
       if (includePublic) {
         condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
       } else {
@@ -141,11 +143,12 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
+    val isOwner = record.into(WORKFLOW_OF_USER).getUid == uid
     val dw = DashboardWorkflow(
-      record.into(WORKFLOW_OF_USER).getUid == uid,
-      Option(record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
-        .map(_.toString)
-        .getOrElse(PrivilegeEnum.NONE.toString),
+      isOwner,
+      OwnerAccess
+        .privilege(isOwner, record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
+        .toString,
       record.into(USER).getName, {
         // The select lists specific columns, so the POJO built from the record does not carry
         // this one. Without it the listing forgets the default-view preference on every refresh.

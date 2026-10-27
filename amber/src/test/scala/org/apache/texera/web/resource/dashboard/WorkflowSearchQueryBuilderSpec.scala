@@ -110,7 +110,7 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
   "toEntryImpl" should "fall back to NONE when the workflow privilege is NULL" in {
     // Public workflows the caller has no explicit grant on left-join to a NULL
     // privilege; the DTO must still carry a usable access level.
-    workflowOf(translatedRecord(privilege = null), ownerUid).accessLevel shouldBe
+    workflowOf(translatedRecord(privilege = null), viewerUid).accessLevel shouldBe
       PrivilegeEnum.NONE.toString
   }
 
@@ -119,8 +119,14 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     // pass-through of the fixture value.
     workflowOf(
       translatedRecord(privilege = PrivilegeEnum.READ),
-      ownerUid
+      viewerUid
     ).accessLevel shouldBe "READ"
+  }
+
+  it should "report WRITE for the owner whatever their access row says" in {
+    workflowOf(translatedRecord(privilege = null), ownerUid).accessLevel shouldBe "WRITE"
+    workflowOf(translatedRecord(privilege = PrivilegeEnum.READ), ownerUid).accessLevel shouldBe
+      "WRITE"
   }
 
   // -- ownership --------------------------------------------------------------

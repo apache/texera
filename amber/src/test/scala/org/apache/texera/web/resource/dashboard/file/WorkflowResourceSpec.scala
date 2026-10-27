@@ -25,6 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_USER_ACCESS,
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
@@ -949,6 +950,30 @@ class WorkflowResourceSpec
     new WorkflowUserAccessDao(getDSLContext.configuration())
       .merge(new WorkflowUserAccess(testUser2.getUid, wid, PrivilegeEnum.READ))
     assert(workflowResource.retrieveOwners(sessionUser2).asScala.toList == List(testUser.getEmail))
+  }
+
+  "WorkflowResource" should "keep an owner's full access after their access row is removed" in {
+    val wid = seedWorkflow(sessionUser1, "owner-row-removed").workflow.getWid
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
+      .execute()
+
+    val listed = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+    assert(listed.map(_.workflow.getWid) == List(wid))
+    assert(listed.head.accessLevel == "WRITE")
+
+    val searched =
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams()).results
+    assert(
+      searched.flatMap(_.workflow).map(w => (w.workflow.getWid, w.accessLevel)) == List(
+        wid -> "WRITE"
+      )
+    )
+
+    assert(workflowResource.retrieveIDs(sessionUser1).asScala.toList == List(wid.toString))
+    assert(workflowResource.retrieveOwners(sessionUser1).asScala.toList == List(testUser.getEmail))
+    assert(!workflowResource.retrieveWorkflow(wid, sessionUser1).readonly)
   }
 
   "WorkflowResource name/type/description/owner/size lookups" should "reflect the seeded workflow" in {
