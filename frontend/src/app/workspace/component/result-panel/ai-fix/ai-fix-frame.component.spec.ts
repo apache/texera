@@ -135,7 +135,7 @@ describe("AiFixFrameComponent", () => {
   });
 
   describe("the analyze button", () => {
-    it("passes the fatal error, schema, code and properties to the service", () => {
+    it("passes the fatal error, schema and code to the service", () => {
       getErrorMessages.mockReturnValue([fatalError({ operatorId: "other" }), fatalError()]);
 
       query(".ai-fix-analyze").nativeElement.click();
@@ -146,8 +146,7 @@ describe("AiFixFrameComponent", () => {
         { header: "KeyError: 'email'", full: "KeyError: 'email'\nTraceback ..." },
         // Every input port, not just port 0: a UDF downstream of a join has more than one.
         { "0_false": [{ attributeName: "user_email", attributeType: "string" }] },
-        "yield t['email']",
-        operatorProperties
+        "yield t['email']"
       );
     });
 

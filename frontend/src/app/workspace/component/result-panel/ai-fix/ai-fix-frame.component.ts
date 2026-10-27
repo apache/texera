@@ -114,8 +114,7 @@ export class AiFixFrameComponent {
       operatorId,
       error,
       this.workflowCompilingService.getOperatorInputSchemaMap(operatorId),
-      properties.code as string | undefined,
-      properties
+      properties.code as string | undefined
     );
   }
 

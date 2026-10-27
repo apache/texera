@@ -19,48 +19,6 @@
 
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 
-// Names that carry a credential even when the operator forgot the password widget.
-const SECRET_NAME = /token|password|secret|credential|api[-_]?key/i;
-
-/**
- * Drops operator properties whose values are credentials, so they never reach the model.
- *
- * Operators keep secrets alongside ordinary settings -- `hfApiToken` on HuggingFaceInference,
- * `password` on the SQL sources -- and the configuration block is serialized whole, so without
- * this the credential travels with it. The operator's own schema marks those fields with the
- * password widget, which is the reliable signal; the name pattern is a second barrier so a
- * schema that cannot be read, or an operator missing the annotation, does not leak anyway.
- *
- * Dropped rather than masked: none of the four supported fixes touches a credential, so the
- * model has no reason to know the field is there.
- */
-export function withoutSecrets(
-  operatorProperties: Readonly<Record<string, unknown>>,
-  schemaProperties?: Readonly<Record<string, unknown>>
-): Record<string, unknown> {
-  const isPasswordWidget = (fieldSchema: unknown): boolean =>
-    (fieldSchema as any)?.widget?.formlyConfig?.templateOptions?.type === "password";
-
-  return Object.fromEntries(
-    Object.entries(operatorProperties).filter(
-      ([name]) => !SECRET_NAME.test(name) && !isPasswordWidget(schemaProperties?.[name])
-    )
-  );
-}
-
-/**
- * Drops the UDF source from the configuration block.
- *
- * `code` is a property like any other, so the whole operator source went into the prompt
- * twice -- once fenced under "Operator code" and once JSON-escaped inside the configuration.
- * The escaped copy is the one the model should never quote from, and an apply refuses a
- * property change named `code` anyway.
- */
-function withoutCode(properties: Readonly<Record<string, unknown>>): Record<string, unknown> {
-  const { code, ...rest } = properties;
-  return rest;
-}
-
 /**
  * Renders every input port, not just the first.
  *
@@ -82,6 +40,11 @@ export function formatInputSchema(inputSchemas: OperatorPortSchemaMap | undefine
 /**
  * Builds the single user message sent to the LLM for one failed operator.
  *
+ * The operator's configuration is not among the things sent. Every fix this panel writes is
+ * a change to `code`, so the block served nothing -- and it could not be made safe by
+ * filtering field names: a Python UDF's `uiParameters` is a list of attribute/value pairs,
+ * so the name says nothing about whether a value is an API key the user typed in.
+ *
  * The model is asked for exactly one minimal fix and for raw JSON. The reply is still parsed
  * defensively (fenced blocks are unwrapped) because "no markdown" is a request, not a
  * guarantee.
@@ -89,8 +52,7 @@ export function formatInputSchema(inputSchemas: OperatorPortSchemaMap | undefine
 export function buildFixPrompt(
   errorMessage: string,
   operatorCode: string | undefined,
-  inputSchemas: OperatorPortSchemaMap | undefined,
-  operatorProperties: Readonly<Record<string, unknown>>
+  inputSchemas: OperatorPortSchemaMap | undefined
 ): string {
   return `You are a debugging assistant for a Python data processing operator in a workflow engine.
 
@@ -105,8 +67,6 @@ ${operatorCode ?? "(this operator has no user code)"}
 Input schema (column names and types)
 ${formatInputSchema(inputSchemas)}
 
-Operator configuration
-${JSON.stringify(withoutCode(operatorProperties), null, 2)}
 
 Task
 Diagnose the root cause of the error. Then propose exactly ONE fix.
@@ -119,12 +79,12 @@ Rules:
 - original_snippet and suggested_snippet must be WHOLE LINES, copied starting at the
   beginning of a line, with the leading indentation included exactly as it appears. Do not
   start a snippet in the middle of a line, and do not re-indent: every line you return must
-  already carry the indentation it should have in the file.
+  already carry the indentation it should have in the file. Ending a snippet with a newline
+  is fine; just end both snippets the same way.
 
 Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
 {
   "explanation": "one sentence describing the root cause",
-  "fix_type": "code_change",
   "original_snippet": "whole lines to replace, indentation included",
   "suggested_snippet": "replacement lines, each already indented as it should appear",
   "confidence": "high" | "medium" | "low"

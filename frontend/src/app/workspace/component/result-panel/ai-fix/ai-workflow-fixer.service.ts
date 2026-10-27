@@ -28,8 +28,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { OperatorPortSchemaMap } from "../../../types/workflow-compiling.interface";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
-import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
-import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { buildFixPrompt } from "./ai-fix-prompt";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 
 export type FixErrorType = "missing_column" | "type_error" | "null_error" | "unsupported";
@@ -206,7 +205,6 @@ export class AiWorkflowFixerService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private operatorMetadataService: OperatorMetadataService,
     private workflowConsoleService: WorkflowConsoleService
   ) {
     // The panel holds whatever it last showed until something clears it, and after Apply
@@ -251,8 +249,7 @@ export class AiWorkflowFixerService {
     operatorId: string,
     error: OperatorError,
     inputSchemas: OperatorPortSchemaMap | undefined,
-    code: string | undefined,
-    properties: Readonly<Record<string, unknown>>
+    code: string | undefined
   ): Promise<void> {
     const errorType = classifyError(error.header);
     const workflowId = this.workflowActionService.getOpenWorkflowId();
@@ -275,11 +272,7 @@ export class AiWorkflowFixerService {
 
     this.stateSubject.next(base);
     try {
-      // One redacted view, used for both the prompt and the suggestion: toFix reads the
-      // field's current value to show in the diff, and reading it from the raw properties
-      // put a credential on screen whenever the model guessed one of those names.
-      const visible = withoutSecrets(properties, this.schemaProperties(operatorId));
-      const { text } = await this.callModelWithTimeout(buildFixPrompt(error.full, code, inputSchemas, visible));
+      const { text } = await this.callModelWithTimeout(buildFixPrompt(error.full, code, inputSchemas));
       if (seq !== this.analysisSeq || workflowId !== this.workflowActionService.getOpenWorkflowId()) {
         return;
       }
@@ -509,23 +502,6 @@ export class AiWorkflowFixerService {
     }
   }
 
-  /**
-   * The operator's own JSON schema, used to spot the fields it renders as password widgets.
-   * Returns nothing when the operator or its schema cannot be resolved -- `withoutSecrets`
-   * still drops credential-looking names, so a miss here narrows the filter, never removes it.
-   */
-  private schemaProperties(operatorId: string): Record<string, unknown> | undefined {
-    try {
-      const operatorType = this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType;
-      return this.operatorMetadataService.getOperatorSchema(operatorType).jsonSchema.properties as Record<
-        string,
-        unknown
-      >;
-    } catch {
-      return undefined;
-    }
-  }
-
   /** Maps the model's JSON contract onto SuggestedFix, rejecting incomplete replies. */
   private toFix(raw: string): SuggestedFix {
     let text = raw.trim();
@@ -539,7 +515,7 @@ export class AiWorkflowFixerService {
     } catch (err) {
       throw new Error(`model did not return JSON: ${(err as Error).message}`);
     }
-    const { explanation, fix_type, original_snippet, suggested_snippet, confidence } = parsed ?? {};
+    const { explanation, original_snippet, suggested_snippet, confidence } = parsed ?? {};
     if (!explanation || !original_snippet || !suggested_snippet) {
       throw new Error("model response is missing a required field");
     }
@@ -555,15 +531,15 @@ export class AiWorkflowFixerService {
         throw new Error(`model returned ${typeof value} for ${name}, expected a string`);
       }
     }
-    // This panel edits code and nothing else, so any other kind of fix is the model going
-    // off script -- and refusing here keeps it off the screen rather than only out of the
-    // write.
-    if (fix_type !== "code_change") {
-      throw new Error(`${fix_type} is not a kind of fix this panel applies`);
-    }
+    // One trailing newline off each, independently. The prompt asks for whole lines and does
+    // not settle whether the final newline is part of the quote, so both forms arrive. Kept,
+    // it makes the verdict depend on where the line sits: `code[end]` is the next line's
+    // first character everywhere except the last line of the file, which passes. Dropped
+    // from the replacement too, so the line's own newline stays put and nothing is merged.
+    const withoutTrailingNewline = (snippet: string) => (snippet.endsWith("\n") ? snippet.slice(0, -1) : snippet);
     return {
-      original: original_snippet,
-      suggested: suggested_snippet,
+      original: withoutTrailingNewline(original_snippet),
+      suggested: withoutTrailingNewline(suggested_snippet),
       explanation,
       confidence: confidence === "high" || confidence === "low" ? confidence : "medium",
     };

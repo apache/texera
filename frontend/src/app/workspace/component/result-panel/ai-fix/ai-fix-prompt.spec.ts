@@ -18,59 +18,18 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildFixPrompt, formatInputSchema, withoutSecrets } from "./ai-fix-prompt";
+import { buildFixPrompt, formatInputSchema } from "./ai-fix-prompt";
 import { PortSchema } from "../../../types/workflow-compiling.interface";
 
-describe("withoutSecrets", () => {
-  const passwordWidget = { widget: { formlyConfig: { templateOptions: { type: "password" } } } };
-
-  it("drops a field the operator's schema renders as a password widget", () => {
-    const kept = withoutSecrets({ host: "db.example.com", pw: "hunter2" }, { host: {}, pw: passwordWidget });
-
-    expect(kept).toEqual({ host: "db.example.com" });
-  });
-
-  it("drops credential-looking names even without a schema", () => {
-    const kept = withoutSecrets({
-      hfApiToken: "hf_live_abc",
-      password: "hunter2",
-      apiKey: "sk-live",
-      api_key: "sk-live",
-      clientSecret: "shh",
-      modelId: "Qwen/Qwen2.5",
-    });
-
-    expect(kept).toEqual({ modelId: "Qwen/Qwen2.5" });
-  });
-
-  it("keeps the ordinary settings a fix actually needs", () => {
-    const kept = withoutSecrets({ modelId: "gpt-4-turb", temperature: 0, workers: 1 }, { modelId: {} });
-
-    expect(kept).toEqual({ modelId: "gpt-4-turb", temperature: 0, workers: 1 });
-  });
-
-  it("never lets a secret reach the built prompt", () => {
-    const properties = { hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
-
-    const prompt = buildFixPrompt("404 model not found", undefined, {}, withoutSecrets(properties));
+describe("buildFixPrompt", () => {
+  it("sends no operator configuration at all, so a UI parameter cannot leak", () => {
+    // The configuration block is not sent at all. Filtering it by field name could never be
+    // enough: a Python UDF's uiParameters is a list of {attribute, value} pairs, so the name
+    // says nothing about whether a value is an API key the user typed in.
+    const prompt = buildFixPrompt("KeyError: 'email'", "print(1)", {});
 
     expect(prompt).not.toContain("hf_live_abc");
-    expect(prompt).not.toContain("hunter2");
-    expect(prompt).toContain("gpt-4-turb");
-  });
-});
-
-describe("buildFixPrompt", () => {
-  it("sends the UDF source once, not again inside the configuration", () => {
-    // `code` is a property like any other, so the whole operator source was rendered twice:
-    // fenced under "Operator code" and JSON-escaped under the configuration. The escaped copy
-    // is the one the model must not quote from, since no snippet taken from it matches.
-    const code = "class ProcessTupleOperator(UDFOperatorV2):\n    pass\n";
-
-    const prompt = buildFixPrompt("KeyError: 'email'", code, {}, { code, workers: 1 });
-
-    expect(prompt.split("class ProcessTupleOperator").length - 1).toEqual(1);
-    expect(prompt).toContain('"workers": 1');
+    expect(prompt).not.toContain("Operator configuration");
   });
 });
 
