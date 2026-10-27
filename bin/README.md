@@ -37,37 +37,4 @@ You can also find prebuilt images published by the Texera team on the [Texera Do
 
 ## Deployment using images
 
-<<<<<<< HEAD
 Subdirectories `single-node` and `k8s` contain configuration files for deploying Texera using the above Docker images.
-=======
-| Script | Purpose |
-| --- | --- |
-| `frontend-proto-gen.sh` | Generate the frontend (TypeScript) code from protobuf definitions. |
-| `python-proto-gen.sh` | Generate the Python code from protobuf definitions. |
-| `fix-format.sh` | Run the repository's code formatters. |
-| `protoc-version.txt` | Pins the `protoc` version used by the proto-gen scripts. |
-
-## Benchmarks
-
-| Script | Purpose |
-| --- | --- |
-| `run-benchmarks.sh` | Single entry point for all Texera benchmarks; CI calls this script verbatim. |
-
-## Licensing
-
-`licensing/` contains the scripts that audit JAR licenses and generate the
-binary `NOTICE`/`LICENSE` files (`audit_jar_licenses.py`,
-`check_binary_deps.py`, `concat_license_binary.py`,
-`generate_notice_binary.py`) plus their unit tests.
-
-## Other components & configuration
-
-| Path | Purpose |
-| --- | --- |
-| `utils/` | Shared shell helpers (`resolve-texera-home.sh`, `texera-logging.sh`) sourced by other scripts. |
-| `pylsp/` | Dockerized Python language server used by the UDF editor. |
-| `y-websocket-server/` | Dockerized Yjs websocket server backing collaborative editing. |
-| `forum/` | Flarum-based community forum setup (install scripts and seed SQL). |
-| `config.php`, `extend.php`, `.htaccess` | Flarum runtime config, extenders, and Apache rewrite rules for the forum. |
-| `litellm-config.yaml` | LiteLLM proxy configuration for AI features. |
->>>>>>> d108cc19f (fix: strip the development forum's accounts and sessions from the Flarum seed (#9127))
