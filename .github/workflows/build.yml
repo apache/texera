@@ -680,14 +680,19 @@ jobs:
           LAKEKEEPER_BASE=${REST_URI%/catalog}
           LAKEKEEPER_BASE=${LAKEKEEPER_BASE%/}
 
-          # Bucket creation goes through the AWS CLI, which is preinstalled on
-          # both the Linux and macOS runner images -- so unlike the rest of this
-          # job it needs no $RUNNER_OS branch. CreateBucket on an existing bucket
-          # is a no-op on RustFS, which keeps re-runs idempotent.
+          # boto3 is installed with amber/requirements.txt on every runner.
+          S3_BUCKET="$S3_BUCKET" S3_ENDPOINT="$S3_ENDPOINT" \
           AWS_ACCESS_KEY_ID="$S3_USERNAME" \
           AWS_SECRET_ACCESS_KEY="$S3_PASSWORD" \
           AWS_DEFAULT_REGION="$S3_REGION" \
-            aws s3api create-bucket --bucket "$S3_BUCKET" --endpoint-url "$S3_ENDPOINT"
+            python - <<'PYTHON'
+          import os
+          import boto3
+
+          boto3.client("s3", endpoint_url=os.environ["S3_ENDPOINT"]).create_bucket(
+              Bucket=os.environ["S3_BUCKET"]
+          )
+          PYTHON
           curl -sf -X POST -H 'Content-Type: application/json' \
             -d '{"project-id":"00000000-0000-0000-0000-000000000000","project-name":"default"}' \
             "$LAKEKEEPER_BASE/management/v1/project" || true
@@ -1267,6 +1272,12 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Create isolated Python environment
+        # setup-python's tool cache persists across self-hosted jobs. Keep
+        # previous jobs' test tools out of the production license snapshot.
+        run: |
+          python -m venv --clear "$RUNNER_TEMP/pyamber-venv"
+          echo "$RUNNER_TEMP/pyamber-venv/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
         # 3.12 is the only leg that drives the binary-license check via
         # pip-licenses. Keep stock pip there so the resolved versions
@@ -1276,14 +1287,14 @@ jobs:
         run: |
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
             python -m pip install --upgrade pip pip-licenses
-            install="pip install"
+            install=(python -m pip install)
           else
             python -m pip install uv
             # See amber-integration job for why --index-strategy is set.
-            install="uv pip install --system --index-strategy unsafe-best-match"
+            install=(uv pip install --python "$(command -v python)" --index-strategy unsafe-best-match)
           fi
-          if [ -f amber/requirements.txt ]; then $install -r amber/requirements.txt; fi
-          if [ -f amber/operator-requirements.txt ]; then $install -r amber/operator-requirements.txt; fi
+          if [ -f amber/requirements.txt ]; then "${install[@]}" -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then "${install[@]}" -r amber/operator-requirements.txt; fi
       - name: Generate pip-licenses manifest
         if: matrix.python-version == '3.12'
         run: pip-licenses --format=csv --ignore-packages pip-licenses prettytable wcwidth > /tmp/pip-licenses.csv
@@ -1301,7 +1312,7 @@ jobs:
         # is safe here regardless of leg because it runs post-snapshot.
         run: |
           python -m pip install uv
-          if [ -f amber/dev-requirements.txt ]; then uv pip install --system -r amber/dev-requirements.txt; fi
+          if [ -f amber/dev-requirements.txt ]; then uv pip install --python "$(command -v python)" -r amber/dev-requirements.txt; fi
       - name: Lint with Ruff
         # ruff comes from dev-requirements.txt, so this must run after the
         # dev-dependency install above.
@@ -1485,6 +1496,10 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.19.0
       - name: Install Python test deps
         # amber/dev-requirements.txt pins both `pytest` and `textual` — the
         # latter so a fresh dev who follows the AGENTS.md venv-setup
