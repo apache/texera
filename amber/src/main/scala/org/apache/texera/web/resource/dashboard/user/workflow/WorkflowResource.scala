@@ -268,7 +268,7 @@ object WorkflowResource {
     }
   }
 
-  /** The access join is narrowed to `uid`, so each workflow yields one row carrying only the viewer's grant. */
+  /** The access join is narrowed to `uid`, so each row carries only the viewer's grant. */
   def baseWorkflowSelect(uid: Integer): SelectOnConditionStep[Record10[
     Integer,
     String,
