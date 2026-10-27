@@ -106,6 +106,9 @@ export function updateYTypeFromObject<T extends object>(oldYObj: YType<T>, newOb
     case "function":
       return false;
     case "string": {
+      // Only a Y.Text takes a string in place. Anything else (a number or boolean, kept as it is, or a
+      // Y.Map or Y.Array) is the caller's to replace, as a numeric field taking a "$K" reference needs.
+      if (!(oldYObj instanceof Y.Text)) return false;
       const yText = oldYObj as unknown as Y.Text;
       if (yText.toJSON() !== (newObj as unknown as string)) {
         // Inplace update.

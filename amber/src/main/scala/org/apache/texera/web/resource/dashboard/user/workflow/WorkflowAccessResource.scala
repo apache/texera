@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -90,6 +91,15 @@ object WorkflowAccessResource {
     } else {
       access.getPrivilege
     }
+  }
+
+  /**
+    * Whether the user was granted access to the workflow itself, rather than merely being able to
+    * read it because it is public. Granted access sees the author's working copy; public access is
+    * held at the pinned copy while one is pinned.
+    */
+  def hasGrantedAccess(wid: Integer, uid: Integer): Boolean = {
+    !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
   }
 
   def isPublic(wid: Integer): Boolean = {
@@ -190,7 +200,8 @@ class WorkflowAccessResource() {
       .where(WORKFLOW_OF_USER.WID.eq(wid))
       .fetchOneInto(classOf[Integer])
     if (userUid == workflowOwnerUid) {
-      throw new ForbiddenException("You cannot modify the owner's permissions!")
+      // amber is on javax JAX-RS, so it raises its own ForbiddenException with the shared message.
+      throw new ForbiddenException(OwnerAccess.ownerChangeRefused)
     }
 
     try {
