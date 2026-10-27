@@ -116,7 +116,7 @@ class WorkerTimerServiceSpec
     )
 
   // ---------------------------------------------------------------------------
-  // startAdaptiveBatching: the scheduling payload (lines 51-62)
+  // startAdaptiveBatching: the scheduling payload (lines 50-61)
   // ---------------------------------------------------------------------------
 
   "startAdaptiveBatching" should
@@ -147,7 +147,6 @@ class WorkerTimerServiceSpec
     assert(invocation == expectedFlushInvocation)
     assert(service.adaptiveBatchingHandle.contains(capture.handle))
     assert(!capture.handle.isCancelled)
-    assert(!service.isPaused)
   }
 
   it should "repeat at the interval held by the field its constructor captured" in {
@@ -204,7 +203,7 @@ class WorkerTimerServiceSpec
   }
 
   // ---------------------------------------------------------------------------
-  // stopAdaptiveBatching (lines 66-69)
+  // stopAdaptiveBatching (lines 65-67)
   // ---------------------------------------------------------------------------
 
   "stopAdaptiveBatching" should "cancel the armed timer exactly once" in {
@@ -214,7 +213,6 @@ class WorkerTimerServiceSpec
     service.stopAdaptiveBatching()
 
     assert(actorService.captured.head.handle.cancelCount == 1)
-    assert(!service.isPaused)
   }
 
   it should "be a no-op when no timer was ever armed" in {
@@ -226,95 +224,20 @@ class WorkerTimerServiceSpec
 
     assert(actorService.captured.isEmpty)
     assert(service.adaptiveBatchingHandle.isEmpty)
-    assert(!service.isPaused)
   }
 
-  it should "lower the paused latch even when cancel() reports false" in {
+  it should "cancel again on a repeated stop even when cancel() reports false" in {
     // `stopAdaptiveBatching` discards the Boolean `cancel()` returns, and Pekko
     // returns false for an already-cancelled task or a shut-down scheduler - which
-    // is exactly the shape of WorkflowWorker.postStop() stopping the timer after a
-    // pause already cancelled it. The bookkeeping must not depend on that Boolean.
+    // is exactly the shape of WorkflowWorker.postStop() stopping the timer after
+    // DataProcessor already stopped it on completion. The repeated stop must not
+    // depend on that Boolean.
     val (service, actorService) = newTimerService(cancelResult = false)
 
     service.startAdaptiveBatching()
-    service.pauseAdaptiveBatching()
+    service.stopAdaptiveBatching()
     service.stopAdaptiveBatching()
 
     assert(actorService.captured.head.handle.cancelCount == 2)
-    assert(!service.isPaused)
-  }
-
-  // ---------------------------------------------------------------------------
-  // pauseAdaptiveBatching (lines 73-74)
-  // ---------------------------------------------------------------------------
-
-  "pauseAdaptiveBatching" should "cancel the armed timer and raise the paused latch" in {
-    val (service, actorService) = newTimerService()
-
-    service.startAdaptiveBatching()
-    service.pauseAdaptiveBatching()
-
-    assert(actorService.captured.head.handle.cancelCount == 1)
-    assert(service.isPaused)
-  }
-
-  // ---------------------------------------------------------------------------
-  // resumeAdaptiveBatching (lines 78-79)
-  // ---------------------------------------------------------------------------
-
-  "resumeAdaptiveBatching" should "arm nothing when the paused latch is down" in {
-    val (service, actorService) = newTimerService()
-
-    service.resumeAdaptiveBatching()
-
-    assert(actorService.captured.isEmpty)
-    assert(service.adaptiveBatchingHandle.isEmpty)
-  }
-
-  it should "re-arm the flush timer while the paused latch is up" in {
-    // The precondition (latch up, no live handle) is reached through the production
-    // API alone: a worker paused before it ever emitted an output tuple has never
-    // armed a timer, so `pauseAdaptiveBatching` raises the latch over an empty
-    // handle. Note that start -> pause -> resume is deliberately NOT tested here:
-    // `stopAdaptiveBatching` cancels the handle without clearing it, so after a
-    // real start+pause resume cannot re-arm at all; pinning either that no-op or
-    // its fix is out of scope for a test-only change (see the PR body).
-    val (service, actorService) = newTimerService()
-
-    service.pauseAdaptiveBatching()
-    assert(service.isPaused)
-    assert(service.adaptiveBatchingHandle.isEmpty)
-
-    service.resumeAdaptiveBatching()
-
-    assert(actorService.captured.size == 1)
-    val resumed = actorService.captured.head
-    assert(service.adaptiveBatchingHandle.contains(resumed.handle))
-    assert(!resumed.handle.isCancelled)
-    // The re-armed timer carries the same schedule and payload a start would.
-    assert(resumed.initialDelay == 0.milliseconds)
-    assert(
-      resumed.delay == FiniteDuration(ApplicationConfig.adaptiveBufferingTimeoutMs, MILLISECONDS)
-    )
-    assert(resumed.msg == expectedFlushInvocation)
-    // Characterization, not a specified contract: nothing in production reads
-    // `isPaused`, and as the class stands `stopAdaptiveBatching` is its only
-    // lowerer - resuming re-arms the timer and leaves the latch as it found it. If
-    // the latch semantics are ever deliberately changed so that resume lowers it,
-    // update this assertion.
-    assert(service.isPaused)
-  }
-
-  it should "arm nothing after a stop has lowered the paused latch" in {
-    val (service, actorService) = newTimerService()
-
-    service.pauseAdaptiveBatching()
-    service.stopAdaptiveBatching()
-
-    service.resumeAdaptiveBatching()
-
-    assert(!service.isPaused)
-    assert(actorService.captured.isEmpty)
-    assert(service.adaptiveBatchingHandle.isEmpty)
   }
 }

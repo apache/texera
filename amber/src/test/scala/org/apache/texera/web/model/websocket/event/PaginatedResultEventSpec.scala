@@ -60,7 +60,8 @@ class PaginatedResultEventSpec extends AnyFlatSpec with Matchers {
     pageSize = 25,
     columnOffset = 4,
     columnLimit = 6,
-    columnSearch = Some("city")
+    columnSearch = Some("city"),
+    portIndex = 1
   )
 
   private val table = List(
@@ -80,6 +81,12 @@ class PaginatedResultEventSpec extends AnyFlatSpec with Matchers {
     event.pageIndex shouldBe 3
   }
 
+  it should "echo the port the request read, and the port's row count" in {
+    val event = PaginatedResultEvent(request, table, schema, totalTuples = 40)
+    event.portIndex shouldBe 1
+    event.totalTuples shouldBe 40
+  }
+
   it should "pass the table and schema through untouched" in {
     val event = PaginatedResultEvent(request, table, schema)
     event.table should contain theSameElementsInOrderAs table
@@ -88,10 +95,21 @@ class PaginatedResultEventSpec extends AnyFlatSpec with Matchers {
 
   "the projected event" should "serialize to exactly the fields the Angular client declares" in {
     val json = objectMapper.readTree(
-      objectMapper.writeValueAsString(PaginatedResultEvent(request, table, schema))
+      objectMapper.writeValueAsString(PaginatedResultEvent(request, table, schema, 40))
     )
     json.fieldNames().asScala.toSet shouldBe
-      Set("type", "requestID", "operatorID", "pageIndex", "table", "schema")
+      Set(
+        "type",
+        "requestID",
+        "operatorID",
+        "pageIndex",
+        "table",
+        "schema",
+        "portIndex",
+        "totalTuples"
+      )
+    json.get("portIndex").asInt() shouldBe 1
+    json.get("totalTuples").asInt() shouldBe 40
     json.get("type").asText() shouldBe "PaginatedResultEvent"
     json.get("requestID").asText() shouldBe "req-alpha"
     json.get("operatorID").asText() shouldBe "op-beta"

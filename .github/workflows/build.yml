@@ -380,7 +380,7 @@ jobs:
           BACKPORT_TARGET_BRANCH: ${{ inputs.backport_target_branch }}
         run: |
           # Backport builds filter by the checked-out build.sbt.
-          want=(DAO Auth Config Resource Util PyBuilder WorkflowCore
+          want=(DAO Auth Config Observability Resource Util PyBuilder WorkflowCore
                 WorkflowOperator WorkflowCompiler WorkflowExecutionService)
           tasks=()
           if [ -n "${BACKPORT_TARGET_BRANCH}" ]; then
@@ -1468,6 +1468,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Not ubuntu-slim: the bin/local-dev tests rely on the runner's
+        # preinstalled JDK 17, which ubuntu-slim does not ship.
         os: ["${{ inputs.light_runner }}", macos-latest]
         python-version: ["3.12"]
     steps:
@@ -1536,7 +1538,7 @@ jobs:
     # stays a fast, docker-free job.
     if: ${{ inputs.run_pyright_language_service }}
     name: ${{ format('pyright-language-service{0}', inputs.job_name_suffix) }}
-    runs-on: ${{ inputs.light_runner }}
+    runs-on: ${{ inputs.light_runner == 'ubuntu-latest' && 'ubuntu-slim' || inputs.light_runner }}
     defaults:
       run:
         working-directory: pyright-language-service

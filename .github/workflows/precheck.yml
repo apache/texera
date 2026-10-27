@@ -76,8 +76,8 @@ jobs:
     # this job on arc-light-linux so a jammed GitHub-hosted pool cannot
     # stall the pipeline. Availability cannot be probed before this job runs, so
     # the repo variable ARC_AVAILABLE is the kill switch: set it to
-    # 'false' when the cluster is down to route back to ubuntu-latest.
-    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-latest' }}
+    # 'false' when the cluster is down to route back to ubuntu-slim.
+    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-slim' }}
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
       run_amber: ${{ steps.decide.outputs.run_amber }}

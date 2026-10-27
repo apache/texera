@@ -32,6 +32,7 @@ import { BehaviorSubject, of } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 import { WorkflowCompilingService } from "src/app/workspace/service/compile-workflow/workflow-compiling.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
@@ -476,7 +477,10 @@ describe("ContextMenuComponent", () => {
   describe("menu item click bindings", () => {
     const norm = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 
-    /** Click the rendered <li nz-menu-item> whose text matches `label` exactly. */
+    /**
+     * Click the rendered <li nz-menu-item> whose text matches `label` exactly, with a real DOM
+     * click so that both the nz-menu-item host listener and the template (click) run as in the browser.
+     */
     function clickItem(label: string): void {
       const items = fixture.debugElement.queryAll(By.css("li[nz-menu-item]"));
       const item = items.find(li => norm(li.nativeElement.textContent) === norm(label));
@@ -485,7 +489,18 @@ describe("ContextMenuComponent", () => {
           `menu item "${label}" not rendered; present: [${items.map(i => norm(i.nativeElement.textContent)).join(" | ")}]`
         );
       }
-      item.triggerEventHandler("click", null);
+      item.nativeElement.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+
+    /** Whether the rendered <li nz-menu-item> with text `label` is greyed out through nzDisabled. */
+    function isItemDisabled(label: string): boolean {
+      const item = fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(li => norm(li.nativeElement.textContent) === norm(label));
+      if (!item) {
+        throw new Error(`menu item "${label}" not rendered`);
+      }
+      return item.injector.get(NzMenuItemComponent).nzDisabled;
     }
 
     it("copy invokes onCopy", () => {
@@ -561,17 +576,16 @@ describe("ContextMenuComponent", () => {
       expect(operatorMenuService.viewResultHighlightedOperators).toHaveBeenCalledTimes(1);
     });
 
-    it("renders the reuse result item (disabled) when marked for reuse", () => {
-      // This entry is hardcoded `nzDisabled`, so it can't be clicked; assert it renders.
-      // Its (click) handler is the same as "remove reusing result", covered by the next test.
+    it("reuse result renders greyed out and does nothing when clicked", () => {
       operatorMenuService.isMarkForReuse = true;
       operatorMenuService.isReuseResultClickable = true;
       fixture.detectChanges();
 
-      const rendered = fixture.debugElement
-        .queryAll(By.css("li[nz-menu-item]"))
-        .some(li => norm(li.nativeElement.textContent) === "reuse result");
-      expect(rendered).toBe(true);
+      expect(isItemDisabled("reuse result")).toBe(true);
+
+      clickItem("reuse result");
+
+      expect(operatorMenuService.reuseResultHighlightedOperator).not.toHaveBeenCalled();
     });
 
     it("remove reusing result invokes operatorMenuService.reuseResultHighlightedOperator", () => {
@@ -675,6 +689,93 @@ describe("ContextMenuComponent", () => {
       );
       fixture.detectChanges();
       expect(component.canExecuteOperator()).toBe(true); // item is enabled
+
+      clickItem("execute to this operator");
+
+      expect(operatorMenuService.executeUpToOperator).toHaveBeenCalledTimes(1);
+    });
+
+    it("execute to this operator does nothing while the item is greyed out", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: false, messages: {} });
+      fixture.detectChanges();
+      expect(component.canExecuteOperator()).toBe(false);
+
+      expect(isItemDisabled("execute to this operator")).toBe(true);
+
+      clickItem("execute to this operator");
+
+      expect(operatorMenuService.executeUpToOperator).not.toHaveBeenCalled();
+    });
+
+    it("execute to this operator does nothing while the workflow is not modifiable", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = false;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      (workflowActionService.getTexeraGraph() as unknown as Mocked<WorkflowGraph>).isOperatorDisabled.mockReturnValue(
+        false
+      );
+      fixture.detectChanges();
+      expect(component.canExecuteOperator()).toBe(false);
+
+      expect(isItemDisabled("execute to this operator")).toBe(true);
+
+      clickItem("execute to this operator");
+
+      expect(operatorMenuService.executeUpToOperator).not.toHaveBeenCalled();
+    });
+
+    it("execute to this operator does nothing while the operator is disabled", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      (workflowActionService.getTexeraGraph() as unknown as Mocked<WorkflowGraph>).isOperatorDisabled.mockReturnValue(
+        true
+      );
+      fixture.detectChanges();
+      expect(component.canExecuteOperator()).toBe(false);
+
+      expect(isItemDisabled("execute to this operator")).toBe(true);
+
+      clickItem("execute to this operator");
+
+      expect(operatorMenuService.executeUpToOperator).not.toHaveBeenCalled();
+    });
+
+    it("execute to this operator is not offered while more than one operator is highlighted", () => {
+      highlightedOperatorsSubject.next(["op1", "op2"]);
+      component.isWorkflowModifiable = true;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1", "op2"]);
+      fixture.detectChanges();
+      expect(component.canExecuteOperator()).toBe(false);
+
+      const rendered = fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .some(li => norm(li.nativeElement.textContent) === "execute to this operator");
+      expect(rendered).toBe(false);
+    });
+
+    it("execute to this operator checks the state at click time, not at the last render", () => {
+      highlightedOperatorsSubject.next(["op1"]);
+      component.isWorkflowModifiable = true;
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["op1"]);
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      (workflowActionService.getTexeraGraph() as unknown as Mocked<WorkflowGraph>).isOperatorDisabled.mockReturnValue(
+        false
+      );
+      fixture.detectChanges();
+      expect(isItemDisabled("execute to this operator")).toBe(false);
+
+      clickItem("execute to this operator");
+      expect(operatorMenuService.executeUpToOperator).toHaveBeenCalledTimes(1);
+
+      // The workflow locks without a change-detection pass, so the item still looks enabled.
+      component.isWorkflowModifiable = false;
+      expect(isItemDisabled("execute to this operator")).toBe(false);
 
       clickItem("execute to this operator");
 
