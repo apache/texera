@@ -135,7 +135,7 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
           // the helpers.
           if (declared.get(unit.attribute).contains(AttributeType.LONG))
             s"""_texera_epoch_millis_to_timestamp(out1df[$colLit])"""
-          else s"""_texera_text_to_timestamp(out1df[$colLit])"""
+          else s"""_texera_cast_timestamps(out1df[$colLit])"""
         case _ => s"""out1df[$colLit]"""
       }
       lines += s"""out1df[$colLit] = $expr"""

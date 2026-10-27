@@ -34,6 +34,7 @@ object StandaloneHelpers {
     *  - `_texera_cast_int32`: the INTEGER cast, where a long wraps and a double clamps.
     *  - `_texera_text_to_timestamp`: any year; unreadable text raises. A zoneless ISO cell
     *    pandas can hold is read in bulk, and every other cell is parsed alone.
+    *  - `_texera_cast_timestamps`: the TIMESTAMP cast, a moment kept and text read as above.
     *  - `_texera_epoch_millis_to_timestamp`: epoch milliseconds shown in the machine's zone.
     *  - `_texera_local_zone`: the machine's zone by its IANA name.
     *  - `_texera_standard_offset`: the zone's standard offset, which Java uses before 1900.
@@ -108,11 +109,6 @@ object StandaloneHelpers {
       |def _texera_text_to_timestamp(s):
       |    from dateutil.parser import parse as _parse_date
       |
-      |    if pd.api.types.is_datetime64_any_dtype(s):
-      |        if getattr(s.dtype, "tz", None) is not None:
-      |            return _texera_local_wall_clocks(s)
-      |        return s
-      |
       |    zone = _texera_local_zone()
       |
       |    def _one(x):
@@ -133,6 +129,13 @@ object StandaloneHelpers {
       |    rest = s.notna() & out.isna()
       |    out[rest] = s[rest].map(_one).astype("datetime64[us]")
       |    return out
+      |
+      |def _texera_cast_timestamps(s):
+      |    if not pd.api.types.is_datetime64_any_dtype(s):
+      |        return _texera_text_to_timestamp(s)
+      |    if getattr(s.dtype, "tz", None) is not None:
+      |        return _texera_local_wall_clocks(s)
+      |    return s
       |
       |def _texera_epoch_millis_to_timestamp(s):
       |    return _texera_local_wall_clocks(pd.to_datetime(s, unit="ms", errors="coerce", utc=True))
