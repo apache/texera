@@ -21,6 +21,7 @@ package org.apache.texera.amber.operator
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -67,8 +68,20 @@ trait StandaloneCodeGenerator {
   }
 
   /**
-    * The file's own name, for a script that reads it from its own directory
-    * rather than through Texera's resolved URI.
+    * The file this operator reads, as Texera resolved it, or None for one that
+    * reads no file.
+    *
+    * The script cannot open a resolved URI, so the body writes
+    * [[StandaloneCodeGenerator.SourceFilePlaceholder]] where the file should be
+    * named and the translator puts a name there. The name has to come from the
+    * plan: two sources reading different files whose paths end in the same
+    * segment both asked for `data.csv`, and the script read one of them twice.
+    */
+  def standaloneSourcePath(): Option[String] = None
+
+  /**
+    * The name to offer for [[standaloneSourcePath]], before the plan has had a
+    * chance to say whether another source already wants it.
     *
     * Taken from the last path segment instead of by parsing the whole string as a
     * URI: the resolver percent-encodes the file-relative segments but leaves the
@@ -76,12 +89,13 @@ trait StandaloneCodeGenerator {
     * called `v3 - with long text` makes `new URI` throw on the space and no code
     * is generated at all.
     */
-  protected def sourceBasename(rawPath: String): String = {
-    val segment = rawPath.split("/").lastOption.getOrElse("")
-    // Percent-decoding only, matching what `URI.getPath` used to return here: form
-    // decoding would also turn a literal `+` in a file name into a space.
-    URLDecoder.decode(segment.replace("+", "%2B"), StandardCharsets.UTF_8)
-  }
+  final def standaloneSourceName(): Option[String] =
+    standaloneSourcePath().map { rawPath =>
+      val segment = rawPath.split("/").lastOption.getOrElse("")
+      // Percent-decoding only, matching what `URI.getPath` used to return here: form
+      // decoding would also turn a literal `+` in a file name into a space.
+      URLDecoder.decode(segment.replace("+", "%2B"), StandardCharsets.UTF_8)
+    }
 
   def producesDataFrame(): Boolean = true
 
@@ -109,4 +123,112 @@ trait StandaloneCodeGenerator {
     * to start.
     */
   def standaloneImports(): Seq[String] = Seq.empty
+}
+
+object StandaloneCodeGenerator {
+
+  /**
+    * What a source writes where the file it reads should be named.
+    *
+    * A bare identifier rather than a string literal, because the translator only
+    * rewrites the code parts of a body and leaves literals and comments alone.
+    */
+  val SourceFilePlaceholder: String = "sourceFile"
+
+  /** Python that gives an empty read the columns and types its schema declares.
+    *
+    * With no row there is nothing to infer a type from, so pandas leaves every
+    * column an object, and a JSONL read of no lines has no columns at all. The
+    * executor still declares the schema it inferred from the file, so the next
+    * step looks for those columns in those types. A read with rows is left alone.
+    */
+  def typeAnEmptyRead(frame: String, schema: Schema): String = {
+    val names = schema.getAttributes.map(a => pyStringLiteral(a.getName))
+    val dtypes = schema.getAttributes.flatMap { a =>
+      emptyDtypes.get(a.getType).map(d => s"""${pyStringLiteral(a.getName)}: "$d"""")
+    }
+    s"""if $frame.empty:
+       |    $frame = $frame.reindex(columns=[${names.mkString(", ")}]).astype({${dtypes
+      .mkString(", ")}})""".stripMargin
+  }
+
+  /** Python that gives a read the schema's column names and reads each column the way the
+    * engine does, with every name and its type stated once, in a `_schema` dict.
+    *
+    * A TIMESTAMP column goes through `_texera_text_to_timestamp` and a DOUBLE one through
+    * `_texera_read_doubles`, both from [[StandaloneHelpers.AttributeCasts]], which the caller
+    * declares. The loop names only the readers the schema needs, so a table with no such
+    * column leaves the helper out of the script. An empty read takes the declared types.
+    */
+  def readAsDeclared(frame: String, schema: Schema): String = {
+    val attributes = schema.getAttributes
+    val entries = attributes.map { a =>
+      s"""${pyStringLiteral(a.getName)}: "${emptyDtypes.getOrElse(a.getType, "object")}""""
+    }
+    val readers = Seq(
+      AttributeType.TIMESTAMP -> "_texera_text_to_timestamp",
+      AttributeType.DOUBLE -> "_texera_read_doubles"
+    ).filter { case (t, _) => attributes.exists(_.getType == t) }
+    val branches = readers.zipWithIndex.map {
+      case ((t, reader), i) =>
+        s"""    ${if (i == 0) "if" else "elif"} _t == "${emptyDtypes(t)}":
+           |        $frame[_c] = $reader($frame[_c])""".stripMargin
+    }
+    val loop =
+      if (branches.isEmpty) Seq.empty
+      else Seq("for _c, _t in _schema.items():") ++ branches
+    (Seq(s"_schema = {${entries.mkString(", ")}}", s"$frame.columns = list(_schema)") ++ loop ++
+      Seq(s"if $frame.empty:", s"    $frame = $frame.astype(_schema)")).mkString("\n")
+  }
+
+  /** Python that reads each TIMESTAMP column of `schema`, held as text, the way
+    * the engine reads it, with `_texera_text_to_timestamp` from
+    * [[StandaloneHelpers.AttributeCasts]], which the caller declares.
+    *
+    * pandas parses a date column into nanoseconds, which end in 2262, and left a
+    * later year as text. The engine hands each field to DateParserUtils, so a
+    * row states its own format, any year reads, and the reading is cut to the
+    * millisecond.
+    */
+  def parseTimestamps(frame: String, schema: Schema): String =
+    readEach(frame, schema, AttributeType.TIMESTAMP, "_texera_text_to_timestamp")
+
+  /** Python that reads each DOUBLE column of `schema` that pandas left as text
+    * the way the engine reads it, with `_texera_read_doubles` from
+    * [[StandaloneHelpers.AttributeCasts]], which the caller declares.
+    *
+    * The engine reads a field with `toDouble`, so "NaN", "2d" and "0x1p3" are
+    * numbers to it, and the column was inferred DOUBLE. pandas' float parser
+    * takes none of them and kept the whole column as strings.
+    */
+  def parseDoubles(frame: String, schema: Schema): String =
+    readEach(frame, schema, AttributeType.DOUBLE, "_texera_read_doubles")
+
+  // Python that passes each column of `attributeType` through `reader`: one line
+  // for a single column, and a loop over the names for several, so a wide table
+  // does not spend a line per column.
+  private def readEach(
+      frame: String,
+      schema: Schema,
+      attributeType: AttributeType,
+      reader: String
+  ): String =
+    schema.getAttributes
+      .filter(_.getType == attributeType)
+      .map(a => pyStringLiteral(a.getName)) match {
+      case Seq()     => ""
+      case Seq(name) => s"$frame[$name] = $reader($frame[$name])"
+      case names =>
+        s"""for _c in [${names.mkString(", ")}]:
+           |    $frame[_c] = $reader($frame[_c])""".stripMargin
+    }
+
+  private val emptyDtypes: Map[AttributeType, String] = Map(
+    AttributeType.INTEGER -> "Int32",
+    AttributeType.LONG -> "Int64",
+    AttributeType.DOUBLE -> "float64",
+    AttributeType.BOOLEAN -> "boolean",
+    AttributeType.TIMESTAMP -> "datetime64[us]",
+    AttributeType.STRING -> "object"
+  )
 }

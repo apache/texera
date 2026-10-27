@@ -93,9 +93,12 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
   override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     // JVM uses String.contains (case-sensitive) or toLowerCase.contains
     // (case-insensitive). pandas str.contains with regex=False is the direct
-    // equivalent — the substring is matched literally, not as a regex.
-    val pyLiteral = pyStringLiteral(Option(substring).getOrElse(""))
-    val caseArg = if (isCaseSensitive) "True" else "False"
+    // equivalent of the first. For the second, pandas' case=False compares
+    // upper(), which folds "ß" to "SS" and "ς" to "Σ" where toLowerCase leaves
+    // both alone, so both sides are lowered instead: the substring here, by the
+    // call the engine makes, and the column by Python's lower(), which follows
+    // the same Unicode mappings.
+    val text = Option(substring).getOrElse("")
     val attrLit = pyStringLiteral(attribute)
     // The rows with nothing in the column are dropped before the match rather than
     // left to `na=False`, which by then has no null to see.
@@ -105,8 +108,11 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     val declared = inputSchemas.values.headOption
       .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
       .map(_.getType)
-    val column = renderedAsText(s"in1df[$attrLit]", declared)
-    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=False, case=$caseArg, na=False)].reset_index(drop=True)"""
+    val rendered = renderedAsText(s"in1df[$attrLit]", declared)
+    val (column, pyLiteral) =
+      if (isCaseSensitive) (rendered, pyStringLiteral(text))
+      else (s"$rendered.str.lower()", pyStringLiteral(text.toLowerCase))
+    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=False, na=False)].reset_index(drop=True)"""
   }
 
   override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
