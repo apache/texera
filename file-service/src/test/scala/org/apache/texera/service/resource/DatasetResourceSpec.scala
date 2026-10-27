@@ -1069,7 +1069,8 @@ class DatasetResourceSpec
     dataset.setName(repoName)
     dataset.setRepositoryName(repoName)
     dataset.setDescription("list endpoint - orphan DB row")
-    dataset.setOwnerUid(ownerUser.getUid)
+    // Someone else's public dataset, so the caller reaches it only through the public pass.
+    dataset.setOwnerUid(otherAdminUser.getUid)
     dataset.setIsPublic(true)
     dataset.setIsDownloadable(true)
     datasetDao.insert(dataset)

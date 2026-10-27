@@ -363,7 +363,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * holds that unit. Deciding on an empty list would either chase a unit that has since been
    * terminated (the status service waits for it to appear, forever, and the fallbacks below never
    * run) or throw the choice away before the list has loaded. A remembered unit that is gone is
-   * forgotten, and the fallbacks take over: the last execution's unit, else any running unit.
+   * forgotten, and the fallbacks take over: the last execution's unit, else any running unit the
+   * user can run on.
    */
   private selectInitialUnit(wid: number): void {
     const remembered = this.recallComputingUnit(wid);
@@ -371,35 +372,24 @@ export class ComputingUnitSelectionComponent implements OnInit {
       this.selectFromLastExecution(wid);
       return;
     }
-    this.computingUnitStatusService
-      .getAllComputingUnits()
-      .pipe(
-        filter(units => units.length > 0),
-        take(1),
-        untilDestroyed(this)
-      )
-      .subscribe(units => {
-        // The workflow can change while the list is still loading; that later change made its own
-        // decision, so this one is stale.
-        if (wid !== this.workflowId) {
-          return;
-        }
-        if (units.some(unit => unit.computingUnit.cuid === remembered)) {
-          this.selectComputingUnit(wid, remembered);
-          // The remembered shortcut skips the execution lookup the warehouse
-          // preselect rides on, so run the lookup for the warehouse alone.
-          this.selectFromLastExecution(wid, false);
-        } else {
-          this.forgetComputingUnit(wid);
-          this.selectFromLastExecution(wid);
-        }
-      });
+    this.onceUnitsLoaded(wid, units => {
+      if (units.some(unit => unit.computingUnit.cuid === remembered)) {
+        this.selectComputingUnit(wid, remembered);
+        // The remembered shortcut skips the execution lookup the warehouse
+        // preselect rides on, so run the lookup for the warehouse alone.
+        this.selectFromLastExecution(wid, false);
+      } else {
+        this.forgetComputingUnit(wid);
+        this.selectFromLastExecution(wid);
+      }
+    });
   }
 
   /**
-   * The unit the workflow last ran on, else any unit that is running — and the warehouse it last
-   * wrote to, for the preselect (#7817). `selectUnit` is false when the unit was already settled by
-   * a remembered choice and only the warehouse still needs the lookup.
+   * The unit the workflow last ran on if it is still listed, else any running unit the user can run
+   * on — and the warehouse it last wrote to, for the preselect (#7817). `selectUnit` is false when
+   * the unit was already settled by a remembered choice and only the warehouse still needs the
+   * lookup.
    */
   private selectFromLastExecution(wid: number, selectUnit: boolean = true): void {
     // The workflow can change while the lookup is out; that later change decided for itself, so an
@@ -412,16 +402,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
         next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
           if (stillShown()) {
             if (selectUnit) {
-              this.selectComputingUnit(wid, latestWorkflowExecution.cuId);
+              this.selectFromLoadedUnits(wid, latestWorkflowExecution.cuId);
             }
             this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
             this.applyWarehousePreselect();
           }
         },
         error: () => {
-          const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
-          if (selectUnit && stillShown() && runningUnit) {
-            this.selectComputingUnit(wid, runningUnit.computingUnit.cuid);
+          if (selectUnit && stillShown()) {
+            this.selectFromLoadedUnits(wid);
           }
           // No execution history: still preselect a warehouse (the first one).
           if (stillShown()) {
@@ -429,6 +418,41 @@ export class ComputingUnitSelectionComponent implements OnInit {
           }
         },
       });
+  }
+
+  /**
+   * Runs `decide` on the first non-empty unit list, unless the workflow has changed meanwhile:
+   * that later change made its own decision, so this one is stale.
+   */
+  private onceUnitsLoaded(wid: number, decide: (units: DashboardWorkflowComputingUnit[]) => void): void {
+    this.computingUnitStatusService
+      .getAllComputingUnits()
+      .pipe(
+        filter(units => units.length > 0),
+        take(1),
+        untilDestroyed(this)
+      )
+      .subscribe(units => {
+        if (wid === this.workflowId) {
+          decide(units);
+        }
+      });
+  }
+
+  /**
+   * Selects `preferred` once the unit list has loaded and still holds it, else the first running
+   * unit the user can run on, else nothing. A unit shared with READ access would be selected only
+   * to have Run disabled, so the fallback skips it.
+   */
+  private selectFromLoadedUnits(wid: number, preferred?: number): void {
+    this.onceUnitsLoaded(wid, units => {
+      const unit =
+        units.find(u => u.computingUnit.cuid === preferred) ??
+        units.find(u => u.status === "Running" && u.accessPrivilege === "WRITE");
+      if (unit) {
+        this.selectComputingUnit(wid, unit.computingUnit.cuid);
+      }
+    });
   }
 
   /**

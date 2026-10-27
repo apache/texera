@@ -48,10 +48,8 @@ object ComputingUnitAccess {
 
     if (record == null) {
       PrivilegeEnum.NONE // no such unit
-    } else if (record.value1().equals(uid)) {
-      PrivilegeEnum.WRITE // owner
     } else {
-      Option(record.value2()).getOrElse(PrivilegeEnum.NONE)
+      OwnerAccess.privilege(record.value1().equals(uid), record.value2())
     }
   }
 }
