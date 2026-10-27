@@ -36,6 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.UserJupyter.USER_JUPYTER
 import org.apache.texera.dao.jooq.generated.tables.Workflow.WORKFLOW
 import org.apache.texera.dao.jooq.generated.tables.WorkflowNotebookMapping.WORKFLOW_NOTEBOOK_MAPPING
+import org.apache.texera.dao.jooq.generated.tables.WorkflowOfUser.WORKFLOW_OF_USER
 import org.apache.texera.dao.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.WorkflowVersion.WORKFLOW_VERSION
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -160,6 +161,7 @@ class NotebookMigrationResourceSpec
       .deleteFrom(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(testWid))
       .execute()
+    getDSLContext.deleteFrom(WORKFLOW_OF_USER).where(WORKFLOW_OF_USER.WID.eq(testWid)).execute()
     getDSLContext
       .deleteFrom(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(testWid))
@@ -476,6 +478,25 @@ class NotebookMigrationResourceSpec
       .getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
 
     getDSLContext.fetchCount(NOTEBOOK) shouldBe 0
+  }
+
+  it should "let the owner store and fetch without an access row" in {
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.UID.eq(readerUid))
+      .execute()
+    getDSLContext
+      .insertInto(WORKFLOW_OF_USER)
+      .set(WORKFLOW_OF_USER.UID, readerUid)
+      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
+      .execute()
+
+    NotebookMigrationResource
+      .storeNotebookAndMapping(storePayload(), readerUid)
+      .getStatus shouldBe Response.Status.OK.getStatusCode
+    NotebookMigrationResource
+      .fetchNotebookAndMapping(fetchPayload(), readerUid)
+      .getStatus shouldBe Response.Status.OK.getStatusCode
   }
 
   // -- JAX-RS resource class (@Auth wrappers + Jupyter reachability) ----------

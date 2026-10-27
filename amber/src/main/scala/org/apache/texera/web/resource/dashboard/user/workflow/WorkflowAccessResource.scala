@@ -35,7 +35,8 @@ import org.apache.texera.web.model.common.AccessEntry
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
   context,
   getPrivilege,
-  hasWriteAccess
+  hasWriteAccess,
+  isOwner
 }
 import org.jooq.impl.DSL
 import org.jooq.{DSLContext, Record1, Select}
@@ -59,10 +60,7 @@ object WorkflowAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(wid: Integer, uid: Integer): Boolean = {
-    isPublic(wid) || getPrivilege(wid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
-      wid,
-      uid
-    )
+    isPublic(wid) || !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
   }
 
   /**
@@ -81,15 +79,20 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum =
-    OwnerAccess.privilege(
-      isOwner(wid, uid),
-      context
-        .select(WORKFLOW_USER_ACCESS.PRIVILEGE)
-        .from(WORKFLOW_USER_ACCESS)
-        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-        .fetchOneInto(classOf[PrivilegeEnum])
-    )
+  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
+    // One round trip: the owner and the caller's own grant, read together.
+    val row = context
+      .select(WORKFLOW_OF_USER.UID, WORKFLOW_USER_ACCESS.PRIVILEGE)
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+    if (row == null) PrivilegeEnum.NONE
+    else OwnerAccess.privilege(uid != null && uid == row.value1(), row.value2())
+  }
 
   def isOwner(wid: Integer, uid: Integer): Boolean =
     context.fetchExists(
@@ -211,12 +214,7 @@ class WorkflowAccessResource() {
       throw new BadRequestException(s"No registered user with email $email")
     }
     val userUid = targetUser.getUid
-    val workflowOwnerUid = context
-      .select(WORKFLOW_OF_USER.UID)
-      .from(WORKFLOW_OF_USER)
-      .where(WORKFLOW_OF_USER.WID.eq(wid))
-      .fetchOneInto(classOf[Integer])
-    if (userUid == workflowOwnerUid) {
+    if (isOwner(wid, userUid)) {
       // amber is on javax JAX-RS, so it raises its own ForbiddenException with the shared message.
       throw new ForbiddenException(OwnerAccess.ownerChangeRefused)
     }
@@ -251,10 +249,9 @@ class WorkflowAccessResource() {
   ): Unit = {
     try {
       val targetUserUid = userDao.fetchOneByEmail(email).getUid
-      val workflowOwnerUid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
 
       // Prevent owner from revoking their own access
-      if (targetUserUid == workflowOwnerUid) {
+      if (isOwner(wid, targetUserUid)) {
         throw new ForbiddenException("The owner cannot revoke their own access")
       }
 

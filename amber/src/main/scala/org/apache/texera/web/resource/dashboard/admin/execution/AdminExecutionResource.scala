@@ -187,6 +187,8 @@ class AdminExecutionResource {
     val availableWorkflowIds = context
       .fetch(WorkflowAccessResource.accessibleWids(current_user.getUid))
       .getValues(0, classOf[Integer])
+      .asScala
+      .toSet
 
     // Calculate the statistics needed for each execution.
     executions

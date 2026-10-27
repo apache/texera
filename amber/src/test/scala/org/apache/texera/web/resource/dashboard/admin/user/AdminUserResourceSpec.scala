@@ -424,6 +424,18 @@ class AdminUserResourceSpec
     resource.getAccessedWorkflow(primaryUid).asScala should contain(Integer.valueOf(testWid))
   }
 
+  it should "include a workflow the user owns without an access row" in {
+    userDao.insert(makeUser(primaryUid, "owner"))
+    seedWorkflow()
+    getDSLContext
+      .insertInto(WORKFLOW_OF_USER)
+      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(primaryUid))
+      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
+      .execute()
+
+    resource.getAccessedWorkflow(primaryUid).asScala.toList shouldBe List(Integer.valueOf(testWid))
+  }
+
   // ─── getUserQuota ─────────────────────────────────────────────────────────
 
   "getUserQuota" should "return an empty array for a user with no executions" in {
