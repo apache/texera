@@ -20,9 +20,14 @@
 package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -32,6 +37,14 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.pvalueColumn = "pvalue"
     op
   }
+
+  private def b64(s: String): String =
+    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+
+  // Every UI-provided string reaches the generated code as this runtime
+  // decode expression, never as a literal.
+  private def decoded(s: String): String =
+    s"self.decode_python_template('${b64(s)}')"
 
   "VolcanoPlotOpDesc.operatorInfo" should "advertise the user-friendly name and Scientific group" in {
     val info = (new VolcanoPlotOpDesc).operatorInfo
@@ -63,9 +76,190 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = configured.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("plotly.express")
-    code should include("-log10(pvalue)")
     val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
     decodeOccurrences should be >= 2
+  }
+
+  it should "name the y column and its axis after the selected p-value column" in {
+    // The y axis used to read "-log10(pvalue)" whatever column was chosen; a
+    // figure drawn from an adjusted column must say so.
+    val op = configured
+    op.pvalueColumn = "padj"
+    val code = op.generatePythonCode()
+    code should include(s"table[${decoded("-log10(padj)")}] = -np.log10(")
+    code should include(s"y=${decoded("-log10(padj)")}")
+    code should include(s"yaxis_title=${decoded("-log10(padj)")}")
+    code should not include "-log10(pvalue)"
+    code should not include b64("-log10(pvalue)")
+  }
+
+  it should "fall back to the column-derived labels when no label is set" in {
+    val code = configured.generatePythonCode()
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+  }
+
+  it should "route every configured label through the decoder instead of the default" in {
+    // Sentinels with quotes, a backslash and non-ASCII text: as decode sites
+    // they cannot break the Python source, and the raw text must never
+    // appear in it.
+    val op = configured
+    op.title = "TITLE_SENT \"quoted\" 火山"
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
+    val code = op.generatePythonCode()
+    code should include(s"title=${decoded(op.title)}")
+    code should include(s"xaxis_title=${decoded(op.xLabel)}")
+    code should include(s"yaxis_title=${decoded(op.yLabel)}")
+    Seq(op.title, op.xLabel, op.yLabel).foreach { sentinel =>
+      code should not include sentinel
+    }
+    // A set label replaces the default rather than being emitted next to it.
+    code should not include b64("Volcano Plot")
+    code should not include s"xaxis_title=${decoded("log2fc")}"
+    code should not include s"yaxis_title=${decoded("-log10(pvalue)")}"
+    // The y column itself keeps the derived name: a label is text on the axis,
+    // not a column rename.
+    code should include(s"y=${decoded("-log10(pvalue)")}")
+  }
+
+  it should "title the color bar with the x axis text because both show the effect column" in {
+    // The points are colored by the column on the x axis, so the color bar
+    // carries the x axis text rather than a label of its own.
+    val op = configured
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    val code = op.generatePythonCode()
+    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
+    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
+  }
+
+  it should "treat a whitespace-only label as empty and keep the default" in {
+    val op = configured
+    op.title = " "
+    op.xLabel = "\t"
+    op.yLabel = " \n "
+    val code = op.generatePythonCode()
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+    Seq(op.title, op.xLabel, op.yLabel).foreach { blank =>
+      code should not include decoded(blank)
+    }
+  }
+
+  it should "treat each label independently so one set label leaves the others at their default" in {
+    val op = configured
+    op.yLabel = "Y_ONLY_SENT"
+    val code = op.generatePythonCode()
+    code should include(s"yaxis_title=${decoded("Y_ONLY_SENT")}")
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+  }
+
+  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
+    val saved = objectMapper
+      .readValue(
+        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[VolcanoPlotOpDesc]
+    val code = saved.generatePythonCode()
+    code shouldBe configured.generatePythonCode()
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+  }
+
+  "VolcanoPlotOpDesc.generateStandaloneCode" should "name the y column and its axis after the selected p-value column" in {
+    val op = configured
+    op.pvalueColumn = "padj"
+    val code = op.generateStandaloneCode()
+    code should include("""table["-log10(padj)"] = -np.log10(table["padj"])""")
+    code should include("""y="-log10(padj)",""")
+    code should include("""yaxis_title="-log10(padj)",""")
+    code should not include "-log10(pvalue)"
+    // The derived y column is the one literal built from a column name rather than
+    // taken from a field, so a quote in that name must survive the wrap and the escape.
+    op.pvalueColumn = "p\"adj"
+    val quoted = op.generateStandaloneCode()
+    quoted should include("table[\"-log10(p\\\"adj)\"] = -np.log10(table[\"p\\\"adj\"])")
+    quoted should include("yaxis_title=\"-log10(p\\\"adj)\",")
+  }
+
+  it should "fall back to the column-derived labels when no label is set" in {
+    val code = configured.generateStandaloneCode()
+    code should include("""title="Volcano Plot"""")
+    code should include("""xaxis_title="log2fc",""")
+    code should include("""yaxis_title="-log10(pvalue)",""")
+    code should include("""coloraxis_colorbar_title_text="log2fc"""")
+  }
+
+  it should "emit every configured label as an escaped Python literal" in {
+    // The export has no decoder, so the text itself is in the script: a quote or
+    // a backslash must come out escaped, or the label would end the literal early.
+    val op = configured
+    op.title = "TITLE_SENT \"quoted\" 火山"
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
+    val code = op.generateStandaloneCode()
+    code should include("title=\"TITLE_SENT \\\"quoted\\\" 火山\"")
+    code should include("xaxis_title=\"X_LBL_SENT log₂ fold change\",")
+    code should include("yaxis_title=\"Y_LBL_SENT -log₁₀(BH-adjusted p) \\\\ back\\\\slash\",")
+    // The color bar follows the x label, since both show the effect column.
+    code should include("coloraxis_colorbar_title_text=\"X_LBL_SENT log₂ fold change\"")
+    // A set label replaces the default rather than being emitted next to it.
+    code should not include """title="Volcano Plot""""
+    code should not include """xaxis_title="log2fc""""
+    code should not include """yaxis_title="-log10(pvalue)""""
+    code should not include """coloraxis_colorbar_title_text="log2fc""""
+    // The y column itself keeps the derived name: a label is text on the axis,
+    // not a column rename.
+    code should include("""y="-log10(pvalue)",""")
+  }
+
+  it should "treat a whitespace-only label as empty and keep the default" in {
+    val op = configured
+    op.title = " "
+    op.xLabel = "\t"
+    op.yLabel = " \n "
+    op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+  }
+
+  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
+    val saved = objectMapper
+      .readValue(
+        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[VolcanoPlotOpDesc]
+    saved.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+  }
+
+  it should "label the exported figure as the engine labels its own" in {
+    // Both paths derive the same texts; one decodes them at run time and the
+    // other writes them as literals. A label that reaches only one of them would
+    // make the exported figure differ from the one shown in the workflow.
+    val op = configured
+    op.pvalueColumn = "padj"
+    op.title = "Treated vs control"
+    op.xLabel = "Shrunken log2 fold change"
+    val engine = op.generatePythonCode()
+    val export = op.generateStandaloneCode()
+    Seq(
+      "title" -> "Treated vs control",
+      "xaxis_title" -> "Shrunken log2 fold change",
+      "yaxis_title" -> "-log10(padj)",
+      "coloraxis_colorbar_title_text" -> "Shrunken log2 fold change"
+    ).foreach {
+      case (key, text) =>
+        engine should include(s"$key=${decoded(text)}")
+        export should include(s"""$key="$text"""")
+    }
   }
 
   it should "currently render code even when required fields are empty (no assert guard)" in {

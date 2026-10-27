@@ -69,6 +69,23 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("The figure title; leave empty for Volcano Plot")
+  var title: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription(
+    "The label for the x axis and the color bar; leave empty for the effect size column name"
+  )
+  var xLabel: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("The label for the y axis; leave empty for -log10(<p-value column>)")
+  var yLabel: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
@@ -83,6 +100,16 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
+
+  /** The y column is named after the selected p-value column, so a figure drawn
+    * from an adjusted column says so instead of always reading "-log10(pvalue)".
+    */
+  private def yColumn: EncodableString = s"-log10($pvalueColumn)"
+
+  // An empty or blank label keeps the text the figure derives from the selected columns.
+  private def titleText: EncodableString = if (title.trim.nonEmpty) title else "Volcano Plot"
+  private def xAxisTitle: EncodableString = if (xLabel.trim.nonEmpty) xLabel else effectColumn
+  private def yAxisTitle: EncodableString = if (yLabel.trim.nonEmpty) yLabel else yColumn
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -112,16 +139,21 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |            yield {"html-content": self.render_error("No rows with valid p-values.")}
        |            return
        |
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
+       |        table[$yColumn] = -np.log10(table[$pvalueColumn])
        |
        |        fig = px.scatter(
        |            table,
        |            x=$effectColumn,
-       |            y="-log10(pvalue)",
+       |            y=$yColumn,
        |            hover_name=table.columns[0],
        |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=$titleText
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=$xAxisTitle,
+       |            yaxis_title=$yAxisTitle,
+       |            coloraxis_colorbar_title_text=$xAxisTitle
        |        )
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
@@ -131,9 +163,12 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
 
   override def producesDataFrame(): Boolean = false
 
+  // The exported script draws the same figure as the engine, so it labels it the same
+  // way; the only difference is that the text is a Python literal rather than decoded.
   override def generateStandaloneCode(): String = {
     val pvalueLit = pyStringLiteral(pvalueColumn)
     val effectLit = pyStringLiteral(effectColumn)
+    val yLit = pyStringLiteral(yColumn)
     s"""import numpy as np
        |
        |def render_error(msg):
@@ -151,15 +186,20 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        table[$yLit] = -np.log10(table[$pvalueLit])
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
-       |            y="-log10(pvalue)",
+       |            y=$yLit,
        |            hover_name=table.columns[0],
        |            color=$effectLit,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=${pyStringLiteral(titleText)}
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=${pyStringLiteral(xAxisTitle)},
+       |            yaxis_title=${pyStringLiteral(yAxisTitle)},
+       |            coloraxis_colorbar_title_text=${pyStringLiteral(xAxisTitle)}
        |        )
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)
