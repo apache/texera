@@ -177,16 +177,6 @@
       enabled: false,
     },
 
-    // frontend/.yarn/patches backports a fix into @vitest/spy under a `resolutions` key that names
-    // the exact version, so every Vitest bump drops the patch and fails worker-memory.spec.ts until
-    // it is regenerated (frontend/TESTING.md, "Memory in shared test workers"). Keep those bumps
-    // in their own PR so they do not hold up the grouped frontend updates.
-    {
-      matchFileNames: ['frontend/**'],
-      matchPackageNames: ['vitest', '@vitest/*'],
-      groupName: 'frontend vitest updates',
-    },
-
     // config:recommended pulls in :semanticPrefixFixDepsChoreOthers,
     // which types runtime-dependency bumps as fix(...). We want the
     // opposite: every routine bump is chore(...), and only

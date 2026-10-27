@@ -1,13 +1,13 @@
 diff --git a/dist/index.js b/dist/index.js
-index 6d907fc02f65ca9b3959f75c623e83ca866a457c..18e151cb509b2b34ea136a8a1a30e57d06dd4c32 100644
+index 6d907fc02f65ca9b3959f75c623e83ca866a457c..d29a2b2b310b19ffb13bbe82d99877e7317c919c 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -5,7 +5,12 @@ const MOCK_RESTORE = new Set();
  // Jest keeps the state in a separate WeakMap which is good for memory,
  // but it makes the state slower to access and return different values
  // if you stored it before calling `mockClear` where it will be recreated
-+// Patched (Texera): held through WeakRefs, as Vitest 5 does, so a mock nothing references can be
-+// collected along with everything it recorded or spied on. See "Memory in shared test workers" in frontend/TESTING.md.
++// Patched (Texera): mocks are held through WeakRefs, as in Vitest 5, so a mock nothing else references
++// is collected along with what it recorded or spied on. Drop once Angular's builder allows Vitest 5.
  const REGISTERED_MOCKS = new Set();
 +const MOCK_FINALIZER = new FinalizationRegistry((ref) => {
 +	REGISTERED_MOCKS.delete(ref);

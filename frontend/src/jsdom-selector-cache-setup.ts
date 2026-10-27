@@ -18,20 +18,30 @@
  */
 
 /**
- * Drops jsdom's selector cache between tests, so the cached `#root<N>` query of a finished test
- * does not keep its whole TestBed graph alive for the rest of the worker (see
- * resetJsdomSelectorCache). In `beforeEach` rather than `afterEach` so it runs after the previous
- * test's TestBed teardown, whose own queries would otherwise be cached again; `afterAll` covers
- * the file's last test.
+ * Empties jsdom's CSS-selector cache between tests.
  *
- * This is a setupFile (referenced from `vitest.config.ts`), so it executes once per test file.
+ * jsdom answers `querySelector` through nwsapi, which memoizes every selector together with the
+ * nodes it last matched, for the lifetime of the document. The unit-test builder runs a worker's
+ * spec files against one document, and TestBed queries a fresh `#root<N>` per fixture, so every
+ * finished fixture, and through its `__ngContext__` the whole TestBed graph, stays cached until the
+ * worker exits. The tables are emptied in place because jsdom's engine reads the exported objects.
+ *
+ * `beforeEach` runs after the previous test's TestBed teardown, whose own queries would otherwise be
+ * cached again; `afterAll` covers the file's last test. This is a setupFile (see `vitest.config.ts`).
  */
-import { resetJsdomSelectorCache } from "./app/common/testing/jsdom-selector-cache";
+type NwsapiCaches = { selectResolvers: Record<string, unknown>; matchResolvers: Record<string, unknown> };
 
-beforeEach(() => {
-  resetJsdomSelectorCache();
-});
+function resetSelectorCache(): void {
+  const document = globalThis.document as unknown as Record<symbol, { _nwsapi?: NwsapiCaches } | undefined>;
+  if (!document) return;
+  // jsdom keeps its implementation object behind the DOM wrapper, under a symbol it does not export.
+  const implSymbol = Object.getOwnPropertySymbols(document).find(symbol => symbol.description === "impl");
+  const nwsapi = implSymbol && document[implSymbol]?._nwsapi;
+  if (!nwsapi) return;
+  for (const cache of [nwsapi.selectResolvers, nwsapi.matchResolvers]) {
+    for (const selector of Object.keys(cache)) delete cache[selector];
+  }
+}
 
-afterAll(() => {
-  resetJsdomSelectorCache();
-});
+beforeEach(resetSelectorCache);
+afterAll(resetSelectorCache);
