@@ -1006,6 +1006,16 @@ class WorkflowResourceSpec
     assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
   }
 
+  "WorkflowResource.retrievePublicWorkflow" should "throw NotFoundException for a private workflow" in {
+    val wid = seedWorkflow(sessionUser1, "public-private-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid))
+  }
+
+  it should "throw NotFoundException for a wid that does not exist" in {
+    val wid = seedWorkflow(sessionUser1, "public-missing-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid + 100000))
+  }
+
   "WorkflowResource.duplicateWorkflow" should "create a distinct copy owned by the user" in {
     // duplicateWorkflow reassigns operator ids, so the content must have an operators array.
     val wid = seedWorkflow(

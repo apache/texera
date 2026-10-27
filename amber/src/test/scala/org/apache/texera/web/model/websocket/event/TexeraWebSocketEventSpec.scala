@@ -147,7 +147,9 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
       "op-2",
       3,
       List(resultRow),
-      List(new Attribute("city", AttributeType.STRING))
+      List(new Attribute("city", AttributeType.STRING)),
+      1,
+      40
     ),
     "PythonExpressionEvaluateResponse" -> PythonExpressionEvaluateResponse(
       "len(tuple_)",
