@@ -28,6 +28,7 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
@@ -58,9 +59,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao
 }
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
 import org.apache.texera.service.util.{
+  ComputingUnitEmailNotifier,
   ComputingUnitHelpers,
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
@@ -462,7 +464,10 @@ object ComputingUnitManagingResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
-class ComputingUnitManagingResource {
+class ComputingUnitManagingResource(
+    notifyOwnerOfAdminTermination: (WorkflowComputingUnit, User) => Unit =
+      ComputingUnitEmailNotifier.notifyOwnerOfAdminTermination
+) {
   private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
     val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
     val unit = wcDao.fetchOneByCuid(cuid)
@@ -884,22 +889,7 @@ class ComputingUnitManagingResource {
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,
-      accessPrivilege = {
-        val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-        val access = cuAccessDao
-          .fetchByUid(user.getUid)
-          .asScala
-          .find(access => access.getCuid.equals(cuid))
-
-        if (access.isDefined) {
-          access.get.getPrivilege
-        } else if (unit.getUid.equals(user.getUid)) {
-          PrivilegeEnum.WRITE
-        } else {
-          // Default privilege for non-owners without explicit access
-          PrivilegeEnum.NONE
-        }
-      },
+      accessPrivilege = ComputingUnitAccess.getComputingUnitAccess(cuid, user.getUid),
       ownerAvatar,
       ownerUsername
     )
@@ -928,9 +918,11 @@ class ComputingUnitManagingResource {
     }
 
     // If successful, update the database
-    withTransaction(context) { ctx =>
+    val unitToNotifyOwnerOf = withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = getComputingUnitByCuid(ctx, cuid)
+      // Only an ADMIN gets here as a non-owner. Read before the stamp, so a repeat tells no one.
+      val notifyOwner = unit.getTerminateTime == null && unit.getUid != user.getUid
 
       // if the computing unit is kubernetes pod, then kill the pod
       if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
@@ -948,6 +940,17 @@ class ComputingUnitManagingResource {
           s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
           s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
       )
+      Option.when(notifyOwner)(unit)
+    }
+    // After the commit, so an owner never hears of a termination that rolled back.
+    unitToNotifyOwnerOf.foreach { unit =>
+      try {
+        Option(new UserDao(context.configuration()).fetchOneByUid(unit.getUid))
+          .foreach(notifyOwnerOfAdminTermination(unit, _))
+      } catch {
+        case NonFatal(e) =>
+          logger.warn(s"Failed to notify the owner of terminated computing unit cuid=$cuid", e)
+      }
     }
     Response.ok().build()
   }

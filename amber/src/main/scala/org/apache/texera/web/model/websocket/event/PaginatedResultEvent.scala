@@ -27,16 +27,31 @@ object PaginatedResultEvent {
   def apply(
       req: ResultPaginationRequest,
       table: List[ObjectNode],
-      schema: List[Attribute]
+      schema: List[Attribute],
+      totalTuples: Int = 0
   ): PaginatedResultEvent = {
-    PaginatedResultEvent(req.requestID, req.operatorID, req.pageIndex, table, schema)
+    PaginatedResultEvent(
+      req.requestID,
+      req.operatorID,
+      req.pageIndex,
+      table,
+      schema,
+      req.portIndex,
+      totalTuples
+    )
   }
 }
 
+/**
+  * One page of an output port's result. `totalTuples` counts the whole port, so a port that the
+  * running execution does not report on, any but an operator's first, can still be paged through.
+  */
 case class PaginatedResultEvent(
     requestID: String,
     operatorID: String,
     pageIndex: Int,
     table: List[ObjectNode],
-    schema: List[Attribute]
+    schema: List[Attribute],
+    portIndex: Int,
+    totalTuples: Int
 ) extends TexeraWebSocketEvent

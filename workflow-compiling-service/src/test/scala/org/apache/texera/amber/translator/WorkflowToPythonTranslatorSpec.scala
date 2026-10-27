@@ -163,6 +163,47 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""fig.write_html("stub_2.html")""")
   }
 
+  /** A source offers the last segment of its resolved path, which two sources
+    * reading different files can spell the same. Handing both that one name left
+    * the script reading one file twice and saying nothing about it.
+    */
+  it should "give each source reading a different file a name of its own" in {
+    val script = translateSources("/alice/sales/v1/data.csv", "/bob/ops/v3/data.csv")
+    script should include("""pd.read_csv("data.csv")""")
+    script should include("""pd.read_csv("data-2.csv")""")
+  }
+
+  /** The other half: one file read twice is still one file, so numbering it would
+    * send the reader looking for a second copy that was never there.
+    */
+  it should "give two sources reading one file the same name" in {
+    val script = translateSources("/alice/sales/v1/data.csv", "/alice/sales/v1/data.csv")
+    script.linesIterator.count(_.contains("""pd.read_csv("data.csv")""")) shouldBe 2
+    script should not include "data-2.csv"
+  }
+
+  /** A file name is the user's text, so it reaches the script through the escaper
+    * the operators use and through the replacement quoting on top of that: a bare
+    * `$` in a name is a group reference to `replaceAll`.
+    */
+  it should "escape a source file name that Python or the replacement would read" in {
+    val script = translateSources("""/alice/v1/we"ird$1\x.csv""")
+    script should include("""pd.read_csv("we\"ird$1\\x.csv")""")
+  }
+
+  private def translateSources(paths: String*): String = {
+    val ops = paths.zipWithIndex.map {
+      case (path, i) =>
+        val op =
+          new StubOp(s"out1df = pd.read_csv(${StandaloneCodeGenerator.SourceFilePlaceholder})") {
+            override def standaloneSourcePath(): Option[String] = Some(path)
+          }
+        op.setOperatorId(s"source$i")
+        op
+    }
+    new WorkflowToPythonTranslator().translate(LogicalPlan(ops.toList, List.empty))
+  }
+
   /** The translator's own contract when it meets an operator it cannot render:
     * a comment rather than a silently wrong line.
     */
