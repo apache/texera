@@ -25,6 +25,7 @@ import jakarta.ws.rs.{
   NotFoundException,
   ServiceUnavailableException
 }
+import jakarta.ws.rs.core.Response
 import org.apache.texera.common.config.EnvironmentalVariable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.KubernetesConfig.maxNumOfRunningComputingUnitsPerUser
@@ -54,6 +55,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 // Drives the per-user computing-unit endpoints against the embedded database using
@@ -91,6 +93,8 @@ class ComputingUnitManagingResourceSpec
     new SessionUser(makeUser(900, "admin", UserRoleEnum.ADMIN))
   private lazy val strangerUser: SessionUser =
     new SessionUser(makeUser(902, "stranger", UserRoleEnum.REGULAR))
+  private lazy val victimUser: SessionUser =
+    new SessionUser(makeUser(901, "victim", UserRoleEnum.REGULAR))
   // Dedicated owner for the create tests, so the units they create never show up in
   // listComputingUnits(user)'s exact-set assertion.
   private lazy val creatorUser: SessionUser =
@@ -160,7 +164,7 @@ class ComputingUnitManagingResourceSpec
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(user.getUser)
     userDao.insert(adminUser.getUser)
-    userDao.insert(makeUser(901, "victim", UserRoleEnum.REGULAR))
+    userDao.insert(victimUser.getUser)
     userDao.insert(strangerUser.getUser)
     userDao.insert(creatorUser.getUser)
     val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
@@ -172,7 +176,8 @@ class ComputingUnitManagingResourceSpec
     try shutdownDB()
     finally super.afterAll()
 
-  private val resource = new ComputingUnitManagingResource
+  // A no-op notifier, so these tests never send real mail when SMTP is configured.
+  private val resource = new ComputingUnitManagingResource((_, _) => ())
 
   "getComputingUnitInfo" should "return the owner's local unit with WRITE access and Running status" in {
     val info = resource.getComputingUnitInfo(800, user)
@@ -277,6 +282,73 @@ class ComputingUnitManagingResourceSpec
 
   it should "return 404 when an admin terminates a nonexistent unit" in {
     a[NotFoundException] should be thrownBy resource.terminateComputingUnit(99999, adminUser)
+  }
+
+  // Records each notification and whether the termination had committed (cuids 914-919).
+  private class RecordingNotifier extends ((WorkflowComputingUnit, User) => Unit) {
+    val notified = ListBuffer.empty[(WorkflowComputingUnit, User)]
+    var committedWhenNotified = false
+    override def apply(unit: WorkflowComputingUnit, owner: User): Unit = {
+      committedWhenNotified = isTerminated(unit.getCuid)
+      notified += ((unit, owner))
+    }
+    def terminate(cuid: Int, by: SessionUser): Response =
+      new ComputingUnitManagingResource(this).terminateComputingUnit(cuid, by)
+  }
+
+  it should "notify the owner after the commit when an admin terminates their unit" in {
+    insertLocalUnit(cuid = 914, ownerUid = 901, name = "victim-cu-notified")
+    val notifier = new RecordingNotifier
+
+    notifier.terminate(914, adminUser).getStatus shouldBe 200
+
+    notifier.notified.map(_._1.getCuid.intValue()) shouldBe Seq(914)
+    notifier.notified.head._1.getTerminateTime should not be null
+    notifier.notified.head._2.getEmail shouldBe "victim@example.com"
+    notifier.committedWhenNotified shouldBe true
+  }
+
+  it should "still answer 200 when notifying the owner fails" in {
+    insertLocalUnit(cuid = 918, ownerUid = 901, name = "victim-cu-notify-fails")
+    val failing =
+      new ComputingUnitManagingResource((_, _) => throw new RuntimeException("notifier down"))
+
+    failing.terminateComputingUnit(918, adminUser).getStatus shouldBe 200
+    isTerminated(918) shouldBe true
+  }
+
+  it should "not notify anyone when the caller owns the unit, admin or not" in {
+    insertLocalUnit(cuid = 915, ownerUid = 902, name = "stranger-own-cu-2")
+    insertLocalUnit(cuid = 916, ownerUid = 900, name = "admin-own-cu")
+    val notifier = new RecordingNotifier
+
+    notifier.terminate(915, strangerUser)
+    notifier.terminate(916, adminUser)
+
+    isTerminated(915) shouldBe true
+    isTerminated(916) shouldBe true
+    notifier.notified shouldBe empty
+  }
+
+  it should "not notify anyone when the termination is rejected or the unit is missing" in {
+    insertLocalUnit(cuid = 917, ownerUid = 901, name = "victim-cu-rejected")
+    val notifier = new RecordingNotifier
+
+    notifier.terminate(917, strangerUser).getStatus shouldBe 400
+    a[NotFoundException] should be thrownBy notifier.terminate(99999, adminUser)
+
+    notifier.notified shouldBe empty
+  }
+
+  it should "not notify anyone when an admin terminates a unit its owner already terminated" in {
+    // The admin page polls, so an admin can act on a row its owner removed seconds earlier.
+    insertLocalUnit(cuid = 919, ownerUid = 901, name = "victim-cu-already-gone")
+    resource.terminateComputingUnit(919, victimUser).getStatus shouldBe 200
+    val notifier = new RecordingNotifier
+
+    notifier.terminate(919, adminUser)
+
+    notifier.notified shouldBe empty
   }
 
   // The kubernetes type is disabled in the test JVM (kubernetes.conf's enabled flag defaults to

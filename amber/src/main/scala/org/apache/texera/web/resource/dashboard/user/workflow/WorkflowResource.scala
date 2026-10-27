@@ -124,7 +124,10 @@ object WorkflowResource {
       ownerName: String,
       workflow: Workflow,
       ownerId: Integer,
-      coverImage: Option[String]
+      coverImage: Option[String],
+      // Behind the author's working copy? Listings use it to open the published preview instead of
+      // the editor -- for the author too, since that is what the entry is showing.
+      hasUnpublishedChanges: Boolean = false
   )
 
   case class WorkflowWithPrivilege(
@@ -961,6 +964,9 @@ class WorkflowResource extends LazyLogging {
       .where(WORKFLOW.WID.eq(wid))
       .and(WORKFLOW.IS_PUBLIC.isTrue)
       .fetchOne()
+    if (workflow == null) {
+      throw new NotFoundException(s"Public workflow with id $wid not found")
+    }
     // Name and description come from the public copy for the same reason as the content: a pin has
     // to hold everything on show.
     val publicCopy = WorkflowPublishService.publicCopyOf(workflow.into(classOf[Workflow]))
