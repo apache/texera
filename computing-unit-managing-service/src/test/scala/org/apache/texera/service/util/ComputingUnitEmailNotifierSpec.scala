@@ -19,13 +19,20 @@
 
 package org.apache.texera.service.util
 
-import jakarta.mail.Message
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
+import ch.qos.logback.core.read.ListAppender
+import jakarta.mail.{Message, Transport}
 import jakarta.mail.internet.{AddressException, InternetAddress, MimeMessage}
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.util.ComputingUnitEmailNotifier.Email
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.{eq => eqTo}
+import org.mockito.Mockito.mockStatic
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.slf4j.LoggerFactory
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -33,6 +40,7 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util.concurrent.Executor
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 // Which terminations send an email is pinned in ComputingUnitManagingResourceSpec.
 class ComputingUnitEmailNotifierSpec extends AnyFlatSpec with Matchers {
@@ -86,6 +94,25 @@ class ComputingUnitEmailNotifierSpec extends AnyFlatSpec with Matchers {
 
   private def mime(message: Email = email()): MimeMessage =
     ComputingUnitEmailNotifier.toMimeMessage("sender@example.com", message)
+
+  /** Runs `body` with the notifier's logger pinned at `level`, returning what it logged. */
+  private def eventsLoggedAt(level: Level)(body: => Unit): Seq[ILoggingEvent] = {
+    val logger =
+      LoggerFactory.getLogger(ComputingUnitEmailNotifier.getClass).asInstanceOf[LogbackLogger]
+    val appender = new ListAppender[ILoggingEvent]
+    appender.start()
+    val previousLevel = logger.getLevel
+    logger.setLevel(level)
+    logger.addAppender(appender)
+    try body
+    finally {
+      // Restored: the suites of this module share one JVM and this logger is global to it.
+      logger.detachAppender(appender)
+      logger.setLevel(previousLevel)
+      appender.stop()
+    }
+    appender.list.asScala.toSeq
+  }
 
   "adminTerminationEmail" should "tell the owner which unit an administrator terminated, and when" in {
     val message = email()
@@ -144,7 +171,23 @@ class ComputingUnitEmailNotifierSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "reject a malformed recipient address" in {
-    an[AddressException] should be thrownBy mime(email().copy(recipient = "not an address"))
+    an[AddressException] should be thrownBy mime(new Email("not an address", "subject", "body"))
+  }
+
+  "send" should "log in to Gmail as the sender and hand over the owner's message" in {
+    val transport = mockStatic(classOf[Transport])
+    try {
+      ComputingUnitEmailNotifier.send(email(), "sender@example.com", "app-password")
+
+      val sent: ArgumentCaptor[Message] = ArgumentCaptor.forClass(classOf[Message])
+      transport.verify(() =>
+        Transport.send(sent.capture(), eqTo("sender@example.com"), eqTo("app-password"))
+      )
+      sent.getValue.getFrom.toSeq shouldBe Seq(new InternetAddress("sender@example.com"))
+      sent.getValue.getRecipients(Message.RecipientType.TO).toSeq shouldBe
+        Seq(new InternetAddress("ada@example.com"))
+      sent.getValue.getSession.getProperty("mail.smtp.host") shouldBe "smtp.gmail.com"
+    } finally transport.close()
   }
 
   "smtpSession" should "use Gmail over SSL, check the server's identity, and bound every wait" in {
@@ -182,6 +225,21 @@ class ComputingUnitEmailNotifierSpec extends AnyFlatSpec with Matchers {
   it should "send nothing when the owner has no email address" in {
     notifyOwner(owner(email = null)) shouldBe empty
     notifyOwner(owner(email = "   ")) shouldBe empty
+  }
+
+  it should "log why it sent nothing at info, and stay quiet at warn" in {
+    def skipBoth(): Unit = {
+      notifyOwner(owner(), smtpConfigured = false)
+      notifyOwner(owner(email = null))
+    }
+    val target = "computing unit cuid=42, owner_uid=7"
+
+    eventsLoggedAt(Level.INFO)(skipBoth()).map(e => (e.getLevel, e.getFormattedMessage)) shouldBe
+      Seq(
+        Level.INFO -> s"Not emailing the owner of $target: no SMTP sender is configured",
+        Level.INFO -> s"Not emailing the owner of $target: the owner has no email address"
+      )
+    eventsLoggedAt(Level.WARN)(skipBoth()) shouldBe empty
   }
 
   it should "swallow a failed send, since the unit is already terminated" in {

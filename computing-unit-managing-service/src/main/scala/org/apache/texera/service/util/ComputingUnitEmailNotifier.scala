@@ -19,7 +19,7 @@
 
 package org.apache.texera.service.util
 
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import jakarta.mail.internet.{InternetAddress, MimeMessage}
 import jakarta.mail.{Message, Session, Transport}
 import org.apache.texera.common.config.UserSystemConfig
@@ -33,9 +33,9 @@ import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.util.control.NonFatal
 
 /** Emails the owner when an admin terminates their unit, from the Gmail account amber uses. */
-object ComputingUnitEmailNotifier extends LazyLogging {
+object ComputingUnitEmailNotifier extends StrictLogging {
 
-  private[util] case class Email(recipient: String, subject: String, body: String)
+  private[util] final class Email(val recipient: String, val subject: String, val body: String)
 
   // Trimmed once, so the configured check and the send see the same address.
   private[util] val senderAddress: String = UserSystemConfig.gmail.trim
@@ -66,7 +66,13 @@ object ComputingUnitEmailNotifier extends LazyLogging {
 
   /** The unit is already terminated, so a skipped or failed email is only logged. */
   def notifyOwnerOfAdminTermination(unit: WorkflowComputingUnit, owner: User): Unit =
-    notifyOwnerOfAdminTermination(unit, owner, senderAddress.nonEmpty, sendExecutor, send)
+    notifyOwnerOfAdminTermination(
+      unit,
+      owner,
+      senderAddress.nonEmpty,
+      sendExecutor,
+      send(_, senderAddress, UserSystemConfig.smtpPassword)
+    )
 
   private[util] def notifyOwnerOfAdminTermination(
       unit: WorkflowComputingUnit,
@@ -79,8 +85,6 @@ object ComputingUnitEmailNotifier extends LazyLogging {
     Option(owner.getEmail).map(_.trim).filter(_.nonEmpty) match {
       case _ if !smtpConfigured =>
         logger.info(s"Not emailing the owner of $target: no SMTP sender is configured")
-      case None =>
-        logger.info(s"Not emailing the owner of $target: the owner has no email address")
       case Some(recipient) =>
         executor.execute { () =>
           try {
@@ -90,6 +94,8 @@ object ComputingUnitEmailNotifier extends LazyLogging {
             case NonFatal(e) => logger.warn(s"Failed to email the owner of $target", e)
           }
         }
+      case _ =>
+        logger.info(s"Not emailing the owner of $target: the owner has no email address")
     }
   }
 
@@ -120,7 +126,7 @@ object ComputingUnitEmailNotifier extends LazyLogging {
          |
          |Thank you for using ${UserSystemConfig.projectName}!
          |""".stripMargin
-    Email(recipient, subject, domain.fold(body)(d => s"$body\n—\nSent from: $d\n"))
+    new Email(recipient, subject, domain.fold(body)(d => s"$body\n—\nSent from: $d\n"))
   }
 
   private[util] def smtpSession(): Session = {
@@ -139,10 +145,6 @@ object ComputingUnitEmailNotifier extends LazyLogging {
     message
   }
 
-  private def send(email: Email): Unit =
-    Transport.send(
-      toMimeMessage(senderAddress, email),
-      senderAddress,
-      UserSystemConfig.smtpPassword
-    )
+  private[util] def send(email: Email, from: String, password: String): Unit =
+    Transport.send(toMimeMessage(from, email), from, password)
 }
