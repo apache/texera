@@ -108,38 +108,44 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val op = configured
     op.title = "TITLE_SENT \"quoted\" 火山"
     op.xLabel = "X_LBL_SENT log₂ fold change"
-    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p)"
-    op.colorLabel = "COLOR_LBL_SENT \\ back\\slash"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
     val code = op.generatePythonCode()
     code should include(s"title=${decoded(op.title)}")
     code should include(s"xaxis_title=${decoded(op.xLabel)}")
     code should include(s"yaxis_title=${decoded(op.yLabel)}")
-    code should include(s"coloraxis_colorbar_title_text=${decoded(op.colorLabel)}")
-    Seq(op.title, op.xLabel, op.yLabel, op.colorLabel).foreach { sentinel =>
+    Seq(op.title, op.xLabel, op.yLabel).foreach { sentinel =>
       code should not include sentinel
     }
     // A set label replaces the default rather than being emitted next to it.
     code should not include b64("Volcano Plot")
     code should not include s"xaxis_title=${decoded("log2fc")}"
     code should not include s"yaxis_title=${decoded("-log10(pvalue)")}"
-    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
     // The y column itself keeps the derived name: a label is text on the axis,
     // not a column rename.
     code should include(s"y=${decoded("-log10(pvalue)")}")
+  }
+
+  it should "title the color bar with the x axis text because both show the effect column" in {
+    // The points are colored by the column on the x axis, so the color bar
+    // carries the x axis text rather than a label of its own.
+    val op = configured
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    val code = op.generatePythonCode()
+    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
+    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
   }
 
   it should "treat a whitespace-only label as empty and keep the default" in {
     val op = configured
     op.title = " "
     op.xLabel = "\t"
-    op.yLabel = "   "
-    op.colorLabel = " \n "
+    op.yLabel = " \n "
     val code = op.generatePythonCode()
     code should include(s"title=${decoded("Volcano Plot")}")
     code should include(s"xaxis_title=${decoded("log2fc")}")
     code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
     code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
-    Seq(op.title, op.xLabel, op.yLabel, op.colorLabel).foreach { blank =>
+    Seq(op.title, op.xLabel, op.yLabel).foreach { blank =>
       code should not include decoded(blank)
     }
   }
@@ -199,13 +205,13 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val op = configured
     op.title = "TITLE_SENT \"quoted\" 火山"
     op.xLabel = "X_LBL_SENT log₂ fold change"
-    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p)"
-    op.colorLabel = "COLOR_LBL_SENT \\ back\\slash"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
     val code = op.generateStandaloneCode()
     code should include("title=\"TITLE_SENT \\\"quoted\\\" 火山\"")
     code should include("xaxis_title=\"X_LBL_SENT log₂ fold change\",")
-    code should include("yaxis_title=\"Y_LBL_SENT -log₁₀(BH-adjusted p)\",")
-    code should include("coloraxis_colorbar_title_text=\"COLOR_LBL_SENT \\\\ back\\\\slash\"")
+    code should include("yaxis_title=\"Y_LBL_SENT -log₁₀(BH-adjusted p) \\\\ back\\\\slash\",")
+    // The color bar follows the x label, since both show the effect column.
+    code should include("coloraxis_colorbar_title_text=\"X_LBL_SENT log₂ fold change\"")
     // A set label replaces the default rather than being emitted next to it.
     code should not include """title="Volcano Plot""""
     code should not include """xaxis_title="log2fc""""
@@ -220,8 +226,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val op = configured
     op.title = " "
     op.xLabel = "\t"
-    op.yLabel = "   "
-    op.colorLabel = " \n "
+    op.yLabel = " \n "
     op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
   }
 
@@ -242,13 +247,14 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val op = configured
     op.pvalueColumn = "padj"
     op.title = "Treated vs control"
+    op.xLabel = "Shrunken log2 fold change"
     val engine = op.generatePythonCode()
     val export = op.generateStandaloneCode()
     Seq(
       "title" -> "Treated vs control",
-      "xaxis_title" -> "log2fc",
+      "xaxis_title" -> "Shrunken log2 fold change",
       "yaxis_title" -> "-log10(padj)",
-      "coloraxis_colorbar_title_text" -> "log2fc"
+      "coloraxis_colorbar_title_text" -> "Shrunken log2 fold change"
     ).foreach {
       case (key, text) =>
         engine should include(s"$key=${decoded(text)}")

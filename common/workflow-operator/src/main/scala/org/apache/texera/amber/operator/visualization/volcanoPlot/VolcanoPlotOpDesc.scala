@@ -76,20 +76,15 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("X Label")
-  @JsonPropertyDescription("The label for the x axis; leave empty for the effect size column name")
+  @JsonPropertyDescription(
+    "The label for the x axis and the color bar; leave empty for the effect size column name"
+  )
   var xLabel: EncodableString = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Y Label")
   @JsonPropertyDescription("The label for the y axis; leave empty for -log10(<p-value column>)")
   var yLabel: EncodableString = ""
-
-  @JsonProperty(required = false)
-  @JsonSchemaTitle("Color Bar Label")
-  @JsonPropertyDescription(
-    "The label for the color bar; leave empty for the effect size column name"
-  )
-  var colorLabel: EncodableString = ""
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -115,8 +110,6 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   private def titleText: EncodableString = if (title.trim.nonEmpty) title else "Volcano Plot"
   private def xAxisTitle: EncodableString = if (xLabel.trim.nonEmpty) xLabel else effectColumn
   private def yAxisTitle: EncodableString = if (yLabel.trim.nonEmpty) yLabel else yColumn
-  private def colorBarTitle: EncodableString =
-    if (colorLabel.trim.nonEmpty) colorLabel else effectColumn
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -160,7 +153,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        fig.update_layout(
        |            xaxis_title=$xAxisTitle,
        |            yaxis_title=$yAxisTitle,
-       |            coloraxis_colorbar_title_text=$colorBarTitle
+       |            coloraxis_colorbar_title_text=$xAxisTitle
        |        )
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
@@ -206,7 +199,7 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        fig.update_layout(
        |            xaxis_title=${pyStringLiteral(xAxisTitle)},
        |            yaxis_title=${pyStringLiteral(yAxisTitle)},
-       |            coloraxis_colorbar_title_text=${pyStringLiteral(colorBarTitle)}
+       |            coloraxis_colorbar_title_text=${pyStringLiteral(xAxisTitle)}
        |        )
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)
