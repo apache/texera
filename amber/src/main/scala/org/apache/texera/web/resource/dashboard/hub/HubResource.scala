@@ -276,10 +276,18 @@ object HubResource {
     mapWorkflowEntries(records, uid)
   }
 
-  /**
-    * Hydrates ids of one LakeFS-backed resource into hub entries. Unsizable resources are
-    * dropped; ids are de-duplicated because the access join can match one twice.
-    */
+  /** The access join is narrowed to `uid`, so each id yields one row carrying only the viewer's grant. */
+  private[hub] def versionedResourcesByIdsQuery(
+      tables: VersionedResourceTables[_ <: Record, _],
+      ids: Seq[Integer],
+      uid: Integer
+  ) =
+    context
+      .select()
+      .from(tables.joinWithViewerAccessAndOwner(uid))
+      .where(tables.idColumn.in(ids: _*))
+
+  /** Hydrates ids of one LakeFS-backed resource into hub entries; unsizable resources are dropped. */
   def fetchDashboardVersionedResourcesByIds(
       tables: VersionedResourceTables[_ <: Record, _],
       ids: Seq[Integer],
@@ -289,27 +297,12 @@ object HubResource {
       return List.empty[DashboardClickableFileEntry]
     }
 
-    val records = context
-      .select()
-      .from(tables.joinWithAccessAndOwner(None))
-      .where(tables.idColumn.in(ids: _*))
-      .groupBy(
-        tables.idColumn,
-        tables.nameColumn,
-        tables.descriptionColumn,
-        tables.ownerUidColumn,
-        USER.NAME,
-        tables.access.idColumn,
-        tables.access.uidColumn,
-        USER.UID
-      )
+    versionedResourcesByIdsQuery(tables, ids, uid)
       .fetch()
-
-    records.asScala
+      .asScala
       .flatMap(record => tables.hydrate(record, uid))
-      .toList
-      .distinctBy(_._1)
       .map(_._2)
+      .toList
   }
 }
 

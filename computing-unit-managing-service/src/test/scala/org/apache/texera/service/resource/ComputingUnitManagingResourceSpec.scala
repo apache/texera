@@ -29,6 +29,7 @@ import org.apache.texera.common.config.EnvironmentalVariable
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.KubernetesConfig.maxNumOfRunningComputingUnitsPerUser
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.jooq.generated.tables.ComputingUnitUserAccess.COMPUTING_UNIT_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
   UserRoleEnum,
@@ -195,6 +196,21 @@ class ComputingUnitManagingResourceSpec
     info.isOwner shouldBe false
     info.accessPrivilege shouldBe PrivilegeEnum.READ
     info.ownerName shouldBe "victim"
+  }
+
+  it should "report WRITE for the owner even when an access row says READ" in {
+    insertLocalUnit(cuid = 9510, ownerUid = user.getUid, name = "owner-with-row-cu")
+    grantAccess(9510, granteeUid = user.getUid, PrivilegeEnum.READ)
+    try {
+      resource.getComputingUnitInfo(9510, user).accessPrivilege shouldBe PrivilegeEnum.WRITE
+    } finally {
+      // Kept out of the owner's unit listing, which the tests below count.
+      getDSLContext
+        .deleteFrom(COMPUTING_UNIT_USER_ACCESS)
+        .where(COMPUTING_UNIT_USER_ACCESS.CUID.eq(9510))
+        .execute()
+      new WorkflowComputingUnitDao(getDSLContext.configuration()).deleteById(9510)
+    }
   }
 
   it should "throw NotFoundException for a nonexistent unit" in {
