@@ -240,6 +240,7 @@ This product bundles code derived from inner-class:
 
 This product bundles the ScalaPB options definition:
   - common/workflow-core/src/main/protobuf/scalapb/scalapb.proto
+  - frontend/src/app/common/type/proto/scalapb/scalapb.ts (generated from it)
   Source: https://github.com/scalapb/ScalaPB
   License: Apache License 2.0 (this LICENSE file)
 
@@ -269,3 +270,13 @@ This product bundles the Iris example dataset:
   Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
   DOI: 10.24432/C56C76
   License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
+
+BSD 3-Clause License
+--------------------------------------
+
+This product bundles TypeScript generated from Protocol Buffers' descriptor.proto,
+including its documentation comments:
+  - frontend/src/app/common/type/proto/google/protobuf/descriptor.ts
+  Copyright 2008 Google Inc. All rights reserved.
+  Source: https://github.com/protocolbuffers/protobuf/blob/v33.4/src/google/protobuf/descriptor.proto
+  License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
