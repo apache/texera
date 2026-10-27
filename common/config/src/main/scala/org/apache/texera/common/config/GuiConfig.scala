@@ -83,4 +83,6 @@ object GuiConfig {
     conf.getBoolean("gui.workflow-workspace.python-notebook-migration-enabled")
   val guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes: Int =
     conf.getInt("gui.workflow-workspace.python-notebook-migration-timeout-minutes")
+  val guiWorkflowWorkspaceRNotebookMigrationEnabled: Boolean =
+    conf.getBoolean("gui.workflow-workspace.r-notebook-migration-enabled")
 }
