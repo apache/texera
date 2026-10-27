@@ -147,7 +147,7 @@ const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
  * Replaces every occurrence of a snippet, and reports how many there were.
  *
  * No indentation work: the prompt requires whole lines carrying the indentation they should
- * have, and `startsAtLineBoundary` turns away a reply that does not, so each line of the
+ * have, and `matchesWholeLines` turns away a reply that does not, so each line of the
  * suggestion already sits at the right column. Re-indenting continuation lines here instead
  * meant guessing which convention the model had used -- absolute or relative -- and the
  * prompt never stated one, so either guess doubled the indentation for the other.
@@ -158,24 +158,29 @@ export function replaceAll(code: string, original: string, suggested: string): {
 }
 
 /**
- * Whether every occurrence of the snippet begins a line.
+ * Whether every occurrence of the snippet covers whole lines.
  *
- * This is what makes the replacement unambiguous: a snippet that starts at column 0 of its
- * line carries its own leading indentation, so the suggestion replacing it must carry the
- * indentation it wants and nothing has to be inferred. A snippet starting mid-line leaves
- * the indentation of its continuation lines undetermined.
+ * Both ends matter, for different reasons. Starting a line is what makes the indentation
+ * unambiguous: the snippet carries its own, so the suggestion carries the indentation it
+ * wants and nothing is inferred. Ending a line is what keeps the replacement honest -- a
+ * snippet that begins a line but stops inside it still replaces cleanly, so `        n = 1`
+ * matches `        n = 10` once, shows no occurrence badge, and leaves the trailing `0`
+ * behind: the diff offers `n = 1` -> `n = 2` and the operator is left saying `n = 20`.
  */
-export function startsAtLineBoundary(code: string, original: string): boolean {
+export function matchesWholeLines(code: string, original: string): boolean {
   let from = 0;
   for (;;) {
     const at = code.indexOf(original, from);
     if (at === -1) {
       return true;
     }
-    if (at !== 0 && code[at - 1] !== "\n") {
+    const end = at + original.length;
+    const startsLine = at === 0 || code[at - 1] === "\n";
+    const endsLine = end === code.length || code[end] === "\n";
+    if (!startsLine || !endsLine) {
       return false;
     }
-    from = at + original.length;
+    from = end;
   }
 }
 
@@ -326,7 +331,7 @@ export class AiWorkflowFixerService {
         // The prompt asks for whole lines with their indentation; a snippet starting mid-line
         // means the model ignored that, and applying it would put the lines after the first
         // at a column nothing here can work out.
-        if (!startsAtLineBoundary(code ?? "", suggestedFix.original)) {
+        if (!matchesWholeLines(code ?? "", suggestedFix.original)) {
           throw new Error("the model did not quote whole lines, so the fix cannot be placed");
         }
         const occurrences = replaceAll(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
@@ -438,11 +443,10 @@ export class AiWorkflowFixerService {
       }
       properties.code = patched.code;
     } else {
-      // Only the model-not-found case asks for a configuration change; a property fix for
-      // any other error is the model leaving the four shapes this panel supports.
-      if (current.errorType !== "model_not_found") {
-        throw new Error("a configuration change is not the fix for this error");
-      }
+      // No errorType check here. The analysis refuses a property fix for anything but
+      // model_not_found, and errorType is fixed when the state is published, so by this
+      // point it can only be that -- unlike the field checks below, which guard against the
+      // operator moving between the analysis and the write.
       const field = String(fix.fieldName);
       // Checked against the fields the model was actually shown, not the raw properties:
       // those still hold the credentials withoutSecrets kept out of the prompt, so a

@@ -25,7 +25,7 @@ import {
   coerceToFieldType,
   FixState,
   replaceAll,
-  startsAtLineBoundary,
+  matchesWholeLines,
   OperatorError,
 } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -510,27 +510,42 @@ describe("AiWorkflowFixerService", () => {
     });
   });
 
-  describe("startsAtLineBoundary", () => {
+  describe("matchesWholeLines", () => {
     it("accepts a snippet that begins a line, including the first one", () => {
-      expect(startsAtLineBoundary("    a()\n    b()\n", "    a()")).toBe(true);
-      expect(startsAtLineBoundary("a()\n", "a()")).toBe(true);
+      expect(matchesWholeLines("    a()\n    b()\n", "    a()")).toBe(true);
+      expect(matchesWholeLines("a()\n", "a()")).toBe(true);
     });
 
     it("rejects a snippet quoted from the middle of a line", () => {
       // Without its leading indentation the snippet says nothing about what column the
       // lines after it belong at, which is exactly what used to be guessed.
-      expect(startsAtLineBoundary("    a()\n", "a()")).toBe(false);
+      expect(matchesWholeLines("    a()\n", "a()")).toBe(false);
     });
 
     it("rejects when any one occurrence is mid-line, not just the first", () => {
       // Every match is replaced, so one mid-line occurrence is enough to make the result
       // depend on a guess -- and the first match looking fine is what would hide it.
-      expect(startsAtLineBoundary("a()\nif x: a()\n", "a()")).toBe(false);
+      expect(matchesWholeLines("a()\nif x: a()\n", "a()")).toBe(false);
     });
 
+    it("rejects a whole line that is only the start of a longer one", () => {
+      // The dangerous half: the match begins a line, so the indentation is unambiguous and
+      // the count is 1, which hides the badge -- but it stops mid-line. Replacing it leaves
+      // the rest of the line stuck on the end, so `n = 1` becoming `n = 2` silently rewrites
+      // `n = 10` as `n = 20` while the diff only ever showed `n = 1`.
+      expect(matchesWholeLines("        n = 10\n", "        n = 1")).toBe(false);
+    });
+
+    it("accepts a match that ends at the end of the code, with no trailing newline", () => {
+      expect(matchesWholeLines("    a()", "    a()")).toBe(true);
+    });
+
+    it("rejects when only one of several occurrences stops mid-line", () => {
+      expect(matchesWholeLines("    a()\n    a() + 1\n", "    a()")).toBe(false);
+    });
     it("says nothing about a snippet the code does not contain", () => {
       // Absence is a separate refusal, with its own message.
-      expect(startsAtLineBoundary("a()\n", "zzz()")).toBe(true);
+      expect(matchesWholeLines("a()\n", "zzz()")).toBe(true);
     });
   });
 
