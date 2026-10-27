@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793030453796,
+  "lastUpdate": 1793106942366,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -19732,6 +19732,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 510.39870778193483,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Shawn",
+            "username": "ShawnGarello",
+            "email": "shawngarello@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8f30d823fbb96e9ad2921063cb506f4c86e7b72a",
+          "message": "fix(amber): return 404 for unavailable public workflow (#9061)\n\n### What changes were proposed in this PR?\n\nOpening a hub link to a workflow that was deleted or made private makes\n`GET /api/workflow/publicised/{wid}` fail with a 500.\n\n`retrievePublicWorkflow` dereferenced the row from `fetchOne()` without\na null check. It now answers 404, the same guard `getWorkflowType`\nalready has. A private workflow gets the same 404 as a missing one, as\nthe query (`wid = ? AND is_public`) already treats them alike. The hub\npage shows the same load error either way; what changes is the status\ncode, and the server log no longer gets a `NullPointerException` stack\ntrace.\n\nTwo regression tests in `WorkflowResourceSpec`, under their own\n`retrievePublicWorkflow` subject: a private workflow, and a wid that\ndoes not exist. The public case is already covered by the makePublic and\ndefault-view tests.\n\nThis picks up #8140 by @carloea2, which was closed unmerged; it applies\nthe review on that PR (braces, the test under its own subject, the\ntitle).\n\n### Any related issues, documentation, discussions?\n\nCloses #8139\n\nBackport: the same unguarded `fetchOne()` is on `release/v1.3` and\n`release/v1.2`, but the code after it differs there (no `publicCopyOf`),\nso the cherry-pick may need the guard re-applied by hand.\n`WorkflowResourceSpec.scala` exists on both branches.\n\n### How was this PR tested?\n\nWith Postgres up, `sbt -batch \"WorkflowExecutionService/testOnly\n*WorkflowResourceSpec\"`:\n1. Red: the first commit adds only the two tests. 79 pass, 2 fail:\nexactly those two, each with a `NullPointerException` instead of\n`NotFoundException`.\n2. Green: with the guard, 81 pass, 0 fail (run twice). `testOnly\n*WorkflowResourceSpec *WorkflowPublishSpec` (the other spec that calls\nthe method): 135 pass, 0 fail.\n3. With only the guard reverted, exactly the two new tests fail again\nwith `NullPointerException`.\n4. `sbt scalafmtCheckAll \"scalafixAll --check\"` is clean.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5.5)",
+          "timestamp": "2026-10-27T10:34:58Z",
+          "url": "https://github.com/apache/texera/commit/8f30d823fbb96e9ad2921063cb506f4c86e7b72a"
+        },
+        "date": 1793106941491,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 573.7100912286708,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1108.938213526038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1218.5534846449352,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 814.8968871548046,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1169.5248821218108,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1216.0190415838033,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 816.788202974755,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1173.502044930963,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1215.241827241881,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 721.9682266606194,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 935.8070923920783,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 964.3083815690794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 708.6567966573215,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 943.4725195193237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 971.1361232461414,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 713.5051679173961,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 913.4851024092297,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 943.2665740996803,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 442.05635385677505,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 524.066765335316,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 537.9746922519179,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 442.1811430152701,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 522.6567610644382,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 523.9119548710457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 434.5852153670801,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 498.12872452762014,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 503.51284937793,
             "unit": "tuples/sec"
           }
         ]
