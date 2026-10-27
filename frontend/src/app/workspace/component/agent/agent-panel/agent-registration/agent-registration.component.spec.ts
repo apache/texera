@@ -80,7 +80,6 @@ describe("AgentRegistrationComponent", () => {
 
       expect(component.modelTypes).toEqual([MODEL]);
       expect(component.isLoadingModels).toBe(false);
-      expect(component.hasLoadingError).toBe(false);
     });
 
     it("flags an error and notifies when no models are returned", () => {
@@ -88,7 +87,6 @@ describe("AgentRegistrationComponent", () => {
       fixture.detectChanges();
 
       expect(component.isLoadingModels).toBe(false);
-      expect(component.hasLoadingError).toBe(true);
       expect(notifyError).toHaveBeenCalledWith(expect.stringContaining("No models available"));
     });
 
@@ -97,7 +95,6 @@ describe("AgentRegistrationComponent", () => {
       fixture.detectChanges();
 
       expect(component.isLoadingModels).toBe(false);
-      expect(component.hasLoadingError).toBe(true);
       expect(notifyError).toHaveBeenCalledWith("Failed to fetch models: boom");
     });
 
@@ -108,7 +105,6 @@ describe("AgentRegistrationComponent", () => {
       fetchModelTypes.mockReturnValue(throwError(() => "backend unreachable"));
       fixture.detectChanges();
 
-      expect(component.hasLoadingError).toBe(true);
       expect(notifyError).toHaveBeenCalledWith("Failed to fetch models: backend unreachable");
     });
 

@@ -83,7 +83,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   id = -1;
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
-  isDocked = true;
 
   // Tab management
   selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
@@ -183,7 +182,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       // Close panel (dock it)
       this.width = 0;
-      this.isDocked = true;
     }
   }
 
@@ -339,13 +337,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Handle drag start
-   */
-  handleDragStart(): void {
-    this.isDocked = false;
-  }
-
-  /**
    * Load panel settings from localStorage
    */
   private loadPanelSettings(): void {
@@ -376,7 +367,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
         const translates = container.style.transform;
         const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
         this.returnPosition = { x: -xOffset, y: -yOffset };
-        this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
       }
     }
   }
