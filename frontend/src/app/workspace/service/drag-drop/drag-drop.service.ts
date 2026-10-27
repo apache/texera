@@ -33,7 +33,7 @@ import * as joint from "jointjs";
 export class DragDropService {
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
   private op!: OperatorPredicate;
-  private operatorDroppedSubject = new Subject<void>();
+  private operatorDroppedSubject = new Subject<OperatorPredicate>();
   private readonly operatorSuggestionHighlightStream = new Subject<string>();
   private readonly operatorSuggestionUnhighlightStream = new Subject<string>();
   private suggestionInputs: OperatorPredicate[] = [];
@@ -75,10 +75,16 @@ export class DragDropService {
 
     this.workflowActionService.addOperatorsAndLinks([{ op: this.op, pos: coordinates }], newLinks);
     this.resetSuggestions();
-    this.operatorDroppedSubject.next();
+    this.operatorDroppedSubject.next(this.op);
   }
 
-  get operatorDropStream() {
+  /**
+   * Emits the operator a user just dropped onto the canvas, after it has been
+   * added to the graph. Unlike the graph's own operator-add stream, this fires
+   * only for interactive drag-drop placement — not for workflow load, undo/redo,
+   * paste, or a remote co-editor's edits.
+   */
+  get operatorDropStream(): Observable<OperatorPredicate> {
     return this.operatorDroppedSubject.asObservable();
   }
 
