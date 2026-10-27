@@ -110,14 +110,6 @@ object WorkflowResource {
     )
   }
 
-  private def workflowOfUserExists(wid: Integer, uid: Integer): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
-  }
-
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
@@ -228,12 +220,7 @@ object WorkflowResource {
   ): Unit = {
     val user = sessionUser.getUser
 
-    if (
-      workflowOfUserExists(wid, user.getUid) || WorkflowAccessResource.hasWriteAccess(
-        wid,
-        user.getUid
-      )
-    ) {
+    if (WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       context.update(WORKFLOW).set(field, value).where(WORKFLOW.WID.eq(wid)).execute()
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -459,7 +446,7 @@ class WorkflowResource extends LazyLogging {
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+    if (WorkflowAccessResource.isOwner(workflow.getWid, user.getUid)) {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
       saveWorkflowFields(workflow)
     } else {
@@ -668,7 +655,7 @@ class WorkflowResource extends LazyLogging {
       // Delete workflows in a transaction
       context.transaction { _ =>
         for (wid <- workflowIDs.wids) {
-          if (workflowOfUserExists(wid, user.getUid)) {
+          if (WorkflowAccessResource.isOwner(wid, user.getUid)) {
             workflowDao.deleteById(wid)
           } else {
             throw new BadRequestException("The workflow does not exist.")
