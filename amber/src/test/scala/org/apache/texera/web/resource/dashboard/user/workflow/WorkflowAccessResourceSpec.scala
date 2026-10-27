@@ -458,6 +458,17 @@ class WorkflowAccessResourceSpec
     assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
   }
 
+  it should "not fail when the workflow has several owner rows" in {
+    workflowOfUserDao.insert(new WorkflowOfUser(userWithReadUid, testWorkflowWid))
+    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
+    )
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
+    )
+  }
+
   "WorkflowAccessResource.accessibleWids" should "list owned and granted workflows, once each" in {
     workflowUserAccessDao.insert(
       new WorkflowUserAccess(ownerUid, testWorkflowWid, PrivilegeEnum.WRITE)

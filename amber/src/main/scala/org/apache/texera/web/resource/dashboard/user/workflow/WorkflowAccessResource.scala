@@ -80,18 +80,19 @@ object WorkflowAccessResource {
     * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
   def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
-    // One round trip: the owner and the caller's own grant, read together.
+    // One round trip: the caller's own ownership row and grant, read together. Both joins are
+    // narrowed to the caller, so a workflow with several owners still yields one row.
     val row = context
       .select(WORKFLOW_OF_USER.UID, WORKFLOW_USER_ACCESS.PRIVILEGE)
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID).and(WORKFLOW_OF_USER.UID.eq(uid)))
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .where(WORKFLOW.WID.eq(wid))
       .fetchOne()
     if (row == null) PrivilegeEnum.NONE
-    else OwnerAccess.privilege(uid != null && uid == row.value1(), row.value2())
+    else OwnerAccess.privilege(row.value1() != null, row.value2())
   }
 
   def isOwner(wid: Integer, uid: Integer): Boolean =

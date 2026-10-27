@@ -18,8 +18,7 @@
 package org.apache.texera.service.resource
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.auth.util.OwnerAccess
-import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.jooq.DSLContext
 
@@ -28,25 +27,20 @@ object WorkflowAccessResource {
     SqlServer.getInstance().createDSLContext()
 
   /**
-    * Whether the given user owns the given workflow or holds a direct WRITE grant on it.
+    * Whether the given user holds a direct WRITE grant on the given workflow.
     *
-    * No public-visibility fallback, so the notebook endpoints stay self-contained.
+    * Only the direct WORKFLOW_USER_ACCESS grant is consulted — no
+    * public-visibility fallback — so the notebook endpoints stay self-contained.
     *
     * @param wid workflow id
     * @param uid user id
     */
   def hasWriteAccess(wid: Integer, uid: Integer): Boolean = {
-    val isOwner = context.fetchExists(
-      WORKFLOW_OF_USER,
-      WORKFLOW_OF_USER.WID.eq(wid).and(WORKFLOW_OF_USER.UID.eq(uid))
-    )
-    OwnerAccess.privilege(
-      isOwner,
-      context
-        .select(WORKFLOW_USER_ACCESS.PRIVILEGE)
-        .from(WORKFLOW_USER_ACCESS)
-        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-        .fetchOne(WORKFLOW_USER_ACCESS.PRIVILEGE)
-    ) == PrivilegeEnum.WRITE
+    val privilege = context
+      .select(WORKFLOW_USER_ACCESS.PRIVILEGE)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .fetchOne(WORKFLOW_USER_ACCESS.PRIVILEGE)
+    privilege == PrivilegeEnum.WRITE
   }
 }
