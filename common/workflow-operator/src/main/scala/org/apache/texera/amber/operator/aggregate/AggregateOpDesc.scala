@@ -100,9 +100,13 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
-    // change aggregations to final
+    // The global stage aggregates the local stage's results, so its desc names
+    // them. The operator keeps what the user set: the export reads it after
+    // compiling, and a second compile would apply getFinal twice.
+    val userAggregations = aggregations
     aggregations = aggregations.map(aggr => aggr.getFinal)
     val finalDesc = objectMapper.writeValueAsString(this)
+    aggregations = userAggregations
 
     val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(

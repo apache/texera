@@ -52,8 +52,6 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     a
   }
 
-  // Each test builds a FRESH desc: getPhysicalPlan mutates `aggregations` (getFinal),
-  // so the descriptor is intentionally not idempotent across calls.
   private def descWith(keys: List[String], aggs: AggregationOperation*): AggregateOpDesc = {
     val d = new AggregateOpDesc
     d.groupByKeys = keys
@@ -77,6 +75,15 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       .getPhysicalPlan(workflowId, executionId)
     plan.operators should have size 2
     plan.links should have size 1
+  }
+
+  // The export compiles a plan and then reads the same operators.
+  it should "leave the aggregations the user set for the code generated after it" in {
+    val desc = descWith(List("city"), aggOp(AggregationFunction.SUM, "sales", "total"))
+    desc.getPhysicalPlan(workflowId, executionId)
+    desc.aggregations.map(a => (a.aggFunction, a.attribute, a.resultAttribute)) shouldBe
+      List((AggregationFunction.SUM, "sales", "total"))
+    desc.generateStandaloneCode() should include("""["sales"]""")
   }
 
   "AggregateOpDesc schema propagation" should
