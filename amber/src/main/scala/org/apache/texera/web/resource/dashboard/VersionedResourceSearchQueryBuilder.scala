@@ -84,25 +84,24 @@ abstract class VersionedResourceSearchQueryBuilder[Rec <: Record, P](
 
   /**
     * `uid` is null for anonymous callers. Visibility: public only when `uid` is null;
-    * explicitly-granted only when `includePublic` is false; both when it is true.
+    * owned or explicitly granted only when `includePublic` is false; both when it is true.
     */
   override protected def constructFromClause(
       uid: Integer,
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
-    val baseJoin = tables.joinWithAccessAndOwner(
-      Some(if (uid == null) DSL.falseCondition() else tables.access.uidColumn.eq(uid))
-    )
+    val baseJoin = tables.joinWithViewerAccessAndOwner(uid)
 
     val condition: Condition =
       if (uid == null) {
         tables.isPublicColumn.eq(true)
       } else {
+        val ownedOrGranted = tables.access.uidColumn.isNotNull.or(tables.ownerUidColumn.eq(uid))
         if (includePublic) {
-          tables.isPublicColumn.eq(true).or(tables.access.uidColumn.isNotNull)
+          tables.isPublicColumn.eq(true).or(ownedOrGranted)
         } else {
-          tables.access.uidColumn.isNotNull
+          ownedOrGranted
         }
       }
     baseJoin.where(condition)

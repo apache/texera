@@ -1,0 +1,194 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+$ink-muted: rgba(0, 0, 0, 0.45);
+$hairline: #f0f0f0;
+
+// A container, so the ledger stacks by the card's width, which the sidebar decides, not the window's.
+.cluster-capacity {
+  container: cluster-capacity / inline-size;
+  // The track is a lighter step of the fill's hue, so a flagged row reads as one band.
+  --meter-fill: #1890ff;
+  --meter-track: #bae7ff;
+
+  margin-bottom: 16px;
+}
+
+.capacity-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capacity-updated {
+  font-size: 12px;
+  color: $ink-muted;
+}
+
+.capacity-alert {
+  margin-bottom: 8px;
+}
+
+.capacity-ledger {
+  width: 100%;
+
+  th,
+  td {
+    padding: 8px 0 8px 24px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:first-child {
+    padding-left: 0;
+    text-align: left;
+  }
+
+  thead th {
+    padding-top: 0;
+    font-weight: 400;
+    font-size: 12px;
+    color: $ink-muted;
+    border-bottom: 1px solid $hairline;
+  }
+
+  tbody th {
+    font-weight: 500;
+  }
+
+  // Takes the slack, so the bars line up across rows.
+  .usage {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+.capacity-warning {
+  --meter-fill: #faad14;
+  --meter-track: #fff1b8;
+}
+
+.capacity-critical {
+  --meter-fill: #ff4d4f;
+  --meter-track: #ffccc7;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 160px;
+}
+
+// Square where it starts, rounded where the data ends.
+.meter-track,
+.meter-fill {
+  border-radius: 0 4px 4px 0;
+}
+
+.meter-track {
+  flex: 1;
+  height: 8px;
+  background: var(--meter-track);
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--meter-fill);
+}
+
+// Fixed widths, so a status icon does not shorten its row's bar.
+.percent-used {
+  min-width: 4ch;
+  text-align: right;
+  font-weight: 500;
+}
+
+.status-slot {
+  display: inline-flex;
+  width: 16px;
+}
+
+.status-icon {
+  color: var(--meter-fill);
+}
+
+.meter-note {
+  color: $ink-muted;
+}
+
+.capacity-note {
+  max-width: 72ch;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: $ink-muted;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-button .anticon-spin {
+    animation: none;
+  }
+}
+
+// Too narrow for the ledger, so each resource stacks into labelled lines.
+@container cluster-capacity (max-width: 545px) {
+  .capacity-ledger {
+    thead {
+      display: none;
+    }
+
+    tbody tr {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 0;
+    }
+
+    tbody tr:not(:last-child) {
+      border-bottom: 1px solid $hairline;
+    }
+
+    th,
+    td {
+      padding: 0;
+    }
+
+    td[data-label] {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    td[data-label]::before {
+      content: attr(data-label);
+      color: $ink-muted;
+    }
+  }
+
+  .meter {
+    min-width: 0;
+  }
+}
+
+// The card squeezes its title before its extra, so the timestamp goes instead.
+@container cluster-capacity (max-width: 320px) {
+  .capacity-updated {
+    display: none;
+  }
+}

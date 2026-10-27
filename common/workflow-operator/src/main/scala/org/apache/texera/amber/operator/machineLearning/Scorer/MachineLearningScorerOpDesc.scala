@@ -212,15 +212,6 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
-//  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
-//  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
-
   private def getMetricName(metric: Any): EncodableString =
     metric match {
       case m: regressionMetricsFnc     => m.getName()
