@@ -75,9 +75,9 @@ jobs:
     # Control-plane resilience: merge-queue entries (and labeled PRs) run
     # this job on arc-light-linux so a jammed GitHub-hosted pool cannot
     # stall the pipeline. Availability cannot be probed before this job runs, so
-    # the repo variable ARC_AVAILABLE is the kill switch: set it to
+    # the repo variable ARC_ENABLED is the manual kill switch: set it to
     # 'false' when the cluster is down to route back to ubuntu-slim.
-    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-slim' }}
+    runs-on: ${{ ((github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted'))) && vars.ARC_ENABLED != 'false' && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-slim' }}
     outputs:
       run_frontend: ${{ steps.decide.outputs.run_frontend }}
       run_amber: ${{ steps.decide.outputs.run_amber }}
@@ -125,8 +125,9 @@ jobs:
           # only to probe self-hosted runner availability. Optional — when
           # absent the ci:self-hosted label is trusted without probing.
           ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
-          # Manual/auto kill switch mirrored by runner-heartbeat.yml's
-          # watchdog; 'false' forces every Linux tier back to GitHub-hosted.
+          # ARC_ENABLED is manual; ARC_AVAILABLE is maintained by the
+          # heartbeat watchdog. Either set to false disables self-hosted CI.
+          ARC_ENABLED: ${{ vars.ARC_ENABLED }}
           ARC_AVAILABLE: ${{ vars.ARC_AVAILABLE }}
         with:
           script: |
@@ -391,11 +392,11 @@ jobs:
                 (runAgentService ? 1 : 0) +
                 (runPyrightLanguageService ? 1 : 0),
             };
-            // Kill switch: ARC_AVAILABLE=false (manual, or flipped by the
-            // runner-heartbeat watchdog) forces every tier to GitHub-hosted.
-            if (selfHosted && process.env.ARC_AVAILABLE === "false") {
+            // ARC_ENABLED is the manual kill switch; the watchdog only writes
+            // ARC_AVAILABLE. Either false forces every tier to GitHub-hosted.
+            if (selfHosted && (process.env.ARC_ENABLED === "false" || process.env.ARC_AVAILABLE === "false")) {
               for (const k of Object.keys(tiers)) tiers[k] = "ubuntu-latest";
-              core.warning("ARC_AVAILABLE=false; routing all Linux tiers to GitHub-hosted runners.");
+              core.warning("ARC_ENABLED=false or ARC_AVAILABLE=false; routing all Linux tiers to GitHub-hosted runners.");
             }
             // Heartbeat fallback: runner-heartbeat.yml proves fleet liveness
             // every 15 minutes. Stale last-success (with history present)

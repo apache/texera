@@ -106,9 +106,9 @@ jobs:
     # Control-plane resilience: with the ci:self-hosted label this job
     # runs on arc-light-linux so a jammed GitHub-hosted pool cannot stall
     # the pipeline. Availability cannot be probed before this job runs, so
-    # the repo variable ARC_AVAILABLE is the kill switch: set it to
+    # the repo variable ARC_ENABLED is the manual kill switch: set it to
     # 'false' when the cluster is down to route back to ubuntu-slim.
-    runs-on: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted') && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-slim' }}
+    runs-on: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:self-hosted') && vars.ARC_ENABLED != 'false' && vars.ARC_AVAILABLE != 'false') && 'arc-light-linux' || 'ubuntu-slim' }}
     outputs:
       run_bench: ${{ steps.decide.outputs.run_bench }}
       linux_runner: ${{ steps.decide.outputs.linux_runner }}
@@ -144,7 +144,8 @@ jobs:
           # Optional PAT (administration:read) for the runner availability
           # probe; see precheck.yml.
           ARC_STATUS_TOKEN: ${{ secrets.ARC_STATUS_TOKEN }}
-          # Kill switch mirrored by runner-heartbeat.yml's watchdog.
+          # Manual opt-out and independent health signal from the watchdog.
+          ARC_ENABLED: ${{ vars.ARC_ENABLED }}
           ARC_AVAILABLE: ${{ vars.ARC_AVAILABLE }}
         with:
           script: |
@@ -189,9 +190,9 @@ jobs:
             // runner means WAIT (queue), never drift to GitHub-hosted —
             // only a set with no online runner at all falls back.
             let linuxRunner = labels.includes("ci:self-hosted") ? "arc-bench-linux" : "ubuntu-latest";
-            if (linuxRunner === "arc-bench-linux" && process.env.ARC_AVAILABLE === "false") {
+            if (linuxRunner === "arc-bench-linux" && (process.env.ARC_ENABLED === "false" || process.env.ARC_AVAILABLE === "false")) {
               linuxRunner = "ubuntu-latest";
-              core.warning("ARC_AVAILABLE=false; bench falls back to ubuntu-latest.");
+              core.warning("ARC_ENABLED=false or ARC_AVAILABLE=false; bench falls back to ubuntu-latest.");
             }
             if (linuxRunner === "arc-bench-linux" && process.env.ARC_STATUS_TOKEN) {
               try {

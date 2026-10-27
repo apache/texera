@@ -222,3 +222,29 @@ If you are modifying existing files, you may skip this step. For new files, you 
 4. Go to "Editor" → "Copyright" and choose the "Apache" profile as the default profile for this
    project.
 5. Click "Apply".
+
+### Self-hosted CI runner controls
+
+PRs opt in with the `ci:self-hosted` label; merge-queue builds opt in by
+default. Repository Actions variables control whether routing is allowed:
+
+| Variable | Purpose | Disabled value |
+| --- | --- | --- |
+| `ARC_ENABLED` | Manual kill switch; never changed by the watchdog | `false` |
+| `ARC_AVAILABLE` | Fleet health, maintained by the heartbeat watchdog | `false` |
+
+Unset variables preserve the default routing. `true` permits self-hosted
+routing but does not bypass health and availability checks. Values are
+case-sensitive: use lowercase `false` to disable.
+
+```bash
+# Stop routing new CI jobs to self-hosted runners.
+gh variable set ARC_ENABLED --repo apache/texera --body false
+# Allow self-hosted routing again, subject to health checks.
+gh variable set ARC_ENABLED --repo apache/texera --body true
+```
+
+The manual switch covers precheck, license-header checks, all Linux build
+tiers, and benchmarks. It does not stop runner processes or the diagnostic
+heartbeat. Already queued/running jobs retain their assigned runner; cancel
+and trigger a new workflow run to apply a changed switch.
