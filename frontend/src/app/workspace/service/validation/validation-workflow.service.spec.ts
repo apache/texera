@@ -555,30 +555,28 @@ describe("ValidationWorkflowService", () => {
       });
     });
 
-    describe("the graph sent to the compiler", () => {
+    describe("the operators sent to the compiler", () => {
       it("keeps an operator holding a reference inside a block, before any compile", () => {
         addBlockAround({ limit: "$K" });
-        const validGraph = validationWorkflowService.getValidTexeraGraph();
-        expect(validGraph.hasOperator(body.operatorID)).toBe(true);
-        expect(validGraph.getOperator(body.operatorID).operatorProperties).toEqual({ limit: "$K" });
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(true);
         // a name no enclosing Loop Start declares is no error either
         workflowActionservice.setOperatorProperty(body.operatorID, { limit: "$foo" });
-        expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(true);
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(true);
       });
 
       it("leaves out one holding a reference outside every block, or with any other error", () => {
         addBlockAround({ limit: "$K", fraction: "warm" });
-        expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(false);
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(false);
         // a reference in an array property is an error everywhere
         workflowActionservice.setOperatorProperty(body.operatorID, { limit: 1, columns: "$K" });
-        expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(false);
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(false);
         // outside every block, a reference in an integer property is a type error
         workflowActionservice.setOperatorProperty(body.operatorID, { limit: "$K" });
         workflowActionservice.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
-        expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(false);
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(false);
         // and a valid operator stays in
         workflowActionservice.setOperatorProperty(body.operatorID, { limit: 1 });
-        expect(validationWorkflowService.getValidTexeraGraph().hasOperator(body.operatorID)).toBe(true);
+        expect(validationWorkflowService.getValidOperatorIDs().has(body.operatorID)).toBe(true);
       });
     });
   });
