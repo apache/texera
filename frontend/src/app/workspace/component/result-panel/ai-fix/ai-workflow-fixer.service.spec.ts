@@ -22,7 +22,6 @@ import { firstValueFrom, Subject } from "rxjs";
 import {
   AiWorkflowFixerService,
   classifyError,
-  coerceToFieldType,
   FixState,
   replaceAll,
   matchesWholeLines,
@@ -162,10 +161,6 @@ describe("AiWorkflowFixerService", () => {
       expect(classifyError(KEY_ERROR_EVENT.header)).toEqual("missing_column");
       expect(classifyError("TypeError: unsupported operand type(s) for *: 'str' and 'int'")).toEqual("type_error");
       expect(classifyError("ValueError: input contains NaN")).toEqual("null_error");
-      expect(classifyError("java.lang.NullPointerException: boom")).toEqual("null_error");
-      expect(classifyError("ModelNotFound: no such model")).toEqual("model_not_found");
-      expect(classifyError("Error code: 404 - model does not exist")).toEqual("model_not_found");
-      expect(classifyError("404 Client Error: Not Found for url: .../models/Qwen")).toEqual("model_not_found");
       // A bare 404 is a line number, an unrelated HTTP status, or data -- not a model lookup.
       expect(classifyError('  File "udf.py", line 404, in process_tuple')).toEqual("unsupported");
       expect(classifyError("requests.HTTPError: 404 for https://example.com/report")).toEqual("unsupported");
@@ -173,6 +168,8 @@ describe("AiWorkflowFixerService", () => {
 
     it("returns unsupported for out-of-scope, empty, and near-miss messages", () => {
       expect(classifyError("ZeroDivisionError: division by zero")).toEqual("unsupported");
+      // Only a JVM operator raises this, and a JVM operator has no code for Apply to patch.
+      expect(classifyError("java.lang.NullPointerException: boom")).toEqual("unsupported");
       expect(classifyError("")).toEqual("unsupported");
       expect(classifyError("TypeError: 'int' object is not iterable")).toEqual("unsupported");
     });
@@ -187,14 +184,11 @@ describe("AiWorkflowFixerService", () => {
       await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
       expect(seen).toEqual(["idle", "analyzing", "ready"]);
-      expect(state().errorType).toEqual("missing_column");
       expect(state().suggestedFix).toEqual({
-        type: "code_change",
         original: "        yield t['email']",
         suggested: "        yield t['user_email']",
         explanation: "the column is user_email",
         confidence: "high",
-        fieldName: undefined,
         // CODE holds the snippet once, and the panel only shows this when it is more.
         occurrences: 1,
       });
@@ -225,23 +219,23 @@ describe("AiWorkflowFixerService", () => {
       expect(state().suggestedFix).toBeUndefined();
     });
 
+    it("refuses a reply that proposes a configuration change", async () => {
+      // The panel writes `code` and nothing else. Nothing in the repo raises an error a
+      // configuration change could fix -- a HuggingFace 404 is retried internally and ends
+      // up in the result rows, never as an exception -- so a property fix can only be the
+      // model going off script, and it should not reach the screen.
+      stubModel(suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4" }));
+
+      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
+
+      expect(state().status).toEqual("error");
+      expect(state().suggestedFix).toBeUndefined();
+    });
+
     it("tolerates a fenced JSON response even though the prompt forbids markdown", async () => {
       stubModel("```json\n" + suggestion() + "\n```");
       await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
       expect(state().status).toEqual("ready");
-    });
-
-    it("shows the current field value as the original for a property change", async () => {
-      operatorProperties = { model: "gpt-4-turb" };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
-      );
-
-      await service.analyzeError(OP, err("Error code: 404 - model not found"), SCHEMA, undefined, operatorProperties);
-
-      expect(state().suggestedFix?.fieldName).toEqual("model");
-      expect(state().suggestedFix?.original).toEqual("gpt-4-turb");
-      expect(state().suggestedFix?.suggested).toEqual("gpt-4-turbo");
     });
 
     it("never calls the model for an out-of-scope error", async () => {
@@ -293,10 +287,10 @@ describe("AiWorkflowFixerService", () => {
     // Operators keep secrets beside ordinary settings. This asserts the wiring, not the
     // filter: ai-fix-prompt.spec covers withoutSecrets itself, and the bug worth catching
     // here is the service forgetting to call it.
-    operatorProperties = { hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
+    operatorProperties = { code: CODE, hfApiToken: "hf_live_abc", password: "hunter2", modelId: "gpt-4-turb" };
     const callModel = vi.spyOn(service as any, "callModel").mockResolvedValue({ text: suggestion() });
 
-    await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
+    await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
 
     const prompt = JSON.stringify(callModel.mock.calls[0][0]);
     expect(prompt).not.toContain("hf_live_abc");
@@ -305,12 +299,14 @@ describe("AiWorkflowFixerService", () => {
   });
 
   describe("classifying a real traceback", () => {
-    it("classifies a JVM exception whose frames no pattern could recognise", () => {
+    it("reads a JVM exception from the header rather than the frames below it", () => {
       // mkConsoleMessage puts `err.toString` in `title` and only `getStackTrace.mkString` in
       // `message`, so the frames arrive with no `at ` prefix -- and on Java 9+ the JDK's own
-      // carry a module name. A real worker trace ends on exactly such a frame, which is why
-      // deducing the exception from the joined text classified the frame instead.
-      expect(classifyError("java.lang.NullPointerException: value is null")).toEqual("null_error");
+      // carry a module name. Nothing has to find the exception any more, because the header
+      // is handed over separately. It classifies as unsupported, which is the honest answer:
+      // the fix this panel writes is a change to `code`, and a JVM operator has none.
+      expect(classifyError("java.lang.NullPointerException: value is null")).toEqual("unsupported");
+      expect(classifyError("java.base/java.lang.Thread.run(Thread.java:840)")).toEqual("unsupported");
     });
 
     it("classifies a chained traceback on the exception that stopped the worker", () => {
@@ -339,22 +335,6 @@ describe("AiWorkflowFixerService", () => {
 
     it("still classifies the plain case the panel is built for", () => {
       expect(classifyError(KEY_ERROR_EVENT.header)).toEqual("missing_column");
-    });
-  });
-
-  describe("coerceToFieldType", () => {
-    it("keeps a numeric field numeric", () => {
-      expect(coerceToFieldType(0, "4")).toEqual(4);
-      expect(() => coerceToFieldType(0, "four")).toThrow();
-    });
-
-    it("keeps a boolean field boolean", () => {
-      expect(coerceToFieldType(false, "true")).toEqual(true);
-      expect(() => coerceToFieldType(false, "yes")).toThrow();
-    });
-
-    it("leaves a string field alone", () => {
-      expect(coerceToFieldType("gpt-4-turb", "gpt-4-turbo")).toEqual("gpt-4-turbo");
     });
   });
 
@@ -614,38 +594,6 @@ describe("AiWorkflowFixerService", () => {
       expect(patched.match(/t\['user_email'\]/g)).toHaveLength(2);
     });
 
-    it("patches the named field for a property change", async () => {
-      operatorProperties = { model: "gpt-4-turb", temperature: 0 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
-      );
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      await service.applyFix();
-
-      expect(setOperatorProperty).toHaveBeenCalledWith(OP, { model: "gpt-4-turbo", temperature: 0 });
-      expect(executeWorkflow).toHaveBeenCalledWith("");
-      expect(state().status).toEqual("applied");
-    });
-
-    it("reports an apply failure, without re-running, when the target field changed since the analysis", async () => {
-      operatorProperties = { model: "gpt-4-turb", temperature: 0 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "model", suggested_snippet: "gpt-4-turbo" })
-      );
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      // A coeditor picks a different model after the suggestion was generated: applying the
-      // stale suggestion would silently discard their choice and re-run on it.
-      operatorProperties = { model: "claude-haiku-4.5", temperature: 0 };
-
-      await service.applyFix();
-
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(executeWorkflow).not.toHaveBeenCalled();
-      expect(state().status).toEqual("apply_failed");
-    });
-
     it("does nothing without a ready suggestion", async () => {
       await service.applyFix();
       expect(setOperatorProperty).not.toHaveBeenCalled();
@@ -851,22 +799,6 @@ describe("AiWorkflowFixerService", () => {
       expect(state().suggestedFix).toBeUndefined();
     });
 
-    it("leaves a structured setting alone rather than writing a string into it", async () => {
-      // The model always replies with a string; writing it into an array field replaced
-      // outputColumns with the text "[]".
-      operatorProperties = { outputColumns: [{ attributeName: "x", attributeType: "integer" }], workers: 1 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "outputColumns", suggested_snippet: "[]" })
-      );
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      await service.applyFix();
-
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(executeWorkflow).not.toHaveBeenCalled();
-      expect(state().applyError).toContain("structured data");
-    });
-
     it("does not report an apply over an analysis started while it waited", async () => {
       // Reachable: Apply on one operator, then switch to another whose frame shows idle and
       // click Analyze there. The order is forced here so the newer analysis settles first,
@@ -886,40 +818,6 @@ describe("AiWorkflowFixerService", () => {
 
       expect(state().operatorId).toEqual("other-op");
       expect(state().status).toEqual("ready");
-    });
-
-    it("refuses to touch a field the model was never shown", async () => {
-      // withoutSecrets keeps credentials out of the prompt, but the apply path checked the
-      // raw properties, so a guessed name like hfApiToken passed the check -- and toFix read
-      // the current value from the same raw set, putting the secret on screen in the diff.
-      operatorProperties = { hfApiToken: "hf_live_abc", modelId: "gpt-4-turb", workers: 1 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "hfApiToken", suggested_snippet: "hf_new" })
-      );
-
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      expect(JSON.stringify(state())).not.toContain("hf_live_abc");
-      await service.applyFix();
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-    });
-
-    it("only accepts a property change for the error type that calls for one", async () => {
-      // The prompt asks for a configuration change in exactly one case; a property fix for
-      // any other error is the model going off script.
-      operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
-      );
-
-      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE, operatorProperties);
-
-      // Refused by the analysis, not by Apply: a diff the write will never honour should
-      // never be on screen, and refusing at the click costs the paused run as well.
-      expect(state().status).toEqual("error");
-      expect(state().suggestedFix).toBeUndefined();
-      await service.applyFix();
-      expect(setOperatorProperty).not.toHaveBeenCalled();
     });
 
     it("refuses on a read-only workflow instead of killing someone else's run", async () => {
@@ -953,71 +851,6 @@ describe("AiWorkflowFixerService", () => {
       expect(killWorkflow).not.toHaveBeenCalled();
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(state().applyError).toContain("other than a running execution");
-    });
-
-    it("refuses a field the operator does not have", async () => {
-      // The staleness guard does not catch this one: an absent field reads as "" and the
-      // captured original is "" too, so without the check a dead key is written and the
-      // real setting stays wrong.
-      operatorProperties = { modelId: "gpt-4-turb", workers: 1 };
-      stubModel(suggestion({ fix_type: "property_change", original_snippet: "modelName", suggested_snippet: "Qwen" }));
-
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      expect(state().status).toEqual("error");
-      await service.applyFix();
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-    });
-
-    it("refuses a field that disappeared between the analysis and the write", async () => {
-      // The analysis rejects a field the operator does not have, so this is the only way the
-      // apply-side check is still reachable: a coeditor retypes the operator while the
-      // suggestion is on screen, and the field it names is gone by the time Apply re-reads
-      // the properties. Writing then would create a dead key and leave the real setting wrong.
-      //
-      // The field is empty rather than set, because the staleness guard would otherwise cover
-      // this on its own: an absent field reads as "" and would no longer match the captured
-      // original. With both reading "", only the presence check can refuse.
-      operatorProperties = { modelId: "", workers: 1 };
-      stubModel(
-        suggestion({ fix_type: "property_change", original_snippet: "modelId", suggested_snippet: "gpt-4-turbo" })
-      );
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-      expect(state().status).toEqual("ready");
-
-      operatorProperties = { workers: 1 };
-      await service.applyFix();
-
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-      expect(executeWorkflow).not.toHaveBeenCalled();
-      expect(state().status).toEqual("apply_failed");
-    });
-
-    it("never puts the UDF source in the diff through a property change", async () => {
-      // Naming "code" hands the whole operator source to the property branch, which reads
-      // the field's current value as the diff's "before". Refusing only at Apply still let
-      // the panel render the entire source first, as one unwrapped line.
-      operatorProperties = { code: "print(1)", workers: 1 };
-      stubModel(suggestion({ fix_type: "property_change", original_snippet: "code", suggested_snippet: "print(2)" }));
-
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      expect(state().status).toEqual("error");
-      expect(state().suggestedFix).toBeUndefined();
-      await service.applyFix();
-      expect(setOperatorProperty).not.toHaveBeenCalled();
-    });
-
-    it("keeps a numeric setting numeric", async () => {
-      // original_snippet carries the field name for a property change; toFix reads the
-      // current value from the operator itself.
-      operatorProperties = { temperature: 0, workers: 1 };
-      stubModel(suggestion({ fix_type: "property_change", original_snippet: "temperature", suggested_snippet: "1" }));
-      await service.analyzeError(OP, err("404 model not found"), SCHEMA, undefined, operatorProperties);
-
-      await service.applyFix();
-
-      expect(setOperatorProperty.mock.calls[0][1].temperature).toEqual(1);
     });
 
     it("reports an apply failure when the graph rejects the change", async () => {

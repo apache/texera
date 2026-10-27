@@ -115,7 +115,6 @@ Rules:
 - If it is a missing column error: suggest the closest column name from the schema.
 - If it is a type error: add an explicit cast (e.g., int(), str(), float()) at the point of failure.
 - If it is a null/NaN error: add a .dropna() call or an explicit null guard.
-- If it is a model name error: correct the model field in the configuration.
 - Do NOT rewrite the whole function. Change the minimum number of lines.
 - original_snippet and suggested_snippet must be WHOLE LINES, copied starting at the
   beginning of a line, with the leading indentation included exactly as it appears. Do not
@@ -125,9 +124,9 @@ Rules:
 Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
 {
   "explanation": "one sentence describing the root cause",
-  "fix_type": "code_change" | "property_change",
-  "original_snippet": "whole lines to replace, indentation included (for code_change), or the field name (for property_change)",
-  "suggested_snippet": "replacement lines, each already indented as it should appear, or the new field value",
+  "fix_type": "code_change",
+  "original_snippet": "whole lines to replace, indentation included",
+  "suggested_snippet": "replacement lines, each already indented as it should appear",
   "confidence": "high" | "medium" | "low"
 }`;
 }

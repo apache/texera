@@ -38,27 +38,12 @@ const OPEN_WORKFLOW = 11;
 const READY_CODE_FIX: FixState = {
   operatorId: "op1",
   workflowId: OPEN_WORKFLOW,
-  errorType: "missing_column",
   status: "ready",
   suggestedFix: {
-    type: "code_change",
     original: "yield t['email']",
     suggested: "yield t['user_email']\nyield t",
     explanation: "the column is user_email",
     confidence: "high",
-  },
-};
-
-const READY_PROPERTY_FIX: FixState = {
-  ...READY_CODE_FIX,
-  errorType: "model_not_found",
-  suggestedFix: {
-    type: "property_change",
-    original: "gpt-4-turb",
-    suggested: "gpt-4-turbo",
-    explanation: "the model name has a typo",
-    confidence: "medium",
-    fieldName: "model",
   },
 };
 
@@ -267,7 +252,7 @@ describe("AiFixFrameComponent", () => {
     // Without the button this state is a dead end: nothing resets it, so after the user
     // fixes the code and re-runs into a supported error the tab keeps showing the stale
     // message until some other operator is analyzed.
-    render({ ...READY_CODE_FIX, status: "unsupported", errorType: undefined, suggestedFix: undefined });
+    render({ ...READY_CODE_FIX, status: "unsupported", suggestedFix: undefined });
 
     expect(fixture.nativeElement.textContent).toContain(UNSUPPORTED_MESSAGE);
     expect(query(".ai-fix-analyze")).toBeTruthy();
@@ -332,7 +317,7 @@ describe("AiFixFrameComponent", () => {
   });
 
   it("shows the not-supported message for an out-of-scope error", () => {
-    render({ ...READY_CODE_FIX, status: "unsupported", errorType: undefined, suggestedFix: undefined });
+    render({ ...READY_CODE_FIX, status: "unsupported", suggestedFix: undefined });
 
     expect(query("nz-alert")).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain(UNSUPPORTED_MESSAGE);
@@ -347,14 +332,6 @@ describe("AiFixFrameComponent", () => {
     expect(texts(".ai-fix-removed")).toEqual(["- yield t['email']"]);
     // The suggestion spans two lines, so it renders two added rows.
     expect(texts(".ai-fix-added")).toEqual(["+ yield t['user_email']", "+ yield t"]);
-  });
-
-  it("renders the field name and values instead of code for a property change", () => {
-    render(READY_PROPERTY_FIX);
-
-    expect(query(".ai-fix-field").nativeElement.textContent).toContain("model");
-    expect(texts(".ai-fix-removed")).toEqual(["- gpt-4-turb"]);
-    expect(texts(".ai-fix-added")).toEqual(["+ gpt-4-turbo"]);
   });
 
   it("delegates the apply and discard buttons to the service", () => {

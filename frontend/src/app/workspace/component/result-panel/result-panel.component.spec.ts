@@ -433,6 +433,13 @@ describe("ResultPanelComponent", () => {
       // traceback arrives as an ERROR console message with the execution still Running,
       // so the Failed branch never fires for the case the AI panel exists to fix.
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
       const consoleService = TestBed.inject(WorkflowConsoleService);
       const config = TestBed.inject(GuiConfigService);
       (config.env as any).copilotEnabled = true;
@@ -453,6 +460,13 @@ describe("ResultPanelComponent", () => {
       // of this test -- the wiring, not the branch, was what was missing.
       vi.useFakeTimers();
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
       const consoleService = TestBed.inject(WorkflowConsoleService);
       (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
@@ -470,6 +484,13 @@ describe("ResultPanelComponent", () => {
       // A re-run clears the console. Without the teardown the tab lingered, offering to fix
       // an error that is no longer there.
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
       const consoleService = TestBed.inject(WorkflowConsoleService);
       (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
@@ -488,6 +509,13 @@ describe("ResultPanelComponent", () => {
       // position and debug input and the Result table were reset whenever any operator
       // printed. The console stream must touch the AI Fix entry and nothing else.
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
       const consoleService = TestBed.inject(WorkflowConsoleService);
       (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
@@ -513,6 +541,13 @@ describe("ResultPanelComponent", () => {
       // to `true` again, is read as "no change", and the tab never comes back. That is the
       // fix-and-re-run loop this panel exists for.
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
       const consoleService = TestBed.inject(WorkflowConsoleService);
       (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
       vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
@@ -547,6 +582,23 @@ describe("ResultPanelComponent", () => {
       component.rerenderResultPanel();
 
       expect(displayNameStream).not.toHaveBeenCalled();
+    });
+
+    it("registers no AI fix frame on an operator whose fix would be unwritable", () => {
+      // The only fix this panel writes is a change to `code`. A JVM operator can report an
+      // error the classifier recognises and still have nothing to patch, so offering the tab
+      // there spends a model call to reach a refusal. mockResultPredicate is not a UDF.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("Console")).toBe(true);
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
     });
 
     it("registers no AI fix frame when the operator's console holds no ERROR", () => {

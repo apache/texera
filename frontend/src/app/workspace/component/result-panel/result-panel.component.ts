@@ -282,11 +282,17 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   /** True when the selected operator reports an error the AI panel can be opened on. */
   private shouldOfferAiFix(): boolean {
-    return (
-      this.config.env.copilotEnabled &&
-      this.currentOperatorId !== undefined &&
-      this.hasConsoleError(this.currentOperatorId)
-    );
+    if (!this.config.env.copilotEnabled || this.currentOperatorId === undefined) {
+      return false;
+    }
+    if (!this.hasConsoleError(this.currentOperatorId)) {
+      return false;
+    }
+    // Python UDFs only, because the fix this panel writes is a change to `code`. A JVM
+    // operator can report an error the classifier recognises and still have nothing to
+    // patch, so offering the tab there spends a model call to reach a refusal.
+    const graph = this.workflowActionService.getTexeraGraph();
+    return graph.hasOperator(this.currentOperatorId) && isPythonUdf(graph.getOperator(this.currentOperatorId));
   }
 
   /**

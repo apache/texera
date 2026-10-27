@@ -32,7 +32,7 @@ import { buildFixPrompt, withoutSecrets } from "./ai-fix-prompt";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 
-export type FixErrorType = "missing_column" | "type_error" | "null_error" | "model_not_found" | "unsupported";
+export type FixErrorType = "missing_column" | "type_error" | "null_error" | "unsupported";
 /**
  * One operator error, kept as the two parts its source already distinguishes.
  *
@@ -51,14 +51,12 @@ export type FixConfidence = "high" | "medium" | "low";
 export interface SuggestedFix {
   /** How many places Apply will touch; the diff only ever shows one -/+ pair. */
   occurrences?: number;
-  type: "code_change" | "property_change";
+  /** Whole lines quoted from the operator's code, and what to put in their place. */
   original: string;
   suggested: string;
   explanation: string;
-  // Rendered as the confidence badge; `fieldName` names the patched property
-  // (property_change only) so applyFix knows which field to write.
+  /** Rendered as the confidence badge. */
   confidence: FixConfidence;
-  fieldName?: string;
 }
 
 export interface FixState {
@@ -76,14 +74,8 @@ export interface FixState {
    * switched workflows could be applied to the wrong one.
    */
   workflowId?: number;
-  /**
-   * Which of the four supported shapes the error was classified as. Only the apply path
-   * reads it, to refuse a configuration change for anything but `model_not_found`; an error
-   * outside those shapes is the `unsupported` status, not a value here.
-   */
-  errorType?: FixErrorType;
   suggestedFix?: SuggestedFix;
-  // `unsupported`: the error is outside the four shapes this panel handles, reported without
+  // `unsupported`: the error is outside the three shapes this panel handles, reported without
   // spending a model call. `applied_without_run`: the fix was written but the deployment
   // refused to start a run (a warehouse is required and none is selected), so the panel must
   // not claim one. `apply_failed` keeps the suggestion on screen: the analysis was fine, the
@@ -139,8 +131,7 @@ export const IDLE_STATE: FixState = { operatorId: "", status: "idle" };
 const PATTERNS: ReadonlyArray<[RegExp, FixErrorType]> = [
   [/KeyError:\s*['"][^'"]+['"]/, "missing_column"],
   [/TypeError:\s*unsupported operand/i, "type_error"],
-  [/ValueError:[^\n]*\bNaN\b|NullPointerException/i, "null_error"],
-  [/ModelNotFound|\bmodel[^\n]*\b404\b|\b404\b[^\n]*\bmodel/i, "model_not_found"],
+  [/ValueError:[^\n]*\bNaN\b/i, "null_error"],
 ];
 
 /**
@@ -182,31 +173,6 @@ export function matchesWholeLines(code: string, original: string): boolean {
     }
     from = end;
   }
-}
-
-/** Writes the model's string back in the type the field already held. */
-export function coerceToFieldType(currentValue: unknown, suggested: string): unknown {
-  // Arrays and objects are out of scope: the model replies with a string, and writing it
-  // into a structured field replaced e.g. an outputColumns array with the text "[]".
-  // Validating a replacement against the operator's schema is a bigger change than the four
-  // error shapes this panel handles need, so it refuses instead of guessing.
-  if (currentValue !== null && typeof currentValue === "object") {
-    throw new Error("this setting holds structured data, which an automatic fix does not edit");
-  }
-  if (typeof currentValue === "number") {
-    const parsed = Number(suggested);
-    if (Number.isNaN(parsed)) {
-      throw new Error(`${suggested} is not a number`);
-    }
-    return parsed;
-  }
-  if (typeof currentValue === "boolean") {
-    if (suggested !== "true" && suggested !== "false") {
-      throw new Error(`${suggested} is not a boolean`);
-    }
-    return suggested === "true";
-  }
-  return suggested;
 }
 
 /**
@@ -293,7 +259,6 @@ export class AiWorkflowFixerService {
     const base: FixState = {
       operatorId,
       workflowId,
-      errorType,
       errorKey: this.latestErrorKey(operatorId),
       status: "analyzing",
     };
@@ -319,31 +284,23 @@ export class AiWorkflowFixerService {
         return;
       }
       const suggestedFix = this.toFix(text, visible);
-      // The prompt asks for a configuration change in exactly one case, so a property fix
-      // for any other error is the model going off script. Refused here rather than only at
-      // Apply: the panel must not show a diff the write will never honour.
-      if (suggestedFix.type === "property_change" && errorType !== "model_not_found") {
-        throw new Error("a configuration change is not the fix for this error");
+      // The prompt asks for whole lines with their indentation; a snippet starting mid-line
+      // means the model ignored that, and applying it would put the lines after the first
+      // at a column nothing here can work out.
+      if (!matchesWholeLines(code ?? "", suggestedFix.original)) {
+        throw new Error("the model did not quote whole lines, so the fix cannot be placed");
       }
       // Counted here so the panel can say it before Apply: a short snippet matched as plain
       // text can appear in lines the user never saw in the diff.
-      if (suggestedFix.type === "code_change") {
-        // The prompt asks for whole lines with their indentation; a snippet starting mid-line
-        // means the model ignored that, and applying it would put the lines after the first
-        // at a column nothing here can work out.
-        if (!matchesWholeLines(code ?? "", suggestedFix.original)) {
-          throw new Error("the model did not quote whole lines, so the fix cannot be placed");
-        }
-        const occurrences = replaceAll(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
-        // Zero means the model quoted something the operator does not contain. The panel
-        // only surfaces this count when it is above one, so such a suggestion is
-        // indistinguishable from any other, and Apply turns it away as a stale snippet --
-        // blaming an edit that never happened.
-        if (occurrences === 0) {
-          throw new Error(`the code does not contain ${JSON.stringify(suggestedFix.original)}`);
-        }
-        suggestedFix.occurrences = occurrences;
+      const occurrences = replaceAll(code ?? "", suggestedFix.original, suggestedFix.suggested).count;
+      // Zero means the model quoted something the operator does not contain. The panel
+      // only surfaces this count when it is above one, so such a suggestion is
+      // indistinguishable from any other, and Apply turns it away as a stale snippet --
+      // blaming an edit that never happened.
+      if (occurrences === 0) {
+        throw new Error(`the code does not contain ${JSON.stringify(suggestedFix.original)}`);
       }
+      suggestedFix.occurrences = occurrences;
       this.stateSubject.next({ ...base, status: "ready", suggestedFix });
     } catch (err) {
       console.error("AI workflow fixer: analysis failed", err);
@@ -423,48 +380,24 @@ export class AiWorkflowFixerService {
     const properties: Record<string, unknown> = {
       ...this.workflowActionService.getTexeraGraph().getOperator(current.operatorId).operatorProperties,
     };
-    if (fix.type === "code_change") {
-      const code = String(properties.code ?? "");
-      const patched = replaceAll(code, fix.original, fix.suggested);
-      if (patched.count === 0) {
-        throw new Error("the code changed since the suggestion was generated");
-      }
-      // Counted, not just found. The count behind the "changes N places" badge was taken at
-      // the analysis, and this replaces every match -- so a copy added or removed in between
-      // means the write touches a different number of lines than the panel promised. A kill
-      // lifts the modification lock without resetting the panel, so the user can edit the
-      // UDF with the suggestion still on screen.
-      if (fix.occurrences !== undefined && patched.count !== fix.occurrences) {
-        const places = (n: number) => `${n} place${n === 1 ? "" : "s"}`;
-        throw new Error(
-          `the snippet is now in ${places(patched.count)} instead of ${places(fix.occurrences)}, ` +
-            "so the fix was not applied"
-        );
-      }
-      properties.code = patched.code;
-    } else {
-      // No errorType check here. The analysis refuses a property fix for anything but
-      // model_not_found, and errorType is fixed when the state is published, so by this
-      // point it can only be that -- unlike the field checks below, which guard against the
-      // operator moving between the analysis and the write.
-      const field = String(fix.fieldName);
-      // Checked against the fields the model was actually shown, not the raw properties:
-      // those still hold the credentials withoutSecrets kept out of the prompt, so a
-      // guessed `hfApiToken` would otherwise pass here and be overwritten.
-      const visible = withoutSecrets(properties, this.schemaProperties(current.operatorId));
-      if (field === "code" || !Object.prototype.hasOwnProperty.call(visible, field)) {
-        throw new Error(`${field} is not a configuration field this fix may change`);
-      }
-      // Same staleness guard as the code branch: re-reading the properties keeps the
-      // unrelated fields, but the field being replaced can itself have moved on since
-      // the suggestion was generated, and overwriting it would discard that newer value.
-      if (String(properties[field] ?? "") !== fix.original) {
-        throw new Error(`${field} changed since the suggestion was generated`);
-      }
-      // The model always replies with a string; writing it raw would turn a numeric or
-      // boolean setting into one, which the operator then rejects at validation.
-      properties[field] = coerceToFieldType(properties[field], fix.suggested);
+    const code = String(properties.code ?? "");
+    const patched = replaceAll(code, fix.original, fix.suggested);
+    if (patched.count === 0) {
+      throw new Error("the code changed since the suggestion was generated");
     }
+    // Counted, not just found. The count behind the "changes N places" badge was taken at
+    // the analysis, and this replaces every match -- so a copy added or removed in between
+    // means the write touches a different number of lines than the panel promised. A kill
+    // lifts the modification lock without resetting the panel, so the user can edit the
+    // UDF with the suggestion still on screen.
+    if (fix.occurrences !== undefined && patched.count !== fix.occurrences) {
+      const places = (n: number) => `${n} place${n === 1 ? "" : "s"}`;
+      throw new Error(
+        `the snippet is now in ${places(patched.count)} instead of ${places(fix.occurrences)}, ` +
+          "so the fix was not applied"
+      );
+    }
+    properties.code = patched.code;
     return properties;
   }
 
@@ -622,25 +555,17 @@ export class AiWorkflowFixerService {
         throw new Error(`model returned ${typeof value} for ${name}, expected a string`);
       }
     }
-    const isProperty = fix_type === "property_change";
-    // Checked here, not only at Apply: `original` for a property change is the field's
-    // CURRENT value, so an unknown name renders an empty "before" and `code` renders the
-    // entire UDF source as one unwrapped diff line. A suggestion the write would refuse
-    // should never reach the screen in the first place.
-    if (
-      isProperty &&
-      (original_snippet === "code" || !Object.prototype.hasOwnProperty.call(properties, original_snippet))
-    ) {
-      throw new Error(`${original_snippet} is not a configuration field this fix may change`);
+    // This panel edits code and nothing else, so any other kind of fix is the model going
+    // off script -- and refusing here keeps it off the screen rather than only out of the
+    // write.
+    if (fix_type !== "code_change") {
+      throw new Error(`${fix_type} is not a kind of fix this panel applies`);
     }
     return {
-      type: isProperty ? "property_change" : "code_change",
-      // For a property change the model returns the field name, so show its current value.
-      original: isProperty ? String(properties[original_snippet] ?? "") : original_snippet,
+      original: original_snippet,
       suggested: suggested_snippet,
       explanation,
       confidence: confidence === "high" || confidence === "low" ? confidence : "medium",
-      fieldName: isProperty ? original_snippet : undefined,
     };
   }
 }
