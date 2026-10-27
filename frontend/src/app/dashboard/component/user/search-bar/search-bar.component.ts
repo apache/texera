@@ -23,10 +23,10 @@ import { SearchService } from "../../../service/user/search.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { SortMethod } from "../../../type/sort-method";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { SearchResult, SearchResultItem } from "../../../type/search-result";
+import { SearchResult, SearchResultItem, searchResultPayload } from "../../../type/search-result";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { Observable, of, Subject } from "rxjs";
-import { debounceTime, switchMap } from "rxjs/operators";
+import { EMPTY, Observable, of, Subject } from "rxjs";
+import { catchError, debounceTime, defaultIfEmpty, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
 import { SEARCH } from "../../../../app-routing.constant";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -107,12 +107,17 @@ export class SearchBarComponent {
         this.includePublic
       );
 
+      // Only the request is guarded, as in FiltersComponent: a failed search clears the suggestions and caches
+      // nothing, so typing the query again retries. A row convertToName cannot name is a bug, so it is not
+      // caught: it ends the subscription in the constructor and reaches the console.
       return searchObservable.pipe(
+        catchError(() => EMPTY),
         switchMap((result: SearchResult) => {
           const uniqueResults = Array.from(new Set(result.results.map(item => this.convertToName(item))));
           this.addToCache(query, uniqueResults);
           return of(uniqueResults);
-        })
+        }),
+        defaultIfEmpty([] as string[])
       );
     }
   }
@@ -140,12 +145,10 @@ export class SearchBarComponent {
   }
 
   convertToName(resultItem: SearchResultItem): string {
-    if (resultItem.workflow) {
-      return new DashboardEntry(resultItem.workflow).name;
-    } else if (resultItem.dataset) {
-      return new DashboardEntry(resultItem.dataset).name;
-    } else {
+    const payload = searchResultPayload(resultItem);
+    if (payload === undefined) {
       throw new Error("Unexpected type in SearchResult.");
     }
+    return new DashboardEntry(payload).name;
   }
 }

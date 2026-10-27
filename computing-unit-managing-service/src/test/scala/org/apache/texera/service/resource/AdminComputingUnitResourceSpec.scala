@@ -20,7 +20,9 @@
 package org.apache.texera.service.resource
 
 import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.NotFoundException
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.common.config.KubernetesConfig
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_COMPUTING_UNIT
 import org.apache.texera.dao.jooq.generated.enums.{
@@ -156,5 +158,19 @@ class AdminComputingUnitResourceSpec
     result should have size 1
     result.head.isOwner shouldBe false
     result.head.ownerName shouldBe "owner"
+  }
+
+  // kubernetes.enabled is false here, so the endpoint refuses; the enabled path is in
+  // ComputingUnitHelpersSpec. Cancelled if an exported KUBERNETES_COMPUTING_UNIT_ENABLED would
+  // reach the real client.
+  "getClusterCapacity" should "answer 404 on a deployment without Kubernetes computing units" in {
+    assume(
+      !KubernetesConfig.kubernetesComputingUnitEnabled,
+      "kubernetes.enabled is set in this environment"
+    )
+    val refused = intercept[NotFoundException] {
+      new AdminComputingUnitResource().getClusterCapacity(new SessionUser(makeUser(740, "admin")))
+    }
+    refused.getMessage should include("Kubernetes")
   }
 }
