@@ -18,20 +18,18 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { saveAs } from "file-saver";
 import { FileSaverService } from "./file-saver.service";
 
-// Replace the file-saver module wholesale (same precedent as menu.component.spec.ts);
-// the service is a thin passthrough, so we assert it forwards to saveAs unchanged.
-vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
-
+// Stub saveAsFn (the call-out to file-saver) and assert saveAs forwards its arguments through.
 describe("FileSaverService", () => {
   let service: FileSaverService;
+  let saveAsFn: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    vi.mocked(saveAs).mockClear();
     TestBed.configureTestingModule({ providers: [FileSaverService] });
     service = TestBed.inject(FileSaverService);
+    saveAsFn = vi.fn();
+    (service as unknown as { saveAsFn: unknown }).saveAsFn = saveAsFn;
   });
 
   it("should be created", () => {
@@ -44,23 +42,14 @@ describe("FileSaverService", () => {
 
     service.saveAs(blob, "greeting.txt", options);
 
-    expect(saveAs).toHaveBeenCalledTimes(1);
-    expect(saveAs).toHaveBeenCalledWith(blob, "greeting.txt", options);
+    expect(saveAsFn).toHaveBeenCalledTimes(1);
+    expect(saveAsFn).toHaveBeenCalledWith(blob, "greeting.txt", options);
   });
 
   it("forwards a string payload (e.g. a URL) unchanged", () => {
     service.saveAs("https://example.com/file.csv", "file.csv");
 
-    expect(saveAs).toHaveBeenCalledWith("https://example.com/file.csv", "file.csv", undefined);
-  });
-
-  it("propagates errors thrown by saveAs", () => {
-    const err = new Error("boom");
-    vi.mocked(saveAs).mockImplementationOnce(() => {
-      throw err;
-    });
-
-    expect(() => service.saveAs(new Blob([]), "x.txt")).toThrow(err);
+    expect(saveAsFn).toHaveBeenCalledWith("https://example.com/file.csv", "file.csv", undefined);
   });
 
   it("passes undefined through when filename and options are omitted", () => {
@@ -68,12 +57,12 @@ describe("FileSaverService", () => {
 
     service.saveAs(blob);
 
-    expect(saveAs).toHaveBeenCalledWith(blob, undefined, undefined);
+    expect(saveAsFn).toHaveBeenCalledWith(blob, undefined, undefined);
   });
 
   it("propagates errors thrown by saveAs instead of swallowing them", () => {
     const failure = new Error("save failed");
-    vi.mocked(saveAs).mockImplementationOnce(() => {
+    saveAsFn.mockImplementationOnce(() => {
       throw failure;
     });
 

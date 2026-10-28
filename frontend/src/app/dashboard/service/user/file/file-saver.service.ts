@@ -24,7 +24,10 @@ import * as FileSaver from "file-saver";
   providedIn: "root",
 })
 export class FileSaverService {
+  // Stubbable delegate to file-saver's saveAs.
+  protected saveAsFn: typeof FileSaver.saveAs = FileSaver.saveAs;
+
   saveAs(data: Blob | string, filename?: string, options?: FileSaver.FileSaverOptions): void {
-    FileSaver.saveAs(data, filename, options);
+    this.saveAsFn(data, filename, options);
   }
 }
