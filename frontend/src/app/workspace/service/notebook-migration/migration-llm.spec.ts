@@ -26,6 +26,33 @@ import {
   LlmRequestTimeoutError,
 } from "./migration-llm";
 import { buildFolderDocument } from "./folder-assembly";
+import {
+  TEXERA_OVERVIEW,
+  TUPLE_DOCUMENTATION,
+  TABLE_DOCUMENTATION,
+  OPERATOR_DOCUMENTATION,
+  EXAMPLE_OF_GOOD_CONVERSION,
+  VISUALIZER_DOCUMENTATION,
+  UDF_INPUT_PORT_DOCUMENTATION,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
+  WORKFLOW_PROMPT,
+  MAPPING_PROMPT,
+  SCRIPT_WORKFLOW_PROMPT,
+  SCRIPT_MAPPING_PROMPT,
+} from "./migration-prompts";
+import {
+  R_TEXERA_OVERVIEW,
+  R_UDF_DOCUMENTATION,
+  R_DATA_PASSING_DOCUMENTATION,
+  R_VISUALIZER_DOCUMENTATION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
+  R_WORKFLOW_PROMPT,
+  R_MAPPING_PROMPT,
+  R_SCRIPT_WORKFLOW_PROMPT,
+  R_SCRIPT_MAPPING_PROMPT,
+} from "./migration-prompts-r";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AuthService } from "../../../common/service/user/auth.service";
@@ -41,10 +68,11 @@ describe("NotebookMigrationLLM", () => {
 
   // Build a fresh, initialized session with stubbed dependencies. The stubbed
   // getNewOperatorPredicate hands out deterministic ids (PythonUDFV2-0, -1, ...).
-  function makeLLM(): NotebookMigrationLLM {
+  function makeLLM(rNotebookMigrationEnabled = true): NotebookMigrationLLM {
     const stubConfig = {
       env: {
         pythonNotebookMigrationEnabled: true,
+        rNotebookMigrationEnabled,
         pythonNotebookMigrationTimeoutMinutes: 10,
         defaultDataTransferBatchSize: 400,
         defaultExecutionMode: "PIPELINED",
@@ -313,6 +341,159 @@ describe("NotebookMigrationLLM", () => {
       expect(secondConversionMessages).toContain("# START BBB");
       expect(secondConversionMessages).not.toContain("AAA");
       expect(secondConversionMessages).not.toContain("codeAAA");
+    });
+  });
+
+  describe("Python prompts", () => {
+    const workflowResponse = JSON.stringify({ code: { UDF1: "# UDF1" }, edges: [], outputs: {} });
+    const documentation = [
+      TEXERA_OVERVIEW,
+      TUPLE_DOCUMENTATION,
+      TABLE_DOCUMENTATION,
+      OPERATOR_DOCUMENTATION,
+      EXAMPLE_OF_GOOD_CONVERSION,
+      VISUALIZER_DOCUMENTATION,
+      UDF_INPUT_PORT_DOCUMENTATION,
+      EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+    ];
+
+    function contentsFor(role: string): string[] {
+      return (callModelSpy.mock.calls[0][0] as { role: string; content: string }[])
+        .filter(message => message.role === role)
+        .map(message => message.content);
+    }
+
+    it("sends the notebook prelude and prompts unchanged", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: ["CELL1"] }));
+
+      await makeLLM().convertNotebookToWorkflow({ cells: [codeCell("CELL1", "print(1)")] });
+
+      expect(contentsFor("system")).toEqual(documentation);
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(MAPPING_PROMPT);
+    });
+
+    it("sends the script prelude and prompts unchanged", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      await makeLLM().convertScriptToWorkflow("print(1)");
+
+      expect(contentsFor("system")).toEqual(
+        documentation.map(doc =>
+          doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
+        )
+      );
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${SCRIPT_WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(SCRIPT_MAPPING_PROMPT);
+    });
+
+    it("builds PythonUDFV2 operators", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      const { workflowJSON } = await makeLLM().convertScriptToWorkflow("print(1)");
+
+      expect(stubUtil.getNewOperatorPredicate).toHaveBeenCalledWith("PythonUDFV2", "UDF1");
+      expect(workflowJSON.operators[0].operatorType).toBe("PythonUDFV2");
+    });
+  });
+
+  describe("R prompts", () => {
+    const workflowResponse = JSON.stringify({
+      code: { UDF1: "# UDF1", UDF2: "# UDF2" },
+      edges: [["UDF1", "UDF2"]],
+      outputs: { UDF1: ["data"], UDF2: ["result"] },
+    });
+    const documentation = [
+      R_TEXERA_OVERVIEW,
+      R_UDF_DOCUMENTATION,
+      R_DATA_PASSING_DOCUMENTATION,
+      R_VISUALIZER_DOCUMENTATION,
+      R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+    ];
+
+    function contentsFor(role: string): string[] {
+      return (callModelSpy.mock.calls[0][0] as { role: string; content: string }[])
+        .filter(message => message.role === role)
+        .map(message => message.content);
+    }
+
+    it("sends the R notebook prelude and prompts", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: ["CELL1"] }));
+
+      await makeLLM().convertNotebookToWorkflow({ cells: [codeCell("CELL1", "x <- 1")] }, "r");
+
+      expect(contentsFor("system")).toEqual(documentation);
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${R_WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(R_MAPPING_PROMPT);
+    });
+
+    it("sends the R script prelude and prompts", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      await makeLLM().convertScriptToWorkflow("x <- 1", "r");
+
+      expect(contentsFor("system")).toEqual(
+        documentation.map(doc =>
+          doc === R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
+        )
+      );
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${R_SCRIPT_WORKFLOW_PROMPT}\n`)).toBe(true);
+      expect(mappingPrompt).toBe(R_SCRIPT_MAPPING_PROMPT);
+    });
+
+    it("builds Table API RUDF operators", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: ["CELL1"] }));
+
+      const result = await makeLLM().convertNotebookToWorkflow({ cells: [codeCell("CELL1", "x <- 1")] }, "r");
+      const { workflowJSON } = JSON.parse(result);
+
+      expect(stubUtil.getNewOperatorPredicate).toHaveBeenCalledWith("RUDF", "UDF1");
+      expect(workflowJSON.operators.map((op: any) => op.operatorType)).toEqual(["RUDF", "RUDF"]);
+      expect(workflowJSON.operators[0].operatorProperties).toEqual({
+        workers: 1,
+        defaultEnv: true,
+        envName: "",
+        useTupleAPI: false,
+        code: "# UDF1",
+        retainInputColumns: false,
+        outputColumns: [{ attributeName: "data", attributeType: "binary" }],
+      });
+      expect(workflowJSON.operators[1].operatorProperties.outputColumns).toEqual([
+        { attributeName: "result", attributeType: "string" },
+      ]);
+    });
+
+    it("derives an R notebook from a script", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      const { notebook } = await makeLLM().convertScriptToWorkflow("x <- 1", "r");
+
+      expect(notebook.metadata).toEqual({
+        kernelspec: { display_name: "R", language: "R", name: "ir" },
+        language_info: { name: "R" },
+      });
+    });
+
+    it("refuses R conversions while the R flag is off", async () => {
+      const llm = makeLLM(false);
+
+      await expect(llm.convertNotebookToWorkflow({ cells: [codeCell("CELL1", "x <- 1")] }, "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      await expect(llm.convertScriptToWorkflow("x <- 1", "r")).rejects.toThrow("R notebook migration is disabled");
+      expect(callModelSpy).not.toHaveBeenCalled();
+    });
+
+    it("still converts Python while the R flag is off", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[1, 1]] }));
+
+      const { workflowJSON } = await makeLLM(false).convertScriptToWorkflow("print(1)");
+
+      expect(workflowJSON.operators[0].operatorType).toBe("PythonUDFV2");
     });
   });
 

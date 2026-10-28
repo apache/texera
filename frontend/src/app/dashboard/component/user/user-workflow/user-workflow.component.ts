@@ -49,6 +49,7 @@ import {
 import {
   LlmRequestTimeoutError,
   LlmResponseTruncatedError,
+  MigrationLanguage,
   Notebook,
 } from "../../../../workspace/service/notebook-migration/migration-llm";
 import {
@@ -300,7 +301,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       nzCentered: true,
       nzBodyStyle: { paddingTop: "4px" },
       nzData: {
-        requestImport: (selection, model) => this.generateWorkflowFromSelection(selection, model),
+        requestImport: (selection, model, language) => this.generateWorkflowFromSelection(selection, model, language),
       },
     });
   }
@@ -314,7 +315,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
    */
   private async generateWorkflowFromSelection(
     selection: NzUploadFile | NzUploadFile[],
-    model: string
+    model: string,
+    language: MigrationLanguage
   ): Promise<boolean> {
     if (Array.isArray(selection)) {
       const generated = await this.generateFromFolder(selection, model);
@@ -326,6 +328,10 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
 
     const fileExtension = selection.name.split(".").pop()?.toLowerCase();
+    if (language === "r" && fileExtension !== "ipynb") {
+      this.notificationService.error("Please upload an R Jupyter Notebook (.ipynb).");
+      return false;
+    }
     if (fileExtension !== "ipynb" && fileExtension !== "py") {
       this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       return false;
@@ -333,7 +339,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
 
     const generated =
       fileExtension === "ipynb"
-        ? await this.generateFromNotebook(selection, model)
+        ? await this.generateFromNotebook(selection, model, language)
         : await this.generateFromScript(selection, model);
     if (!generated) {
       return false;
@@ -343,7 +349,11 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Read and convert an .ipynb. Null after reporting a read or generation failure. */
-  private async generateFromNotebook(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
+  private async generateFromNotebook(
+    file: NzUploadFile,
+    model: string,
+    language: MigrationLanguage
+  ): Promise<GeneratedWorkflowContent | null> {
     let notebook: Notebook;
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
@@ -353,8 +363,16 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       return null;
     }
 
+    const kernelLanguage = notebook.metadata?.["kernelspec"]?.language;
+    if (language === "r" && kernelLanguage && String(kernelLanguage).toLowerCase() !== "r") {
+      this.notificationService.error(
+        `This notebook uses a ${kernelLanguage} kernel, not R. Switch the notebook type to Python Notebook.`
+      );
+      return null;
+    }
+
     try {
-      const generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model);
+      const generated = await this.notebookMigrationService.sendToAIGenerateWorkflow(notebook, model, language);
       // The uploaded notebook is what gets stored, so it rides along with the generated pair.
       return { ...generated, notebook };
     } catch (error) {
