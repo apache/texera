@@ -58,12 +58,10 @@ class TestAtomicIntegerSingleThreaded:
         assert a.get_and_dec(2) == 10
         assert a.value == 8
 
-    def test_value_setter_replaces_state_with_int_coercion(self):
+    def test_value_is_read_only(self):
         a = AtomicInteger(10)
-        a.value = 42
-        assert a.value == 42
-        a.value = "100"
-        assert a.value == 100
+        with pytest.raises(AttributeError):
+            a.value = 42
 
     def test_get_and_set_does_not_deadlock_on_non_reentrant_lock(self):
         a = AtomicInteger(10)
