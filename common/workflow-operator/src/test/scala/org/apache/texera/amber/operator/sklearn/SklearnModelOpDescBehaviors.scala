@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.sklearn
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.sklearn.training.SklearnTrainingOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -48,7 +49,7 @@ import scala.reflect.ClassTag
 trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
 
   /** Registers the shared tests for a classifier descriptor. */
-  protected def sklearnClassifier[T <: SklearnModelOpDesc: ClassTag](
+  protected def sklearnClassifier[T <: SklearnClassifierOpDesc: ClassTag](
       newDesc: => T,
       modelName: String,
       estimatorImport: String,
@@ -66,7 +67,7 @@ trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
     )
 
   /** Registers the shared tests for a training-only descriptor. */
-  protected def sklearnTrainer[T <: SklearnModelOpDesc: ClassTag](
+  protected def sklearnTrainer[T <: SklearnTrainingOpDesc: ClassTag](
       newDesc: => T,
       modelName: String,
       estimatorImport: String
