@@ -21,19 +21,17 @@ package org.apache.texera.amber.operator.visualization.scatter3DChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
-class Scatter3dChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class Scatter3dChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
@@ -54,14 +52,6 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
   @AutofillAttributeName
   @NotNull(message = "Z Column cannot be empty")
   var z: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -128,8 +118,6 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
          |"""
     finalcode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val xLit = pyStringLiteral(x)

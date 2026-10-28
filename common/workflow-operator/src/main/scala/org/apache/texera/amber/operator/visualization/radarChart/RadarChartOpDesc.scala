@@ -21,10 +21,8 @@ package org.apache.texera.amber.operator.visualization.radarChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -49,7 +47,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class RadarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class RadarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "nameColumn", required = true)
   @JsonSchemaTitle("Name Column")
@@ -79,14 +77,6 @@ class RadarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
       "Visualize data in a Radar Chart",
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(nameColumn.nonEmpty, "Name Column cannot be empty")
@@ -166,8 +156,6 @@ class RadarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |"""
     finalcode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val valueColsList = valueColumns.map(pyStringLiteral).mkString("[", ", ", "]")

@@ -21,19 +21,17 @@ package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.{DecimalMin, NotEmpty}
-class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Size")
@@ -143,16 +141,6 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor with StandaloneC
       OperatorGroupConstants.VISUALIZATION_BASIC_GROUP
     )
   }
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val attributes = columns.map(c => pyStringLiteral(c.attributeName)).mkString(", ")

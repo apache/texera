@@ -25,11 +25,9 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInt,
   JsonSchemaTitle
 }
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
@@ -47,7 +45,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class WordCloudOpDesc extends PythonVisualizationOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -58,14 +56,6 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   @JsonSchemaTitle("Number of most frequent words")
   @JsonSchemaInject(ints = Array(new JsonSchemaInt(path = "exclusiveMinimum", value = 0)))
   var topN: Integer = 100
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -141,8 +131,6 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
          |        yield {'html-content': html}
          |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   // The two guards mirror generatePythonCode's: WordCloud.generate raises on a
   // wordless string, so without them an input that is empty — or whose text

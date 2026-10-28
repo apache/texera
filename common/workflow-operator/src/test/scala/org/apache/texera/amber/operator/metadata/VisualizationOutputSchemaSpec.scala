@@ -33,15 +33,14 @@ import org.scalatest.matchers.should.Matchers
   *
   * The frontend locates the chart HTML a visualization returns by reading a
   * single `html-content` STRING column from the operator's one output port.
-  * Every Python visualization descriptor re-declares that contract in its own
-  * `getOutputSchemas` override, so a new chart (or an edit to an existing one)
-  * can silently ship a schema the frontend cannot render, and only that
-  * operator's own spec -- if it asserts the schema at all -- would notice.
+  * `PythonVisualizationOpDesc` declares that contract once, but a new chart that
+  * does not extend it, or one that overrides `getOutputSchemas`, can still ship a
+  * schema the frontend cannot render, and only that operator's own spec -- if it
+  * asserts the schema at all -- would notice.
   *
   * Sweeping the registry rather than testing the descriptors one by one is
-  * deliberate: the contract lives in 48 identical three-line overrides, so the
-  * mistake is as easy to make in the next chart as in these, and a per-operator
-  * test would not exist for the next chart until someone remembers to write it.
+  * deliberate: a per-operator test would not exist for the next chart until
+  * someone remembers to write it.
   */
 class VisualizationOutputSchemaSpec extends AnyFlatSpec with Matchers {
 

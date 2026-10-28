@@ -21,21 +21,19 @@ package org.apache.texera.amber.operator.visualization.candlestickChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class CandlestickChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class CandlestickChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
@@ -77,14 +75,6 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with PlotlyStandal
   @NotNull(message = "Closing Price Column cannot be empty")
   var close: EncodableString = ""
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       "Candlestick Chart",
@@ -121,8 +111,6 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor with PlotlyStandal
        |        yield {'html-content': html}
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String =
     s"""fig = go.Figure(data=[go.Candlestick(

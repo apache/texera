@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.visualization.choroplethMap
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -48,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class ChoroplethMapOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ChoroplethMapOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "locations", required = true)
   @JsonSchemaTitle("Locations Column")
@@ -68,14 +66,6 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
   @AutofillAttributeName
   @NotNull(message = "Color Column cannot be empty")
   var color: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -133,8 +123,6 @@ class ChoroplethMapOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val locationsLit = pyStringLiteral(locations)

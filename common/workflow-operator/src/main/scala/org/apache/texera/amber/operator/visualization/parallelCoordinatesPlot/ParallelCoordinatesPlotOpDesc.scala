@@ -21,10 +21,8 @@ package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -54,7 +52,7 @@ import javax.validation.constraints.{NotNull, Size}
   }
 }
 """)
-class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ParallelCoordinatesPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "dimensions", required = true)
   @JsonSchemaTitle("Dimensions")
@@ -76,14 +74,6 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Plotly
       "Visualize multivariate data using parallel coordinate axes",
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def manipulateTable(): PythonTemplateBuilder = {
     val dimCols = dimensions.map(c => pyb"$c").mkString(",")
@@ -138,8 +128,6 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Plotly
          |"""
     finalcode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val dimCols = dimensions.map(pyStringLiteral).mkString("[", ", ", "]")

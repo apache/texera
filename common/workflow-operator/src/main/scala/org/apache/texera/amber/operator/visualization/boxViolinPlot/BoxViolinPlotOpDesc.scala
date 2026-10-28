@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.visualization.boxViolinPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonPropertyOrder}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -46,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -73,14 +71,6 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
     "Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot"
   )
   var violinPlot: Boolean = _
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -155,10 +145,6 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
          |        """
     finalCode.encode
   }
-
-  // Output is a Plotly visualization, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val horizontal = if (horizontalOrientation) "True" else "False"

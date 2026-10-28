@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.visualization.radarPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -48,7 +46,7 @@ import javax.validation.constraints.NotEmpty
   }
 }
 """)
-class RadarPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "selectedAttributes", required = true)
   @JsonSchemaTitle("Axes")
   @JsonPropertyDescription("Numeric columns to use as radar axes")
@@ -101,14 +99,6 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
     "Display the legend (note: without the legend, you are unable to selectively hide or show traces in the plot)"
   )
   var showLegend: Boolean = true
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -235,8 +225,6 @@ class RadarPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val attributes = Option(selectedAttributes).getOrElse(Nil)

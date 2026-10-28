@@ -22,15 +22,13 @@ package org.apache.texera.amber.operator.visualization.bulletChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
@@ -52,7 +50,7 @@ import scala.jdk.CollectionConverters._
   }
 }
 """)
-class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
@@ -80,13 +78,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
   var steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -246,8 +237,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     assertRequiredFields()
