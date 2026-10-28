@@ -39,13 +39,21 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 snapshot_times() {
   local snapshot="${PACKAGE_SNAPSHOT:-}"
   [[ -z "$snapshot" ]] && return 0
-  local epoch
-  if [[ ! "$snapshot" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
-    || ! epoch=$(date -u -d "${snapshot}T00:00:00Z" +%s 2>/dev/null) \
-    || [[ "$(date -u -d "@$epoch" +%F)" != "$snapshot" ]]; then
+  local y m d leap era yoe doy epoch
+  # Plain arithmetic rather than date(1): GNU and BSD date disagree on parsing.
+  if [[ "$snapshot" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]]; then
+    y=$((10#${BASH_REMATCH[1]})) m=$((10#${BASH_REMATCH[2]})) d=$((10#${BASH_REMATCH[3]}))
+    leap=$(( (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 ))
+  fi
+  if [[ -z "${y:-}" ]] || (( m < 1 || m > 12 || d < 1 \
+    || d > (m == 2 ? 28 + leap : 30 + ((m + m / 8) % 2)) )); then
     echo "PACKAGE_SNAPSHOT must be a UTC date (YYYY-MM-DD), got '$snapshot'" >&2
     return 1
   fi
+  # Days since 1970-01-01 (Hinnant's days_from_civil).
+  (( y -= m <= 2, era = y / 400, yoe = y - era * 400,
+     doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1,
+     epoch = (era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy - 719468) * 86400 ))
   echo "${snapshot//-/}T000000Z ${snapshot}T00:00:00Z ${epoch}"
 }
 

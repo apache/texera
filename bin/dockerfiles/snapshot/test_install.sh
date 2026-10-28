@@ -89,7 +89,7 @@ mkdir "$work/split"
 if split_requirements "$work/split" "$work/req.txt" "$work/req2.txt"; then
   expect_eq "local versions (and only those) go to the extra index" "$(cat "$work/split/local.txt")" \
     'torch==2.13.0+cpu ; platform_system == "Linux" and platform_machine == "x86_64"'
-  expect_eq "every requirement stays in the PyPI pass" "$(wc -l < "$work/split/pypi.txt")" "5"
+  expect_eq "every requirement stays in the PyPI pass" "$(wc -l < "$work/split/pypi.txt" | tr -d ' ')" "5"
   expect_eq "a '+' in a marker is not a local version" "$(grep -c '^odd' "$work/split/local.txt")" "0"
   expect_eq "index options are collected, not passed to PyPI" "$(cat "$work/split/indexes")" \
     "https://download.pytorch.org/whl/cpu
@@ -125,7 +125,7 @@ expect_eq "local pins: from the extra index, exact, no dependencies, no cutoff" 
 expect_eq "then everything else from PyPI under the cutoff" "$(sed -n 2p <<< "$pip_calls" | sed 's/ -r .*//')" \
   "hashseed=0 sde=1790726400 -m pip install --no-cache-dir --uploaded-prior-to 2026-09-30T00:00:00Z"
 expect_eq "without local pins only the PyPI pass runs" \
-  "$(printf 'numpy==2.1.0\n' > "$work/plain.txt"; PACKAGE_SNAPSHOT=2026-09-30 pip_requirements "$work/plain.txt" | wc -l)" "1"
+  "$(printf 'numpy==2.1.0\n' > "$work/plain.txt"; PACKAGE_SNAPSHOT=2026-09-30 pip_requirements "$work/plain.txt" | wc -l | tr -d ' ')" "1"
 expect_eq "without a snapshot the files go to pip untouched" \
   "$(unset PACKAGE_SNAPSHOT; pip_requirements "$work/req.txt" "$work/plain.txt")" \
   "hashseed=unset sde=unset -m pip install --no-cache-dir -r $work/req.txt -r $work/plain.txt"
