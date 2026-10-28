@@ -58,7 +58,7 @@ jobs:
     if: >-
       github.event.sender.type != 'Bot' &&
       github.event.sender.login != 'renovate-bot'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       # pull_request_target and issues both resolve to the trusted base
       # branch (never the fork head), so checking out the message

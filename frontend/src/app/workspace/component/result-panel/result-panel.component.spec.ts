@@ -52,7 +52,9 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { ConsoleMessage, OperatorPredicate } from "../../types/workflow-common.interface";
+import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -109,6 +111,15 @@ describe("ResultPanelComponent", () => {
     workerId: "",
     type: { name: "ExecutionError" },
     timestamp: { nanos: 0, seconds: 0 },
+  });
+
+  const consoleMessage = (msgTypeName: string): ConsoleMessage => ({
+    workerId: "w1",
+    timestamp: { nanos: 0, seconds: 0 },
+    msgType: { name: msgTypeName },
+    source: "udf.py:process_tuple:10",
+    title: "KeyError: 'lines'",
+    message: "Traceback (most recent call last):\nKeyError: 'lines'",
   });
 
   it("should create", () => expect(component).toBeTruthy());
@@ -417,6 +428,205 @@ describe("ResultPanelComponent", () => {
       expect(errorConfig?.componentInputs).toEqual({ operatorId: "3" });
     });
 
+    it("registers the AI fix frame for a console ERROR while the execution is still running", () => {
+      // A Python UDF exception never becomes a fatal error: the worker pauses and the
+      // traceback arrives as an ERROR console message with the execution still Running,
+      // so the Failed branch never fires for the case the AI panel exists to fix.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      const aiConfig = component.frameComponentConfigs.get("AI Fix");
+      expect(aiConfig?.component).toBe(AiFixFrameComponent);
+      expect(aiConfig?.componentInputs).toEqual({ operatorId: "3" });
+    });
+
+    it("registers the AI fix frame when the traceback arrives while the operator is already selected", () => {
+      // The common case: the user is watching the operator that fails. The highlight never
+      // moves and the execution stays Running, so the console update is the only signal the
+      // panel gets. Driving the stream instead of calling rerenderResultPanel() is the point
+      // of this test -- the wiring, not the branch, was what was missing.
+      vi.useFakeTimers();
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      consoleService.clearConsoleMessages();
+      vi.advanceTimersByTime(300);
+
+      expect(component.frameComponentConfigs.get("AI Fix")?.component).toBe(AiFixFrameComponent);
+      vi.useRealTimers();
+    });
+
+    it("tears down a stale AI fix frame once the operator stops reporting an error", () => {
+      // A re-run clears the console. Without the teardown the tab lingered, offering to fix
+      // an error that is no longer there.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      const messages = vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      component.rerenderResultPanel();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+
+      messages.mockReturnValue([]);
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
+    it("toggles only the AI Fix entry on a console update, leaving the other frames alone", () => {
+      // A full rerender rebuilds every frame, so the Console frame's type filter, scroll
+      // position and debug input and the Result table were reset whenever any operator
+      // printed. The console stream must touch the AI Fix entry and nothing else.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("PRINT")]);
+      component.rerenderResultPanel();
+      const consoleFrame = component.frameComponentConfigs.get("Console");
+      expect(consoleFrame).toBeDefined();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+      // Same object, so the frame was never torn down and rebuilt.
+      expect(component.frameComponentConfigs.get("Console")).toBe(consoleFrame);
+    });
+
+    it("brings the tab back when the same operator fails again on a later run", () => {
+      // The map is written by two paths -- this stream and rerenderResultPanel -- but only
+      // this one fed the distinctUntilChanged key. Starting a run clears the console and the
+      // rerender drops the tab, while the pipe still remembers `true`, so the next error maps
+      // to `true` again, is read as "no change", and the tab never comes back. That is the
+      // fix-and-re-run loop this panel exists for.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      // The fix this panel writes is a change to `code`, so it only offers itself on a
+      // Python UDF. The test metadata does not know the V2 types, so the graph is told.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "3",
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+      });
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+
+      // First run fails and the error reaches this stream, so the pipe now remembers `true`.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      component.rerenderResultPanel();
+      consoleService.clearConsoleMessages();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+
+      // A new run starts. The console is emptied without notifying this stream -- the engine
+      // clears it on its own -- and the rerender takes the tab down, so the pipe's memory is
+      // now stale.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([]);
+      component.rerenderResultPanel();
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+
+      // It fails again, with the operator still selected.
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(true);
+    });
+
+    it("registers the display-name handler once rather than on every rerender", () => {
+      // It used to be called from the rerender subscriber, adding a subscription each time
+      // without releasing the previous one, so handlers piled up for the panel's lifetime.
+      const displayNameStream = vi.spyOn(workflowActionService.getTexeraGraph(), "getOperatorDisplayNameChangedStream");
+
+      component.rerenderResultPanel();
+      component.rerenderResultPanel();
+
+      expect(displayNameStream).not.toHaveBeenCalled();
+    });
+
+    it("registers no AI fix frame on an operator whose fix would be unwritable", () => {
+      // The only fix this panel writes is a change to `code`. A JVM operator can report an
+      // error the classifier recognises and still have nothing to patch, so offering the tab
+      // there spends a model call to reach a refusal. mockResultPredicate is not a UDF.
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "hasConsoleMessages").mockReturnValue(true);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("Console")).toBe(true);
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
+    it("registers no AI fix frame when the operator's console holds no ERROR", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = true;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("PRINT")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
+    it("registers no AI fix frame while the copilot feature is disabled", () => {
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      const consoleService = TestBed.inject(WorkflowConsoleService);
+      const config = TestBed.inject(GuiConfigService);
+      (config.env as any).copilotEnabled = false;
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["3"]);
+      vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+
+      component.rerenderResultPanel();
+
+      expect(component.frameComponentConfigs.has("AI Fix")).toBe(false);
+    });
+
     it("displays a console frame when the selected operator has console messages", () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const consoleService = TestBed.inject(WorkflowConsoleService);
@@ -691,6 +901,13 @@ describe("ResultPanelComponent", () => {
       expect(el).toBeTruthy();
       el.triggerEventHandler(event, payload);
     };
+
+    // The return position is computed against the default height. Docked a different distance
+    // above the workspace's edge, a panel opened at that height runs off the bottom of the window.
+    it("docks the panel one default height above the workspace's bottom edge", () => {
+      const container: HTMLElement = fixture.debugElement.query(By.css("#result-container")).nativeElement;
+      expect(container.style.top).toBe(`-${DEFAULT_HEIGHT}px`);
+    });
 
     it("renders the docked panel chrome and wires the close / reset actions", () => {
       component.width = DEFAULT_WIDTH;

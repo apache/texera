@@ -258,29 +258,38 @@ export class ExecuteWorkflowService {
     return [];
   }
 
+  /**
+   * Returns whether the request was sent, so a caller that reports on it does not have to
+   * repeat the refusal conditions. False means this method turned the run down locally --
+   * no computing unit, no warehouse -- and showed its own toast. True only means the request
+   * left the browser: the deployment can still reject it, which arrives on the execution
+   * state stream. Callers that only fire and forget can keep ignoring the result.
+   */
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void {
+  ): boolean {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
     if (this.refuseToRunOnUnavailableUnit()) {
-      return;
+      return false;
     }
     if (this.refuseToRunWithoutWarehouse()) {
-      return;
+      return false;
     }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+    return true;
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+  /** Returns whether the request was sent; see executeWorkflowWithEmailNotification. */
+  public executeWorkflow(executionName: string, targetOperatorId?: string): boolean {
+    return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {

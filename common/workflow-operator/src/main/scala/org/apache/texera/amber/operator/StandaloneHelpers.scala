@@ -40,21 +40,30 @@ object StandaloneHelpers {
     * Refusing is still part of the contract where the engine refuses: text with
     * no leading digits raises, and a script that quietly wrote NaN instead
     * would report an answer the run it was exported from never reached.
+    *
+    *  - `_texera_java_trim`: `String.trim`, dropping only the characters up to U+0020.
+    *  - `_texera_parse_int`: `Integer.parseInt` or `Long.parseLong`, a sign and digits in range.
+    *  - `_texera_java_double`: `Double.parseDouble`, with a d/f suffix and hex, refusing the rest.
+    *  - `_texera_double_key`: `Double.compareTo`'s order, -0.0 below 0.0 and NaN above all.
+    *  - `_texera_key_codes`: one code per row's key under Scala's ==, shared across the frames
+    *    given, where a null meets a null, 0.0 meets -0.0 and each NaN stands alone. With
+    *    `signed`, a double is keyed with its sign, as the set operators' `HashSet[Tuple]`
+    *    tells 0.0 from -0.0 and a double from an integer.
+    *  - `_texera_read_doubles`: a DOUBLE column pandas left as text, read the engine's way.
     */
   val AttributeCasts: String =
     """# AttributeTypeUtils, transcribed so a cast answers as the engine does.
       |def _texera_cast_boolean(x):
       |    # toBoolean first, then `toInt == 1`: "0" and "2" are both false.
       |    if isinstance(x, str):
-      |        text = x.strip()
+      |        text = _texera_java_trim(x)
       |        lowered = text.lower()
       |        if lowered == "true":
       |            return True
       |        if lowered == "false":
       |            return False
-      |        return int(text) == 1
+      |        return _texera_parse_int(text, 32) == 1
       |    return x != 0
-      |
       |
       |def _texera_parse_number(text):
       |    # java.text.NumberFormat for Locale.US, which a cast reaches through
@@ -81,14 +90,12 @@ object StandaloneHelpers {
       |        return value, False
       |    return float(value), True
       |
-      |
       |def _texera_long_value(value, is_double):
       |    # Number.longValue(): a Double truncates toward zero and saturates at
       |    # long's bounds, where a Long is already itself.
       |    if is_double:
       |        return max(-(2 ** 63), min(2 ** 63 - 1, int(value)))
       |    return value
-      |
       |
       |def _texera_cast_integral(x):
       |    # The LONG target. Scala's toLong takes no decimal point of its own, so
@@ -100,7 +107,6 @@ object StandaloneHelpers {
       |    if isinstance(x, float):
       |        return _texera_long_value(x, True)
       |    return int(x)
-      |
       |
       |def _texera_cast_int32(x, wrap):
       |    # The two 32-bit narrowings differ: Long.toInt keeps the low bits, so
@@ -121,7 +127,6 @@ object StandaloneHelpers {
       |    # int() first: Double.intValue truncates toward zero before it clamps.
       |    return max(-2147483648, min(2147483647, int(value)))
       |
-      |
       |def _texera_epoch_millis_to_timestamp(s):
       |    # `new Timestamp(long)` reads MILLISECONDS where pd.to_datetime defaults
       |    # to nanoseconds, and renders in the JVM's default zone, so leaving the
@@ -137,12 +142,85 @@ object StandaloneHelpers {
       |        .dt.tz_localize(None)
       |    )
       |
-      |
       |def _texera_cast_double(x):
-      |    if isinstance(x, str):
-      |        return float(x.strip())
-      |    return float(x)
+      |    return _texera_java_double(x) if isinstance(x, str) else float(x)
       |
+      |def _texera_java_trim(text):
+      |    return text.strip("".join(map(chr, range(33))))
+      |
+      |def _texera_parse_int(text, bits):
+      |    import re
+      |
+      |    text = _texera_java_trim(text)
+      |    bound = 2 ** (bits - 1)
+      |    if not re.fullmatch(r"[+-]?\d+", text) or not -bound <= int(text) < bound:
+      |        raise ValueError("For input string: " + repr(text))
+      |    return int(text)
+      |
+      |def _texera_java_double(text):
+      |    import re
+      |
+      |    text = _texera_java_trim(text)
+      |    if not re.fullmatch(
+      |        r"[+-]?(NaN|Infinity|((\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"
+      |        r"|0[xX]([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?\d+)[fFdD]?)",
+      |        text,
+      |        re.ASCII,
+      |    ):
+      |        raise ValueError("For input string: " + repr(text))
+      |    if text[-1] in "dDfF":
+      |        text = text[:-1]
+      |    if "x" not in text.lower():
+      |        return float(text)
+      |    try:
+      |        return float.fromhex(text)
+      |    except OverflowError:
+      |        return float("-inf") if text.startswith("-") else float("inf")
+      |
+      |def _texera_double_key(x):
+      |    import math
+      |
+      |    if math.isnan(x):
+      |        return (1, 0.0, 0.0)
+      |    return (0, x, math.copysign(1.0, x))
+      |
+      |def _texera_key_codes(*frames, signed=False):
+      |    import math
+      |
+      |    codes = {}
+      |
+      |    def key(v, missing):
+      |        if missing:
+      |            return None
+      |        if isinstance(v, float):
+      |            if math.isnan(v):
+      |                return object()
+      |            if signed:
+      |                return (v, math.copysign(1.0, v))
+      |        return v
+      |
+      |    def code(df):
+      |        out = []
+      |        for values, missing in zip(df.itertuples(index=False, name=None), df.isna().to_numpy()):
+      |            row = tuple(key(v, m) for v, m in zip(values, missing))
+      |            out.append(codes.setdefault(row, len(codes)))
+      |        return pd.Series(out, index=df.index, dtype="int64")
+      |
+      |    return [code(df) for df in frames]
+      |
+      |def _texera_read_doubles(s):
+      |    import numpy as np
+      |
+      |    if pd.api.types.is_numeric_dtype(s):
+      |        return s
+      |    holes = s.isna().to_numpy()
+      |    values = np.array(
+      |        [np.nan if hole else _texera_java_double(x) for x, hole in zip(s, holes)],
+      |        dtype="float64",
+      |    )
+      |    if np.isnan(values[~holes]).any():
+      |        values = pd.arrays.FloatingArray(values, holes)
+      |    return pd.Series(values, index=s.index, name=s.name)
       |
       |def _texera_cast_string(s):
       |    # `toString` on the field, so the COLUMN's type decides the text and
