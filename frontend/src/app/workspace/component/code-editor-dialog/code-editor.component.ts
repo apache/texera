@@ -23,7 +23,9 @@ import {
   ComponentRef,
   ElementRef,
   HostListener,
+  Input,
   OnDestroy,
+  OnInit,
   Type,
   ViewChild,
 } from "@angular/core";
@@ -93,14 +95,18 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
     AnnotationSuggestionComponent,
   ],
 })
-export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
+export class CodeEditorComponent implements OnInit, AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
   @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
   @ViewChild(BreakpointConditionInputComponent) breakpointConditionInput!: BreakpointConditionInputComponent;
   private code?: YText;
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
-  public currentOperatorId!: string;
+  /**
+   * The operator whose code this edits, given by the opener: the operator property panel's button
+   * reads the highlighted operator, the Form View's the operator its field is bound to.
+   */
+  @Input() currentOperatorId!: string;
 
   public title: string | undefined;
   public formControl!: FormControl;
@@ -150,8 +156,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private config: GuiConfigService,
     private uiUdfParametersSyncService: UiUdfParametersSyncService,
     private notificationService: NotificationService
-  ) {
-    this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+  ) {}
+
+  ngOnInit(): void {
+    // Everything here keys on currentOperatorId, an input set after construction.
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
     if (CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType)) {
       this.language = "python";
@@ -472,6 +480,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private setupAIAssistantActions(editor: MonacoEditor) {
+    // Monaco's readOnly stops typing, not the context-menu actions, and accepting a type annotation
+    // inserts into the shared code: a read-only viewer's editor offers none (#8760).
+    if (this.formControl.disabled) {
+      return;
+    }
     // Check if the AI provider is "openai"
     this.aiAssistantService
       .checkAIAssistantEnabled()
@@ -683,6 +696,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editorApp?.getEditor()?.layout();
   }
   onFocus() {
+    // The wrapper's own highlight, as it always was, not WorkflowActionService's: that one also
+    // announces the highlight to co-editors and switches multi-select mode, neither wanted on focus.
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
   }
 }

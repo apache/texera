@@ -72,6 +72,7 @@ import { WorkflowPveService } from "../../service/virtual-environment/virtual-en
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 
 /**
  * The direct-construction spec exercises the component's logic without a DOM; this one stands
@@ -813,6 +814,19 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".results-empty")).toBeNull();
     expect(el(".result .result-head")).not.toBeNull();
     expect(el(".result .result-body")).not.toBeNull();
+  });
+
+  // The page hosts the code editor while it is in front (#8760): the step panel's code button and
+  // an exposed code property's open the editor here, and leaving the page closes it.
+  it("hosts the code editor while the page is up, and lets go of the host when it is destroyed", () => {
+    const codeEditorService = TestBed.inject(CodeEditorService);
+    fixture.detectChanges();
+    finishLoad();
+    expect(codeEditorService.host).toBeDefined();
+
+    fixture.destroy();
+
+    expect(codeEditorService.host).toBeUndefined();
   });
 
   it("mounts the step panel from the start, hidden until a step is selected", () => {

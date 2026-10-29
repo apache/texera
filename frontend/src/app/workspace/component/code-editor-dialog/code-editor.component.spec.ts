@@ -245,14 +245,36 @@ describe("CodeEditorComponent", () => {
     workflowActionService.addOperator(predicate, mockPoint);
     workflowActionService.getJointGraphWrapper().highlightOperators(predicate.operatorID);
     const fixture = TestBed.createComponent(CodeEditorComponent);
+    // The opener names the operator (the panel's button reads the highlight, the form's its
+    // binding); the highlight above is for what still reads it, such as onFocus.
+    fixture.componentRef.setInput("currentOperatorId", predicate.operatorID);
+    // The opener hands the editor the field's control before the first check; the AI actions read
+    // its disabled state. Editable here; the read-only test stages its own.
+    fixture.componentInstance.formControl = new FormControl("");
     fixture.detectChanges();
     return fixture;
   }
 
-  it("creates with the highlighted operator", () => {
+  it("binds to the operator it is given", () => {
     const fixture = makeFixture(mockJavaUDFPredicate);
     expect(fixture.componentInstance).toBeTruthy();
     expect(fixture.componentInstance.currentOperatorId).toBe(mockJavaUDFPredicate.operatorID);
+  });
+
+  it("keeps the operator it is given when another one is highlighted (a Form View editor)", () => {
+    // The form's field names its operator; the highlight, if any, is a step the reader is looking at.
+    const given = { ...buildPredicateWithCode("given-op", "PythonUDFV2", "x = 1"), customDisplayName: "Given" };
+    const highlighted = buildPredicate("highlighted-op", "PythonUDFV2");
+    workflowActionService.addOperator(given, mockPoint);
+    workflowActionService.addOperator(highlighted, mockPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperators(highlighted.operatorID);
+    const fixture = TestBed.createComponent(CodeEditorComponent);
+    fixture.componentRef.setInput("currentOperatorId", given.operatorID);
+
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentOperatorId).toBe(given.operatorID);
+    expect(fixture.componentInstance.title).toBe("Given");
   });
 
   it("shows UI parameter parser errors for the edited operator", () => {
@@ -279,9 +301,9 @@ describe("CodeEditorComponent", () => {
     expect(notificationServiceMock.error).not.toHaveBeenCalled();
   });
 
-  // Language detection — the constructor maps `RUDFSource` / `RUDF` to `r`,
+  // Language detection — ngOnInit maps `RUDFSource` / `RUDF` to `r`,
   // the three V2-era Python operator types to `python`, and anything else
-  // to `java`. The exact branch lives in the constructor; the public
+  // to `java`. The exact branch lives in ngOnInit; the public
   // `language` field is what the rest of the editor (LSP wiring, file-
   // suffix selection) keys off.
 
@@ -382,6 +404,7 @@ describe("CodeEditorComponent", () => {
       fixture.componentInstance.onFocus();
       expect(highlightSpy).toHaveBeenCalledWith(mockJavaUDFPredicate.operatorID);
     });
+
   });
 
   describe("rejectCurrentAnnotation", () => {
@@ -455,6 +478,21 @@ describe("CodeEditorComponent", () => {
   });
 
   describe("AI assistant action wiring", () => {
+    // Monaco's readOnly stops typing, not the context-menu actions, and accepting a type annotation
+    // inserts into the shared code; a read-only viewer's editor must not offer them (#8760).
+    it("registers no AI actions for a read-only editor, and both for an editable one", () => {
+      const fixture = makeFixture(mockJavaUDFPredicate);
+      const readOnly = makeFakeEditor();
+      fixture.componentInstance.formControl = new FormControl({ value: "", disabled: true });
+      (fixture.componentInstance as any).setupAIAssistantActions(asEditor(readOnly));
+      expect(readOnly.addAction).not.toHaveBeenCalled();
+
+      const editable = makeFakeEditor();
+      fixture.componentInstance.formControl = new FormControl("");
+      (fixture.componentInstance as any).setupAIAssistantActions(asEditor(editable));
+      expect(editable.addAction).toHaveBeenCalledTimes(2);
+    });
+
     // setupAIAssistantActions checks an AI-provider flag (OpenAI vs others)
     // before deciding whether to register the per-selection 'Add Type
     // Annotation' action. We can't drive the action body without a real
@@ -478,6 +516,7 @@ describe("CodeEditorComponent", () => {
       wfActions.addOperator(mockJavaUDFPredicate, mockPoint);
       wfActions.getJointGraphWrapper().highlightOperators(mockJavaUDFPredicate.operatorID);
       const fixture = TestBed.createComponent(CodeEditorComponent);
+      fixture.componentRef.setInput("currentOperatorId", mockJavaUDFPredicate.operatorID);
       fixture.detectChanges();
       const checked = await TestBed.inject(AIAssistantService).checkAIAssistantEnabled().toPromise();
       expect(checked).toBe("OpenAI");
@@ -1416,6 +1455,7 @@ describe("CodeEditorComponent", () => {
       if (tempOperators) stageTempWorkflow(tempOperators);
       TestBed.inject(WorkflowVersionService).setDisplayParticularVersion(true);
       const fixture = TestBed.createComponent(CodeEditorComponent);
+      fixture.componentRef.setInput("currentOperatorId", predicate.operatorID);
       fixture.detectChanges();
       await waitFor(() => Boolean(diffModelOf(fixture.componentInstance)), "the mounted diff editor");
       return fixture.componentInstance;

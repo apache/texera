@@ -63,6 +63,7 @@ import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow
 import { OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { PropertyEditorComponent } from "../property-editor/property-editor.component";
+import { CodeEditorHostDirective } from "../code-editor-dialog/code-editor-host.directive";
 import { ResultTableFrameComponent } from "../result-panel/result-table-frame/result-table-frame.component";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
@@ -169,6 +170,7 @@ interface ResultChoice {
     MiniMapComponent,
     CoeditorUserIconComponent,
     ReadOnlyCardDirective,
+    CodeEditorHostDirective,
   ],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
