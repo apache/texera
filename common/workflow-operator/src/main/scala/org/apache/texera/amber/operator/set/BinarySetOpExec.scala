@@ -25,13 +25,12 @@ import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import scala.collection.mutable
 
 abstract class BinarySetOpExec extends OperatorExecutor {
-  private var leftSet: mutable.HashSet[Tuple] = _
-  private var rightSet: mutable.HashSet[Tuple] = _
-  private var exhaustedCounter: Int = _
+  private val leftSet = new mutable.HashSet[Tuple]()
+  private val rightSet = new mutable.HashSet[Tuple]()
+  private var exhaustedCounter = 0
 
   override def open(): Unit = {
-    leftSet = new mutable.HashSet[Tuple]()
-    rightSet = new mutable.HashSet[Tuple]()
+    close()
     exhaustedCounter = 0
   }
 
@@ -41,21 +40,13 @@ abstract class BinarySetOpExec extends OperatorExecutor {
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    if (port == 0) {
-      leftSet += tuple
-    } else {
-      rightSet += tuple
-    }
+    (if (port == 0) leftSet else rightSet) += tuple
     Iterator()
   }
 
   override def onFinish(port: Int): Iterator[TupleLike] = {
     exhaustedCounter += 1
-    if (exhaustedCounter == 2) {
-      combine(leftSet, rightSet)
-    } else {
-      Iterator()
-    }
+    if (exhaustedCounter == 2) combine(leftSet, rightSet) else Iterator()
   }
 
   protected def combine(
