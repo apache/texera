@@ -24,12 +24,16 @@ import com.typesafe.scalalogging.LazyLogging
 import io.opentelemetry.api.trace.StatusCode
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  WarehouseReadGuard
+}
 import org.apache.texera.common.config.{ApplicationConfig, StorageConfig}
 import org.apache.texera.observability.{SpanAttrs, TexeraTracer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.amber.core.WorkflowRuntimeException
-import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.result.iceberg.OnIceberg
 import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity,
@@ -419,7 +423,7 @@ class WorkflowService(
     */
   private def clearExecutionResources(eid: ExecutionIdentity): Unit = {
     // Retrieve URIs for all resources associated with this execution
-    val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
+    val resultUris = ExecutionResultUris.getResultUrisByExecutionId(eid)
     val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
 
     // Remove references from registry first
