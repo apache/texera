@@ -2514,7 +2514,7 @@ describe("WorkflowEditorComponent editor wiring", () => {
         wrapper().setHeatmapView(HeatmapView.IoImbalance);
 
         expect(fillOf(mockScanPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
-        expect(fillOf(mockResultPredicate.operatorID)).not.toEqual(HEATMAP_NO_DATA_COLOR);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HOT);
       });
 
       it("paints an operator added while the overlay is on", () => {
@@ -2580,7 +2580,6 @@ describe("WorkflowEditorComponent editor wiring", () => {
         workflowActionService.disableOperators([mockScanPredicate.operatorID]);
 
         expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
-        expect(fillOf(mockScanPredicate.operatorID)).not.toEqual(DISABLED_FILL);
       });
 
       it("repaints with heat colors after an operator is re-enabled", () => {
@@ -2591,7 +2590,6 @@ describe("WorkflowEditorComponent editor wiring", () => {
         workflowActionService.enableOperators([mockScanPredicate.operatorID]);
 
         expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
-        expect(fillOf(mockScanPredicate.operatorID)).not.toEqual(ENABLED_FILL);
       });
 
       it("lets the disabled fill through while the overlay is off", () => {
