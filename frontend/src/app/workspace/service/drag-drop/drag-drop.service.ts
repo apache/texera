@@ -21,7 +21,7 @@ import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-com
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { fromEvent, Observable, Subject } from "rxjs";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { JointUIService } from "../joint-ui/joint-ui.service";
+import { JointUIService, linkPathStrokeColor } from "../joint-ui/joint-ui.service";
 import { Injectable } from "@angular/core";
 import { filter, first, map } from "rxjs/operators";
 import TinyQueue from "tinyqueue";
@@ -575,8 +575,6 @@ export class DragDropService {
           "stroke-width": 4,
           "stroke-dasharray": "5,5",
         },
-        ".marker-source": { fill: "#FF6B35" },
-        ".marker-target": { fill: "#FF6B35" },
       });
     }
   }
@@ -596,12 +594,10 @@ export class DragDropService {
     if (jointLink) {
       jointLink.attr({
         ".connection": {
-          stroke: "#848484", // Default link color
+          stroke: linkPathStrokeColor,
           "stroke-width": 2,
           "stroke-dasharray": "none",
         },
-        ".marker-source": { fill: "none" },
-        ".marker-target": { fill: "none" },
       });
     }
   }

@@ -440,13 +440,9 @@ describe("DragDropService", () => {
 
         (dragDropService as any).highlightEdgeIntersection(link);
         expect((jointLink.attr(".connection") as any).stroke).toBe("#FF6B35");
-        expect((jointLink.attr(".marker-source") as any).fill).toBe("#FF6B35");
-        expect((jointLink.attr(".marker-target") as any).fill).toBe("#FF6B35");
 
         (dragDropService as any).clearEdgeIntersectionHighlight(link);
-        expect((jointLink.attr(".connection") as any).stroke).toBe("#848484");
-        expect((jointLink.attr(".marker-source") as any).fill).toBe("none");
-        expect((jointLink.attr(".marker-target") as any).fill).toBe("none");
+        expect((jointLink.attr(".connection") as any).stroke).toBe("#919191");
 
         // A link whose ID is not in the graph resolves to no joint model and is a safe no-op.
         expect(() =>

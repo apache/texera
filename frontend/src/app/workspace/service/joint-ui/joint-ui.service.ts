@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { workflowConnector, workflowRouter } from "./workflow-link-routing";
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
@@ -642,12 +643,18 @@ export class JointUIService {
    */
   public static getDefaultLinkCell(): joint.dia.Link {
     return new joint.dia.Link({
-      router: {
-        name: "manhattan",
-      },
-      connector: {
-        name: "rounded",
-      },
+      // Native SVG markers follow the final path's endpoint and tangent in the same paint.
+      // Legacy .marker-target paths are oriented from router waypoints instead.
+      markup: [
+        '<path class="connection"/>',
+        '<path class="connection-wrap"/>',
+        '<g class="labels"/>',
+        '<g class="marker-vertices"/>',
+        '<g class="marker-arrowheads"/>',
+        '<g class="link-tools"/>',
+      ].join(""),
+      router: workflowRouter,
+      connector: workflowConnector,
       toolMarkup: `<g class="link-tool">
           <g class="tool-remove" event="tool:remove">
           <circle r="11" />
@@ -661,23 +668,18 @@ export class JointUIService {
         ".connection": {
           stroke: linkPathStrokeColor,
           "stroke-width": "2px",
+          sourceMarker: { type: "path", d: "M 0 -3 L 6 -3 L 6 3 L 0 3 Z", stroke: "none" },
+          targetMarker: { type: "path", d: "M 10 -5 L 0 0 L 10 5 Z", stroke: "none" },
         },
         ".connection-wrap": {
           "stroke-width": "0px",
           // 'display': 'inline'
         },
-        ".marker-source": {
-          d: sourceOperatorHandle,
-          stroke: "none",
-          fill: "#919191",
-        },
+        // Keep legacy reconnection hit targets, but do not paint a second arrow over
+        // the native marker. Inline opacity wins over the theme's hover fill rules.
+        ".marker-arrowhead": { style: { opacity: 0 } },
         ".marker-arrowhead-group-source .marker-arrowhead": {
           d: sourceOperatorHandle,
-        },
-        ".marker-target": {
-          d: targetOperatorHandle,
-          stroke: "none",
-          fill: "#919191",
         },
         ".marker-arrowhead-group-target .marker-arrowhead": {
           d: targetOperatorHandle,
