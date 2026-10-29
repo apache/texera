@@ -19,17 +19,41 @@
 
 package org.apache.texera.web.resource.pythonvirtualenvironment
 
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.core.`type`.TypeReference
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import java.util.concurrent.LinkedBlockingQueue
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.jdk.CollectionConverters._
 
 /**
   *  WebSocket endpoint for PVE creation and user package installation that streams
   *  pip installation logs  to the frontend in real time. The environment setup runs
   *  asynchronously, and output is pushed to the client until completion.
   */
+
+object PveWebsocketResource {
+
+  private val packagesType = new TypeReference[java.util.List[String]] {}
+
+  /**
+    * Decodes the `packages` query parameter, a JSON array of pip requirement strings, into a
+    * trimmed list without blank entries. Anything that is not a JSON array of strings is rejected.
+    */
+  private[pythonvirtualenvironment] def parsePackages(json: String): List[String] = {
+    val decoded =
+      try objectMapper.readValue(json, packagesType)
+      catch {
+        case e: JsonProcessingException =>
+          throw new IllegalArgumentException(s"Invalid packages parameter: $json", e)
+      }
+    decoded.asScala.toList.filter(_ != null).map(_.trim).filter(_.nonEmpty)
+  }
+}
 
 @ServerEndpoint("/wsapi/pve")
 class PveWebsocketResource {
@@ -76,16 +100,9 @@ class PveWebsocketResource {
             PveManager.createNewPve(cuid, queue, pveName)
 
           case "install" =>
-            val packages =
-              params
-                .getOrDefault("packages", java.util.List.of("[]"))
-                .get(0)
-                .stripPrefix("[")
-                .stripSuffix("]")
-                .split(",")
-                .toList
-                .map(_.replace("\"", "").trim)
-                .filter(_.nonEmpty)
+            val packages = PveWebsocketResource.parsePackages(
+              params.getOrDefault("packages", java.util.List.of("[]")).get(0)
+            )
 
             PveManager.installUserPackages(packages, cuid, queue, pveName)
 
