@@ -297,6 +297,17 @@ This product bundles the Iris example dataset, as distributed with scikit-learn:
   Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
 
+ISC License
+--------------------------------------
+
+This product bundles code derived from librosa (onset strength, tempo estimation
+and dynamic-programming beat tracking), embedded in the Audio Attribute
+Extractor operator's generated Python:
+  - common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/audio/codegen/BeatTrackerCodegen.scala
+  Copyright (c) 2013--2026, librosa development team
+  Source: https://github.com/librosa/librosa (version 1.0.0)
+  License: ISC License (licenses-3rd-party-code/librosa.txt)
+
 Trademarks
 --------------------------------------
 

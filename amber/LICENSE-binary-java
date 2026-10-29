@@ -633,6 +633,11 @@ Scala/Java jars:
 Dependencies under the ISC License
 --------------------------------------------------------------------------------
 
+Source files derived from third-party ISC-licensed projects:
+  - librosa
+    common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/audio/codegen/BeatTrackerCodegen.scala
+    https://github.com/librosa/librosa/tree/1.0.0
+
 Scala/Java jars:
   - org.mindrot.jbcrypt-0.4.jar
 
