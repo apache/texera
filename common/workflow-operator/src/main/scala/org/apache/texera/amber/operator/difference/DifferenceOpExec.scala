@@ -19,44 +19,16 @@
 
 package org.apache.texera.amber.operator.difference
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.operator.set.BinarySetOpExec
 
 import scala.collection.mutable
 
-class DifferenceOpExec extends OperatorExecutor {
-  private var leftHashSet: mutable.HashSet[Tuple] = _
-  private var rightHashSet: mutable.HashSet[Tuple] = _
-  private var exhaustedCounter: Int = _
-
-  override def open(): Unit = {
-    leftHashSet = new mutable.HashSet()
-    rightHashSet = new mutable.HashSet()
-    exhaustedCounter = 0
+class DifferenceOpExec extends BinarySetOpExec {
+  override protected def combine(
+      leftSet: mutable.HashSet[Tuple],
+      rightSet: mutable.HashSet[Tuple]
+  ): Iterator[TupleLike] = {
+    leftSet.diff(rightSet).iterator
   }
-
-  override def close(): Unit = {
-    leftHashSet.clear()
-    rightHashSet.clear()
-  }
-
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    if (port == 1) { // right input
-      rightHashSet.add(tuple)
-    } else { // left input
-      leftHashSet.add(tuple)
-    }
-    Iterator()
-
-  }
-
-  override def onFinish(port: Int): Iterator[TupleLike] = {
-    exhaustedCounter += 1
-    if (2 == exhaustedCounter) {
-      leftHashSet.diff(rightHashSet).iterator
-    } else {
-      Iterator()
-    }
-  }
-
 }
