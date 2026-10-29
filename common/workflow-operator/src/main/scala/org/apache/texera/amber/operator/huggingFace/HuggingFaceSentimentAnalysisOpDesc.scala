@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireInputColumn,
+  requireNonEmpty
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
@@ -167,14 +171,13 @@ class HuggingFaceSentimentAnalysisOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (
-      resultAttributePositive == null || resultAttributePositive.trim.isEmpty ||
-      resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
-      resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
-    )
-      return null
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireInputColumn(inputSchema, "Attribute", attribute)
+    requireNonEmpty("Positive result attribute", resultAttributePositive)
+    requireNonEmpty("Neutral result attribute", resultAttributeNeutral)
+    requireNonEmpty("Negative result attribute", resultAttributeNegative)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttributePositive, AttributeType.DOUBLE)
         .add(resultAttributeNeutral, AttributeType.DOUBLE)
         .add(resultAttributeNegative, AttributeType.DOUBLE)
