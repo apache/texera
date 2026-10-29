@@ -18,7 +18,8 @@
  */
 
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, interval, Observable, of, Subject, Subscription } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
+import { BehaviorSubject, EMPTY, interval, Observable, of, Subject, Subscription } from "rxjs";
 import { catchError, distinctUntilChanged, filter, map, switchMap, take, tap } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -88,6 +89,24 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.refreshComputingUnitListSignal.next();
   }
 
+  /**
+   * Ends a failed fetch without ending the stream it runs in. An HTTP failure is expected
+   * while the backend is unavailable and stays silent: the request is visible in the
+   * browser's Network panel and the next signal or tick retries. Anything else, such as an
+   * error in the response mapping, is a bug and is logged before being dropped.
+   */
+  private swallowFetchError(pipeline: string): (err: unknown) => Observable<never> {
+    return err => {
+      if (!(err instanceof HttpErrorResponse)) {
+        console.error(
+          `Computing unit ${pipeline} failed with a non-HTTP error, likely a bug in response handling:`,
+          err
+        );
+      }
+      return EMPTY;
+    };
+  }
+
   private startPollingSelectedUnit(cuid: number): void {
     // cancel previous poll, if any
     this.selectedUnitPoll?.unsubscribe();
@@ -95,7 +114,10 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll = interval(this.REFRESH_INTERVAL_MS)
       .pipe(
         // each tick → get fresh data for *this* cuid
-        switchMap(() => this.computingUnitService.getComputingUnit(cuid)),
+        // A failed fetch ends only that request, not the polling stream.
+        switchMap(() =>
+          this.computingUnitService.getComputingUnit(cuid).pipe(catchError(this.swallowFetchError("status poll")))
+        ),
         untilDestroyed(this)
       )
       .subscribe(unit => {
@@ -145,7 +167,10 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.refreshSubscription = this.refreshComputingUnitListSignal
       .pipe(
-        switchMap(() => this.computingUnitService.listComputingUnits()),
+        // A failed fetch ends only that request, not the refresh stream.
+        switchMap(() =>
+          this.computingUnitService.listComputingUnits().pipe(catchError(this.swallowFetchError("list refresh")))
+        ),
         untilDestroyed(this)
       )
       .subscribe(units => {
