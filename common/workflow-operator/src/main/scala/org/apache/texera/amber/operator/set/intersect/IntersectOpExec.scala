@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.intersect
+package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.operator.set.BinarySetOpExec

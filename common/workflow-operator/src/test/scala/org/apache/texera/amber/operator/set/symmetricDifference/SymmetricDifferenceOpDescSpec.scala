@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.symmetricDifference
+package org.apache.texera.amber.operator.set.symmetricDifference
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -53,7 +53,7 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
     val physical = op.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, _) =>
-        className shouldBe "org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpExec"
+        className shouldBe "org.apache.texera.amber.operator.set.symmetricDifference.SymmetricDifferenceOpExec"
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
     physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.symmetricDifference
+package org.apache.texera.amber.operator.set.symmetricDifference
 
 import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
@@ -39,7 +39,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecWithClassName(
-          "org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpExec"
+          "org.apache.texera.amber.operator.set.symmetricDifference.SymmetricDifferenceOpExec"
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

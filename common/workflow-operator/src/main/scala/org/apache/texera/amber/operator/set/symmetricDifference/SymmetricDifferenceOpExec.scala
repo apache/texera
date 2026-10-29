@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.symmetricDifference
+package org.apache.texera.amber.operator.set.symmetricDifference
 
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.operator.set.BinarySetOpExec
