@@ -116,7 +116,7 @@ compose_name="apache-texera-${version}-docker-compose"
 raw="$work/raw"
 bundle="$work/compose/$compose_name"
 mkdir -p "$raw" "$bundle"
-git archive --format=tar "$commit" -- bin/single-node/ sql/ NOTICE licenses/LICENSE-BSD-3-Clause.txt | "$gnu_tar" -x -C "$raw"
+git archive --format=tar "$commit" -- bin/single-node/ bin/observability/ sql/ NOTICE licenses/LICENSE-BSD-3-Clause.txt | "$gnu_tar" -x -C "$raw"
 
 for f in docker-compose.yml nginx.conf litellm-config.yaml LICENSE DISCLAIMER README.md .env; do
   cp "$raw/bin/single-node/$f" "$bundle/"
@@ -126,13 +126,16 @@ cp "$raw/NOTICE" "$bundle/"
 mkdir -p "$bundle/licenses"
 cp "$raw/licenses/LICENSE-BSD-3-Clause.txt" "$bundle/licenses/"
 cp -R "$raw/sql" "$bundle/"
+# Read by the opt-in observability compose profiles.
+cp -R "$raw/bin/observability" "$bundle/observability"
 if [[ -d "$raw/bin/single-node/examples" ]]; then
   cp -R "$raw/bin/single-node/examples" "$bundle/"
 fi
 
-# The repo mounts ../../sql relative to bin/single-node/; the bundle keeps sql/
-# next to docker-compose.yml.
-sed 's|\.\./\.\./sql|./sql|g' "$bundle/docker-compose.yml" > "$bundle/docker-compose.yml.tmp"
+# The repo mounts ../../sql and ../observability relative to bin/single-node/;
+# the bundle keeps both next to docker-compose.yml.
+sed -e 's|\.\./\.\./sql|./sql|g' -e 's|\.\./observability|./observability|g' \
+  "$bundle/docker-compose.yml" > "$bundle/docker-compose.yml.tmp"
 mv "$bundle/docker-compose.yml.tmp" "$bundle/docker-compose.yml"
 
 set_env_var "$bundle/.env" IMAGE_REGISTRY "$image_registry"

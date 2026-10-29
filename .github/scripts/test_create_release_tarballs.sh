@@ -39,7 +39,7 @@ SRC="apache-texera-${VERSION}-src.tar.gz"
 COMPOSE="apache-texera-${VERSION}-docker-compose.tar.gz"
 
 repo="$work/repo"
-mkdir -p "$repo/bin/single-node/examples" "$repo/sql/updates" "$repo/licenses"
+mkdir -p "$repo/bin/single-node/examples" "$repo/bin/observability/parca" "$repo/sql/updates" "$repo/licenses"
 (
   cd "$repo"
   git init -q
@@ -47,6 +47,9 @@ mkdir -p "$repo/bin/single-node/examples" "$repo/sql/updates" "$repo/licenses"
   git config user.name "test"
   printf 'services:\n  postgres:\n    volumes:\n      - ../../sql:/docker-entrypoint-initdb.d\n' \
     > bin/single-node/docker-compose.yml
+  printf '  parca-agent:\n    env_file:\n      - ../observability/parca/parca-agent.env\n' \
+    >> bin/single-node/docker-compose.yml
+  echo "PARCA=1" > bin/observability/parca/parca-agent.env
   printf 'TEXERA_SERVICE_LOG_LEVEL=INFO\nIMAGE_TAG=latest\n' > bin/single-node/.env
   for f in nginx.conf litellm-config.yaml LICENSE DISCLAIMER README.md; do
     echo "$f" > "bin/single-node/$f"
@@ -116,14 +119,17 @@ if [[ "$env_file" == "$expected_env" ]]; then
 else
   failed ".env not patched as expected: $env_file"
 fi
-if grep -q -- '- ./sql:/docker-entrypoint-initdb.d' "$b/docker-compose.yml" && ! grep -q '\.\./\.\./sql' "$b/docker-compose.yml"; then
-  pass "docker-compose.yml mounts ./sql"
+if grep -q -- '- ./sql:/docker-entrypoint-initdb.d' "$b/docker-compose.yml" \
+  && grep -q -- '- ./observability/parca/parca-agent.env' "$b/docker-compose.yml" \
+  && ! grep -q '\.\./' "$b/docker-compose.yml"; then
+  pass "docker-compose.yml mounts ./sql and ./observability"
 else
-  failed "docker-compose.yml sql mount not rewritten"
+  failed "docker-compose.yml sql or observability paths not rewritten"
 fi
-if [[ -f "$b/sql/updates/01-ünïcode.sql" && -x "$b/examples/load-examples.sh" && -f "$b/NOTICE" && -f "$b/licenses/LICENSE-BSD-3-Clause.txt" && ! -e "$b/README.md.tmp" ]] \
+if [[ -f "$b/sql/updates/01-ünïcode.sql" && -x "$b/examples/load-examples.sh" && -f "$b/NOTICE" && -f "$b/licenses/LICENSE-BSD-3-Clause.txt" \
+  && -f "$b/observability/parca/parca-agent.env" && ! -e "$b/README.md.tmp" ]] \
   && [[ "$(cat "$b/README.md")" == "README.md" ]]; then
-  pass "bundle carries sql/, examples/ (still executable), NOTICE, licenses/ and the single-node README"
+  pass "bundle carries sql/, examples/ (still executable), observability/, NOTICE, licenses/ and the single-node README"
 else
   failed "bundle contents incomplete"
 fi
