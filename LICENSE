@@ -248,6 +248,11 @@ This product includes icons from Google's Material Symbols:
   - the "psychology", "smart_toy" and "snippet_folder" icons drawn into
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png,
     python_file_diagram.png and python_folder_diagram.png
+  Copyright (c) Google LLC
+  Source: https://github.com/google/material-design-icons
+  License: Apache License 2.0 (this LICENSE file)
+
+This product includes icons from Google's Material Symbols, used as operator icons:
   - frontend/src/assets/operator_images/SklearnExtraTrees.png (forest)
   - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (autorenew, around Carbon 'chart--logistic-regression')
   - frontend/src/assets/operator_images/SklearnPrediction.png (batch_prediction)
