@@ -678,9 +678,9 @@ class WorkflowExecutionsResourceSpec
     assert(survivorEids.contains(survivor.getEid))
   }
 
-  // ─── new: updateResultSize ────────────────────────────────────────────────
+  // ─── new: updateResultSizeAndCount ────────────────────────────────────────
 
-  "updateResultSize" should "set RESULT_SIZE on the matching (eid, globalPortId) row" in {
+  "updateResultSizeAndCount" should "set RESULT_SIZE and RESULT_COUNT on the matching (eid, globalPortId) row" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
     val globalPortId = GlobalPortIdentity(
@@ -694,7 +694,7 @@ class WorkflowExecutionsResourceSpec
       URI.create("vfs:///r")
     )
 
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, 4096L)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, 4096L, 25L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -702,6 +702,7 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .fetchOne()
     assert(row.getResultSize == 4096)
+    assert(row.getResultCount == 25L)
   }
 
   it should "store a >2GiB size without truncation (#6978)" in {
@@ -716,7 +717,7 @@ class WorkflowExecutionsResourceSpec
 
     // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
     val threeGiB = 3L * 1024 * 1024 * 1024
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, threeGiB)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, threeGiB, 0L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -724,26 +725,6 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .fetchOne()
     assert(row.getResultSize.longValue() == threeGiB)
-  }
-
-  "updateResultCount" should "set RESULT_COUNT on the matching (eid, globalPortId) row" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val globalPortId = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("op-count"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    insertOperatorPortResult(eid, globalPortId, URI.create("vfs:///c"))
-
-    WorkflowExecutionsResource.updateResultCount(eid, globalPortId, 25L)
-
-    val row = getDSLContext
-      .selectFrom(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(execution.getEid))
-      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
-      .fetchOne()
-    assert(row.getResultCount == 25L)
   }
 
   // ─── new: updateRuntimeStatsSize / updateConsoleMessageSize ───────────────

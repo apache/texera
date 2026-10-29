@@ -456,14 +456,10 @@ class ExecutionResultService(
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
 
                   allTableStats(opId.id) = opStorage.getTableStatistics
-                  WorkflowExecutionsResource.updateResultSize(
+                  WorkflowExecutionsResource.updateResultSizeAndCount(
                     executionId,
                     globalPortIdOption.get,
-                    opStorage.getTotalFileSize
-                  )
-                  WorkflowExecutionsResource.updateResultCount(
-                    executionId,
-                    globalPortIdOption.get,
+                    opStorage.getTotalFileSize,
                     info.tupleCount
                   )
                   WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)

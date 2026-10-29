@@ -394,39 +394,22 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Updates the result size of the corresponding Iceberg document in the database.
+    * Updates the size and row count stored for this port's result in operator_port_executions.
     *
     * @param eid          Execution ID associated with the result.
     * @param globalPortId Global port identifier for the operator output.
     * @param size         Size of the result in bytes.
-    */
-  def updateResultSize(
-      eid: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity,
-      size: Long
-  ): Unit = {
-    context
-      .update(OPERATOR_PORT_EXECUTIONS)
-      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, java.lang.Long.valueOf(size))
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
-      .execute()
-  }
-
-  /**
-    * Updates the row count stored for this port's result in operator_port_executions.
-    *
-    * @param eid          Execution ID associated with the result.
-    * @param globalPortId Global port identifier for the operator output.
     * @param count        Number of rows in the result.
     */
-  def updateResultCount(
+  def updateResultSizeAndCount(
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity,
+      size: Long,
       count: Long
   ): Unit = {
     context
       .update(OPERATOR_PORT_EXECUTIONS)
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, java.lang.Long.valueOf(size))
       .set(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT, java.lang.Long.valueOf(count))
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
@@ -455,7 +438,7 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Stores an already-measured runtime statistics size, mirroring updateResultSize.
+    * Stores an already-measured runtime statistics size, mirroring updateResultSizeAndCount.
     *
     * @param eid  Execution ID associated with the runtime statistics document.
     * @param size Size of the runtime statistics in bytes.
@@ -493,7 +476,7 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Stores an already-measured console message size, mirroring updateResultSize.
+    * Stores an already-measured console message size, mirroring updateResultSizeAndCount.
     *
     * @param eid  Execution ID associated with the console message.
     * @param opId Operator ID of the corresponding operator.
