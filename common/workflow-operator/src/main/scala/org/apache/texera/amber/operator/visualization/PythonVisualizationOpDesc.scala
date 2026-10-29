@@ -29,14 +29,15 @@ import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCod
   * Its one output port carries a single `html-content` STRING column, whatever
   * the input schemas are: that column is where the frontend finds the rendered
   * chart. Its exported script writes the chart to a file rather than producing
-  * a table, so the translator does not print it as a leaf DataFrame.
+  * a table, so the translator does not print it as a leaf DataFrame. Both
+  * members are final, so a chart cannot opt out of either.
   */
 trait PythonVisualizationOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
 
-  override def getOutputSchemas(
+  final override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] =
     Map(operatorInfo.outputPorts.head.id -> Schema().add("html-content", AttributeType.STRING))
 
-  override def producesDataFrame(): Boolean = false
+  final override def producesDataFrame(): Boolean = false
 }
