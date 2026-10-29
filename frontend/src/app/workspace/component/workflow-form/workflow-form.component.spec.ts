@@ -896,13 +896,15 @@ describe("WorkflowFormComponent", () => {
       (component as any).readConfig();
     };
 
-    it("renders a healthy input as a real formly field keyed by its binding id", () => {
+    it("renders a healthy input as a real formly field keyed by its property, as the panel does", () => {
       build(formViewWorkflow).ngOnInit();
 
       renderOne("n_hvg");
 
       expect(component.rendered).toHaveLength(1);
-      expect(component.rendered[0].fields[0].key).toBe(component.rendered[0].resolved.binding.id);
+      // The property's own key, not the binding's: a widget that reaches itself or a sibling by key
+      // (the HuggingFace picker resetting `modelId` on a task change) finds the same keys here.
+      expect(component.rendered[0].fields[0].key).toBe("n_hvg");
     });
 
     it("renders nothing for an input whose operator is no longer on the graph", () => {
@@ -978,7 +980,7 @@ describe("WorkflowFormComponent", () => {
       expect(component.rendered[0].fields[0].type).toBe("inputautocomplete");
     });
 
-    it("seeds the field model with the operator's other properties as read-only context", () => {
+    it("seeds the field model with the operator's other properties, as controls too, like the panel", () => {
       build(formViewWorkflow).ngOnInit();
       h.hasOperatorIds.add("op-1");
       // A HuggingFace operator whose model picker (modelId) needs the sibling `task` to work.
@@ -994,8 +996,145 @@ describe("WorkflowFormComponent", () => {
       const card = component.rendered[0];
       // The sibling context is present (so the widget reads the right task) ...
       expect(card.model.task).toBe("image-classification");
-      // ... alongside this input's own value, keyed by the binding id, which is what writes back.
-      expect(card.model[card.resolved.binding.id]).toBe("seed");
+      // ... alongside this input's own value, under the property's own key, as on the panel.
+      expect(card.model["modelId"]).toBe("seed");
+      // The siblings ride along as controls too, so the widget finds `task` on the card's form the
+      // way it finds it on the panel's.
+      expect(card.form.get("task")?.value).toBe("image-classification");
+    });
+
+    // A widget may change a sibling the way it does on the panel (the HuggingFace picker writes
+    // `task` and resets the task-scoped fields on a task change); the card writes it back with the
+    // bound value, as one edit, the way the panel does.
+    it("writes back a sibling a widget changed, along with the bound value", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      // The widget's task change, as it makes it: the sibling through its control, its own value
+      // reset in the model (a dirtied control, so the blank is an edit, not formly's build default).
+      card.form.get("task")!.setValue("text-generation");
+      card.model["modelId"] = "";
+      card.form.markAsDirty();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith("op-1", { task: "text-generation", modelId: "" });
+    });
+
+    // The patch is what this card changed since it was built, not every difference from the
+    // operator as it is now: a sibling someone else changed in the meantime is not this card's to
+    // send back, or the older value would land on top of the newer one (Copilot on #8839).
+    it("writes only what this card changed, leaving a sibling someone else changed alone", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      // The canvas, a co-editor or another card changes the sibling after this card was built.
+      h.graphOperators[0].operatorProperties = { task: "text-generation", modelId: "seed" };
+      // This card changes only its own value.
+      card.model["modelId"] = "gpt2";
+      card.form.markAsDirty();
+      card.form.get("task")!.updateValueAndValidity();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith("op-1", { modelId: "gpt2" });
+    });
+
+    it("advances its baseline after a write, so a second edit sends only the second change", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      card.form.get("task")!.setValue("text-generation");
+      card.form.markAsDirty();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      expect(formBindingService.writeProperties).toHaveBeenLastCalledWith("op-1", { task: "text-generation" });
+
+      card.model["modelId"] = "gpt2";
+      card.form.get("task")!.updateValueAndValidity();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      // The task it already wrote is not sent again.
+      expect(formBindingService.writeProperties).toHaveBeenLastCalledWith("op-1", { modelId: "gpt2" });
+      expect(formBindingService.writeProperties).toHaveBeenCalledTimes(2);
+    });
+
+    // The schema may declare a property the operator has no value for yet; the widget still finds a
+    // control for it, empty, and nothing is written for it unless something changes it.
+    it("gives a schema property without a value an empty control, and leaves it out of a write-back", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      (component as any).dynamicSchemaService = {
+        getDynamicSchema: () => ({ jsonSchema: { properties: { modelId: {}, task: {}, hfApiToken: {} } } }),
+      };
+      renderOne("modelId");
+      const card = component.rendered[0];
+      expect(card.form.get("hfApiToken")?.value).toBeNull();
+      vi.useFakeTimers();
+
+      card.form.get("task")!.setValue("text-generation");
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith("op-1", { task: "text-generation" });
+    });
+
+    it("lands a sibling control's change in the model, which is what is written back", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+
+      card.form.get("task")!.setValue("text-generation");
+
+      expect(card.model.task).toBe("text-generation");
+    });
+
+    it("writes nothing when a sibling control re-emits an unchanged value", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { task: "image-classification", modelId: "seed" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      card.form.get("task")!.setValue("image-classification");
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
     });
 
     it("prefers the per-instance schema, falling back to the static one when it is unavailable", () => {
@@ -1058,7 +1197,7 @@ describe("WorkflowFormComponent", () => {
       build(formViewWorkflow).ngOnInit();
       renderOne("n_hvg");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       vi.useFakeTimers();
 
       card.model[key] = "typed";
@@ -1067,7 +1206,7 @@ describe("WorkflowFormComponent", () => {
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
 
-      expect(formBindingService.writeValue).toHaveBeenCalled();
+      expect(formBindingService.writeProperties).toHaveBeenCalled();
     });
 
     it("keeps a still-set value when a control emits an absent value before an edit", () => {
@@ -1088,10 +1227,10 @@ describe("WorkflowFormComponent", () => {
 
     it("ignores an unchanged form emission", () => {
       build(formViewWorkflow).ngOnInit();
-      formBindingService.readValue.mockReturnValue("seed");
+      h.graphOperators.push({ operatorID: "op-1", operatorProperties: { n_hvg: "seed" } });
       renderOne("n_hvg");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       vi.useFakeTimers();
 
       card.model[key] = "seed";
@@ -1099,15 +1238,15 @@ describe("WorkflowFormComponent", () => {
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
 
-      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
     });
 
     it("keeps a still-set value when formly emits a blank before an edit", () => {
       build(formViewWorkflow).ngOnInit();
-      formBindingService.readValue.mockReturnValue("seed");
+      h.graphOperators.push({ operatorID: "op-1", operatorProperties: { n_hvg: "seed" } });
       renderOne("n_hvg");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       vi.useFakeTimers();
 
       card.model[key] = "";
@@ -1115,14 +1254,52 @@ describe("WorkflowFormComponent", () => {
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
 
-      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
+    });
+
+    // formly fills a blank for a string the operator never had; writing that back on every build
+    // put an empty property on the operator that the canvas's own form had left out.
+    it("writes nothing when formly's blank meets a property the operator never had", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({ operatorID: "op-1", operatorProperties: { other: 1 } });
+      renderOne("n_hvg");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      card.model["n_hvg"] = "";
+      card.form.addControl("n_hvg", new FormControl(""));
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
+    });
+
+    // A widget clearing a task-scoped sibling the operator never had writes a blank where there was
+    // nothing: to an operator those are the same, so nothing is sent.
+    it("takes a blank for a property the operator never had as no change", () => {
+      build(formViewWorkflow).ngOnInit();
+      h.graphOperators.push({
+        operatorID: "op-1",
+        operatorType: "HuggingFace",
+        operatorProperties: { modelId: "seed", task: "image-classification" },
+      });
+      renderOne("modelId");
+      const card = component.rendered[0];
+      vi.useFakeTimers();
+
+      card.model["promptColumn"] = "";
+      card.form.get("task")!.updateValueAndValidity();
+      vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
+      vi.useRealTimers();
+
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
     });
 
     it("refreshes the card's snapshot after a write-back", () => {
       build(formViewWorkflow).ngOnInit();
       renderOne("n_hvg");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       // The re-read after a write returns the new value on the same binding.
       formBindingService.resolveFields.mockReturnValue([resolved("n_hvg", "n_hvg", { value: "typed" })]);
       vi.useFakeTimers();
@@ -1141,7 +1318,7 @@ describe("WorkflowFormComponent", () => {
       renderOne("n_hvg");
       const card = component.rendered[0];
       const before = card.resolved;
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       // The write succeeds, but the following resolve returns nothing for this binding.
       formBindingService.resolveFields.mockReturnValue([]);
       vi.useFakeTimers();
@@ -1152,7 +1329,7 @@ describe("WorkflowFormComponent", () => {
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
 
-      expect(formBindingService.writeValue).toHaveBeenCalled();
+      expect(formBindingService.writeProperties).toHaveBeenCalled();
       expect(component.rendered[0].resolved).toBe(before);
     });
 
@@ -1684,11 +1861,30 @@ describe("WorkflowFormComponent", () => {
       expect(rebuild).not.toHaveBeenCalled();
     });
 
+    // A binding's id is its own, not the property it writes to, and a card's model is the operator's
+    // properties keyed by property (so a widget reaching a sibling finds the panel's keys). Reading
+    // the card's value under the id found nothing and read every card as out of step.
+    it("compares a card's value under the property it is bound to, not under the binding's id", async () => {
+      build(formViewWorkflow).ngOnInit();
+      h.hasOperatorIds.add("op-1");
+      formBindingService.resolveFields.mockReturnValue([
+        resolved("field-7", "HVG count", {
+          binding: { id: "field-7", operatorID: "op-1", propertyKey: "n_hvg", displayName: "HVG count" },
+          value: "2000",
+        }),
+      ]);
+      formBindingService.readValue.mockReturnValue("2000");
+      (component as any).readConfig();
+
+      expect(component.rendered[0].model["n_hvg"]).toBe("2000");
+      expect((component as any).cardsNeedRebuild()).toBe(false);
+    });
+
     it("does not rebuild for the card's own edit still on its way to the operator, nor once it is written", () => {
       build(formViewWorkflow).ngOnInit();
       renderCard("n_hvg", "2000");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       vi.useFakeTimers();
 
       // The first change marks the edit pending; the operator still holds the old value.
@@ -1701,7 +1897,9 @@ describe("WorkflowFormComponent", () => {
       // Written after the debounce: the operator now holds it, so the two agree.
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
-      expect(formBindingService.writeValue).toHaveBeenCalledWith(card.resolved.binding, "2500");
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith(card.resolved.binding.operatorID, {
+        [key]: "2500",
+      });
       expect(card.pendingWrite).toBe(false);
       formBindingService.readValue.mockReturnValue("2500");
       expect((component as any).cardsNeedRebuild()).toBe(false);
@@ -1711,20 +1909,22 @@ describe("WorkflowFormComponent", () => {
       build(formViewWorkflow).ngOnInit();
       renderCard("n_hvg", "2000");
       const card = component.rendered[0];
-      const key = card.resolved.binding.id;
+      const key = card.resolved.binding.propertyKey;
       vi.useFakeTimers();
       card.model[key] = "2500";
       card.form.addControl(key, new FormControl("2500"));
       card.form.markAsDirty();
-      expect(formBindingService.writeValue).not.toHaveBeenCalled();
+      expect(formBindingService.writeProperties).not.toHaveBeenCalled();
 
       // A rebuild from any source (a step renamed, the definition edited) before the debounce fires.
       (component as any).readConfig();
       vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 50);
       vi.useRealTimers();
 
-      expect(formBindingService.writeValue).toHaveBeenCalledTimes(1);
-      expect(formBindingService.writeValue).toHaveBeenCalledWith(card.resolved.binding, "2500");
+      expect(formBindingService.writeProperties).toHaveBeenCalledTimes(1);
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith(card.resolved.binding.operatorID, {
+        [key]: "2500",
+      });
       expect(card.pendingWrite).toBe(false);
     });
 
@@ -1748,6 +1948,74 @@ describe("WorkflowFormComponent", () => {
       h.displayNameChanged.next({});
 
       expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    // Closing an nz-select leaves the focus in its search box, so no focusout fires: a rebuild held
+    // while the list was open would have waited for an unrelated event (Copilot on #8839).
+    it("runs a held rebuild on a click, which is what closing a dropdown gives it", async () => {
+      build(formViewWorkflow).ngOnInit();
+      // A compilation that changed a card's schema, so there is a rebuild to hold in the first place.
+      renderCard("n_hvg", "2000");
+      changeSchema();
+      const typing = vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+      expect(rebuild).not.toHaveBeenCalled();
+
+      // The click that closed the list; by the time the re-check runs, it is no longer open.
+      typing.mockReturnValue(false);
+      component.onInteraction();
+      await new Promise(r => setTimeout(r, 10));
+
+      expect(rebuild).toHaveBeenCalledTimes(1);
+    });
+
+    // Accepting an option with Enter both changes the form and closes the list, so the keyup runs
+    // the held rebuild straight away -- before the card's debounced write-back has fired. The
+    // rebuild writes that pending edit first (see buildForm), so the selection reaches the operator
+    // instead of being cancelled with the card's subscription (Copilot).
+    it("writes a selection made while a rebuild was held, rather than losing it to the rebuild", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      changeSchema();
+      const typing = vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+
+      // The option accepted with Enter, its write-back not yet due.
+      const card = component.rendered[0];
+      const key = card.resolved.binding.propertyKey;
+      card.model[key] = "2500";
+      card.form.addControl(key, new FormControl("2500"));
+      card.form.markAsDirty();
+      expect(card.pendingWrite).toBe(true);
+
+      // The same keypress closed the list, so the held rebuild runs now.
+      typing.mockReturnValue(false);
+      component.onInteraction();
+      await new Promise(r => setTimeout(r, 10));
+
+      expect(formBindingService.writeProperties).toHaveBeenCalledWith(card.resolved.binding.operatorID, {
+        [key]: "2500",
+      });
+    });
+
+    it("leaves a click alone while the list is still open, so a filter being typed is not thrown away", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      changeSchema();
+      vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+      const rebuild = vi.spyOn(component as any, "readConfig");
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+      component.onInteraction();
+      await new Promise(r => setTimeout(r, 10));
+
+      expect(rebuild).not.toHaveBeenCalled();
     });
 
     it("holds a rebuild while someone is typing and runs it once the focus leaves", async () => {
@@ -1862,6 +2130,28 @@ describe("WorkflowFormComponent", () => {
       expect((component as any).isTypingInTheForm()).toBe(true);
 
       document.body.removeChild(input);
+    });
+
+    // A dropdown (nz-select) leaves the focus on its search box after a pick. Counted as typing,
+    // every rebuild was held while the box kept the focus, so a change made on the canvas never
+    // reached the form until the reader clicked elsewhere. Typing it is only while the list is open.
+    it("does not count a closed dropdown's focused search box as typing, but an open one's", () => {
+      build(formViewWorkflow).ngOnInit();
+      const dropdown = document.createElement("div");
+      dropdown.className = "ant-select ant-select-single";
+      const search = document.createElement("input");
+      search.className = "ant-select-selection-search-input";
+      dropdown.appendChild(search);
+      document.body.appendChild(dropdown);
+      (component as any).host = { nativeElement: { contains: () => true, querySelector: () => null } };
+      search.focus();
+
+      expect((component as any).isTypingInTheForm()).toBe(false);
+
+      dropdown.classList.add("ant-select-open");
+      expect((component as any).isTypingInTheForm()).toBe(true);
+
+      document.body.removeChild(dropdown);
     });
 
     it("reports no typing when the focus is outside the page", () => {
