@@ -254,16 +254,16 @@ This product includes icons from Google's Material Symbols:
 
 This product includes icons from Google's Material Symbols, used as operator icons:
   - frontend/src/assets/operator_images/SklearnExtraTrees.png (forest)
-  - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (autorenew, around Carbon 'chart--logistic-regression')
+  - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (autorenew cycle arrows, drawn around Carbon 'chart--logistic-regression')
   - frontend/src/assets/operator_images/SklearnPrediction.png (batch_prediction)
   - frontend/src/assets/operator_images/SklearnProbabilityCalibration.png (tune)
   - frontend/src/assets/operator_images/SklearnRandomForest.png (forest)
-  - frontend/src/assets/operator_images/SklearnRidgeCV.png (autorenew, around Lucide 'mountain-snow')
+  - frontend/src/assets/operator_images/SklearnRidgeCV.png (autorenew cycle arrows, drawn around Lucide 'mountain-snow')
   - frontend/src/assets/operator_images/SklearnTrainingExtraTrees.png (forest)
-  - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (autorenew, around Carbon 'chart--logistic-regression')
+  - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (autorenew cycle arrows, drawn around Carbon 'chart--logistic-regression')
   - frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png (tune)
   - frontend/src/assets/operator_images/SklearnTrainingRandomForest.png (forest)
-  - frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png (autorenew, around Lucide 'mountain-snow')
+  - frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png (autorenew cycle arrows, drawn around Lucide 'mountain-snow')
   Copyright (c) Google LLC
   Source: https://github.com/google/material-design-icons (@material-symbols/svg-400 0.48.2)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -280,7 +280,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnKNN.png (share)
   - frontend/src/assets/operator_images/SklearnLinearRegression.png (chart--scatter, with a fitted line added)
   - frontend/src/assets/operator_images/SklearnLogisticRegression.png (chart--logistic-regression)
-  - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew')
+  - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew' cycle arrows)
   - frontend/src/assets/operator_images/SklearnPerceptron.png (flow--merge)
   - frontend/src/assets/operator_images/SklearnSDG.png (math-curve)
   - frontend/src/assets/operator_images/SklearnTrainingComplementNaiveBayes.png (chart--venn-diagram)
@@ -289,7 +289,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnTrainingKNN.png (share)
   - frontend/src/assets/operator_images/SklearnTrainingLinearRegression.png (chart--scatter, with a fitted line added)
   - frontend/src/assets/operator_images/SklearnTrainingLogisticRegression.png (chart--logistic-regression)
-  - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew')
+  - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew' cycle arrows)
   - frontend/src/assets/operator_images/SklearnTrainingPerceptron.png (flow--merge)
   - frontend/src/assets/operator_images/SklearnTrainingSDG.png (math-curve)
   Copyright 2015 IBM Corp.
@@ -336,12 +336,12 @@ This product includes icons from Lucide:
   - frontend/src/assets/operator_images/SklearnBagging.png (layers)
   - frontend/src/assets/operator_images/SklearnNearestCentroid.png (circle-dot-dashed)
   - frontend/src/assets/operator_images/SklearnRidge.png (mountain-snow)
-  - frontend/src/assets/operator_images/SklearnRidgeCV.png (mountain-snow, placed inside Material Symbols 'autorenew')
+  - frontend/src/assets/operator_images/SklearnRidgeCV.png (mountain-snow, placed inside Material Symbols 'autorenew' cycle arrows)
   - frontend/src/assets/operator_images/SklearnTesting.png (test-tubes)
   - frontend/src/assets/operator_images/SklearnTrainingBagging.png (layers)
   - frontend/src/assets/operator_images/SklearnTrainingNearestCentroid.png (circle-dot-dashed)
   - frontend/src/assets/operator_images/SklearnTrainingRidge.png (mountain-snow)
-  - frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png (mountain-snow, placed inside Material Symbols 'autorenew')
+  - frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png (mountain-snow, placed inside Material Symbols 'autorenew' cycle arrows)
   Copyright (c) 2026 Lucide Icons and Contributors
   Source: https://github.com/lucide-icons/lucide (lucide-static 1.64.0)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
