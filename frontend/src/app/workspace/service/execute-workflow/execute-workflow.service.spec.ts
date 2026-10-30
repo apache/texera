@@ -30,7 +30,7 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { of, Subject } from "rxjs";
+import { BehaviorSubject, of, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -55,6 +55,7 @@ import {
   RegionUpdateEvent,
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
+  WorkflowFatalError,
 } from "../../types/workflow-websocket.interface";
 import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
@@ -63,6 +64,7 @@ import { sessionGetObject, sessionSetObject } from "../../../common/util/storage
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
   let mockDocument: Document;
+  let selectedUnit$: BehaviorSubject<DashboardWorkflowComputingUnit | null>;
 
   beforeEach(() => {
     mockDocument = {
@@ -91,6 +93,11 @@ describe("ExecuteWorkflowService", () => {
       ],
     });
 
+    // Install the selected-unit stream before the service is constructed.
+    selectedUnit$ = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
+    vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(
+      selectedUnit$.asObservable()
+    );
     service = TestBed.inject(ExecuteWorkflowService);
   });
 
@@ -236,6 +243,171 @@ describe("ExecuteWorkflowService", () => {
 
       expect(seen).toEqual([]);
     });
+  });
+
+  describe("losing the selected computing unit mid-run", () => {
+    const unit = (cuid: number): DashboardWorkflowComputingUnit =>
+      ({ computingUnit: { cuid }, status: "Running" }) as unknown as DashboardWorkflowComputingUnit;
+
+    it("ends a running execution when the selection empties", () => {
+      const enable = vi.spyOn(service["workflowActionService"], "enableWorkflowModification");
+      const seen: ExecutionState[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current.state));
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      emitWsEvent({ type: "WorkerAssignmentUpdateEvent", operatorId: "op1", workerIds: ["w1", "w2"] });
+      selectedUnit$.next(unit(7));
+      enable.mockClear();
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+      expect(service.getWorkerIds("op1")).toEqual([]);
+      expect(enable).toHaveBeenCalled();
+      expect(seen).toEqual([ExecutionState.Running, ExecutionState.Uninitialized]);
+    });
+
+    it("ends a paused execution when the selection empties", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Paused });
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it("ends a later run as well when its unit is lost too", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+      selectedUnit$.next(null);
+      selectedUnit$.next(unit(8));
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it("stops the clock when the selection empties", () => {
+      vi.useFakeTimers();
+      try {
+        emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+        emitWsEvent({ type: "ExecutionDurationUpdateEvent", duration: 0, isRunning: true } as TexeraWebsocketEvent);
+        selectedUnit$.next(unit(7));
+        vi.advanceTimersByTime(20_000);
+
+        selectedUnit$.next(null);
+        const atReset = service.getExecutionDuration();
+        vi.advanceTimersByTime(20_000);
+
+        expect(atReset).toBe(0);
+        expect(service.getExecutionDuration()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves a finished execution alone when the selection empties", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Completed });
+      selectedUnit$.next(unit(7));
+      const seen: ExecutionState[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current.state));
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Completed);
+      expect(seen).toEqual([]);
+    });
+
+    it("does nothing when no execution has started", () => {
+      selectedUnit$.next(unit(7));
+      const seen: ExecutionState[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current.state));
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+      expect(seen).toEqual([]);
+    });
+
+    it("keeps the run when switching straight from one unit to another", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(unit(8));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+    });
+
+    it("keeps the run when a unit is first selected", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+
+      selectedUnit$.next(unit(7));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+    });
+
+    it.each([
+      ExecutionState.Initializing,
+      ExecutionState.Running,
+      ExecutionState.Pausing,
+      ExecutionState.Paused,
+      ExecutionState.Resuming,
+      ExecutionState.Recovering,
+    ])("ends a run that is %s when the selection empties", state => {
+      (service as any).currentState = { state };
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it.each([
+      ExecutionState.Uninitialized,
+      ExecutionState.Completed,
+      ExecutionState.Terminated,
+      ExecutionState.Failed,
+      ExecutionState.Killed,
+    ])("leaves a run that is %s untouched when the selection empties", state => {
+      const before = { state };
+      (service as any).currentState = before;
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState()).toBe(before);
+    });
+
+    it("keeps the error messages of a failed run when the selection empties", () => {
+      const error: WorkflowFatalError = {
+        message: "boom",
+        details: "",
+        operatorId: "op1",
+        workerId: "w1",
+        type: { name: "EXECUTION_FAILURE" },
+        timestamp: { nanos: 0, seconds: 0 },
+      };
+      (service as any).currentState = { state: ExecutionState.Failed, errorMessages: [error] };
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(null);
+
+      expect(service.getErrorMessages()).toEqual([error]);
+    });
+
+    it.each(["Pending", "Failed", "Unknown", "Terminating"] as const)(
+      "keeps the run when the selected unit reports %s",
+      status => {
+        emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+        selectedUnit$.next(unit(7));
+
+        selectedUnit$.next({ ...unit(7), status });
+
+        expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+      }
+    );
   });
 
   it("resetExecutionAndWorkers() clears the execution state and worker assignments", () => {
