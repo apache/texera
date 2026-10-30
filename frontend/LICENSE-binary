@@ -230,9 +230,10 @@ Third-party assets:
     frontend/src/assets/notebook_migration_tool/python_file_diagram.png
     frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
     https://github.com/google/material-design-icons
-  - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, table_chart, tune)
+  - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, join_inner, merge, table_chart, tune)
     frontend/src/assets/operator_images/FigureFactoryTable.png
     frontend/src/assets/operator_images/FilledAreaPlot.png
+    frontend/src/assets/operator_images/IntervalJoin.png
     frontend/src/assets/operator_images/SklearnExtraTrees.png
     frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
     frontend/src/assets/operator_images/SklearnPrediction.png
@@ -244,8 +245,10 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png
     frontend/src/assets/operator_images/SklearnTrainingRandomForest.png
     frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    frontend/src/assets/operator_images/Union.png
     https://github.com/google/material-design-icons
-  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, math-curve, scatter-matrix, share, tree-view)
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, math-curve, scatter-matrix, share, sigma, sort--descending, tree-view)
+    frontend/src/assets/operator_images/Aggregate.png
     frontend/src/assets/operator_images/BoxViolinPlot.png
     frontend/src/assets/operator_images/BubbleChart.png
     frontend/src/assets/operator_images/BulletChart.png
@@ -285,6 +288,7 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
     frontend/src/assets/operator_images/SklearnTrainingPerceptron.png
     frontend/src/assets/operator_images/SklearnTrainingSDG.png
+    frontend/src/assets/operator_images/SortPartitions.png
     frontend/src/assets/operator_images/TimeSeriesPlot.png
     frontend/src/assets/operator_images/WaterfallChart.png
     https://github.com/carbon-design-system/carbon
@@ -305,18 +309,33 @@ Source files derived from third-party MIT-licensed projects:
     frontend/src/assets/svg/operator-reuse-cache-valid.svg
     frontend/src/assets/svg/operator-reuse-cache-invalid.svg
     https://www.svgrepo.com
-  - Phosphor Icons (chart-bar, compass-rose, funnel-simple, gauge)
+  - Phosphor Icons (chart-bar, compass-rose, exclude, file-csv, funnel-simple, gauge, intersect, subtract)
     frontend/src/assets/operator_images/BarChart.png
+    frontend/src/assets/operator_images/CSVFileScan.png
+    frontend/src/assets/operator_images/CSVOldFileScan.png
+    frontend/src/assets/operator_images/Difference.png
+    frontend/src/assets/operator_images/FileLister.png
+    frontend/src/assets/operator_images/FileScan.png
+    frontend/src/assets/operator_images/FileScanOp.png
     frontend/src/assets/operator_images/FunnelPlot.png
     frontend/src/assets/operator_images/GaugeChart.png
+    frontend/src/assets/operator_images/Intersect.png
+    frontend/src/assets/operator_images/JSONLFileScan.png
+    frontend/src/assets/operator_images/SymmetricDifference.png
     frontend/src/assets/operator_images/WindRoseChart.png
     https://github.com/phosphor-icons/core
-  - Bootstrap Icons (map, table)
+  - Bootstrap Icons (input-cursor, map, regex, sort-down, table, x)
+    frontend/src/assets/operator_images/CartesianProduct.png
     frontend/src/assets/operator_images/ChoroplethMap.png
+    frontend/src/assets/operator_images/Regex.png
+    frontend/src/assets/operator_images/Sort.png
+    frontend/src/assets/operator_images/StableMergeSort.png
     frontend/src/assets/operator_images/TablesPlot.png
+    frontend/src/assets/operator_images/TextInput.png
     https://github.com/twbs/icons
-  - Tabler Icons (arrows-join-2, binary-tree, chart-dots, chart-grid-dots, chart-scatter-3d, hierarchy-3, mesh, topology-full, tree, volcano)
+  - Tabler Icons (arrows-join-2, binary-tree, chart-dots, chart-grid-dots, chart-scatter-3d, copy-minus, hierarchy-3, mesh, topology-full, tree, volcano)
     frontend/src/assets/operator_images/CarpetPlot.png
+    frontend/src/assets/operator_images/Distinct.png
     frontend/src/assets/operator_images/DotPlot.png
     frontend/src/assets/operator_images/HierarchyChart.png
     frontend/src/assets/operator_images/Scatter3DChart.png
@@ -471,9 +490,12 @@ Angular / npm packages:
   - tinyqueue@2.0.3
 
 Third-party assets:
-  - Lucide icons (chart-gantt, chart-radar, chart-scatter, circle-dot-dashed, gauge, layers, message-square-warning, mountain-snow, test-tubes)
+  - Lucide icons (book-search, chart-gantt, chart-radar, chart-scatter, circle-dot-dashed, filter, gauge, layers, list-end, message-square-warning, mountain-snow, test-tubes)
+    frontend/src/assets/operator_images/DictionaryMatcher.png
+    frontend/src/assets/operator_images/Filter.png
     frontend/src/assets/operator_images/GanttChart.png
     frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png
+    frontend/src/assets/operator_images/Limit.png
     frontend/src/assets/operator_images/RadarChart.png
     frontend/src/assets/operator_images/Scatterplot.png
     frontend/src/assets/operator_images/Scorer.png

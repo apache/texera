@@ -255,6 +255,7 @@ This product includes icons from Google's Material Symbols:
 This product includes icons from Google's Material Symbols, used as operator icons:
   - frontend/src/assets/operator_images/FigureFactoryTable.png (table_chart)
   - frontend/src/assets/operator_images/FilledAreaPlot.png (area_chart)
+  - frontend/src/assets/operator_images/IntervalJoin.png (join_inner)
   - frontend/src/assets/operator_images/SklearnExtraTrees.png (forest)
   - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (autorenew cycle arrows, drawn around Carbon 'chart--logistic-regression')
   - frontend/src/assets/operator_images/SklearnPrediction.png (batch_prediction)
@@ -266,12 +267,14 @@ This product includes icons from Google's Material Symbols, used as operator ico
   - frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png (tune)
   - frontend/src/assets/operator_images/SklearnTrainingRandomForest.png (forest)
   - frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png (autorenew cycle arrows, drawn around Lucide 'mountain-snow')
+  - frontend/src/assets/operator_images/Union.png (merge)
   Copyright (c) Google LLC
   Source: https://github.com/google/material-design-icons (@material-symbols/svg-400 0.48.2)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
   License: Apache License 2.0 (this LICENSE file)
 
 This product includes icons from IBM Carbon Design System:
+  - frontend/src/assets/operator_images/Aggregate.png (sigma)
   - frontend/src/assets/operator_images/BoxViolinPlot.png (chart--violin-plot)
   - frontend/src/assets/operator_images/BubbleChart.png (chart--bubble)
   - frontend/src/assets/operator_images/BulletChart.png (chart--bullet)
@@ -311,6 +314,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew' cycle arrows)
   - frontend/src/assets/operator_images/SklearnTrainingPerceptron.png (flow--merge)
   - frontend/src/assets/operator_images/SklearnTrainingSDG.png (math-curve)
+  - frontend/src/assets/operator_images/SortPartitions.png (sort--descending)
   - frontend/src/assets/operator_images/TimeSeriesPlot.png (chart--multi-line)
   - frontend/src/assets/operator_images/WaterfallChart.png (chart--waterfall)
   Copyright 2015 IBM Corp.
@@ -336,8 +340,17 @@ This product includes SVG icons from SVGRepo:
 
 This product includes icons from Phosphor Icons, used as operator icons:
   - frontend/src/assets/operator_images/BarChart.png (chart-bar)
+  - frontend/src/assets/operator_images/CSVFileScan.png (file-csv)
+  - frontend/src/assets/operator_images/CSVOldFileScan.png (file-csv)
+  - frontend/src/assets/operator_images/Difference.png (subtract)
+  - frontend/src/assets/operator_images/FileLister.png (file-csv)
+  - frontend/src/assets/operator_images/FileScan.png (file-csv)
+  - frontend/src/assets/operator_images/FileScanOp.png (file-csv)
   - frontend/src/assets/operator_images/FunnelPlot.png (funnel-simple)
   - frontend/src/assets/operator_images/GaugeChart.png (gauge)
+  - frontend/src/assets/operator_images/Intersect.png (intersect)
+  - frontend/src/assets/operator_images/JSONLFileScan.png (file-csv)
+  - frontend/src/assets/operator_images/SymmetricDifference.png (exclude)
   - frontend/src/assets/operator_images/WindRoseChart.png (compass-rose)
   Copyright (c) 2023 Phosphor Icons
   Source: https://github.com/phosphor-icons/core (@phosphor-icons/core 2.1.1)
@@ -345,8 +358,13 @@ This product includes icons from Phosphor Icons, used as operator icons:
   License: MIT License (licenses/LICENSE-MIT.txt)
 
 This product includes icons from Bootstrap Icons, used as operator icons:
+  - frontend/src/assets/operator_images/CartesianProduct.png (x)
   - frontend/src/assets/operator_images/ChoroplethMap.png (map)
+  - frontend/src/assets/operator_images/Regex.png (regex)
+  - frontend/src/assets/operator_images/Sort.png (sort-down)
+  - frontend/src/assets/operator_images/StableMergeSort.png (sort-down)
   - frontend/src/assets/operator_images/TablesPlot.png (table)
+  - frontend/src/assets/operator_images/TextInput.png (input-cursor)
   Copyright (c) 2019-2024 The Bootstrap Authors
   Source: https://github.com/twbs/icons (bootstrap-icons 1.13.2)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -354,6 +372,7 @@ This product includes icons from Bootstrap Icons, used as operator icons:
 
 This product includes icons from Tabler Icons:
   - frontend/src/assets/operator_images/CarpetPlot.png (mesh)
+  - frontend/src/assets/operator_images/Distinct.png (copy-minus)
   - frontend/src/assets/operator_images/DotPlot.png (chart-dots)
   - frontend/src/assets/operator_images/HierarchyChart.png (hierarchy-3)
   - frontend/src/assets/operator_images/Scatter3DChart.png (chart-scatter-3d)
@@ -376,8 +395,11 @@ ISC License
 --------------------------------------
 
 This product includes icons from Lucide:
+  - frontend/src/assets/operator_images/DictionaryMatcher.png (book-search)
+  - frontend/src/assets/operator_images/Filter.png (filter)
   - frontend/src/assets/operator_images/GanttChart.png (chart-gantt)
   - frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png (message-square-warning)
+  - frontend/src/assets/operator_images/Limit.png (list-end)
   - frontend/src/assets/operator_images/RadarChart.png (chart-radar)
   - frontend/src/assets/operator_images/Scatterplot.png (chart-scatter)
   - frontend/src/assets/operator_images/Scorer.png (gauge)
