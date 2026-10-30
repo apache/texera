@@ -23,7 +23,7 @@ import com.twitter.util.Future
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PortIdentity}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
@@ -40,7 +40,8 @@ trait StartHandler {
       ctx: AsyncRPCContext
   ): Future[WorkerStateResponse] = {
     logger.debug("Starting the worker.")
-    if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
+    val readsMaterializedInput = dp.inputManager.getInputPortReaderThreads.nonEmpty
+    if (dp.executor.isInstanceOf[SourceOperatorExecutor] && !readsMaterializedInput) {
       val channelId =
         ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
       dp.stateManager.assertState(READY)
@@ -58,10 +59,19 @@ trait StartHandler {
       endChannel(request, ctx)
       val (state, stateVersion) = dp.stateManager.getStateWithVersion
       WorkerStateResponse(state, stateVersion)
-    } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {
+    } else if (readsMaterializedInput) {
       // This means the worker should read from materialized storage for its input ports.
-      // Start the reader threads
-      dp.inputManager.startInputPortReaderThreads()
+      if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
+        // A source fed through its control-variable port produces once that port's input ends.
+        dp.stateManager.assertState(READY)
+        dp.stateManager.transitTo(RUNNING)
+      }
+      if (dp.inputManager.controlVariablePortPending) {
+        // The control variables arrive before any data port is read.
+        dp.inputManager.startInputPortReaderThreads(Set(ControlVariablePort.Id))
+      } else {
+        dp.inputManager.startInputPortReaderThreads()
+      }
       val (state, stateVersion) = dp.stateManager.getStateWithVersion
       WorkerStateResponse(state, stateVersion)
     } else {

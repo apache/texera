@@ -19,7 +19,17 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies
 
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{
+  ControlVariablePort,
+  GlobalPortIdentity,
+  PortIdentity,
+  WorkflowContext
+}
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
+  IntermediateInputPortConfig,
+  ResourceConfig
+}
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
   BroadcastPartitioning,
@@ -33,6 +43,8 @@ import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.net.URI
 
 class ResourcePoliciesSpec extends AnyFlatSpec {
 
@@ -165,6 +177,74 @@ class ResourcePoliciesSpec extends AnyFlatSpec {
       case x: BroadcastPartitioning         => x.channels
       case other                            => fail(s"allocator emitted unexpected Partitioning: $other")
     }
+
+  it should "send the control-variable port's materialized input to every worker of the receiver" in {
+    // csvA -> keyword (data); csvC -> keyword's control-variable port; keyword runs on two workers
+    val csvA = TestOperators.headerlessSmallCsvScanOpDesc()
+    val csvC = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(csvA, csvC, keyword),
+      List(
+        LogicalLink(
+          csvA.operatorIdentifier,
+          PortIdentity(),
+          keyword.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          csvC.operatorIdentifier,
+          PortIdentity(),
+          keyword.operatorIdentifier,
+          ControlVariablePort.Id
+        )
+      ),
+      new WorkflowContext()
+    )
+    val keywordOp = workflow.physicalPlan.operators
+      .find(_.id.logicalOpId == keyword.operatorIdentifier)
+      .get
+      .withSuggestedWorkerNum(2)
+    val plan = workflow.physicalPlan.setOperator(keywordOp)
+    val csvAOp = plan.operators.find(_.id.logicalOpId == csvA.operatorIdentifier).get
+    val controlPort = GlobalPortIdentity(keywordOp.id, ControlVariablePort.Id, input = true)
+    val dataPort = GlobalPortIdentity(keywordOp.id, PortIdentity(), input = true)
+    val region = Region(
+      id = RegionIdentity(1),
+      physicalOps = Set(csvAOp, keywordOp),
+      physicalLinks =
+        plan.links.filter(link => link.toOpId == keywordOp.id && link.fromOpId == csvAOp.id),
+      resourceConfig = Some(
+        ResourceConfig(portConfigs =
+          Map(
+            controlPort -> IntermediateInputPortConfig(List(new URI("vfs:///test/control"))),
+            dataPort -> IntermediateInputPortConfig(List(new URI("vfs:///test/data")))
+          )
+        )
+      )
+    )
+    val allocator = new DefaultResourceAllocator(
+      plan,
+      new ExecutionClusterInfo(),
+      workflow.context.workflowSettings
+    )
+    val (resourceConfig, _) = allocator.allocate(region)
+    val workers = resourceConfig.operatorConfigs(keywordOp.id).workerConfigs.map(_.workerId)
+    assert(workers.size == 2)
+
+    def partitioningAt(port: GlobalPortIdentity): Partitioning =
+      resourceConfig.portConfigs(port) match {
+        case config: InputPortConfig => config.storagePairs.map(_._2).head
+        case other                   => fail(s"expected an InputPortConfig, got $other")
+      }
+    partitioningAt(controlPort) match {
+      case broadcast: BroadcastPartitioning =>
+        assert(broadcast.channels.map(_.toWorkerId).toSet == workers.toSet)
+      case other => fail(s"the control-variable port must be broadcast, got $other")
+    }
+    // a data port keeps its own partitioning
+    assert(!partitioningAt(dataPort).isInstanceOf[BroadcastPartitioning])
+  }
 
   it should "leave portConfigs empty when the region has no prior resourceConfig" in {
     val (allocator, region) = newAllocator()
