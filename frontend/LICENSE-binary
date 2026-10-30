@@ -230,6 +230,70 @@ Third-party assets:
     frontend/src/assets/notebook_migration_tool/python_file_diagram.png
     frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
     https://github.com/google/material-design-icons
+  - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, join_inner, merge, table_chart, tune)
+    frontend/src/assets/operator_images/FigureFactoryTable.png
+    frontend/src/assets/operator_images/FilledAreaPlot.png
+    frontend/src/assets/operator_images/IntervalJoin.png
+    frontend/src/assets/operator_images/SklearnExtraTrees.png
+    frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnPrediction.png
+    frontend/src/assets/operator_images/SklearnProbabilityCalibration.png
+    frontend/src/assets/operator_images/SklearnRandomForest.png
+    frontend/src/assets/operator_images/SklearnRidgeCV.png
+    frontend/src/assets/operator_images/SklearnTrainingExtraTrees.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png
+    frontend/src/assets/operator_images/SklearnTrainingRandomForest.png
+    frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    frontend/src/assets/operator_images/Union.png
+    https://github.com/google/material-design-icons
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, scatter-matrix, share, sigma, sort--descending, tree-view, word-cloud)
+    frontend/src/assets/operator_images/Aggregate.png
+    frontend/src/assets/operator_images/BoxViolinPlot.png
+    frontend/src/assets/operator_images/BubbleChart.png
+    frontend/src/assets/operator_images/BulletChart.png
+    frontend/src/assets/operator_images/CandlestickChart.png
+    frontend/src/assets/operator_images/Dendrogram.png
+    frontend/src/assets/operator_images/ECDFPlot.png
+    frontend/src/assets/operator_images/HashJoin.png
+    frontend/src/assets/operator_images/HeatMap.png
+    frontend/src/assets/operator_images/Histogram.png
+    frontend/src/assets/operator_images/IcicleChart.png
+    frontend/src/assets/operator_images/KNNClassifierTrainer.png
+    frontend/src/assets/operator_images/KNNRegressorTrainer.png
+    frontend/src/assets/operator_images/LineChart.png
+    frontend/src/assets/operator_images/NestedTable.png
+    frontend/src/assets/operator_images/NetworkGraph.png
+    frontend/src/assets/operator_images/ParallelCoordinatesPlot.png
+    frontend/src/assets/operator_images/PieChart.png
+    frontend/src/assets/operator_images/PolarChart.png
+    frontend/src/assets/operator_images/RadarPlot.png
+    frontend/src/assets/operator_images/SVCTrainer.png
+    frontend/src/assets/operator_images/SVRTrainer.png
+    frontend/src/assets/operator_images/ScatterMatrixChart.png
+    frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnDecisionTree.png
+    frontend/src/assets/operator_images/SklearnGradientBoosting.png
+    frontend/src/assets/operator_images/SklearnKNN.png
+    frontend/src/assets/operator_images/SklearnLinearRegression.png
+    frontend/src/assets/operator_images/SklearnLogisticRegression.png
+    frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnPerceptron.png
+    frontend/src/assets/operator_images/SklearnSDG.png
+    frontend/src/assets/operator_images/SklearnTrainingComplementNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnTrainingDecisionTree.png
+    frontend/src/assets/operator_images/SklearnTrainingGradientBoosting.png
+    frontend/src/assets/operator_images/SklearnTrainingKNN.png
+    frontend/src/assets/operator_images/SklearnTrainingLinearRegression.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegression.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnTrainingPerceptron.png
+    frontend/src/assets/operator_images/SklearnTrainingSDG.png
+    frontend/src/assets/operator_images/SortPartitions.png
+    frontend/src/assets/operator_images/TimeSeriesPlot.png
+    frontend/src/assets/operator_images/WaterfallChart.png
+    frontend/src/assets/operator_images/WordCloud.png
+    https://github.com/carbon-design-system/carbon
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
@@ -247,6 +311,56 @@ Source files derived from third-party MIT-licensed projects:
     frontend/src/assets/svg/operator-reuse-cache-valid.svg
     frontend/src/assets/svg/operator-reuse-cache-invalid.svg
     https://www.svgrepo.com
+  - Phosphor Icons (arrows-split, chart-bar, compass-rose, exclude, file-csv, file-html, funnel-simple, gauge, intersect, subtract)
+    frontend/src/assets/operator_images/BarChart.png
+    frontend/src/assets/operator_images/CSVFileScan.png
+    frontend/src/assets/operator_images/CSVOldFileScan.png
+    frontend/src/assets/operator_images/Difference.png
+    frontend/src/assets/operator_images/FileLister.png
+    frontend/src/assets/operator_images/FileScan.png
+    frontend/src/assets/operator_images/FileScanOp.png
+    frontend/src/assets/operator_images/FunnelPlot.png
+    frontend/src/assets/operator_images/GaugeChart.png
+    frontend/src/assets/operator_images/HTMLVisualizer.png
+    frontend/src/assets/operator_images/Intersect.png
+    frontend/src/assets/operator_images/JSONLFileScan.png
+    frontend/src/assets/operator_images/Split.png
+    frontend/src/assets/operator_images/SymmetricDifference.png
+    frontend/src/assets/operator_images/WindRoseChart.png
+    https://github.com/phosphor-icons/core
+  - Bootstrap Icons (cloud-download, dice-3, image, input-cursor, link, map, moon, regex, sort-down, stop-circle, table, x)
+    frontend/src/assets/operator_images/CartesianProduct.png
+    frontend/src/assets/operator_images/ChoroplethMap.png
+    frontend/src/assets/operator_images/ImageVisualizer.png
+    frontend/src/assets/operator_images/LoopEnd.png
+    frontend/src/assets/operator_images/RandomKSampling.png
+    frontend/src/assets/operator_images/Regex.png
+    frontend/src/assets/operator_images/ReservoirSampling.png
+    frontend/src/assets/operator_images/Sleep.png
+    frontend/src/assets/operator_images/Sort.png
+    frontend/src/assets/operator_images/StableMergeSort.png
+    frontend/src/assets/operator_images/TablesPlot.png
+    frontend/src/assets/operator_images/TextInput.png
+    frontend/src/assets/operator_images/URLFetcher.png
+    frontend/src/assets/operator_images/URLVisualizer.png
+    https://github.com/twbs/icons
+  - Tabler Icons (arrows-join-2, binary-tree, chart-dots, chart-grid-dots, chart-scatter-3d, copy-minus, hierarchy-3, mesh, topology-full, tree, volcano)
+    frontend/src/assets/operator_images/CarpetPlot.png
+    frontend/src/assets/operator_images/Distinct.png
+    frontend/src/assets/operator_images/DotPlot.png
+    frontend/src/assets/operator_images/HierarchyChart.png
+    frontend/src/assets/operator_images/Scatter3DChart.png
+    frontend/src/assets/operator_images/SklearnAdaptiveBoosting.png
+    frontend/src/assets/operator_images/SklearnBernoulliNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnExtraTree.png
+    frontend/src/assets/operator_images/SklearnMultiLayerPerceptron.png
+    frontend/src/assets/operator_images/SklearnTrainingAdaptiveBoosting.png
+    frontend/src/assets/operator_images/SklearnTrainingBernoulliNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnTrainingExtraTree.png
+    frontend/src/assets/operator_images/SklearnTrainingMultiLayerPerceptron.png
+    frontend/src/assets/operator_images/TreePlot.png
+    frontend/src/assets/operator_images/VolcanoPlot.png
+    https://github.com/tabler/tabler-icons
 
 Angular / npm packages:
   - @abacritt/angularx-social-login@2.3.0
@@ -385,6 +499,29 @@ Angular / npm packages:
   - d3-path@2.0.0
   - quickselect@3.0.0
   - tinyqueue@2.0.3
+
+Third-party assets:
+  - Lucide icons (book-search, chart-gantt, chart-radar, chart-scatter, circle-dot-dashed, filter, gauge, git-branch, layers, list-end, message-square-warning, mountain-snow, repeat, test-tubes)
+    frontend/src/assets/operator_images/DictionaryMatcher.png
+    frontend/src/assets/operator_images/Filter.png
+    frontend/src/assets/operator_images/GanttChart.png
+    frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png
+    frontend/src/assets/operator_images/If.png
+    frontend/src/assets/operator_images/Limit.png
+    frontend/src/assets/operator_images/LoopStart.png
+    frontend/src/assets/operator_images/RadarChart.png
+    frontend/src/assets/operator_images/Scatterplot.png
+    frontend/src/assets/operator_images/Scorer.png
+    frontend/src/assets/operator_images/SklearnBagging.png
+    frontend/src/assets/operator_images/SklearnNearestCentroid.png
+    frontend/src/assets/operator_images/SklearnRidge.png
+    frontend/src/assets/operator_images/SklearnRidgeCV.png
+    frontend/src/assets/operator_images/SklearnTesting.png
+    frontend/src/assets/operator_images/SklearnTrainingBagging.png
+    frontend/src/assets/operator_images/SklearnTrainingNearestCentroid.png
+    frontend/src/assets/operator_images/SklearnTrainingRidge.png
+    frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    https://github.com/lucide-icons/lucide
 
 --------------------------------------------------------------------------------
 Dependencies under the Blue Oak Model License, Version 1.0.0
