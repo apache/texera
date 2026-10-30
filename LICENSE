@@ -281,6 +281,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/CandlestickChart.png (chart--candlestick)
   - frontend/src/assets/operator_images/Dendrogram.png (tree-view)
   - frontend/src/assets/operator_images/ECDFPlot.png (chart--stepper)
+  - frontend/src/assets/operator_images/HashJoin.png (join--inner)
   - frontend/src/assets/operator_images/HeatMap.png (heat-map)
   - frontend/src/assets/operator_images/Histogram.png (chart--histogram)
   - frontend/src/assets/operator_images/IcicleChart.png (chart--treemap)
@@ -317,6 +318,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SortPartitions.png (sort--descending)
   - frontend/src/assets/operator_images/TimeSeriesPlot.png (chart--multi-line)
   - frontend/src/assets/operator_images/WaterfallChart.png (chart--waterfall)
+  - frontend/src/assets/operator_images/WordCloud.png (word-cloud)
   Copyright 2015 IBM Corp.
   Source: https://github.com/carbon-design-system/carbon (@carbon/icons 11.91.0)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -348,8 +350,10 @@ This product includes icons from Phosphor Icons, used as operator icons:
   - frontend/src/assets/operator_images/FileScanOp.png (file-csv)
   - frontend/src/assets/operator_images/FunnelPlot.png (funnel-simple)
   - frontend/src/assets/operator_images/GaugeChart.png (gauge)
+  - frontend/src/assets/operator_images/HTMLVisualizer.png (file-html)
   - frontend/src/assets/operator_images/Intersect.png (intersect)
   - frontend/src/assets/operator_images/JSONLFileScan.png (file-csv)
+  - frontend/src/assets/operator_images/Split.png (arrows-split)
   - frontend/src/assets/operator_images/SymmetricDifference.png (exclude)
   - frontend/src/assets/operator_images/WindRoseChart.png (compass-rose)
   Copyright (c) 2023 Phosphor Icons
@@ -360,11 +364,18 @@ This product includes icons from Phosphor Icons, used as operator icons:
 This product includes icons from Bootstrap Icons, used as operator icons:
   - frontend/src/assets/operator_images/CartesianProduct.png (x)
   - frontend/src/assets/operator_images/ChoroplethMap.png (map)
+  - frontend/src/assets/operator_images/ImageVisualizer.png (image)
+  - frontend/src/assets/operator_images/LoopEnd.png (stop-circle)
+  - frontend/src/assets/operator_images/RandomKSampling.png (dice-3)
   - frontend/src/assets/operator_images/Regex.png (regex)
+  - frontend/src/assets/operator_images/ReservoirSampling.png (dice-3)
+  - frontend/src/assets/operator_images/Sleep.png (moon)
   - frontend/src/assets/operator_images/Sort.png (sort-down)
   - frontend/src/assets/operator_images/StableMergeSort.png (sort-down)
   - frontend/src/assets/operator_images/TablesPlot.png (table)
   - frontend/src/assets/operator_images/TextInput.png (input-cursor)
+  - frontend/src/assets/operator_images/URLFetcher.png (cloud-download)
+  - frontend/src/assets/operator_images/URLVisualizer.png (link)
   Copyright (c) 2019-2024 The Bootstrap Authors
   Source: https://github.com/twbs/icons (bootstrap-icons 1.13.2)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -399,7 +410,9 @@ This product includes icons from Lucide:
   - frontend/src/assets/operator_images/Filter.png (filter)
   - frontend/src/assets/operator_images/GanttChart.png (chart-gantt)
   - frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png (message-square-warning)
+  - frontend/src/assets/operator_images/If.png (git-branch)
   - frontend/src/assets/operator_images/Limit.png (list-end)
+  - frontend/src/assets/operator_images/LoopStart.png (repeat)
   - frontend/src/assets/operator_images/RadarChart.png (chart-radar)
   - frontend/src/assets/operator_images/Scatterplot.png (chart-scatter)
   - frontend/src/assets/operator_images/Scorer.png (gauge)
