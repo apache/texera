@@ -25,6 +25,7 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModel
 
   sklearnClassifier(
     new SklearnBernoulliNaiveBayesOpDesc,
+    "SklearnBernoulliNaiveBayes",
     "Bernoulli Naive Bayes",
     "from sklearn.naive_bayes import BernoulliNB",
     estimatorTestName = "import and instantiate the BernoulliNB estimator"

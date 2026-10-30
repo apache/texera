@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnLogisticRegressionCVOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnLogisticRegressionCVOpDesc,
+    "SklearnLogisticRegressionCV",
     "Logistic Regression Cross Validation",
     "from sklearn.linear_model import LogisticRegressionCV"
   )

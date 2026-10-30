@@ -37,12 +37,14 @@ import scala.reflect.ClassTag
   * model_name/model output schema, the estimator import in the generated code, and
   * a JSON round-trip through the polymorphic `LogicalOp` base.
   *
-  * Each spec passes its model name and sklearn import as literals rather than
-  * reading them back from the descriptor, so a renamed model or a changed import
-  * still fails that model's own spec. The JSON `operatorType` is the class name
-  * without its `OpDesc` suffix, the name every sklearn descriptor registers under.
-  * Test names keep the `<Descriptor>[.<member>] should ...` form, so a model's
-  * spec reports the same names as before.
+  * Each spec passes its JSON `operatorType`, model name and sklearn import as
+  * literals rather than reading them back from the descriptor, so a renamed
+  * model or a changed import still fails that model's own spec. The
+  * `operatorType` is what saved workflows persist, so it is pinned on its own
+  * rather than derived from the class name: a class can be renamed while it
+  * keeps its persisted name. Test names keep the
+  * `<Descriptor>[.<member>] should ...` form, so a model's spec reports the same
+  * names as before.
   *
   * `newDesc` is by-name: every test builds its own descriptor.
   */
@@ -51,12 +53,14 @@ trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
   /** Registers the shared tests for a classifier descriptor. */
   protected def sklearnClassifier[T <: SklearnClassifierOpDesc: ClassTag](
       newDesc: => T,
+      operatorType: String,
       modelName: String,
       estimatorImport: String,
       estimatorTestName: String = "import the configured sklearn estimator"
   ): Unit =
     sklearnModel(
       newDesc,
+      operatorType,
       modelName,
       estimatorImport,
       estimatorTestName,
@@ -69,11 +73,13 @@ trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
   /** Registers the shared tests for a training-only descriptor. */
   protected def sklearnTrainer[T <: SklearnTrainingOpDesc: ClassTag](
       newDesc: => T,
+      operatorType: String,
       modelName: String,
       estimatorImport: String
   ): Unit =
     sklearnModel(
       newDesc,
+      operatorType,
       modelName,
       estimatorImport,
       estimatorTestName = "import the configured sklearn estimator",
@@ -85,6 +91,7 @@ trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
 
   private def sklearnModel[T <: SklearnModelOpDesc: ClassTag](
       newDesc: => T,
+      operatorType: String,
       modelName: String,
       estimatorImport: String,
       estimatorTestName: String,
@@ -93,7 +100,6 @@ trait SklearnModelOpDescBehaviors extends AnyFlatSpecLike with Matchers {
       inputPorts: List[String]
   ): Unit = {
     val descriptor = implicitly[ClassTag[T]].runtimeClass.getSimpleName
-    val operatorType = descriptor.stripSuffix("OpDesc")
 
     s"$descriptor.operatorInfo" should operatorInfoTestName in {
       val info = newDesc.operatorInfo

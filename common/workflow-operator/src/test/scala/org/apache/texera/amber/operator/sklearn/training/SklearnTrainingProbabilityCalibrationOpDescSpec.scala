@@ -27,6 +27,7 @@ class SklearnTrainingProbabilityCalibrationOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingProbabilityCalibrationOpDesc,
+    "SklearnTrainingProbabilityCalibration",
     "Training: Probability Calibration",
     "from sklearn.calibration import CalibratedClassifierCV"
   )

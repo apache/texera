@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnLogisticRegressionOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnLogisticRegressionOpDesc,
+    "SklearnLogisticRegression",
     "Logistic Regression",
     "from sklearn.linear_model import LogisticRegression"
   )

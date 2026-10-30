@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnGradientBoostingOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnGradientBoostingOpDesc,
+    "SklearnGradientBoosting",
     "Gradient Boosting",
     "from sklearn.ensemble import GradientBoostingClassifier"
   )

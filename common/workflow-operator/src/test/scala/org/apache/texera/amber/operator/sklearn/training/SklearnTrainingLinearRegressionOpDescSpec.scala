@@ -27,6 +27,7 @@ class SklearnTrainingLinearRegressionOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingLinearRegressionOpDesc,
+    "SklearnTrainingLinearRegression",
     "Training: Linear Regression",
     "from sklearn.linear_model import LinearRegression"
   )

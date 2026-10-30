@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnRidgeCVOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnRidgeCVOpDesc,
+    "SklearnRidgeCV",
     "Ridge Regression Cross Validation",
     "from sklearn.linear_model import RidgeClassifierCV"
   )

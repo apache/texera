@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnAdaptiveBoostingOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnAdaptiveBoostingOpDesc,
+    "SklearnAdaptiveBoosting",
     "Adaptive Boosting",
     "from sklearn.ensemble import AdaBoostClassifier"
   )

@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnProbabilityCalibrationOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnProbabilityCalibrationOpDesc,
+    "SklearnProbabilityCalibration",
     "Probability Calibration",
     "from sklearn.calibration import CalibratedClassifierCV"
   )

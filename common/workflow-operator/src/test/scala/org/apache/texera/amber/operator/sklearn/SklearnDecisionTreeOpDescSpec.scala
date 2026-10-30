@@ -25,6 +25,7 @@ class SklearnDecisionTreeOpDescSpec extends AnyFlatSpec with SklearnModelOpDescB
 
   sklearnClassifier(
     new SklearnDecisionTreeOpDesc,
+    "SklearnDecisionTree",
     "Decision Tree",
     "from sklearn.tree import DecisionTreeClassifier"
   )

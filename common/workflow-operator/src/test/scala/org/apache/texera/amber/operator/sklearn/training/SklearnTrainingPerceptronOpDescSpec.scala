@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingPerceptronOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingPerceptronOpDesc,
+    "SklearnTrainingPerceptron",
     "Training: Linear Perceptron",
     "from sklearn.linear_model import Perceptron"
   )

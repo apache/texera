@@ -27,6 +27,7 @@ class SklearnTrainingMultiLayerPerceptronOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingMultiLayerPerceptronOpDesc,
+    "SklearnTrainingMultiLayerPerceptron",
     "Training: Multi-layer Perceptron",
     "from sklearn.neural_network import MLPClassifier"
   )

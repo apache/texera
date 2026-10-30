@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingKNNOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingKNNOpDesc,
+    "SklearnTrainingKNN",
     "Training: K-nearest Neighbors",
     "from sklearn.neighbors import KNeighborsClassifier"
   )

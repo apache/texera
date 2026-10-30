@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingExtraTreeOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingExtraTreeOpDesc,
+    "SklearnTrainingExtraTree",
     "Training: Extra Tree",
     "from sklearn.tree import ExtraTreeClassifier"
   )

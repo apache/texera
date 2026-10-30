@@ -27,6 +27,7 @@ class SklearnTrainingNearestCentroidOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingNearestCentroidOpDesc,
+    "SklearnTrainingNearestCentroid",
     "Training: Nearest Centroid",
     "from sklearn.neighbors import NearestCentroid"
   )

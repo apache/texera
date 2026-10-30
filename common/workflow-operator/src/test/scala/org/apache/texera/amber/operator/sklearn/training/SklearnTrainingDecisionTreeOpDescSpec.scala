@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingDecisionTreeOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingDecisionTreeOpDesc,
+    "SklearnTrainingDecisionTree",
     "Training: Decision Tree",
     "from sklearn.tree import DecisionTreeClassifier"
   )

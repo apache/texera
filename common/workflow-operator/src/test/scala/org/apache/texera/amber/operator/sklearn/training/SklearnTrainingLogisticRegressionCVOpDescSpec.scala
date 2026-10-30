@@ -27,6 +27,7 @@ class SklearnTrainingLogisticRegressionCVOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingLogisticRegressionCVOpDesc,
+    "SklearnTrainingLogisticRegressionCV",
     "Training: Logistic Regression Cross Validation",
     "from sklearn.linear_model import LogisticRegressionCV"
   )

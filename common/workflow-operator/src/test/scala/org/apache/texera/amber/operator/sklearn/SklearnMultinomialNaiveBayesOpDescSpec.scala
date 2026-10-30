@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnMultinomialNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnMultinomialNaiveBayesOpDesc,
+    "SklearnMultinomialNaiveBayes",
     "Multinomial Naive Bayes",
     "from sklearn.naive_bayes import MultinomialNB",
     estimatorTestName = "import and instantiate the MultinomialNB estimator"

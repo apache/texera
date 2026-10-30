@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnRandomForestOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnRandomForestOpDesc,
+    "SklearnRandomForest",
     "Random Forest",
     "from sklearn.ensemble import RandomForestClassifier"
   )

@@ -28,6 +28,7 @@ class SklearnTrainingGaussianNaiveBayesOpDescSpec
 
   sklearnTrainer(
     new SklearnTrainingGaussianNaiveBayesOpDesc,
+    "SklearnTrainingGaussianNaiveBayes",
     "Training: Gaussian Naive Bayes",
     "from sklearn.naive_bayes import GaussianNB"
   )

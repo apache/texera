@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnPassiveAggressiveOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnPassiveAggressiveOpDesc,
+    "SklearnPassiveAggressive",
     "Passive Aggressive",
     "from sklearn.linear_model import PassiveAggressiveClassifier"
   )

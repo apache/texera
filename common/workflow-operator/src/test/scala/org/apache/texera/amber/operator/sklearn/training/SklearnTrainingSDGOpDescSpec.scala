@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingSDGOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingSDGOpDesc,
+    "SklearnTrainingSDG",
     "Training: Stochastic Gradient Descent",
     "from sklearn.linear_model import SGDClassifier"
   )

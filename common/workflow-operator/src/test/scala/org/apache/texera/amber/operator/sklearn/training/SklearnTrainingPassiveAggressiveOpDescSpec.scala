@@ -27,6 +27,7 @@ class SklearnTrainingPassiveAggressiveOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingPassiveAggressiveOpDesc,
+    "SklearnTrainingPassiveAggressive",
     "Training: Passive Aggressive",
     "from sklearn.linear_model import PassiveAggressiveClassifier"
   )

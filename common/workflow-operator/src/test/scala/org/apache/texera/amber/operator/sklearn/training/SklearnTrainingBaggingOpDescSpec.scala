@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingBaggingOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingBaggingOpDesc,
+    "SklearnTrainingBagging",
     "Training: Bagging",
     "from sklearn.ensemble import BaggingClassifier"
   )

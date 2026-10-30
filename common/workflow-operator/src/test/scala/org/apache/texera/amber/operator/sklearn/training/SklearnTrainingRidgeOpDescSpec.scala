@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingRidgeOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingRidgeOpDesc,
+    "SklearnTrainingRidge",
     "Training: Ridge Regression",
     "from sklearn.linear_model import RidgeClassifier"
   )

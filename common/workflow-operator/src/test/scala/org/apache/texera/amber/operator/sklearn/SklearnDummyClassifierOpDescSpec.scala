@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnDummyClassifierOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnDummyClassifierOpDesc,
+    "SklearnDummyClassifier",
     "Dummy Classifier",
     "from sklearn.dummy import DummyClassifier"
   )

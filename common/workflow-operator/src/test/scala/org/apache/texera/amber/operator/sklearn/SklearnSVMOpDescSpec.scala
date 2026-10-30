@@ -22,5 +22,10 @@ package org.apache.texera.amber.operator.sklearn
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SklearnSVMOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
-  sklearnClassifier(new SklearnSVMOpDesc, "Support Vector Machine", "from sklearn.svm import SVC")
+  sklearnClassifier(
+    new SklearnSVMOpDesc,
+    "SklearnSVM",
+    "Support Vector Machine",
+    "from sklearn.svm import SVC"
+  )
 }

@@ -27,6 +27,7 @@ class SklearnTrainingDummyClassifierOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingDummyClassifierOpDesc,
+    "SklearnTrainingDummyClassifier",
     "Training: Dummy Classifier",
     "from sklearn.dummy import DummyClassifier"
   )

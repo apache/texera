@@ -25,6 +25,7 @@ class SklearnGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelO
 
   sklearnClassifier(
     new SklearnGaussianNaiveBayesOpDesc,
+    "SklearnGaussianNaiveBayes",
     "Gaussian Naive Bayes",
     "from sklearn.naive_bayes import GaussianNB",
     estimatorTestName = "import and instantiate the GaussianNB estimator"

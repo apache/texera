@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnLinearSVMOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnLinearSVMOpDesc,
+    "SklearnLinearSVM",
     "Linear Support Vector Machine",
     "from sklearn.svm import LinearSVC"
   )

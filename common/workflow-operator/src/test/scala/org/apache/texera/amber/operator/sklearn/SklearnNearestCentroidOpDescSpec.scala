@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnNearestCentroidOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnNearestCentroidOpDesc,
+    "SklearnNearestCentroid",
     "Nearest Centroid",
     "from sklearn.neighbors import NearestCentroid"
   )

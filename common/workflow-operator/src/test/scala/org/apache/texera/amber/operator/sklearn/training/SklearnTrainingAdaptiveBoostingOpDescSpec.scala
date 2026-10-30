@@ -27,6 +27,7 @@ class SklearnTrainingAdaptiveBoostingOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingAdaptiveBoostingOpDesc,
+    "SklearnTrainingAdaptiveBoosting",
     "Training: Adaptive Boosting",
     "from sklearn.ensemble import AdaBoostClassifier"
   )

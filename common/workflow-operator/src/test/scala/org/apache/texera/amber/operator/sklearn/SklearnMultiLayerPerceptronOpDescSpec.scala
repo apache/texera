@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnMultiLayerPerceptronOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnMultiLayerPerceptronOpDesc,
+    "SklearnMultiLayerPerceptron",
     "Multi-layer Perceptron",
     "from sklearn.neural_network import MLPClassifier"
   )

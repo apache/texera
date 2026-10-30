@@ -27,6 +27,7 @@ class SklearnTrainingGradientBoostingOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingGradientBoostingOpDesc,
+    "SklearnTrainingGradientBoosting",
     "Training: Gradient Boosting",
     "from sklearn.ensemble import GradientBoostingClassifier"
   )

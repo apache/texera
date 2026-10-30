@@ -27,6 +27,7 @@ class SklearnTrainingComplementNaiveBayesOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingComplementNaiveBayesOpDesc,
+    "SklearnTrainingComplementNaiveBayes",
     "Training: Complement Naive Bayes",
     "from sklearn.naive_bayes import ComplementNB"
   )

@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnTrainingSVMOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingSVMOpDesc,
+    "SklearnTrainingSVM",
     "Training: Support Vector Machine",
     "from sklearn.svm import SVC"
   )

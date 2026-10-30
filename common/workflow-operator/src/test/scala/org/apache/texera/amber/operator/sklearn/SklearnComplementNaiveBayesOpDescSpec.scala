@@ -24,6 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnComplementNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
   sklearnClassifier(
     new SklearnComplementNaiveBayesOpDesc,
+    "SklearnComplementNaiveBayes",
     "Complement Naive Bayes",
     "from sklearn.naive_bayes import ComplementNB",
     estimatorTestName = "import and instantiate the ComplementNB estimator"

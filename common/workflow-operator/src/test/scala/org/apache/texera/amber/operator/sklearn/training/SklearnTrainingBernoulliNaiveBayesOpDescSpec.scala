@@ -28,6 +28,7 @@ class SklearnTrainingBernoulliNaiveBayesOpDescSpec
 
   sklearnTrainer(
     new SklearnTrainingBernoulliNaiveBayesOpDesc,
+    "SklearnTrainingBernoulliNaiveBayes",
     "Training: Bernoulli Naive Bayes",
     "from sklearn.naive_bayes import BernoulliNB"
   )

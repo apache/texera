@@ -27,6 +27,7 @@ class SklearnTrainingMultinomialNaiveBayesOpDescSpec
     with SklearnModelOpDescBehaviors {
   sklearnTrainer(
     new SklearnTrainingMultinomialNaiveBayesOpDesc,
+    "SklearnTrainingMultinomialNaiveBayes",
     "Training: Multinomial Naive Bayes",
     "from sklearn.naive_bayes import MultinomialNB"
   )
