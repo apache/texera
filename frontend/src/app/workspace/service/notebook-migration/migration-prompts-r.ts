@@ -153,11 +153,12 @@ Texera UDF conversion:
 \`\`\`json
 {
     "code": {
-        "UDF1": "# UDF1\\nfunction(table, port) {\\n  # Remove duplicate rows\\n  data <- unique(table)\\n\\n  # Remove rows with missing values\\n  data <- na.omit(data)\\n\\n  # Calculate statistics\\n  min_values <- sapply(data, min)\\n  max_values <- sapply(data, max)\\n  mean_values <- colMeans(data)\\n\\n  # One row of serialized objects for the downstream UDFs\\n  data.frame(\\n    min_values = I(list(serialize(min_values, NULL))),\\n    max_values = I(list(serialize(max_values, NULL))),\\n    mean_values = I(list(serialize(mean_values, NULL))),\\n    data = I(list(serialize(data, NULL)))\\n  )\\n}",
-        "UDF2": "# UDF2\\nlibrary(ggplot2)\\nlibrary(plotly)\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  if (nrow(data) == 0) {\\n    html <- '<h1>Boxplot is not available.</h1><p>Reason is: input table is empty.</p>'\\n    return(data.frame('html-content' = html, check.names = FALSE))\\n  }\\n\\n  # Boxplot of glucose by outcome\\n  p <- ggplot(data, aes(x = factor(Outcome), y = Glucose)) +\\n    geom_boxplot() +\\n    labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')\\n\\n  # Convert the plot to an HTML page that loads Plotly from a CDN\\n  json <- plotly_json(ggplotly(p), jsonedit = FALSE)\\n  html <- paste0(\\n    '<html><head><script src=\\"https://cdn.plot.ly/plotly-2.35.2.min.js\\"></script></head>',\\n    '<body><div id=\\"plot\\" style=\\"width:100%;height:100%\\"></div><script>',\\n    'var fig = ', json, '; Plotly.newPlot(\\"plot\\", fig.data, fig.layout);',\\n    '</script></body></html>'\\n  )\\n  data.frame('html-content' = html, check.names = FALSE)\\n}",
-        "UDF3": "# UDF3\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Split data into training and testing sets (80% train, 20% test)\\n  set.seed(42)\\n  train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))\\n  train <- data[train_idx, ]\\n  test <- data[-train_idx, ]\\n\\n  # Scale features using the training set center and spread\\n  features <- setdiff(names(data), 'Outcome')\\n  centers <- sapply(train[features], mean)\\n  spreads <- sapply(train[features], sd)\\n  train[features] <- scale(train[features], center = centers, scale = spreads)\\n  test[features] <- scale(test[features], center = centers, scale = spreads)\\n\\n  data.frame(\\n    train = I(list(serialize(train, NULL))),\\n    test = I(list(serialize(test, NULL)))\\n  )\\n}",
-        "UDF4": "# UDF4\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train logistic regression model\\n  glm_model <- glm(Outcome ~ ., data = train, family = binomial)\\n  glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)\\n  glm_accuracy <- mean(glm_pred == test$Outcome)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(glm_accuracy = sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))\\n}",
-        "UDF5": "# UDF5\\nlibrary(rpart)\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train decision tree model\\n  tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')\\n  tree_pred <- predict(tree_model, test, type = 'class')\\n  tree_accuracy <- mean(as.character(tree_pred) == as.character(test$Outcome))\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(tree_accuracy = sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))\\n}"
+        "UDF1": "# UDF1\\nfunction(table, port) {\\n  # Remove duplicate rows\\n  data <- unique(table)\\n\\n  # Remove rows with missing values\\n  data <- na.omit(data)\\n\\n  # One row of serialized objects for the downstream UDFs\\n  data.frame(data = I(list(serialize(data, NULL))))\\n}",
+        "UDF2": "# UDF2\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Calculate the minimum, maximum, and mean for all fields\\n  min_values <- sapply(data, min)\\n  max_values <- sapply(data, max)\\n  mean_values <- colMeans(data)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(\\n    min_values = paste(capture.output(print(min_values)), collapse = '\\\\n'),\\n    max_values = paste(capture.output(print(max_values)), collapse = '\\\\n'),\\n    mean_values = paste(capture.output(print(mean_values)), collapse = '\\\\n')\\n  )\\n}",
+        "UDF3": "# UDF3\\nlibrary(ggplot2)\\nlibrary(plotly)\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  if (nrow(data) == 0) {\\n    html <- '<h1>Boxplot is not available.</h1><p>Reason is: input table is empty.</p>'\\n    return(data.frame('html-content' = html, check.names = FALSE))\\n  }\\n\\n  # Boxplot of glucose by outcome\\n  p <- ggplot(data, aes(x = factor(Outcome), y = Glucose)) +\\n    geom_boxplot() +\\n    labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')\\n\\n  # Convert the plot to an HTML page that loads Plotly from a CDN\\n  json <- plotly_json(ggplotly(p), jsonedit = FALSE)\\n  html <- paste0(\\n    '<html><head><script src=\\"https://cdn.plot.ly/plotly-2.35.2.min.js\\"></script></head>',\\n    '<body><div id=\\"plot\\" style=\\"width:100%;height:100%\\"></div><script>',\\n    'var fig = ', json, '; Plotly.newPlot(\\"plot\\", fig.data, fig.layout);',\\n    '</script></body></html>'\\n  )\\n  data.frame('html-content' = html, check.names = FALSE)\\n}",
+        "UDF4": "# UDF4\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Split data into training and testing sets (80% train, 20% test)\\n  set.seed(42)\\n  train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))\\n  train <- data[train_idx, ]\\n  test <- data[-train_idx, ]\\n\\n  # Scale features using the training set center and spread\\n  features <- setdiff(names(data), 'Outcome')\\n  centers <- sapply(train[features], mean)\\n  spreads <- sapply(train[features], sd)\\n  train[features] <- scale(train[features], center = centers, scale = spreads)\\n  test[features] <- scale(test[features], center = centers, scale = spreads)\\n\\n  data.frame(\\n    train = I(list(serialize(train, NULL))),\\n    test = I(list(serialize(test, NULL)))\\n  )\\n}",
+        "UDF5": "# UDF5\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train logistic regression model\\n  glm_model <- glm(Outcome ~ ., data = train, family = binomial)\\n  glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)\\n  glm_accuracy <- mean(glm_pred == test$Outcome)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(glm_accuracy = sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))\\n}",
+        "UDF6": "# UDF6\\nlibrary(rpart)\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train decision tree model\\n  tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')\\n  tree_pred <- predict(tree_model, test, type = 'class')\\n  tree_accuracy <- mean(as.character(tree_pred) == as.character(test$Outcome))\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(tree_accuracy = sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))\\n}"
     },
     "edges": [
         [
@@ -169,32 +170,38 @@ Texera UDF conversion:
             "UDF3"
         ],
         [
-            "UDF3",
+            "UDF1",
             "UDF4"
         ],
         [
-            "UDF3",
+            "UDF4",
             "UDF5"
+        ],
+        [
+            "UDF4",
+            "UDF6"
         ]
     ],
     "outputs": {
         "UDF1": [
-            "min_values",
-            "max_values",
-            "mean_values",
             "data"
         ],
         "UDF2": [
-            "html-content"
+            "min_values",
+            "max_values",
+            "mean_values"
         ],
         "UDF3": [
+            "html-content"
+        ],
+        "UDF4": [
             "train",
             "test"
         ],
-        "UDF4": [
+        "UDF5": [
             "glm_accuracy"
         ],
-        "UDF5": [
+        "UDF6": [
             "tree_accuracy"
         ]
     }
@@ -247,7 +254,7 @@ Follow this JSON format (don't reuse the values, this is just the format). 'code
 ["UDF1", "UDF2"]
 ],
 "outputs": {
-"UDF1": ["min_values", "max_values", "mean_values", "data"],
+"UDF1": ["data"],
 "UDF2": ["html-content"]
 }
 }
@@ -261,11 +268,12 @@ Convert following the instructions and examples given. Here is the code:
 export const R_MAPPING_PROMPT = `
 Here is an example of a mapping generated between the given example R code and the Texera UDFs using their CELL and UDF IDs. Cell IDs are designated by the UUID following '# START'. The format should be kept the same.
 {
-"UDF1": ["CELL3", "CELL4"],
-"UDF2": ["CELL5"],
-"UDF3": ["CELL6", "CELL7"],
-"UDF4": ["CELL8"],
-"UDF5": ["CELL9"]
+"UDF1": ["CELL3"],
+"UDF2": ["CELL4"],
+"UDF3": ["CELL5"],
+"UDF4": ["CELL6", "CELL7"],
+"UDF5": ["CELL8"],
+"UDF6": ["CELL9"]
 }
 Now create a mapping for the UDFs and the original code. Link the code blocks marked by 'START <cell-uuid>' and 'END <cell-uuid>' with the UDF UUIDs. The code between them should be equivalent. Multiple cells can be mapped to the same UDF when that UDF implements the logic of those cells. There could be any number of cells and UDFs, so only create the correct number in the mapping. Only give the mapping.
 `;
@@ -329,11 +337,12 @@ Texera UDF conversion:
 \`\`\`json
 {
     "code": {
-        "UDF1": "# UDF1\\nfunction(table, port) {\\n  # Remove duplicate rows\\n  data <- unique(table)\\n\\n  # Remove rows with missing values\\n  data <- na.omit(data)\\n\\n  # Calculate statistics\\n  min_values <- sapply(data, min)\\n  max_values <- sapply(data, max)\\n  mean_values <- colMeans(data)\\n\\n  # One row of serialized objects for the downstream UDFs\\n  data.frame(\\n    min_values = I(list(serialize(min_values, NULL))),\\n    max_values = I(list(serialize(max_values, NULL))),\\n    mean_values = I(list(serialize(mean_values, NULL))),\\n    data = I(list(serialize(data, NULL)))\\n  )\\n}",
-        "UDF2": "# UDF2\\nlibrary(ggplot2)\\nlibrary(plotly)\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  if (nrow(data) == 0) {\\n    html <- '<h1>Boxplot is not available.</h1><p>Reason is: input table is empty.</p>'\\n    return(data.frame('html-content' = html, check.names = FALSE))\\n  }\\n\\n  # Boxplot of glucose by outcome\\n  p <- ggplot(data, aes(x = factor(Outcome), y = Glucose)) +\\n    geom_boxplot() +\\n    labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')\\n\\n  # Convert the plot to an HTML page that loads Plotly from a CDN\\n  json <- plotly_json(ggplotly(p), jsonedit = FALSE)\\n  html <- paste0(\\n    '<html><head><script src=\\"https://cdn.plot.ly/plotly-2.35.2.min.js\\"></script></head>',\\n    '<body><div id=\\"plot\\" style=\\"width:100%;height:100%\\"></div><script>',\\n    'var fig = ', json, '; Plotly.newPlot(\\"plot\\", fig.data, fig.layout);',\\n    '</script></body></html>'\\n  )\\n  data.frame('html-content' = html, check.names = FALSE)\\n}",
-        "UDF3": "# UDF3\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Split data into training and testing sets (80% train, 20% test)\\n  set.seed(42)\\n  train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))\\n  train <- data[train_idx, ]\\n  test <- data[-train_idx, ]\\n\\n  # Scale features using the training set center and spread\\n  features <- setdiff(names(data), 'Outcome')\\n  centers <- sapply(train[features], mean)\\n  spreads <- sapply(train[features], sd)\\n  train[features] <- scale(train[features], center = centers, scale = spreads)\\n  test[features] <- scale(test[features], center = centers, scale = spreads)\\n\\n  data.frame(\\n    train = I(list(serialize(train, NULL))),\\n    test = I(list(serialize(test, NULL)))\\n  )\\n}",
-        "UDF4": "# UDF4\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train logistic regression model\\n  glm_model <- glm(Outcome ~ ., data = train, family = binomial)\\n  glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)\\n  glm_accuracy <- mean(glm_pred == test$Outcome)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(glm_accuracy = sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))\\n}",
-        "UDF5": "# UDF5\\nlibrary(rpart)\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train decision tree model\\n  tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')\\n  tree_pred <- predict(tree_model, test, type = 'class')\\n  tree_accuracy <- mean(as.character(tree_pred) == as.character(test$Outcome))\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(tree_accuracy = sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))\\n}"
+        "UDF1": "# UDF1\\nfunction(table, port) {\\n  # Remove duplicate rows\\n  data <- unique(table)\\n\\n  # Remove rows with missing values\\n  data <- na.omit(data)\\n\\n  # One row of serialized objects for the downstream UDFs\\n  data.frame(data = I(list(serialize(data, NULL))))\\n}",
+        "UDF2": "# UDF2\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Calculate the minimum, maximum, and mean for all fields\\n  min_values <- sapply(data, min)\\n  max_values <- sapply(data, max)\\n  mean_values <- colMeans(data)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(\\n    min_values = paste(capture.output(print(min_values)), collapse = '\\\\n'),\\n    max_values = paste(capture.output(print(max_values)), collapse = '\\\\n'),\\n    mean_values = paste(capture.output(print(mean_values)), collapse = '\\\\n')\\n  )\\n}",
+        "UDF3": "# UDF3\\nlibrary(ggplot2)\\nlibrary(plotly)\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  if (nrow(data) == 0) {\\n    html <- '<h1>Boxplot is not available.</h1><p>Reason is: input table is empty.</p>'\\n    return(data.frame('html-content' = html, check.names = FALSE))\\n  }\\n\\n  # Boxplot of glucose by outcome\\n  p <- ggplot(data, aes(x = factor(Outcome), y = Glucose)) +\\n    geom_boxplot() +\\n    labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')\\n\\n  # Convert the plot to an HTML page that loads Plotly from a CDN\\n  json <- plotly_json(ggplotly(p), jsonedit = FALSE)\\n  html <- paste0(\\n    '<html><head><script src=\\"https://cdn.plot.ly/plotly-2.35.2.min.js\\"></script></head>',\\n    '<body><div id=\\"plot\\" style=\\"width:100%;height:100%\\"></div><script>',\\n    'var fig = ', json, '; Plotly.newPlot(\\"plot\\", fig.data, fig.layout);',\\n    '</script></body></html>'\\n  )\\n  data.frame('html-content' = html, check.names = FALSE)\\n}",
+        "UDF4": "# UDF4\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  # Split data into training and testing sets (80% train, 20% test)\\n  set.seed(42)\\n  train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))\\n  train <- data[train_idx, ]\\n  test <- data[-train_idx, ]\\n\\n  # Scale features using the training set center and spread\\n  features <- setdiff(names(data), 'Outcome')\\n  centers <- sapply(train[features], mean)\\n  spreads <- sapply(train[features], sd)\\n  train[features] <- scale(train[features], center = centers, scale = spreads)\\n  test[features] <- scale(test[features], center = centers, scale = spreads)\\n\\n  data.frame(\\n    train = I(list(serialize(train, NULL))),\\n    test = I(list(serialize(test, NULL)))\\n  )\\n}",
+        "UDF5": "# UDF5\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train logistic regression model\\n  glm_model <- glm(Outcome ~ ., data = train, family = binomial)\\n  glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)\\n  glm_accuracy <- mean(glm_pred == test$Outcome)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(glm_accuracy = sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))\\n}",
+        "UDF6": "# UDF6\\nlibrary(rpart)\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n\\n  # Train decision tree model\\n  tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')\\n  tree_pred <- predict(tree_model, test, type = 'class')\\n  tree_accuracy <- mean(as.character(tree_pred) == as.character(test$Outcome))\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(tree_accuracy = sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))\\n}"
     },
     "edges": [
         [
@@ -345,32 +354,38 @@ Texera UDF conversion:
             "UDF3"
         ],
         [
-            "UDF3",
+            "UDF1",
             "UDF4"
         ],
         [
-            "UDF3",
+            "UDF4",
             "UDF5"
+        ],
+        [
+            "UDF4",
+            "UDF6"
         ]
     ],
     "outputs": {
         "UDF1": [
-            "min_values",
-            "max_values",
-            "mean_values",
             "data"
         ],
         "UDF2": [
-            "html-content"
+            "min_values",
+            "max_values",
+            "mean_values"
         ],
         "UDF3": [
+            "html-content"
+        ],
+        "UDF4": [
             "train",
             "test"
         ],
-        "UDF4": [
+        "UDF5": [
             "glm_accuracy"
         ],
-        "UDF5": [
+        "UDF6": [
             "tree_accuracy"
         ]
     }
@@ -422,7 +437,7 @@ Follow this JSON format (don't reuse the values, this is just the format). 'code
 ["UDF1", "UDF2"]
 ],
 "outputs": {
-"UDF1": ["min_values", "max_values", "mean_values", "data"],
+"UDF1": ["data"],
 "UDF2": ["html-content"]
 }
 }
@@ -438,11 +453,12 @@ Convert following the instructions and examples given. Here is the code:
 export const R_SCRIPT_MAPPING_PROMPT = `
 Here is an example of a mapping generated between the given example R code and the Texera UDFs, using line ranges of the original script and the UDF IDs. A range is a pair [firstLine, lastLine]; both bounds are 1-indexed and inclusive, and they refer to the line numbers shown in the prefix of the original code. A UDF may list several ranges when its logic came from separate parts of the script. The format should be kept the same.
 {
-"UDF1": [[7, 16]],
-"UDF2": [[18, 21]],
-"UDF3": [[23, 34]],
-"UDF4": [[36, 40]],
-"UDF5": [[42, 46]]
+"UDF1": [[7, 11]],
+"UDF2": [[13, 16]],
+"UDF3": [[18, 21]],
+"UDF4": [[23, 34]],
+"UDF5": [[36, 40]],
+"UDF6": [[42, 46]]
 }
 Now create a mapping for the UDFs and the original code you were given. For each UDF, report the line ranges of the original script whose logic that UDF implements. The code in those lines should be equivalent to what the UDF does. Lines that no UDF implements, such as library() calls or the data loading that the workflow's source operator replaces, can be left out entirely. Give the first line before the last within each range, and do not shift the numbers: they must match the prefixes you were shown. There could be any number of ranges and UDFs, so only create the correct number in the mapping. Only give the mapping.
 `;
