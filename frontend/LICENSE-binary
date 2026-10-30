@@ -230,7 +230,9 @@ Third-party assets:
     frontend/src/assets/notebook_migration_tool/python_file_diagram.png
     frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
     https://github.com/google/material-design-icons
-  - Google Material Symbols icons (autorenew, batch_prediction, forest, tune)
+  - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, table_chart, tune)
+    frontend/src/assets/operator_images/FigureFactoryTable.png
+    frontend/src/assets/operator_images/FilledAreaPlot.png
     frontend/src/assets/operator_images/SklearnExtraTrees.png
     frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
     frontend/src/assets/operator_images/SklearnPrediction.png
@@ -243,9 +245,16 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingRandomForest.png
     frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
     https://github.com/google/material-design-icons
-  - IBM Carbon Design System icons (chart--logistic-regression, chart--scatter, chart--venn-diagram, decision-tree, edge-cluster, flow--merge, math-curve, share)
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--line, chart--logistic-regression, chart--multi-line, chart--pie, chart--scatter, chart--treemap, chart--venn-diagram, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, math-curve, share)
+    frontend/src/assets/operator_images/BubbleChart.png
+    frontend/src/assets/operator_images/BulletChart.png
+    frontend/src/assets/operator_images/CandlestickChart.png
+    frontend/src/assets/operator_images/IcicleChart.png
     frontend/src/assets/operator_images/KNNClassifierTrainer.png
     frontend/src/assets/operator_images/KNNRegressorTrainer.png
+    frontend/src/assets/operator_images/LineChart.png
+    frontend/src/assets/operator_images/NestedTable.png
+    frontend/src/assets/operator_images/PieChart.png
     frontend/src/assets/operator_images/SVCTrainer.png
     frontend/src/assets/operator_images/SVRTrainer.png
     frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
@@ -266,6 +275,8 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
     frontend/src/assets/operator_images/SklearnTrainingPerceptron.png
     frontend/src/assets/operator_images/SklearnTrainingSDG.png
+    frontend/src/assets/operator_images/TimeSeriesPlot.png
+    frontend/src/assets/operator_images/WaterfallChart.png
     https://github.com/carbon-design-system/carbon
 
 --------------------------------------------------------------------------------
@@ -284,7 +295,19 @@ Source files derived from third-party MIT-licensed projects:
     frontend/src/assets/svg/operator-reuse-cache-valid.svg
     frontend/src/assets/svg/operator-reuse-cache-invalid.svg
     https://www.svgrepo.com
-  - Tabler Icons (arrows-join-2, binary-tree, chart-grid-dots, topology-full)
+  - Phosphor Icons (chart-bar, funnel-simple, gauge)
+    frontend/src/assets/operator_images/BarChart.png
+    frontend/src/assets/operator_images/FunnelPlot.png
+    frontend/src/assets/operator_images/GaugeChart.png
+    https://github.com/phosphor-icons/core
+  - Bootstrap Icons (map, table)
+    frontend/src/assets/operator_images/ChoroplethMap.png
+    frontend/src/assets/operator_images/TablesPlot.png
+    https://github.com/twbs/icons
+  - Tabler Icons (arrows-join-2, binary-tree, chart-dots, chart-grid-dots, chart-scatter-3d, hierarchy-3, topology-full)
+    frontend/src/assets/operator_images/DotPlot.png
+    frontend/src/assets/operator_images/HierarchyChart.png
+    frontend/src/assets/operator_images/Scatter3DChart.png
     frontend/src/assets/operator_images/SklearnAdaptiveBoosting.png
     frontend/src/assets/operator_images/SklearnBernoulliNaiveBayes.png
     frontend/src/assets/operator_images/SklearnExtraTree.png
@@ -434,8 +457,10 @@ Angular / npm packages:
   - tinyqueue@2.0.3
 
 Third-party assets:
-  - Lucide icons (circle-dot-dashed, gauge, layers, message-square-warning, mountain-snow, test-tubes)
+  - Lucide icons (chart-gantt, chart-scatter, circle-dot-dashed, gauge, layers, message-square-warning, mountain-snow, test-tubes)
+    frontend/src/assets/operator_images/GanttChart.png
     frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png
+    frontend/src/assets/operator_images/Scatterplot.png
     frontend/src/assets/operator_images/Scorer.png
     frontend/src/assets/operator_images/SklearnBagging.png
     frontend/src/assets/operator_images/SklearnNearestCentroid.png

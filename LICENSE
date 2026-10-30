@@ -253,6 +253,8 @@ This product includes icons from Google's Material Symbols:
   License: Apache License 2.0 (this LICENSE file)
 
 This product includes icons from Google's Material Symbols, used as operator icons:
+  - frontend/src/assets/operator_images/FigureFactoryTable.png (table_chart)
+  - frontend/src/assets/operator_images/FilledAreaPlot.png (area_chart)
   - frontend/src/assets/operator_images/SklearnExtraTrees.png (forest)
   - frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png (autorenew cycle arrows, drawn around Carbon 'chart--logistic-regression')
   - frontend/src/assets/operator_images/SklearnPrediction.png (batch_prediction)
@@ -270,8 +272,15 @@ This product includes icons from Google's Material Symbols, used as operator ico
   License: Apache License 2.0 (this LICENSE file)
 
 This product includes icons from IBM Carbon Design System:
+  - frontend/src/assets/operator_images/BubbleChart.png (chart--bubble)
+  - frontend/src/assets/operator_images/BulletChart.png (chart--bullet)
+  - frontend/src/assets/operator_images/CandlestickChart.png (chart--candlestick)
+  - frontend/src/assets/operator_images/IcicleChart.png (chart--treemap)
   - frontend/src/assets/operator_images/KNNClassifierTrainer.png (edge-cluster)
   - frontend/src/assets/operator_images/KNNRegressorTrainer.png (edge-cluster)
+  - frontend/src/assets/operator_images/LineChart.png (chart--line)
+  - frontend/src/assets/operator_images/NestedTable.png (data-table--reference)
+  - frontend/src/assets/operator_images/PieChart.png (chart--pie)
   - frontend/src/assets/operator_images/SVCTrainer.png (chart--scatter)
   - frontend/src/assets/operator_images/SVRTrainer.png (chart--scatter)
   - frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png (chart--venn-diagram)
@@ -292,6 +301,8 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png (chart--logistic-regression, placed inside Material Symbols 'autorenew' cycle arrows)
   - frontend/src/assets/operator_images/SklearnTrainingPerceptron.png (flow--merge)
   - frontend/src/assets/operator_images/SklearnTrainingSDG.png (math-curve)
+  - frontend/src/assets/operator_images/TimeSeriesPlot.png (chart--multi-line)
+  - frontend/src/assets/operator_images/WaterfallChart.png (chart--waterfall)
   Copyright 2015 IBM Corp.
   Source: https://github.com/carbon-design-system/carbon (@carbon/icons 11.91.0)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -313,7 +324,27 @@ This product includes SVG icons from SVGRepo:
   Source: https://www.svgrepo.com
   License: MIT License (licenses/LICENSE-MIT.txt)
 
+This product includes icons from Phosphor Icons, used as operator icons:
+  - frontend/src/assets/operator_images/BarChart.png (chart-bar)
+  - frontend/src/assets/operator_images/FunnelPlot.png (funnel-simple)
+  - frontend/src/assets/operator_images/GaugeChart.png (gauge)
+  Copyright (c) 2023 Phosphor Icons
+  Source: https://github.com/phosphor-icons/core (@phosphor-icons/core 2.1.1)
+  Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
+  License: MIT License (licenses/LICENSE-MIT.txt)
+
+This product includes icons from Bootstrap Icons, used as operator icons:
+  - frontend/src/assets/operator_images/ChoroplethMap.png (map)
+  - frontend/src/assets/operator_images/TablesPlot.png (table)
+  Copyright (c) 2019-2024 The Bootstrap Authors
+  Source: https://github.com/twbs/icons (bootstrap-icons 1.13.2)
+  Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
+  License: MIT License (licenses/LICENSE-MIT.txt)
+
 This product includes icons from Tabler Icons:
+  - frontend/src/assets/operator_images/DotPlot.png (chart-dots)
+  - frontend/src/assets/operator_images/HierarchyChart.png (hierarchy-3)
+  - frontend/src/assets/operator_images/Scatter3DChart.png (chart-scatter-3d)
   - frontend/src/assets/operator_images/SklearnAdaptiveBoosting.png (arrows-join-2)
   - frontend/src/assets/operator_images/SklearnBernoulliNaiveBayes.png (chart-grid-dots)
   - frontend/src/assets/operator_images/SklearnExtraTree.png (binary-tree)
@@ -331,7 +362,9 @@ ISC License
 --------------------------------------
 
 This product includes icons from Lucide:
+  - frontend/src/assets/operator_images/GanttChart.png (chart-gantt)
   - frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png (message-square-warning)
+  - frontend/src/assets/operator_images/Scatterplot.png (chart-scatter)
   - frontend/src/assets/operator_images/Scorer.png (gauge)
   - frontend/src/assets/operator_images/SklearnBagging.png (layers)
   - frontend/src/assets/operator_images/SklearnNearestCentroid.png (circle-dot-dashed)
