@@ -272,17 +272,27 @@ This product includes icons from Google's Material Symbols, used as operator ico
   License: Apache License 2.0 (this LICENSE file)
 
 This product includes icons from IBM Carbon Design System:
+  - frontend/src/assets/operator_images/BoxViolinPlot.png (chart--violin-plot)
   - frontend/src/assets/operator_images/BubbleChart.png (chart--bubble)
   - frontend/src/assets/operator_images/BulletChart.png (chart--bullet)
   - frontend/src/assets/operator_images/CandlestickChart.png (chart--candlestick)
+  - frontend/src/assets/operator_images/Dendrogram.png (tree-view)
+  - frontend/src/assets/operator_images/ECDFPlot.png (chart--stepper)
+  - frontend/src/assets/operator_images/HeatMap.png (heat-map)
+  - frontend/src/assets/operator_images/Histogram.png (chart--histogram)
   - frontend/src/assets/operator_images/IcicleChart.png (chart--treemap)
   - frontend/src/assets/operator_images/KNNClassifierTrainer.png (edge-cluster)
   - frontend/src/assets/operator_images/KNNRegressorTrainer.png (edge-cluster)
   - frontend/src/assets/operator_images/LineChart.png (chart--line)
   - frontend/src/assets/operator_images/NestedTable.png (data-table--reference)
+  - frontend/src/assets/operator_images/NetworkGraph.png (chart--network)
+  - frontend/src/assets/operator_images/ParallelCoordinatesPlot.png (chart--parallel)
   - frontend/src/assets/operator_images/PieChart.png (chart--pie)
+  - frontend/src/assets/operator_images/PolarChart.png (chart--radial)
+  - frontend/src/assets/operator_images/RadarPlot.png (chart--radar)
   - frontend/src/assets/operator_images/SVCTrainer.png (chart--scatter)
   - frontend/src/assets/operator_images/SVRTrainer.png (chart--scatter)
+  - frontend/src/assets/operator_images/ScatterMatrixChart.png (scatter-matrix)
   - frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png (chart--venn-diagram)
   - frontend/src/assets/operator_images/SklearnDecisionTree.png (decision-tree)
   - frontend/src/assets/operator_images/SklearnGradientBoosting.png (chart--scatter, with a fitted line and a slope triangle added)
@@ -328,6 +338,7 @@ This product includes icons from Phosphor Icons, used as operator icons:
   - frontend/src/assets/operator_images/BarChart.png (chart-bar)
   - frontend/src/assets/operator_images/FunnelPlot.png (funnel-simple)
   - frontend/src/assets/operator_images/GaugeChart.png (gauge)
+  - frontend/src/assets/operator_images/WindRoseChart.png (compass-rose)
   Copyright (c) 2023 Phosphor Icons
   Source: https://github.com/phosphor-icons/core (@phosphor-icons/core 2.1.1)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -342,6 +353,7 @@ This product includes icons from Bootstrap Icons, used as operator icons:
   License: MIT License (licenses/LICENSE-MIT.txt)
 
 This product includes icons from Tabler Icons:
+  - frontend/src/assets/operator_images/CarpetPlot.png (mesh)
   - frontend/src/assets/operator_images/DotPlot.png (chart-dots)
   - frontend/src/assets/operator_images/HierarchyChart.png (hierarchy-3)
   - frontend/src/assets/operator_images/Scatter3DChart.png (chart-scatter-3d)
@@ -353,6 +365,8 @@ This product includes icons from Tabler Icons:
   - frontend/src/assets/operator_images/SklearnTrainingBernoulliNaiveBayes.png (chart-grid-dots)
   - frontend/src/assets/operator_images/SklearnTrainingExtraTree.png (binary-tree)
   - frontend/src/assets/operator_images/SklearnTrainingMultiLayerPerceptron.png (topology-full)
+  - frontend/src/assets/operator_images/TreePlot.png (tree)
+  - frontend/src/assets/operator_images/VolcanoPlot.png (volcano)
   Copyright (c) 2020-2026 Paweł Kuna
   Source: https://github.com/tabler/tabler-icons (@tabler/icons 3.50.0)
   Changes: rendered from SVG to 256x256 PNG; modified files carry a notice of their changes
@@ -364,6 +378,7 @@ ISC License
 This product includes icons from Lucide:
   - frontend/src/assets/operator_images/GanttChart.png (chart-gantt)
   - frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png (message-square-warning)
+  - frontend/src/assets/operator_images/RadarChart.png (chart-radar)
   - frontend/src/assets/operator_images/Scatterplot.png (chart-scatter)
   - frontend/src/assets/operator_images/Scorer.png (gauge)
   - frontend/src/assets/operator_images/SklearnBagging.png (layers)
