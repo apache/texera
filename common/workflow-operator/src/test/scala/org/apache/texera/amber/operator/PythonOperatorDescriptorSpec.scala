@@ -75,6 +75,34 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
       )
   }
 
+  private class NullMessagePyOp extends PythonOperatorDescriptor {
+    override def generatePythonCode(): String = throw new RuntimeException()
+    override def getOutputSchemas(in: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] =
+      Map.empty
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "n",
+        "d",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  private class EmptyMessagePyOp extends PythonOperatorDescriptor {
+    override def generatePythonCode(): String = throw new RuntimeException("")
+    override def getOutputSchemas(in: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] =
+      Map.empty
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "e",
+        "d",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
   private def code(op: PythonOperatorDescriptor): String =
     op.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
       case OpExecWithCode(c, _) => c
@@ -84,6 +112,19 @@ class PythonOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
   "PythonOperatorDescriptor.getPhysicalOp" should
     "embed the generation exception in the code instead of throwing" in {
     code(new ThrowingPyOp) shouldBe "#EXCEPTION DURING CODE GENERATION: boom"
+  }
+
+  it should "embed the exception type when the generation exception has no message" in {
+    code(
+      new NullMessagePyOp
+    ) shouldBe "#EXCEPTION DURING CODE GENERATION: java.lang.RuntimeException"
+  }
+
+  it should "embed the exception type when the generation exception has an empty message" in {
+    // `Throwable.toString` renders an empty message as the class name followed by ": ".
+    code(
+      new EmptyMessagePyOp
+    ) shouldBe "#EXCEPTION DURING CODE GENERATION: java.lang.RuntimeException: "
   }
 
   it should "build a source PhysicalOp when asSource is true" in {
