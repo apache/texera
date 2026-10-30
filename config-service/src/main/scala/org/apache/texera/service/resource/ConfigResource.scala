@@ -104,7 +104,8 @@ class ConfigResource {
       "aiFixModel" -> GuiConfig.guiWorkflowWorkspaceAiFixModel,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
-      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes
+      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes,
+      "rNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspaceRNotebookMigrationEnabled
     )
 
   // Engine configs.

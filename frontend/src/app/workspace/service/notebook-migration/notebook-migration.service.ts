@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { AppSettings } from "../../../common/app-setting";
-import { Notebook, NotebookMigrationLLM, SourceConversion } from "./migration-llm";
+import { MigrationLanguage, Notebook, NotebookMigrationLLM, SourceConversion } from "./migration-llm";
 import {
   buildFolderDocument,
   checkFolderByteSize,
@@ -123,11 +123,12 @@ export class NotebookMigrationService {
 
   public async sendToAIGenerateWorkflow(
     notebookContent: Notebook,
-    modelType: string
+    modelType: string,
+    language: MigrationLanguage = "python"
   ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent }> {
-    return this.withMigrationLLM(modelType, async migrationLLM => {
+    return this.withMigrationLLM(modelType, language, async migrationLLM => {
       try {
-        const result = await migrationLLM.convertNotebookToWorkflow(notebookContent);
+        const result = await migrationLLM.convertNotebookToWorkflow(notebookContent, language);
         const parsedResult = JSON.parse(result);
         const workflowContent = parsedResult.workflowJSON;
         const mappingContent = parsedResult.workflowNotebookMapping;
@@ -140,7 +141,7 @@ export class NotebookMigrationService {
   }
 
   /**
-   * Convert a Python script into a workflow.
+   * Convert a script into a workflow.
    *
    * Returns a notebook alongside the workflow and mapping, which the notebook path does not:
    * a script has no cells, so the LLM reports which line ranges became which operator and the
@@ -149,10 +150,11 @@ export class NotebookMigrationService {
    */
   public async sendScriptToAIGenerateWorkflow(
     scriptSource: string,
-    modelType: string
+    modelType: string,
+    language: MigrationLanguage = "python"
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "script", migrationLLM =>
-      migrationLLM.convertScriptToWorkflow(scriptSource)
+    return this.generateFromSource(modelType, "script", language, migrationLLM =>
+      migrationLLM.convertScriptToWorkflow(scriptSource, language)
     );
   }
 
@@ -167,7 +169,9 @@ export class NotebookMigrationService {
     folder: FolderDocument,
     modelType: string
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "folder", migrationLLM => migrationLLM.convertFolderToWorkflow(folder));
+    return this.generateFromSource(modelType, "folder", "python", migrationLLM =>
+      migrationLLM.convertFolderToWorkflow(folder)
+    );
   }
 
   /**
@@ -177,9 +181,10 @@ export class NotebookMigrationService {
   private async generateFromSource(
     modelType: string,
     input: "script" | "folder",
+    language: MigrationLanguage,
     convert: (migrationLLM: NotebookMigrationLLM) => Promise<SourceConversion>
   ): Promise<GeneratedWorkflowContent> {
-    return this.withMigrationLLM(modelType, async migrationLLM => {
+    return this.withMigrationLLM(modelType, language, async migrationLLM => {
       try {
         const conversion = await convert(migrationLLM);
         return {
@@ -188,7 +193,7 @@ export class NotebookMigrationService {
           notebook: conversion.notebook,
         };
       } catch (error) {
-        console.error(`Error converting Python ${input}:`, error);
+        console.error(`Error converting ${input}:`, error);
         throw error;
       }
     });
@@ -201,9 +206,14 @@ export class NotebookMigrationService {
    */
   private async withMigrationLLM<T>(
     modelType: string,
+    language: MigrationLanguage,
     convert: (migrationLLM: NotebookMigrationLLM) => Promise<T>
   ): Promise<T> {
     if (!this.enabled) throw new Error("Notebook migration feature is disabled");
+    // Checked before verifyConnection so a disabled language never reaches the model.
+    if (language === "r" && !this.config.env.rNotebookMigrationEnabled) {
+      throw new Error("R notebook migration is disabled");
+    }
     const migrationLLM = this.createMigrationLLM();
     // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
     try {
