@@ -126,7 +126,7 @@ export class NotebookMigrationService {
     modelType: string,
     language: MigrationLanguage = "python"
   ): Promise<{ workflowContent: WorkflowContent; mappingContent: MappingContent }> {
-    return this.withMigrationLLM(modelType, async migrationLLM => {
+    return this.withMigrationLLM(modelType, language, async migrationLLM => {
       try {
         const result = await migrationLLM.convertNotebookToWorkflow(notebookContent, language);
         const parsedResult = JSON.parse(result);
@@ -153,7 +153,7 @@ export class NotebookMigrationService {
     modelType: string,
     language: MigrationLanguage = "python"
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "script", migrationLLM =>
+    return this.generateFromSource(modelType, "script", language, migrationLLM =>
       migrationLLM.convertScriptToWorkflow(scriptSource, language)
     );
   }
@@ -169,7 +169,9 @@ export class NotebookMigrationService {
     folder: FolderDocument,
     modelType: string
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "folder", migrationLLM => migrationLLM.convertFolderToWorkflow(folder));
+    return this.generateFromSource(modelType, "folder", "python", migrationLLM =>
+      migrationLLM.convertFolderToWorkflow(folder)
+    );
   }
 
   /**
@@ -179,9 +181,10 @@ export class NotebookMigrationService {
   private async generateFromSource(
     modelType: string,
     input: "script" | "folder",
+    language: MigrationLanguage,
     convert: (migrationLLM: NotebookMigrationLLM) => Promise<SourceConversion>
   ): Promise<GeneratedWorkflowContent> {
-    return this.withMigrationLLM(modelType, async migrationLLM => {
+    return this.withMigrationLLM(modelType, language, async migrationLLM => {
       try {
         const conversion = await convert(migrationLLM);
         return {
@@ -203,9 +206,14 @@ export class NotebookMigrationService {
    */
   private async withMigrationLLM<T>(
     modelType: string,
+    language: MigrationLanguage,
     convert: (migrationLLM: NotebookMigrationLLM) => Promise<T>
   ): Promise<T> {
     if (!this.enabled) throw new Error("Notebook migration feature is disabled");
+    // Checked before verifyConnection so a disabled language never reaches the model.
+    if (language === "r" && !this.config.env.rNotebookMigrationEnabled) {
+      throw new Error("R notebook migration is disabled");
+    }
     const migrationLLM = this.createMigrationLLM();
     // initialize() defaults to the user's Texera JWT via AuthService.getAccessToken().
     try {
