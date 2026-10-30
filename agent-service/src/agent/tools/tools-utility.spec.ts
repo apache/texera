@@ -25,40 +25,66 @@ import {
   formatModifyOperatorResult,
   formatExecuteOperatorResult,
   formatOperatorError,
-  getVisibleResultHeaders,
+  getOperatorErrorText,
+  tupleColumns,
+  tupleToRecord,
 } from "./tools-utility";
+import { OperatorState, WorkflowFatalErrorType, type WorkflowFatalError, type Tuple } from "../../types/execution";
 
-describe("getVisibleResultHeaders", () => {
-  test("returns every key when no internal columns are present", () => {
-    expect(getVisibleResultHeaders({ a: 1, b: 2 })).toEqual(["a", "b"]);
+function makeFatal(message: string): WorkflowFatalError {
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: 0, nanos: 0 },
+    message,
+    details: "",
+    operatorId: "",
+    workerId: "",
+  };
+}
+
+describe("getOperatorErrorText", () => {
+  test("joins the messages of every fatal error", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal("e1"), makeFatal("e2")] };
+    expect(getOperatorErrorText(opInfo)).toBe("e1; e2");
   });
 
-  test("strips __row_index__ from the result", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, a: 1 })).toEqual(["a"]);
+  test("ignores errors whose message is empty", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal(""), makeFatal("real")] };
+    expect(getOperatorErrorText(opInfo)).toBe("real");
   });
 
-  test("strips __is_visualization__ from the result", () => {
-    expect(getVisibleResultHeaders({ __is_visualization__: true, a: 1 })).toEqual(["a"]);
+  test("returns an empty string when every error message is empty", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [makeFatal("")] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
   });
 
-  test("strips every known internal column at once", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true, a: 1, b: 2 })).toEqual(["a", "b"]);
+  test("returns an empty string when there are no errors", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
+  });
+});
+
+describe("tupleColumns / tupleToRecord", () => {
+  const tuple: Tuple = {
+    schema: {
+      attributes: [
+        { attributeName: "z", attributeType: "string" },
+        { attributeName: "a", attributeType: "string" },
+      ],
+    },
+    fields: [1, 2],
+  };
+
+  test("tupleColumns returns column names in schema order", () => {
+    expect(tupleColumns(tuple)).toEqual(["z", "a"]);
   });
 
-  test("preserves visible column order", () => {
-    expect(getVisibleResultHeaders({ z: 1, __row_index__: 0, a: 2, __is_visualization__: true, m: 3 })).toEqual([
-      "z",
-      "a",
-      "m",
-    ]);
+  test("tupleToRecord projects fields back onto their column names", () => {
+    expect(tupleToRecord(tuple)).toEqual({ z: 1, a: 2 });
   });
 
-  test("returns an empty array for an empty row", () => {
-    expect(getVisibleResultHeaders({})).toEqual([]);
-  });
-
-  test("returns an empty array when only internal columns are present", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true })).toEqual([]);
+  test("tupleColumns is empty for a schema with no attributes", () => {
+    expect(tupleColumns({ schema: { attributes: [] }, fields: [] })).toEqual([]);
   });
 });
 

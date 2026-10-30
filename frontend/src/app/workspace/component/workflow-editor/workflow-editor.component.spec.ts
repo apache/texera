@@ -34,7 +34,7 @@ import {
   operatorNameClass,
   operatorStateClass,
 } from "../../service/joint-ui/joint-ui.service";
-import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
+import { AgentService, IndexedTuple, OperatorExecutionSummary } from "../../service/agent/agent.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
@@ -1199,41 +1199,42 @@ describe("WorkflowEditorComponent", () => {
 
       it("exposes seeded agent operator result summaries and falls back to undefined", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const sampleTuples: ReadonlyArray<IndexedTuple> = [
+          [0, { schema: { attributes: [{ attributeName: "colA", attributeType: "string" }] }, fields: ["x"] }],
+        ];
         summaries.set("op-a", {
-          state: "Completed",
-          inputTuples: 1,
-          outputTuples: 2,
-          sampleRecords: [{ colA: "x" }],
-          resultStatistics: { rowCount: "2" },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples, totalTuplesCount: 2 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
-        expect(component.getOperatorSampleRecords("op-a")).toEqual([{ colA: "x" }]);
-        expect(component.getOperatorResultStatistics("op-a")).toEqual({ rowCount: "2" });
-        expect(component.getOperatorSampleRecords("missing")).toBeUndefined();
-        expect(component.getOperatorResultStatistics("missing")).toBeUndefined();
+        expect(component.getOperatorSampleTuples("op-a")).toEqual(sampleTuples);
+        expect(component.getOperatorResultMode("op-a")).toEqual({ type: "PaginationMode" });
+        expect(component.getOperatorSampleTuples("missing")).toBeUndefined();
+        expect(component.getOperatorResultMode("missing")).toBeUndefined();
       });
 
-      it("detects visualization operators from the __is_visualization__ marker", () => {
+      it("detects visualization operators from the SetSnapshotMode result mode", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const vizTuples: ReadonlyArray<IndexedTuple> = [
+          [
+            0,
+            { schema: { attributes: [{ attributeName: "html-content", attributeType: "string" }] }, fields: ["<p/>"] },
+          ],
+        ];
         summaries.set("viz-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ __is_visualization__: true }],
+          resultSummary: { resultMode: { type: "SetSnapshotMode" }, sampleTuples: vizTuples, totalTuplesCount: 1 },
         });
         summaries.set("plain-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ colA: "x" }],
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples: [], totalTuplesCount: 0 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        summaries.set("no-result-op", {});
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
         expect(component.isOperatorVisualization("viz-op")).toBe(true);
         expect(component.isOperatorVisualization("plain-op")).toBe(false);
+        expect(component.isOperatorVisualization("no-result-op")).toBe(false);
         expect(component.isOperatorVisualization("missing")).toBe(false);
       });
 
@@ -2407,12 +2408,12 @@ describe("WorkflowEditorComponent editor wiring", () => {
     it("re-renders only while the popover is open when new agent summaries arrive", () => {
       const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
 
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
       expect(detectChanges).not.toHaveBeenCalled();
 
       clickChatButton(mockScanPredicate.operatorID);
       detectChanges.mockClear();
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
 
       expect(detectChanges).toHaveBeenCalledTimes(1);
     });
