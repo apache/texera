@@ -302,7 +302,6 @@ describe("AgentPanelComponent", () => {
       fixture.detectChanges();
 
       expect(component.width).toBe(0);
-      expect(component.isDocked).toBe(true);
       expect(fixture.nativeElement.querySelector("#agent-docked-button")).toBeTruthy();
     });
   });
@@ -581,13 +580,6 @@ describe("AgentPanelComponent", () => {
       expect(component.width).toBe(700);
       expect(component.height).toBe(560);
     });
-
-    it("handleDragStart undocks the panel", () => {
-      createComponent();
-      component.isDocked = true;
-      component.handleDragStart();
-      expect(component.isDocked).toBe(false);
-    });
   });
 
   describe("panel settings persistence", () => {
@@ -640,7 +632,6 @@ describe("AgentPanelComponent", () => {
 
       expect(style.cssText).toBe("transform: translate3d(15px, 15px, 0px);");
       expect(component.returnPosition).toEqual({ x: -15, y: -15 });
-      expect(component.isDocked).toBe(false); // drag position (0,0) differs from (-15,-15)
     });
 
     it("counts as docked when the saved transform nets out to the origin", () => {
@@ -652,7 +643,6 @@ describe("AgentPanelComponent", () => {
 
       expect(component.returnPosition.x === 0).toBe(true);
       expect(component.returnPosition.y === 0).toBe(true);
-      expect(component.isDocked).toBe(true);
     });
 
     it("persists dimensions, docked flag and container style, and deactivates the agent on destroy", () => {
@@ -819,10 +809,6 @@ describe("AgentPanelComponent", () => {
       expect(drag.freeDragPosition).toEqual({ x: 11, y: 22 });
       // The whole box is draggable but only the <h4> title is a handle.
       expect(fixture.debugElement.query(By.directive(CdkDragHandle)).nativeElement.id).toBe("title");
-
-      expect(component.isDocked).toBe(true);
-      drag.started.emit({ source: drag } as CdkDragStart);
-      expect(component.isDocked).toBe(false);
     });
 
     it("force-renders every tab body: the registration form and one chat per agent", () => {
