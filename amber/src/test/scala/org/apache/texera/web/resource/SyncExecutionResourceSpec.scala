@@ -22,7 +22,11 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  VFSURIFactory,
+  WarehouseUnavailableException
+}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -74,7 +78,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion
 }
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
-import org.apache.texera.web.service.{WarehouseUnavailableException, WorkflowExecutionService}
+import org.apache.texera.web.service.WorkflowExecutionService
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

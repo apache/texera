@@ -22,11 +22,16 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  WarehouseReadGuard,
+  WarehouseUnavailableException
+}
+import org.apache.texera.amber.core.tuple.{Tuple, TupleUtils}
 import org.apache.texera.common.config.ApplicationConfig
-import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
-import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -50,11 +55,9 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
-import org.apache.texera.web.service.{WarehouseReadGuard, WarehouseUnavailableException}
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
+import org.apache.texera.web.service.WorkflowService
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.net.URI
@@ -541,7 +544,7 @@ class SyncExecutionResource extends LazyLogging {
     import com.fasterxml.jackson.databind.node.ObjectNode
 
     try {
-      val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      val storageUriOption = ExecutionResultUris.getResultUriByLogicalPortId(
         executionId,
         OperatorIdentity(opId),
         PortIdentity()
@@ -575,7 +578,7 @@ class SyncExecutionResource extends LazyLogging {
           val firstTuple = tupleIterator.next()
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
-              ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
+              TupleUtils.convertTuplesToJson(List(firstTuple), isVisualization = true)
             jsonResults.foreach(
               _.asInstanceOf[ObjectNode].put("__is_visualization__", true)
             )
@@ -591,7 +594,7 @@ class SyncExecutionResource extends LazyLogging {
           // __row_index__ preserves the original position so the frontend can show
           // "row N" correctly after symmetric truncation drops the middle.
           var rowIndex = 0
-          val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
+          val firstJson = TupleUtils.convertTuplesToJson(List(firstTuple)).head
           val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
           truncatedFirst.put("__row_index__", rowIndex)
           val firstSize = estimateTupleSize(truncatedFirst, mapper)
@@ -617,7 +620,7 @@ class SyncExecutionResource extends LazyLogging {
             val tuple = tupleIterator.next()
             rowIndex += 1
             processedCount += 1
-            val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
+            val jsonTuple = TupleUtils.convertTuplesToJson(List(tuple)).head
             val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
             truncatedTuple.put("__row_index__", rowIndex)
             val tupleSize = estimateTupleSize(truncatedTuple, mapper)
@@ -635,7 +638,7 @@ class SyncExecutionResource extends LazyLogging {
                 val t = tupleIterator.next()
                 rowIndex += 1
                 processedCount += 1
-                val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+                val jt = TupleUtils.convertTuplesToJson(List(t)).head
                 val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
                 tt.put("__row_index__", rowIndex)
                 val ts = estimateTupleSize(tt, mapper)
@@ -671,7 +674,7 @@ class SyncExecutionResource extends LazyLogging {
               val t = tupleIterator.next()
               rowIndex += 1
               processedCount += 1
-              val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+              val jt = TupleUtils.convertTuplesToJson(List(t)).head
               val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
               tt.put("__row_index__", rowIndex)
               val ts = estimateTupleSize(tt, mapper)
