@@ -610,6 +610,39 @@ describe("WorkflowGraph", () => {
   });
 
   describe("debug state", () => {
+    it("should report whether an operator has debug state without creating it", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+
+      expect(workflowGraph.hasOperatorDebugState(mockScanPredicate.operatorID)).toBe(false);
+      expect(workflowGraph.hasOperatorDebugState("unknown-operator")).toBe(false);
+      expect(() => workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID)).toThrow(
+        /does not have a debug state/
+      );
+
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+
+      expect(workflowGraph.hasOperatorDebugState(mockScanPredicate.operatorID)).toBe(true);
+    });
+
+    it("should keep reporting debug state an operator left behind when it was deleted", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+
+      workflowGraph.deleteOperator(mockScanPredicate.operatorID);
+
+      expect(workflowGraph.hasOperator(mockScanPredicate.operatorID)).toBe(false);
+      expect(workflowGraph.hasOperatorDebugState(mockScanPredicate.operatorID)).toBe(true);
+    });
+
+    it("should look for debug state in the document open now", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+
+      workflowGraph.loadNewYModel();
+
+      expect(workflowGraph.hasOperatorDebugState(mockScanPredicate.operatorID)).toBe(false);
+    });
+
     it("should create, get, and idempotently re-create an operator debug state", () => {
       workflowGraph.addOperator(mockScanPredicate);
 
