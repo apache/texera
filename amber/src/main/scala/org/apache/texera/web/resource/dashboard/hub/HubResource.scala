@@ -147,7 +147,7 @@ object HubResource {
     */
   def recordUserAction(
       request: HttpServletRequest,
-      userId: Integer = Integer.valueOf(0),
+      userId: Integer = null,
       entityId: Integer,
       entityType: EntityType,
       action: ActionType
@@ -418,7 +418,9 @@ class HubResource {
       .returning(viewCountColumn)
       .fetchOne()
 
-    recordUserAction(request, userId, entityID, entityType, View)
+    // An anonymous viewer has no user row, so the view is recorded with a NULL uid.
+    val viewerUid = Option(userId).filter(_.intValue() > 0).orNull
+    recordUserAction(request, viewerUid, entityID, entityType, View)
 
     record.get(viewCountColumn)
   }
