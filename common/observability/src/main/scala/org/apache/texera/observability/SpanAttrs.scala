@@ -39,11 +39,6 @@ object SpanAttrs {
 
   val WorkflowId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.workflow.id")
   val ExecutionId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.execution.id")
-  val ProjectId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.project.id")
-  val UserId: AttributeKey[java.lang.Long] = AttributeKey.longKey("texera.user.id")
-  val OperatorId: AttributeKey[String] = AttributeKey.stringKey("texera.operator.id")
-  val OperatorName: AttributeKey[String] = AttributeKey.stringKey("texera.operator.name")
-  val Outcome: AttributeKey[String] = AttributeKey.stringKey("texera.outcome")
 
   // ---- Pure helpers (exposed for testing) ------------------------------
 

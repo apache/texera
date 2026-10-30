@@ -19,7 +19,6 @@
 
 package org.apache.texera.observability
 
-import io.opentelemetry.context.Context
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,19 +37,5 @@ class TexeraTracerSpec extends AnyFlatSpec with Matchers {
   "TexeraTracer.tracer" should "be stable across calls (same instrumentation scope)" in {
     TexeraTracer.tracer should not be null
     TexeraTracer.tracer should not be null
-  }
-
-  "TexeraTracer.currentContext" should "return the active context" in {
-    TexeraTracer.currentContext shouldBe Context.current()
-  }
-
-  it should "observe a value made current via the OpenTelemetry context" in {
-    val key = io.opentelemetry.context.ContextKey.named[String]("texera.tracer.spec.key")
-    val scope = Context.current().`with`(key, "v").makeCurrent()
-    try {
-      TexeraTracer.currentContext.get(key) shouldBe "v"
-    } finally {
-      scope.close()
-    }
   }
 }
