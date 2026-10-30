@@ -147,6 +147,76 @@ describe("SearchBarComponent", () => {
     expect(component.listOfResult).toEqual(["hello"]);
   }));
 
+<<<<<<< HEAD
+=======
+  it("drops the previous user's cached suggestions when the user changes", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeWorkflowItem("private-wf")], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+    expect(component.listOfResult).toEqual(["private-wf"]);
+
+    isLoginValue = false;
+    userChangeSubject.next(undefined);
+    expect(component.listOfResult).toEqual([]);
+
+    searchSpy.search.mockReturnValue(of({ results: [], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+
+    // Asked the server again, as a signed-out user, instead of reusing the cache.
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(searchSpy.search.mock.calls[1][6]).toBe(false);
+    expect(component.listOfResult).toEqual([]);
+  }));
+
+  it("lists a model hit by name, as the all-kinds search returns model rows", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeModelItem("my-model")], more: false } as SearchResult));
+
+    component.onSearchInputChange("my");
+    tick(200);
+
+    expect(component.listOfResult).toEqual(["my-model"]);
+  }));
+
+  it("reports a row it cannot name instead of hiding it behind an empty dropdown", fakeAsync(() => {
+    // SearchService only keeps rows convertToName can name, so this row means the two disagree: a bug that has
+    // to reach the console.
+    const unhandled = vi.fn();
+    const previousHandler = config.onUnhandledError;
+    config.onUnhandledError = unhandled;
+    try {
+      searchSpy.search.mockReturnValueOnce(of({ results: [{ resourceType: "computing-unit" } as any], more: false }));
+
+      component.onSearchInputChange("bad");
+      tick(200);
+
+      expect(unhandled).toHaveBeenCalledTimes(1);
+      expect((unhandled.mock.calls[0][0] as Error).message).toBe("Unexpected type in SearchResult.");
+    } finally {
+      config.onUnhandledError = previousHandler;
+    }
+  }));
+
+  it("keeps autocomplete working after a failed request, and retries rather than caching the failure", fakeAsync(() => {
+    component.listOfResult = ["stale"];
+    searchSpy.search.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(component.listOfResult).toEqual([]);
+    expect((component as any).searchCache.has("x")).toBe(false);
+
+    searchSpy.search.mockReturnValueOnce(of({ results: [makeWorkflowItem("x-wf")], more: false } as SearchResult));
+    // Same query again: the failure was not cached, so this goes back to the server.
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(component.listOfResult).toEqual(["x-wf"]);
+  }));
+
+>>>>>>> 553ab15b3 (fix(frontend): clear the search bar’s suggestions when the user changes (#9090))
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
     const order = (component as any).queryOrder as string[];
