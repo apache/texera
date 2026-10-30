@@ -34,6 +34,7 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{
@@ -356,7 +357,7 @@ class WorkflowExecutionsResourceSpec
   ): Unit =
     ExecutionResultService.persistOperatorPortResultUri(
       eid,
-      OperatorPortResultUriAvailable(globalPortId, uri)
+      OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SET_SNAPSHOT)
     )
 
   // ─── existing tests (preserved) ───────────────────────────────────────────
@@ -677,9 +678,9 @@ class WorkflowExecutionsResourceSpec
     assert(survivorEids.contains(survivor.getEid))
   }
 
-  // ─── new: updateResultSize ────────────────────────────────────────────────
+  // ─── new: updateResultSizeAndCount ────────────────────────────────────────
 
-  "updateResultSize" should "set RESULT_SIZE on the matching (eid, globalPortId) row" in {
+  "updateResultSizeAndCount" should "set RESULT_SIZE and RESULT_COUNT on the matching (eid, globalPortId) row" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
     val globalPortId = GlobalPortIdentity(
@@ -693,7 +694,7 @@ class WorkflowExecutionsResourceSpec
       URI.create("vfs:///r")
     )
 
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, 4096L)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, 4096L, 25L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -701,6 +702,7 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .fetchOne()
     assert(row.getResultSize == 4096)
+    assert(row.getResultCount == 25L)
   }
 
   it should "store a >2GiB size without truncation (#6978)" in {
@@ -715,7 +717,7 @@ class WorkflowExecutionsResourceSpec
 
     // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
     val threeGiB = 3L * 1024 * 1024 * 1024
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, threeGiB)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, threeGiB, 0L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)

@@ -102,6 +102,7 @@ CREATE TYPE workflow_computing_unit_termination_reason_enum AS ENUM ('USER_REQUE
 CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'ORCID', 'APPLE');
 CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
+CREATE TYPE output_mode_enum AS ENUM ('SET_SNAPSHOT', 'SET_DELTA', 'SINGLE_SNAPSHOT');
 
 -- ============================================
 -- 5. Create tables
@@ -551,6 +552,10 @@ CREATE TABLE operator_port_executions
     global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
     result_size           BIGINT DEFAULT 0,
+    -- The port's declared output mode and row count, so a finished execution's results
+    -- can be listed without the engine's physical plan or opening each table (#8994).
+    output_mode           output_mode_enum,
+    result_count          BIGINT,
     PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
 );
