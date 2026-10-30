@@ -58,6 +58,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history for proper tagging
+          # Build with the tag's own create-release-tarballs.sh: the copy a
+          # voter runs to reproduce the artifacts.
+          ref: ${{ github.event.inputs.tag }}
 
       - name: Validate tag exists
         run: |
@@ -124,8 +127,9 @@ jobs:
           echo "Bundled IMAGE_TAG: $IMAGE_TAG"
           echo "Staging directory: dist/dev/incubator/texera/$RC_DIR"
 
-      - name: Create source tarball
+      - name: Create source tarball and Docker Compose bundle
         run: |
+<<<<<<< HEAD
           TAG_NAME="${{ steps.vars.outputs.tag_name }}"
           SRC_TARBALL="${{ steps.vars.outputs.src_tarball }}"
           VERSION="${{ steps.vars.outputs.version }}"
@@ -218,6 +222,17 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           ls -lh "$COMPOSE_TARBALL"
           echo "✓ Created Docker Compose bundle: $COMPOSE_TARBALL"
+=======
+          # Reproducible: voters can rerun this script on the tag with the
+          # IMAGE_REGISTRY/IMAGE_TAG from the bundle's .env and compare checksums.
+          ./.github/scripts/create-release-tarballs.sh \
+            "${{ steps.vars.outputs.tag_name }}" \
+            "${{ steps.vars.outputs.version }}" \
+            "${{ steps.vars.outputs.image_registry }}" \
+            "${{ steps.vars.outputs.image_tag }}" \
+            "$GITHUB_WORKSPACE"
+          ls -lh "${{ steps.vars.outputs.src_tarball }}" "${{ steps.vars.outputs.compose_tarball }}"
+>>>>>>> d79ac16e7 (feat: make release artifacts and images reproducible (#8812))
 
       - name: Checksum all artifacts
         run: |
@@ -237,6 +252,7 @@ jobs:
           RC_DIR="${{ steps.vars.outputs.rc_dir }}"
           COMMIT_HASH="${{ steps.vars.outputs.commit_hash }}"
           IMAGE_REGISTRY="${{ steps.vars.outputs.image_registry }}"
+          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
 
           # Artifacts are signed locally by the release manager, who fills these in.
           GPG_KEY_ID="<FILL IN: signing key fingerprint>"
@@ -254,6 +270,7 @@ jobs:
           sed -i "s|\${GPG_KEY_ID}|${GPG_KEY_ID}|g" vote-email.txt
           sed -i "s|\${GPG_EMAIL}|${GPG_EMAIL}|g" vote-email.txt
           sed -i "s|\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" vote-email.txt
+          sed -i "s|\${IMAGE_TAG}|${IMAGE_TAG}|g" vote-email.txt
 
           echo "✓ Vote email template generated!"
 

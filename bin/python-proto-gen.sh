@@ -31,10 +31,13 @@ PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
 PROTOC_INCLUDE_DIR="$(dirname "$(dirname "$(command -v protoc)")")/include"
 
 # proto-gen
+# betterproto merges every file of a proto package into one module, in the
+# order protoc receives them, and find's order depends on the filesystem; sort
+# so the generated modules are identical on every machine.
 mkdir -p "$PYAMBER_DIR/proto"
 protoc --python_betterproto_out="$PYAMBER_DIR/proto" \
  -I="$PROTOC_INCLUDE_DIR" \
  -I="$PROTOBUF_AMBER_DIR" \
  -I="$PROTOBUF_CORE_DIR" \
- $(find "$PROTOBUF_AMBER_DIR" -iname "*.proto") \
- $(find "$PROTOBUF_CORE_DIR" -iname "*.proto")
+ $(find "$PROTOBUF_AMBER_DIR" -iname "*.proto" | LC_ALL=C sort) \
+ $(find "$PROTOBUF_CORE_DIR" -iname "*.proto" | LC_ALL=C sort)
