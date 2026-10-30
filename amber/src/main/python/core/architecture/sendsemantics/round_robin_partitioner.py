@@ -27,9 +27,6 @@ from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
 
 
 class RoundRobinPartitioner(IndexedShufflePartitioner):
-    # Unlike the hash/range shuffles, round-robin drains a slot's batch on flush.
-    _clear_batch_on_flush = True
-
     def __init__(self, partitioning: RoundRobinPartitioning):
         super().__init__(partitioning)
         # Indexed by round_robin_index to choose the downstream worker to send to.
