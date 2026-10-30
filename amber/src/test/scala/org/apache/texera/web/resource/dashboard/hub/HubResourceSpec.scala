@@ -795,6 +795,17 @@ class HubResourceSpec
     )
   }
 
+  it should "record an anonymous view (uid 0 or none) with a NULL uid" in {
+    val id = seedWorkflow(810603, "wf_view_anonymous")
+    hub.postView(req, ViewRequest(id, Integer.valueOf(0), Wf)) shouldBe 1
+    hub.postView(req, ViewRequest(id, null, Wf)) shouldBe 2
+
+    auditRows() shouldBe Seq(
+      (null, "workflow", 810603, "view", "127.0.0.1"),
+      (null, "workflow", 810603, "view", "127.0.0.1")
+    )
+  }
+
   it should "keep workflow and dataset view counts apart when the ids collide" in {
     seedWorkflow(830001, "wf_view_shared_id")
     seedDataset(830001, "ds_view_shared_id")
