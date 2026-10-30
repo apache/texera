@@ -540,7 +540,10 @@ class TestTuple:
                 "col-bool": True,
                 "col-long": -8965536434247,
                 "col-double": 1 / 3,
-                "col-timestamp": datetime.datetime.fromtimestamp(-1990),
+                "col-timestamp": datetime.datetime(
+                    1970, 1, 1, tzinfo=datetime.timezone.utc
+                )
+                - datetime.timedelta(seconds=1990),
                 "col-binary": None,
             },
             schema,
@@ -560,6 +563,14 @@ class TestTuple:
             schema,
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
+
+    def test_hash_supports_local_epoch_timestamp(self):
+        tuple_ = Tuple(
+            {"value": datetime.datetime.fromtimestamp(0)},
+            Schema(raw_schema={"value": "TIMESTAMP"}),
+        )
+
+        assert hash(tuple_) == 31
 
     def test_tuple_with_large_binary(self):
         """Test tuple with largebinary field."""
