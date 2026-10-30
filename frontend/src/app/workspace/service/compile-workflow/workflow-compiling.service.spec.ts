@@ -649,7 +649,7 @@ describe("WorkflowCompilingService compile pipeline", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addLink(mockScanResultLink);
-    // ScanSource requires `tableName`; without it the operator is filtered out of the valid graph
+    // ScanSource requires `tableName`; without it the operator is filtered out of the logical plan
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "twitter" });
     tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
     return httpTestingController.expectOne(compileUrl);
@@ -742,6 +742,56 @@ describe("WorkflowCompilingService compile pipeline", () => {
 
     expect(service.getWorkflowCompilationState()).toBe(CompilationState.Succeeded);
     warn.mockRestore();
+  }));
+
+  it("leaves an invalid operator, and the links touching it, out of the logical plan", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    // no tableName, which ScanSource requires
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    const request = httpTestingController.expectOne(compileUrl);
+
+    const body = JSON.parse(request.request.body);
+    expect(body.operators.map((operator: any) => operator.operatorID)).toEqual([mockResultPredicate.operatorID]);
+    expect(body.links).toEqual([]);
+
+    request.flush({ operatorOutputSchemas: {}, operatorErrors: {} });
+  }));
+
+  // Compiling used to plan a filtered copy of the graph: a new WorkflowGraph, whose SharedModel opened a
+  // y-websocket connection to a room of its own that nothing ever closed, one more on every debounced edit.
+  it("opens no websocket when it compiles", fakeAsync(() => {
+    const openedUrls: string[] = [];
+    vi.stubGlobal(
+      "WebSocket",
+      class {
+        constructor(url: string) {
+          openedUrls.push(url);
+        }
+      }
+    );
+    try {
+      buildWorkflowAndCompile().flush({ operatorOutputSchemas: {}, operatorErrors: {} });
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "reddit" });
+      tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+      httpTestingController.expectOne(compileUrl).flush({ operatorOutputSchemas: {}, operatorErrors: {} });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(openedUrls).toEqual([]);
+  }));
+
+  it("stops compiling once the service is destroyed", fakeAsync(() => {
+    buildWorkflowAndCompile().flush({ operatorOutputSchemas: {}, operatorErrors: {} });
+
+    // what the injector calls on teardown; @UntilDestroy() adds it to the class
+    (service as any).ngOnDestroy();
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "reddit" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+
+    httpTestingController.expectNone(compileUrl);
   }));
 });
 
