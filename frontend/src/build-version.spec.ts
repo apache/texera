@@ -19,7 +19,8 @@
 
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { renderVersionArtifacts } from "../build-version";
+import { validate } from "build-number-generator";
+import { defaultBuildNumber, renderVersionArtifacts } from "../build-version";
 
 describe("build-version: renderVersionArtifacts", () => {
   const VERSION = "1.2.3-incubating";
@@ -66,6 +67,60 @@ describe("build-version: renderVersionArtifacts", () => {
       const evaluated = new Function(`${prodTs.replace("export ", "")} return Version;`)();
       expect(evaluated.version).toBe(tricky);
     });
+  });
+
+  describe("with a build number derived from SOURCE_DATE_EPOCH (reproducible builds)", () => {
+    const realTz = process.env["TZ"];
+    afterEach(() => {
+      if (realTz === undefined) {
+        delete process.env["TZ"];
+      } else {
+        process.env["TZ"] = realTz;
+      }
+    });
+
+    it("formats the epoch as <version>.YYMMDDCCC with a two-minute counter", () => {
+      // 2023-11-14T22:13:20Z: counter = (22 * 60 + 13) / 2 = 666.
+      expect(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "1700000000" })).toBe(`${VERSION}.231114666`);
+    });
+
+    it("covers the day's boundaries: the epoch itself and the last minute of a day", () => {
+      expect(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "0" })).toBe(`${VERSION}.700101000`);
+      expect(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "86399" })).toBe(`${VERSION}.700101719`);
+    });
+
+    it("reads the epoch in UTC, so the build host's time zone cannot change the bundle", () => {
+      process.env["TZ"] = "Pacific/Kiritimati";
+      expect(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "86399" })).toBe(`${VERSION}.700101719`);
+      process.env["TZ"] = "Pacific/Pago_Pago";
+      expect(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "0" })).toBe(`${VERSION}.700101000`);
+    });
+
+    it("stays parseable by build-number-generator", () => {
+      expect(validate(defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: "1700000000" }))).toBe(true);
+    });
+
+    it("is the same on every call for the same epoch", () => {
+      const env = { SOURCE_DATE_EPOCH: "1700000000" };
+      expect(renderVersionArtifacts(VERSION, defaultBuildNumber(VERSION, env))).toEqual(
+        renderVersionArtifacts(VERSION, defaultBuildNumber(VERSION, env))
+      );
+    });
+
+    it("falls back to the wall clock when SOURCE_DATE_EPOCH is unset or empty", () => {
+      for (const env of [{}, { SOURCE_DATE_EPOCH: "" }]) {
+        const buildNumber = defaultBuildNumber(VERSION, env);
+        expect(buildNumber.startsWith(`${VERSION}.`)).toBe(true);
+        expect(validate(buildNumber)).toBe(true);
+      }
+    });
+
+    it.each(["abc", "-1", "1.5", " 12", "1e3", "0x10", "99999999999999999"])(
+      "rejects a malformed SOURCE_DATE_EPOCH %j instead of silently using the clock",
+      bad => {
+        expect(() => defaultBuildNumber(VERSION, { SOURCE_DATE_EPOCH: bad })).toThrow(/SOURCE_DATE_EPOCH/);
+      }
+    );
   });
 
   describe("with a generated build number (default argument)", () => {
@@ -201,6 +256,25 @@ describe("build-version: main()", () => {
     // and the number served in the manifest have to be the same one.
     expect(prodTsWrite!.data).toContain(JSON.stringify(manifest.buildNumber));
     expect(prodTsWrite!.data).toContain(JSON.stringify(manifest.version));
+  });
+
+  it("takes the build number from SOURCE_DATE_EPOCH when the build sets it", () => {
+    const realEpoch = process.env["SOURCE_DATE_EPOCH"];
+    process.env["SOURCE_DATE_EPOCH"] = "1700000000";
+    try {
+      const first = loadScript(true).writes;
+      const second = loadScript(true).writes;
+      const pkgVersion: string = requireCjs("./package.json").version;
+      const manifest = JSON.parse(first.find(w => w.path.endsWith("version.json"))!.data);
+      expect(manifest.buildNumber).toBe(`${pkgVersion}.231114666`);
+      expect(second).toEqual(first);
+    } finally {
+      if (realEpoch === undefined) {
+        delete process.env["SOURCE_DATE_EPOCH"];
+      } else {
+        process.env["SOURCE_DATE_EPOCH"] = realEpoch;
+      }
+    }
   });
 
   it("announces the build number it produced", () => {
