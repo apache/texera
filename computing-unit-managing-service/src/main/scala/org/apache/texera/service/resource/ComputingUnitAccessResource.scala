@@ -23,7 +23,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.auth.util.OwnerAccess
+import org.apache.texera.auth.util.{ComputingUnitAccess, OwnerAccess}
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
@@ -54,10 +54,7 @@ object ComputingUnitAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(cuid: Integer, uid: Integer): Boolean = {
-    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
-      cuid,
-      uid
-    )
+    ComputingUnitAccess.getComputingUnitAccess(cuid, uid) != PrivilegeEnum.NONE
   }
 
   /**
@@ -68,7 +65,7 @@ object ComputingUnitAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasWriteAccess(cuid: Integer, uid: Integer): Boolean = {
-    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.WRITE)
+    ComputingUnitAccess.getComputingUnitAccess(cuid, uid) == PrivilegeEnum.WRITE
   }
 
   /**
