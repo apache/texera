@@ -420,6 +420,15 @@ describe("JupyterPanelService", () => {
     expect(mockWorkflow.highlightLinks).not.toHaveBeenCalled();
   });
 
+  it("stops listening for notebook messages when its injector is destroyed", () => {
+    const removeListener = vi.spyOn(window, "removeEventListener");
+
+    TestBed.resetTestingModule();
+
+    // window outlives the service, so a listener left behind would keep it reachable
+    expect(removeListener).toHaveBeenCalledWith("message", (service as any).handleNotebookMessage);
+  });
+
   // handleNotebookMessage must only act on cellClicked messages that come from
   // our own iframe (event.source) AND carry the Jupyter origin.
   it("handleNotebookMessage highlights only for messages from the iframe at the Jupyter origin", async () => {
