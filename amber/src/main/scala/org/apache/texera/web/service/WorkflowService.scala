@@ -40,10 +40,7 @@ import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
@@ -61,7 +58,6 @@ import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import org.apache.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import org.apache.texera.common.compiler.model.LogicalPlan
 import play.api.libs.json.Json
 
 import java.net.URI
@@ -172,22 +168,6 @@ class WorkflowService(
       unsubscribeAll()
     }
   )
-
-  var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
-
-  executionService.subscribe { executionService: WorkflowExecutionService =>
-    {
-      executionService.executionStateStore.metadataStore.registerDiffHandler {
-        (oldState, newState) =>
-          {
-            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-              lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
-            }
-            Iterable.empty
-          }
-      }
-    }
-  }
 
   def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     lifeCycleManager.increaseUserCount()

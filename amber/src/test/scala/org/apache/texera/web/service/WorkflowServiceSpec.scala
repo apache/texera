@@ -144,12 +144,6 @@ import scala.collection.mutable.ArrayBuffer
   *   - the fault-tolerance block of `initExecutionService`, gated on
   *     `ApplicationConfig.faultToleranceLogRootFolder`: a `val` on a Scala `object` with no
   *     override seam, read at class-initialization time in a JVM shared with every other suite.
-  *   - `lastCompletedLogicalPlan` and the constructor's `executionService.subscribe` block that
-  *     maintains it. Nothing in the repository ever reads that field, so a test could only assert
-  *     which plan a write-only var holds — cementing code that should be deleted instead. Worth
-  *     knowing if it ever acquires a reader: the completion diff handler runs only while something
-  *     consumes the metadata store's websocket-event stream, so the snapshot silently does not
-  *     happen when no client is connected.
   *   - `resolveLakekeeperWarehouseName`, owned by `WorkflowServiceWarehouseSpec`.
   */
 class WorkflowServiceSpec
