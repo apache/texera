@@ -86,6 +86,29 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  // Type Casting matches a column by its exact name, unlike the operators that go
+  // through Schema, so `N` against a column `n` casts nothing in the engine. The
+  // script skips that unit too rather than raise a KeyError on `N`.
+  "TypeCastingOpDesc.generateStandaloneCode" should
+    "skip a unit whose column differs from the table's in case" in {
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits =
+      List(castUnit("N", AttributeType.STRING), castUnit("m", AttributeType.DOUBLE))
+    val input = Schema()
+      .add(new Attribute("n", AttributeType.INTEGER))
+      .add(new Attribute("m", AttributeType.INTEGER))
+    val inputPort = op.operatorInfo.inputPorts.head.id
+
+    op.getExternalOutputSchemas(Map(inputPort -> input)).values.head shouldBe Schema()
+      .add(new Attribute("n", AttributeType.INTEGER))
+      .add(new Attribute("m", AttributeType.DOUBLE))
+
+    val code = op.generateStandaloneCode(Map(inputPort -> input))
+    code should include("""out1df["m"] = """)
+    code should not include "\"N\""
+    code should not include "out1df[\"n\"] = "
+  }
+
   "TypeCastingOpDesc" should "round-trip its casting units through the polymorphic base" in {
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("n", AttributeType.STRING))

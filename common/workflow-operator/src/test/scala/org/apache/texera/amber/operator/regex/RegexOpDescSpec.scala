@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.regex
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
@@ -207,4 +207,17 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
       if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
       else p.exitValue() == 0
     }
+
+  // The engine reads `Url` from a column `url`, since Schema ignores case. pandas
+  // would raise a KeyError on `Url`, so the script reads the column as the table
+  // spells it.
+  "RegexOpDesc.generateStandaloneCode" should
+    "read a column named in a different case from the table" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("url", AttributeType.STRING)))
+    val code =
+      newDesc("Url", "^https?://", caseInsensitive = false).generateStandaloneCode(inputSchemas)
+    code should include("""in1df["url"]""")
+    code should not include "Url"
+  }
 }
