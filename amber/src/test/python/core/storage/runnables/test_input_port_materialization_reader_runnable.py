@@ -26,9 +26,15 @@ from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
+from core.util import set_one_of
+from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
+)
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
+    OneToOnePartitioning,
+    Partitioning,
 )
 
 DOCUMENT_FACTORY = (
@@ -269,6 +275,45 @@ class TestRunTupleLoop:
             type(call.args[0]).__name__ for call in reader.queue.put.call_args_list
         ]
         assert payload_kinds == ["ECMElement", "DataElement", "ECMElement"]
+
+    def test_one_to_one_reader_replays_every_tuple_to_its_worker(self, me):
+        # Built through __init__ with the partitioning the coordinator sends
+        # (ResourceAllocator.scala): one channel from this reader's virtual
+        # actor to its worker. The reader's partitioner must take that channel,
+        # both to cut a full batch and to flush the tail with the ECMs.
+        uri = "vfs:///wf/0/exec/0/result/op-a"
+        reader = InputPortMaterializationReaderRunnable(
+            uri=uri,
+            queue=MagicMock(),
+            worker_actor_id=me,
+            partitioning=set_one_of(
+                Partitioning,
+                OneToOnePartitioning(
+                    batch_size=2,
+                    channels=[
+                        ChannelIdentity(
+                            get_from_actor_id_for_input_port_storage(uri, me),
+                            me,
+                            is_control=False,
+                        )
+                    ],
+                ),
+            ),
+        )
+        reader.tuple_schema = Schema(raw_schema={"x": "INTEGER"})
+
+        self._run_with_documents(reader, [Tuple({"x": v}) for v in (1, 2, 3)])
+
+        # In queue order: the batches must land between the two ECMs.
+        sent = []
+        for call in reader.queue.put.call_args_list:
+            element = call.args[0]
+            if isinstance(element, ECMElement):
+                sent.append(element.payload.id.id)
+            else:
+                sent.append(element.payload.frame.to_pydict())
+        assert sent == ["StartChannel", {"x": [1, 2]}, {"x": [3]}, "EndChannel"]
+        assert reader.finished() is True
 
     def test_stop_halts_replay_but_still_closes_the_channel(self, me):
         reader = _build_reader(me)
