@@ -173,7 +173,7 @@ class WorkerSpec
     )
     val addPort1 = AsyncRPCClient.ControlInvocation(
       METHOD_ASSIGN_PORT,
-      AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema, List(""), List()),
+      AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema, List(), List()),
       AsyncRPCContext(COORDINATOR, identifier1),
       1
     )
