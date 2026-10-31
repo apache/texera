@@ -99,10 +99,18 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   "ImageTaskCodegen.parsePython" should "extract chat-style content for image-text-to-text" in {
-    val out = ImageTaskCodegen.parsePython(makeCtx())
-    out should include("choices")
-    out should include("message")
-    out should include("content")
+    // Scoped to the branch it names and anchored on executable text. Asserting on
+    // "choices"/"message" would now match only the comment in the sibling
+    // visual/document-question-answering branch, so it would pass with this
+    // branch's extraction deleted and fail if that comment were reworded.
+    val branch = ImageTaskCodegen
+      .parsePython(makeCtx())
+      .split("""elif task """)
+      .find(_.startsWith("""== "image-text-to-text""""))
+      .getOrElse(fail("image-text-to-text branch is missing"))
+    branch should include("""content = self._chat_message_content(body)""")
+    branch should include("if content is not None:")
+    branch should include("return content")
   }
 
   it should "normalize image-to-image URL responses through _url_to_data_url" in {
@@ -135,10 +143,14 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
       .find(_.startsWith("""in ("visual-question-answering"""))
       .getOrElse(fail("visual/document question-answering branch is missing"))
     branch should include(
-      """body["choices"][0].get("message", {}).get("content", json.dumps(body))"""
+      """content = self._chat_message_content(body)"""
     )
     branch should include("""body.get("answer"""")
-    branch.indexOf("choices") should be < branch.indexOf("""body.get("answer"""")
+    // The chat extraction must precede the native {"answer": ...} fallback.
+    // Anchored on the helper call, not on "choices", which now survives only in
+    // this branch's comment and so could not fail.
+    branch.indexOf("self._chat_message_content(body)") should be <
+      branch.indexOf("""body.get("answer"""")
   }
 
   it should "read chat-provider responses for zero-shot-image-classification" in {
@@ -156,20 +168,17 @@ class ImageTaskCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "degrade instead of raising when a chat response is malformed" in {
-    // Review feedback on #7920: parsePython runs per row, so indexing straight
-    // into choices[0]["message"]["content"] turns one malformed provider
-    // response into an aborted run — an empty "choices" list raises IndexError
-    // and a choice without "message"/"content" raises KeyError. Every chat
-    // extraction in this file now uses a truthiness guard plus .get chaining,
-    // matching how the native shapes already degrade via .get(..., json.dumps(body)).
+    // #8634: these extractions indexed into choices[0] and called .get on the
+    // result, so a non-dict choice or message raised AttributeError — which
+    // _parse_response's except (KeyError, IndexError, TypeError) does not catch,
+    // leaving the row reading "Request failed" instead of the body. All four now
+    // delegate to the shared, type-checked _chat_message_content helper.
     val out = ImageTaskCodegen.parsePython(makeCtx())
     out should not include ("""["message"]["content"]""")
-    out.split("""body\.get\("choices"\)""").length - 1 shouldBe 4
-    out
-      .split(
-        """\.get\("message", \{\}\)\.get\("content", json\.dumps\(body\)\)"""
-      )
-      .length - 1 shouldBe 4
+    out should not include (""".get("message", {})""")
+    out should not include ("""body["choices"]""")
+    out.split("""content = self\._chat_message_content\(body\)""").length - 1 shouldBe 4
+    out.split("if content is not None:").length - 1 shouldBe 4
   }
 
   "ImageTaskCodegen snippets" should "never inline raw CodegenContext string values" in {
