@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793365626771,
+  "lastUpdate": 1793450629704,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -20360,6 +20360,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 513.9654904289698,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Ian Maxon",
+            "username": "parshimers",
+            "email": "imaxon@apache.org"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "d79ac16e780b98842dda69ee9441cd77265f290d",
+          "message": "feat: make release artifacts and images reproducible (#8812)\n\n### What changes were proposed in this PR?\nPreviously, a variety of things caused Texera images built\nfrom the same source to not have the same binary output from\ninvocation to invocation. Having this kind of binary\nbuild reproducibility is a requirement when performing\nApache releases not on developer-owned hardware, because the\nrelease has to be verified on developer owned hardware by\nrebuilding it and getting the exact same artifact.\n\nThis change allows all release artifacts to be binary\nreproducible with effectively one piece of information,\nthough in two different formats. These build arguments\ncontain the date: SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT.\nThe first sets a uniform timestamp wherever a timestamp\nis present, and the second sets the snapshot of the apt\nrepositories used in image builds.\n\nOne other piece of information is implicit, but important\nin practice. Binary reproducibility is inherently dependent\non the versions of tools used to produce said binaries.\nMost of them are pinned within the container build files, but\nthe container builder itself is another piece of necessary\ninformation (e.g. buildah vs. buildx) for reproducing\na build from its source and time.\n\n### Any related issues, documentation, discussions?\nCloses #8809. Discussion: #8807.\n\n### How was this PR tested?\n`bin/README.md` documents what is pinned and how to rebuild an image;\nthe vote email gives voters the command that rebuilds both tarballs.\n\nMeng and I went back and forth, building all of the release images on\neach of our machines (an ARM Mac, and a x86 Linux machine) and compared\nthe hashes each of us got. We eventually got all of them to line up.\n\n### Was this PR authored or co-authored using generative AI tooling?\nYes, Claude Opus 5.5\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-30T21:19:09Z",
+          "url": "https://github.com/apache/texera/commit/d79ac16e780b98842dda69ee9441cd77265f290d"
+        },
+        "date": 1793450628787,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 880.5965534073481,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1745.547008971149,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1908.3056176983307,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1256.2693028173142,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1816.437709040783,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1908.7558692553134,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1335.7253458302282,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1829.4038294757606,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1908.9773733028749,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 998.9519914741286,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1416.7093137963045,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1472.8264387230665,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1064.009742975487,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1426.7129700406945,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1463.8657377017332,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1108.3800853641424,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1432.3051661801576,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1445.6220268623483,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 647.6631430547972,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 759.3835665458568,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 765.2093694319425,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 657.2722140046727,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 764.1097139218283,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 764.2347120925734,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 636.8106282165504,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 715.4410504750803,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 726.2997760056342,
             "unit": "tuples/sec"
           }
         ]
