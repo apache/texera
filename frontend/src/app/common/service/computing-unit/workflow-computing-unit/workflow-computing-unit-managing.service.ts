@@ -22,6 +22,7 @@ import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../app-setting";
 import {
+  ClusterCapacity,
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnit,
   WorkflowComputingUnitResourceLimit,
@@ -33,6 +34,8 @@ export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
 export const COMPUTING_UNIT_TYPES_URL = `${COMPUTING_UNIT_BASE_URL}/types`;
+export const COMPUTING_UNIT_ADMIN_LIST_URL = `${COMPUTING_UNIT_BASE_URL}/admin/list`;
+export const COMPUTING_UNIT_ADMIN_CLUSTER_CAPACITY_URL = `${COMPUTING_UNIT_BASE_URL}/admin/cluster-capacity`;
 
 @Injectable({
   providedIn: "root",
@@ -46,21 +49,26 @@ export class WorkflowComputingUnitManagingService {
       resource: string | WorkflowComputingUnitResourceLimit;
     };
 
+    let resource: WorkflowComputingUnitResourceLimit | null = null;
     if (typeof cu.resource === "string") {
       try {
-        cu.resource = JSON.parse(cu.resource) as WorkflowComputingUnitResourceLimit;
+        resource = JSON.parse(cu.resource) as WorkflowComputingUnitResourceLimit | null;
       } catch {
-        // fall back to an empty object, so the UI never crashes
-        cu.resource = {
-          cpuLimit: "NaN",
-          memoryLimit: "NaN",
-          gpuLimit: "NaN",
-          jvmMemorySize: "NaN",
-          shmSize: "NaN",
-          nodeAddresses: [],
-        };
+        // Falls back to the placeholder below.
       }
+    } else {
+      resource = cu.resource;
     }
+    // A `NULL` resource (only a hand-edited row has one) and the string `"null"` get the placeholder too,
+    // since readers use its fields unguarded.
+    cu.resource = resource ?? {
+      cpuLimit: "NaN",
+      memoryLimit: "NaN",
+      gpuLimit: "NaN",
+      jvmMemorySize: "NaN",
+      shmSize: "NaN",
+      nodeAddresses: [],
+    };
     return { ...raw, computingUnit: cu };
   };
 
@@ -185,6 +193,20 @@ export class WorkflowComputingUnitManagingService {
     return this.http
       .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`)
       .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
+  }
+
+  /** Lists every active computing unit across all users. Admin only. */
+  public listAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return this.http
+      .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_ADMIN_LIST_URL}`)
+      .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
+  }
+
+  /** The cluster's CPU, memory and GPU capacity. Admin only, and 404 when units do not run on Kubernetes. */
+  public getClusterCapacity(): Observable<ClusterCapacity> {
+    return this.http.get<ClusterCapacity>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_ADMIN_CLUSTER_CAPACITY_URL}`
+    );
   }
 
   public getComputingUnit(cuid: number): Observable<DashboardWorkflowComputingUnit> {

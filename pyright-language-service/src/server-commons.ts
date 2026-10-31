@@ -15,9 +15,7 @@ import * as cp from "child_process";
 
 export enum LanguageName {
   /** https://nodejs.org/api/cli.html  */
-  node = "node",
-  /** https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html */
-  java = "java"
+  node = "node"
 }
 
 export interface LanguageServerRunConfig {

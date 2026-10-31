@@ -24,11 +24,12 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM jupyter/base-notebook:notebook-6.5.4
+FROM docker.io/jupyter/base-notebook:notebook-6.5.4@sha256:c6afcd9f9bfca7441b60f4ffb21cebac73bf5f3d722735eff5ddc30aeb2aa34e
 
 # The customizations live with notebook-migration-service, which owns the Jupyter
 # integration. Paths are repo-root relative: the build context is the repo root.
 COPY notebook-migration-service/src/main/resources/custom.js /home/jovyan/.jupyter/custom/custom.js
+COPY notebook-migration-service/src/main/resources/custom-preload.js /home/jovyan/.jupyter/custom/custom-preload.js
 COPY notebook-migration-service/src/main/resources/custom.css /home/jovyan/.jupyter/custom/custom.css
 COPY notebook-migration-service/src/main/resources/start-texera-jupyter.sh /usr/local/bin/start-texera-jupyter.sh
 

@@ -22,6 +22,10 @@ texera:
   imageTag: 1.4.0-incubating-SNAPSHOT
 
 global:
+  # If using VMs for texera specific microservices, change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-runtime-rs"
+  # Note: kata containers must be installed to use kata-qemu-runtime-rs
+  # Note: This does not change the runtime of dependencies or Compute Units.
+  texeraMicroServiceRuntimeClass: ""
   # Required by the Bitnami postgresql sub-chart to allow custom images
   security:
     allowInsecureImages: true
@@ -98,7 +102,7 @@ rustfs:
   image:
     rustfs:
       repository: rustfs/rustfs
-      tag: 1.0.0-rc.6
+      tag: 1.0.0
   # Texera fronts the object store with Envoy Gateway (the `gateway` block
   # below), not with an Ingress -- the upstream chart turns one on by default.
   ingress:
@@ -533,6 +537,29 @@ texeraEnvVars:
   - name: AUTH_JWT_SECRET
     # Development-only default (256-bit HS256 secret). Production environments MUST override this with a different, securely generated secret.
     value: "a7f3c8e9b14d2e6f5a0b9c3d8e1f4a6b2c5d7e9f0a3b6c8d1e4f7a9b2c5d8e1f"
+  - name: KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_CPU
+    # If using VMs for CUs change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-runtime-rs"
+    # Note: kata containers must be installed to use kata-qemu-runtime-rs
+    value: ""
+  - name: KUBERNETES_COMPUTING_UNIT_RUNTIME_CLASS_GPU
+    # If using VMs for CUs change this to the desired runtime otherwise leave as "". Recommended: "kata-qemu-nvidia-gpu-runtime-rs"
+    # Note: kata containers must be installed to use kata-qemu-nvidia-gpu-runtime-r
+    value: ""
+  # OpenTelemetry (observability). Disabled by default; set OTEL_SDK_DISABLED to
+  # "false" and point the endpoint at a reachable OTLP collector (http/https only) to enable.
+  - name: OTEL_SDK_DISABLED
+    value: "true"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://127.0.0.1:4317"
+  # Comma-separated resource attributes (k1=v1,k2=v2); service.name is set per service.
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: ""
+  # Comma-separated extra hosts allowed for the OTLP endpoint (loopback allowed by default).
+  - name: TEXERA_OTEL_ALLOWED_HOSTS
+    value: ""
+  # Metric export interval in ms.
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
 
 yWebsocketServer:
   name: y-websocket-server
@@ -607,3 +634,84 @@ envoy-gateway:
       extensionApis:
         enableBackend: true
         enableEnvoyPatchPolicy: true
+
+# Observability stack (hand-rolled, mirrors bin/observability + the
+# single-node docker-compose profiles). Everything is gated behind
+# `enabled` (default off) so the standard install is unchanged. When
+# enabled, the Scala services emit OTLP to the in-cluster collector,
+# which fans logs/metrics/traces to the backends below. All Services are
+# ClusterIP only (no Ingress), matching the loopback-only posture of the
+# compose deployment. Profiling (Parca) is intentionally not included: it
+# needs a privileged eBPF DaemonSet and is a separate change.
+observability:
+  # Master switch for the whole stack.
+  enabled: false
+
+  # OpenTelemetry Collector: the single OTLP ingress. Required whenever
+  # any signal below is enabled (it is what the services emit to).
+  collector:
+    enabled: true
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    grpcPort: 4317
+    httpPort: 4318
+    resources:
+      limits:
+        memory: 768Mi
+        cpu: "1"
+
+  # Loki: log store (OTLP ingest at /otlp + LogQL). AGPLv3, so it is an
+  # optional operator-run component, not part of any Texera release
+  # artifact (see bin/observability/README.md).
+  logs:
+    enabled: true
+    image: grafana/loki:3.2.0
+    port: 3100
+    retentionPeriod: 30d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # VictoriaMetrics: metrics store (Prometheus remote-write + MetricsQL).
+  metrics:
+    enabled: true
+    image: victoriametrics/victoria-metrics:v1.144.0
+    port: 8428
+    retentionPeriod: 90d
+    storage: 10Gi
+    storageClass: local-path
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # Jaeger v2: traces backend + UI. In-memory storage (restart wipes
+  # traces); swap in persistent storage for production.
+  traces:
+    enabled: true
+    image: jaegertracing/jaeger:2.18.0
+    queryPort: 16686
+    otlpPort: 4317
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "1"
+
+  # Grafana: dashboard/UI reading Loki + VictoriaMetrics + Jaeger as
+  # pre-provisioned datasources. AGPLv3, so it is an optional operator-run
+  # component, not part of any Texera release artifact (see
+  # bin/observability/README.md). ClusterIP only; expose via your own
+  # Ingress or `kubectl port-forward`. Override the admin credentials for
+  # any environment reachable beyond an internal port-forward.
+  grafana:
+    enabled: true
+    image: grafana/grafana:11.2.0
+    port: 3000
+    adminUser: admin
+    adminPassword: texera
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "0.5"

@@ -18,7 +18,6 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { HttpClient } from "@angular/common/http";
 import { firstValueFrom, of, Subject, Subscription, throwError } from "rxjs";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -28,9 +27,8 @@ import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 /**
- * The service reaches for five collaborators but only ever calls a handful of their methods, so the
- * suite injects narrow stubs rather than the real service graph. `http` is injected by the service
- * and never used, so an empty object is enough to satisfy the constructor.
+ * The service reaches for four collaborators but only ever calls a handful of their methods, so the
+ * suite injects narrow stubs rather than the real service graph.
  */
 function stubs() {
   return {
@@ -66,7 +64,6 @@ describe("ReportGenerationService", () => {
     TestBed.configureTestingModule({
       providers: [
         ReportGenerationService,
-        { provide: HttpClient, useValue: {} },
         { provide: WorkflowActionService, useValue: deps.workflowActionService },
         { provide: WorkflowResultService, useValue: deps.workflowResultService },
         { provide: NotificationService, useValue: deps.notificationService },

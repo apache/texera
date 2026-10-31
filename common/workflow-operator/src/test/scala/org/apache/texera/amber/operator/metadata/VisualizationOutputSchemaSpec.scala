@@ -21,27 +21,27 @@ package org.apache.texera.amber.operator.metadata
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import org.apache.texera.amber.operator.visualization.urlviz.UrlVizOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  * Guard for the visualization output-schema contract, over every registered
+  * Guard for the visualization output contract, over every registered
   * visualization descriptor.
   *
   * The frontend locates the chart HTML a visualization returns by reading a
-  * single `html-content` STRING column from the operator's one output port.
-  * Every Python visualization descriptor re-declares that contract in its own
-  * `getOutputSchemas` override, so a new chart (or an edit to an existing one)
-  * can silently ship a schema the frontend cannot render, and only that
-  * operator's own spec -- if it asserts the schema at all -- would notice.
+  * single `html-content` STRING column from the operator's one output port, and
+  * the exported script must not print a chart as a leaf DataFrame.
+  * `PythonVisualizationOpDesc` declares both as final members, but a new chart
+  * that does not extend it can still ship a schema the frontend cannot render,
+  * and only that operator's own spec -- if it asserts the schema at all -- would
+  * notice.
   *
   * Sweeping the registry rather than testing the descriptors one by one is
-  * deliberate: the contract lives in 48 identical three-line overrides, so the
-  * mistake is as easy to make in the next chart as in these, and a per-operator
-  * test would not exist for the next chart until someone remembers to write it.
+  * deliberate: a per-operator test would not exist for the next chart until
+  * someone remembers to write it.
   */
 class VisualizationOutputSchemaSpec extends AnyFlatSpec with Matchers {
 
@@ -62,8 +62,8 @@ class VisualizationOutputSchemaSpec extends AnyFlatSpec with Matchers {
   private val sweptClasses =
     visualizationClasses.filterNot(nonPythonVisualizations.contains)
 
-  private def instantiate(opClass: Class[_]): PythonOperatorDescriptor =
-    opClass.getConstructor().newInstance().asInstanceOf[PythonOperatorDescriptor]
+  private def instantiate(opClass: Class[_]): PythonVisualizationOpDesc =
+    opClass.getConstructor().newInstance().asInstanceOf[PythonVisualizationOpDesc]
 
   "the registry" should "contain the visualization descriptors this sweep guards" in {
     // If the selection ever comes back empty (say, the package is renamed),
@@ -71,13 +71,13 @@ class VisualizationOutputSchemaSpec extends AnyFlatSpec with Matchers {
     sweptClasses.size should be >= 48
   }
 
-  it should "register no visualization descriptor outside the Python contract except the known two" in {
-    val nonPython =
-      visualizationClasses.filterNot(classOf[PythonOperatorDescriptor].isAssignableFrom)
-    nonPython.toSet shouldBe nonPythonVisualizations
+  it should "register no visualization descriptor outside PythonVisualizationOpDesc except the known two" in {
+    val outsideTheTrait =
+      visualizationClasses.filterNot(classOf[PythonVisualizationOpDesc].isAssignableFrom)
+    outsideTheTrait.toSet shouldBe nonPythonVisualizations
   }
 
-  "every Python visualization descriptor" should "declare a single html-content STRING column on its one output port" in {
+  "every Python visualization descriptor" should "declare a single html-content STRING column on its one output port and not produce a DataFrame" in {
     sweptClasses.foreach { opClass =>
       withClue(s"${opClass.getSimpleName}: ") {
         val op = instantiate(opClass)
@@ -90,6 +90,7 @@ class VisualizationOutputSchemaSpec extends AnyFlatSpec with Matchers {
         val schema = outputSchemas(outputPortIds.head)
         schema.getAttributeNames shouldBe List("html-content")
         schema.getAttribute("html-content").getType shouldBe AttributeType.STRING
+        op.producesDataFrame() shouldBe false
       }
     }
   }

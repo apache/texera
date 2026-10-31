@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.treeplot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -40,7 +38,7 @@ import javax.validation.constraints.NotNull
   * to construct and visualize an interactive, top-down tree that automatically
   * sizes itself and supports intuitive scroll/pinch zooming.
   */
-class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Edge List Column", required = true)
   @JsonSchemaTitle("Edge List Column")
@@ -57,15 +55,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
         "Visualize hierarchical data as a top-down, interactive, auto-sizing tree",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    Map(
-      operatorInfo.outputPorts.head.id -> Schema()
-        .add("html-content", AttributeType.STRING)
-    )
-  }
 
   override def generatePythonCode(): String = {
     assert(edgeListColumn.nonEmpty, "Edge List Column cannot be empty")
@@ -246,8 +235,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     s"""import ast

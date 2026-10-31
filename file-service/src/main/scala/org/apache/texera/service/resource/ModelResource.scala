@@ -100,8 +100,6 @@ object ModelResource {
   // Matches model_version.name VARCHAR(128).
   private val MAX_VERSION_NAME_LENGTH = 128
 
-  private val MULTIPART_OPERATIONS = Seq("list", "init", "finish", "abort")
-
   private def context =
     SqlServer
       .getInstance()
@@ -741,6 +739,8 @@ class ModelResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE)
       }
 
+      ResourceNaming.validateVersionDescription(versionName)
+
       val model = getModelByID(ctx, mid)
       val modelName = model.getName
       val repositoryName = model.getRepositoryName
@@ -960,14 +960,8 @@ class ModelResource extends LazyLogging {
   ): Response = {
     val uid = user.getUid
 
-    // Optional query param: null when omitted, so validate before dereferencing and before
-    // the getModelBy round-trip.
-    val operation = Option(operationType).map(_.trim.toLowerCase).getOrElse("")
-    if (!MULTIPART_OPERATIONS.contains(operation)) {
-      throw new BadRequestException(
-        s"Invalid type parameter. Use ${MULTIPART_OPERATIONS.map(o => s"'$o'").mkString(", ")}."
-      )
-    }
+    // Validated before the getModelBy round-trip.
+    val operation = ResourceUploadService.multipartOperationOrThrow(operationType)
 
     val model: Model = getModelBy(ownerEmail, modelName)
 

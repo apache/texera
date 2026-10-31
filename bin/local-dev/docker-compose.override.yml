@@ -22,6 +22,14 @@
 # Node services *natively* on the host, so we expose each backend port here.
 
 services:
+  # A host-native backend (sbt / IntelliJ) emits OTLP to the collector that
+  # runs inside compose, so publish the collector's receiver ports on the host
+  # loopback. Only takes effect when the observability-collector profile is on.
+  otel-collector:
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+
   postgres:
     ports:
       - "5432:5432"

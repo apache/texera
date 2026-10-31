@@ -19,61 +19,13 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnBaggingOpDescSpec extends AnyFlatSpec with Matchers {
-
-  "SklearnBaggingOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn group, and the training/testing port shape" in {
-    val info = (new SklearnBaggingOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Bagging"
-    info.operatorDescription shouldBe "Sklearn Bagging Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training", "testing")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnBaggingOpDesc" should "default its config fields" in {
-    val d = new SklearnBaggingOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
-
-  "SklearnBaggingOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnBaggingOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnBaggingOpDesc.generatePythonCode" should "import the configured sklearn estimator" in {
-    val d = new SklearnBaggingOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.ensemble import BaggingClassifier")
-    code should include("make_pipeline")
-    code should include("Bagging")
-  }
-
-  "SklearnBaggingOpDesc" should "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnBaggingOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnBagging\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnBaggingOpDesc]
-    val r = restored.asInstanceOf[SklearnBaggingOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
-  }
+class SklearnBaggingOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
+  sklearnClassifier(
+    new SklearnBaggingOpDesc,
+    "SklearnBagging",
+    "Bagging",
+    "from sklearn.ensemble import BaggingClassifier"
+  )
 }

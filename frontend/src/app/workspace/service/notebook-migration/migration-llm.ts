@@ -41,8 +41,13 @@ import {
   EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
   SCRIPT_WORKFLOW_PROMPT,
   SCRIPT_MAPPING_PROMPT,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER,
+  FOLDER_WORKFLOW_PROMPT,
+  FOLDER_MAPPING_PROMPT,
+  FOLDER_CODE_PROMPT,
 } from "./migration-prompts";
-import { DerivedCell, segmentScript, splitScriptLines } from "./script-segmentation";
+import { DerivedCell, ScriptSegmentation, segmentScript, splitScriptLines } from "./script-segmentation";
+import { FolderDocument, resolveEntryPoint, scopeSegmentationToSpan } from "./folder-assembly";
 
 interface Cell {
   cell_type: string;
@@ -76,10 +81,11 @@ export interface CombinedMapping {
 }
 
 /**
- * A script conversion also yields the notebook it derived, because nothing upstream had one:
- * the caller stores and displays it exactly as it would a user's own .ipynb.
+ * The result of converting an input that arrived without cells. It also yields the notebook it
+ * derived, because nothing upstream had one: the caller stores and displays it exactly as it
+ * would a user's own .ipynb.
  */
-export interface ScriptConversion {
+export interface SourceConversion {
   workflowJSON: WorkflowJSON;
   workflowNotebookMapping: CombinedMapping;
   notebook: Notebook;
@@ -96,7 +102,7 @@ function numberScriptLines(source: string): string {
 
 // Wrap derived cells as a notebook. The nbformat fields are what make it openable in Jupyter,
 // and metadata.uuid is the join key the stored mapping is expressed in, same as for a real .ipynb.
-function toDerivedNotebook(cells: DerivedCell[]): Notebook {
+function toDerivedNotebook(cells: DerivedCell[], metadata: Notebook["metadata"]): Notebook {
   return {
     cells: cells.map(cell => ({
       cell_type: "code",
@@ -105,14 +111,65 @@ function toDerivedNotebook(cells: DerivedCell[]): Notebook {
       outputs: [],
       execution_count: null,
     })),
-    metadata: {
-      kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
-      language_info: { name: "python" },
-    },
+    metadata: structuredClone(metadata),
     nbformat: 4,
     nbformat_minor: 4,
   };
 }
+
+const PYTHON_NOTEBOOK_DOCUMENTATION: string[] = [
+  TEXERA_OVERVIEW,
+  TUPLE_DOCUMENTATION,
+  TABLE_DOCUMENTATION,
+  OPERATOR_DOCUMENTATION,
+  EXAMPLE_OF_GOOD_CONVERSION,
+  VISUALIZER_DOCUMENTATION,
+  UDF_INPUT_PORT_DOCUMENTATION,
+  EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+];
+
+// The script prelude differs in exactly one entry. The notebook worked example is written in
+// `# START CELL1` form, and a system-message example of that weight would push the model to
+// answer in cell ids for an input that has no cells. The notebook array is left untouched so
+// existing conversions see byte-identical context.
+const PYTHON_SCRIPT_DOCUMENTATION: string[] = PYTHON_NOTEBOOK_DOCUMENTATION.map(doc =>
+  doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
+);
+
+// Differs from the script prelude in the same single entry: its worked example shows banner
+// lines, an entry point calling into other files, and definitions inlined rather than imported.
+const PYTHON_FOLDER_DOCUMENTATION: string[] = PYTHON_SCRIPT_DOCUMENTATION.map(doc =>
+  doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER : doc
+);
+
+export type MigrationLanguage = "python";
+
+interface MigrationPromptSet {
+  notebookDocumentation: string[];
+  notebookWorkflowPrompt: string;
+  notebookMappingPrompt: string;
+  scriptDocumentation: string[];
+  scriptWorkflowPrompt: string;
+  scriptMappingPrompt: string;
+  operatorType: string;
+  notebookMetadata: Notebook["metadata"];
+}
+
+const PROMPT_SETS: Record<MigrationLanguage, MigrationPromptSet> = {
+  python: {
+    notebookDocumentation: PYTHON_NOTEBOOK_DOCUMENTATION,
+    notebookWorkflowPrompt: WORKFLOW_PROMPT,
+    notebookMappingPrompt: MAPPING_PROMPT,
+    scriptDocumentation: PYTHON_SCRIPT_DOCUMENTATION,
+    scriptWorkflowPrompt: SCRIPT_WORKFLOW_PROMPT,
+    scriptMappingPrompt: SCRIPT_MAPPING_PROMPT,
+    operatorType: "PythonUDFV2",
+    notebookMetadata: {
+      kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
+      language_info: { name: "python" },
+    },
+  },
+};
 
 /**
  * Wraps a single LLM chat session that converts a Jupyter notebook or a Python script into
@@ -124,10 +181,10 @@ function toDerivedNotebook(cells: DerivedCell[]): Notebook {
  * resets that history to its documentation prelude at its start, so the same instance can run
  * several conversions, in either mode, without leaking one conversion's context into the next.
  *
- * The two modes differ only in framing. A notebook arrives already split into cells and the
- * model is asked to map UDFs onto those cell ids; a script has no cells, so it is sent with
- * line numbers, the model reports the line ranges each UDF came from, and the cells are derived
- * from that answer. Everything downstream of the model's reply is shared.
+ * The modes differ only in framing. A notebook arrives split into cells and the model maps UDFs
+ * onto those cell ids; a script and a folder have none, so they are sent with line numbers and
+ * the cells are derived from the ranges the model reports. A folder is one document by the time
+ * it reaches here, so everything downstream of the reply is shared.
  *
  * Output column types: intermediate UDFs declare their output columns as `binary` so rich
  * Python objects (DataFrames, arrays, models) round-trip between operators via pickle.
@@ -135,6 +192,22 @@ function toDerivedNotebook(cells: DerivedCell[]): Notebook {
  * renders viewable values rather than opaque binary blobs.
  */
 export const DEFAULT_LLM_REQUEST_TIMEOUT_MINUTES = 10;
+
+// A conversion returns the input as JSON-escaped UDFs, which runs larger than the input: each UDF
+// repeats the operator boilerplate, and shared definitions are inlined into every UDF using them.
+// Without an explicit budget the proxy substitutes its own, well below any shipped model's
+// ceiling. Set under claude-haiku-4.5's 64k output ceiling so it cannot be rejected outright.
+export const MAX_CONVERSION_OUTPUT_TOKENS = 48_000;
+
+// Thrown when the model stopped because it hit the output budget. The reply is truncated, so it
+// would otherwise surface as a JSON parse error with nothing saying why.
+export class LlmResponseTruncatedError extends Error {
+  constructor() {
+    super("The model's reply was cut off before it finished. Try again with a smaller input.");
+    this.name = "LlmResponseTruncatedError";
+    Object.setPrototypeOf(this, LlmResponseTruncatedError.prototype);
+  }
+}
 
 // Thrown when a model request exceeds the configured timeout, so callers can tell a slow-but-timed-out
 // request apart from a genuine transport error and message the user accordingly.
@@ -152,25 +225,6 @@ export class NotebookMigrationLLM {
   private model: any;
   private messages: ModelMessage[] = [];
   private initialized = false;
-
-  private static readonly DOCUMENTATION: string[] = [
-    TEXERA_OVERVIEW,
-    TUPLE_DOCUMENTATION,
-    TABLE_DOCUMENTATION,
-    OPERATOR_DOCUMENTATION,
-    EXAMPLE_OF_GOOD_CONVERSION,
-    VISUALIZER_DOCUMENTATION,
-    UDF_INPUT_PORT_DOCUMENTATION,
-    EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
-  ];
-
-  // The script prelude differs in exactly one entry. The notebook worked example is written in
-  // `# START CELL1` form, and a system-message example of that weight would push the model to
-  // answer in cell ids for an input that has no cells. The notebook array is left untouched so
-  // existing conversions see byte-identical context.
-  private static readonly SCRIPT_DOCUMENTATION: string[] = NotebookMigrationLLM.DOCUMENTATION.map(doc =>
-    doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
-  );
 
   constructor(
     private config: GuiConfigService,
@@ -192,7 +246,7 @@ export class NotebookMigrationLLM {
    * conversation. Used by initialize() and at the start of each conversion, which is where
    * the input-specific variant is chosen.
    */
-  private seedDocumentation(documentation: string[] = NotebookMigrationLLM.DOCUMENTATION): void {
+  private seedDocumentation(documentation: string[] = PYTHON_NOTEBOOK_DOCUMENTATION): void {
     this.messages = documentation.map(
       (doc): ModelMessage => ({
         role: "system",
@@ -267,7 +321,7 @@ export class NotebookMigrationLLM {
     messages: ModelMessage[],
     maxOutputTokens?: number,
     abortSignal?: AbortSignal
-  ): Promise<{ text: string }> {
+  ): Promise<{ text: string; finishReason?: string }> {
     return generateText({ model: this.model, messages, maxOutputTokens, abortSignal });
   }
 
@@ -280,7 +334,10 @@ export class NotebookMigrationLLM {
   // Wraps callModel with a hard timeout so a stalled request cannot hang forever. The abort
   // cancels the underlying request when the transport honors it; the race guarantees rejection
   // even if it does not, so the caller's error path always runs.
-  private callModelWithTimeout(messages: ModelMessage[], maxOutputTokens?: number): Promise<{ text: string }> {
+  private callModelWithTimeout(
+    messages: ModelMessage[],
+    maxOutputTokens?: number
+  ): Promise<{ text: string; finishReason?: string }> {
     const minutes = this.timeoutMinutes;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -312,7 +369,12 @@ export class NotebookMigrationLLM {
       content: prompt,
     });
 
-    const result = await this.callModelWithTimeout(this.messages);
+    const result = await this.callModelWithTimeout(this.messages, MAX_CONVERSION_OUTPUT_TOKENS);
+    // "length" means the budget ran out mid-reply, so the JSON is incomplete. Reported here
+    // rather than left to the parser, which can only say the JSON was malformed.
+    if (result.finishReason === "length") {
+      throw new LlmResponseTruncatedError();
+    }
 
     this.messages.push({
       role: "assistant",
@@ -325,15 +387,16 @@ export class NotebookMigrationLLM {
   /**
    * Send a Jupyter Notebook to be converted into a workflow and mapping.
    */
-  public async convertNotebookToWorkflow(notebook: Notebook): Promise<string> {
+  public async convertNotebookToWorkflow(notebook: Notebook, language: MigrationLanguage = "python"): Promise<string> {
     this.assertEnabled();
     if (!this.initialized) {
       throw new Error("LLM session not initialized");
     }
 
+    const prompts = PROMPT_SETS[language];
     // Reset to the documentation prelude so a prior conversion's prompts/responses
     // don't leak into this one. The two sendPrompt calls below still share history.
-    this.seedDocumentation(NotebookMigrationLLM.DOCUMENTATION);
+    this.seedDocumentation(prompts.notebookDocumentation);
 
     const codeCells = notebook.cells.filter(cell => cell.cell_type === "code");
 
@@ -353,12 +416,12 @@ export class NotebookMigrationLLM {
       })
       .join("\n\n");
 
-    const workflow = await this.sendPrompt(`${WORKFLOW_PROMPT}\n${notebookString}`);
-    const mapping = await this.sendPrompt(MAPPING_PROMPT);
+    const workflow = await this.sendPrompt(`${prompts.notebookWorkflowPrompt}\n${notebookString}`);
+    const mapping = await this.sendPrompt(prompts.notebookMappingPrompt);
 
     // Remove ```json blocks and parse
     const udfLLMResponse = this.parseJsonResponse(workflow, "workflow");
-    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(udfLLMResponse);
+    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(udfLLMResponse, prompts.operatorType);
 
     // The notebook path keys its mapping on the cell uuids embedded in the prompt.
     const parsedMapping: Record<string, string[]> = this.parseJsonResponse(mapping, "mapping");
@@ -375,29 +438,123 @@ export class NotebookMigrationLLM {
    * rather than cell markers, and the model is asked which line ranges became which UDF; the
    * cells are then derived from that answer instead of arriving with the input.
    */
-  public async convertScriptToWorkflow(source: string): Promise<ScriptConversion> {
+  public async convertScriptToWorkflow(
+    source: string,
+    language: MigrationLanguage = "python"
+  ): Promise<SourceConversion> {
     this.assertEnabled();
     if (!this.initialized) {
       throw new Error("LLM session not initialized");
     }
 
-    this.seedDocumentation(NotebookMigrationLLM.SCRIPT_DOCUMENTATION);
-
-    const workflow = await this.sendPrompt(`${SCRIPT_WORKFLOW_PROMPT}\n${numberScriptLines(source)}`);
-    const mapping = await this.sendPrompt(SCRIPT_MAPPING_PROMPT);
-
-    const udfLLMResponse = this.parseJsonResponse(workflow, "workflow");
-    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(udfLLMResponse);
+    const prompts = PROMPT_SETS[language];
+    const { workflowJSON, udfIdToOperatorId, reportedRanges } = await this.requestConversion(
+      prompts.scriptDocumentation,
+      prompts.scriptWorkflowPrompt,
+      prompts.scriptMappingPrompt,
+      prompts.operatorType,
+      source
+    );
 
     // segmentScript reconciles whatever the model reported, so a malformed range degrades the
     // mapping rather than discarding a workflow that already cost a full conversion.
-    const reportedRanges = this.parseJsonResponse(mapping, "mapping");
-    const { cells, udfToCellUuids } = segmentScript(source, reportedRanges);
+    return this.finishConversion(
+      workflowJSON,
+      udfIdToOperatorId,
+      segmentScript(source, reportedRanges),
+      prompts.notebookMetadata
+    );
+  }
+
+  /**
+   * Send a folder, already assembled into one document, to be converted into a workflow, a
+   * mapping, and the notebook the mapping is expressed against.
+   *
+   * Every file is converted, but the notebook holds the entry point alone, since the rest are
+   * function definitions and a notebook of all of them is a wall of code. The mapping the model
+   * reports is in that file's lines, so clicking an operator highlights the call that runs it.
+   * Still keyed on cell uuids, so nothing downstream learns the input was a folder.
+   */
+  public async convertFolderToWorkflow(document: FolderDocument): Promise<SourceConversion> {
+    this.assertEnabled();
+    if (!this.initialized) {
+      throw new Error("LLM session not initialized");
+    }
+
+    const prompts = PROMPT_SETS.python;
+    const { workflowJSON, udfIdToOperatorId, workflowResponse, reportedRanges } = await this.requestConversion(
+      PYTHON_FOLDER_DOCUMENTATION,
+      FOLDER_WORKFLOW_PROMPT,
+      FOLDER_MAPPING_PROMPT,
+      prompts.operatorType,
+      document.source,
+      // The layout is prompt text, never part of the numbered document: numbering it would shift
+      // every line the model reports, and the segmenter would emit it as a cell of directory
+      // listing in the derived notebook.
+      `${document.tree}\n\n${FOLDER_CODE_PROMPT}`
+    );
+
+    const segmentation = segmentScript(document.source, reportedRanges, {
+      forcedBoundaries: document.forcedBoundaries,
+    });
+
+    // Resolved against the files actually assembled; an unusable answer leaves the notebook
+    // covering the whole folder, which is worse to read but never empty.
+    const entryPoint = resolveEntryPoint(document.files, workflowResponse?.entry_point);
+    return this.finishConversion(
+      workflowJSON,
+      udfIdToOperatorId,
+      entryPoint ? scopeSegmentationToSpan(segmentation, entryPoint) : segmentation,
+      prompts.notebookMetadata
+    );
+  }
+
+  /**
+   * The two model calls every cell-less input makes, and the parsing of both replies. Stops short
+   * of segmenting, which is where the inputs differ, so this has no folder concept and the untyped
+   * reply stays with the caller that understands it.
+   */
+  private async requestConversion(
+    documentation: string[],
+    workflowPrompt: string,
+    mappingPrompt: string,
+    operatorType: string,
+    source: string,
+    preamble?: string
+  ): Promise<{
+    workflowJSON: WorkflowJSON;
+    udfIdToOperatorId: Record<string, string>;
+    workflowResponse: any;
+    reportedRanges: any;
+  }> {
+    this.seedDocumentation(documentation);
+
+    const request = [workflowPrompt, preamble, numberScriptLines(source)].filter(part => part).join("\n");
+    const workflow = await this.sendPrompt(request);
+    const mapping = await this.sendPrompt(mappingPrompt);
+
+    const workflowResponse = this.parseJsonResponse(workflow, "workflow");
+    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(workflowResponse, operatorType);
 
     return {
       workflowJSON,
-      workflowNotebookMapping: this.buildCombinedMapping(udfToCellUuids, udfIdToOperatorId),
-      notebook: toDerivedNotebook(cells),
+      udfIdToOperatorId,
+      workflowResponse,
+      reportedRanges: this.parseJsonResponse(mapping, "mapping"),
+    };
+  }
+
+  /** Assembles the stored pair: the mapping, and the notebook it is expressed against. */
+  private finishConversion(
+    workflowJSON: WorkflowJSON,
+    udfIdToOperatorId: Record<string, string>,
+    segmentation: ScriptSegmentation,
+    notebookMetadata: Notebook["metadata"]
+  ): SourceConversion {
+    return {
+      workflowJSON,
+      workflowNotebookMapping: this.buildCombinedMapping(segmentation.udfToCellUuids, udfIdToOperatorId),
+      notebook: toDerivedNotebook(segmentation.cells, notebookMetadata),
     };
   }
 
@@ -409,7 +566,10 @@ export class NotebookMigrationLLM {
    *
    * Returns the workflow together with the UDF id -> operatorID index the mapping is built from.
    */
-  private buildWorkflow(udfLLMResponse: any): {
+  private buildWorkflow(
+    udfLLMResponse: any,
+    operatorType: string
+  ): {
     workflowJSON: WorkflowJSON;
     udfIdToOperatorId: Record<string, string>;
   } {
@@ -441,9 +601,9 @@ export class NotebookMigrationLLM {
         }));
       }
 
-      // Build the operator from the live PythonUDFV2 schema so the operatorVersion, ports, and
-      // property defaults track the backend definition, then overlay the generated code/outputs.
-      const base = this.workflowUtilService.getNewOperatorPredicate("PythonUDFV2", udfId);
+      // Build the operator from the live schema so the operatorVersion, ports, and property
+      // defaults track the backend definition, then overlay the generated code/outputs.
+      const base = this.workflowUtilService.getNewOperatorPredicate(operatorType, udfId);
       const operator: OperatorPredicate = {
         ...base,
         operatorProperties: {

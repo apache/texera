@@ -22,14 +22,12 @@ package org.apache.texera.amber.operator.visualization.dendrogram
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -46,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class DendrogramOpDesc extends PythonVisualizationOpDesc {
   @JsonProperty(value = "xVal", required = true)
   @JsonSchemaTitle("Value X Column")
   @JsonPropertyDescription("The x values of points in dendrogram")
@@ -75,14 +73,6 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @JsonPropertyDescription("Value at which separation of clusters will be made")
   @JsonDeserialize(contentAs = classOf[java.lang.Double])
   var threshold: Option[Double] = None
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -152,8 +142,6 @@ class DendrogramOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |"""
     finalcode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
 

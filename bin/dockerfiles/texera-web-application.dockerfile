@@ -24,21 +24,24 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM node:24-bookworm AS build-frontend
+FROM docker.io/library/node:24.19.0-bookworm@sha256:4196d66a565c6f195728d9952f161f4adfe2ad753052a08b7ec7f1c5a6bda42b AS build-frontend
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 build-essential git ca-certificates
+ARG PACKAGE_SNAPSHOT
+RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
+    bash /snapshot/install.sh apt --no-install-recommends python3 build-essential git ca-certificates
 
 WORKDIR /frontend
 COPY frontend /frontend
-RUN rm -f /frontend/.yarnrc.yml
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path 4.5.1
-RUN echo "nodeLinker: node-modules" >> /frontend/.yarnrc.yml
+# The repo's .yarnrc.yml pins Yarn (yarnPath) and the node-modules linker;
+# --immutable fails rather than re-resolving anything yarn.lock does not pin.
+RUN corepack enable && corepack prepare yarn@4.14.1 --activate
 
-WORKDIR /frontend
-RUN yarn install && yarn run build
+# Fixes the build number build-version.js bakes into the bundle; pass the
+# commit time (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
+RUN yarn install --immutable && yarn run build
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
+FROM docker.io/sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11@sha256:c20fad6183112843d6c87fd54bb9b507a424ab7893c6a570b1624acf2e0324c4 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -52,14 +55,9 @@ COPY .jvmopts .jvmopts
 
 # python3-minimal is needed by bin/licensing/concat_license_binary.py;
 # python3-pip installs the betterproto plugin; unzip + curl fetch protoc.
-RUN apt-get update && apt-get install -y \
-    netcat \
-    unzip \
-    curl \
-    libpq-dev \
-    python3-minimal \
-    python3-pip \
-    && apt-get clean
+ARG PACKAGE_SNAPSHOT
+RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
+    bash /snapshot/install.sh apt netcat unzip curl libpq-dev python3-minimal python3-pip
 
 # Install protoc (version pinned in bin/protoc-version.txt) and the
 # betterproto plugin (version pinned via amber/requirements.txt as a
@@ -69,7 +67,8 @@ RUN apt-get update && apt-get install -y \
 # is packaged.
 COPY bin/protoc-version.txt bin/protoc-version.txt
 COPY bin/python-proto-gen.sh bin/python-proto-gen.sh
-RUN PROTOC_VERSION=$(cat bin/protoc-version.txt) \
+RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
+    PROTOC_VERSION=$(cat bin/protoc-version.txt) \
     && case "$(uname -m)" in \
          x86_64 | amd64) PROTOC_ARCH=x86_64 ;; \
          aarch64 | arm64) PROTOC_ARCH=aarch_64 ;; \
@@ -79,11 +78,9 @@ RUN PROTOC_VERSION=$(cat bin/protoc-version.txt) \
     && unzip -o /tmp/protoc.zip -d /usr/local \
     && chmod +x /usr/local/bin/protoc \
     && rm /tmp/protoc.zip \
-    && pip3 install --no-cache-dir -c amber/requirements.txt 'betterproto[compiler]' \
+    && bash /snapshot/install.sh pip -c amber/requirements.txt 'betterproto[compiler]' \
     && bash bin/python-proto-gen.sh
 
-# Add .git for runtime calls to jgit from OPversion
-COPY .git .git
 COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 COPY bin/licensing/ bin/licensing/
@@ -92,6 +89,9 @@ COPY bin/licensing/ bin/licensing/
 # LICENSE merge below can union it with amber/LICENSE-binary-java.
 COPY --from=build-frontend /frontend/LICENSE-binary amber/LICENSE-binary-frontend
 
+# Pins jar and dist-zip entry timestamps; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
 RUN sbt clean WorkflowExecutionService/dist
 
 # Unzip the texera binary
@@ -106,13 +106,12 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-frontend
 
-FROM eclipse-temurin:17-jre-jammy AS runtime
+FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
 
 WORKDIR /texera/amber
 # Copy built frontend files from the build-frontend stage to match FileAssetsBundle path (../../frontend/dist from /texera/amber)
 COPY --from=build-frontend /frontend/dist /frontend/dist
 # Copy the built texera binary from the build phase
-COPY --from=build /texera/.git /texera/amber/.git
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
 # Copy resources directories from build phase
 COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
@@ -126,6 +125,9 @@ COPY --from=build /texera/amber/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 
+# Dates the texera account in /etc/shadow; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
 RUN groupadd --system --gid 1001 texera \
  && useradd --system --uid 1001 --gid texera --home-dir /texera --no-create-home texera \
  && chown -R texera:texera /texera /frontend

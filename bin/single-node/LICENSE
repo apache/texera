@@ -204,9 +204,9 @@
 THIRD-PARTY DEPENDENCIES
 --------------------------------------------------------------------------------
 
-This bundle includes the Iris example dataset:
+This bundle includes the Iris example dataset, as distributed with scikit-learn:
   - examples/datasets/iris-species/Iris.csv
   Creator: R. A. Fisher (1936)
-  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
-  DOI: 10.24432/C56C76
-  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
+  Copyright (c) 2007-2024 The scikit-learn developers
+  Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
+  License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
