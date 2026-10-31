@@ -132,15 +132,6 @@ export type PortSchema = readonly SchemaAttribute[];
 
 export type OperatorPortSchemaMap = Record<string, PortSchema | undefined>;
 
-export interface OperatorDetail {
-  operatorId: string;
-  operatorType: string;
-  customDisplayName?: string;
-  operatorProperties: Record<string, any>;
-  inputPorts: PortDescription[];
-  outputPorts: PortDescription[];
-}
-
 export type ValidationError = {
   isValid: false;
   messages: Record<string, string>;
