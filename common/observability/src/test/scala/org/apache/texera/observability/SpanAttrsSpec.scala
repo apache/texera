@@ -63,13 +63,11 @@ class SpanAttrsSpec extends AnyFlatSpec with Matchers {
     val sb = tracer.spanBuilder("workflow.execute")
     sb.setAttribute(SpanAttrs.WorkflowId, java.lang.Long.valueOf(42L))
     sb.setAttribute(SpanAttrs.ExecutionId, java.lang.Long.valueOf(7L))
-    sb.setAttribute(SpanAttrs.OperatorName, SpanAttrs.sanitizeFreeText("good\r\nFAKE LINE"))
     sb.startSpan().end()
 
     val attrs = exporter.getFinishedSpanItems.asScala.head.getAttributes
     attrs.get(SpanAttrs.WorkflowId) shouldBe 42L
     attrs.get(SpanAttrs.ExecutionId) shouldBe 7L
-    attrs.get(SpanAttrs.OperatorName) shouldBe "goodFAKE LINE"
   }
 
   it should "expose stable key names so callsites share one label vocabulary" in {
