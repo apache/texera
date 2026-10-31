@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.common.compiler.model.LogicalPlan
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import java.util.regex.Matcher
@@ -101,18 +101,22 @@ class WorkflowToPythonTranslator extends LazyLogging {
       .foreach(script += _)
     script += ""
 
-    // Helper definitions the operator bodies below refer to. Collected across the
-    // whole plan and deduplicated by text, so a workflow holding two operators
-    // that share one helper still emits it once. Order follows the topological
-    // order, which keeps the script stable for a given plan.
-    val helpers = topoOrder
+    // The helpers the operator bodies below refer to come from the texera-support
+    // package, which the script imports. A block the package does not hold would
+    // leave the script calling a name it cannot find, so it stops the export here.
+    topoOrder
       .map(logicalPlan.getOperator)
       .collect { case gen: StandaloneCodeGenerator => gen.standaloneHelpers() }
       .flatten
-      .distinct
-    if (helpers.nonEmpty) {
-      helpers.foreach { helper => script += helper; script += "" }
-    }
+      .find(!StandaloneHelpers.packaged.contains(_))
+      .foreach { block =>
+        throw new IllegalStateException(
+          s"A helper is missing from StandaloneHelpers.packaged:\n${block.take(200)}"
+        )
+      }
+    // The import goes in once the bodies are written, since which helpers the
+    // script calls is only known then.
+    val helpersAt = script.length
 
     for (opIdentity <- topoOrder) {
       val opId = opIdentity.id
@@ -221,8 +225,27 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
+    // Named one by one: a leading underscore keeps a name out of `import *`.
+    val imported = packagedNamesIn(script.drop(helpersAt).mkString("\n"))
+    if (imported.nonEmpty)
+      script.insert(helpersAt - 1, s"from texera_support import ${imported.mkString(", ")}")
     script.mkString("\n")
   }
+
+  // What the package defines at its top level, which is only functions and classes.
+  private val packagedNames: Set[String] = StandaloneHelpers.packaged
+    .flatMap(_.split("\n"))
+    .flatMap(line => """(?:def|class) (\w+)""".r.findPrefixMatchOf(line).map(_.group(1)))
+    .toSet
+
+  // The packaged names the given code refers to, read from code only, sorted.
+  private def packagedNamesIn(code: String): Seq[String] =
+    splitOffLiterals(code)
+      .collect { case (true, segment) => segment }
+      .flatMap("""\b\w+""".r.findAllIn(_))
+      .filter(packagedNames)
+      .distinct
+      .sorted
 
   // The stem of the files one operator writes, taken from its name so a reader
   // can tell whose picture is whose. Numbered from one even when the plan holds

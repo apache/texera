@@ -49,6 +49,7 @@ import { loadPersistedHeatmapView, savePersistedHeatmapView } from "../../servic
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
+import JSZip from "jszip";
 import type { ModalOptions } from "ng-zorro-antd/modal";
 import type { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { WorkflowContent } from "../../../common/type/workflow";
@@ -762,6 +763,18 @@ describe("MenuComponent", () => {
       expect(convert).toHaveBeenCalled();
       expect(convert.mock.calls[0][0].operators).toHaveLength(1);
     });
+
+    it("keeps the module the script imports for the download", () => {
+      vi.spyOn(component["workflowToPythonService"], "convertToPython").mockReturnValue(
+        of({ type: "success", pythonCode: "print(1)", supportModule: "def f(): pass" } as any)
+      );
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(component.pythonSupportModuleForModal).toBe("def f(): pass");
+    });
   });
 
   describe("hasOperators", () => {
@@ -1092,6 +1105,42 @@ describe("MenuComponent", () => {
     expect(writeText).toHaveBeenCalledWith("print('hello')");
     expect(successSpy).toHaveBeenCalledWith("Python script copied to clipboard");
     vi.unstubAllGlobals();
+  });
+
+  describe("downloadPythonZip", () => {
+    const download = async () => {
+      const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});
+      await component.downloadPythonZip();
+      const [blob, name] = saveAs.mock.calls[0] as [Blob, string];
+      // jsdom's Blob has no arrayBuffer(), so it is read the way a browser without one would.
+      const bytes = await new Promise<ArrayBuffer>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.readAsArrayBuffer(blob);
+      });
+      return { name, zip: await JSZip.loadAsync(bytes) };
+    };
+
+    it("zips the script with the module it imports, under the workflow name", async () => {
+      component.currentWorkflowName = "my-workflow";
+      component.pythonCodeForModal = "from texera_support import f";
+      component.pythonSupportModuleForModal = "def f(): pass";
+
+      const { name, zip } = await download();
+
+      expect(name).toBe("my-workflow.zip");
+      expect(await zip.file("script.py")?.async("string")).toBe("from texera_support import f");
+      expect(await zip.file("texera_support.py")?.async("string")).toBe("def f(): pass");
+    });
+
+    it("zips the script alone when it imports nothing", async () => {
+      component.pythonCodeForModal = "print(1)";
+      component.pythonSupportModuleForModal = undefined;
+
+      const { zip } = await download();
+
+      expect(Object.keys(zip.files)).toEqual(["script.py"]);
+    });
   });
 
   // The export flags are reset when a menu is destroyed -- right on leaving the workspace, wrong on

@@ -219,7 +219,15 @@ texera-coeditor-user-icon {
 
 .workflow-python-modal-toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-python-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
 }
 
 .workflow-python-code {

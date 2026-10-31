@@ -29,6 +29,7 @@ import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowI
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 
 @JsonTypeInfo(
@@ -44,7 +45,9 @@ import org.apache.texera.amber.translator.WorkflowToPythonTranslator
 )
 sealed trait WorkflowToPythonResponse
 
-case class WorkflowToPythonSuccess(pythonCode: String) extends WorkflowToPythonResponse
+/** @param supportModule the `texera_support.py` the script imports from, when it imports any. */
+case class WorkflowToPythonSuccess(pythonCode: String, supportModule: Option[String] = None)
+    extends WorkflowToPythonResponse
 
 case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPythonResponse
 
@@ -70,7 +73,12 @@ class WorkflowToPythonResource extends LazyLogging {
       // parsed. And a downstream operator that renders a column as text needs the type the
       // column was DECLARED as, which the file it reads cannot carry.
       val pythonCode = translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo))
-      WorkflowToPythonSuccess(pythonCode)
+      WorkflowToPythonSuccess(
+        pythonCode,
+        Option.when(pythonCode.contains("from texera_support import"))(
+          StandaloneHelpers.packageModule
+        )
+      )
     } catch {
       case e: Exception =>
         logger.error("Failed to translate workflow to Python", e)
