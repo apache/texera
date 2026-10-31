@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireNonEmpty,
+  requireNumericInputColumn
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
@@ -190,13 +194,13 @@ class HuggingFaceIrisLogisticRegressionOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (
-      predictionClassName == null || predictionClassName.trim.isEmpty ||
-      predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
-    )
-      throw new RuntimeException("Result attribute name should not be empty")
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireNumericInputColumn(inputSchema, "Petal Length Cm Attribute", petalLengthCmAttribute)
+    requireNumericInputColumn(inputSchema, "Petal Width Cm Attribute", petalWidthCmAttribute)
+    requireNonEmpty("Prediction class name", predictionClassName)
+    requireNonEmpty("Prediction probability name", predictionProbabilityName)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(predictionClassName, AttributeType.STRING)
         .add(predictionProbabilityName, AttributeType.DOUBLE)
     )

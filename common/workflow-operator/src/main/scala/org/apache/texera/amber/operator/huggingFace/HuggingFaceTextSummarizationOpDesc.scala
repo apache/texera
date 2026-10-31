@@ -22,6 +22,10 @@ package org.apache.texera.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.huggingFace.HuggingFaceSchemaValidation.{
+  requireInputColumn,
+  requireNonEmpty
+}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
@@ -137,10 +141,11 @@ class HuggingFaceTextSummarizationOpDesc
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    if (resultAttribute == null || resultAttribute.trim.isEmpty)
-      throw new RuntimeException("Result attribute name should be given")
+    val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+    requireInputColumn(inputSchema, "Attribute", attribute)
+    requireNonEmpty("Result attribute name", resultAttribute)
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, AttributeType.STRING)
     )
   }

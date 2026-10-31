@@ -75,23 +75,97 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
   }
 
   "HuggingFaceIrisLogisticRegressionOpDesc.getOutputSchemas" should
-    "reject a blank prediction result name" in {
-    val d = new HuggingFaceIrisLogisticRegressionOpDesc
-    val in = Schema().add("sepal", AttributeType.STRING)
-    val ex = intercept[RuntimeException] {
-      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
-    }
-    ex.getMessage shouldBe "Result attribute name should not be empty"
-  }
-
-  it should "append a STRING class column and a DOUBLE probability column, keyed by the output port" in {
+    "append a STRING class column and a DOUBLE probability column, keyed by the output port" in {
     val d = configured()
-    val in = Schema().add("sepal", AttributeType.STRING)
+    val in = Schema()
+      .add("sepal", AttributeType.STRING)
+      .add("petalLength", AttributeType.DOUBLE)
+      .add("petalWidth", AttributeType.DOUBLE)
     val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
     val schema = out(d.operatorInfo.outputPorts.head.id)
     schema.getAttribute("sepal").getType shouldBe AttributeType.STRING
     schema.getAttribute("species").getType shouldBe AttributeType.STRING
     schema.getAttribute("probability").getType shouldBe AttributeType.DOUBLE
+  }
+
+  private def petals(
+      lengthType: AttributeType = AttributeType.DOUBLE,
+      widthType: AttributeType = AttributeType.DOUBLE
+  ): Schema = Schema().add("petalLength", lengthType).add("petalWidth", widthType)
+
+  private def schemaError(
+      d: HuggingFaceIrisLogisticRegressionOpDesc,
+      in: Schema = petals()
+  ): String =
+    intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }.getMessage
+
+  it should "reject each unset or blank prediction result name, naming the field" in {
+    for (empty <- Seq(null, "", "   ")) {
+      withClue(s"[$empty]: ") {
+        val noClass = configured()
+        noClass.predictionClassName = empty
+        schemaError(noClass) shouldBe "Prediction class name cannot be empty"
+
+        val noProbability = configured()
+        noProbability.predictionProbabilityName = empty
+        schemaError(noProbability) shouldBe "Prediction probability name cannot be empty"
+      }
+    }
+  }
+
+  it should "reject an unset petal column" in {
+    val noLength = configured()
+    noLength.petalLengthCmAttribute = null
+    schemaError(noLength) shouldBe "Petal Length Cm Attribute cannot be empty"
+
+    val noWidth = configured()
+    noWidth.petalWidthCmAttribute = ""
+    schemaError(noWidth) shouldBe "Petal Width Cm Attribute cannot be empty"
+  }
+
+  it should "reject a petal column that is not in the input table, listing the columns" in {
+    val d = configured()
+    d.petalWidthCmAttribute = "petal_width"
+    schemaError(d) shouldBe
+      "Petal Width Cm Attribute 'petal_width' is not in the input table. " +
+        "Available columns: petalLength, petalWidth"
+  }
+
+  it should "match a petal column's case exactly, as the generated Python does" in {
+    val d = configured()
+    d.petalLengthCmAttribute = "PetalLength"
+    schemaError(d) should startWith(
+      "Petal Length Cm Attribute 'PetalLength' is not in the input table"
+    )
+  }
+
+  it should "reject a petal column that is not numeric" in {
+    schemaError(configured(), petals(lengthType = AttributeType.STRING)) shouldBe
+      "Petal Length Cm Attribute 'petalLength' must be numeric (integer, long or double), not string"
+    schemaError(configured(), petals(widthType = AttributeType.BOOLEAN)) shouldBe
+      "Petal Width Cm Attribute 'petalWidth' must be numeric (integer, long or double), not boolean"
+  }
+
+  it should "accept integer, long and double petal columns" in {
+    for (numeric <- Seq(AttributeType.INTEGER, AttributeType.LONG, AttributeType.DOUBLE)) {
+      val d = configured()
+      val in = petals(numeric, numeric)
+      noException should be thrownBy d.getOutputSchemas(
+        Map(d.operatorInfo.inputPorts.head.id -> in)
+      )
+    }
+  }
+
+  it should "leave a readable error on its output port when the compiler propagates the schema" in {
+    val d = configured()
+    d.predictionClassName = null
+    val physical = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema(Some(d.operatorInfo.inputPorts.head.id -> petals()))
+    val port = physical.outputPorts(d.operatorInfo.outputPorts.head.id)._3
+    port.left.map(_.getMessage) shouldBe Left("Prediction class name cannot be empty")
   }
 
   "HuggingFaceIrisLogisticRegressionOpDesc.generatePythonCode" should
