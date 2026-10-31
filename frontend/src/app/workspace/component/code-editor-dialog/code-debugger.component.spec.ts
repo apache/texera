@@ -24,13 +24,19 @@ import { WorkflowStatusService } from "../../service/workflow-status/workflow-st
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { Subject } from "rxjs";
 import * as Y from "yjs";
-import { BreakpointInfo } from "../../types/workflow-common.interface";
+import { BreakpointInfo, ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import type { MonacoBreakpoint } from "monaco-breakpoints";
 import type * as monaco from "monaco-editor";
 import * as monacoNs from "monaco-editor";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { mockPoint, mockPythonUDFPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
   let fixture: ComponentFixture<CodeDebuggerComponent>;
@@ -296,6 +302,68 @@ describe("CodeDebuggerComponent", () => {
         endColumn: 1,
       });
     });
+
+    it("draws a breakpoint when the paused position gains an id without changing its condition", () => {
+      debugState.set("3", { breakpointId: undefined, condition: "", hit: true });
+
+      debugState.set("3", { breakpointId: 1, condition: "", hit: true });
+
+      expect(monacoBreakpointStub.createSpecifyDecoration).toHaveBeenCalledExactlyOnceWith({
+        startLineNumber: 3,
+        startColumn: 1,
+        endLineNumber: 3,
+        endColumn: 1,
+      });
+      expect(monacoBreakpointStub.removeSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.setLineHighlight).toHaveBeenCalledWith(3);
+      expect(monacoBreakpointStub.removeHighlight).not.toHaveBeenCalled();
+    });
+
+    it("removes the breakpoint when its id disappears but keeps the paused highlight", () => {
+      debugState.set("3", { breakpointId: 1, condition: "", hit: true });
+      monacoBreakpointStub.lineNumberAndDecorationIdMap.set(3, "dec-3");
+      monacoBreakpointStub.createSpecifyDecoration.mockClear();
+
+      debugState.set("3", { breakpointId: undefined, condition: "", hit: true });
+
+      expect(monacoBreakpointStub.removeSpecifyDecoration).toHaveBeenCalledExactlyOnceWith("dec-3", 3);
+      expect(monacoBreakpointStub.createSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.setLineHighlight).toHaveBeenCalledWith(3);
+      expect(monacoBreakpointStub.removeHighlight).not.toHaveBeenCalled();
+    });
+
+    it("replaces the existing decoration when the breakpoint id changes", () => {
+      debugState.set("3", { breakpointId: 1, condition: "", hit: true });
+      monacoBreakpointStub.lineNumberAndDecorationIdMap.set(3, "dec-3");
+      monacoBreakpointStub.createSpecifyDecoration.mockClear();
+
+      debugState.set("3", { breakpointId: 2, condition: "", hit: true });
+
+      expect(monacoBreakpointStub.removeSpecifyDecoration).toHaveBeenCalledExactlyOnceWith("dec-3", 3);
+      expect(monacoBreakpointStub.createSpecifyDecoration).toHaveBeenCalledTimes(1);
+      expect(monacoBreakpointStub.setLineHighlight).toHaveBeenCalledWith(3);
+    });
+
+    it("does not draw a phantom breakpoint when an id-less position's condition changes", () => {
+      debugState.set("3", { breakpointId: undefined, condition: "x > 5", hit: true });
+
+      debugState.set("3", { breakpointId: undefined, condition: "", hit: true });
+
+      expect(monacoBreakpointStub.createSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.removeSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.setLineHighlight).toHaveBeenCalledWith(3);
+    });
+
+    it("does not redraw an existing breakpoint when its id and condition are unchanged", () => {
+      debugState.set("3", { breakpointId: 1, condition: "", hit: true });
+      monacoBreakpointStub.createSpecifyDecoration.mockClear();
+
+      debugState.set("3", { breakpointId: 1, condition: "", hit: true });
+
+      expect(monacoBreakpointStub.createSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.removeSpecifyDecoration).not.toHaveBeenCalled();
+      expect(monacoBreakpointStub.setLineHighlight).toHaveBeenCalledWith(3);
+    });
   });
 
   describe("rerenderExistingBreakpoints", () => {
@@ -343,6 +411,214 @@ describe("CodeDebuggerComponent", () => {
       // Should simply no-op.
       expect(() => component.removeMonacoBreakpointMethods()).not.toThrow();
     });
+  });
+});
+
+describe("CodeDebuggerComponent paused-line breakpoint flow", () => {
+  const operatorId = mockPythonUDFPredicate.operatorID;
+  const workerId = "worker1";
+  let fixture: ComponentFixture<CodeDebuggerComponent>;
+  let service: UdfDebugService;
+  let debugState: Y.Map<BreakpointInfo>;
+  let consoleEvents: Subject<ConsoleUpdateEvent>;
+  let stateUpdates: Subject<Record<string, OperatorState>>;
+  let websocket: Mocked<WorkflowWebsocketService>;
+  let model: monaco.editor.ITextModel;
+  let mouseDown: (event: monaco.editor.IEditorMouseEvent) => void;
+
+  function pdbReply(title: string) {
+    consoleEvents.next({
+      operatorId,
+      messages: [
+        {
+          workerId,
+          timestamp: { seconds: 0, nanos: 0 },
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          title,
+          message: "",
+        },
+      ],
+    });
+  }
+
+  function gutterClick() {
+    mouseDown({
+      event: { leftButton: true },
+      target: {
+        type: monacoNs.editor.MouseTargetType.GUTTER_GLYPH_MARGIN,
+        detail: { isAfterLines: false },
+        position: { lineNumber: 2 },
+      },
+    } as unknown as monaco.editor.IEditorMouseEvent);
+  }
+
+  function command(cmd: string) {
+    return ["DebugCommandRequest", { operatorId, workerId, cmd }];
+  }
+
+  function breakpointDecorations() {
+    return model
+      .getAllDecorations()
+      .filter(decoration =>
+        ["monaco-breakpoint", "monaco-conditional-breakpoint"].includes(decoration.options.glyphMarginClassName ?? "")
+      );
+  }
+
+  function highlightedLines() {
+    return model
+      .getAllDecorations()
+      .filter(decoration => decoration.options.className === "monaco-line-highlight")
+      .map(decoration => decoration.range.startLineNumber);
+  }
+
+  function expectPausedBreakpoint(breakpointId: number) {
+    expect(service.getDebugState(operatorId)).toBe(debugState);
+    expect(debugState.get("2")).toEqual({ breakpointId, condition: "", hit: true });
+    expect(breakpointDecorations()).toHaveLength(1);
+    expect(breakpointDecorations()[0].range.startLineNumber).toBe(2);
+    expect(breakpointDecorations()[0].options.glyphMarginClassName).toBe("monaco-breakpoint");
+    expect(highlightedLines()).toEqual([2]);
+    expect(fixture.componentInstance.monacoBreakpoint!.getBreakpoints()).toEqual([2]);
+  }
+
+  beforeEach(async () => {
+    consoleEvents = new Subject<ConsoleUpdateEvent>();
+    stateUpdates = new Subject<Record<string, OperatorState>>();
+    websocket = {
+      send: vi.fn(),
+      subscribeToEvent: vi.fn(() => consoleEvents.asObservable()),
+    } as unknown as Mocked<WorkflowWebsocketService>;
+
+    await TestBed.configureTestingModule({
+      imports: [CodeDebuggerComponent],
+      providers: [
+        UdfDebugService,
+        WorkflowActionService,
+        { provide: WorkflowWebsocketService, useValue: websocket },
+        {
+          provide: WorkflowStatusService,
+          useValue: { getStateUpdateStream: () => stateUpdates.asObservable(), getCurrentState: () => ({}) },
+        },
+        { provide: ExecuteWorkflowService, useValue: { getWorkerIds: () => [workerId] } },
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    TestBed.inject(WorkflowActionService).addOperator(mockPythonUDFPredicate, mockPoint);
+    service = TestBed.inject(UdfDebugService);
+    debugState = service.getDebugState(operatorId);
+    model = monacoNs.editor.createModel("first\nsecond\nthird", "plaintext");
+    const disposable = () => ({ dispose: vi.fn() });
+    // Use the real controller/model; only editor event delivery and transport are mocked.
+    const editor = {
+      getModel: () => model,
+      onMouseMove: vi.fn(disposable),
+      onMouseDown: vi.fn((handler: typeof mouseDown) => {
+        mouseDown = handler;
+        return disposable();
+      }),
+      onDidChangeModelContent: vi.fn(disposable),
+      onDidChangeCursorPosition: vi.fn(disposable),
+    } as unknown as monaco.editor.IStandaloneCodeEditor;
+    fixture = TestBed.createComponent(CodeDebuggerComponent);
+    fixture.componentInstance.currentOperatorId = operatorId;
+    fixture.componentInstance.monacoEditor = editor;
+    fixture.detectChanges();
+    stateUpdates.next({ [operatorId]: OperatorState.Running });
+  });
+
+  afterEach(() => {
+    stateUpdates.complete();
+    consoleEvents.complete();
+    fixture?.componentInstance.removeMonacoBreakpointMethods();
+    fixture?.destroy();
+    model?.dispose();
+  });
+
+  it.each(["gutter", "Console"])("keeps a stepped line paused and draws the %s-added breakpoint", input => {
+    pdbReply("> /tmp/udf.py(1)process_tuple()");
+    service.doStep(operatorId, workerId);
+    pdbReply("> /tmp/udf.py(2)process_tuple()");
+    expect(highlightedLines()).toEqual([2]);
+    expect(breakpointDecorations()).toHaveLength(0);
+
+    // Console commands bypass this component; their acknowledgement enters the same service.
+    if (input === "gutter") gutterClick();
+    expect(websocket.send.mock.calls).toEqual(
+      input === "gutter" ? [command("next"), command("break 2")] : [command("next")]
+    );
+    const sentBeforeAck = [...websocket.send.mock.calls];
+
+    pdbReply("Breakpoint 1 at /tmp/udf.py:2");
+    expectPausedBreakpoint(1);
+    pdbReply("Breakpoint 1 at /tmp/udf.py:2");
+    expectPausedBreakpoint(1);
+    expect(websocket.send.mock.calls).toEqual(sentBeforeAck);
+
+    service.doContinue(operatorId, workerId);
+    expect(highlightedLines()).toEqual([]);
+    expect(breakpointDecorations()).toHaveLength(1);
+    expect(debugState.get("2")?.hit).toBe(false);
+    expect(websocket.send.mock.calls).toEqual([...sentBeforeAck, command("continue")]);
+  });
+
+  it.each(["", "x > 5"])("clears and re-adds the hit breakpoint with prior condition %j", condition => {
+    pdbReply("Breakpoint 1 at /tmp/udf.py:2");
+    pdbReply("> /tmp/udf.py(2)process_tuple()");
+    service.doUpdateBreakpointCondition(operatorId, 2, condition);
+    expect(breakpointDecorations()).toHaveLength(1);
+    expect(breakpointDecorations()[0].options.glyphMarginClassName).toBe(
+      condition ? "monaco-conditional-breakpoint" : "monaco-breakpoint"
+    );
+    websocket.send.mockClear();
+
+    gutterClick();
+    pdbReply("Deleted breakpoint 1 at /tmp/udf.py:2");
+    expect(breakpointDecorations()).toHaveLength(0);
+    expect(highlightedLines()).toEqual([2]);
+    gutterClick();
+    pdbReply("Breakpoint 2 at /tmp/udf.py:2");
+
+    expectPausedBreakpoint(2);
+    expect(websocket.send.mock.calls).toEqual([command("clear 1"), command("break 2")]);
+  });
+
+  it("removes a collaborator-cleared breakpoint while keeping its line paused", () => {
+    pdbReply("Breakpoint 1 at /tmp/udf.py:2");
+    pdbReply("> /tmp/udf.py(2)process_tuple()");
+    expectPausedBreakpoint(1);
+    websocket.send.mockClear();
+
+    const otherEditor = new Y.Doc();
+    try {
+      const localDoc = debugState.doc!;
+      Y.applyUpdate(otherEditor, Y.encodeStateAsUpdate(localDoc));
+      const otherDebugState = otherEditor.getMap<Y.Map<BreakpointInfo>>("debugActions").get(operatorId)!;
+      otherDebugState.delete("2");
+      otherDebugState.set("2", { breakpointId: undefined, condition: "", hit: true });
+
+      // Both remote transactions arrive together as an update to the existing entry.
+      Y.applyUpdate(localDoc, Y.encodeStateAsUpdate(otherEditor, Y.encodeStateVector(localDoc)));
+
+      expect(debugState.get("2")).toEqual({ breakpointId: undefined, condition: "", hit: true });
+      expect(breakpointDecorations()).toHaveLength(0);
+      expect(highlightedLines()).toEqual([2]);
+      expect(websocket.send).not.toHaveBeenCalled();
+    } finally {
+      otherEditor.destroy();
+    }
+  });
+
+  it("draws a running addition and preserves its automatic-continue handshake", () => {
+    gutterClick();
+    pdbReply("Breakpoint 1 at /tmp/udf.py:2");
+
+    expect(websocket.send.mock.calls).toEqual([command("break 2"), command("continue")]);
+    expect(debugState.get("2")).toEqual({ breakpointId: 1, condition: "", hit: false });
+    expect(breakpointDecorations()).toHaveLength(1);
+    expect(highlightedLines()).toEqual([]);
   });
 });
 /**
