@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793450632751,
+  "lastUpdate": 1793536891871,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -20517,6 +20517,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 726.2997760056342,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "711584dd813e4dbb313edc5251f62430ca52c31a",
+          "message": "feat(operator): read a timestamp cast over the years the engine reaches (#8597)\n\n### What changes were proposed in this PR?\n\nType Casting to a timestamp read text with `pd.to_datetime(col,\nerrors=\"coerce\")` in the exported script. That is wrong in two ways, and\nboth empty a cell the run itself filled.\n\npandas parses into nanoseconds, which reach only 1677-09-21 to\n2262-04-11. The engine holds a `java.sql.Timestamp`, where `2500-01-01\n00:00:00` is an ordinary moment: it reads it, and the exported script\nanswered with an empty cell. The same for `1500-06-15 08:30:00` and\n`9999-12-31 23:59:59`.\n\npandas also infers one format for the whole column and coerces every row\nthat does not match it. The engine hands `DateParserUtils` one field at\na time, so a row states its own format. A column holding `2024-03-05\n14:09:07` and `March 5, 2024` kept the first and emptied the second.\n\nThe text branch now reads the column cell by cell and holds the result\nat microsecond resolution, which covers the years the engine covers.\nText no format reads now ends the run, as the engine's `parseField` ends\nits own. The script raises the engine's message, `Failed to parse type\nstr to Timestamp`, where it used to leave the cell empty. dateutil reads\nevery format the verification hands the engine, so the two refuse the\nsame text.\n\nReview and the verification's edge values found more places where the\ncast parted from the engine:\n\n- A reading that states an offset, such as `Z` or `+05:30`, stopped the\ncast. The engine moves it to the machine's zone and keeps that wall\nclock, and the script now does the same.\n- A column that already held timestamps went through the text parse and\nlost its nanoseconds. `parseField` returns a `java.sql.Timestamp`\nuntouched, so the script now hands such a column back at the resolution\nit arrived in.\n- Text with digits past the millisecond kept them. `DateParserUtils`\nreads into a `java.util.Date`, which counts milliseconds, so the script\nnow cuts there too.\n- Casting to text wrote a value the way Python's `str()` does. Java\nwrites a double past 1e7 or under 1e-3 in E notation, a boolean in lower\ncase, and a timestamp with its nanoseconds and at least `.0`. A shared\n`_texera_java_text` now writes each one as Java's `toString` does.\n- A double column holding a NaN as a value, as an Arrow or Parquet\nsource hands one over, lost it. The casts asked each cell whether it was\nempty, and pandas hands an empty cell over as NaN too, so a stored NaN\ncame out null where the engine writes `NaN` as text, 0 as an integer and\n`true` as a boolean. The casts now read empty cells from the column's\nown mask, and the double cast builds a nullable `Float64`, so a NaN read\nfrom text stays one through the next cast. A double past an integer's\nbounds now saturates as `toInt` and `toLong` do, where `int()` raised on\nan infinity.\n- A moment was read with dateutil's `tzlocal()`, which knows only\ntoday's two offsets, so an instant from before a zone changed its rules\ncame out an hour or more off on every platform. The script now reads the\nmachine's zone by its IANA name and, before 1900, keeps today's standard\noffset as `java.util.Date` does.\n- On Windows, `localtime` refuses an instant before 1970, which stopped\nthe cast. The same helper now falls back to the zone's standard offset\nthere.\n\nThat `Float64` column changed what a Python operator after this cast is\nhanded. pyamber hands a Python operator a DOUBLE column as `float64`,\nwhere a NaN and a null are one value, and writes a NaN out as null.\nGiven `Float64` instead, Sort ordered a NaN apart from the nulls, a\nchart drew points the engine dropped, and a passed-through NaN stayed\nNaN. `StandaloneCodeGenerator` gains `standaloneInputAdapter()`, and for\na Python operator the translator feeds the fragment a `float64` copy of\neach input, leaving the upstream frame as it was.\n\nThe number branch is left alone. A LONG is read as epoch milliseconds\nand has the same window, but it also disagrees about the calendar before\n1582-10-15, where `new Timestamp(long)` is Julian and pandas is\nproleptic Gregorian. Widening the window there would answer with a\nmoment eight days off instead of an empty cell, so what that branch\nshould do is a separate decision. The issue records it.\n\n### Any related issues, documentation, discussions?\n\nCloses #8595. #8480 closed the same nanosecond gap for Extract Date/Time\nFields, which parses strictly and could take the one-line form this\noperator cannot.\n\n#8341, #8704, #8705 and #8709 call the timestamp and text helpers this\nadds, so this PR merges before them.\n\n### How was this PR tested?\n\nEight tests in `TypeCastingOpDescSpec` run the generated Python and\ncompare it cell by cell against `AttributeTypeUtils.parseField`. They\nare tagged to run in the integration job, which has pandas.\n\n- The text-to-timestamp test reads moments in three formats, the rows\neither side of the nanosecond edge, `2500-01-01`, `1500-06-15`,\n`9999-12-31`, readings with `Z` and `+05:30`, and readings past the\nmillisecond. It fails on the old generator.\n- One test gives a column that already holds timestamps and checks its\nnanoseconds are kept.\n- The cast-to-string test covers a double at 1e7 and 1e-4.\n- One test checks that unreadable text ends the script with the engine's\nmessage, as the engine refuses it.\n- Two tests cast a column holding a stored NaN, both infinities and an\nempty cell to each type and compare against `AttributeTypeUtils`, and\ncheck that a NaN read from text survives a second cast.\n- Two tests read moments from `America/Mexico_City` in 1899, 1921, 1931\nand 2021, at the offset the zone had then, and the same moments with\n`localtime` refusing those before 1970.\n- Three tests in `WorkflowToPythonTranslatorSpec` check that a Python\noperator reads a converted copy of its input and an operator the engine\nruns on the JVM reads its upstream as it is. Two of them fail without\nthe change.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-01T06:41:38Z",
+          "url": "https://github.com/apache/texera/commit/711584dd813e4dbb313edc5251f62430ca52c31a"
+        },
+        "date": 1793536890390,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 951.5656672298242,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1773.6695339294874,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1961.9748073197566,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1318.5855299630448,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1925.575655954751,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1966.3255457099663,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1360.7095096433457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1933.7914581665004,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1966.138801744222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1075.057865997504,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1547.787277438191,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1576.2521409579474,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1138.4795400474804,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1504.5904843907651,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1551.5361611728558,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1068.2719232767104,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1425.1663432689295,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1455.5290903496762,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 700.4921301155698,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 780.4694707136183,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 825.3725080809776,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 707.620372387832,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 782.6468789721283,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 831.3561493478388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 642.4572604560625,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 787.322645800899,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 788.251360832678,
             "unit": "tuples/sec"
           }
         ]
