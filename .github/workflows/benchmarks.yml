@@ -101,7 +101,7 @@ jobs:
     # run). Lifted from required-checks.yml's precheck so the trigger
     # surface matches amber-integration exactly.
     name: Precheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       run_bench: ${{ steps.decide.outputs.run_bench }}
     steps:
@@ -241,7 +241,7 @@ jobs:
       - name: Generate Python proto bindings
         run: bash bin/python-proto-gen.sh
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'

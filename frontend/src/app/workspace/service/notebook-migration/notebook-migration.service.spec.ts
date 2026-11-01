@@ -25,6 +25,7 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotebookMigrationLLM } from "./migration-llm";
+import { MAX_FOLDER_CHARACTERS, MAX_FOLDER_FILES } from "./folder-assembly";
 import { firstValueFrom, throwError } from "rxjs";
 
 describe("NotebookMigrationService", () => {
@@ -450,6 +451,11 @@ describe("NotebookMigrationService", () => {
       await expect(service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4")).rejects.toThrow(/disabled/i);
     });
 
+    it("sendFolderToAIGenerateWorkflow rejects with a disabled-feature error", async () => {
+      const folder = { source: "x = 1", forcedBoundaries: [1], files: [], tree: "project/" };
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4")).rejects.toThrow(/disabled/i);
+    });
+
     it("sendNotebookToJupyter returns 0 with no HTTP call or notification", async () => {
       const result = await service.sendNotebookToJupyter({ cells: [] } as any, "notebook_1.ipynb");
       expect(result).toBe(0);
@@ -564,6 +570,188 @@ describe("NotebookMigrationService", () => {
         this.onerror?.(new ProgressEvent("error"));
       });
       await expect(service.parseScriptFile(new File([""], "x.py"))).rejects.toThrow(/Failed to read/);
+    });
+  });
+
+  // sendFolderToAIGenerateWorkflow — the folder is one document by the time it reaches here, so
+  // this shares the script path's lifecycle and differs only in the conversion it asks for.
+  describe("sendFolderToAIGenerateWorkflow (enabled)", () => {
+    let fakeLLM: {
+      initialize: ReturnType<typeof vi.fn>;
+      verifyConnection: ReturnType<typeof vi.fn>;
+      convertFolderToWorkflow: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+    };
+
+    const folder = {
+      source: "# ===== FILE: a.py =====\nx = 1",
+      forcedBoundaries: [1],
+      files: [],
+      tree: "proj/\n  a.py",
+    };
+    const conversion = {
+      workflowJSON: { ops: 1 },
+      workflowNotebookMapping: { m: 2 },
+      notebook: { cells: [{ cell_type: "code", metadata: { uuid: "u1" }, source: "x = 1" }] },
+    };
+
+    beforeEach(() => {
+      fakeLLM = {
+        initialize: vi.fn(),
+        verifyConnection: vi.fn().mockResolvedValue(true),
+        convertFolderToWorkflow: vi.fn(),
+        close: vi.fn(),
+      };
+      vi.spyOn(service as any, "createMigrationLLM").mockReturnValue(fakeLLM);
+    });
+
+    it("returns the workflow, mapping and derived notebook, and closes the client", async () => {
+      fakeLLM.convertFolderToWorkflow.mockResolvedValue(conversion);
+
+      const result = await service.sendFolderToAIGenerateWorkflow(folder, "gpt-4");
+
+      expect(result).toEqual({
+        workflowContent: { ops: 1 },
+        mappingContent: { m: 2 },
+        notebook: conversion.notebook,
+      });
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder);
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("rejects when the connection cannot be verified, and still closes the client", async () => {
+      fakeLLM.verifyConnection.mockResolvedValue(false);
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4")).rejects.toThrow(/authenticate/i);
+      expect(fakeLLM.convertFolderToWorkflow).not.toHaveBeenCalled();
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("rethrows conversion errors and still closes the client", async () => {
+      fakeLLM.convertFolderToWorkflow.mockRejectedValue(new Error("conversion boom"));
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4")).rejects.toThrow(/conversion boom/);
+      expect(fakeLLM.close).toHaveBeenCalled();
+    });
+  });
+
+  // parseFolder (reads a directory selection into one assembled document)
+  describe("parseFolder", () => {
+    // A directory picker reports every file's path relative to the machine, with the selected
+    // folder as its first segment; File alone carries no path, so tests set it the same way.
+    function pickedFile(relativePath: string, contents = ""): File {
+      const file = new File([contents], relativePath.split("/").pop() ?? relativePath);
+      Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+      return file;
+    }
+
+    it("keeps Python source, drops everything else, and strips the selected folder", async () => {
+      const folder = await service.parseFolder([
+        pickedFile("proj/pkg/train.py", "train()"),
+        pickedFile("proj/README.md", "# readme"),
+        pickedFile("proj/__pycache__/train.py", "cached"),
+        pickedFile("proj/main.py", "main()"),
+      ]);
+
+      // Paths are relative to the selection, and main.py sorts ahead of the pkg directory.
+      expect(folder.files.map(file => file.path)).toEqual(["main.py", "pkg/train.py"]);
+      expect(folder.source).toContain("# ===== FILE: main.py =====");
+      expect(folder.source).not.toContain("proj/main.py");
+    });
+
+    it("builds a layout naming the selected folder, its Python files and its other files", async () => {
+      const folder = await service.parseFolder([
+        pickedFile("proj/pkg/train.py", "train()"),
+        pickedFile("proj/main.py", "main()"),
+        pickedFile("proj/requirements.txt", "pandas"),
+        pickedFile("proj/data/churn.csv", "a,b\n1,2"),
+      ]);
+
+      expect(folder.tree).toBe(
+        ["proj/", "  main.py", "  requirements.txt", "  data/", "    churn.csv", "  pkg/", "    train.py"].join("\n")
+      );
+      // Named, never read: only the Python files reach the document the model converts.
+      expect(folder.source).not.toContain("pandas");
+      expect(folder.source).not.toContain("1,2");
+    });
+
+    it("leaves caches and hidden directories out of the layout as well as the document", async () => {
+      const folder = await service.parseFolder([
+        pickedFile("proj/main.py", "main()"),
+        pickedFile("proj/__pycache__/main.py", "cached"),
+        pickedFile("proj/.venv/stub.py", "stub"),
+      ]);
+
+      expect(folder.tree).toBe(["proj/", "  main.py"].join("\n"));
+    });
+
+    it("falls back to a default root label when the picker reported no path", async () => {
+      const folder = await service.parseFolder([new File(["main()"], "main.py")]);
+
+      expect(folder.tree.split("\n")[0]).toBe("project/");
+    });
+
+    it("reads a folder whose own name begins with a dot", async () => {
+      const folder = await service.parseFolder([pickedFile(".scripts/main.py", "main()")]);
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.py"]);
+    });
+
+    it("falls back to the file name when no relative path is reported", async () => {
+      const folder = await service.parseFolder([new File(["main()"], "main.py")]);
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.py"]);
+    });
+
+    it("rejects a selection with no Python source", async () => {
+      await expect(service.parseFolder([pickedFile("proj/README.md", "# readme")])).rejects.toThrow(/No Python files/i);
+    });
+
+    it("distinguishes a selection whose files are all blank from one with no Python at all", async () => {
+      // They were found, so "none found" would be wrong; they held no code.
+      await expect(service.parseFolder([pickedFile("proj/empty.py", "   \n")])).rejects.toThrow(/all empty/i);
+    });
+
+    it("rejects too many files before reading any of them", async () => {
+      const readSpy = vi.spyOn(FileReader.prototype, "readAsText");
+      const files = Array.from({ length: MAX_FOLDER_FILES + 1 }, (_unused, index) =>
+        pickedFile(`proj/file${index}.py`, "x = 1")
+      );
+
+      await expect(service.parseFolder(files)).rejects.toThrow(new RegExp(String(MAX_FOLDER_FILES)));
+      expect(readSpy).not.toHaveBeenCalled();
+    });
+
+    it("rejects a folder over the character cap", async () => {
+      const files = [pickedFile("proj/big.py", "a".repeat(MAX_FOLDER_CHARACTERS))];
+
+      await expect(service.parseFolder(files)).rejects.toThrow(new RegExp(MAX_FOLDER_CHARACTERS.toLocaleString()));
+    });
+
+    it("refuses an oversized selection on byte count, before reading any of it", async () => {
+      const readSpy = vi.spyOn(FileReader.prototype, "readAsText");
+      const huge = pickedFile("proj/generated.py", "x = 1");
+      // The browser reports size without the file being read; a generated .py really can be this big.
+      Object.defineProperty(huge, "size", { value: MAX_FOLDER_CHARACTERS * 8 });
+
+      await expect(service.parseFolder([huge])).rejects.toThrow(/too large to convert/i);
+      expect(readSpy).not.toHaveBeenCalled();
+    });
+
+    it("names the file that could not be read", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+
+      await expect(service.parseFolder([pickedFile("proj/pkg/train.py", "train()")])).rejects.toThrow(/pkg\/train\.py/);
+    });
+
+    it("rejects when a file cannot be read", async () => {
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+
+      await expect(service.parseFolder([pickedFile("proj/main.py", "main()")])).rejects.toThrow(/Failed to read/);
     });
   });
 });

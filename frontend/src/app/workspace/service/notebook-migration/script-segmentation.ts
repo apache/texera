@@ -39,6 +39,8 @@ import { v4 as uuidv4 } from "uuid";
  *   - No cell straddles a reported boundary, so a cell claimed by a UDF is claimed whole.
  *   - Lines two UDFs both claim become one shared cell that maps to both, which is what
  *     `cell_to_operator` already expresses for notebooks.
+ *   - No cell straddles a caller-forced boundary, which is how a folder keeps each file's cells
+ *     to that file.
  */
 
 // A 1-indexed, inclusive span of source lines.
@@ -127,16 +129,25 @@ function clampToSource(range: LineRange, lineCount: number): LineRange | null {
   return start <= end ? { start, end } : null;
 }
 
+export interface SegmentOptions {
+  // Cut points the caller requires, 1-indexed, forced into the boundary set whatever the model
+  // reported. A folder passes each file's first line so no cell can straddle two files.
+  forcedBoundaries?: readonly number[];
+  // Cell id factory, overridden by tests to keep output deterministic.
+  newUuid?: () => string;
+}
+
 /**
  * @param source     the raw script contents
  * @param rawRanges  the model's reply, UDF id -> reported line ranges, unvalidated
- * @param newUuid    cell id factory, overridden by tests to keep output deterministic
+ * @param options    caller-required cut points and the cell id factory
  */
 export function segmentScript(
   source: string,
   rawRanges: Record<string, unknown> | null | undefined,
-  newUuid: () => string = uuidv4
+  options: SegmentOptions = {}
 ): ScriptSegmentation {
+  const { forcedBoundaries = [], newUuid = uuidv4 } = options;
   const lines = splitScriptLines(source);
   if (lines.length === 0) {
     return { cells: [], udfToCellUuids: {} };
@@ -158,6 +169,13 @@ export function segmentScript(
   // overlaps and gaps fall out on their own: the result is disjoint, covers every line, and no
   // segment can span a boundary, so range membership below is an exact containment test.
   const boundaries = new Set<number>([1, lines.length + 1]);
+  // Out-of-range forced boundaries are dropped rather than clamped: clamping would fold a
+  // boundary onto a line it does not belong to, while the file it named is already absent.
+  for (const boundary of forcedBoundaries) {
+    if (Number.isInteger(boundary) && boundary >= 1 && boundary <= lines.length) {
+      boundaries.add(boundary);
+    }
+  }
   for (const ranges of udfRanges.values()) {
     for (const { start, end } of ranges) {
       boundaries.add(start);

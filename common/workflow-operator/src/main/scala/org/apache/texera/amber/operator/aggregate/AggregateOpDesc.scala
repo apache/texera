@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -41,12 +42,14 @@ class AggregateOpDesc extends LogicalOp {
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
   @Size(min = 1, message = "aggregations cannot be empty")
+  @NoLoopVariable
   var aggregations: List[AggregationOperation] = List()
 
   @JsonProperty("groupByKeys")
   @JsonSchemaTitle("Group By Keys")
   @JsonPropertyDescription("group by columns")
   @AutofillAttributeNameList
+  @NoLoopVariable
   var groupByKeys: List[String] = List()
 
   override def getPhysicalPlan(

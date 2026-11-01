@@ -130,6 +130,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
           workflowId: delegateConfig.workflowId,
           workflowName: delegateConfig.workflowName,
           computingUnitId: delegateConfig.computingUnitId,
+          warehouseId: delegateConfig.warehouseId,
         }
       : undefined,
     settings: settingsApi,
@@ -241,7 +242,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             toolTimeoutSeconds: t.Optional(t.Number()),
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
-            maxSteps: t.Optional(t.Number()),
+            maxSteps: t.Optional(t.Integer({ minimum: 1 })),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
@@ -381,7 +382,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
         toolTimeoutSeconds: t.Optional(t.Number()),
         executionTimeoutMinutes: t.Optional(t.Number()),
-        maxSteps: t.Optional(t.Number()),
+        maxSteps: t.Optional(t.Integer({ minimum: 1 })),
         disabledTools: t.Optional(t.Array(t.String())),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
@@ -491,6 +492,14 @@ export function buildApp() {
             }
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
+
+            // The prompt carries the workspace's current warehouse pick, so a run
+            // uses what the user has selected now rather than whatever was
+            // selected when the agent was created. An absent field IS the
+            // current selection — none — so it clears a previous pick rather
+            // than leaving a stale id to be sent (and refused while the feature
+            // is off) forever (#7751).
+            agent.setDelegateWarehouse(typeof msg.warehouseId === "number" ? msg.warehouseId : undefined);
 
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));

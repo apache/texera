@@ -23,13 +23,15 @@
     [formGroup]="importForm"
     [attr.inert]="isSubmitting ? '' : null"
     nz-form>
-    <!-- One upload row shared by both tabs. They differ only in the accepted extension and
-         their labels, so the markup lives here once and each tab passes its own context. -->
+    <!-- One upload row shared by every tab. They differ only in the accepted extension, whether
+         a directory is picked, and their labels, so the markup lives here once and each tab
+         passes its own context. -->
     <ng-template
       #uploadRow
       let-accept="accept"
       let-label="label"
-      let-action="action">
+      let-action="action"
+      let-directory="directory">
       <nz-form-item>
         <nz-form-label [nzNoColon]="true">
           <span class="import-modal-label">{{ label }}</span>
@@ -38,6 +40,7 @@
           <div class="import-modal-upload-row">
             <nz-upload
               [nzAccept]="accept"
+              [nzDirectory]="!!directory"
               [nzBeforeUpload]="beforeUpload"
               [nzShowUploadList]="false">
               <button
@@ -52,10 +55,10 @@
             </nz-upload>
 
             <span
-              *ngIf="importForm.get('file')?.value?.name as fileName"
+              *ngIf="selectionSummary as summary"
               class="import-modal-selected-file"
-              [title]="fileName">
-              Selected file: {{ fileName }}
+              [title]="summary">
+              {{ summary }}
             </span>
           </div>
         </nz-form-control>
@@ -72,8 +75,8 @@
             <img
               ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
               alt="Notebook to Workflow"
-              width="1132"
-              height="290" />
+              width="1350"
+              height="344" />
           </div>
 
           <nz-form-item>
@@ -109,8 +112,8 @@
             <img
               ngSrc="assets/notebook_migration_tool/python_file_diagram.png"
               alt="Python File to Workflow"
-              width="1348"
-              height="346" />
+              width="1350"
+              height="344" />
           </div>
 
           <nz-form-item>
@@ -137,6 +140,50 @@
             *ngTemplateOutlet="
               uploadRow;
               context: { accept: '.py', label: 'Upload Python File', action: 'Upload Python file' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
+
+      <nz-tab nzTitle="Python Folder">
+        <ng-template nz-tab>
+          <div class="import-modal-diagram">
+            <img
+              ngSrc="assets/notebook_migration_tool/python_folder_diagram.png"
+              alt="Python Folder to Workflow"
+              width="1350"
+              height="344" />
+          </div>
+
+          <nz-form-item>
+            <p class="import-modal-text">
+              This tool converts a folder of Python files into a single Texera workflow using LLM capabilities. The
+              folder's Python files are joined into one document, each behind a heading naming the file it came from,
+              and sent together so the LLM can follow logic that crosses files. Code one file imports from another is
+              copied into the operator that needs it. The conversion time depends on the folder's size and can take 1-5
+              minutes. Once generation finishes, you are taken to the new workflow, which opens with:
+            </p>
+            <ol class="import-modal-list">
+              <li>
+                The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
+                the workflow).
+              </li>
+              <li>
+                A floating Jupyter window containing the file that runs your project, divided into cells, for reference.
+              </li>
+            </ol>
+            <p class="import-modal-text">
+              Generation runs here after you submit. Please keep this window open while you wait.
+            </p>
+          </nz-form-item>
+
+          <ng-container
+            *ngTemplateOutlet="
+              uploadRow;
+              context: {
+                label: 'Upload Python Folder',
+                action: 'Upload Python folder',
+                directory: true,
+              }
             "></ng-container>
         </ng-template>
       </nz-tab>

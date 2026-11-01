@@ -42,6 +42,16 @@ class UiUDFParameterSpec extends AnyFlatSpec with Matchers {
     restored.value shouldBe "x"
   }
 
+  it should "name no resource by default, and round-trip the one it names" in {
+    (new UiUDFParameter).inputType shouldBe ""
+    val p = new UiUDFParameter
+    p.attribute = new Attribute("MODEL", AttributeType.STRING)
+    p.inputType = "model"
+    objectMapper
+      .readValue(objectMapper.writeValueAsString(p), classOf[UiUDFParameter])
+      .inputType shouldBe "model"
+  }
+
   it should "default value to the empty string when the JSON omits it" in {
     val json = """{"attribute":{"attributeName":"col","attributeType":"string"}}"""
     val restored = objectMapper.readValue(json, classOf[UiUDFParameter])

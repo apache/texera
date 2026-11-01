@@ -65,9 +65,6 @@ const PresetArraySchema: CustomJSONSchema7 = {
 
 export type Preset = { [key: string]: string | number | boolean };
 
-export type PresetDictionary = {
-  [Key: string]: Preset[];
-};
 @Injectable({
   providedIn: "root",
 })
@@ -160,47 +157,6 @@ export class PresetService {
 
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
-   * @param type string, usually "operator"
-   * @param target string, usualy operatorType
-   * @param presets Preset[]
-   * @param displayMessage message to display when saving presets
-   * @param messageType see AlertMessageType, determines icon used in popup message
-   */
-  public updateOrCreatePreset(
-    type: string,
-    target: string,
-    originalPreset: Preset,
-    replacementPreset: Preset,
-    displayMessage?: string | null,
-    messageType: AlertMessageType = "success"
-  ) {
-    this.userConfigService
-      .fetchKey(`${type}-${target}`)
-      .pipe(first())
-      .subscribe(oldpresets => {
-        let presets = JSON.parse(oldpresets ?? "[]") as Preset[];
-        if (isEqual(originalPreset, replacementPreset)) {
-          // no modification: no update required
-        } else if (!contains(presets, originalPreset) && !contains(presets, replacementPreset)) {
-          presets.push(replacementPreset);
-        } else if (!contains(presets, originalPreset) && contains(presets, replacementPreset)) {
-          // no modification: old preset doesn't exist to be updated, new preset already exists
-        } else if (contains(presets, originalPreset) && contains(presets, replacementPreset)) {
-          // implicit deletion by replacing original with existing preset
-          // deep-equality index: presets are freshly JSON-parsed, so reference-based indexOf would miss
-          presets.splice(
-            presets.findIndex(preset => isEqual(preset, originalPreset)),
-            1
-          );
-        } else {
-          presets[presets.findIndex(preset => isEqual(preset, originalPreset))] = replacementPreset;
-        }
-        this.savePresets(type, target, presets, displayMessage, messageType);
-      });
-  }
-
-  /**
-   * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
    * removes preset if it exists
    * @param type string, usually "operator"
    * @param target string, usualy operatorType
@@ -260,28 +216,6 @@ export class PresetService {
     );
 
     return fitsSchema && noEmptyProperties;
-  }
-
-  /**
-   * extracts preset schema from operator schema and validates a preset with it.
-   * also checks if preset exists in presetDict already.
-   * @param preset
-   * @param operatorID
-   * @returns boolean
-   */
-  public isValidNewOperatorPreset(preset: Preset, operatorID: string): Observable<boolean> {
-    if (!this.isValidOperatorPreset(preset, operatorID)) return of(false);
-
-    return this.getPresets(
-      "operator",
-      this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
-    ).pipe(
-      first(),
-      map(presets => {
-        console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn");
-        return !presets.some(existingPreset => isEqual(preset, existingPreset));
-      })
-    );
   }
 
   public isValidPreset(preset: any): preset is Preset {

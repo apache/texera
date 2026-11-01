@@ -94,6 +94,34 @@ describe("UiUdfParametersSyncService", () => {
     expect(parametersChangedObserver).not.toHaveBeenCalled();
   });
 
+  describe("resource rows", () => {
+    const row = (inputType: string | undefined, value = ""): UiUdfParameter => ({
+      attribute: { attributeName: "SOURCE", attributeType: "string" },
+      value,
+      ...(inputType ? { inputType } : {}),
+    });
+
+    it("should drop the value when the row starts naming a different kind of resource", () => {
+      operator.operatorProperties.uiParameters = [row("model", "/model/owner/iris/v1")];
+      parserServiceMock.parse.mockReturnValue([row("dataset")]);
+      const parametersChangedObserver = observeParameterChanges();
+
+      service.syncStructureFromCode(operatorId, code);
+
+      expect(parametersChangedObserver).toHaveBeenCalledWith({ operatorId, parameters: [row("dataset", "")] });
+    });
+
+    it("should keep the chosen version while the row still names the same resource", () => {
+      operator.operatorProperties.uiParameters = [row("model", "/model/owner/iris/v1")];
+      parserServiceMock.parse.mockReturnValue([row("model")]);
+      const parametersChangedObserver = observeParameterChanges();
+
+      service.syncStructureFromCode(operatorId, code);
+
+      expect(parametersChangedObserver).not.toHaveBeenCalled();
+    });
+  });
+
   it("should not replay a previous parameter change to a late subscriber", () => {
     parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
 

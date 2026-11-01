@@ -26,9 +26,6 @@ import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
-const addDictionaryAPIAddress = "/api/resources/dictionary/";
-const getDictionaryAPIAddress = "/api/upload/dictionary/";
-
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 
