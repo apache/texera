@@ -25,7 +25,7 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-/** The `texera-support` package against the helpers the operators declare. */
+/** The `texera_support` module against the helpers the operators declare. */
 class StandaloneHelpersSpec extends AnyFlatSpec with Matchers {
 
   private val module: Path = Path
@@ -37,11 +37,11 @@ class StandaloneHelpersSpec extends AnyFlatSpec with Matchers {
   // With TEXERA_SUPPORT_WRITE set, the module is rewritten instead of checked.
   "texera_support/__init__.py" should "hold exactly the helpers the operators declare" in {
     if (sys.env.contains("TEXERA_SUPPORT_WRITE")) {
-      Files.write(module, StandaloneHelpers.packageModule.getBytes(StandardCharsets.UTF_8))
+      Files.write(module, StandaloneHelpers.supportModule.getBytes(StandardCharsets.UTF_8))
     }
     withClue(s"$module is stale; rerun this spec with TEXERA_SUPPORT_WRITE=1 to rewrite it.\n") {
       new String(Files.readAllBytes(module), StandardCharsets.UTF_8) shouldBe
-        StandaloneHelpers.packageModule
+        StandaloneHelpers.supportModule
     }
   }
 }

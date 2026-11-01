@@ -180,7 +180,7 @@ class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
     val success = exported(chainOf(distinctOp("distinct"), limitOp("limit", 5)))
     assert(success.pythonCode.contains("from texera_support import _texera_key_codes"))
     assert(!success.pythonCode.contains("def _texera_key_codes"))
-    assert(success.supportModule.contains(StandaloneHelpers.packageModule))
+    assert(success.supportModule.contains(StandaloneHelpers.supportModule))
   }
 
   it should "hand over no module with a script that imports nothing from it" in {

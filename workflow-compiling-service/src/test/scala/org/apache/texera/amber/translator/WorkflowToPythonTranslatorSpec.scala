@@ -220,7 +220,7 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should not include "from texera_support"
   }
 
-  it should "refuse an operator whose helper the package does not hold" in {
+  it should "refuse an operator whose helper the module does not hold" in {
     val op = new StubOp("out1df = in1df.apply(_texera_missing)") {
       override def standaloneHelpers(): Seq[String] = Seq("def _texera_missing(x):\n    return x")
     }

@@ -76,7 +76,7 @@ class WorkflowToPythonResource extends LazyLogging {
       WorkflowToPythonSuccess(
         pythonCode,
         Option.when(pythonCode.contains("from texera_support import"))(
-          StandaloneHelpers.packageModule
+          StandaloneHelpers.supportModule
         )
       )
     } catch {
