@@ -19,8 +19,7 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, firstValueFrom, of } from "rxjs";
-import { catchError, map } from "rxjs/operators";
+import { Observable, firstValueFrom } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 
 export const WORKFLOW_COVER_URL = "workflow";
@@ -36,14 +35,6 @@ const IMAGE_QUALITY = 0.8;
 })
 export class WorkflowCoverService {
   constructor(private http: HttpClient) {}
-
-  /** The workflow's custom cover image data URL, or undefined if it has none. */
-  getCover(wid: number): Observable<string | undefined> {
-    return this.http.get<{ image: string }>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_COVER_URL}/${wid}/cover`).pipe(
-      map(response => response.image),
-      catchError(() => of(undefined))
-    );
-  }
 
   /** Downscales/re-encodes the chosen image, stores it as the workflow's cover, and resolves with the data URL. */
   async setCoverFromFile(wid: number, file: File): Promise<string> {

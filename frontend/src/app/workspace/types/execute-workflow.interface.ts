@@ -30,14 +30,6 @@ export interface PortIdentity
     id: number;
     internal: boolean;
   }> {}
-export interface OutputPort extends Readonly<{ id: PortIdentity; displayName: string }> {}
-export interface InputPort
-  extends Readonly<{
-    id: PortIdentity;
-    displayName: string;
-    disallowMultiLinks: boolean;
-    dependencies: ReadonlyArray<PortIdentity>;
-  }> {}
 
 export interface LogicalLink
   extends Readonly<{
@@ -80,12 +72,15 @@ export enum OperatorState {
 
 export interface OperatorStatistics
   extends Readonly<{
+    // Provenance: the operator completed by reusing cached results (no workers ran).
+    reusedFromCache?: boolean;
     aggregatedInputRowCount: number;
     aggregatedInputSize?: number;
-    inputPortMetrics: Record<string, number>;
+    /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */
+    inputPortMetrics?: Record<string, number>;
     aggregatedOutputRowCount: number;
     aggregatedOutputSize?: number;
-    outputPortMetrics: Record<string, number>;
+    outputPortMetrics?: Record<string, number>;
     numWorkers?: number;
     aggregatedDataProcessingTime?: number;
     aggregatedControlProcessingTime?: number;
@@ -112,7 +107,6 @@ export interface OperatorStatsUpdate
 export type PaginationMode = { type: "PaginationMode" };
 export type SetSnapshotMode = { type: "SetSnapshotMode" };
 export type SetDeltaMode = { type: "SetDeltaMode" };
-export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 export interface WebPaginationUpdate
   extends Readonly<{

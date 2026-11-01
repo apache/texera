@@ -35,7 +35,7 @@ export const toQueryStrings = (
   params: SearchFilterParameters,
   start?: number,
   count?: number,
-  type?: "workflow" | "file" | "dataset" | "model" | null,
+  type?: "workflow" | "dataset" | "model" | null,
   orderBy?: SortMethod
 ): string => {
   const toLocalDate = (date: Date) =>
@@ -84,7 +84,7 @@ export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
   testEntries: DashboardEntry[],
-  type: "workflow" | "file" | "dataset" | "model" | null
+  type: "workflow" | "dataset" | "model" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);

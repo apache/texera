@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { OperatorRuntimeStatus, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
 
@@ -64,16 +64,31 @@ export class WorkflowStatusService {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
-      const state: Record<string, OperatorState> = {};
-      const statistics: Record<string, OperatorStatistics> = {};
-      for (const [operatorId, update] of Object.entries(event.operatorStatistics)) {
-        const { operatorState, ...statisticsOnly } = update;
-        state[operatorId] = operatorState;
-        statistics[operatorId] = statisticsOnly;
-      }
-      this.stateSubject.next(state);
-      this.statisticsSubject.next(statistics);
+      this.ingestRuntimeStatus(event.operatorStatistics);
     });
+  }
+
+  /** Splits a bundled runtime-status map into the two sub-concept emissions. */
+  private ingestRuntimeStatus(runtimeStatus: Record<string, OperatorRuntimeStatus>): void {
+    const state: Record<string, OperatorState> = {};
+    const statistics: Record<string, OperatorStatistics> = {};
+    for (const [operatorId, update] of Object.entries(runtimeStatus)) {
+      const { operatorState, ...statisticsOnly } = update;
+      state[operatorId] = operatorState;
+      statistics[operatorId] = statisticsOnly;
+    }
+    this.stateSubject.next(state);
+    this.statisticsSubject.next(statistics);
+  }
+
+  /**
+   * Ingests externally sourced per-operator runtime status (e.g. a finished
+   * run's persisted statistics restored after a page refresh), through the
+   * same split-and-emit path as live websocket updates — the emission order
+   * and derived performance metrics behave identically.
+   */
+  public setExternalStatus(runtimeStatus: Record<string, OperatorRuntimeStatus>): void {
+    this.ingestRuntimeStatus(runtimeStatus);
   }
 
   /** Stream of per-operator execution states, keyed by operator id. */

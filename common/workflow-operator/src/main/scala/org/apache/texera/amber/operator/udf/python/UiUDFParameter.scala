@@ -44,4 +44,13 @@ class UiUDFParameter {
   @JsonProperty()
   @JsonSchemaTitle("Value")
   var value: EncodableString = ""
+
+  /**
+    * The Texera resource the value names — "model" or "dataset" — or empty for free text.
+    * Inferred from the UDF's source (`value=Resource.MODEL`), like `attribute`. A resource value
+    * is a version path, turned into the directory that version is mounted at when the run starts.
+    */
+  @JsonProperty()
+  @JsonSchemaTitle("Input type")
+  var inputType: String = ""
 }

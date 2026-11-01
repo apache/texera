@@ -82,6 +82,10 @@ message OperatorStatistics{
 message OperatorMetrics{
   architecture.rpc.WorkflowAggregatedState operator_state = 1 [(scalapb.field).no_box = true];
   OperatorStatistics operator_statistics = 2 [(scalapb.field).no_box = true];
+  // True when the operator's results were reused from the operator port cache
+  // instead of being computed by workers. Provenance of a completed operator,
+  // not a distinct state; the operator still reports COMPLETED.
+  bool reused_from_cache = 3;
 }
 
 message ExecutionStatsStore {

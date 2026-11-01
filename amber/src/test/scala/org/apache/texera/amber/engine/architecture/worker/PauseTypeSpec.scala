@@ -36,19 +36,14 @@ class PauseTypeSpec extends AnyFlatSpec {
     // Widen to PauseType so the compiler doesn't reduce inter-singleton
     // comparisons to constant `false` at compile time.
     val u: PauseType = UserPause
-    val b: PauseType = BackpressurePause
     val o: PauseType = OperatorLogicPause
     assert(u == UserPause)
-    assert(b == BackpressurePause)
     assert(o == OperatorLogicPause)
-    assert(u != b)
     assert(u != o)
-    assert(b != o)
   }
 
   it should "be the same singleton instance per access (object identity)" in {
     assert((UserPause: AnyRef) eq UserPause)
-    assert((BackpressurePause: AnyRef) eq BackpressurePause)
     assert((OperatorLogicPause: AnyRef) eq OperatorLogicPause)
   }
 
@@ -75,7 +70,6 @@ class PauseTypeSpec extends AnyFlatSpec {
     // an ECMPause (with any id) must not collide with any singleton kind.
     val p: PauseType = ECMPause(EmbeddedControlMessageIdentity("ckpt"))
     assert(p != UserPause)
-    assert(p != BackpressurePause)
     assert(p != OperatorLogicPause)
   }
 
@@ -85,12 +79,10 @@ class PauseTypeSpec extends AnyFlatSpec {
     def label(p: PauseType): String =
       p match {
         case UserPause          => "user"
-        case BackpressurePause  => "backpressure"
         case OperatorLogicPause => "operator-logic"
         case ECMPause(_)        => "ecm"
       }
     assert(label(UserPause) == "user")
-    assert(label(BackpressurePause) == "backpressure")
     assert(label(OperatorLogicPause) == "operator-logic")
     assert(label(ECMPause(EmbeddedControlMessageIdentity("x"))) == "ecm")
   }
@@ -107,13 +99,11 @@ class PauseTypeSpec extends AnyFlatSpec {
   it should "coexist as distinct elements in a Set without aliasing" in {
     val active: Set[PauseType] = Set(
       UserPause,
-      BackpressurePause,
       OperatorLogicPause,
       ECMPause(EmbeddedControlMessageIdentity("ckpt-1"))
     )
-    assert(active.size == 4, "all four pause kinds must be distinct Set elements")
+    assert(active.size == 3, "all three pause kinds must be distinct Set elements")
     assert(active.contains(UserPause))
-    assert(active.contains(BackpressurePause))
     assert(active.contains(OperatorLogicPause))
     assert(active.contains(ECMPause(EmbeddedControlMessageIdentity("ckpt-1"))))
   }

@@ -787,4 +787,14 @@ describe("UserDatasetComponent card view", () => {
     // the filters nor the sort changed.
     expect(searchSpy).toHaveBeenCalledWith(true);
   });
+
+  it("forces a fresh search when the results list asks for a refresh", () => {
+    const results = fixture.debugElement.query(By.directive(SearchResultsComponent))
+      .componentInstance as SearchResultsComponent;
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
+
+    results.refresh.emit();
+
+    expect(searchSpy).toHaveBeenCalledWith(true);
+  });
 });

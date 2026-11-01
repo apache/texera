@@ -22,7 +22,7 @@ import pandas
 import pytest
 import pytexera.udf.udf_operator as udf_operator
 
-from pytexera import AttributeType, Tuple, TupleLike, UDFOperatorV2
+from pytexera import AttributeType, Resource, Tuple, TupleLike, UDFOperatorV2
 from pytexera import UDFBatchOperator, UDFSourceOperator, UDFTableOperator
 from pytexera.udf.udf_operator import _UiParameterSupport
 
@@ -42,6 +42,19 @@ class InjectedParametersOperator(UDFOperatorV2):
         )
         self.created_at_parameter = self.UiParameter(
             "created_at", type=AttributeType.TIMESTAMP
+        )
+
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+
+
+class ResourceParameterOperator(UDFOperatorV2):
+    def _texera_injected_ui_parameters(self):
+        return {"MODEL": "/mnt/texera-mounts/model-1/abc123"}
+
+    def open(self):
+        self.model_parameter = self.UiParameter(
+            "MODEL", AttributeType.STRING, value=Resource.MODEL
         )
 
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
@@ -349,11 +362,35 @@ class TestUiParameterSupport:
         with pytest.raises(TypeError, match="provided multiple times"):
             operator.UiParameter("count", AttributeType.INT, type=AttributeType.INT)
         with pytest.raises(TypeError, match="unexpected keyword argument"):
-            operator.UiParameter("count", AttributeType.INT, value="1")
+            operator.UiParameter("count", AttributeType.INT, default="1")
         with pytest.raises(TypeError, match="UiParameter.type is required"):
             operator.UiParameter("count")
         with pytest.raises(TypeError, match="must be an AttributeType"):
             operator.UiParameter("count", object())
+
+    def test_resource_parameter_receives_its_mount_directory(self):
+        operator = ResourceParameterOperator()
+
+        operator.open()
+
+        assert operator.model_parameter.value == "/mnt/texera-mounts/model-1/abc123"
+        assert operator.model_parameter.resource is Resource.MODEL
+
+    def test_resource_parameter_rejects_anything_but_a_resource(self):
+        operator = MissingParameterOperator()
+
+        with pytest.raises(TypeError, match="must be a Resource"):
+            operator.UiParameter("MODEL", AttributeType.STRING, value="model")
+
+    def test_resource_parameter_must_be_a_string(self):
+        operator = MissingParameterOperator()
+
+        # What the UDF receives is a directory path.
+        with pytest.raises(TypeError, match="must be AttributeType.STRING"):
+            operator.UiParameter("MODEL", AttributeType.INT, value=Resource.DATASET)
+
+    def test_resource_kinds_match_the_frontend_and_backend(self):
+        assert {resource.value for resource in Resource} == {"model", "dataset"}
 
     def test_super_open_applies_injected_values_once(self):
         operator = SuperOpenParameterOperator()

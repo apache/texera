@@ -21,18 +21,18 @@
  * Widget types that cannot be a form field at all, so the property is not offered for exposure on
  * the Form View. Only the code editor: editing code is not "filling in a value", and a form reader
  * should not be writing code. (A drag-reorder property such as Projection's columns stays exposable
- * -- it just renders without the drag in the form -- so it is deliberately NOT in this set.)
+ * and renders with its drag in the form, so it is deliberately NOT in this set.)
  */
 export const NON_FORM_FIELD_TYPES: ReadonlySet<string> = new Set(["codearea"]);
 
 /**
  * Widgets that only work on the operator canvas, so the Form View does not render them: it falls
- * back to formly's default control instead. The code editor (also blocked from exposure by
- * {@link NON_FORM_FIELD_TYPES}) and the drag-reorder list, whose drag has nowhere to attach on a
- * form -- a workflow may still carry an exposed drag-reorder property from before, and it degrades
- * to a plain editable list rather than a control that cannot function here.
+ * back to formly's default control instead. Only the code editor (also blocked from exposure by
+ * {@link NON_FORM_FIELD_TYPES}), which opens into an outlet the canvas owns. The drag-reorder list
+ * used to be here too, as if its drag had nowhere to attach on a form; it carries its own drop
+ * list, and renders on the form with the drag, as on the panel (#8761).
  */
-export const CANVAS_ONLY_FORMLY_TYPES: ReadonlySet<string> = new Set(["codearea", "repeat-section-dnd"]);
+export const CANVAS_ONLY_FORMLY_TYPES: ReadonlySet<string> = new Set(["codearea"]);
 
 /**
  * The custom formly widget an operator-schema property renders as, decided from the property key
