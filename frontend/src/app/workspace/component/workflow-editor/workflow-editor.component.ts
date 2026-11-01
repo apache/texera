@@ -142,6 +142,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   // Results pinned beside their operators, each with how far it was dragged from its spot.
   public pinnedResults: { operatorId: string; dx: number; dy: number }[] = [];
   private previewShowTimer?: ReturnType<typeof setTimeout>;
+  // The operator previewShowTimer opens the card for.
+  private previewPendingOperatorId?: string;
   private previewHideTimer?: ReturnType<typeof setTimeout>;
   private paperInteractive: boolean = true;
   // Keeps the paper sized to its OWN container (not just the window) and rebuilds cell geometry
@@ -295,6 +297,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     this.paperResizeObserver?.disconnect();
+    // A card timer left running would reach for the removed paper and this destroyed view.
+    clearTimeout(this.previewShowTimer);
+    clearTimeout(this.previewHideTimer);
     // The paper is bound to the joint graph, which is root-provided and outlives this component,
     // so an undisposed one goes on listening to that graph from a DOM node no longer on the page.
     // Harmless while every mount followed a page load; the switch between a workflow's two views
@@ -639,6 +644,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           return;
         }
         // Only a pointer that rests on the operator opens the card, so passing over one does not.
+        this.previewPendingOperatorId = operatorId;
         this.previewShowTimer = setTimeout(() => {
           this.resultPreview = { operatorId, ...this.operatorAnchor(operatorId) };
           // JointJS paper events fire outside Angular's zone (see handleHeatmapHover).
@@ -653,8 +659,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.hideResultPreviewSoon();
       });
 
-    // A click or a drag on the canvas closes the card at once.
-    merge(fromJointPaperEvent(this.paper, "element:pointerdown"), fromJointPaperEvent(this.paper, "blank:pointerdown"))
+    // A click or a drag on the canvas closes the card at once. A native capture listener, because
+    // pressing a port to drag a link stops JointJS before it emits element:pointerdown.
+    fromEvent(this.paper.el, "pointerdown", { capture: true })
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         clearTimeout(this.previewShowTimer);
@@ -674,11 +681,17 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         if (this.pinnedResults.length > 0) this.changeDetectorRef.detectChanges();
       });
 
+    // A deleted operator takes its window and its card along, and a card still waiting to open for it.
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
       .pipe(untilDestroyed(this))
-      .subscribe(({ deletedOperatorID }) => this.unpinResult(deletedOperatorID));
+      .subscribe(({ deletedOperatorID }) => {
+        if (this.previewPendingOperatorId === deletedOperatorID) clearTimeout(this.previewShowTimer);
+        if (this.resultPreview?.operatorId === deletedOperatorID) this.resultPreview = null;
+        // detects changes for both
+        this.unpinResult(deletedOperatorID);
+      });
   }
 
   /** Close the card after a moment, so the pointer can cross from the operator into it. */

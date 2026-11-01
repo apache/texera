@@ -69,13 +69,21 @@ $type-colors: (
   flex-direction: column;
 }
 
-// the console takes the room under the title
+// the tabs take the room under the title
 #content > .result-content {
   flex: 1 1 0;
   min-height: 0;
   box-sizing: border-box;
   // the collapse button sits over the panel's bottom-left corner
   padding: 8px 8px 36px;
+}
+
+// and each tab's content fills them
+:host ::ng-deep .result-content .ant-tabs-content,
+:host ::ng-deep .result-content .ant-tabs-tabpane,
+.tab-content {
+  display: block;
+  height: 100%;
 }
 
 #result-buttons {

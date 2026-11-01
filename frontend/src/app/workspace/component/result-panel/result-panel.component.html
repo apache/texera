@@ -91,10 +91,25 @@
       cdkDragHandle>
       Console
     </h4>
-    <texera-console-frame
+    <!-- the console stays in a tab of its own, so the AI Fix tab coming and going never rebuilds it -->
+    <nz-tabs
       class="result-content"
-      [operatorId]="currentOperatorId"
-      [consoleInputEnabled]="consoleInputEnabled"></texera-console-frame>
+      [nzSize]="'small'"
+      [nzTabPosition]="'left'">
+      <nz-tab nzTitle="Console">
+        <texera-console-frame
+          class="tab-content"
+          [operatorId]="currentOperatorId"
+          [consoleInputEnabled]="consoleInputEnabled"></texera-console-frame>
+      </nz-tab>
+      <nz-tab
+        *ngIf="aiFixOperatorId"
+        nzTitle="AI Fix">
+        <texera-ai-fix-frame
+          class="tab-content"
+          [operatorId]="aiFixOperatorId"></texera-ai-fix-frame>
+      </nz-tab>
+    </nz-tabs>
   </div>
   <nz-resize-handles
     *ngIf="width"

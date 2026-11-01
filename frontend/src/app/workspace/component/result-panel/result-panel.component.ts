@@ -36,6 +36,11 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
+import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 500;
@@ -65,6 +70,9 @@ export const DEFAULT_HEIGHT = 500;
     CdkDragHandle,
     ConsoleFrameComponent,
     NzResizeHandlesComponent,
+    NzTabsComponent,
+    NzTabComponent,
+    AiFixFrameComponent,
   ],
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
@@ -82,12 +90,17 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   currentOperatorId?: string;
   // a Python UDF takes debugger commands, so its console has an input
   consoleInputEnabled = false;
+  // the operator the AI Fix tab offers to fix; none hides the tab
+  aiFixOperatorId?: string;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef,
     private resizeService: PanelResizeService,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private workflowConsoleService: WorkflowConsoleService,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private config: GuiConfigService
   ) {
     this.width = 0;
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
@@ -102,6 +115,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerFollowHighlight();
+    this.registerAiFixTab();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.resetPanelPosition();
@@ -149,6 +163,40 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.currentOperatorId = highlighted.length === 1 && graph.hasOperator(highlighted[0]) ? highlighted[0] : undefined;
     this.consoleInputEnabled =
       isDefined(this.currentOperatorId) && isPythonUdf(graph.getOperator(this.currentOperatorId));
+    this.updateAiFixTab();
+  }
+
+  /**
+   * A Python UDF that raises while it is already selected moves no highlight: the run stays
+   * Running and the traceback arrives as an ERROR console message. A new run clears the console
+   * without a console update, so the run's state is watched too.
+   */
+  registerAiFixTab() {
+    merge(
+      this.workflowConsoleService.getConsoleMessageUpdateStream(),
+      this.executeWorkflowService.getExecutionStateStream()
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.updateAiFixTab()) this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /**
+   * The AI Fix tab is offered on the selected Python UDF while its console has an error, as the fix
+   * it writes is a change to the operator's code. Returns whether the tab changed.
+   */
+  private updateAiFixTab(): boolean {
+    const operatorId = this.currentOperatorId;
+    const offered =
+      this.config.env.copilotEnabled &&
+      isDefined(operatorId) &&
+      this.consoleInputEnabled &&
+      (this.workflowConsoleService.getConsoleMessages(operatorId) ?? []).some(m => m.msgType.name === "ERROR");
+    const next = offered ? operatorId : undefined;
+    if (next === this.aiFixOperatorId) return false;
+    this.aiFixOperatorId = next;
+    return true;
   }
 
   openPanel() {

@@ -42,7 +42,11 @@ import { MockComputingUnitStatusService } from "../../../common/service/computin
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { PanelService } from "../../service/panel/panel.service";
 import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { ConsoleMessage, OperatorPredicate } from "../../types/workflow-common.interface";
+import { ExecutionState } from "../../types/execute-workflow.interface";
+import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -171,6 +175,120 @@ describe("ResultPanelComponent", () => {
         .componentInstance as ConsoleFrameComponent;
       expect(console.operatorId).toBe(mockResultPredicate.operatorID);
       expect(console.consoleInputEnabled).toBe(false);
+    });
+  });
+
+  describe("the AI Fix tab", () => {
+    const consoleMessage = (msgTypeName: string): ConsoleMessage => ({
+      // a worker id ending in its index, as the worker tag's color is read from it
+      workerId: "w-1",
+      timestamp: { nanos: 0, seconds: 0 },
+      msgType: { name: msgTypeName },
+      source: "udf.py:process_tuple:10",
+      title: "KeyError: 'lines'",
+      message: "Traceback (most recent call last):\nKeyError: 'lines'",
+    });
+    let consoleService: WorkflowConsoleService;
+    let messages: ReturnType<typeof vi.spyOn>;
+
+    // The stub metadata has no Python UDF type, so the selection and the graph are stubbed.
+    const select = (operatorType: string) => {
+      vi.spyOn(workflowActionService.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue([
+        "py1",
+      ]);
+      vi.spyOn(workflowActionService.getTexeraGraph(), "hasOperator").mockReturnValue(true);
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue({
+        ...mockResultPredicate,
+        operatorID: "py1",
+        operatorType,
+      });
+      component.updateShownOperator();
+    };
+
+    const tabTitles = () =>
+      fixture.debugElement
+        .queryAll(By.css(".ant-tabs-tab"))
+        .map(tab => (tab.nativeElement as HTMLElement).textContent?.trim());
+
+    beforeEach(() => {
+      consoleService = TestBed.inject(WorkflowConsoleService);
+      messages = vi.spyOn(consoleService, "getConsoleMessages").mockReturnValue([consoleMessage("ERROR")]);
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = true;
+      component.width = DEFAULT_WIDTH;
+    });
+
+    it("is offered on a selected Python UDF whose console has an error, and opens on that operator", () => {
+      select(PYTHON_UDF_V2_OP_TYPE);
+      fixture.detectChanges();
+
+      expect(component.aiFixOperatorId).toBe("py1");
+      expect(tabTitles()).toEqual(["Console", "AI Fix"]);
+      // a tab's content is built once the tab is chosen
+      fixture.debugElement.queryAll(By.css(".ant-tabs-tab"))[1].nativeElement.click();
+      fixture.detectChanges();
+      const frame = fixture.debugElement.query(By.directive(AiFixFrameComponent));
+      expect((frame.componentInstance as AiFixFrameComponent).operatorId).toBe("py1");
+    });
+
+    // A Python UDF that raises while selected moves no highlight; the console update is the only signal.
+    it("appears when the error arrives while the operator is already selected", () => {
+      messages.mockReturnValue([consoleMessage("PRINT")]);
+      select(PYTHON_UDF_V2_OP_TYPE);
+      expect(component.aiFixOperatorId).toBeUndefined();
+
+      messages.mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+
+      expect(component.aiFixOperatorId).toBe("py1");
+    });
+
+    // A new run empties the console without a console update, so the run's state is what takes the tab down.
+    it("goes away when a new run clears the error, and comes back when it fails again", () => {
+      select(PYTHON_UDF_V2_OP_TYPE);
+      const executeService = TestBed.inject(ExecuteWorkflowService);
+
+      messages.mockReturnValue([]);
+      executeService["updateExecutionState"]({ state: ExecutionState.Initializing });
+      expect(component.aiFixOperatorId).toBeUndefined();
+
+      messages.mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+      expect(component.aiFixOperatorId).toBe("py1");
+    });
+
+    it("leaves the console frame in place when the tab comes and goes", () => {
+      messages.mockReturnValue([]);
+      select(PYTHON_UDF_V2_OP_TYPE);
+      fixture.detectChanges();
+      const consoleFrame = fixture.debugElement.query(By.directive(ConsoleFrameComponent)).componentInstance;
+
+      messages.mockReturnValue([consoleMessage("ERROR")]);
+      consoleService.clearConsoleMessages();
+      fixture.detectChanges();
+
+      expect(tabTitles()).toEqual(["Console", "AI Fix"]);
+      expect(fixture.debugElement.query(By.directive(ConsoleFrameComponent)).componentInstance).toBe(consoleFrame);
+    });
+
+    // The fix it writes is a change to `code`, which only a Python UDF has.
+    it("is not offered on an operator that is not a Python UDF", () => {
+      select(mockResultPredicate.operatorType);
+
+      expect(component.aiFixOperatorId).toBeUndefined();
+    });
+
+    it("is not offered while the console holds no error", () => {
+      messages.mockReturnValue([consoleMessage("PRINT")]);
+      select(PYTHON_UDF_V2_OP_TYPE);
+
+      expect(component.aiFixOperatorId).toBeUndefined();
+    });
+
+    it("is not offered while the copilot feature is off", () => {
+      (TestBed.inject(GuiConfigService).env as any).copilotEnabled = false;
+      select(PYTHON_UDF_V2_OP_TYPE);
+
+      expect(component.aiFixOperatorId).toBeUndefined();
     });
   });
 
@@ -385,14 +503,14 @@ describe("ResultPanelComponent", () => {
       expect(openSpy).toHaveBeenCalled();
     });
 
-    it("titles the panel Console and holds only the console", () => {
+    it("titles the panel Console and holds the console alone until AI Fix is offered", () => {
       component.width = DEFAULT_WIDTH;
       fixture.detectChanges();
 
       const title = fixture.debugElement.query(By.css("#title")).nativeElement as HTMLElement;
       expect(title.textContent?.trim()).toBe("Console");
       expect(fixture.debugElement.queryAll(By.directive(ConsoleFrameComponent)).length).toBe(1);
-      expect(fixture.debugElement.query(By.css("nz-tabs"))).toBeNull();
+      expect(fixture.debugElement.query(By.directive(AiFixFrameComponent))).toBeNull();
     });
 
     it("names the console in the collapsed open button's tooltip", () => {
