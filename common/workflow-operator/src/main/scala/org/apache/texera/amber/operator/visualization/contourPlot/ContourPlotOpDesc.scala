@@ -22,15 +22,13 @@ package org.apache.texera.amber.operator.visualization.contourPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
@@ -47,7 +45,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class ContourPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ContourPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
@@ -89,14 +87,6 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     defaultValue = "heatmap"
   )
   var coloringMethod: ContourPlotColoringFunction = _
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -161,8 +151,6 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        yield {'html-content': html}
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String =
     // render_error's continuation line keeps the runtime path's indentation — the

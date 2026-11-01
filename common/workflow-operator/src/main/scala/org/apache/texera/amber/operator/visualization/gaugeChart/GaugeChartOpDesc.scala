@@ -21,21 +21,19 @@ package org.apache.texera.amber.operator.visualization.gaugeChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Gauge Value")
   @JsonPropertyDescription("The primary value displayed on the gauge chart")
@@ -61,13 +59,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("List of step ranges for the gauge")
   var steps: List[GaugeChartSteps] = List()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -194,8 +185,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     // The column name is typed-in text, so it is emitted as a properly escaped

@@ -127,7 +127,10 @@ lazy val Config = (project in file("common/config")).settings(commonModuleSettin
 // on Config to read OTEL_* settings from observability.conf.
 lazy val Observability =
   (project in file("common/observability")).settings(commonModuleSettings).dependsOn(Config)
-lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings).dependsOn(DAO)
+lazy val Resource = (project in file("common/resource"))
+  .settings(commonModuleSettings)
+  .dependsOn(DAO, Auth)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
   .configs(Test)
@@ -276,6 +279,12 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+  .settings(
+    // WorkflowMetricsRecorderSpec asserts exact counts on the process-wide WorkflowMetrics
+    // instruments; run suites serially so a concurrent execution suite does not record into
+    // them mid-assertion.
+    Test / parallelExecution := false
+  )
 lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
   .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)
