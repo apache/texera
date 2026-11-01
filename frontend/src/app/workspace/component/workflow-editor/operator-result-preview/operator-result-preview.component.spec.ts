@@ -22,7 +22,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { By } from "@angular/platform-browser";
 import { NzModalModule } from "ng-zorro-antd/modal";
 
-import { NEVER, of } from "rxjs";
+import { NEVER, of, Subject } from "rxjs";
 import {
   formatPreviewCell,
   OperatorResultPreviewComponent,
@@ -40,7 +40,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { mockPoint, mockScanPredicate } from "../../../service/workflow-graph/model/mock-workflow-data";
-import { ExecutionState } from "../../../types/execute-workflow.interface";
+import { ExecutionState, WebResultUpdate } from "../../../types/execute-workflow.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { AttributeType } from "../../../types/workflow-compiling.interface";
@@ -234,6 +234,37 @@ describe("OperatorResultPreviewComponent", () => {
 
     expect(peek).not.toHaveBeenCalled();
     expect(component.rows).toEqual([]);
+  });
+
+  it("fetches the rows again as a running operator's result grows, until the preview is full", () => {
+    const resultUpdates = new Subject<Record<string, WebResultUpdate | undefined>>();
+    vi.spyOn(resultService, "getResultUpdateStream").mockReturnValue(resultUpdates);
+    withRows(0);
+    withColumns(1);
+    hover(id);
+    expect(component.rows).toEqual([]);
+
+    const fullPage = Array.from({ length: PREVIEW_ROW_LIMIT }, (_, i) => ({ col0: `r${i}` }));
+    const peek = withRows(PREVIEW_ROW_LIMIT, fullPage);
+    resultUpdates.next({ "another-op": undefined });
+    expect(peek).not.toHaveBeenCalled();
+    resultUpdates.next({ [id]: undefined });
+    expect(component.rows?.length).toBe(PREVIEW_ROW_LIMIT);
+
+    resultUpdates.next({ [id]: undefined });
+    expect(peek).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the rows on show while it fetches them again", () => {
+    const resultUpdates = new Subject<Record<string, WebResultUpdate | undefined>>();
+    vi.spyOn(resultService, "getResultUpdateStream").mockReturnValue(resultUpdates);
+    withRows(1, [{ col0: "a" }]);
+    withColumns(1);
+    hover(id);
+
+    withRows(2);
+    resultUpdates.next({ [id]: undefined });
+    expect(component.rows).toEqual([["a"]]);
   });
 
   it("prints a cell short, blank for null, and as JSON for an object", () => {
