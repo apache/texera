@@ -49,6 +49,7 @@ import { ComputingUnitCreateModalComponent } from "../../../common/component/com
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { WorkflowMetadata } from "../../../dashboard/type/workflow-metadata.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -56,6 +57,10 @@ import { ComputingUnitActionsService } from "../../../common/service/computing-u
 import { ComputingUnitMetadataComponent } from "../../../common/util/computing-unit.util";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
+import { DashboardWarehouse } from "../../../common/type/warehouse";
 
 /**
  * Builds a fully-populated DashboardWorkflowComputingUnit for driving the
@@ -69,7 +74,9 @@ function makeComputingUnit(
     uri: string;
     type: WorkflowComputingUnitType;
     status: string;
+    statusReason: string;
     isOwner: boolean;
+    accessPrivilege: "READ" | "WRITE" | "NONE";
   }> = {}
 ): DashboardWorkflowComputingUnit {
   const {
@@ -78,7 +85,9 @@ function makeComputingUnit(
     uri = `uri-${cuid}`,
     type = "kubernetes",
     status = "Running",
+    statusReason = undefined,
     isOwner = true,
+    accessPrivilege = "WRITE",
   } = overrides;
   return {
     computingUnit: {
@@ -99,9 +108,10 @@ function makeComputingUnit(
       },
     },
     status: status as DashboardWorkflowComputingUnit["status"],
+    statusReason,
     metrics: { cpuUsage: "N/A", memoryUsage: "N/A" },
     isOwner,
-    accessPrivilege: "WRITE",
+    accessPrivilege,
     ownerAvatar: "",
     ownerName: "owner",
   };
@@ -210,7 +220,12 @@ describe("PowerButtonComponent", () => {
       component.workflowId = 7;
       const selectSpy = vi.spyOn(component, "selectComputingUnit").mockImplementation(() => {});
       const modal = fixture.debugElement.query(By.directive(ComputingUnitCreateModalComponent)).componentInstance;
-      modal.unitCreated.emit({ computingUnit: { cuid: 42 } } as unknown as DashboardWorkflowComputingUnit);
+      // A new unit is Pending. Pins that the row guard stays out of onPickComputingUnit,
+      // which would otherwise stop a new unit from being selected.
+      modal.unitCreated.emit({
+        computingUnit: { cuid: 42 },
+        status: "Pending",
+      } as unknown as DashboardWorkflowComputingUnit);
       expect(selectSpy).toHaveBeenCalledWith(7, 42);
     });
   });
@@ -1238,6 +1253,28 @@ describe("PowerButtonComponent", () => {
       expect(enableSpy).not.toHaveBeenCalled();
     });
 
+    // "No execution someone else started" is not "nothing is running here": this query asks only
+    // about Running and Initializing, and its answer lands asynchronously, after whatever the page
+    // set on arrival. A view handed a session with a run in flight had just been given the lock;
+    // enabling outright took it away again, leaving a running workflow editable.
+    it("leaves a run already in flight locked, even when the backend reports no executions", () => {
+      const actionService = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
+      const disableSpy = vi.spyOn(actionService, "disableWorkflowModification").mockImplementation(() => {});
+      const enableSpy = vi.spyOn(actionService, "enableWorkflowModification").mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveWorkflowExecutions").mockReturnValue(
+        of([] as WorkflowExecutionsEntry[])
+      );
+      // This page's own execute service is holding a run, as it would after a hand-over.
+      (TestBed.inject(ExecuteWorkflowService) as any).currentState = { state: ExecutionState.Running };
+
+      const { selected$ } = bootWithSelectedStream();
+      selected$.next(makeComputingUnit({ cuid: 7 }));
+
+      expect(disableSpy).toHaveBeenCalled();
+      expect(enableSpy).not.toHaveBeenCalled();
+    });
+
     it("enables workflow modification when there are no ongoing executions", () => {
       const actionService = TestBed.inject(WorkflowActionService);
       vi.spyOn(actionService, "getWorkflowMetadata").mockReturnValue({ ...DEFAULT_WORKFLOW, wid: 42 });
@@ -1275,10 +1312,14 @@ describe("PowerButtonComponent", () => {
   describe("registerWorkflowMetadataSubscription (ngOnInit)", () => {
     // Boots a fresh component with a controlled metadata-change stream and a
     // mutable metadata object so we can flip the wid and re-emit at will.
-    function bootWithMetaStream(): {
+    function bootWithMetaStream(units?: DashboardWorkflowComputingUnit[]): {
       comp: ComputingUnitSelectionComponent;
       emit: (wid: number | undefined) => void;
+      fixture: ComponentFixture<ComputingUnitSelectionComponent>;
     } {
+      if (units) {
+        vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(of(units));
+      }
       const actionService = TestBed.inject(WorkflowActionService);
       const meta$ = new Subject<WorkflowMetadata>();
       vi.spyOn(actionService, "workflowMetaDataChanged").mockReturnValue(meta$.asObservable());
@@ -1290,7 +1331,7 @@ describe("PowerButtonComponent", () => {
         currentMeta = { ...DEFAULT_WORKFLOW, wid };
         meta$.next(currentMeta);
       };
-      return { comp: freshFixture.componentInstance, emit };
+      return { comp: freshFixture.componentInstance, emit, fixture: freshFixture };
     }
 
     it("selects the computing unit from the latest execution when the workflow id changes", () => {
@@ -1298,7 +1339,7 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1312,11 +1353,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         throwError(() => new Error("no execution"))
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [
+      const { comp, emit } = bootWithMetaStream([
         makeComputingUnit({ cuid: 1, status: "Pending" }),
         makeComputingUnit({ cuid: 2, status: "Running" }),
-      ];
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1355,13 +1395,290 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         throwError(() => new Error("no execution"))
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 1, status: "Pending" })];
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 1, status: "Pending" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
 
       expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    // The last execution's unit is only selected while it is still in the loaded list.
+    it("falls back to a Running unit when the last execution's unit is no longer listed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    // Run is disabled on a unit shared with READ access, so falling back to one would select a unit
+    // the user cannot run on.
+    it("skips a Running unit the user cannot run on when falling back", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Running", accessPrivilege: "READ", isOwner: false }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 1);
+    });
+
+    it("selects nothing when the only Running unit is shared with READ access", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Running", accessPrivilege: "READ", isOwner: false }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    // Only the fallback is access-filtered; the last execution's unit is selected as is.
+    it("still selects the last execution's unit when it is listed with READ access", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 55, status: "Running", accessPrivilege: "READ", isOwner: false }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("selects nothing when the last execution's unit is gone and no unit is Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 1, status: "Pending" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("still selects the last execution's unit when it is listed but not Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 55, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 2);
+    });
+
+    it("decides from the latest execution only once, on the first loaded list", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+      units$.next([makeComputingUnit({ cuid: 2, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("waits for the unit list before deciding from the latest execution", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      units$.next([]);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 55);
+    });
+
+    it("still falls back to a Running unit when the list arrives after the failed lookup", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      units$.next([makeComputingUnit({ cuid: 2, status: "Running" })]);
+
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("drops a latest-execution decision when the list arrives after the workflow changed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
+        of({ cuId: wid === 100 ? 55 : 9 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      emit(101);
+      units$.next([
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+      ]);
+
+      expect(selectSpy).toHaveBeenCalledWith(101, 9);
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
+    });
+
+    it("only preselects the warehouse when the unit was already settled by a remembered choice", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55, whId: 3 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 77, status: "Running" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 77);
+      expect((comp as any).lastExecutionWhid).toBe(3);
+    });
+
+    it("falls back to a Running unit when the latest execution has no unit", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: null } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("falls back to a Running unit when both the remembered and the last execution's unit are gone", () => {
+      localStorage.setItem("computing-unit-of-workflow-100", "77");
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 2, status: "Running" })]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+      expect(localStorage.getItem("computing-unit-of-workflow-100")).toBeNull();
+    });
+
+    it("drops a pending latest-execution decision once the component is destroyed", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit, fixture } = bootWithMetaStream();
+      const units$ = new Subject<DashboardWorkflowComputingUnit[]>();
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(units$);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+      fixture.destroy();
+      units$.next([makeComputingUnit({ cuid: 55, status: "Running" })]);
+
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it.each(["Pending", "Terminating", "Failed", "Unknown"])("does not fall back to a unit that is %s", status => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
+    });
+
+    it("picks the first Running unit in list order when several are Running", () => {
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
+      );
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 1, status: "Pending" }),
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+        makeComputingUnit({ cuid: 3, status: "Running" }),
+      ]);
+      const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+
+      emit(100);
+
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(selectSpy).toHaveBeenCalledWith(100, 2);
     });
 
     it("drops a latest-execution answer that arrives after the workflow changed underneath it", () => {
@@ -1370,7 +1687,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
         wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1387,8 +1707,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockImplementation((wid: number) =>
         wid === 100 ? late$ : of({ cuId: 9 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 2, status: "Running" })];
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 2, status: "Running" }),
+        makeComputingUnit({ cuid: 9, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1407,14 +1729,18 @@ describe("PowerButtonComponent", () => {
         .mockReturnValue(of({ cuId: 55 } as unknown as WorkflowExecutionsEntry));
       const { comp, emit } = bootWithMetaStream();
       vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getAllComputingUnits").mockReturnValue(
-        of([makeComputingUnit({ cuid: 77, status: "Running" })])
+        of([makeComputingUnit({ cuid: 77, status: "Running" }), makeComputingUnit({ cuid: 55, status: "Running" })])
       );
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
 
       expect(selectSpy).toHaveBeenCalledWith(100, 77);
-      expect(latestSpy).not.toHaveBeenCalled();
+      // The warehouse preselect (#7817) legitimately reads the latest execution
+      // even on this path, so assert the unit choice directly instead of the
+      // lookup's absence: the latest execution's unit must not win.
+      expect(latestSpy).toHaveBeenCalled();
+      expect(selectSpy).not.toHaveBeenCalledWith(100, 55);
     });
 
     // A remembered unit that has since been terminated must not be chased: the status service
@@ -1495,9 +1821,13 @@ describe("PowerButtonComponent", () => {
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
-      // Workflow 101 has nothing remembered, so it decides at once from its latest execution.
+      // Workflow 101 has nothing remembered, so it decides from its latest execution once the
+      // list is in.
       emit(101);
-      units$.next([makeComputingUnit({ cuid: 77, status: "Running" })]);
+      units$.next([
+        makeComputingUnit({ cuid: 77, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
 
       expect(selectSpy).toHaveBeenCalledWith(101, 55);
       expect(selectSpy).not.toHaveBeenCalledWith(100, 77);
@@ -1509,8 +1839,10 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
-      comp.allComputingUnits = [makeComputingUnit({ cuid: 77, status: "Running" })];
+      const { comp, emit } = bootWithMetaStream([
+        makeComputingUnit({ cuid: 77, status: "Running" }),
+        makeComputingUnit({ cuid: 55, status: "Running" }),
+      ]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(101);
@@ -1526,7 +1858,7 @@ describe("PowerButtonComponent", () => {
         vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
           of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
         );
-        const { comp, emit } = bootWithMetaStream();
+        const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
         const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
         emit(100);
@@ -1541,7 +1873,7 @@ describe("PowerButtonComponent", () => {
       vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
         of({ cuId: 55 } as unknown as WorkflowExecutionsEntry)
       );
-      const { comp, emit } = bootWithMetaStream();
+      const { comp, emit } = bootWithMetaStream([makeComputingUnit({ cuid: 55, status: "Running" })]);
       const selectSpy = vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
 
       emit(100);
@@ -1571,9 +1903,37 @@ describe("PowerButtonComponent", () => {
   });
 
   describe("status helpers", () => {
+    it("the trigger's tooltip names the picker and the unit, in the warehouse trigger's shape", () => {
+      // Asserted through the rendered directive, not just the getter: the
+      // user-visible contract is one tooltip on the trigger, so a removed
+      // binding or a tooltip reintroduced on the name or badge must fail here.
+      component.selectedComputingUnit = makeComputingUnit({
+        name: "a-very-long-unit-name-that-truncates",
+        status: "Running",
+      });
+      fixture.detectChanges();
+
+      const trigger = fixture.debugElement.query(By.css(".computing-units-dropdown-button"));
+      const tooltip = trigger.injector.get(NzTooltipDirective) as NzTooltipDirective;
+      expect(tooltip.title).toBe("Computing Unit: a-very-long-unit-name-that-truncates");
+      expect(fixture.debugElement.query(By.css(".unit-name-text[nz-tooltip]"))).toBeNull();
+      expect(fixture.debugElement.query(By.css(".computing-units-dropdown-button nz-badge[nz-tooltip]"))).toBeNull();
+
+      // The status is not in it: the badge shows that here, in words in the rows.
+      component.selectedComputingUnit = makeComputingUnit({ name: "cu", status: "Pending" });
+      fixture.detectChanges();
+      expect(tooltip.title).toBe("Computing Unit: cu");
+
+      component.selectedComputingUnit = null;
+      fixture.detectChanges();
+      expect(tooltip.title).toBe("Computing Unit");
+    });
+
     it("computeStatus maps selection + status onto badge states", () => {
       component.selectedComputingUnit = null;
-      expect(component.computeStatus()).toBe("processing");
+      // Not "processing": nothing is being processed when nothing is selected,
+      // and ant renders that as a pulsing blue dot claiming work (#8587).
+      expect(component.computeStatus()).toBe("default");
       component.selectedComputingUnit = makeComputingUnit({ status: "Running" });
       expect(component.computeStatus()).toBe("success");
       component.selectedComputingUnit = makeComputingUnit({ status: "Pending" });
@@ -1936,13 +2296,13 @@ describe("PowerButtonComponent", () => {
       expect(host.querySelector(".connect-text")).toBeNull();
     });
 
-    it("renders the 'Connect' label on the trigger when no unit is selected", () => {
+    it("names the missing resource on the trigger when no unit is selected", () => {
       component.selectedComputingUnit = null;
       component.allComputingUnits = [];
       fixture.detectChanges();
 
       const host = fixture.nativeElement as HTMLElement;
-      expect(host.querySelector(".connect-text")?.textContent).toContain("Connect");
+      expect(host.querySelector(".connect-text")?.textContent).toContain("Computing Unit");
       expect(host.querySelector(".unit-name-text")).toBeNull();
     });
   });
@@ -2004,15 +2364,9 @@ describe("PowerButtonComponent", () => {
     it("maps a status to a badge color", () => {
       expect(component.getBadgeColor("Running")).toBe("green");
       expect(component.getBadgeColor("Pending")).toBe("gold");
+      expect(component.getBadgeColor("Terminating")).toBe("gold");
       expect(component.getBadgeColor("Failed")).toBe("red");
-    });
-
-    it("describes a unit's status as a tooltip", () => {
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Running" }))).toBe("Ready to use");
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Pending" }))).toBe(
-        "Computing unit is starting up"
-      );
-      expect(component.getUnitStatusTooltip(makeComputingUnit({ status: "Failed" }))).toBe("Failed");
+      expect(component.getBadgeColor("Unknown")).toBe("red");
     });
   });
 
@@ -2155,6 +2509,39 @@ describe("PowerButtonComponent", () => {
 
       expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(2);
       expect(selectSpy).toHaveBeenCalledWith(5, 2);
+    });
+
+    it.each(["Failed", "Unknown", "Terminating", "Pending"] as const)(
+      "ignores a click on a %s row, which nz-menu only greys out",
+      async status => {
+        // nzDisabled does not stop the (click) on the same <li>, so our own guard must.
+        component.allComputingUnits = [
+          makeComputingUnit({ cuid: 1, name: "Alpha" }),
+          makeComputingUnit({ cuid: 2, name: "Beta", status }),
+        ];
+        fixture.detectChanges();
+        // Spy on the only writer of the key, so the check holds even where Storage is unusable.
+        const rememberSpy = vi.spyOn(component as any, "rememberComputingUnit");
+        const rows = await openDropdown();
+
+        click(rows[1]);
+
+        expect(component.selectedComputingUnit).toBeNull();
+        expect(selectSpy).not.toHaveBeenCalled();
+        expect(rememberSpy).not.toHaveBeenCalled();
+        expect(Object.keys(localStorage)).not.toContain("computing-unit-of-workflow-5");
+      }
+    );
+
+    it("still selects a Running row, and remembers it", async () => {
+      const rememberSpy = vi.spyOn(component as any, "rememberComputingUnit");
+      const rows = await openDropdown();
+
+      click(rows[0]);
+
+      expect(component.selectedComputingUnit?.computingUnit.cuid).toBe(1);
+      expect(selectSpy).toHaveBeenCalledWith(5, 1);
+      expect(rememberSpy).toHaveBeenCalledWith(5, 1);
     });
 
     it("commits a rename when the inline editor loses focus", async () => {
@@ -2435,6 +2822,427 @@ describe("PowerButtonComponent", () => {
       });
       expect((component as any).recallComputingUnit(100)).toBeUndefined();
       getItem.mockRestore();
+    });
+  });
+
+  describe("warehouse picker (#7817)", () => {
+    function makeWarehouse(whid: number, name: string): DashboardWarehouse {
+      return {
+        whid,
+        name,
+        lakekeeperWarehouseName: `user-1-${name}`,
+        flavor: "local",
+        createdAtMillis: 0,
+        ownerName: "Alice",
+        ownerAvatar: "",
+      };
+    }
+
+    // Mirrors bootWithMetaStream, additionally pinning the warehouse status and
+    // the latest-execution response the preselection logic consumes.
+    function bootPicker(opts: {
+      enabled: boolean;
+      warehouses: DashboardWarehouse[];
+      latest?: Partial<WorkflowExecutionsEntry> | "error";
+    }): {
+      comp: ComputingUnitSelectionComponent;
+      pickerFixture: ComponentFixture<ComputingUnitSelectionComponent>;
+      emit: (wid: number) => void;
+    } {
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: opts.enabled, warehouses: opts.warehouses })
+      );
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      if (opts.latest === "error") {
+        vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+          throwError(() => new Error("no execution"))
+        );
+      } else if (opts.latest !== undefined) {
+        vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+          of(opts.latest as WorkflowExecutionsEntry)
+        );
+      }
+      const actionService = TestBed.inject(WorkflowActionService);
+      const meta$ = new Subject<WorkflowMetadata>();
+      vi.spyOn(actionService, "workflowMetaDataChanged").mockReturnValue(meta$.asObservable());
+      let currentMeta: WorkflowMetadata = { ...DEFAULT_WORKFLOW };
+      vi.spyOn(actionService, "getWorkflowMetadata").mockImplementation(() => currentMeta);
+      const pickerFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      pickerFixture.detectChanges();
+      const comp = pickerFixture.componentInstance;
+      vi.spyOn(comp, "selectComputingUnit").mockImplementation(() => {});
+      const emit = (wid: number) => {
+        currentMeta = { ...DEFAULT_WORKFLOW, wid };
+        meta$.next(currentMeta);
+      };
+      return { comp, pickerFixture, emit };
+    }
+
+    it("preselects the latest execution's warehouse when it still exists", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("falls back to the first warehouse when the latest execution used none", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: null },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("still preselects the first warehouse when there is no execution history", () => {
+      const { emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: "error",
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("never picks a warehouse while the feature is disabled, and hides the picker", () => {
+      // Warehouses alongside enabled=false cannot come from the real backend; the
+      // artificial combination pins that the flag alone suppresses preselection.
+      const { pickerFixture, emit } = bootPicker({
+        enabled: false,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: { cuId: 55, whId: 1 },
+      });
+
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeNull();
+    });
+
+    it("a status failure keeps the last known list and pick, and reports the error", () => {
+      // A transport failure is not an answer; only an authoritative response
+      // (enabled:false, or a list without the pick) may clear the pick.
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        throwError(() => new Error("status unavailable"))
+      );
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1, 2]);
+      expect(errorSpy).toHaveBeenCalledWith("Failed to fetch warehouses: status unavailable");
+    });
+
+    it("clears any stale pick when the feature is disabled or no warehouse exists", () => {
+      TestBed.inject(WarehouseService).selectWarehouse(9);
+
+      const { emit } = bootPicker({ enabled: true, warehouses: [], latest: { cuId: 55, whId: 9 } });
+      emit(100);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+    });
+
+    it("renders the dropdown trigger when enabled, and a manual pick writes through to the service", () => {
+      const { comp, pickerFixture } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+
+      pickerFixture.detectChanges();
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeTruthy();
+
+      comp.onWarehouseSelected(2);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      expect(comp.trackByWhid(0, makeWarehouse(2, "second"))).toBe(2);
+    });
+
+    it("shows the trigger with the generic label when enabled with zero warehouses", () => {
+      const { comp, pickerFixture } = bootPicker({ enabled: true, warehouses: [] });
+
+      pickerFixture.detectChanges();
+
+      expect(pickerFixture.nativeElement.querySelector(".warehouse-dropdown-button")).toBeTruthy();
+      expect(comp.getWarehouseButtonText()).toBe("Warehouse");
+      expect(comp.warehouseRequiredButMissing).toBe(true);
+    });
+
+    it("reports no missing warehouse once the preselect has picked one", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+
+      expect(comp.warehouseRequiredButMissing).toBe(false);
+    });
+
+    it("shows the selected warehouse's name on the dropdown trigger", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+
+      emit(100);
+      expect(comp.getWarehouseButtonText()).toBe("second");
+
+      // An id that matches no warehouse falls back to the generic label.
+      TestBed.inject(WarehouseService).selectWarehouse(999);
+      expect(comp.getWarehouseButtonText()).toBe("Warehouse");
+    });
+
+    it("refreshes the warehouse list when the dropdown opens, not when it closes", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear();
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+      expect(statusSpy).toHaveBeenCalledTimes(1);
+
+      comp.onWarehouseDropdownVisibilityChange(false);
+      expect(statusSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps a manual pick across a dropdown-open refresh", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      comp.onWarehouseSelected(2);
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("re-preselects when the picked warehouse no longer exists", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      comp.onWarehouseSelected(2);
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(1, "first")] })
+      );
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("opens the create modal from the menu, and selects a warehouse created there", () => {
+      const { comp } = bootPicker({ enabled: true, warehouses: [makeWarehouse(1, "first")] });
+
+      expect(comp.addWarehouseModalVisible).toBe(false);
+      comp.showAddWarehouseModalVisible();
+      expect(comp.addWarehouseModalVisible).toBe(true);
+
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(1, "first"), makeWarehouse(9, "fresh")] })
+      );
+      comp.onWarehouseCreated(makeWarehouse(9, "fresh"));
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(9);
+    });
+
+    it("hands the warehouse to the actions service, and re-preselects after the delete", () => {
+      const { comp } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      const actionsService = TestBed.inject(WarehouseActionsService);
+      const confirmAndDeleteSpy = vi.spyOn(actionsService, "confirmAndDelete").mockImplementation(() => {});
+      const doomed = makeWarehouse(1, "first");
+
+      comp.confirmDeleteWarehouse(doomed);
+
+      expect(confirmAndDeleteSpy).toHaveBeenCalledTimes(1);
+      expect(confirmAndDeleteSpy.mock.calls[0][0]).toEqual(doomed);
+
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        of({ enabled: true, warehouses: [makeWarehouse(2, "second")] })
+      );
+      (confirmAndDeleteSpy.mock.calls[0][1] as () => void)();
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("a stale last-execution warehouse never steers the next workflow's fallback", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+
+      // The next workflow has no history: its fallback must be the FIRST
+      // warehouse, not the previous workflow's.
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      emit(200);
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("a late response from a superseded refresh cannot restore stale state", () => {
+      const first = new Subject<{ enabled: boolean; warehouses: DashboardWarehouse[] }>();
+      const second = new Subject<{ enabled: boolean; warehouses: DashboardWarehouse[] }>();
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus")
+        .mockReturnValueOnce(first.asObservable())
+        .mockReturnValueOnce(second.asObservable());
+      const execService = TestBed.inject(WorkflowExecutionsService);
+      vi.spyOn(execService, "retrieveLatestWorkflowExecution").mockReturnValue(
+        throwError(() => new Error("no execution"))
+      );
+      const pickerFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      pickerFixture.detectChanges();
+      const comp = pickerFixture.componentInstance;
+
+      comp.onWarehouseDropdownVisibilityChange(true);
+      second.next({ enabled: true, warehouses: [makeWarehouse(2, "kept")] });
+      second.complete();
+      // The older request settles last; switchMap must already have dropped it.
+      first.next({ enabled: true, warehouses: [makeWarehouse(1, "stale"), makeWarehouse(9, "gone")] });
+      first.complete();
+
+      expect(comp.warehouses.map(w => w.name)).toEqual(["kept"]);
+    });
+
+    it("a status failure keeps the gate closed on an enabled deployment", () => {
+      // Failing open would un-gate Run and let the execution write to the
+      // shared default storage with no warehouseId.
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
+      vi.spyOn(TestBed.inject(WarehouseService), "getStatus").mockReturnValue(
+        throwError(() => new Error("status unavailable"))
+      );
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const failedFixture = TestBed.createComponent(ComputingUnitSelectionComponent);
+      failedFixture.detectChanges();
+
+      expect(failedFixture.componentInstance.warehouseRequiredButMissing).toBe(true);
+      errorSpy.mockRestore();
+      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
+    });
+
+    it("a manual pick survives a late latest-execution answer", () => {
+      const inFlight = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveLatestWorkflowExecution").mockReturnValue(
+        inFlight.asObservable()
+      );
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+      });
+      emit(100);
+
+      comp.onWarehouseSelected(2);
+      inFlight.next({ cuId: 55, whId: 1 } as unknown as WorkflowExecutionsEntry);
+      inFlight.complete();
+
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+    });
+
+    it("switching workflows clears the pick at once, before the new preselect answers", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      comp.onWarehouseSelected(2);
+
+      // The new workflow's lookup stays pending: in that window nothing of the
+      // old workflow's pick may ride an execution.
+      const pending = new Subject<WorkflowExecutionsEntry>();
+      vi.spyOn(TestBed.inject(WorkflowExecutionsService), "retrieveLatestWorkflowExecution").mockReturnValue(
+        pending.asObservable()
+      );
+      emit(200);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBeUndefined();
+
+      pending.error(new Error("no execution"));
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+    });
+
+    it("deleting the picked warehouse removes it locally and re-preselects, with no refetch", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first"), makeWarehouse(2, "second")],
+        latest: { cuId: 55, whId: 2 },
+      });
+      emit(100);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(2);
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear(); // drop the boot-time call; only the action below counts
+      const deleteSpy = vi
+        .spyOn(TestBed.inject(WarehouseActionsService), "confirmAndDelete")
+        .mockImplementation((_warehouse, onDeleted) => onDeleted());
+
+      comp.confirmDeleteWarehouse(makeWarehouse(2, "second"));
+
+      expect(deleteSpy).toHaveBeenCalledTimes(1);
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1]);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(1);
+      expect(statusSpy).not.toHaveBeenCalled();
+    });
+
+    it("a created warehouse is appended locally and becomes the pick, with no refetch", () => {
+      const { comp, emit } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "first")],
+        latest: "error",
+      });
+      emit(100);
+      const statusSpy = vi.spyOn(TestBed.inject(WarehouseService), "getStatus");
+      statusSpy.mockClear(); // drop the boot-time call; only the action below counts
+
+      comp.onWarehouseCreated(makeWarehouse(9, "fresh"));
+
+      expect(comp.warehouses.map(w => w.whid)).toEqual([1, 9]);
+      expect(TestBed.inject(WarehouseService).getSelectedWarehouseIdValue()).toBe(9);
+      expect(statusSpy).not.toHaveBeenCalled();
+    });
+
+    it("the trigger's tooltip names the picker and the warehouse, whatever the name's length", () => {
+      // Two pickers sit side by side showing nothing but a name, and the
+      // trigger ellipsises at 220px: one tooltip carries both facts, in the
+      // same shape every time, rather than a second one nested on the name.
+      const { comp, pickerFixture } = bootPicker({
+        enabled: true,
+        warehouses: [makeWarehouse(1, "wh"), makeWarehouse(2, "a-very-long-warehouse-name-that-truncates")],
+        latest: "error",
+      });
+      pickerFixture.detectChanges();
+      const trigger = pickerFixture.debugElement.query(By.css(".warehouse-dropdown-button"));
+      const tooltip = trigger.injector.get(NzTooltipDirective) as NzTooltipDirective;
+
+      comp.onWarehouseSelected(2);
+      pickerFixture.detectChanges();
+      expect(tooltip.title).toBe("Warehouse: a-very-long-warehouse-name-that-truncates");
+
+      comp.onWarehouseSelected(1);
+      pickerFixture.detectChanges();
+      expect(tooltip.title).toBe("Warehouse: wh");
+
+      expect(pickerFixture.debugElement.query(By.css(".warehouse-name-text[nz-tooltip]"))).toBeNull();
     });
   });
 });

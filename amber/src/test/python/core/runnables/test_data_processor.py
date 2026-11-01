@@ -15,14 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
+from types import SimpleNamespace
+
 import pytest
 
+from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
+from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.managers import Context
-from core.models import State
+from core.models import Schema, State, Tuple
 from core.models.internal_queue import InternalQueue
-from core.models.internal_marker import EndChannel, StartChannel
+from core.models.internal_marker import EndChannel, InternalMarker, StartChannel
 from core.runnables.data_processor import DataProcessor
-from proto.org.apache.texera.amber.engine.architecture.rpc import ConsoleMessageType
+from proto.org.apache.texera.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+    PortIdentity,
+)
+from proto.org.apache.texera.amber.engine.architecture.rpc import (
+    ConsoleMessageType,
+    EmptyRequest,
+)
 
 
 @pytest.fixture
@@ -56,6 +69,9 @@ class _StubExecutor:
 
     def __init__(self):
         self.calls = []
+        # A real Operator carries this, and a finishing port declares its schema
+        # into it so an operator handed no rows can still say what it read.
+        self.input_schemas = {}
 
     def produce_state_on_start(self, port_id):
         self.calls.append(("produce_state_on_start", port_id))
@@ -69,8 +85,79 @@ class _StubExecutor:
         self.calls.append(("on_finish", port_id))
         return iter([])
 
+    def process_tuple(self, tuple_, port_id):
+        self.calls.append(("process_tuple", port_id))
+        return iter([])
+
 
 class TestProcessInternalMarker:
+    @pytest.mark.parametrize(
+        "marker", [None, InternalMarker(), SimpleNamespace(port_id=1)]
+    )
+    def test_rejects_non_port_markers_before_entering_executor(
+        self, context, data_processor, marker
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+        with pytest.raises(TypeError, match="PortMarker"):
+            data_processor.process_internal_marker(marker)
+        assert executor.calls == []
+        assert data_processor.switch_calls == 0
+
+    @pytest.mark.parametrize("finish", [False, True])
+    @pytest.mark.timeout(2)
+    def test_handlers_route_empty_second_port_to_lifecycle_callbacks(
+        self, context, data_processor, finish
+    ):
+        executor = _StubExecutor()
+        context.executor_manager.executor = executor
+        channels = []
+        for port_id in (0, 1):
+            port = PortIdentity(port_id, False)
+            channel = ChannelIdentity(
+                ActorVirtualIdentity(f"upstream-{port_id}"),
+                ActorVirtualIdentity(context.worker_id),
+                False,
+            )
+            context.input_manager.add_input_port(port, Schema(), [], [])
+            context.input_manager.register_input(channel, port)
+            channels.append(channel)
+
+        tpm = context.tuple_processing_manager
+        if finish:
+            context.current_input_channel_id = channels[0]
+            tpm.current_input_port_id = context.input_manager.get_port_id(channels[0])
+            tpm.current_input_tuple = Tuple({"value": 1})
+            data_processor.process_tuple()
+            assert executor.calls == [("process_tuple", 0)]
+        else:
+            assert tpm.current_input_port_id is None
+
+        context.current_input_channel_id = channels[1]
+        if finish:
+            asyncio.run(EndChannelHandler(context).end_channel(EmptyRequest()))
+        else:
+            asyncio.run(StartChannelHandler(context).start_channel(EmptyRequest()))
+        data_processor.process_internal_marker(tpm.get_internal_marker())
+
+        expected = (
+            [("process_tuple", 0), ("produce_state_on_finish", 1), ("on_finish", 1)]
+            if finish
+            else [("produce_state_on_start", 1)]
+        )
+        assert executor.calls == expected
+        assert not context.exception_manager.has_exception()
+        assert not context.input_manager.get_port(PortIdentity(0, False)).completed
+        assert (
+            context.input_manager.get_port(PortIdentity(1, False)).completed is finish
+        )
+
+    @pytest.mark.parametrize("marker", [StartChannel, EndChannel])
+    @pytest.mark.parametrize("port_id", [-1, True, "1"])
+    def test_channel_markers_reject_invalid_port_identity(self, marker, port_id):
+        with pytest.raises(ValueError, match="nonnegative integer"):
+            marker(port_id)
+
     @pytest.mark.timeout(2)
     def test_start_channel_invokes_produce_state_on_start(
         self, context, data_processor
@@ -78,12 +165,12 @@ class TestProcessInternalMarker:
         executor = _StubExecutor()
         context.executor_manager.executor = executor
 
-        data_processor.process_internal_marker(StartChannel())
+        context.tuple_processing_manager.current_input_port_id = object()
+        data_processor.process_internal_marker(StartChannel(2))
 
-        # StartChannel routes to produce_state_on_start with the current
-        # input port id (0 when no upstream is set), and the returned dict
-        # is wrapped into a State on the output slot.
-        assert executor.calls == [("produce_state_on_start", 0)]
+        # The marker owns its port.  A stale data-port slot must not redirect
+        # control to whichever input happened to deliver the last tuple.
+        assert executor.calls == [("produce_state_on_start", 2)]
         out = context.state_processing_manager.current_output_state
         assert isinstance(out, State)
         assert out["phase"] == "start"
@@ -97,15 +184,16 @@ class TestProcessInternalMarker:
         executor = _StubExecutor()
         context.executor_manager.executor = executor
 
-        data_processor.process_internal_marker(EndChannel())
+        context.tuple_processing_manager.current_input_port_id = object()
+        data_processor.process_internal_marker(EndChannel(1))
 
         # EndChannel must call produce_state_on_finish first, switch
         # context to flush that state separately from the on_finish
         # tuple stream, then drain on_finish. The session itself adds
         # its own trailing switch on exit.
         assert executor.calls == [
-            ("produce_state_on_finish", 0),
-            ("on_finish", 0),
+            ("produce_state_on_finish", 1),
+            ("on_finish", 1),
         ]
         # 1 switch from the explicit flush + 1 from `_executor_session`
         # exit. `_set_output_tuple` exits early on an empty iterator and
@@ -198,10 +286,185 @@ class TestRunInvariant:
     def test_two_queued_inputs_raises_invariant_error(self, context, monkeypatch):
         dp = self._drive_run_synchronously(context, monkeypatch)
         # Populate two slots — has_marker + has_tuple == 2.
-        context.tuple_processing_manager.current_internal_marker = StartChannel()
+        context.tuple_processing_manager.current_internal_marker = StartChannel(0)
         context.tuple_processing_manager.current_input_tuple = ("payload",)
         with pytest.raises(RuntimeError) as excinfo:
             dp.run()
         assert "expected exactly one queued input" in str(excinfo.value)
         assert "marker=True" in str(excinfo.value)
         assert "tuple=True" in str(excinfo.value)
+
+
+class _ReturningExecutor:
+    """process_tuple uses `return` instead of `yield`."""
+
+    def process_tuple(self, tuple_, port_id):
+        return tuple_
+
+
+class TestUDFOutputMistakes:
+    @pytest.fixture
+    def output_schema(self, context, monkeypatch):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        return schema
+
+    @pytest.mark.timeout(2)
+    def test_process_tuple_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _ReturningExecutor()
+        context.tuple_processing_manager.current_input_tuple = Tuple({"x": 1})
+
+        def switch_and_stop():
+            data_processor.switch_calls += 1
+            context.tuple_processing_manager.finished_current.set()
+
+        data_processor._switch_context = switch_and_stop
+        data_processor.process_tuple()
+
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "process_tuple must `yield` results, not `return` them" in str(
+            exc_info[1]
+        )
+
+    def test_dict_of_dataframes_says_to_yield_the_dataframe(
+        self, data_processor, output_schema
+    ):
+        import pandas
+
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"x": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself instead of a dict" in str(exc_info.value)
+
+    def test_schema_mismatch_points_to_output_columns(
+        self, data_processor, output_schema
+    ):
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        message = str(exc_info.value)
+        assert "expected but missing" in message
+        assert "Extra output column(s)" in message
+
+
+class _FinishReturningExecutor:
+    """on_finish uses `return` instead of `yield`."""
+
+    def produce_state_on_finish(self, port_id):
+        return None
+
+    def on_finish(self, port_id):
+        return {"x": 1}
+
+
+class TestUDFOutputMistakesFollowUp:
+    def _use_schema(self, context, monkeypatch, raw_schema):
+        schema = Schema(raw_schema=raw_schema)
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+
+    def test_dict_holding_a_dataframe_into_a_binary_column_still_works(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # BINARY columns pickle any value, so this is valid output on main.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        data_processor._set_output_tuple(
+            iter([{"result": pandas.DataFrame({"x": [1]})}])
+        )
+        assert context.tuple_processing_manager.finished_current.is_set()
+
+    def test_wrong_column_type_points_to_output_columns(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(iter([{"x": "not a number"}]))
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'x'" in message
+        assert "Extra output column(s)" in message
+
+    @pytest.mark.timeout(2)
+    def test_on_finish_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _FinishReturningExecutor()
+        data_processor.process_internal_marker(EndChannel(0))
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "on_finish must `yield` results, not `return` them" in str(exc_info[1])
+
+    def test_misspelled_column_next_to_a_dataframe_gets_the_column_hint(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The DataFrame is fine (BINARY column); the column name is wrong.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"res": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Extra output column(s)" in message
+        assert "dict of DataFrames" not in message
+
+    def test_dataframe_in_a_non_binary_column_says_to_yield_the_dataframe(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"result": "STRING"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"result": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself" in str(exc_info.value)
+
+    def test_missing_column_is_reported_even_with_a_dataframe_in_another_column(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The real problem is the missing "count" column, not the DataFrame.
+        self._use_schema(
+            context,
+            monkeypatch,
+            {"name": "STRING", "count": "INTEGER", "stats": "STRING"},
+        )
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"name": "a", "stats": pandas.DataFrame({"v": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "'count'" in message and "expected but missing" in message
+        assert "DataFrame" not in message.split("]")[-1]
+
+    def test_dataframe_hint_names_the_column_and_keeps_the_original_error(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"r": "LARGE_BINARY"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"r": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'r'" in message
+        assert "column 'r'" in message
+
+    def test_column_hint_mentions_the_source_udf_columns_setting(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        assert "'Columns'" in str(exc_info.value)

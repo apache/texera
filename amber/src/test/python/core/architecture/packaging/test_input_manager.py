@@ -73,6 +73,14 @@ class TestPortIdentityDefaults:
         # PortIdentity(0, False) resolves to the very same port.
         assert manager.get_port(PortIdentity(0, False)).get_schema() == schema
 
+    def test_get_port_resolves_unset_zero_identity(self, manager):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        manager.add_input_port(PortIdentity(0, False), schema, [], [])
+
+        assert manager.get_port(PortIdentity()).get_schema() == schema
+        with pytest.raises(KeyError, match="unknown input port"):
+            manager.get_port(PortIdentity(1, False))
+
     def test_register_input_defaults_unset_fields(self, manager):
         canonical = PortIdentity(0, False)
         manager.add_input_port(canonical, Schema(raw_schema={"x": "INTEGER"}), [], [])

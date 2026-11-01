@@ -159,6 +159,16 @@
         <sqlFile path="sql/updates/49.sql"/>
     </changeSet>
 
+    <!-- Curated computing-unit images an administrator registers -->
+    <changeSet id="50" author="tanishqgandhi1908">
+        <sqlFile path="sql/updates/50.sql"/>
+    </changeSet>
+
+    <!-- Record why a computing unit was terminated and index workflow_executions.cuid -->
+    <changeSet id="51" author="yrenat">
+        <sqlFile path="sql/updates/51.sql"/>
+    </changeSet>
+
     <!-- example changeSet
     <changeSet id="1" author="author">
         <sqlFile path="sql/updates/1.sql"/>

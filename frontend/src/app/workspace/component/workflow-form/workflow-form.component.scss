@@ -456,8 +456,10 @@ $shell: #fafafa;
       min-width: 0;
     }
 
-    /* Matched to Run's height so the pair reads as one row of controls. */
-    ::ng-deep .computing-units-dropdown-button {
+    /* Matched to Run's height so the row of controls reads as one. Both pickers, not just the
+       computing-unit one this rule predates. */
+    ::ng-deep .computing-units-dropdown-button,
+    ::ng-deep .warehouse-dropdown-button {
       height: 40px;
     }
   }

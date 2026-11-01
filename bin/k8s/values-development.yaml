@@ -81,7 +81,7 @@ rustfs:
   image:
     rustfs:
       repository: rustfs/rustfs
-      tag: 1.0.0-rc.6
+      tag: 1.0.0
   resources:
     requests:
       memory: "256Mi"
@@ -360,6 +360,14 @@ texeraEnvVars:
     value: "false"
   - name: KUBERNETES_COMPUTING_UNIT_ENABLED
     value: "true"
+  # Periodic termination of idle Kubernetes computing units. Off by default; set the timeout to
+  # match how long a deployment's users expect an untouched unit to stay alive before enabling.
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CLEANUP_ENABLED
+    value: "false"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_TIMEOUT_MINUTES
+    value: "1440"
+  - name: KUBERNETES_COMPUTING_UNIT_IDLE_CHECK_INTERVAL_MINUTES
+    value: "60"
   - name: KUBERNETES_IMAGE_PULL_POLICY
     value: "IfNotPresent"
   - name: GUI_WORKFLOW_WORKSPACE_PYTHON_LANGUAGE_SERVER_PORT
@@ -427,6 +435,21 @@ texeraEnvVars:
     # same value, so this is a fixed shared string rather than a per-pod random one.
     # Production environments MUST override this with a securely generated secret.
     value: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  # OpenTelemetry (observability). Disabled by default; set OTEL_SDK_DISABLED to
+  # "false" and point the endpoint at a reachable OTLP collector (http/https only) to enable.
+  - name: OTEL_SDK_DISABLED
+    value: "true"
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://127.0.0.1:4317"
+  # Comma-separated resource attributes (k1=v1,k2=v2); service.name is set per service.
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: ""
+  # Comma-separated extra hosts allowed for the OTLP endpoint (loopback allowed by default).
+  - name: TEXERA_OTEL_ALLOWED_HOSTS
+    value: ""
+  # Metric export interval in ms.
+  - name: OTEL_METRIC_EXPORT_INTERVAL
+    value: "30000"
 
 yWebsocketServer:
   name: y-websocket-server

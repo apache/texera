@@ -24,7 +24,6 @@ import { FieldTypeConfig } from "@ngx-formly/core";
 import { of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DatasetFileSelectorComponent } from "./dataset-file-selector.component";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("DatasetFileSelectorComponent", () => {
@@ -54,7 +53,6 @@ describe("DatasetFileSelectorComponent", () => {
       imports: [DatasetFileSelectorComponent],
       providers: [
         { provide: NzModalService, useValue: modalServiceSpy },
-        { provide: WorkflowActionService, useValue: {} },
         { provide: GuiConfigService, useValue: guiConfigStub },
       ],
     }).compileComponents();

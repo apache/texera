@@ -28,7 +28,7 @@ import { BehaviorSubject, Observable, Subject, of, throwError } from "rxjs";
 import { AgentChatComponent } from "./agent-chat.component";
 import { ReActStepDetailModalComponent } from "../react-step-detail-modal/react-step-detail-modal.component";
 import { AgentInfo, AgentService, AgentSettingsApi } from "../../../../service/agent/agent.service";
-import { AgentState, ReActStep, ToolOperatorAccess } from "../../../../service/agent/agent-types";
+import { AgentState, ReActStep } from "../../../../service/agent/agent-types";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
@@ -48,8 +48,6 @@ class MockAgentService {
   public stepsSubject = new BehaviorSubject<ReActStep[]>([]);
   public headIdSubject = new BehaviorSubject<string | null>(null);
   public workflowSubject = new BehaviorSubject<Workflow | null>(null);
-  public scrollToStepSubject = new Subject<{ agentId: string; messageId: string; stepId: number }>();
-  public scrollToStep$ = this.scrollToStepSubject.asObservable();
 
   public ensureWorkflowPolling = vi.fn();
   public getAgentState = vi.fn((): Observable<AgentState> => of(this.stateSubject.getValue()));
@@ -112,22 +110,16 @@ describe("AgentChatComponent", () => {
   let persist: { setWorkflowPersistFlag: ReturnType<typeof vi.fn> };
   let createObjectURL: ReturnType<typeof vi.fn>;
   let revokeObjectURL: ReturnType<typeof vi.fn>;
-  let scrollIntoViewMock: ReturnType<typeof vi.fn>;
   // Originals of the globals we overwrite below, captured so afterEach can restore them
   // (direct assignment is not undone by vi.restoreAllMocks, so they would leak across spec files).
-  let origScrollIntoView: typeof Element.prototype.scrollIntoView;
   let origCreateObjectURL: typeof URL.createObjectURL;
   let origRevokeObjectURL: typeof URL.revokeObjectURL;
 
   beforeEach(async () => {
-    // jsdom gaps: Element#scrollIntoView and URL.createObjectURL/revokeObjectURL
-    // are not implemented; the component calls them from scrollToMessage and
-    // exportReActSteps.
-    origScrollIntoView = Element.prototype.scrollIntoView;
+    // jsdom gap: URL.createObjectURL/revokeObjectURL are not implemented; the
+    // component calls them from exportReActSteps.
     origCreateObjectURL = URL.createObjectURL;
     origRevokeObjectURL = URL.revokeObjectURL;
-    scrollIntoViewMock = vi.fn();
-    (Element.prototype as any).scrollIntoView = scrollIntoViewMock;
     createObjectURL = vi.fn(() => "blob:mock-url");
     revokeObjectURL = vi.fn();
     (URL as any).createObjectURL = createObjectURL;
@@ -168,7 +160,6 @@ describe("AgentChatComponent", () => {
     // stay test-local without detaching the element CDK's OverlayContainer caches.
     document.querySelectorAll(".cdk-overlay-container").forEach(el => (el.innerHTML = ""));
     // Restore the globals overwritten by direct assignment in beforeEach.
-    Element.prototype.scrollIntoView = origScrollIntoView;
     URL.createObjectURL = origCreateObjectURL;
     URL.revokeObjectURL = origRevokeObjectURL;
     vi.restoreAllMocks();
@@ -450,42 +441,6 @@ describe("AgentChatComponent", () => {
     });
   });
 
-  describe("tool result and operator-access helpers", () => {
-    it("prefers output, then result, then the raw entry", () => {
-      createComponent();
-      const step = makeStep({ toolResults: [{ output: "out" }, { result: "res" }, { other: 1 }] });
-      expect(component.getToolResult(step, 0)).toBe("out");
-      expect(component.getToolResult(step, 1)).toBe("res");
-      expect(component.getToolResult(step, 2)).toEqual({ other: 1 });
-    });
-
-    it("returns null for missing tool results or an out-of-range index", () => {
-      createComponent();
-      expect(component.getToolResult(makeStep(), 0)).toBeNull();
-      expect(component.getToolResult(makeStep({ toolResults: [{ output: "x" }] }), 5)).toBeNull();
-    });
-
-    it("resolves per-tool-call operator access from the map", () => {
-      createComponent();
-      const access: ToolOperatorAccess = {
-        viewedOperatorIds: ["op-v"],
-        addedOperatorIds: [],
-        modifiedOperatorIds: ["op-m"],
-      };
-      const step = makeStep({ operatorAccess: new Map([[0, access]]) });
-      expect(component.getToolOperatorAccess(step, 0)).toBe(access);
-      expect(component.getToolOperatorAccess(step, 1)).toBeNull();
-      expect(component.hasOperatorAccess(step)).toBe(true);
-    });
-
-    it("reports no operator access for a missing or empty map", () => {
-      createComponent();
-      expect(component.getToolOperatorAccess(makeStep(), 0)).toBeNull();
-      expect(component.hasOperatorAccess(makeStep())).toBe(false);
-      expect(component.hasOperatorAccess(makeStep({ operatorAccess: new Map() }))).toBe(false);
-    });
-  });
-
   describe("showSystemInfo / refreshSystemInfo", () => {
     it("populates prompt and tools, applies default settings, and sorts operator types", () => {
       createComponent();
@@ -719,33 +674,6 @@ describe("AgentChatComponent", () => {
 
       expect(notification.error).toHaveBeenCalledWith("Failed to export ReAct steps");
       expect(createObjectURL).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("scroll-to-step requests", () => {
-    it("scrolls to and highlights the requested step of this agent", () => {
-      createComponent();
-      const s0 = makeStep({ messageId: "m1", stepId: 0 });
-      const s1 = makeStep({ messageId: "m1", stepId: 1 });
-      agentService.stepsSubject.next([s0, s1]);
-      fixture.detectChanges();
-      agentService.setHoveredMessage.mockClear();
-
-      agentService.scrollToStepSubject.next({ agentId: AGENT_ID, messageId: "m1", stepId: 0 });
-
-      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-      expect(component.hoveredMessageIndex).toBe(0);
-      expect(agentService.setHoveredMessage).toHaveBeenCalledWith(AGENT_ID, s0);
-    });
-
-    it("ignores scroll requests addressed to other agents", () => {
-      createComponent();
-      agentService.stepsSubject.next([makeStep()]);
-      fixture.detectChanges();
-
-      agentService.scrollToStepSubject.next({ agentId: "someone-else", messageId: "m1", stepId: 0 });
-
-      expect(scrollIntoViewMock).not.toHaveBeenCalled();
     });
   });
 

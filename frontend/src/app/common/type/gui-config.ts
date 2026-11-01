@@ -40,10 +40,12 @@ export interface GuiConfig {
   defaultExecutionMode: ExecutionMode;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;
+  warehouseEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
+  aiFixModel: string;
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
